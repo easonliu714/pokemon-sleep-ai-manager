@@ -1,0 +1,29 @@
+# Private Pokémon Sleep account data — never commit
+private-data/
+local-data/
+imports/private/
+exports/private/
+screenshots/
+
+# Personal databases and update packages
+*.sqlite
+*.sqlite3
+*.db
+*.db3
+*.zip
+*.7z
+*.rar
+*.heic
+*.webp
+
+# Personal JSON exports; keep only explicit public examples
+*.private.json
+*_personal.json
+*_account.json
+pokemon_sleep_full.json
+pokemon_sleep_initial_data*.json
+
+# Local tooling
+.DS_Store
+Thumbs.db
+node_modules/
