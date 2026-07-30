@@ -1,1 +1,132 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#1f7a5a"><title>Pokémon Sleep AI Manager</title><style>body{font-family:system-ui;margin:0;background:#f4f7f5;color:#20342d}header{background:#1f7a5a;color:#fff;padding:24px}main{padding:24px;max-width:760px;margin:auto}.card{background:#fff;padding:20px;border-radius:14px;margin:16px 0;border:1px solid #dbe4df}code{word-break:break-all}</style></head><body><header><h1>Pokémon Sleep AI Manager</h1><p>GitHub Pages 部署測試頁</p></header><main><div class="card"><h2>部署成功</h2><p>GitHub Pages 與 Actions 已完成基本設定。完整 PWA 程式將於下一個 commit 匯入。</p></div><div class="card"><p>Repository：<code>easonliu714/pokemon-sleep-ai-manager</code></p></div></main></body></html>
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#1f7a5a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Pokémon Sleep AI Manager</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/icons/icon.svg">
+  <link rel="stylesheet" href="./assets/css/app.css">
+</head>
+<body>
+<header>
+  <div>
+    <h1>Pokémon Sleep AI Manager</h1>
+    <p>純瀏覽器 PWA · 個人 SQLite 保存在本機裝置</p>
+  </div>
+  <span id="dbStatus" class="badge pending">資料庫初始化中</span>
+</header>
+
+<div id="storageWarning" class="warning hidden"></div>
+
+<nav>
+  <button class="active" data-view="dashboard">儀表板</button>
+  <button data-view="pokemon">寶可夢</button>
+  <button data-view="ingredients">食材</button>
+  <button data-view="items">道具</button>
+  <button data-view="recipes">食譜</button>
+  <button data-view="updates">更新中心</button>
+  <button data-view="backup">備份還原</button>
+  <button data-view="guide">使用說明</button>
+</nav>
+
+<main>
+  <section id="dashboard" class="view active">
+    <div class="section-head">
+      <h2>帳號摘要</h2>
+      <button id="requestPersistenceBtn">要求持久化儲存</button>
+    </div>
+    <div id="capacityCards" class="cards"></div>
+    <div class="cards">
+      <article><strong id="pokemonCount">—</strong><span>寶可夢</span></article>
+      <article><strong id="ingredientCount">—</strong><span>食材種類</span></article>
+      <article><strong id="itemCount">—</strong><span>道具種類</span></article>
+      <article><strong id="recipeUnlocked">—</strong><span>已開啟食譜</span></article>
+    </div>
+    <h3>評級分布</h3>
+    <div id="ratingSummary" class="rating-grid"></div>
+    <h3>本機儲存狀態</h3>
+    <div id="storageSummary" class="panel"></div>
+  </section>
+
+  <section id="pokemon" class="view">
+    <div class="section-head">
+      <h2>寶可夢資料庫</h2>
+      <input id="pokemonSearch" placeholder="搜尋名稱、暱稱、定位">
+    </div>
+    <div class="table-wrap"><table id="pokemonTable"></table></div>
+  </section>
+
+  <section id="ingredients" class="view">
+    <h2>食材庫存</h2>
+    <div class="table-wrap"><table id="ingredientTable"></table></div>
+  </section>
+
+  <section id="items" class="view">
+    <h2>道具庫存</h2>
+    <div class="table-wrap"><table id="itemTable"></table></div>
+  </section>
+
+  <section id="recipes" class="view">
+    <h2>食譜資料庫</h2>
+    <p class="notice">食譜會由初始化資料或後續 JSON 更新包匯入。</p>
+    <div class="table-wrap"><table id="recipeTable"></table></div>
+  </section>
+
+  <section id="updates" class="view">
+    <h2>JSON 更新中心</h2>
+    <div class="two-col">
+      <article class="panel">
+        <h3>1. 選擇更新包</h3>
+        <input id="jsonFile" type="file" accept=".json,application/json">
+        <div class="buttons">
+          <button id="dryRunBtn">Dry Run</button>
+          <button id="applyBtn" class="danger" disabled>套用更新</button>
+        </div>
+        <p class="notice">套用前自動建立本機快照；任一操作失敗會 rollback。</p>
+      </article>
+      <article class="panel">
+        <h3>2. 差異摘要</h3>
+        <div id="importSummary">尚未選擇更新包。</div>
+      </article>
+    </div>
+    <div class="table-wrap"><table id="changeTable"></table></div>
+    <h3>匯入歷程</h3>
+    <div class="table-wrap"><table id="historyTable"></table></div>
+  </section>
+
+  <section id="backup" class="view">
+    <h2>備份與還原</h2>
+    <div class="cards">
+      <article><strong>SQLite</strong><span>完整資料庫檔案</span><button id="downloadDbBtn">下載 .sqlite3</button></article>
+      <article><strong>JSON</strong><span>可閱讀的完整資料</span><button id="downloadJsonBtn">下載完整 JSON</button></article>
+      <article><strong>還原 SQLite</strong><span>會先備份目前資料</span><input id="restoreDbFile" type="file" accept=".sqlite,.sqlite3,.db,application/vnd.sqlite3"><button id="restoreDbBtn">驗證並還原</button></article>
+      <article><strong>重設</strong><span>清除個人資料並重建</span><button id="resetDbBtn" class="danger">重設資料庫</button></article>
+    </div>
+    <h3>自動快照</h3>
+    <div id="snapshotList" class="panel"></div>
+  </section>
+
+  <section id="guide" class="view">
+    <h2>快速使用</h2>
+    <div class="panel prose">
+      <ol>
+        <li>第一次開啟時，系統會在目前瀏覽器建立個人 SQLite。</li>
+        <li>把 Pokémon Sleep 截圖交給支援圖片分析的 AI。</li>
+        <li>複製 Repo 中的固定提示詞，要求 AI 只產生 JSON。</li>
+        <li>在「更新中心」匯入 JSON，先 Dry Run，再套用。</li>
+        <li>定期在「備份還原」下載 SQLite 或完整 JSON。</li>
+      </ol>
+      <p><b>資料只保存在目前網站來源、裝置與瀏覽器。</b>清除網站資料、換瀏覽器或換手機前，務必先備份。</p>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/sql-wasm.js" crossorigin="anonymous"></script>
+<script type="module" src="./assets/js/app.js"></script>
+</body>
+</html>
