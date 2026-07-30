@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.11-identity-workflow-validation';
+const CACHE = 'pokemon-sleep-ai-v0.3.12-idempotent-reconciliation';
 const ASSETS = [
   './',
   './index.html',
