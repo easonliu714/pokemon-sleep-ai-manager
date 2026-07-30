@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.9-identity-model';
+const CACHE = 'pokemon-sleep-ai-v0.3.10-identity-migration-order';
 const ASSETS = [
   './',
   './index.html',
