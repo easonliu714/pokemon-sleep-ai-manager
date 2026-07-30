@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.1",
+  "update_id": "UPD-EXAMPLE-POKEMON-DETAIL-001",
+  "generated_at": "2026-07-30T23:55:00+08:00",
+  "source": "ai_screenshot_analysis",
+  "operations": [
+    {
+      "entity": "pokemon",
+      "action": "upsert",
+      "key": {"pokemon_id": "pkm_example_001"},
+      "data": {
+        "species": "範例寶可夢",
+        "original_label": "範例寶可夢A",
+        "level": 30,
+        "specialty": "食材",
+        "type": "草",
+        "nature": "怕寂寞",
+        "nature_bonus": "幫忙速度↑",
+        "nature_penalty": "活力回復量↓",
+        "main_skill": "食材獲取S",
+        "main_skill_level": 3,
+        "helper_seconds": 3000,
+        "carry_limit": 18,
+        "rating": "A",
+        "status": "active",
+        "last_updated_at": "2026-07-30T23:55:00+08:00"
+      },
+      "review_required": false
+    },
+    {
+      "entity": "pokemon_ingredients",
+      "action": "upsert",
+      "key": {"pokemon_id": "pkm_example_001", "unlock_level": 1},
+      "data": {"ingredient_name": "好眠番茄", "quantity": 2},
+      "review_required": false
+    },
+    {
+      "entity": "pokemon_subskills",
+      "action": "upsert",
+      "key": {"pokemon_id": "pkm_example_001", "unlock_level": 10},
+      "data": {"subskill_name": "食材機率提升S", "is_unlocked": 1},
+      "review_required": false
+    }
+  ]
+}
