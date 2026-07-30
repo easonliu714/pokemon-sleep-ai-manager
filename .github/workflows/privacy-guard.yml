@@ -1,0 +1,29 @@
+name: Private Data Guard
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  privacy-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reject private account artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          forbidden='\.(sqlite|sqlite3|db|db3|zip|7z|rar|heic|webp)$|(^|/)(private-data|local-data|screenshots|imports/private|exports/private)/|pokemon_sleep_full\.json$|pokemon_sleep_initial_data.*\.json$|(_personal|_account|\.private)\.json$'
+          tracked="$(git ls-files)"
+          if printf '%s\n' "$tracked" | grep -Eiq "$forbidden"; then
+            echo 'ERROR: private Pokémon Sleep account artifact detected:'
+            printf '%s\n' "$tracked" | grep -Ei "$forbidden"
+            exit 1
+          fi
+          echo 'PASS: no private account artifacts are tracked.'
