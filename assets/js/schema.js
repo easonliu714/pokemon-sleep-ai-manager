@@ -43,9 +43,6 @@ CREATE TABLE IF NOT EXISTS pokemon(
   last_updated_at TEXT NOT NULL,
   source_update_id TEXT
 );
-CREATE UNIQUE INDEX IF NOT EXISTS idx_pokemon_instance_id ON pokemon(pokemon_instance_id) WHERE pokemon_instance_id IS NOT NULL AND pokemon_instance_id<>'';
-CREATE UNIQUE INDEX IF NOT EXISTS idx_pokemon_game_id ON pokemon(game_pokemon_id) WHERE game_pokemon_id IS NOT NULL AND game_pokemon_id<>'';
-CREATE INDEX IF NOT EXISTS idx_pokemon_identity_fingerprint ON pokemon(identity_fingerprint,registered_at);
 CREATE TABLE IF NOT EXISTS pokemon_subskills(pokemon_id TEXT NOT NULL,unlock_level INTEGER NOT NULL,subskill_name TEXT NOT NULL,is_unlocked INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(pokemon_id,unlock_level));
 CREATE TABLE IF NOT EXISTS pokemon_ingredients(pokemon_id TEXT NOT NULL,unlock_level INTEGER NOT NULL,ingredient_name TEXT NOT NULL,quantity INTEGER,PRIMARY KEY(pokemon_id,unlock_level));
 CREATE TABLE IF NOT EXISTS pokemon_history(history_id INTEGER PRIMARY KEY AUTOINCREMENT,pokemon_id TEXT,event_at TEXT NOT NULL,event_type TEXT NOT NULL,before_json TEXT,after_json TEXT,reason TEXT,source_update_id TEXT);
