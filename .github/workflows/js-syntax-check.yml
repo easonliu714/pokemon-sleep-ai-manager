@@ -56,14 +56,14 @@ jobs:
             const { data: issues } = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              state: 'open',
-              labels: 'js-syntax-failure'
+              state: 'open'
             });
-            if (issues.length) {
+            const existing = issues.find((issue) => issue.title === title);
+            if (existing) {
               await github.rest.issues.update({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: issues[0].number,
+                issue_number: existing.number,
                 title,
                 body
               });
@@ -72,7 +72,6 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 title,
-                body,
-                labels: ['js-syntax-failure']
+                body
               });
             }
