@@ -1,0 +1,21 @@
+import {rows,run,scalar,begin,commit,rollback,persist,snapshot} from './database.js';
+const KEYS={account_capacity:['capacity_key'],ingredient_inventory:['ingredient_name'],item_inventory:['item_name'],pokemon:['pokemon_id'],pokemon_subskills:['pokemon_id','unlock_level'],pokemon_ingredients:['pokemon_id','unlock_level'],discarded_pokemon:['discard_id'],weekly_plan:['plan_id'],settings:['key'],recipes:['recipe_id'],recipe_ingredients:['recipe_id','ingredient_name']};
+const ACTIONS=new Set(['insert','update','upsert','archive','discarded','delete']);
+const quote=s=>`"${String(s).replaceAll('"','""')}"`;
+function validate(p){
+ for(const k of ['schema_version','update_id','generated_at','operations'])if(!(k in p))throw new Error(`缺少欄位：${k}`);
+ if(!Array.isArray(p.operations))throw new Error('operations 必須是陣列');
+ if(p.operations.length>5000)throw new Error('單包最多 5000 operations');
+ p.operations.forEach((op,i)=>{if(!KEYS[op.entity])throw new Error(`操作 ${i}：不支援 entity`);if(!ACTIONS.has(op.action))throw new Error(`操作 ${i}：不支援 action`);if(op.review_required===true)throw new Error(`操作 ${i} 尚需人工確認`);for(const k of KEYS[op.entity])if(!(k in (op.key||{})))throw new Error(`操作 ${i}：key 缺少 ${k}`);});
+}
+function existing(entity,key){const ks=KEYS[entity];return rows(`SELECT * FROM ${quote(entity)} WHERE ${ks.map(k=>`${quote(k)}=?`).join(' AND ')}`,ks.map(k=>key[k]))[0]||null;}
+export function dryRun(payload){
+ validate(payload);if(scalar('SELECT COUNT(*) FROM import_batches WHERE update_id=?',[payload.update_id]))throw new Error(`update_id 已套用：${payload.update_id}`);
+ const changes=payload.operations.map((op,index)=>{const before=existing(op.entity,op.key);let effective=op.action,msg='';if(op.action==='upsert')effective=before?'update':'insert';if(op.action==='insert'&&before)msg='目標已存在';if(['update','archive','delete'].includes(op.action)&&!before)msg='目標不存在';const after=['insert','update'].includes(effective)?{...(before||{}),...op.key,...(op.data||{})}:op.action==='archive'?{...(before||{}),status:'archived'}:{...op.key,...(op.data||{})};return{index,entity:op.entity,requested_action:op.action,effective_action:effective,key:op.key,before,after,status:msg?'conflict':'ready',message:msg};});
+ return{update_id:payload.update_id,operation_count:changes.length,ready_count:changes.filter(x=>x.status==='ready').length,conflict_count:changes.filter(x=>x.status==='conflict').length,changes};
+}
+function write(entity,key,data,mode){const record={...key,...data},cols=Object.keys(record),keys=KEYS[entity];if(mode==='insert'){run(`INSERT INTO ${quote(entity)}(${cols.map(quote).join(',')}) VALUES(${cols.map(()=>'?').join(',')})`,cols.map(c=>record[c]));return;}const updates=cols.filter(c=>!keys.includes(c));if(updates.length)run(`UPDATE ${quote(entity)} SET ${updates.map(c=>`${quote(c)}=?`).join(',')} WHERE ${keys.map(c=>`${quote(c)}=?`).join(' AND ')}`,[...updates.map(c=>record[c]),...keys.map(c=>record[c])]);}
+export async function applyPayload(payload){
+ const preview=dryRun(payload);if(preview.conflict_count)throw new Error('更新包仍有衝突');await snapshot(`before:${payload.update_id}`);begin();
+ try{payload.operations.forEach((op,i)=>{const c=preview.changes[i];if(c.effective_action==='insert')write(op.entity,op.key,op.data||{},'insert');else if(c.effective_action==='update')write(op.entity,op.key,op.data||{},'update');else if(op.action==='archive')write(op.entity,op.key,{status:'archived'},'update');else if(op.action==='delete'){const ks=KEYS[op.entity];run(`DELETE FROM ${quote(op.entity)} WHERE ${ks.map(k=>`${quote(k)}=?`).join(' AND ')}`,ks.map(k=>op.key[k]));}run('INSERT INTO import_changes(update_id,operation_index,entity,action,key_json,before_json,after_json,status,message) VALUES(?,?,?,?,?,?,?,?,?)',[payload.update_id,i,op.entity,op.action,JSON.stringify(op.key),c.before?JSON.stringify(c.before):null,c.after?JSON.stringify(c.after):null,'applied','']);});run('INSERT INTO import_batches(update_id,schema_version,generated_at,imported_at,source,operation_count,result_json) VALUES(?,?,?,?,?,?,?)',[payload.update_id,String(payload.schema_version),payload.generated_at,new Date().toISOString(),payload.source||'',payload.operations.length,JSON.stringify({status:'applied'})]);commit();await persist();return{operation_count:payload.operations.length};}catch(e){rollback();throw e;}
+}
