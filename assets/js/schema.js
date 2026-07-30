@@ -3,10 +3,72 @@ PRAGMA foreign_keys=ON;
 CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY,applied_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value_json TEXT NOT NULL,updated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS account_capacity(capacity_key TEXT PRIMARY KEY,total_capacity INTEGER NOT NULL,used_count INTEGER,updated_at TEXT NOT NULL,source TEXT);
-CREATE TABLE IF NOT EXISTS pokemon(pokemon_id TEXT PRIMARY KEY,species TEXT NOT NULL,original_label TEXT,nickname TEXT,nickname_halfwidth_units INTEGER,nickname_valid INTEGER NOT NULL DEFAULT 1,level INTEGER,sp INTEGER,specialty TEXT,type TEXT,nature TEXT,nature_bonus TEXT,nature_penalty TEXT,main_skill TEXT,main_skill_level INTEGER,helper_seconds INTEGER,carry_limit INTEGER,favorite_berry TEXT,rating TEXT,ai_score REAL,status TEXT NOT NULL DEFAULT 'active',core_role TEXT,recommendation TEXT,item_advice TEXT,scenarios TEXT,is_favorite INTEGER NOT NULL DEFAULT 0,is_main INTEGER NOT NULL DEFAULT 0,obtained_at TEXT,last_updated_at TEXT NOT NULL,source_update_id TEXT);
+CREATE TABLE IF NOT EXISTS pokemon(
+  pokemon_id TEXT PRIMARY KEY,
+  pokemon_instance_id TEXT,
+  game_pokemon_id TEXT,
+  registered_at TEXT,
+  original_species TEXT,
+  current_species TEXT,
+  identity_fingerprint TEXT,
+  identity_confidence REAL,
+  identity_review_required INTEGER NOT NULL DEFAULT 0,
+  species TEXT NOT NULL,
+  original_label TEXT,
+  nickname TEXT,
+  nickname_halfwidth_units INTEGER,
+  nickname_valid INTEGER NOT NULL DEFAULT 1,
+  level INTEGER,
+  sp INTEGER,
+  specialty TEXT,
+  type TEXT,
+  nature TEXT,
+  nature_bonus TEXT,
+  nature_penalty TEXT,
+  main_skill TEXT,
+  main_skill_level INTEGER,
+  helper_seconds INTEGER,
+  carry_limit INTEGER,
+  favorite_berry TEXT,
+  rating TEXT,
+  ai_score REAL,
+  status TEXT NOT NULL DEFAULT 'active',
+  core_role TEXT,
+  recommendation TEXT,
+  item_advice TEXT,
+  scenarios TEXT,
+  is_favorite INTEGER NOT NULL DEFAULT 0,
+  is_main INTEGER NOT NULL DEFAULT 0,
+  obtained_at TEXT,
+  last_updated_at TEXT NOT NULL,
+  source_update_id TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pokemon_instance_id ON pokemon(pokemon_instance_id) WHERE pokemon_instance_id IS NOT NULL AND pokemon_instance_id<>'';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pokemon_game_id ON pokemon(game_pokemon_id) WHERE game_pokemon_id IS NOT NULL AND game_pokemon_id<>'';
+CREATE INDEX IF NOT EXISTS idx_pokemon_identity_fingerprint ON pokemon(identity_fingerprint,registered_at);
 CREATE TABLE IF NOT EXISTS pokemon_subskills(pokemon_id TEXT NOT NULL,unlock_level INTEGER NOT NULL,subskill_name TEXT NOT NULL,is_unlocked INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(pokemon_id,unlock_level));
 CREATE TABLE IF NOT EXISTS pokemon_ingredients(pokemon_id TEXT NOT NULL,unlock_level INTEGER NOT NULL,ingredient_name TEXT NOT NULL,quantity INTEGER,PRIMARY KEY(pokemon_id,unlock_level));
 CREATE TABLE IF NOT EXISTS pokemon_history(history_id INTEGER PRIMARY KEY AUTOINCREMENT,pokemon_id TEXT,event_at TEXT NOT NULL,event_type TEXT NOT NULL,before_json TEXT,after_json TEXT,reason TEXT,source_update_id TEXT);
+CREATE TABLE IF NOT EXISTS pokemon_evolution_history(
+  evolution_id TEXT PRIMARY KEY,
+  pokemon_instance_id TEXT NOT NULL,
+  from_species TEXT,
+  to_species TEXT NOT NULL,
+  evolved_at TEXT,
+  source_image_ref TEXT,
+  confidence REAL,
+  source_update_id TEXT
+);
+CREATE TABLE IF NOT EXISTS pokemon_identity_evidence(
+  evidence_id TEXT PRIMARY KEY,
+  pokemon_instance_id TEXT NOT NULL,
+  evidence_type TEXT NOT NULL,
+  evidence_value TEXT,
+  source_image_ref TEXT,
+  confidence REAL,
+  observed_at TEXT,
+  source_update_id TEXT
+);
 CREATE TABLE IF NOT EXISTS discarded_pokemon(discard_id TEXT PRIMARY KEY,species TEXT NOT NULL,observed_json TEXT,reason TEXT NOT NULL,discarded_at TEXT NOT NULL,source_update_id TEXT);
 CREATE TABLE IF NOT EXISTS ingredient_inventory(ingredient_name TEXT PRIMARY KEY,quantity INTEGER NOT NULL DEFAULT 0,updated_at TEXT NOT NULL,source_update_id TEXT);
 CREATE TABLE IF NOT EXISTS item_inventory(item_name TEXT PRIMARY KEY,quantity INTEGER NOT NULL DEFAULT 0,safe_reserve INTEGER NOT NULL DEFAULT 0,recommendation TEXT,updated_at TEXT NOT NULL,source_update_id TEXT);
