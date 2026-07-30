@@ -4,14 +4,17 @@ on:
   push:
     branches: [main]
     paths:
-      - 'assets/js/**.js'
+      - 'assets/js/**/*.js'
+      - 'assets/js/*.js'
       - '.github/workflows/js-syntax-check.yml'
   pull_request:
     paths:
-      - 'assets/js/**.js'
+      - 'assets/js/**/*.js'
+      - 'assets/js/*.js'
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   syntax-check:
@@ -24,10 +27,52 @@ jobs:
         with:
           node-version: '22'
       - name: Check all JavaScript modules
+        id: syntax
         shell: bash
         run: |
-          set -euo pipefail
+          set +e
+          : > syntax-report.txt
+          failed=0
           while IFS= read -r -d '' file; do
-            echo "Checking $file"
-            node --check "$file"
+            echo "Checking $file" | tee -a syntax-report.txt
+            node --check "$file" >> syntax-report.txt 2>&1
+            rc=$?
+            if [ $rc -ne 0 ]; then
+              failed=1
+            fi
           done < <(find assets/js -type f -name '*.js' -print0 | sort -z)
+          cat syntax-report.txt
+          echo "failed=$failed" >> "$GITHUB_OUTPUT"
+          exit $failed
+      - name: Create syntax failure issue
+        if: failure() && steps.syntax.outputs.failed == '1'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('syntax-report.txt', 'utf8');
+            const title = 'P0: JavaScript syntax check failed';
+            const body = `Commit: ${context.sha}\n\n\`\`\`text\n${report}\n\`\`\``;
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'js-syntax-failure'
+            });
+            if (issues.length) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues[0].number,
+                title,
+                body
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['js-syntax-failure']
+              });
+            }
