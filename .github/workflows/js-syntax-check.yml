@@ -1,0 +1,33 @@
+name: JavaScript Syntax Check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'assets/js/**.js'
+      - '.github/workflows/js-syntax-check.yml'
+  pull_request:
+    paths:
+      - 'assets/js/**.js'
+
+permissions:
+  contents: read
+
+jobs:
+  syntax-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check all JavaScript modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            echo "Checking $file"
+            node --check "$file"
+          done < <(find assets/js -type f -name '*.js' -print0 | sort -z)
