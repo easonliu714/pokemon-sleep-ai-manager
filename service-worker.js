@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.8-g3-syntax-recovery';
+const CACHE = 'pokemon-sleep-ai-v0.3.9-identity-model';
 const ASSETS = [
   './',
   './index.html',
@@ -41,12 +41,10 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-
   const url = new URL(event.request.url);
   const networkFirst =
     url.origin === self.location.origin &&
     (event.request.mode === 'navigate' || url.pathname.endsWith('.js') || url.pathname.endsWith('.html'));
-
   if (networkFirst) {
     event.respondWith(
       fetch(event.request)
@@ -59,7 +57,6 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-
   event.respondWith(
     caches.match(event.request).then((hit) =>
       hit || fetch(event.request).then((response) => {
