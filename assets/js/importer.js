@@ -27,6 +27,7 @@ const KEYS = {
 };
 
 const ACTIONS = new Set(['insert', 'update', 'upsert', 'archive', 'discarded', 'delete']);
+const MISSING_POLICIES = new Set(['conflict', 'skip', 'insert']);
 const quote = (value) => `"${String(value).replaceAll('"', '""')}"`;
 const isMeaningful = (value) => value !== null && value !== undefined && value !== '';
 
@@ -40,6 +41,9 @@ function validate(payload) {
   payload.operations.forEach((operation, index) => {
     if (!KEYS[operation.entity]) throw new Error(`操作 ${index}：不支援 entity`);
     if (!ACTIONS.has(operation.action)) throw new Error(`操作 ${index}：不支援 action`);
+    if (operation.missing_policy && !MISSING_POLICIES.has(operation.missing_policy)) {
+      throw new Error(`操作 ${index}：不支援 missing_policy`);
+    }
     if (operation.review_required === true) throw new Error(`操作 ${index} 尚需人工確認`);
     for (const key of KEYS[operation.entity]) {
       if (!(key in (operation.key || {}))) throw new Error(`操作 ${index}：key 缺少 ${key}`);
@@ -130,6 +134,7 @@ export function dryRun(payload) {
     let effectiveAction = operation.action;
     let message = '';
     let conflict = false;
+    const missingPolicy = operation.missing_policy || 'conflict';
 
     if (operation.entity === 'pokemon' && !before && ['insert', 'upsert'].includes(operation.action)) {
       const resolution = resolvePokemonIdentity(operation);
@@ -155,19 +160,28 @@ export function dryRun(payload) {
       conflict = true;
       message = '目標已存在';
     }
+
     if (['update', 'archive', 'delete'].includes(operation.action) && !before) {
-      conflict = true;
-      message = '目標不存在';
+      if (missingPolicy === 'skip') {
+        effectiveAction = 'skip';
+        message = '目標不存在，依 missing_policy=skip 略過';
+      } else if (missingPolicy === 'insert' && operation.action === 'update') {
+        effectiveAction = 'insert';
+        message = '目標不存在，依 missing_policy=insert 改為新增';
+      } else {
+        conflict = true;
+        message = '目標不存在';
+      }
     }
 
     const data = sparseData(operation);
     let after;
     if (['insert', 'update'].includes(effectiveAction)) {
       after = { ...(before || {}), ...key, ...data };
-    } else if (operation.action === 'archive') {
+    } else if (operation.action === 'archive' && effectiveAction !== 'skip') {
       after = { ...(before || {}), status: 'archived' };
     } else {
-      after = { ...key, ...data };
+      after = before ? { ...before } : { ...key, ...data };
     }
 
     changes.push({
@@ -223,7 +237,9 @@ export async function applyPayload(payload) {
       const change = preview.changes[index];
       if (change.effective_action === 'insert') write(operation.entity, change.key, change.data, 'insert');
       else if (change.effective_action === 'update') write(operation.entity, change.key, change.data, 'update');
-      else if (operation.action === 'archive') write(operation.entity, change.key, { status: 'archived' }, 'update');
+      else if (change.effective_action === 'skip') {
+        // Deliberately no database write.
+      } else if (operation.action === 'archive') write(operation.entity, change.key, { status: 'archived' }, 'update');
       else if (operation.action === 'delete') {
         const keys = KEYS[operation.entity];
         run(
@@ -233,7 +249,7 @@ export async function applyPayload(payload) {
       }
       run(
         'INSERT INTO import_changes(update_id,operation_index,entity,action,key_json,before_json,after_json,status,message) VALUES(?,?,?,?,?,?,?,?,?)',
-        [payload.update_id,index,operation.entity,operation.action,JSON.stringify(change.key),change.before?JSON.stringify(change.before):null,change.after?JSON.stringify(change.after):null,'applied',change.message||''],
+        [payload.update_id,index,operation.entity,operation.action,JSON.stringify(change.key),change.before?JSON.stringify(change.before):null,change.after?JSON.stringify(change.after):null,change.effective_action==='skip'?'skipped':'applied',change.message||''],
       );
     });
     run(
