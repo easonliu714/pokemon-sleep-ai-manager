@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.1",
+  "update_id": "UPD-20260731-004100-RECIPES",
+  "generated_at": "2026-07-31T00:41:00+08:00",
+  "source": "ai_screenshot_analysis",
+  "scenario": "recipes",
+  "prompt_version": "recipes-v1.1",
+  "operations": [
+    {
+      "operation_id": "OP-001",
+      "entity": "recipes",
+      "action": "upsert",
+      "key": {"recipe_id": "recipe_example_001"},
+      "data": {
+        "category": null,
+        "recipe_name": null,
+        "unlocked": null,
+        "total_ingredients": null,
+        "source": "screenshot"
+      },
+      "evidence": {
+        "source_type": "screenshot",
+        "source_image_ref": "recipe-screen-001",
+        "confidence": 0.0
+      },
+      "review_required": true
+    },
+    {
+      "operation_id": "OP-002",
+      "entity": "recipe_ingredients",
+      "action": "upsert",
+      "key": {
+        "recipe_id": "recipe_example_001",
+        "ingredient_name": "ingredient_example_001"
+      },
+      "data": {"quantity": null},
+      "evidence": {
+        "source_type": "screenshot",
+        "source_image_ref": "recipe-screen-001",
+        "confidence": 0.0
+      },
+      "review_required": true
+    }
+  ]
+}
