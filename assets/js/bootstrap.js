@@ -1,6 +1,6 @@
 const status = document.getElementById('dbStatus');
 const warning = document.getElementById('storageWarning');
-const VERSION = '20260731-g3-module-probe1';
+const VERSION = '20260731-identity-review1';
 
 function showFailure(label, error) {
   console.error(`Module probe failed: ${label}`, error);
@@ -29,6 +29,7 @@ const probes = [
   'ai-workflow.js',
   'prompt-catalog.js',
   'g3-planning.js',
+  'identity-review.js',
 ];
 
 (async () => {
