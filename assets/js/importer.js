@@ -17,6 +17,8 @@ const KEYS = {
   pokemon: ['pokemon_id'],
   pokemon_subskills: ['pokemon_id', 'unlock_level'],
   pokemon_ingredients: ['pokemon_id', 'unlock_level'],
+  pokemon_evolution_history: ['evolution_id'],
+  pokemon_identity_evidence: ['evidence_id'],
   discarded_pokemon: ['discard_id'],
   weekly_plan: ['plan_id'],
   settings: ['key'],
@@ -57,7 +59,6 @@ function sparseData(operation) {
   const source = operation.data || {};
   const clearFields = new Set(operation.clear_fields || []);
   const result = {};
-
   for (const [key, value] of Object.entries(source)) {
     if (isMeaningful(value) || value === 0 || value === false) result[key] = value;
     else if (clearFields.has(key)) result[key] = null;
@@ -65,25 +66,48 @@ function sparseData(operation) {
   return result;
 }
 
-function resolvePokemonIdentity(operation) {
-  const data = operation.data || {};
-  const required = ['species', 'level', 'specialty', 'type', 'rating'];
-  if (!required.every((key) => isMeaningful(data[key]))) return { match: null, ambiguous: false };
-
-  const candidates = rows(
-    `SELECT * FROM pokemon
-     WHERE status='active'
-       AND species=?
-       AND level=?
-       AND specialty=?
-       AND type=?
-       AND rating=?`,
-    [data.species, data.level, data.specialty, data.type, data.rating],
-  );
-
+function uniqueCandidate(sql, params) {
+  const candidates = rows(sql, params);
   if (candidates.length === 1) return { match: candidates[0], ambiguous: false };
   if (candidates.length > 1) return { match: null, ambiguous: true };
   return { match: null, ambiguous: false };
+}
+
+function resolvePokemonIdentity(operation) {
+  const data = operation.data || {};
+  const explicitTarget = operation.identity_match?.target_pokemon_id;
+  if (explicitTarget) {
+    const match = rows('SELECT * FROM pokemon WHERE pokemon_id=?', [explicitTarget])[0] || null;
+    return match ? { match, ambiguous: false, reason: '更新包明確指定既有 pokemon_id' }
+      : { match: null, ambiguous: false, invalidTarget: true, reason: 'identity_match 指定的 pokemon_id 不存在' };
+  }
+
+  if (isMeaningful(data.pokemon_instance_id)) {
+    const result = uniqueCandidate(
+      'SELECT * FROM pokemon WHERE pokemon_instance_id=? AND status<>\'archived\'',
+      [data.pokemon_instance_id],
+    );
+    if (result.match || result.ambiguous) return { ...result, reason: 'pokemon_instance_id' };
+  }
+
+  if (isMeaningful(data.game_pokemon_id)) {
+    const result = uniqueCandidate(
+      'SELECT * FROM pokemon WHERE game_pokemon_id=? AND status<>\'archived\'',
+      [data.game_pokemon_id],
+    );
+    if (result.match || result.ambiguous) return { ...result, reason: 'game_pokemon_id' };
+  }
+
+  if (isMeaningful(data.identity_fingerprint) && isMeaningful(data.registered_at)) {
+    const result = uniqueCandidate(
+      `SELECT * FROM pokemon
+       WHERE identity_fingerprint=? AND registered_at=? AND status<>'archived'`,
+      [data.identity_fingerprint, data.registered_at],
+    );
+    if (result.match || result.ambiguous) return { ...result, reason: 'registered_at + identity_fingerprint' };
+  }
+
+  return { match: null, ambiguous: false, reason: '' };
 }
 
 export function dryRun(payload) {
@@ -109,9 +133,12 @@ export function dryRun(payload) {
 
     if (operation.entity === 'pokemon' && !before && ['insert', 'upsert'].includes(operation.action)) {
       const resolution = resolvePokemonIdentity(operation);
-      if (resolution.ambiguous) {
+      if (resolution.invalidTarget) {
         conflict = true;
-        message = '個體指紋符合多筆現有資料，必須人工指定 pokemon_id';
+        message = resolution.reason;
+      } else if (resolution.ambiguous) {
+        conflict = true;
+        message = `${resolution.reason} 符合多筆現有資料，必須人工指定 identity_match.target_pokemon_id`;
       } else if (resolution.match) {
         const incomingId = operation.key.pokemon_id;
         const resolvedId = resolution.match.pokemon_id;
@@ -119,13 +146,11 @@ export function dryRun(payload) {
         key = { pokemon_id: resolvedId };
         before = resolution.match;
         effectiveAction = 'update';
-        message = `唯一個體指紋吻合，合併至既有 ID：${resolvedId}`;
+        message = `${resolution.reason} 唯一吻合，合併至既有 ID：${resolvedId}`;
       }
     }
 
-    if (operation.action === 'upsert' && !conflict) {
-      effectiveAction = before ? 'update' : 'insert';
-    }
+    if (operation.action === 'upsert' && !conflict) effectiveAction = before ? 'update' : 'insert';
     if (operation.action === 'insert' && before && !message) {
       conflict = true;
       message = '目標已存在';
@@ -173,7 +198,6 @@ function write(entity, key, data, mode) {
   const record = { ...key, ...data };
   const columns = Object.keys(record);
   const keys = KEYS[entity];
-
   if (mode === 'insert') {
     run(
       `INSERT INTO ${quote(entity)}(${columns.map(quote).join(',')}) VALUES(${columns.map(() => '?').join(',')})`,
@@ -181,7 +205,6 @@ function write(entity, key, data, mode) {
     );
     return;
   }
-
   const updates = columns.filter((column) => !keys.includes(column));
   if (!updates.length) return;
   run(
@@ -193,57 +216,33 @@ function write(entity, key, data, mode) {
 export async function applyPayload(payload) {
   const preview = dryRun(payload);
   if (preview.conflict_count) throw new Error('更新包仍有衝突');
-
   await snapshot(`before:${payload.update_id}`);
   begin();
   try {
     payload.operations.forEach((operation, index) => {
       const change = preview.changes[index];
-      if (change.effective_action === 'insert') {
-        write(operation.entity, change.key, change.data, 'insert');
-      } else if (change.effective_action === 'update') {
-        write(operation.entity, change.key, change.data, 'update');
-      } else if (operation.action === 'archive') {
-        write(operation.entity, change.key, { status: 'archived' }, 'update');
-      } else if (operation.action === 'delete') {
+      if (change.effective_action === 'insert') write(operation.entity, change.key, change.data, 'insert');
+      else if (change.effective_action === 'update') write(operation.entity, change.key, change.data, 'update');
+      else if (operation.action === 'archive') write(operation.entity, change.key, { status: 'archived' }, 'update');
+      else if (operation.action === 'delete') {
         const keys = KEYS[operation.entity];
         run(
           `DELETE FROM ${quote(operation.entity)} WHERE ${keys.map((key) => `${quote(key)}=?`).join(' AND ')}`,
           keys.map((key) => change.key[key]),
         );
       }
-
       run(
         'INSERT INTO import_changes(update_id,operation_index,entity,action,key_json,before_json,after_json,status,message) VALUES(?,?,?,?,?,?,?,?,?)',
-        [
-          payload.update_id,
-          index,
-          operation.entity,
-          operation.action,
-          JSON.stringify(change.key),
-          change.before ? JSON.stringify(change.before) : null,
-          change.after ? JSON.stringify(change.after) : null,
-          'applied',
-          change.message || '',
-        ],
+        [payload.update_id,index,operation.entity,operation.action,JSON.stringify(change.key),change.before?JSON.stringify(change.before):null,change.after?JSON.stringify(change.after):null,'applied',change.message||''],
       );
     });
-
     run(
       'INSERT INTO import_batches(update_id,schema_version,generated_at,imported_at,source,operation_count,result_json) VALUES(?,?,?,?,?,?,?)',
-      [
-        payload.update_id,
-        String(payload.schema_version),
-        payload.generated_at,
-        localIso(),
-        payload.source || '',
-        payload.operations.length,
-        JSON.stringify({ status: 'applied' }),
-      ],
+      [payload.update_id,String(payload.schema_version),payload.generated_at,localIso(),payload.source||'',payload.operations.length,JSON.stringify({status:'applied'})],
     );
     commit();
     await persist();
-    return { operation_count: payload.operations.length };
+    return {operation_count:payload.operations.length};
   } catch (error) {
     rollback();
     throw error;
