@@ -1,4 +1,5 @@
 import {rows} from './database.js';
+import {analyzeIngredientGaps,sortGapResults} from './ingredient-gap-engine.js';
 
 const esc=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let rendering=false;
@@ -19,27 +20,22 @@ function ensureEncyclopediaUi(){
     button.id='encyclopediaNavBtn';
     button.dataset.view='encyclopedia';
     button.textContent='資料百科';
-    const guideButton=nav.querySelector('[data-view="guide"]');
-    nav.insertBefore(button,guideButton||null);
+    nav.insertBefore(button,nav.querySelector('[data-view="guide"]')||null);
     button.onclick=()=>activateView(button,'encyclopedia');
   }
   if(!document.getElementById('encyclopedia')){
     const section=document.createElement('section');
     section.id='encyclopedia';
     section.className='view';
-    section.innerHTML=`<h2>資料百科</h2>
-      <h3>樹果與屬性對照</h3>
-      <p class="notice">樹果為共享參考資料，寶可夢會依屬性自動帶入對應樹果。官方資訊優先，第三方資料僅作補充。</p>
-      <div class="table-wrap"><table id="berryMasterTable"></table></div>`;
-    const guide=document.getElementById('guide');
-    main.insertBefore(section,guide||null);
+    section.innerHTML=`<h2>資料百科</h2><h3>樹果與屬性對照</h3><p class="notice">樹果為共享參考資料，官方資訊優先，第三方資料僅作補充。</p><div class="table-wrap"><table id="berryMasterTable"></table></div>`;
+    main.insertBefore(section,document.getElementById('guide')||null);
   }
   return true;
 }
 
 function ensureReferenceUi(){
   const section=document.getElementById('recipes');
-  if(!section||!ensureEncyclopediaUi()) return false;
+  if(!section||!ensureEncyclopediaUi())return false;
   const personalTable=document.getElementById('recipeTable');
   if(personalTable&&!document.getElementById('personalRecipeHeading')){
     const heading=document.createElement('h3');
@@ -50,75 +46,86 @@ function ensureReferenceUi(){
   if(!document.getElementById('sharedKnowledgeBlock')){
     const wrapper=document.createElement('div');
     wrapper.id='sharedKnowledgeBlock';
-    wrapper.innerHTML=`
-      <h3>推薦料理</h3>
-      <p class="notice">共享參考資料只用於判斷目前庫存可嘗試哪些料理，以及還缺哪些食材；真正是否已解鎖，以玩家從遊戲截圖匯入或手動登記的個人食譜為準。</p>
-      <div class="warning"><b>重要：</b>若依照參考配方投入足夠食材仍未解鎖，可能是第三方資訊、名稱對照或遊戲版本有誤。請勿持續浪費大量食材，建議改試其他組合，並查證官方公告、遊戲內資訊或其他可靠來源。</div>
+    wrapper.innerHTML=`<h3>未開啟參考食譜</h3>
+      <p class="notice">只列出尚未開啟的共享參考食譜。依本週料理類型與缺口排序後的前三名會以底色標示；參考配方不保證一定能解鎖。</p>
+      <div class="warning"><b>重要：</b>若依照參考配方投入足夠食材仍未解鎖，請停止重複消耗食材並改查官方公告、遊戲內資訊或其他可靠來源。</div>
       <div class="table-wrap"><table id="referenceRecipeTable"></table></div>`;
     section.appendChild(wrapper);
-  }
-  const guide=document.querySelector('#guide .prose');
-  if(guide&&!document.getElementById('dataProvenanceGuide')){
-    const block=document.createElement('div');
-    block.id='dataProvenanceGuide';
-    block.innerHTML=`<h3>共享資料來源與優先順序</h3>
-      <p>共享知識庫以 Pokémon Sleep 官方公告與遊戲內畫面為第一優先。官方未公開、難以直接取得或需要彙整的稀缺資料，才會參考第三方網站。</p>
-      <p>目前樹果名稱與屬性對照、料理名稱、基礎能量及需求食材，部分整理時參考了 <b>RaenonX</b> 網站及使用者提供的該網站畫面。第三方資料不視為官方資料；若與官方資訊衝突，一律以官方為準。</p>
-      <p>第三方食譜的用途是提供「可嘗試解鎖」與「缺料」分析，不保證一定能解鎖。若依照參考配方仍未解鎖，請嘗試其他組合或改由官方與其他來源查證。</p>
-      <p>每筆共享資料保留來源類型、來源名稱、參考來源、核對日期與資料版本。玩家的寶可夢、庫存、食譜解鎖狀態及策略仍只儲存在本機。</p>`;
-    guide.appendChild(block);
   }
   return true;
 }
 
-function table(el,data,columns){
+function table(el,data,columns,rowClass){
   if(!el)return;
   const head=columns.map(c=>`<th>${esc(c.label)}</th>`).join('');
-  const body=data.map(r=>`<tr>${columns.map(c=>`<td>${c.render?c.render(r):esc(r[c.key])}</td>`).join('')}</tr>`).join('');
-  el.innerHTML=`<thead><tr>${head}</tr></thead><tbody>${body||'<tr><td colspan="8">目前沒有資料</td></tr>'}</tbody>`;
+  const body=data.map(r=>`<tr class="${rowClass?esc(rowClass(r)||''):''}">${columns.map(c=>`<td>${c.render?c.render(r):esc(r[c.key])}</td>`).join('')}</tr>`).join('');
+  el.innerHTML=`<thead><tr>${head}</tr></thead><tbody>${body||'<tr><td colspan="10">目前沒有資料</td></tr>'}</tbody>`;
 }
 
-function buildRecipeAnalysis(){
-  const inventory=Object.fromEntries(rows('SELECT ingredient_name,quantity FROM ingredient_inventory').map(x=>[x.ingredient_name,Number(x.quantity||0)]));
-  const personal=rows('SELECT recipe_id,recipe_name,unlocked,notes FROM recipes');
-  const personalByName=new Map();
+function ingredientText(items){return items.map(x=>`${esc(x.ingredient_name)} ×${x.required??x.quantity}`).join('、')||'—';}
+function shortageText(items){const missing=items.filter(x=>Number(x.shortage||0)>0);return missing.length?missing.map(x=>`${esc(x.ingredient_name)} 缺 ${x.shortage}`).join('、'):'無';}
+function inventoryStatus(items){return items.some(x=>Number(x.shortage||0)>0)?'材料不足':'材料足夠';}
+
+function buildPersonalAnalysis(inventory){
+  const recipes=rows('SELECT * FROM recipes WHERE unlocked=1 ORDER BY category,recipe_name');
+  const ingredients=rows('SELECT * FROM recipe_ingredients ORDER BY recipe_id,ingredient_name');
+  return analyzeIngredientGaps({recipes,recipeIngredients:ingredients,inventory});
+}
+
+function buildReferenceAnalysis(inventory){
+  const personal=rows('SELECT recipe_name,unlocked,notes FROM recipes');
+  const names=new Set();
   for(const item of personal){
-    personalByName.set(item.recipe_name,item);
+    if(Number(item.unlocked||0)===1)names.add(item.recipe_name);
     const match=String(item.notes||'').match(/對照主檔名稱：(.+)$/);
-    if(match) personalByName.set(match[1],item);
+    if(match&&Number(item.unlocked||0)===1)names.add(match[1]);
   }
-  const masters=rows('SELECT * FROM recipe_master ORDER BY category,base_energy DESC,recipe_name');
+  const recipes=rows('SELECT * FROM recipe_master ORDER BY category,base_energy DESC,recipe_name').map(r=>({...r,unlocked:names.has(r.recipe_name)?1:0}));
   const ingredients=rows('SELECT * FROM recipe_master_ingredients ORDER BY recipe_id,ingredient_name');
-  const byRecipe=new Map();
-  for(const item of ingredients){if(!byRecipe.has(item.recipe_id))byRecipe.set(item.recipe_id,[]);byRecipe.get(item.recipe_id).push(item);}
-  return masters.map(master=>{
-    const personalRecipe=personalByName.get(master.recipe_name);
-    const unlocked=Number(personalRecipe?.unlocked||0)===1;
-    const needs=byRecipe.get(master.recipe_id)||[];
-    const missing=needs.map(item=>({ingredient_name:item.ingredient_name,required:Number(item.quantity||0),owned:Number(inventory[item.ingredient_name]||0),shortage:Math.max(0,Number(item.quantity||0)-Number(inventory[item.ingredient_name]||0))})).filter(item=>item.shortage>0);
-    return {...master,unlocked,ingredients:needs.map(x=>`${x.ingredient_name} ×${x.quantity}`).join('、'),missing,canAttempt:!unlocked&&missing.length===0};
-  });
+  return analyzeIngredientGaps({recipes,recipeIngredients:ingredients,inventory}).filter(r=>r.status!=='unlocked');
+}
+
+function weeklyRecommendations(reference){
+  const week=rows('SELECT * FROM weekly_context ORDER BY updated_at DESC LIMIT 1')[0]||{};
+  const category=String(week.dish_category||'').trim();
+  const pool=category?reference.filter(r=>r.category===category):reference;
+  return new Set(sortGapResults(pool,'shortage').slice(0,3).map(r=>r.recipe_id));
 }
 
 export function renderSharedKnowledge(){
-  if(rendering||!ensureReferenceUi()) return;
+  if(rendering||!ensureReferenceUi())return;
   rendering=true;
   try{
+    const inventory=rows('SELECT ingredient_name,quantity FROM ingredient_inventory');
     const berries=rows('SELECT type_name,berry_name,source_name,verified_at FROM berry_master ORDER BY type_name');
-    const recipes=buildRecipeAnalysis();
-    const signature=`${berries.length}:${recipes.length}:${recipes.map(r=>r.recipe_id+':'+r.unlocked+':'+r.missing.map(x=>x.ingredient_name+'-'+x.shortage).join(',')).join('|')}`;
-    const referenceRecipeTable=document.getElementById('referenceRecipeTable');
-    const needsRender=signature!==lastSignature||!referenceRecipeTable?.querySelector('thead th:nth-child(7)');
-    if(needsRender){
-      table(document.getElementById('berryMasterTable'),berries,[{label:'屬性',key:'type_name'},{label:'樹果種類',key:'berry_name'},{label:'資料來源',render:r=>esc(r.source_name)},{label:'核對日期',key:'verified_at'}]);
-      table(referenceRecipeTable,recipes,[
-        {label:'分類',key:'category'},{label:'料理',key:'recipe_name'},{label:'基礎能量',render:r=>Number(r.base_energy||0).toLocaleString()},
-        {label:'參考配方',key:'ingredients'},{label:'個人已解鎖',render:r=>r.unlocked?'是':'否'},
-        {label:'庫存判定',render:r=>r.unlocked?'已解鎖':(r.canAttempt?'<b>材料足夠，可嘗試</b>':'材料不足')},
-        {label:'缺少食材',render:r=>r.unlocked?'—':(r.missing.length?r.missing.map(x=>`${esc(x.ingredient_name)} 缺 ${x.shortage}`).join('、'):'無')},{label:'來源',render:r=>esc(r.source_name)}
-      ]);
-      lastSignature=signature;
-    }
+    const personal=buildPersonalAnalysis(inventory);
+    const reference=buildReferenceAnalysis(inventory);
+    const weekly=weeklyRecommendations(reference);
+    const signature=JSON.stringify({inventory,personal:personal.map(r=>[r.recipe_id,r.total_shortage]),reference:reference.map(r=>[r.recipe_id,r.total_shortage]),weekly:[...weekly]});
+    if(signature===lastSignature)return;
+
+    table(document.getElementById('berryMasterTable'),berries,[
+      {label:'屬性',key:'type_name'},{label:'樹果種類',key:'berry_name'},{label:'資料來源',key:'source_name'},{label:'核對日期',key:'verified_at'}
+    ]);
+
+    table(document.getElementById('recipeTable'),personal,[
+      {label:'分類',key:'category'},{label:'食譜',key:'recipe_name'},
+      {label:'等級',render:r=>r.recipe_level??'—'},{label:'目前能量',render:r=>r.current_energy==null?'—':Number(r.current_energy).toLocaleString()},
+      {label:'需求配方',render:r=>ingredientText(r.requirements)},
+      {label:'庫存判定',render:r=>inventoryStatus(r.requirements)},
+      {label:'缺料',render:r=>shortageText(r.requirements)}
+    ]);
+
+    table(document.getElementById('referenceRecipeTable'),reference,[
+      {label:'本週',render:r=>weekly.has(r.recipe_id)?'<b>推薦</b>':'—'},
+      {label:'分類',key:'category'},{label:'料理',key:'recipe_name'},
+      {label:'基礎能量',render:r=>Number(r.base_energy||0).toLocaleString()},
+      {label:'參考配方',render:r=>ingredientText(r.requirements)},
+      {label:'庫存判定',render:r=>r.can_attempt?'<b>材料足夠，可嘗試</b>':(r.status==='near'?'接近可嘗試':'材料不足')},
+      {label:'缺料',render:r=>shortageText(r.requirements)},{label:'來源',key:'source_name'}
+    ],r=>weekly.has(r.recipe_id)?'weekly-recommended':'');
+
+    lastSignature=signature;
   }catch(error){console.warn('Shared knowledge render deferred',error);}finally{rendering=false;}
 }
 
