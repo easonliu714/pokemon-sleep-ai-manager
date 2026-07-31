@@ -1,6 +1,6 @@
 const status = document.getElementById('dbStatus');
 const warning = document.getElementById('storageWarning');
-const VERSION = '20260731-weekly-context-cache-refresh1';
+const VERSION = '20260731-preview-identity-convergence1';
 
 function showFailure(label, error) {
   console.error(`Module probe failed: ${label}`, error);
@@ -32,7 +32,9 @@ const probes = [
   'prompt-catalog.js',
   'g3-planning.js',
   'identity-review.js',
+  'identity-convergence.js',
   'ingredient-gap-engine.js',
+  'update-center-ui-guard.js',
   'shared-knowledge-ui.js',
 ];
 

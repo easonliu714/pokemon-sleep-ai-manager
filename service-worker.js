@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.20-weekly-context-cache-refresh';
+const CACHE = 'pokemon-sleep-ai-v0.3.21-preview-identity-convergence';
 const ASSETS = [
   './',
   './index.html',
@@ -20,6 +20,8 @@ const ASSETS = [
   './assets/js/ingredient-gap-engine.js',
   './assets/js/time-utils.js',
   './assets/js/identity-review.js',
+  './assets/js/identity-convergence.js',
+  './assets/js/update-center-ui-guard.js',
   './assets/js/shared-master-schema.js',
   './assets/js/shared-master-data.js',
   './assets/js/shared-knowledge-ui.js',
