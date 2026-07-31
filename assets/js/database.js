@@ -33,6 +33,28 @@ function applyIdentityMigration(){
   db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(2,datetime('now'))`);
 }
 
+function applyGameDataMigration(){
+  const hasSubskills=scalar("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='pokemon_subskills'");
+  if(hasSubskills){
+    db.run(`INSERT OR REPLACE INTO pokemon_subskills(pokemon_id,unlock_level,subskill_name,is_unlocked)
+      SELECT pokemon_id,70,subskill_name,is_unlocked FROM pokemon_subskills WHERE unlock_level=75`);
+    db.run(`DELETE FROM pokemon_subskills WHERE unlock_level=75`);
+    db.run(`INSERT OR REPLACE INTO pokemon_subskills(pokemon_id,unlock_level,subskill_name,is_unlocked)
+      SELECT pokemon_id,80,subskill_name,is_unlocked FROM pokemon_subskills WHERE unlock_level=100`);
+    db.run(`DELETE FROM pokemon_subskills WHERE unlock_level=100`);
+  }
+  db.run(`UPDATE pokemon SET favorite_berry=CASE type
+    WHEN '一般' THEN '柿仔果' WHEN '火' THEN '蘋野果' WHEN '水' THEN '橙橙果'
+    WHEN '電' THEN '葡萄果' WHEN '草' THEN '榴榴果' WHEN '冰' THEN '莓莓果'
+    WHEN '格鬥' THEN '櫻子果' WHEN '毒' THEN '零餘果' WHEN '地面' THEN '勿花果'
+    WHEN '飛行' THEN '棕櫚果' WHEN '超能力' THEN '芒芒果' WHEN '蟲' THEN '木子果'
+    WHEN '岩石' THEN '文柚果' WHEN '幽靈' THEN '墨莓果' WHEN '龍' THEN '燭木果'
+    WHEN '惡' THEN '異奇果' WHEN '鋼' THEN '靛莓果' WHEN '妖精' THEN '桃桃果'
+    ELSE favorite_berry END
+    WHERE favorite_berry IS NULL OR favorite_berry=''`);
+  db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(3,datetime('now'))`);
+}
+
 export async function initializeDatabase(){
   if(typeof initSqlJs!=='function') throw new Error('sql.js 載入失敗，請確認網路後重新整理');
   SQL=await initSqlJs({locateFile:file=>`https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/${file}`});
@@ -41,6 +63,7 @@ export async function initializeDatabase(){
   db.run(DDL);
   if((scalar('SELECT COUNT(*) FROM schema_migrations')||0)===0) db.run(SEED_SQL);
   applyIdentityMigration();
+  applyGameDataMigration();
   const seeded=applyG2ASeed(db);
   await persist();
   return {seeded};
@@ -58,6 +81,7 @@ export async function replaceDatabase(bytes){
   if(!check.length||check[0].integrity_check!=='ok') throw new Error('SQLite integrity_check 未通過');
   db.run(DDL);
   applyIdentityMigration();
+  applyGameDataMigration();
   applyG2ASeed(db);
   await persist();
 }
