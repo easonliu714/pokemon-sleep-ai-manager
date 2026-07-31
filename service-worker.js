@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.16-recipe-unlock-guidance';
+const CACHE = 'pokemon-sleep-ai-v0.3.17-recipe-table-isolation';
 const ASSETS = [
   './',
   './index.html',
