@@ -1,9 +1,9 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.27-identity-evidence-builder';
+const CACHE = 'pokemon-sleep-ai-v0.3.28-master-data-editor';
 const ASSETS = [
   './','./index.html','./manifest.webmanifest','./assets/css/app.css','./assets/css/editor.css',
   './assets/js/bootstrap.js','./assets/js/app.js','./assets/js/database.js','./assets/js/storage.js',
   './assets/js/schema.js','./assets/js/importer.js','./assets/js/seed-data.js','./assets/js/pokemon-detail.js',
-  './assets/js/ai-workflow.js','./assets/js/manual-editor.js','./assets/js/prompt-catalog.js',
+  './assets/js/pokemon-master-options.js','./assets/js/ai-workflow.js','./assets/js/manual-editor.js','./assets/js/prompt-catalog.js',
   './assets/js/g3-planning.js','./assets/js/ingredient-gap-engine.js','./assets/js/time-utils.js',
   './assets/js/identity-review.js','./assets/js/identity-convergence.js','./assets/js/identity-dedup.js',
   './assets/js/identity-evidence-builder.js','./assets/js/update-center-ui-guard.js',

@@ -5,6 +5,8 @@ const dedup=fs.readFileSync('assets/js/identity-dedup.js','utf8');
 const evidence=fs.readFileSync('assets/js/identity-evidence-builder.js','utf8');
 const recipeGuard=fs.readFileSync('assets/js/recipe-render-guard.js','utf8');
 const shared=fs.readFileSync('assets/js/shared-knowledge-ui.js','utf8');
+const master=fs.readFileSync('assets/js/pokemon-master-options.js','utf8');
+const detail=fs.readFileSync('assets/js/pokemon-detail.js','utf8');
 const bootstrap=fs.readFileSync('assets/js/bootstrap.js','utf8');
 const sw=fs.readFileSync('service-worker.js','utf8');
 
@@ -34,10 +36,25 @@ assert.match(recipeGuard,/MutationObserver/);
 assert.match(recipeGuard,/renderSharedKnowledge\(true\)/);
 assert.match(shared,/renderSharedKnowledge\(force=false\)/);
 
-assert.match(bootstrap,/APP_VERSION = 'v0\.3\.27'/);
-assert.match(bootstrap,/20260731-identity-evidence-builder1/);
-assert.match(bootstrap,/'identity-evidence-builder\.js'/);
-assert.match(sw,/pokemon-sleep-ai-v0\.3\.27-identity-evidence-builder/);
-assert.match(sw,/identity-evidence-builder\.js/);
+assert.match(master,/SPECIALTIES=\['技能','樹果','食材'\]/);
+assert.match(master,/BERRY_BY_TYPE/);
+assert.match(master,/NATURES=/);
+assert.match(master,/MAIN_SKILLS=/);
+assert.match(master,/SUBSKILLS=/);
+assert.match(master,/mergedOptions/);
+assert.match(detail,/pokemonTypeSelect/);
+assert.match(detail,/pokemonNatureSelect/);
+assert.match(detail,/BERRY_BY_TYPE\[type\.value\]/);
+assert.match(detail,/NATURES\[nature\.value\]/);
+assert.match(detail,/select\('specialty'/);
+assert.match(detail,/select\('main_skill'/);
+assert.match(detail,/mergedOptions\(INGREDIENTS/);
+assert.match(detail,/mergedOptions\(SUBSKILLS/);
 
-console.log('PASS identity merge, evidence builder, and recipe render guard regression');
+assert.match(bootstrap,/APP_VERSION = 'v0\.3\.28'/);
+assert.match(bootstrap,/20260731-master-data-editor1/);
+assert.match(bootstrap,/'pokemon-master-options\.js'/);
+assert.match(sw,/pokemon-sleep-ai-v0\.3\.28-master-data-editor/);
+assert.match(sw,/pokemon-master-options\.js/);
+
+console.log('PASS identity, recipe guard, and master data editor regression');
