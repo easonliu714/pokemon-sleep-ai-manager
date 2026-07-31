@@ -1,6 +1,6 @@
 const status = document.getElementById('dbStatus');
 const warning = document.getElementById('storageWarning');
-const VERSION = '20260731-identity-review1';
+const VERSION = '20260731-shared-master1';
 
 function showFailure(label, error) {
   console.error(`Module probe failed: ${label}`, error);
@@ -21,6 +21,8 @@ const probes = [
   'storage.js',
   'schema.js',
   'seed-data.js',
+  'shared-master-schema.js',
+  'shared-master-data.js',
   'database.js',
   'time-utils.js',
   'manual-editor.js',
@@ -30,6 +32,7 @@ const probes = [
   'prompt-catalog.js',
   'g3-planning.js',
   'identity-review.js',
+  'shared-knowledge-ui.js',
 ];
 
 (async () => {
@@ -44,7 +47,8 @@ const probes = [
 
   try {
     await import(`./app.js?v=${VERSION}`);
+    await import(`./shared-knowledge-ui.js?v=${VERSION}`);
   } catch (error) {
-    showFailure('app.js', error);
+    showFailure('app.js/shared-knowledge-ui.js', error);
   }
 })();
