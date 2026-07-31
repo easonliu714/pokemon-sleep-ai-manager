@@ -1,7 +1,7 @@
 const status = document.getElementById('dbStatus');
 const warning = document.getElementById('storageWarning');
-const APP_VERSION = 'v0.3.24';
-const VERSION = '20260731-identity-dedup-recipe-guard1';
+const APP_VERSION = 'v0.3.25';
+const VERSION = '20260731-recipe-force-rerender1';
 
 function showVisibleVersion() {
   const header = document.querySelector('header');
