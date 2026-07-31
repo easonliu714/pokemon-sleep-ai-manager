@@ -1,8 +1,28 @@
 import {renderIdentityConfirmationQueue,identityConfirmationStyles} from './identity-confirmation-ui.js';
 
-const container=document.getElementById('identityConfirmationRoot');
 let currentQueue={items:[]};
 let decideHandler=null;
+
+function ensureContainer(){
+  let container=document.getElementById('identityConfirmationRoot');
+  if(container)return container;
+  const updates=document.getElementById('updates');
+  if(!updates)return null;
+  const heading=document.createElement('h3');
+  heading.id='identityConfirmationHeading';
+  heading.textContent='AI 身分確認';
+  container=document.createElement('div');
+  container.id='identityConfirmationRoot';
+  container.className='panel';
+  const anchor=document.getElementById('workflowIssues')||updates.querySelector('h3');
+  if(anchor?.parentElement===updates){
+    anchor.insertAdjacentElement('afterend',heading);
+    heading.insertAdjacentElement('afterend',container);
+  }else{
+    updates.append(heading,container);
+  }
+  return container;
+}
 
 function ensureStyles(){
   if(document.getElementById('identityConfirmationStyles'))return;
@@ -13,10 +33,11 @@ function ensureStyles(){
 }
 
 function render(){
+  const container=ensureContainer();
   if(!container)return;
   ensureStyles();
   if(!currentQueue.items.length){
-    container.innerHTML='<div class="panel notice">尚無需要確認的身分辨識結果。</div>';
+    container.innerHTML='<div class="notice">尚無需要確認的身分辨識結果。</div>';
     return;
   }
   renderIdentityConfirmationQueue(container,currentQueue,{
