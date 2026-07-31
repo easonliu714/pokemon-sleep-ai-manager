@@ -40,3 +40,6 @@ jobs:
 
       - name: Verify weekly controlled selects
         run: node scripts/weekly-select-regression.mjs
+
+      - name: Verify preview reset and identity convergence
+        run: node scripts/preview-identity-regression.mjs
