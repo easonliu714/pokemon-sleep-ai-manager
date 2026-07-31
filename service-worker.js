@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.13-identity-review';
+const CACHE = 'pokemon-sleep-ai-v0.3.13-berry-subskill-levels';
 const ASSETS = [
   './',
   './index.html',
@@ -17,8 +17,8 @@ const ASSETS = [
   './assets/js/manual-editor.js',
   './assets/js/prompt-catalog.js',
   './assets/js/g3-planning.js',
-  './assets/js/identity-review.js',
   './assets/js/time-utils.js',
+  './assets/js/identity-review.js',
   './assets/icons/icon.svg',
   'https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/sql-wasm.js',
   'https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/sql-wasm.wasm',
