@@ -5,15 +5,26 @@ let ready=false;
 
 function ensureReferenceUi(){
   const section=document.getElementById('recipes');
-  if(!section||document.getElementById('berryMasterTable')) return;
-  const wrapper=document.createElement('div');
-  wrapper.innerHTML=`
-    <h3>樹果與屬性對照</h3>
-    <p class="notice">樹果為屬性固定資料；新增或更新寶可夢時可由屬性自動帶入。</p>
-    <div class="table-wrap"><table id="berryMasterTable"></table></div>
-    <h3>共享食譜主檔</h3>
-    <p class="notice">基礎能量與需求食材屬共享資料；個人解鎖狀態仍只存在本機。</p>`;
-  section.insertBefore(wrapper,document.getElementById('recipeTable')?.parentElement||null);
+  if(section&&!document.getElementById('berryMasterTable')){
+    const wrapper=document.createElement('div');
+    wrapper.innerHTML=`
+      <h3>樹果與屬性對照</h3>
+      <p class="notice">樹果為屬性固定資料；新增或更新寶可夢時可由屬性自動帶入。</p>
+      <div class="table-wrap"><table id="berryMasterTable"></table></div>
+      <h3>共享食譜主檔</h3>
+      <p class="notice">基礎能量與需求食材屬共享資料；個人解鎖狀態仍只存在本機。</p>`;
+    section.insertBefore(wrapper,document.getElementById('recipeTable')?.parentElement||null);
+  }
+  const guide=document.querySelector('#guide .prose');
+  if(guide&&!document.getElementById('dataProvenanceGuide')){
+    const block=document.createElement('div');
+    block.id='dataProvenanceGuide';
+    block.innerHTML=`<h3>共享資料來源與優先順序</h3>
+      <p>共享知識庫以 Pokémon Sleep 官方公告與遊戲內畫面為第一優先。官方未公開、難以直接取得或需要彙整的稀缺資料，才會參考第三方網站。</p>
+      <p>目前樹果名稱與屬性對照、料理名稱、基礎能量及需求食材，部分整理時參考了 <b>RaenonX</b> 網站及使用者提供的該網站畫面。第三方資料不視為官方資料；若與官方資訊衝突，一律以官方為準。</p>
+      <p>每筆共享資料保留資料來源類型、來源名稱、參考來源、核對日期與資料版本。玩家的寶可夢、庫存、食譜解鎖狀態及策略仍只儲存在本機。</p>`;
+    guide.appendChild(block);
+  }
 }
 
 function table(el,data,columns){
