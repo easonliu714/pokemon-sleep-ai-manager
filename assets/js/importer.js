@@ -21,6 +21,8 @@ const KEYS = {
   pokemon_identity_evidence: ['evidence_id'],
   discarded_pokemon: ['discard_id'],
   weekly_plan: ['plan_id'],
+  weekly_context: ['context_id'],
+  weekly_strategy: ['strategy_id'],
   settings: ['key'],
   recipes: ['recipe_id'],
   recipe_ingredients: ['recipe_id', 'ingredient_name'],
@@ -85,66 +87,40 @@ function resolvePokemonIdentity(operation) {
     return match ? { match, ambiguous: false, reason: '更新包明確指定既有 pokemon_id' }
       : { match: null, ambiguous: false, invalidTarget: true, reason: 'identity_match 指定的 pokemon_id 不存在' };
   }
-
   if (isMeaningful(data.pokemon_instance_id)) {
-    const result = uniqueCandidate(
-      'SELECT * FROM pokemon WHERE pokemon_instance_id=? AND status<>\'archived\'',
-      [data.pokemon_instance_id],
-    );
+    const result = uniqueCandidate('SELECT * FROM pokemon WHERE pokemon_instance_id=? AND status<>\'archived\'',[data.pokemon_instance_id]);
     if (result.match || result.ambiguous) return { ...result, reason: 'pokemon_instance_id' };
   }
-
   if (isMeaningful(data.game_pokemon_id)) {
-    const result = uniqueCandidate(
-      'SELECT * FROM pokemon WHERE game_pokemon_id=? AND status<>\'archived\'',
-      [data.game_pokemon_id],
-    );
+    const result = uniqueCandidate('SELECT * FROM pokemon WHERE game_pokemon_id=? AND status<>\'archived\'',[data.game_pokemon_id]);
     if (result.match || result.ambiguous) return { ...result, reason: 'game_pokemon_id' };
   }
-
   if (isMeaningful(data.identity_fingerprint) && isMeaningful(data.registered_at)) {
-    const result = uniqueCandidate(
-      `SELECT * FROM pokemon
-       WHERE identity_fingerprint=? AND registered_at=? AND status<>'archived'`,
-      [data.identity_fingerprint, data.registered_at],
-    );
+    const result = uniqueCandidate(`SELECT * FROM pokemon WHERE identity_fingerprint=? AND registered_at=? AND status<>'archived'`,[data.identity_fingerprint,data.registered_at]);
     if (result.match || result.ambiguous) return { ...result, reason: 'registered_at + identity_fingerprint' };
   }
-
   return { match: null, ambiguous: false, reason: '' };
 }
 
 export function dryRun(payload) {
   validate(payload);
-  if (scalar('SELECT COUNT(*) FROM import_batches WHERE update_id=?', [payload.update_id])) {
-    throw new Error(`update_id 已套用：${payload.update_id}`);
-  }
-
+  if (scalar('SELECT COUNT(*) FROM import_batches WHERE update_id=?', [payload.update_id])) throw new Error(`update_id 已套用：${payload.update_id}`);
   const aliases = new Map();
   const changes = [];
-
   payload.operations.forEach((operation, index) => {
     const incomingKey = { ...(operation.key || {}) };
-    if (incomingKey.pokemon_id && aliases.has(incomingKey.pokemon_id)) {
-      incomingKey.pokemon_id = aliases.get(incomingKey.pokemon_id);
-    }
-
+    if (incomingKey.pokemon_id && aliases.has(incomingKey.pokemon_id)) incomingKey.pokemon_id = aliases.get(incomingKey.pokemon_id);
     let key = incomingKey;
     let before = existing(operation.entity, key);
     let effectiveAction = operation.action;
     let message = '';
     let conflict = false;
     const missingPolicy = operation.missing_policy || 'conflict';
-
     if (operation.entity === 'pokemon' && !before && ['insert', 'upsert'].includes(operation.action)) {
       const resolution = resolvePokemonIdentity(operation);
-      if (resolution.invalidTarget) {
-        conflict = true;
-        message = resolution.reason;
-      } else if (resolution.ambiguous) {
-        conflict = true;
-        message = `${resolution.reason} 符合多筆現有資料，必須人工指定 identity_match.target_pokemon_id`;
-      } else if (resolution.match) {
+      if (resolution.invalidTarget) { conflict = true; message = resolution.reason; }
+      else if (resolution.ambiguous) { conflict = true; message = `${resolution.reason} 符合多筆現有資料，必須人工指定 identity_match.target_pokemon_id`; }
+      else if (resolution.match) {
         const incomingId = operation.key.pokemon_id;
         const resolvedId = resolution.match.pokemon_id;
         aliases.set(incomingId, resolvedId);
@@ -154,58 +130,21 @@ export function dryRun(payload) {
         message = `${resolution.reason} 唯一吻合，合併至既有 ID：${resolvedId}`;
       }
     }
-
     if (operation.action === 'upsert' && !conflict) effectiveAction = before ? 'update' : 'insert';
-    if (operation.action === 'insert' && before && !message) {
-      conflict = true;
-      message = '目標已存在';
-    }
-
+    if (operation.action === 'insert' && before && !message) { conflict = true; message = '目標已存在'; }
     if (['update', 'archive', 'delete'].includes(operation.action) && !before) {
-      if (missingPolicy === 'skip') {
-        effectiveAction = 'skip';
-        message = '目標不存在，依 missing_policy=skip 略過';
-      } else if (missingPolicy === 'insert' && operation.action === 'update') {
-        effectiveAction = 'insert';
-        message = '目標不存在，依 missing_policy=insert 改為新增';
-      } else {
-        conflict = true;
-        message = '目標不存在';
-      }
+      if (missingPolicy === 'skip') { effectiveAction = 'skip'; message = '目標不存在，依 missing_policy=skip 略過'; }
+      else if (missingPolicy === 'insert' && operation.action === 'update') { effectiveAction = 'insert'; message = '目標不存在，依 missing_policy=insert 改為新增'; }
+      else { conflict = true; message = '目標不存在'; }
     }
-
     const data = sparseData(operation);
     let after;
-    if (['insert', 'update'].includes(effectiveAction)) {
-      after = { ...(before || {}), ...key, ...data };
-    } else if (operation.action === 'archive' && effectiveAction !== 'skip') {
-      after = { ...(before || {}), status: 'archived' };
-    } else {
-      after = before ? { ...before } : { ...key, ...data };
-    }
-
-    changes.push({
-      index,
-      entity: operation.entity,
-      requested_action: operation.action,
-      effective_action: effectiveAction,
-      original_key: operation.key,
-      key,
-      before,
-      after,
-      data,
-      status: conflict ? 'conflict' : 'ready',
-      message,
-    });
+    if (['insert', 'update'].includes(effectiveAction)) after = { ...(before || {}), ...key, ...data };
+    else if (operation.action === 'archive' && effectiveAction !== 'skip') after = { ...(before || {}), status: 'archived' };
+    else after = before ? { ...before } : { ...key, ...data };
+    changes.push({index,entity:operation.entity,requested_action:operation.action,effective_action:effectiveAction,original_key:operation.key,key,before,after,data,status:conflict?'conflict':'ready',message});
   });
-
-  return {
-    update_id: payload.update_id,
-    operation_count: changes.length,
-    ready_count: changes.filter((item) => item.status === 'ready').length,
-    conflict_count: changes.filter((item) => item.status === 'conflict').length,
-    changes,
-  };
+  return {update_id:payload.update_id,operation_count:changes.length,ready_count:changes.filter(item=>item.status==='ready').length,conflict_count:changes.filter(item=>item.status==='conflict').length,changes};
 }
 
 function write(entity, key, data, mode) {
@@ -213,18 +152,12 @@ function write(entity, key, data, mode) {
   const columns = Object.keys(record);
   const keys = KEYS[entity];
   if (mode === 'insert') {
-    run(
-      `INSERT INTO ${quote(entity)}(${columns.map(quote).join(',')}) VALUES(${columns.map(() => '?').join(',')})`,
-      columns.map((column) => record[column]),
-    );
+    run(`INSERT INTO ${quote(entity)}(${columns.map(quote).join(',')}) VALUES(${columns.map(() => '?').join(',')})`,columns.map(column=>record[column]));
     return;
   }
-  const updates = columns.filter((column) => !keys.includes(column));
+  const updates = columns.filter(column=>!keys.includes(column));
   if (!updates.length) return;
-  run(
-    `UPDATE ${quote(entity)} SET ${updates.map((column) => `${quote(column)}=?`).join(',')} WHERE ${keys.map((column) => `${quote(column)}=?`).join(' AND ')}`,
-    [...updates.map((column) => record[column]), ...keys.map((column) => key[column])],
-  );
+  run(`UPDATE ${quote(entity)} SET ${updates.map(column=>`${quote(column)}=?`).join(',')} WHERE ${keys.map(column=>`${quote(column)}=?`).join(' AND ')}`,[...updates.map(column=>record[column]),...keys.map(column=>key[column])]);
 }
 
 export async function applyPayload(payload) {
@@ -233,34 +166,21 @@ export async function applyPayload(payload) {
   await snapshot(`before:${payload.update_id}`);
   begin();
   try {
-    payload.operations.forEach((operation, index) => {
-      const change = preview.changes[index];
-      if (change.effective_action === 'insert') write(operation.entity, change.key, change.data, 'insert');
-      else if (change.effective_action === 'update') write(operation.entity, change.key, change.data, 'update');
-      else if (change.effective_action === 'skip') {
-        // Deliberately no database write.
-      } else if (operation.action === 'archive') write(operation.entity, change.key, { status: 'archived' }, 'update');
-      else if (operation.action === 'delete') {
-        const keys = KEYS[operation.entity];
-        run(
-          `DELETE FROM ${quote(operation.entity)} WHERE ${keys.map((key) => `${quote(key)}=?`).join(' AND ')}`,
-          keys.map((key) => change.key[key]),
-        );
+    payload.operations.forEach((operation,index)=>{
+      const change=preview.changes[index];
+      if(change.effective_action==='insert')write(operation.entity,change.key,change.data,'insert');
+      else if(change.effective_action==='update')write(operation.entity,change.key,change.data,'update');
+      else if(change.effective_action==='skip'){}
+      else if(operation.action==='archive')write(operation.entity,change.key,{status:'archived'},'update');
+      else if(operation.action==='delete'){
+        const keys=KEYS[operation.entity];
+        run(`DELETE FROM ${quote(operation.entity)} WHERE ${keys.map(key=>`${quote(key)}=?`).join(' AND ')}`,keys.map(key=>change.key[key]));
       }
-      run(
-        'INSERT INTO import_changes(update_id,operation_index,entity,action,key_json,before_json,after_json,status,message) VALUES(?,?,?,?,?,?,?,?,?)',
-        [payload.update_id,index,operation.entity,operation.action,JSON.stringify(change.key),change.before?JSON.stringify(change.before):null,change.after?JSON.stringify(change.after):null,change.effective_action==='skip'?'skipped':'applied',change.message||''],
-      );
+      run('INSERT INTO import_changes(update_id,operation_index,entity,action,key_json,before_json,after_json,status,message) VALUES(?,?,?,?,?,?,?,?,?)',[payload.update_id,index,operation.entity,operation.action,JSON.stringify(change.key),change.before?JSON.stringify(change.before):null,change.after?JSON.stringify(change.after):null,change.effective_action==='skip'?'skipped':'applied',change.message||'']);
     });
-    run(
-      'INSERT INTO import_batches(update_id,schema_version,generated_at,imported_at,source,operation_count,result_json) VALUES(?,?,?,?,?,?,?)',
-      [payload.update_id,String(payload.schema_version),payload.generated_at,localIso(),payload.source||'',payload.operations.length,JSON.stringify({status:'applied'})],
-    );
+    run('INSERT INTO import_batches(update_id,schema_version,generated_at,imported_at,source,operation_count,result_json) VALUES(?,?,?,?,?,?,?)',[payload.update_id,String(payload.schema_version),payload.generated_at,localIso(),payload.source||'',payload.operations.length,JSON.stringify({status:'applied'})]);
     commit();
     await persist();
     return {operation_count:payload.operations.length};
-  } catch (error) {
-    rollback();
-    throw error;
-  }
+  } catch(error){rollback();throw error;}
 }
