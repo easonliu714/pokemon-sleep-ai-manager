@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.23-visible-version';
+const CACHE = 'pokemon-sleep-ai-v0.3.24-identity-dedup-recipe-guard';
 const ASSETS = [
   './',
   './index.html',
@@ -21,10 +21,12 @@ const ASSETS = [
   './assets/js/time-utils.js',
   './assets/js/identity-review.js',
   './assets/js/identity-convergence.js',
+  './assets/js/identity-dedup.js',
   './assets/js/update-center-ui-guard.js',
   './assets/js/shared-master-schema.js',
   './assets/js/shared-master-data.js',
   './assets/js/shared-knowledge-ui.js',
+  './assets/js/recipe-render-guard.js',
   './assets/icons/icon.svg',
   'https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/sql-wasm.js',
   'https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/sql-wasm.wasm',
