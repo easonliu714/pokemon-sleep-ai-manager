@@ -1,7 +1,20 @@
 const text=value=>String(value??'').trim();
-const same=(a,b)=>!text(a)||!text(b)||text(a)===text(b);
-const exact=(a,b)=>text(a)&&text(b)&&text(a)===text(b);
-const rowsByLevel=rows=>new Map((rows||[]).filter(Boolean).map(row=>[Number(row.unlock_level),text(row.ingredient_name||row.subskill_name)]));
+const exact=(a,b)=>Boolean(text(a)&&text(b)&&text(a)===text(b));
+const normalizeDate=value=>text(value).slice(0,10);
+const asArray=value=>Array.isArray(value)?value:[];
+const rowsByLevel=rows=>new Map(asArray(rows).filter(Boolean).map(row=>[Number(row.unlock_level),text(row.ingredient_name||row.subskill_name)]));
+
+function speciesEvidence(profile,candidate){
+  const observed=text(profile.species);
+  if(!observed)return {compared:false,match:false,mode:null};
+  const direct=[candidate.species,candidate.current_species].some(value=>exact(observed,value));
+  if(direct)return {compared:true,match:true,mode:'current_species'};
+  const chain=asArray(candidate.evolution_chain_species).map(text);
+  if(chain.includes(observed))return {compared:true,match:true,mode:'evolution_chain'};
+  const captured=text(candidate.capture_species);
+  if(captured&&exact(observed,captured))return {compared:true,match:true,mode:'capture_species'};
+  return {compared:true,match:false,mode:null};
+}
 
 function compareRows(observed,candidate){
   const left=rowsByLevel(observed),right=rowsByLevel(candidate);
@@ -19,22 +32,62 @@ function compareRows(observed,candidate){
 function scoreCandidate(observation,candidate){
   const profile=observation.profile||{};
   let score=0,signals=0,conflict=false;
-  const add=(condition,weight)=>{signals+=1;if(condition)score+=weight;else conflict=true;};
-  if(profile.species&&candidate.species)add(exact(profile.species,candidate.species)||exact(profile.species,candidate.current_species),30);
+  const evidence=[];
+  const add=(name,condition,weight,details=null)=>{
+    signals+=1;
+    evidence.push({name,match:Boolean(condition),weight,details});
+    if(condition)score+=weight;else conflict=true;
+  };
+
+  const species=speciesEvidence(profile,candidate);
+  if(species.compared)add('species',species.match,species.mode==='current_species'?30:22,{mode:species.mode});
   for(const [field,weight] of [['nature',16],['specialty',12],['type',10],['main_skill',10]]){
-    if(profile[field]&&candidate[field])add(exact(profile[field],candidate[field]),weight);
+    if(profile[field]&&candidate[field])add(field,exact(profile[field],candidate[field]),weight);
   }
-  if(profile.nickname&&candidate.nickname)add(exact(profile.nickname,candidate.nickname),4);
+  if(profile.nickname&&candidate.nickname)add('nickname',exact(profile.nickname,candidate.nickname),4);
+  if(profile.registered_date&&candidate.registered_date){
+    add('registered_date',normalizeDate(profile.registered_date)===normalizeDate(candidate.registered_date),14);
+  }
+  if(profile.capture_species&&candidate.capture_species){
+    add('capture_species',exact(profile.capture_species,candidate.capture_species),12);
+  }
   if(Number.isFinite(Number(profile.level))&&Number.isFinite(Number(candidate.level))){
     signals+=1;
     const delta=Number(profile.level)-Number(candidate.level);
-    if(delta>=0&&delta<=20)score+=8;else if(Math.abs(delta)<=3)score+=4;else conflict=true;
+    const match=delta>=0&&delta<=20;
+    evidence.push({name:'level_progression',match,weight:8,details:{delta}});
+    if(match)score+=8;else if(Math.abs(delta)<=3)score+=4;else conflict=true;
   }
+
   const ingredients=compareRows(observation.ingredients,candidate.ingredients);
   const subskills=compareRows(observation.subskills,candidate.subskills);
-  if(ingredients.compared){signals+=ingredients.compared;score+=ingredients.matched*12;if(ingredients.conflict)conflict=true;}
-  if(subskills.compared){signals+=subskills.compared;score+=subskills.matched*14;if(subskills.conflict)conflict=true;}
-  return {candidate,score,signals,conflict};
+  if(ingredients.compared){
+    signals+=ingredients.compared;
+    score+=ingredients.matched*12;
+    evidence.push({name:'ingredients',match:!ingredients.conflict,weight:ingredients.matched*12,details:ingredients});
+    if(ingredients.conflict)conflict=true;
+  }
+  if(subskills.compared){
+    signals+=subskills.compared;
+    score+=subskills.matched*14;
+    evidence.push({name:'subskills',match:!subskills.conflict,weight:subskills.matched*14,details:subskills});
+    if(subskills.conflict)conflict=true;
+  }
+  return {candidate,score,signals,conflict,evidence};
+}
+
+function publicCandidate(item){
+  return {
+    pokemon_instance_id:item.candidate.pokemon_instance_id,
+    pokemon_id:item.candidate.pokemon_id||null,
+    update_token:item.candidate.update_token||null,
+    nickname:item.candidate.nickname||null,
+    species:item.candidate.current_species||item.candidate.species||null,
+    level:item.candidate.level??null,
+    score:item.score,
+    signals:item.signals,
+    evidence:item.evidence
+  };
 }
 
 export function classifyIdentityCandidates(observation,candidates=[]){
@@ -48,11 +101,39 @@ export function classifyIdentityCandidates(observation,candidates=[]){
   if(!ranked.length)return {status:'no_candidate',selected:null,candidates:[],reason:'no_compatible_candidate'};
   const top=ranked[0],second=ranked[1];
   const ties=ranked.filter(item=>item.score===top.score);
-  if(ties.length>1)return {status:'ambiguous_existing',selected:null,candidates:ties.map(item=>item.candidate),reason:'multiple_equal_candidates'};
-  if(top.score>=70&&top.signals>=4&&(!second||top.score-second.score>=15))return {status:'unique_high_confidence',selected:top.candidate,candidates:ranked.map(item=>item.candidate),score:top.score,reason:'unique_weighted_match'};
-  return {status:'possible_existing',selected:null,candidates:ranked.map(item=>item.candidate),score:top.score,reason:'insufficient_unique_evidence'};
+  if(ties.length>1)return {status:'ambiguous_existing',selected:null,candidates:ties.map(item=>item.candidate),ranked,reason:'multiple_equal_candidates'};
+  if(top.score>=70&&top.signals>=4&&(!second||top.score-second.score>=15))return {status:'unique_high_confidence',selected:top.candidate,candidates:ranked.map(item=>item.candidate),ranked,score:top.score,reason:'unique_weighted_match'};
+  return {status:'possible_existing',selected:null,candidates:ranked.map(item=>item.candidate),ranked,score:top.score,reason:'insufficient_unique_evidence'};
+}
+
+export function toIdentityResolutionDto(observation,result){
+  const ranked=asArray(result.ranked).map(publicCandidate);
+  const selectedId=result.selected?.pokemon_instance_id||null;
+  return {
+    incoming_ref:observation?.incoming_ref||null,
+    status:result.status,
+    reason:result.reason,
+    requires_confirmation:!['exact_existing','unique_high_confidence'].includes(result.status),
+    selected_pokemon_instance_id:selectedId,
+    top_score:result.score??ranked[0]?.score??null,
+    candidate_count:ranked.length||asArray(result.candidates).length,
+    candidates:ranked.length?ranked:asArray(result.candidates).map(candidate=>({
+      pokemon_instance_id:candidate.pokemon_instance_id,
+      pokemon_id:candidate.pokemon_id||null,
+      update_token:candidate.update_token||null,
+      nickname:candidate.nickname||null,
+      species:candidate.current_species||candidate.species||null,
+      level:candidate.level??null,
+      score:null,
+      signals:null,
+      evidence:[]
+    }))
+  };
 }
 
 export function resolveObservationBatch(payload,candidates=[]){
-  return (payload?.observations||[]).map(observation=>({incoming_ref:observation.incoming_ref,...classifyIdentityCandidates(observation,candidates)}));
+  return asArray(payload?.observations).map(observation=>{
+    const result=classifyIdentityCandidates(observation,candidates);
+    return toIdentityResolutionDto(observation,result);
+  });
 }
