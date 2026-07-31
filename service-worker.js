@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.15-shared-recipes-render-fix';
+const CACHE = 'pokemon-sleep-ai-v0.3.16-recipe-unlock-guidance';
 const ASSETS = [
   './',
   './index.html',
