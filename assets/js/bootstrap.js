@@ -1,7 +1,7 @@
 const status = document.getElementById('dbStatus');
 const warning = document.getElementById('storageWarning');
-const APP_VERSION = 'v0.3.29';
-const VERSION = '20260731-identity-quality-guard1';
+const APP_VERSION = 'v0.3.30';
+const VERSION = '20260731-profile-completeness-guard1';
 
 function showVisibleVersion() {
   const header = document.querySelector('header');
