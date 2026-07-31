@@ -51,6 +51,8 @@ function applyGameDataMigration(){
 function applySharedKnowledgeBase(){
   applySharedMasterSchema(db);
   applySharedMasterData(db);
+  db.run(`UPDATE pokemon SET favorite_berry=(SELECT berry_name FROM berry_master WHERE type_name=pokemon.type)
+    WHERE EXISTS(SELECT 1 FROM berry_master WHERE type_name=pokemon.type)`);
   db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(4,datetime('now'))`);
 }
 
