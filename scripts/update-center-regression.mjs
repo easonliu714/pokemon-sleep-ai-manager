@@ -106,7 +106,7 @@ const appSource=await readFile(new URL('../assets/js/app.js',import.meta.url),'u
 for(const table of ['recipes','recipe_ingredients','pokemon','pokemon_ingredients','pokemon_subskills','ingredient_inventory','item_inventory','import_batches','import_changes']){
   assert.ok(appSource.includes(`'${table}'`),`JSON backup table list missing ${table}`);
 }
-assert.match(appSource,/snapshot\('before:restore'\)/,'restore must snapshot current database first');
+assert.match(appSource,/snapshot\('before-restore'\)/,'restore must snapshot current database first');
 assert.match(appSource,/replaceDatabase\(/,'restore must call replaceDatabase');
 
 console.log('PASS update center: validation, identity review, dry-run, snapshot, apply, duplicate guard, rollback, JSON backup coverage, backup/restore, migrations, shared data, integrity_check');
