@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.18-encyclopedia-legacy-subskills';
+const CACHE = 'pokemon-sleep-ai-v0.3.19-g6-weekly-gap';
 const ASSETS = [
   './',
   './index.html',
@@ -17,6 +17,7 @@ const ASSETS = [
   './assets/js/manual-editor.js',
   './assets/js/prompt-catalog.js',
   './assets/js/g3-planning.js',
+  './assets/js/ingredient-gap-engine.js',
   './assets/js/time-utils.js',
   './assets/js/identity-review.js',
   './assets/js/shared-master-schema.js',
