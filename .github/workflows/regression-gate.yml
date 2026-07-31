@@ -37,3 +37,6 @@ jobs:
 
       - name: Verify ingredient gap engine
         run: node scripts/ingredient-gap-regression.mjs
+
+      - name: Verify weekly controlled selects
+        run: node scripts/weekly-select-regression.mjs
