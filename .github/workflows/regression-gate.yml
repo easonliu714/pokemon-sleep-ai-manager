@@ -13,7 +13,7 @@ permissions:
 jobs:
   regression-gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,8 +23,10 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install SQLite test runtime
-        run: npm install --no-save --no-package-lock sql.js@1.13.0 fake-indexeddb@6.2.4
+      - name: Install regression runtimes
+        run: |
+          npm install --no-save --no-package-lock sql.js@1.13.0 fake-indexeddb@6.2.4 playwright@1.54.1
+          npx playwright install --with-deps chromium
 
       - name: Run regression gate
         run: node scripts/regression-gate.mjs
@@ -49,3 +51,25 @@ jobs:
 
       - name: Verify identity dedup and recipe render guard
         run: node scripts/identity-dedup-recipe-guard-regression.mjs
+
+      - name: Start static web server
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/pokemon-sleep-http.log 2>&1 &
+          echo $! > /tmp/pokemon-sleep-http.pid
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:4173/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/pokemon-sleep-http.log
+          exit 1
+
+      - name: Verify browser runtime and dynamic module loading
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/browser-runtime-gate.mjs
+
+      - name: Print static server log on failure
+        if: failure()
+        run: cat /tmp/pokemon-sleep-http.log || true
