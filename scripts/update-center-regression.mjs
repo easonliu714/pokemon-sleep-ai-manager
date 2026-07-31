@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
 import initSqlJs from 'sql.js';
 import {indexedDB, IDBKeyRange} from 'fake-indexeddb';
 
@@ -9,6 +10,18 @@ globalThis.initSqlJs=async()=>initSqlJs();
 const database=await import('../assets/js/database.js');
 const importer=await import('../assets/js/importer.js');
 const storage=await import('../assets/js/storage.js');
+const workflow=await import('../assets/js/ai-workflow.js');
+
+const invalidWorkflow=workflow.validateWorkflow({operations:'bad'});
+assert.ok(invalidWorkflow.errors.length>0,'invalid JSON structure must be rejected');
+const reviewPayload={
+  schema_version:'1.1',update_id:'TEST-REVIEW',generated_at:'2026-07-31T00:00:00+08:00',source:'ci-fixture',
+  operations:[{operation_id:'OP-1',entity:'pokemon',action:'upsert',key:{pokemon_id:'pkm-review'},data:{species:'測試寶可夢'},review_required:true}],
+};
+const reviewResult=workflow.validateWorkflow(reviewPayload);
+assert.equal(reviewResult.review.length,1,'review_required operation must enter review queue');
+const approved=workflow.approveReviewed(reviewPayload);
+assert.equal(approved.operations[0].review_required,false,'approved review must clear review_required');
 
 await storage.clearAllStorage();
 await database.initializeDatabase();
@@ -54,6 +67,8 @@ await database.persist();
 await database.replaceDatabase(backup);
 assert.equal(database.scalar('SELECT quantity FROM ingredient_inventory WHERE ingredient_name=?',['測試食材']),12,'restore must recover backup value');
 assert.equal(database.rows('PRAGMA integrity_check')[0].integrity_check,'ok');
+assert.equal(database.scalar('SELECT COUNT(*) FROM schema_migrations WHERE version IN (1,2,3,4,5)'),5,'restore must retain/reapply migrations');
+assert.ok(database.scalar("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='recipe_master'")>0,'restore must retain shared knowledge schema');
 
 const rollbackPayload={
   schema_version:'1.1',
@@ -87,4 +102,11 @@ assert.equal(database.scalar('SELECT COUNT(*) FROM settings WHERE key=?',['rollb
 assert.equal(database.scalar('SELECT COUNT(*) FROM import_batches WHERE update_id=?',[rollbackPayload.update_id]),0);
 assert.equal(database.rows('PRAGMA integrity_check')[0].integrity_check,'ok');
 
-console.log('PASS update center: dry-run, snapshot, apply, duplicate guard, rollback, backup/restore, integrity_check');
+const appSource=await readFile(new URL('../assets/js/app.js',import.meta.url),'utf8');
+for(const table of ['recipes','recipe_ingredients','pokemon','pokemon_ingredients','pokemon_subskills','ingredient_inventory','item_inventory','import_batches','import_changes']){
+  assert.ok(appSource.includes(`'${table}'`),`JSON backup table list missing ${table}`);
+}
+assert.match(appSource,/snapshot\('before:restore'\)/,'restore must snapshot current database first');
+assert.match(appSource,/replaceDatabase\(/,'restore must call replaceDatabase');
+
+console.log('PASS update center: validation, identity review, dry-run, snapshot, apply, duplicate guard, rollback, JSON backup coverage, backup/restore, migrations, shared data, integrity_check');
