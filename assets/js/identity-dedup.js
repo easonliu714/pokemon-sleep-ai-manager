@@ -1,5 +1,6 @@
 import {rows,run,persist,snapshot,begin,commit,rollback} from './database.js';
 import {localIso} from './time-utils.js';
+import {planSkeletonMerges,auditActivePokemon} from './identity-quality-guard.js';
 
 const text=(value)=>String(value??'').trim();
 const active=()=>rows("SELECT * FROM pokemon WHERE status='active'");
@@ -79,6 +80,12 @@ export function planPokemonMerges(items){
     planned.push({winner:candidate,loser,reason:'unique strong identity replaces weak placeholder'});
     used.add(loser.pokemon_id);
   }
+
+  const skeletonMerges=planSkeletonMerges(items,used);
+  for(const merge of skeletonMerges){
+    planned.push(merge);
+    used.add(merge.loser.pokemon_id);
+  }
   return planned;
 }
 
@@ -142,17 +149,17 @@ function mergeOne({winner,loser,reason},now){
   run(`INSERT OR REPLACE INTO pokemon_identity_evidence
     (evidence_id,pokemon_instance_id,evidence_type,evidence_value,confidence,observed_at,source_update_id)
     VALUES(?,?,?,?,?,?,?)`,[
-    `auto-dedup-v2-${loser.pokemon_id}`,
+    `auto-dedup-v3-${loser.pokemon_id}`,
     winner.pokemon_instance_id||winner.pokemon_id,
-    'automatic_duplicate_convergence_v2',
+    'automatic_duplicate_convergence_v3',
     JSON.stringify({
       winner_pokemon_id:winner.pokemon_id,
       archived_pokemon_id:loser.pokemon_id,
       reason,
       children_preserved:true,
-      transaction_version:'v0.3.26',
+      transaction_version:'v0.3.29',
     }),
-    1,now,'SYSTEM-IDENTITY-MERGE-v0.3.26',
+    1,now,'SYSTEM-IDENTITY-MERGE-v0.3.29',
   ]);
 }
 
@@ -162,8 +169,12 @@ export async function repairPokemonDuplicates(){
   try{
     const items=active();
     const merges=planPokemonMerges(items);
-    if(!merges.length)return 0;
-    await snapshot(`identity-merge-v2:${merges.length}`);
+    if(!merges.length){
+      const audit=auditActivePokemon(items);
+      if(!audit.ok)console.warn('[POKEMON_IDENTITY_QUALITY_GUARD]',audit);
+      return 0;
+    }
+    await snapshot(`identity-merge-v3:${merges.length}`);
     const now=localIso();
     begin();
     try{
@@ -174,10 +185,12 @@ export async function repairPokemonDuplicates(){
       throw error;
     }
     await persist();
+    const audit=auditActivePokemon(active());
+    if(!audit.ok)console.warn('[POKEMON_IDENTITY_QUALITY_GUARD]',audit);
     if(typeof document!=='undefined')document.dispatchEvent(new CustomEvent('pokemon-sleep-data-refreshed'));
     return merges.length;
   }catch(error){
-    console.error('Identity merge v2 failed',error);
+    console.error('Identity merge v3 failed',error);
     return 0;
   }finally{
     repairInProgress=false;
