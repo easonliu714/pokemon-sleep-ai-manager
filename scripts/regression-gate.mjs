@@ -48,8 +48,8 @@ async function migrationGate(){
     assert.match(initialization,new RegExp(`${fn}\\(\\)`),`${fn} missing from initializeDatabase`);
     assert.match(replacement,new RegExp(`${fn}\\(\\)`),`${fn} missing from replaceDatabase`);
   }
-  assert.match(database,/unlock_level=75[\s\S]*SELECT pokemon_id,70/u,'75→70 migration missing');
-  assert.match(database,/unlock_level=100[\s\S]*SELECT pokemon_id,80/u,'100→80 migration missing');
+  assert.match(database,/SELECT pokemon_id,70[\s\S]*unlock_level=75/u,'75→70 migration missing');
+  assert.match(database,/SELECT pokemon_id,80[\s\S]*unlock_level=100/u,'100→80 migration missing');
   console.log('PASS migrations: schema versions 1-5 and game-data migrations');
 }
 
