@@ -16,7 +16,7 @@ function repair(){
   const table=document.getElementById('recipeTable');
   if(!isLegacyRecipeTable(table))return;
   repairing=true;
-  try{renderSharedKnowledge();}finally{queueMicrotask(()=>{repairing=false;});}
+  try{renderSharedKnowledge(true);}finally{queueMicrotask(()=>{repairing=false;});}
 }
 
 function boot(){

@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.24-identity-dedup-recipe-guard';
+const CACHE = 'pokemon-sleep-ai-v0.3.25-recipe-force-rerender';
 const ASSETS = [
   './',
   './index.html',

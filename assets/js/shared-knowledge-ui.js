@@ -93,7 +93,7 @@ function weeklyRecommendations(analysis){
   return new Set(sortGapResults(pool,'shortage').slice(0,3).map(r=>r.recipe_id));
 }
 
-export function renderSharedKnowledge(){
+export function renderSharedKnowledge(force=false){
   if(rendering||!ensureReferenceUi())return;
   rendering=true;
   try{
@@ -104,7 +104,7 @@ export function renderSharedKnowledge(){
     const personalWeekly=weeklyRecommendations(personal);
     const referenceWeekly=weeklyRecommendations(reference);
     const signature=JSON.stringify({inventory,personal:personal.map(r=>[r.recipe_id,r.total_shortage]),reference:reference.map(r=>[r.recipe_id,r.total_shortage]),personalWeekly:[...personalWeekly],referenceWeekly:[...referenceWeekly]});
-    if(signature===lastSignature)return;
+    if(!force&&signature===lastSignature)return;
 
     table(document.getElementById('berryMasterTable'),berries,[
       {label:'屬性',key:'type_name'},{label:'樹果種類',key:'berry_name'},{label:'資料來源',key:'source_name'},{label:'核對日期',key:'verified_at'}
