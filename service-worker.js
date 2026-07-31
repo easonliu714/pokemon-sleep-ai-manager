@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.22-personal-weekly-recommendation';
+const CACHE = 'pokemon-sleep-ai-v0.3.23-visible-version';
 const ASSETS = [
   './',
   './index.html',
