@@ -24,10 +24,13 @@ jobs:
           node-version: '22'
 
       - name: Install SQLite test runtime
-        run: npm install --no-save --no-package-lock sql.js@1.13.0
+        run: npm install --no-save --no-package-lock sql.js@1.13.0 fake-indexeddb@6.2.4
 
       - name: Run regression gate
         run: node scripts/regression-gate.mjs
 
       - name: Verify shared and personal data isolation
         run: node scripts/shared-personal-isolation.mjs
+
+      - name: Verify Update Center transactions and restore
+        run: node scripts/update-center-regression.mjs
