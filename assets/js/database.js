@@ -56,6 +56,15 @@ function applySharedKnowledgeBase(){
   db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(4,datetime('now'))`);
 }
 
+function applyPersonalRecipeMigration(){
+  addColumnIfMissing('recipes','recipe_level','INTEGER');
+  addColumnIfMissing('recipes','current_energy','INTEGER');
+  addColumnIfMissing('recipes','updated_at','TEXT');
+  addColumnIfMissing('recipes','notes','TEXT');
+  db.run(`UPDATE recipes SET updated_at=datetime('now') WHERE updated_at IS NULL OR updated_at=''`);
+  db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(5,datetime('now'))`);
+}
+
 export async function initializeDatabase(){
   if(typeof initSqlJs!=='function') throw new Error('sql.js 載入失敗，請確認網路後重新整理');
   SQL=await initSqlJs({locateFile:file=>`https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/${file}`});
@@ -66,6 +75,7 @@ export async function initializeDatabase(){
   applyIdentityMigration();
   applyGameDataMigration();
   applySharedKnowledgeBase();
+  applyPersonalRecipeMigration();
   const seeded=applyG2ASeed(db);
   await persist();
   return {seeded};
@@ -85,6 +95,7 @@ export async function replaceDatabase(bytes){
   applyIdentityMigration();
   applyGameDataMigration();
   applySharedKnowledgeBase();
+  applyPersonalRecipeMigration();
   applyG2ASeed(db);
   await persist();
 }
