@@ -7,18 +7,29 @@ let lastSignature='';
 function ensureReferenceUi(){
   const section=document.getElementById('recipes');
   if(!section) return false;
-  if(!document.getElementById('berryMasterTable')){
+
+  const personalTable=document.getElementById('recipeTable');
+  if(personalTable&&!document.getElementById('personalRecipeHeading')){
+    const heading=document.createElement('h3');
+    heading.id='personalRecipeHeading';
+    heading.textContent='我的食譜';
+    personalTable.parentElement?.insertAdjacentElement('beforebegin',heading);
+  }
+
+  if(!document.getElementById('sharedKnowledgeBlock')){
     const wrapper=document.createElement('div');
     wrapper.id='sharedKnowledgeBlock';
     wrapper.innerHTML=`
+      <h3>推薦料理</h3>
+      <p class="notice">共享參考資料只用於判斷目前庫存可嘗試哪些料理，以及還缺哪些食材；真正是否已解鎖，以玩家從遊戲截圖匯入或手動登記的個人食譜為準。</p>
+      <div class="warning"><b>重要：</b>若依照參考配方投入足夠食材仍未解鎖，可能是第三方資訊、名稱對照或遊戲版本有誤。請勿持續浪費大量食材，建議改試其他組合，並查證官方公告、遊戲內資訊或其他可靠來源。</div>
+      <div class="table-wrap"><table id="referenceRecipeTable"></table></div>
       <h3>樹果與屬性對照</h3>
       <p class="notice">樹果為共享資料，寶可夢會依屬性自動帶入對應樹果。</p>
-      <div class="table-wrap"><table id="berryMasterTable"></table></div>
-      <h3>料理解鎖參考</h3>
-      <p class="notice">第三方食譜資料只用於判斷目前庫存可嘗試哪些新料理，以及還缺哪些食材；真正是否已解鎖，以玩家從遊戲截圖匯入或手動登記的個人食譜為準。</p>
-      <div class="warning"><b>重要：</b>若依照參考配方投入足夠食材仍未解鎖，可能是第三方資訊、名稱對照或遊戲版本有誤。請勿持續浪費大量食材，建議改試其他組合，並查證官方公告、遊戲內資訊或其他可靠來源。</div>`;
-    section.insertBefore(wrapper,document.getElementById('recipeTable')?.parentElement||null);
+      <div class="table-wrap"><table id="berryMasterTable"></table></div>`;
+    section.appendChild(wrapper);
   }
+
   const guide=document.querySelector('#guide .prose');
   if(guide&&!document.getElementById('dataProvenanceGuide')){
     const block=document.createElement('div');
@@ -84,14 +95,14 @@ export function renderSharedKnowledge(){
     const berries=rows('SELECT type_name,berry_name,source_name,verified_at FROM berry_master ORDER BY type_name');
     const recipes=buildRecipeAnalysis();
     const signature=`${berries.length}:${recipes.length}:${recipes.map(r=>r.recipe_id+':'+r.unlocked+':'+r.missing.map(x=>x.ingredient_name+'-'+x.shortage).join(',')).join('|')}`;
-    const recipeTable=document.getElementById('recipeTable');
-    const needsRender=signature!==lastSignature||!recipeTable?.querySelector('thead th:nth-child(7)');
+    const referenceRecipeTable=document.getElementById('referenceRecipeTable');
+    const needsRender=signature!==lastSignature||!referenceRecipeTable?.querySelector('thead th:nth-child(7)');
     if(needsRender){
       table(document.getElementById('berryMasterTable'),berries,[
         {label:'屬性',key:'type_name'},{label:'樹果種類',key:'berry_name'},
         {label:'資料來源',render:r=>esc(r.source_name)},{label:'核對日期',key:'verified_at'}
       ]);
-      table(recipeTable,recipes,[
+      table(referenceRecipeTable,recipes,[
         {label:'分類',key:'category'},{label:'料理',key:'recipe_name'},
         {label:'基礎能量',render:r=>Number(r.base_energy||0).toLocaleString()},
         {label:'參考配方',key:'ingredients'},
