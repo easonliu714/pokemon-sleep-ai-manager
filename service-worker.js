@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.19-g6-weekly-gap';
+const CACHE = 'pokemon-sleep-ai-v0.3.20-weekly-context-cache-refresh';
 const ASSETS = [
   './',
   './index.html',
@@ -52,7 +52,7 @@ self.addEventListener('fetch', (event) => {
     (event.request.mode === 'navigate' || url.pathname.endsWith('.js') || url.pathname.endsWith('.html'));
   if (networkFirst) {
     event.respondWith(
-      fetch(event.request)
+      fetch(event.request, {cache: 'no-store'})
         .then((response) => {
           const copy = response.clone();
           caches.open(CACHE).then((cache) => cache.put(event.request, copy));
