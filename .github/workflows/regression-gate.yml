@@ -34,3 +34,6 @@ jobs:
 
       - name: Verify Update Center transactions and restore
         run: node scripts/update-center-regression.mjs
+
+      - name: Verify ingredient gap engine
+        run: node scripts/ingredient-gap-regression.mjs
