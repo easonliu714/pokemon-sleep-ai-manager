@@ -1,7 +1,7 @@
 import {rows} from './database.js';
 import {analyzeIngredientGaps,sortGapResults} from './ingredient-gap-engine.js';
 
-const esc=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
 let rendering=false;
 let lastSignature='';
 
@@ -65,6 +65,7 @@ function table(el,data,columns,rowClass){
 function ingredientText(items){return items.map(x=>`${esc(x.ingredient_name)} ×${x.required??x.quantity}`).join('、')||'—';}
 function shortageText(items){const missing=items.filter(x=>Number(x.shortage||0)>0);return missing.length?missing.map(x=>`${esc(x.ingredient_name)} 缺 ${x.shortage}`).join('、'):'無';}
 function inventoryStatus(items){return items.some(x=>Number(x.shortage||0)>0)?'材料不足':'材料足夠';}
+function normalizeCategory(value){return String(value||'').trim().replaceAll('/','／');}
 
 function buildPersonalAnalysis(inventory){
   const recipes=rows('SELECT * FROM recipes WHERE unlocked=1 ORDER BY category,recipe_name');
@@ -85,10 +86,10 @@ function buildReferenceAnalysis(inventory){
   return analyzeIngredientGaps({recipes,recipeIngredients:ingredients,inventory}).filter(r=>r.status!=='unlocked');
 }
 
-function weeklyRecommendations(reference){
+function weeklyRecommendations(analysis){
   const week=rows('SELECT * FROM weekly_context ORDER BY updated_at DESC LIMIT 1')[0]||{};
-  const category=String(week.dish_category||'').trim();
-  const pool=category?reference.filter(r=>r.category===category):reference;
+  const category=normalizeCategory(week.dish_category);
+  const pool=category?analysis.filter(r=>normalizeCategory(r.category)===category):[];
   return new Set(sortGapResults(pool,'shortage').slice(0,3).map(r=>r.recipe_id));
 }
 
@@ -100,8 +101,9 @@ export function renderSharedKnowledge(){
     const berries=rows('SELECT type_name,berry_name,source_name,verified_at FROM berry_master ORDER BY type_name');
     const personal=buildPersonalAnalysis(inventory);
     const reference=buildReferenceAnalysis(inventory);
-    const weekly=weeklyRecommendations(reference);
-    const signature=JSON.stringify({inventory,personal:personal.map(r=>[r.recipe_id,r.total_shortage]),reference:reference.map(r=>[r.recipe_id,r.total_shortage]),weekly:[...weekly]});
+    const personalWeekly=weeklyRecommendations(personal);
+    const referenceWeekly=weeklyRecommendations(reference);
+    const signature=JSON.stringify({inventory,personal:personal.map(r=>[r.recipe_id,r.total_shortage]),reference:reference.map(r=>[r.recipe_id,r.total_shortage]),personalWeekly:[...personalWeekly],referenceWeekly:[...referenceWeekly]});
     if(signature===lastSignature)return;
 
     table(document.getElementById('berryMasterTable'),berries,[
@@ -109,21 +111,22 @@ export function renderSharedKnowledge(){
     ]);
 
     table(document.getElementById('recipeTable'),personal,[
+      {label:'本週',render:r=>personalWeekly.has(r.recipe_id)?'<b>推薦</b>':'—'},
       {label:'分類',key:'category'},{label:'食譜',key:'recipe_name'},
       {label:'等級',render:r=>r.recipe_level??'—'},{label:'目前能量',render:r=>r.current_energy==null?'—':Number(r.current_energy).toLocaleString()},
       {label:'需求配方',render:r=>ingredientText(r.requirements)},
       {label:'庫存判定',render:r=>inventoryStatus(r.requirements)},
       {label:'缺料',render:r=>shortageText(r.requirements)}
-    ]);
+    ],r=>personalWeekly.has(r.recipe_id)?'weekly-recommended':'');
 
     table(document.getElementById('referenceRecipeTable'),reference,[
-      {label:'本週',render:r=>weekly.has(r.recipe_id)?'<b>推薦</b>':'—'},
+      {label:'本週',render:r=>referenceWeekly.has(r.recipe_id)?'<b>推薦</b>':'—'},
       {label:'分類',key:'category'},{label:'料理',key:'recipe_name'},
       {label:'基礎能量',render:r=>Number(r.base_energy||0).toLocaleString()},
       {label:'參考配方',render:r=>ingredientText(r.requirements)},
       {label:'庫存判定',render:r=>r.can_attempt?'<b>材料足夠，可嘗試</b>':(r.status==='near'?'接近可嘗試':'材料不足')},
       {label:'缺料',render:r=>shortageText(r.requirements)},{label:'來源',key:'source_name'}
-    ],r=>weekly.has(r.recipe_id)?'weekly-recommended':'');
+    ],r=>referenceWeekly.has(r.recipe_id)?'weekly-recommended':'');
 
     lastSignature=signature;
   }catch(error){console.warn('Shared knowledge render deferred',error);}finally{rendering=false;}
