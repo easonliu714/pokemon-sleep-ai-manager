@@ -1,6 +1,29 @@
 const status = document.getElementById('dbStatus');
 const warning = document.getElementById('storageWarning');
-const VERSION = '20260731-personal-weekly-recommendation1';
+const APP_VERSION = 'v0.3.23';
+const VERSION = '20260731-visible-version1';
+
+function showVisibleVersion() {
+  const header = document.querySelector('header');
+  if (!header) return;
+  let badge = document.getElementById('appVersion');
+  if (!badge) {
+    badge = document.createElement('span');
+    badge.id = 'appVersion';
+    badge.className = 'badge';
+    badge.style.marginInlineStart = '8px';
+    badge.style.whiteSpace = 'nowrap';
+    const statusBadge = document.getElementById('dbStatus');
+    if (statusBadge?.parentElement === header) statusBadge.insertAdjacentElement('afterend', badge);
+    else header.appendChild(badge);
+  }
+  badge.textContent = `版本 ${APP_VERSION}`;
+  badge.title = `Pokémon Sleep AI Manager ${APP_VERSION} / ${VERSION}`;
+  document.documentElement.dataset.appVersion = APP_VERSION;
+  console.info(`[APP_VERSION] ${APP_VERSION} (${VERSION})`);
+}
+
+showVisibleVersion();
 
 function showFailure(label, error) {
   console.error(`Module probe failed: ${label}`, error);
