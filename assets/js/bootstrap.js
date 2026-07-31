@@ -1,7 +1,7 @@
 const status = document.getElementById('dbStatus');
 const warning = document.getElementById('storageWarning');
-const APP_VERSION = 'v0.3.23';
-const VERSION = '20260731-visible-version1';
+const APP_VERSION = 'v0.3.24';
+const VERSION = '20260731-identity-dedup-recipe-guard1';
 
 function showVisibleVersion() {
   const header = document.querySelector('header');
@@ -56,9 +56,11 @@ const probes = [
   'g3-planning.js',
   'identity-review.js',
   'identity-convergence.js',
+  'identity-dedup.js',
   'ingredient-gap-engine.js',
   'update-center-ui-guard.js',
   'shared-knowledge-ui.js',
+  'recipe-render-guard.js',
 ];
 
 (async () => {

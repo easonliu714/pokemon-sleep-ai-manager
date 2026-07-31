@@ -46,3 +46,6 @@ jobs:
 
       - name: Verify personal weekly recipe recommendations
         run: node scripts/personal-weekly-recommendation-regression.mjs
+
+      - name: Verify identity dedup and recipe render guard
+        run: node scripts/identity-dedup-recipe-guard-regression.mjs
