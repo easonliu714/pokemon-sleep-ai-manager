@@ -23,5 +23,8 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install SQLite test runtime
+        run: npm install --no-save --no-package-lock sql.js@1.13.0
+
       - name: Run regression gate
         run: node scripts/regression-gate.mjs
