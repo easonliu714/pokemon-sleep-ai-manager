@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 const dedup=fs.readFileSync('assets/js/identity-dedup.js','utf8');
 const recipeGuard=fs.readFileSync('assets/js/recipe-render-guard.js','utf8');
+const shared=fs.readFileSync('assets/js/shared-knowledge-ui.js','utf8');
 const bootstrap=fs.readFileSync('assets/js/bootstrap.js','utf8');
 const sw=fs.readFileSync('service-worker.js','utf8');
 
@@ -20,13 +21,15 @@ assert.match(dedup,/INSERT OR IGNORE INTO pokemon_subskills/);
 assert.match(recipeGuard,/MutationObserver/);
 assert.match(recipeGuard,/headers\.length===3/);
 assert.match(recipeGuard,/headers\[2\]==='已開啟'/);
-assert.match(recipeGuard,/renderSharedKnowledge\(\)/);
+assert.match(recipeGuard,/renderSharedKnowledge\(true\)/);
+assert.match(shared,/renderSharedKnowledge\(force=false\)/);
+assert.match(shared,/if\(!force&&signature===lastSignature\)return/);
 
-assert.match(bootstrap,/APP_VERSION = 'v0\.3\.24'/);
+assert.match(bootstrap,/APP_VERSION = 'v0\.3\.25'/);
 assert.match(bootstrap,/'identity-dedup\.js'/);
 assert.match(bootstrap,/'recipe-render-guard\.js'/);
-assert.match(sw,/pokemon-sleep-ai-v0\.3\.24-identity-dedup-recipe-guard/);
+assert.match(sw,/pokemon-sleep-ai-v0\.3\.25-recipe-force-rerender/);
 assert.match(sw,/identity-dedup\.js/);
 assert.match(sw,/recipe-render-guard\.js/);
 
-console.log('PASS identity dedup and recipe render guard regression');
+console.log('PASS identity dedup and forced recipe render guard regression');
