@@ -1,25 +1,18 @@
 const text=(value)=>String(value??'').trim();
 
-const PROFILE_FIELDS=['main_skill','nature','helper_seconds','carry_limit','sp'];
+const PROFILE_FIELDS=['sp','main_skill','main_skill_level','nature','helper_seconds','carry_limit'];
 const DISAMBIGUATION_FIELDS=['nickname','rating','core_role','recommendation','item_advice','scenarios','favorite_berry'];
-
-export function hasStrongIdentity(item){
-  return Number(item.identity_confidence||0)>=0.95
-    && text(item.registered_at)
-    && text(item.identity_fingerprint)
-    && Number(item.identity_review_required||0)===0;
-}
 
 export function profileCompleteness(item){
   return PROFILE_FIELDS.reduce((count,key)=>count+(text(item[key])?1:0),0);
 }
 
+export function isProfileComplete(item){
+  return profileCompleteness(item)>=4;
+}
+
 export function isWeakSkeleton(item){
-  return Number(item.identity_review_required||0)===1
-    && Number(item.identity_confidence||0)<0.95
-    && !text(item.registered_at)
-    && !text(item.identity_fingerprint)
-    && profileCompleteness(item)<=1;
+  return profileCompleteness(item)<=1;
 }
 
 function sameBaseIdentity(candidate,skeleton){
@@ -31,7 +24,8 @@ function sameBaseIdentity(candidate,skeleton){
 function compatibleEvidence(candidate,skeleton){
   for(const field of DISAMBIGUATION_FIELDS){
     const weakValue=text(skeleton[field]);
-    if(weakValue&&weakValue!==text(candidate[field]))return false;
+    const candidateValue=text(candidate[field]);
+    if(weakValue&&candidateValue&&weakValue!==candidateValue)return false;
   }
   const weakLevel=Number(skeleton.level||0);
   const candidateLevel=Number(candidate.level||0);
@@ -42,17 +36,17 @@ function compatibleEvidence(candidate,skeleton){
 export function planSkeletonMerges(items,alreadyUsed=new Set()){
   const planned=[];
   const used=new Set(alreadyUsed);
-  const strongItems=items.filter(item=>hasStrongIdentity(item)&&!used.has(item.pokemon_id));
+  const completeItems=items.filter(item=>isProfileComplete(item)&&!used.has(item.pokemon_id));
   const skeletons=items.filter(item=>isWeakSkeleton(item)&&!used.has(item.pokemon_id));
 
   for(const skeleton of skeletons){
-    const matches=strongItems.filter(candidate=>
+    const matches=completeItems.filter(candidate=>
       !used.has(candidate.pokemon_id)
       && sameBaseIdentity(candidate,skeleton)
       && compatibleEvidence(candidate,skeleton));
     if(matches.length!==1)continue;
     const winner=matches[0];
-    planned.push({winner,loser:skeleton,reason:'unique strong identity replaces incomplete skeleton'});
+    planned.push({winner,loser:skeleton,reason:'unique complete profile replaces incomplete legacy skeleton'});
     used.add(skeleton.pokemon_id);
   }
   return planned;
