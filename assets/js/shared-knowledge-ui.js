@@ -1,7 +1,7 @@
 import {rows} from './database.js';
 import {analyzeIngredientGaps,sortGapResults} from './ingredient-gap-engine.js';
 
-const esc=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+const esc=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let rendering=false;
 let lastSignature='';
 
