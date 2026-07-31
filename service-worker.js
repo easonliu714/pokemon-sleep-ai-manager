@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.21-preview-identity-convergence';
+const CACHE = 'pokemon-sleep-ai-v0.3.22-personal-weekly-recommendation';
 const ASSETS = [
   './',
   './index.html',

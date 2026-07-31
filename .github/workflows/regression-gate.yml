@@ -43,3 +43,6 @@ jobs:
 
       - name: Verify preview reset and identity convergence
         run: node scripts/preview-identity-regression.mjs
+
+      - name: Verify personal weekly recipe recommendations
+        run: node scripts/personal-weekly-recommendation-regression.mjs

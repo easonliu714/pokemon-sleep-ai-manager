@@ -1,6 +1,6 @@
 const status = document.getElementById('dbStatus');
 const warning = document.getElementById('storageWarning');
-const VERSION = '20260731-preview-identity-convergence1';
+const VERSION = '20260731-personal-weekly-recommendation1';
 
 function showFailure(label, error) {
   console.error(`Module probe failed: ${label}`, error);
