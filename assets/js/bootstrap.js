@@ -1,7 +1,7 @@
 const status = document.getElementById('dbStatus');
 const warning = document.getElementById('storageWarning');
-const APP_VERSION = 'v0.3.26';
-const VERSION = '20260731-identity-merge-v2';
+const APP_VERSION = 'v0.3.27';
+const VERSION = '20260731-identity-evidence-builder1';
 
 function showVisibleVersion() {
   const header = document.querySelector('header');
@@ -32,51 +32,26 @@ function showFailure(label, error) {
     status.className = 'badge error';
   }
   if (warning) {
-    const location = [error?.fileName, error?.lineNumber && `line ${error.lineNumber}`, error?.columnNumber && `column ${error.columnNumber}`]
-      .filter(Boolean)
-      .join(' · ');
-    warning.textContent = `前端模組載入失敗：${label}：${error?.message || error}${location ? `（${location}）` : ''}`;
+    warning.textContent = `前端模組載入失敗：${label}：${error?.message || error}`;
     warning.classList.remove('hidden');
   }
 }
 
 const probes = [
-  'storage.js',
-  'schema.js',
-  'seed-data.js',
-  'shared-master-schema.js',
-  'shared-master-data.js',
-  'database.js',
-  'time-utils.js',
-  'manual-editor.js',
-  'pokemon-detail.js',
-  'importer.js',
-  'ai-workflow.js',
-  'prompt-catalog.js',
-  'g3-planning.js',
-  'identity-review.js',
-  'identity-convergence.js',
-  'identity-dedup.js',
-  'ingredient-gap-engine.js',
-  'update-center-ui-guard.js',
-  'shared-knowledge-ui.js',
-  'recipe-render-guard.js',
+  'storage.js','schema.js','seed-data.js','shared-master-schema.js','shared-master-data.js',
+  'database.js','time-utils.js','manual-editor.js','pokemon-detail.js','importer.js',
+  'ai-workflow.js','prompt-catalog.js','g3-planning.js','identity-review.js',
+  'identity-convergence.js','identity-dedup.js','identity-evidence-builder.js',
+  'ingredient-gap-engine.js','update-center-ui-guard.js','shared-knowledge-ui.js','recipe-render-guard.js',
 ];
 
 (async () => {
   for (const file of probes) {
-    try {
-      await import(`./${file}?v=${VERSION}`);
-    } catch (error) {
-      showFailure(file, error);
-      return;
-    }
+    try { await import(`./${file}?v=${VERSION}`); }
+    catch (error) { showFailure(file, error); return; }
   }
-
   try {
     await import(`./app.js?v=${VERSION}`);
     await import(`./shared-knowledge-ui.js?v=${VERSION}`);
-  } catch (error) {
-    showFailure('app.js/shared-knowledge-ui.js', error);
-  }
+  } catch (error) { showFailure('app.js/shared-knowledge-ui.js', error); }
 })();
