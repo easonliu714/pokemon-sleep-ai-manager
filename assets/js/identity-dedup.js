@@ -41,7 +41,7 @@ function score(item){
   return value;
 }
 
-function planMerges(items){
+export function planPokemonMerges(items){
   const planned=[];
   const used=new Set();
   const groups=new Map();
@@ -112,13 +112,13 @@ function mergeOne({winner,loser,reason},now){
 export async function repairPokemonDuplicates(){
   let items;
   try{items=active();}catch{return 0;}
-  const merges=planMerges(items);
+  const merges=planPokemonMerges(items);
   if(!merges.length)return 0;
   await snapshot(`identity-dedup:${merges.length}`);
   const now=localIso();
   for(const merge of merges)mergeOne(merge,now);
   await persist();
-  document.dispatchEvent(new CustomEvent('pokemon-sleep-data-refreshed'));
+  if(typeof document!=='undefined')document.dispatchEvent(new CustomEvent('pokemon-sleep-data-refreshed'));
   return merges.length;
 }
 
@@ -136,4 +136,4 @@ function boot(){
   },500);
 }
 
-boot();
+if(typeof document!=='undefined')boot();
