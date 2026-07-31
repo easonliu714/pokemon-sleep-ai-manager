@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.14-shared-master1';
+const CACHE = 'pokemon-sleep-ai-v0.3.15-shared-recipes-render-fix';
 const ASSETS = [
   './',
   './index.html',
