@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.29-identity-quality-guard';
+const CACHE = 'pokemon-sleep-ai-v0.3.30-profile-completeness-guard';
 const ASSETS = [
   './','./index.html','./manifest.webmanifest','./assets/css/app.css','./assets/css/editor.css',
   './assets/js/bootstrap.js','./assets/js/app.js','./assets/js/database.js','./assets/js/storage.js',
