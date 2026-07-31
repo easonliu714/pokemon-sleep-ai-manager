@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.16-recipe-unlock-guidance';
+const CACHE = 'pokemon-sleep-ai-v0.3.18-encyclopedia-legacy-subskills';
 const ASSETS = [
   './',
   './index.html',

@@ -1,0 +1,36 @@
+name: Frontend Regression Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regression-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install SQLite test runtime
+        run: npm install --no-save --no-package-lock sql.js@1.13.0 fake-indexeddb@6.2.4
+
+      - name: Run regression gate
+        run: node scripts/regression-gate.mjs
+
+      - name: Verify shared and personal data isolation
+        run: node scripts/shared-personal-isolation.mjs
+
+      - name: Verify Update Center transactions and restore
+        run: node scripts/update-center-regression.mjs
