@@ -28,3 +28,6 @@ jobs:
 
       - name: Run regression gate
         run: node scripts/regression-gate.mjs
+
+      - name: Verify shared and personal data isolation
+        run: node scripts/shared-personal-isolation.mjs
