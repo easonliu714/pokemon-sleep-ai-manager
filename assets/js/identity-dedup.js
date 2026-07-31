@@ -1,8 +1,9 @@
-import {rows,run,persist,snapshot} from './database.js';
+import {rows,run,persist,snapshot,begin,commit,rollback} from './database.js';
 import {localIso} from './time-utils.js';
 
 const text=(value)=>String(value??'').trim();
 const active=()=>rows("SELECT * FROM pokemon WHERE status='active'");
+let repairInProgress=false;
 
 function displayKey(item){
   return [
@@ -37,7 +38,7 @@ function score(item){
   if(text(item.pokemon_instance_id))value+=5;
   if(text(item.registered_at))value+=5;
   if(text(item.identity_fingerprint))value+=5;
-  for(const key of ['main_skill','nature','helper_seconds','carry_limit','sp'])if(text(item[key]))value+=1;
+  for(const key of ['main_skill','nature','helper_seconds','carry_limit','sp'])if(text(item[key]))value+=2;
   return value;
 }
 
@@ -81,45 +82,106 @@ export function planPokemonMerges(items){
   return planned;
 }
 
+const MERGEABLE_FIELDS=[
+  'pokemon_instance_id','game_pokemon_id','registered_at','original_species','current_species',
+  'identity_fingerprint','original_label','nickname','nickname_halfwidth_units','nickname_valid',
+  'level','sp','specialty','type','nature','nature_bonus','nature_penalty','main_skill',
+  'main_skill_level','helper_seconds','carry_limit','favorite_berry','rating','ai_score',
+  'core_role','recommendation','item_advice','scenarios','is_favorite','is_main','obtained_at',
+];
+
+function missing(value){return value===null||value===undefined||text(value)==='';}
+
+function enrichWinner(winner,loser,now){
+  for(const field of MERGEABLE_FIELDS){
+    if(missing(winner[field])&&!missing(loser[field])){
+      run(`UPDATE pokemon SET ${field}=?,last_updated_at=? WHERE pokemon_id=?`,[loser[field],now,winner.pokemon_id]);
+      winner[field]=loser[field];
+    }
+  }
+  const identitySource=strong(winner)?winner:(strong(loser)?loser:null);
+  if(identitySource){
+    run(`UPDATE pokemon SET
+      pokemon_instance_id=?,registered_at=?,identity_fingerprint=?,
+      identity_confidence=?,identity_review_required=0,last_updated_at=?
+      WHERE pokemon_id=?`,[
+      identitySource.pokemon_instance_id||winner.pokemon_instance_id||winner.pokemon_id,
+      identitySource.registered_at,
+      identitySource.identity_fingerprint,
+      Math.max(Number(winner.identity_confidence||0),Number(loser.identity_confidence||0),0.95),
+      now,winner.pokemon_id,
+    ]);
+    winner.identity_review_required=0;
+  }
+}
+
 function mergeChildren(winnerId,loserId){
   run(`INSERT OR IGNORE INTO pokemon_ingredients(pokemon_id,unlock_level,ingredient_name,quantity)
     SELECT ?,unlock_level,ingredient_name,quantity FROM pokemon_ingredients WHERE pokemon_id=?`,[winnerId,loserId]);
   run(`INSERT OR IGNORE INTO pokemon_subskills(pokemon_id,unlock_level,subskill_name,is_unlocked)
     SELECT ?,unlock_level,subskill_name,is_unlocked FROM pokemon_subskills WHERE pokemon_id=?`,[winnerId,loserId]);
+  run('UPDATE pokemon_history SET pokemon_id=? WHERE pokemon_id=?',[winnerId,loserId]);
   run('DELETE FROM pokemon_ingredients WHERE pokemon_id=?',[loserId]);
   run('DELETE FROM pokemon_subskills WHERE pokemon_id=?',[loserId]);
 }
 
-function mergeOne({winner,loser,reason},now){
-  mergeChildren(winner.pokemon_id,loser.pokemon_id);
-  if(text(loser.pokemon_instance_id)&&text(winner.pokemon_instance_id)){
-    run('UPDATE pokemon_identity_evidence SET pokemon_instance_id=? WHERE pokemon_instance_id=?',[
-      winner.pokemon_instance_id,loser.pokemon_instance_id,
-    ]);
+function mergeIdentityRelations(winner,loser){
+  const winnerInstance=text(winner.pokemon_instance_id)||winner.pokemon_id;
+  const loserInstance=text(loser.pokemon_instance_id)||loser.pokemon_id;
+  if(winnerInstance&&loserInstance&&winnerInstance!==loserInstance){
+    run('UPDATE pokemon_identity_evidence SET pokemon_instance_id=? WHERE pokemon_instance_id=?',[winnerInstance,loserInstance]);
+    run('UPDATE pokemon_evolution_history SET pokemon_instance_id=? WHERE pokemon_instance_id=?',[winnerInstance,loserInstance]);
   }
-  run("UPDATE pokemon SET status='archived',last_updated_at=? WHERE pokemon_id=?",[now,loser.pokemon_id]);
+}
+
+function mergeOne({winner,loser,reason},now){
+  enrichWinner(winner,loser,now);
+  mergeChildren(winner.pokemon_id,loser.pokemon_id);
+  mergeIdentityRelations(winner,loser);
+  run("UPDATE pokemon SET status='archived',identity_review_required=0,last_updated_at=? WHERE pokemon_id=?",[now,loser.pokemon_id]);
   run(`INSERT OR REPLACE INTO pokemon_identity_evidence
     (evidence_id,pokemon_instance_id,evidence_type,evidence_value,confidence,observed_at,source_update_id)
     VALUES(?,?,?,?,?,?,?)`,[
-    `auto-dedup-${loser.pokemon_id}`,
+    `auto-dedup-v2-${loser.pokemon_id}`,
     winner.pokemon_instance_id||winner.pokemon_id,
-    'automatic_duplicate_convergence',
-    JSON.stringify({winner_pokemon_id:winner.pokemon_id,archived_pokemon_id:loser.pokemon_id,reason}),
-    1,now,'SYSTEM-IDENTITY-DEDUP-v0.3.24',
+    'automatic_duplicate_convergence_v2',
+    JSON.stringify({
+      winner_pokemon_id:winner.pokemon_id,
+      archived_pokemon_id:loser.pokemon_id,
+      reason,
+      children_preserved:true,
+      transaction_version:'v0.3.26',
+    }),
+    1,now,'SYSTEM-IDENTITY-MERGE-v0.3.26',
   ]);
 }
 
 export async function repairPokemonDuplicates(){
-  let items;
-  try{items=active();}catch{return 0;}
-  const merges=planPokemonMerges(items);
-  if(!merges.length)return 0;
-  await snapshot(`identity-dedup:${merges.length}`);
-  const now=localIso();
-  for(const merge of merges)mergeOne(merge,now);
-  await persist();
-  if(typeof document!=='undefined')document.dispatchEvent(new CustomEvent('pokemon-sleep-data-refreshed'));
-  return merges.length;
+  if(repairInProgress)return 0;
+  repairInProgress=true;
+  try{
+    const items=active();
+    const merges=planPokemonMerges(items);
+    if(!merges.length)return 0;
+    await snapshot(`identity-merge-v2:${merges.length}`);
+    const now=localIso();
+    begin();
+    try{
+      for(const merge of merges)mergeOne(merge,now);
+      commit();
+    }catch(error){
+      rollback();
+      throw error;
+    }
+    await persist();
+    if(typeof document!=='undefined')document.dispatchEvent(new CustomEvent('pokemon-sleep-data-refreshed'));
+    return merges.length;
+  }catch(error){
+    console.error('Identity merge v2 failed',error);
+    return 0;
+  }finally{
+    repairInProgress=false;
+  }
 }
 
 function boot(){
