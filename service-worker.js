@@ -1,7 +1,7 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.36-tech2d-android-import';
+const CACHE = 'pokemon-sleep-ai-v0.3.37-debug-trace-manager';
 const ASSETS = [
   './','./index.html','./manifest.webmanifest','./assets/css/app.css','./assets/css/editor.css',
-  './assets/js/bootstrap.js','./assets/js/app.js','./assets/js/database.js','./assets/js/storage.js',
+  './assets/js/bootstrap.js','./assets/js/debug-trace-manager.js','./assets/js/app.js','./assets/js/database.js','./assets/js/storage.js',
   './assets/js/schema.js','./assets/js/importer.js','./assets/js/seed-data.js','./assets/js/pokemon-detail.js',
   './assets/js/pokemon-master-options.js','./assets/js/ai-observation.js','./assets/js/ai-workflow.js','./assets/js/manual-editor.js','./assets/js/prompt-catalog.js',
   './assets/js/g3-planning.js','./assets/js/ingredient-gap-engine.js','./assets/js/time-utils.js',
