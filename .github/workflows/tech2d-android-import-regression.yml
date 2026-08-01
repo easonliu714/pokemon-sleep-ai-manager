@@ -1,0 +1,37 @@
+name: Frontend Regression Gate - TECH.2D Android Import
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/**'
+      - 'service-worker.js'
+      - 'scripts/**'
+      - '.github/workflows/tech2d-android-import-regression.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'assets/js/**'
+      - 'service-worker.js'
+      - 'scripts/**'
+
+permissions:
+  contents: read
+
+jobs:
+  tech2d-android-import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Android file picker and ZIP inspection regression
+        run: node scripts/tech2d-android-import-regression.mjs
+      - name: Existing frontend integration regression
+        run: node scripts/identity-dedup-recipe-guard-regression.mjs
+      - name: JavaScript syntax checks for TECH.2D modules
+        run: |
+          node --check assets/js/jszip-loader.js
+          node --check assets/js/android-import-file-picker.js
+          node --check assets/js/identity-import-wizard-entry.js
