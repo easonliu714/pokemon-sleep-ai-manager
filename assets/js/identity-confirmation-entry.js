@@ -1,0 +1,71 @@
+import {renderIdentityConfirmationQueue,identityConfirmationStyles} from './identity-confirmation-ui.js';
+
+let currentQueue={items:[]};
+let decideHandler=null;
+
+function ensureContainer(){
+  let container=document.getElementById('identityConfirmationRoot');
+  if(container)return container;
+  const updates=document.getElementById('updates');
+  if(!updates)return null;
+  const heading=document.createElement('h3');
+  heading.id='identityConfirmationHeading';
+  heading.textContent='AI 身分確認';
+  container=document.createElement('div');
+  container.id='identityConfirmationRoot';
+  container.className='panel';
+  const anchor=document.getElementById('workflowIssues')||updates.querySelector('h3');
+  if(anchor?.parentElement===updates){
+    anchor.insertAdjacentElement('afterend',heading);
+    heading.insertAdjacentElement('afterend',container);
+  }else{
+    updates.append(heading,container);
+  }
+  return container;
+}
+
+function ensureStyles(){
+  if(document.getElementById('identityConfirmationStyles'))return;
+  const style=document.createElement('style');
+  style.id='identityConfirmationStyles';
+  style.textContent=identityConfirmationStyles;
+  document.head.appendChild(style);
+}
+
+function render(){
+  const container=ensureContainer();
+  if(!container)return;
+  ensureStyles();
+  if(!currentQueue.items.length){
+    container.innerHTML='<div class="notice">尚無需要確認的身分辨識結果。</div>';
+    return;
+  }
+  renderIdentityConfirmationQueue(container,currentQueue,{
+    onDecide:decision=>decideHandler?.(decision),
+    onAcceptHighConfidence:incomingRefs=>incomingRefs.forEach(incoming_ref=>{
+      const item=currentQueue.items.find(row=>(row.resolution||row).incoming_ref===incoming_ref);
+      const dto=item?.resolution||item;
+      if(!dto?.selected_pokemon_instance_id)return;
+      decideHandler?.({incoming_ref,action:'accept_existing',pokemon_instance_id:dto.selected_pokemon_instance_id,batch:true});
+    })
+  });
+}
+
+export function mountIdentityConfirmationQueue(queue,{onDecide}={}){
+  currentQueue=queue&&Array.isArray(queue.items)?queue:{items:[]};
+  decideHandler=typeof onDecide==='function'?onDecide:null;
+  render();
+}
+
+window.PokemonSleepIdentityConfirmation={
+  mount:mountIdentityConfirmationQueue,
+  clear:()=>mountIdentityConfirmationQueue({items:[]})
+};
+
+window.addEventListener('pokemon-sleep:identity-confirmation',event=>{
+  mountIdentityConfirmationQueue(event.detail?.queue||{items:[]},{onDecide:decision=>{
+    window.dispatchEvent(new CustomEvent('pokemon-sleep:identity-decision',{detail:decision}));
+  }});
+});
+
+render();
