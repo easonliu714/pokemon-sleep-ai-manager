@@ -57,7 +57,7 @@ for(const token of ['IMAGE_ACCEPT','ZIP_ACCEPT','tech2dImageInput','tech2dZipInp
 
 for(const token of ['source_image_ref','review_required','output_package_ref','validatePrivateZipInventory'])assert.match(inventory,new RegExp(token));
 for(const token of ['filterInventoryItems','bulkPatchInventoryReview','buildReviewPackage'])assert.match(review,new RegExp(token));
-for(const token of ['createInventoryReviewWorkbench','duplicate_gate_decision_applied','reviewed_manifest_exported','review_package_exported','待處理','重複圖片','寶可夢資訊'])assert.match(reviewUi,new RegExp(token));
+for(const token of ['createInventoryReviewWorkbench','duplicate_gate_decision_applied','fingerprint_manifest_exported','review_package_exported','待處理','重複圖片','寶可夢資訊'])assert.match(reviewUi,new RegExp(token));
 for(const token of ['sha256Hex','SHA-256','enrichInventoryWithFingerprints','within_archive','existing_index','existing_database_match','duplicate_group_id'])assert.match(fingerprint,new RegExp(token));
 assert.doesNotMatch(fingerprint,/btoa\(|base64/i);
 
