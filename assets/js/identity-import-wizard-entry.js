@@ -1,5 +1,6 @@
 import {summarizeIdentityImportWizard} from './identity-import-wizard.js';
 import {createAndroidImportFilePicker,humanizeImportError} from './android-import-file-picker.js';
+import {downloadPrivateZipInventory} from './data1-zip-inventory.js';
 
 let current={state:null,prepared:null,applyResult:null,fileResult:null};
 
@@ -20,20 +21,31 @@ function fileSummary(result){
   if(!result)return '';
   const archive=result.archives?.[0];
   if(result.ok){
-    const message=result.source_type==='zip'
-      ? `ZIP 檢查完成：來源 1；ZIP 圖片 ${archive?.summary?.image_count||0}/${archive?.summary?.entry_count||0}`
-      : `圖片檢查完成：來源 ${result.files?.length||0}`;
-    return `<div class="notice success">${escapeHtml(message)}</div>`;
+    if(result.source_type==='zip'){
+      const inventory=result.inventory;
+      return `<div class="notice success"><strong>ZIP 清點完成</strong><br>圖片：${archive?.summary?.image_count||0}/${archive?.summary?.entry_count||0}<br>待處理：${inventory?.summary?.pending||0}；疑似重複：${inventory?.summary?.duplicate||0}；待覆核：${inventory?.summary?.review_required||0}</div>${inventory?'<div class="buttons"><button id="data1ExportInventoryBtn" class="secondary">匯出私人清點 Manifest</button></div>':''}`;
+    }
+    return `<div class="notice success">圖片檢查完成：來源 ${result.files?.length||0}</div>`;
   }
   const messages=(result.errors||[]).map(code=>`${humanizeImportError(code)} <small>(${escapeHtml(code)})</small>`).join('<br>');
   return `<div class="notice error"><strong>檔案檢查未通過</strong><br>${messages}</div>`;
 }
 function attachPicker(root){const slot=root.querySelector('#tech2dFilePickerSlot');if(!slot||slot.childElementCount)return;slot.appendChild(createAndroidImportFilePicker({onInspect:result=>{current.fileResult=result;window.dispatchEvent(new CustomEvent('pokemon-sleep:identity-import-files-selected',{detail:result}));render();},onError:result=>{current.fileResult=result;render();}}));}
+function attachInventoryExport(root){
+  const button=root.querySelector('#data1ExportInventoryBtn');
+  if(!button||!current.fileResult?.inventory)return;
+  button.addEventListener('click',()=>{
+    const archiveName=current.fileResult.files?.[0]?.name||'pokemon_sleep';
+    const base=archiveName.replace(/\.zip$/i,'').replace(/[^a-zA-Z0-9_-]+/g,'_');
+    downloadPrivateZipInventory(current.fileResult.inventory,{fileName:`${base}_private_inventory_manifest.json`});
+    globalThis.DebugTrace?.record?.('data1','private_inventory_exported',{status:'completed',details:{total:current.fileResult.inventory.summary.total,pending:current.fileResult.inventory.summary.pending}});
+  });
+}
 function render(){
   const root=ensureRoot();if(!root)return;
-  let stateHtml='<div class="notice">尚未載入匯入工作。請選擇多張同一情境圖片，或選擇一個只包含同一情境圖片的 ZIP。</div>';
+  let stateHtml='<div class="notice">尚未載入匯入工作。請選擇多張同一情境圖片，或選擇一個 ZIP。ZIP 會先建立私人清點 Manifest，不會把圖片或私人資料提交 GitHub。</div>';
   if(current.state){const summary=summarizeIdentityImportWizard(current.state);const errors=summary.errors.length?`<div class="notice error">${summary.errors.map(escapeHtml).join('、')}</div>`:'';stateHtml=`<div class="identity-import-summary"><div><strong>階段</strong><br>${escapeHtml(summary.step)}</div><div><strong>進度</strong><br>${summary.progress_percent}%</div><div><strong>觀察資料</strong><br>${summary.observation_count}</div><div><strong>候選解析</strong><br>${summary.resolution_count}</div><div><strong>待確認</strong><br>${summary.confirmation_count}</div><div><strong>操作預覽</strong><br>${summary.operation_count}</div></div>${errors}`;}
-  root.innerHTML=`<div id="tech2dFilePickerSlot"></div>${fileSummary(current.fileResult)}${stateHtml}${renderApplyResult(current.applyResult)}<div class="notice">只有完成最終確認後才可套用；套用前必須建立 Snapshot，失敗時整批 rollback。</div>`;attachPicker(root);
+  root.innerHTML=`<div id="tech2dFilePickerSlot"></div>${fileSummary(current.fileResult)}${stateHtml}${renderApplyResult(current.applyResult)}<div class="notice">只有完成最終確認後才可套用；套用前必須建立 Snapshot，失敗時整批 rollback。</div>`;attachPicker(root);attachInventoryExport(root);
 }
 export function mountIdentityImportWizard(prepared){current={...current,state:prepared?.state||prepared||null,prepared:prepared||null,applyResult:prepared?.applyResult||current.applyResult};render();}
 export function mountIdentityImportApplyResult(result){current.applyResult=result||null;render();}
