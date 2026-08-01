@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.35-tech2d-apply-bridge';
+const CACHE = 'pokemon-sleep-ai-v0.3.36-tech2d-android-import';
 const ASSETS = [
   './','./index.html','./manifest.webmanifest','./assets/css/app.css','./assets/css/editor.css',
   './assets/js/bootstrap.js','./assets/js/app.js','./assets/js/database.js','./assets/js/storage.js',
@@ -8,11 +8,12 @@ const ASSETS = [
   './assets/js/identity-review.js','./assets/js/identity-convergence.js','./assets/js/identity-quality-guard.js','./assets/js/identity-dedup.js',
   './assets/js/identity-evidence-builder.js','./assets/js/identity-candidate-engine.js','./assets/js/sqlite-identity-candidate-adapter.js',
   './assets/js/identity-confirmation-model.js','./assets/js/identity-confirmation-ui.js','./assets/js/identity-confirmation-entry.js',
-  './assets/js/identity-import-wizard.js','./assets/js/identity-import-pipeline.js','./assets/js/pokemon-screenshot-grouping.js','./assets/js/pokemon-zip-manifest.js','./assets/js/pokemon-zip-adapter.js','./assets/js/screenshot-observation-bridge.js','./assets/js/identity-import-apply-operation.js','./assets/js/identity-import-transaction.js','./assets/js/identity-import-wizard-entry.js',
+  './assets/js/identity-import-wizard.js','./assets/js/identity-import-pipeline.js','./assets/js/pokemon-screenshot-grouping.js','./assets/js/pokemon-zip-manifest.js','./assets/js/pokemon-zip-adapter.js','./assets/js/jszip-loader.js','./assets/js/android-import-file-picker.js','./assets/js/screenshot-observation-bridge.js','./assets/js/identity-import-apply-operation.js','./assets/js/identity-import-transaction.js','./assets/js/identity-import-wizard-entry.js',
   './assets/js/update-center-ui-guard.js','./assets/js/shared-master-schema.js','./assets/js/shared-master-data.js','./assets/js/shared-knowledge-ui.js',
   './assets/js/recipe-render-guard.js','./assets/icons/icon.svg',
   'https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/sql-wasm.js',
   'https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/sql-wasm.wasm',
+  'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
 ];
 
 self.addEventListener('install', (event) => {
