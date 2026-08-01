@@ -1,37 +1,66 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
-const dedup=fs.readFileSync('assets/js/identity-dedup.js','utf8');
-const quality=fs.readFileSync('assets/js/identity-quality-guard.js','utf8');
-const evidence=fs.readFileSync('assets/js/identity-evidence-builder.js','utf8');
-const recipeGuard=fs.readFileSync('assets/js/recipe-render-guard.js','utf8');
-const shared=fs.readFileSync('assets/js/shared-knowledge-ui.js','utf8');
-const master=fs.readFileSync('assets/js/pokemon-master-options.js','utf8');
-const detail=fs.readFileSync('assets/js/pokemon-detail.js','utf8');
-const bootstrap=fs.readFileSync('assets/js/bootstrap.js','utf8');
-const sw=fs.readFileSync('service-worker.js','utf8');
-const picker=fs.readFileSync('assets/js/android-import-file-picker.js','utf8');
-const loader=fs.readFileSync('assets/js/jszip-loader.js','utf8');
-const wizardEntry=fs.readFileSync('assets/js/identity-import-wizard-entry.js','utf8');
-const inventory=fs.readFileSync('assets/js/data1-zip-inventory.js','utf8');
-const review=fs.readFileSync('assets/js/data1-inventory-review.js','utf8');
-const reviewUi=fs.readFileSync('assets/js/data1-inventory-review-ui.js','utf8');
+const read=path=>fs.readFileSync(path,'utf8');
+const dedup=read('assets/js/identity-dedup.js');
+const quality=read('assets/js/identity-quality-guard.js');
+const evidence=read('assets/js/identity-evidence-builder.js');
+const recipeGuard=read('assets/js/recipe-render-guard.js');
+const shared=read('assets/js/shared-knowledge-ui.js');
+const master=read('assets/js/pokemon-master-options.js');
+const detail=read('assets/js/pokemon-detail.js');
+const bootstrap=read('assets/js/bootstrap.js');
+const sw=read('service-worker.js');
+const picker=read('assets/js/android-import-file-picker.js');
+const loader=read('assets/js/jszip-loader.js');
+const wizardEntry=read('assets/js/identity-import-wizard-entry.js');
+const inventory=read('assets/js/data1-zip-inventory.js');
+const review=read('assets/js/data1-inventory-review.js');
+const reviewUi=read('assets/js/data1-inventory-review-ui.js');
+const fingerprint=read('assets/js/data1-image-fingerprint.js');
 
-for(const pattern of [/snapshot\(`identity-merge-v4:/,/begin\(\)/,/commit\(\)/,/rollback\(\)/,/status='archived'/,/SYSTEM-IDENTITY-MERGE-v0\.3\.30/]) assert.match(dedup,pattern);
-assert.match(quality,/isProfileComplete/);assert.match(quality,/profileCompleteness\(item\)>=4/);assert.match(quality,/profileCompleteness\(item\)<=1/);assert.doesNotMatch(quality,/identity_review_required/);assert.doesNotMatch(quality,/registered_at/);assert.doesNotMatch(quality,/identity_fingerprint/);
+for(const pattern of [/snapshot\(`identity-merge-v4:/,/begin\(\)/,/commit\(\)/,/rollback\(\)/,/status='archived'/,/SYSTEM-IDENTITY-MERGE-v0\.3\.30/])assert.match(dedup,pattern);
+for(const pattern of [/isProfileComplete/,/profileCompleteness\(item\)>=4/,/profileCompleteness\(item\)<=1/])assert.match(quality,pattern);
+for(const pattern of [/identity_review_required/,/registered_at/,/identity_fingerprint/])assert.doesNotMatch(quality,pattern);
+
 const qualityUrl=`data:text/javascript;base64,${Buffer.from(quality).toString('base64')}`;
 const {isWeakSkeleton,isProfileComplete,planSkeletonMerges,auditActivePokemon}=await import(qualityUrl);
 const complete=(id,name,level,overrides={})=>({pokemon_id:id,original_label:name,species:name,level,specialty:'食材',type:'毒',identity_confidence:0,identity_review_required:0,registered_at:null,identity_fingerprint:null,sp:1183,main_skill:'活力填充S',main_skill_level:1,nature:'慢吞吞',helper_seconds:3290,carry_limit:31,core_role:'咖啡／可可核心',recommendation:'目標Lv.50食材機率S',...overrides});
 const skeleton=(id,name,level,overrides={})=>({pokemon_id:id,original_label:name,species:name,level,specialty:'食材',type:'毒',identity_confidence:0.99,identity_review_required:0,registered_at:'legacy',identity_fingerprint:'legacy',sp:null,main_skill:null,main_skill_level:null,nature:null,helper_seconds:null,carry_limit:null,core_role:'咖啡／可可核心',recommendation:'目標Lv.50食材機率S',...overrides});
-const quagsire=complete('pkm-quagsire','土王',31);const staleQuagsire=skeleton('pkm-private-quagsire','土王',30);assert.equal(isProfileComplete(quagsire),true);assert.equal(isWeakSkeleton(staleQuagsire),true);assert.equal(planSkeletonMerges([quagsire,staleQuagsire]).length,1);
-const monferno=complete('pkm-monferno','猛火猴',25,{specialty:'技能',type:'格鬥',core_role:'樹果遞增技能核心',recommendation:'優先進化烈焰猴'});const staleMonferno=skeleton('pkm-private-monferno','猛火猴',21,{specialty:'技能',type:'格鬥',core_role:'樹果遞增技能核心',recommendation:'優先進化烈焰猴'});assert.equal(planSkeletonMerges([monferno,staleMonferno]).length,1);assert.equal(planSkeletonMerges([quagsire,complete('pkm-quagsire-2','土王',32),staleQuagsire]).length,0);assert.equal(planSkeletonMerges([quagsire,skeleton('wrong','土王',30,{recommendation:'不同建議'})]).length,0);assert.equal(auditActivePokemon([quagsire,staleQuagsire]).ok,false);assert.equal(auditActivePokemon([quagsire]).ok,true);
+const quagsire=complete('pkm-quagsire','土王',31);
+const staleQuagsire=skeleton('pkm-private-quagsire','土王',30);
+assert.equal(isProfileComplete(quagsire),true);
+assert.equal(isWeakSkeleton(staleQuagsire),true);
+assert.equal(planSkeletonMerges([quagsire,staleQuagsire]).length,1);
+assert.equal(auditActivePokemon([quagsire,staleQuagsire]).ok,false);
+assert.equal(auditActivePokemon([quagsire]).ok,true);
 
-assert.match(evidence,/buildAbilitySignature/);assert.match(recipeGuard,/MutationObserver/);assert.match(recipeGuard,/renderSharedKnowledge\(true\)/);assert.match(shared,/renderSharedKnowledge\(force=false\)/);assert.match(master,/BERRY_BY_TYPE/);assert.match(detail,/pokemonTypeSelect/);
-assert.match(bootstrap,/APP_VERSION = 'v0\.3\.40'/);assert.match(bootstrap,/20260801-data1b-inventory-review/);assert.match(bootstrap,/data1-zip-inventory\.js/);assert.match(bootstrap,/data1-inventory-review\.js/);assert.match(bootstrap,/data1-inventory-review-ui\.js/);assert.match(bootstrap,/debug-trace-manager\.js/);assert.match(bootstrap,/identity-import-wizard-entry\.js/);assert.match(bootstrap,/pokemon-screenshot-grouping\.js/);assert.match(bootstrap,/pokemon-zip-manifest\.js/);assert.match(bootstrap,/identity-import-transaction\.js/);assert.match(bootstrap,/jszip-loader\.js/);assert.match(bootstrap,/android-import-file-picker\.js/);
-assert.match(sw,/pokemon-sleep-ai-v0\.3\.40-data1b-inventory-review/);assert.match(sw,/data1-zip-inventory\.js/);assert.match(sw,/data1-inventory-review\.js/);assert.match(sw,/data1-inventory-review-ui\.js/);assert.match(sw,/debug-trace-manager\.js/);assert.match(sw,/identity-import-pipeline\.js/);assert.match(sw,/pokemon-screenshot-grouping\.js/);assert.match(sw,/pokemon-zip-manifest\.js/);assert.match(sw,/identity-import-transaction\.js/);assert.match(sw,/identity-import-wizard-entry\.js/);assert.match(sw,/jszip@3\.10\.1\/dist\/jszip\.min\.js/);assert.match(sw,/android-import-file-picker\.js/);
-assert.match(loader,/DEFAULT_JSZIP_URL/);assert.match(loader,/data-tech2d-dependency|tech2dDependency/);assert.match(loader,/jszip_script_load_failed/);
-assert.match(picker,/IMAGE_ACCEPT/);assert.match(picker,/ZIP_ACCEPT/);assert.match(picker,/tech2dImageInput/);assert.match(picker,/tech2dZipInput/);assert.match(picker,/multiple:true/);assert.match(picker,/multiple:false/);assert.match(picker,/mixed_zip_and_images_not_allowed/);assert.match(picker,/single_zip_per_batch_required/);assert.match(picker,/createAndroidImportFilePicker/);assert.match(picker,/humanizeImportError/);assert.match(picker,/import_source_inspection/);assert.match(picker,/buildPrivateZipInventory/);
-assert.match(inventory,/source_image_ref/);assert.match(inventory,/review_required/);assert.match(inventory,/output_package_ref/);assert.match(inventory,/validatePrivateZipInventory/);
-assert.match(review,/filterInventoryItems/);assert.match(review,/bulkPatchInventoryReview/);assert.match(review,/buildReviewPackage/);assert.match(reviewUi,/createInventoryReviewWorkbench/);assert.match(reviewUi,/inventory_review_batch_applied/);assert.match(reviewUi,/reviewed_manifest_exported/);assert.match(reviewUi,/review_package_exported/);
-assert.match(wizardEntry,/pokemon-sleep:identity-import-files-selected/);assert.match(wizardEntry,/tech2dFilePickerSlot/);assert.match(wizardEntry,/tech2d-file-picker-actions/);assert.match(wizardEntry,/匯出私人清點 Manifest/);assert.match(wizardEntry,/createInventoryReviewWorkbench/);assert.match(wizardEntry,/min-height:44px/);
-console.log('PASS identity guard, DATA.1 private ZIP inventory and review workbench, Android split picker, offline PWA, and Debug Trace contracts');
+assert.match(evidence,/buildAbilitySignature/);
+assert.match(recipeGuard,/MutationObserver/);
+assert.match(recipeGuard,/renderSharedKnowledge\(true\)/);
+assert.match(shared,/renderSharedKnowledge\(force=false\)/);
+assert.match(master,/BERRY_BY_TYPE/);
+assert.match(detail,/pokemonTypeSelect/);
+
+assert.match(bootstrap,/APP_VERSION = 'v0\.3\.41'/);
+assert.match(bootstrap,/20260801-data1c-image-fingerprint/);
+for(const token of ['data1-zip-inventory.js','data1-inventory-review.js','data1-inventory-review-ui.js','data1-image-fingerprint.js','debug-trace-manager.js','identity-import-wizard-entry.js','pokemon-screenshot-grouping.js','pokemon-zip-manifest.js','identity-import-transaction.js','jszip-loader.js','android-import-file-picker.js'])assert.match(bootstrap,new RegExp(token.replace('.','\\.')));
+
+assert.match(sw,/pokemon-sleep-ai-v0\.3\.41-data1c-image-fingerprint/);
+for(const token of ['data1-zip-inventory.js','data1-inventory-review.js','data1-inventory-review-ui.js','data1-image-fingerprint.js','debug-trace-manager.js','identity-import-pipeline.js','pokemon-screenshot-grouping.js','pokemon-zip-manifest.js','identity-import-transaction.js','identity-import-wizard-entry.js','android-import-file-picker.js'])assert.match(sw,new RegExp(token.replace('.','\\.')));
+assert.match(sw,/jszip@3\.10\.1\/dist\/jszip\.min\.js/);
+
+assert.match(loader,/DEFAULT_JSZIP_URL/);
+assert.match(loader,/data-tech2d-dependency|tech2dDependency/);
+assert.match(loader,/jszip_script_load_failed/);
+for(const token of ['IMAGE_ACCEPT','ZIP_ACCEPT','tech2dImageInput','tech2dZipInput','multiple:true','multiple:false','mixed_zip_and_images_not_allowed','single_zip_per_batch_required','createAndroidImportFilePicker','humanizeImportError','import_source_inspection','buildPrivateZipInventory','enrichInventoryWithFingerprints','image_fingerprint_duplicate_gate_completed'])assert.match(picker,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+
+for(const token of ['source_image_ref','review_required','output_package_ref','validatePrivateZipInventory'])assert.match(inventory,new RegExp(token));
+for(const token of ['filterInventoryItems','bulkPatchInventoryReview','buildReviewPackage'])assert.match(review,new RegExp(token));
+for(const token of ['createInventoryReviewWorkbench','duplicate_gate_decision_applied','fingerprint_manifest_exported','review_package_exported','待處理','重複圖片','寶可夢資訊'])assert.match(reviewUi,new RegExp(token));
+for(const token of ['sha256Hex','SHA-256','enrichInventoryWithFingerprints','within_archive','existing_index','existing_database_match','duplicate_group_id'])assert.match(fingerprint,new RegExp(token));
+assert.doesNotMatch(fingerprint,/btoa\(|base64/i);
+
+for(const token of ['pokemon-sleep:identity-import-files-selected','tech2dFilePickerSlot','tech2d-file-picker-actions','匯出私人清點 Manifest','createInventoryReviewWorkbench','min-height:44px'])assert.match(wizardEntry,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+
+console.log('PASS identity guard, DATA.1C SHA-256 duplicate gate, Android split picker, offline PWA, and Debug Trace contracts');
