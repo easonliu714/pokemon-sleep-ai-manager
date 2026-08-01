@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import {buildPrivateZipInventory,updateInventoryItem,validatePrivateZipInventory,PRIVATE_ZIP_INVENTORY_SCHEMA} from '../assets/js/data1-zip-inventory.js';
 
@@ -27,4 +28,9 @@ assert.equal(updated.summary.pending,3);
 assert.equal(updated.items[0].confidence,0.95);
 assert.equal(validatePrivateZipInventory(updated).ok,true);
 assert.throws(()=>updateInventoryItem(updated,updated.items[0].source_image_ref,{status:'unknown'}),/invalid_inventory_status/);
-console.log(JSON.stringify({ok:true,schema:PRIVATE_ZIP_INVENTORY_SCHEMA,total:updated.summary.total,processed:updated.summary.processed}));
+
+const wizard=fs.readFileSync('assets/js/identity-import-wizard-entry.js','utf8');
+for(const token of ['data1ExportFeedback','Manifest 已下載','aria-live="polite"','下載中…','再次匯出私人清點 Manifest','file_name:fileName','private_inventory_exported']){
+  assert.ok(wizard.includes(token),`missing_export_feedback_contract:${token}`);
+}
+console.log(JSON.stringify({ok:true,schema:PRIVATE_ZIP_INVENTORY_SCHEMA,total:updated.summary.total,processed:updated.summary.processed,export_feedback:true}));
