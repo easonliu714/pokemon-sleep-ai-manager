@@ -1,0 +1,34 @@
+name: Frontend Regression Gate - Debug Trace Manager
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/debug-trace-manager.js'
+      - 'assets/js/bootstrap.js'
+      - 'service-worker.js'
+      - 'scripts/debug-trace-manager-regression.mjs'
+      - '.github/workflows/debug-trace-manager-regression.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'assets/js/debug-trace-manager.js'
+      - 'assets/js/bootstrap.js'
+      - 'service-worker.js'
+      - 'scripts/debug-trace-manager-regression.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  debug-trace-manager:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Debug Trace Manager contract and syntax regression
+        run: node scripts/debug-trace-manager-regression.mjs
+      - name: Existing frontend integration regression
+        run: node scripts/identity-dedup-recipe-guard-regression.mjs

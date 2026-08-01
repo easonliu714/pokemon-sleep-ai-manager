@@ -1,7 +1,13 @@
+import {debugTrace} from './debug-trace-manager.js?v=20260801-debug-trace-manager';
+
 const status = document.getElementById('dbStatus');
 const warning = document.getElementById('storageWarning');
-const APP_VERSION = 'v0.3.36';
-const VERSION = '20260801-tech2d-android-import';
+const APP_VERSION = 'v0.3.37';
+const VERSION = '20260801-debug-trace-manager';
+
+document.documentElement.dataset.appVersion = APP_VERSION;
+document.documentElement.dataset.appBuild = VERSION;
+debugTrace.record('bootstrap','bootstrap_started',{status:'started',details:{app_version:APP_VERSION,build:VERSION}});
 
 function showVisibleVersion() {
   const header = document.querySelector('header');
@@ -19,10 +25,9 @@ function showVisibleVersion() {
   }
   badge.textContent = `版本 ${APP_VERSION}`;
   badge.title = `Pokémon Sleep AI Manager ${APP_VERSION} / ${VERSION}`;
-  document.documentElement.dataset.appVersion = APP_VERSION;
   console.info(`[APP_VERSION] ${APP_VERSION} (${VERSION})`);
 }
 showVisibleVersion();
-function showFailure(label,error){console.error(`Module probe failed: ${label}`,error);if(status){status.textContent='載入失敗';status.className='badge error';}if(warning){warning.textContent=`前端模組載入失敗：${label}：${error?.message||error}`;warning.classList.remove('hidden');}}
+function showFailure(label,error){console.error(`Module probe failed: ${label}`,error);debugTrace.record('bootstrap','module_probe_failed',{status:'failed',details:{label},error});if(status){status.textContent='載入失敗';status.className='badge error';}if(warning){warning.textContent=`前端模組載入失敗：${label}：${error?.message||error}。請至診斷中心匯出 JSON。`;warning.classList.remove('hidden');}}
 const probes=['storage.js','schema.js','seed-data.js','shared-master-schema.js','shared-master-data.js','database.js','time-utils.js','pokemon-master-options.js','manual-editor.js','pokemon-detail.js','importer.js','ai-observation.js','ai-workflow.js','prompt-catalog.js','g3-planning.js','identity-review.js','identity-convergence.js','identity-quality-guard.js','identity-dedup.js','identity-evidence-builder.js','ingredient-gap-engine.js','update-center-ui-guard.js','shared-knowledge-ui.js','recipe-render-guard.js','identity-candidate-engine.js','sqlite-identity-candidate-adapter.js','identity-confirmation-model.js','identity-confirmation-ui.js','identity-confirmation-entry.js','identity-import-wizard.js','identity-import-pipeline.js','pokemon-screenshot-grouping.js','pokemon-zip-manifest.js','pokemon-zip-adapter.js','jszip-loader.js','android-import-file-picker.js','screenshot-observation-bridge.js','identity-import-apply-operation.js','identity-import-transaction.js','identity-import-wizard-entry.js'];
-(async()=>{for(const file of probes){try{await import(`./${file}?v=${VERSION}`);}catch(error){showFailure(file,error);return;}}try{await import(`./app.js?v=${VERSION}`);await import(`./shared-knowledge-ui.js?v=${VERSION}`);await import(`./identity-confirmation-entry.js?v=${VERSION}`);await import(`./identity-import-wizard-entry.js?v=${VERSION}`);}catch(error){showFailure('app.js/shared-knowledge-ui.js/identity-confirmation-entry.js/identity-import-wizard-entry.js',error);}})();
+(async()=>{const operationId=debugTrace.begin('module_bootstrap',{probe_count:probes.length});for(const file of probes){try{await import(`./${file}?v=${VERSION}`);debugTrace.record('bootstrap','module_probe_completed',{status:'completed',operation_id:operationId,details:{file}});}catch(error){showFailure(file,error);debugTrace.fail(operationId,error,{file});return;}}try{await import(`./app.js?v=${VERSION}`);await import(`./shared-knowledge-ui.js?v=${VERSION}`);await import(`./identity-confirmation-entry.js?v=${VERSION}`);await import(`./identity-import-wizard-entry.js?v=${VERSION}`);debugTrace.end(operationId,'completed',{entry_modules_loaded:true});debugTrace.record('bootstrap','app_ready',{status:'completed'});}catch(error){showFailure('app.js/shared-knowledge-ui.js/identity-confirmation-entry.js/identity-import-wizard-entry.js',error);debugTrace.fail(operationId,error,{phase:'entry_modules'});}})();
