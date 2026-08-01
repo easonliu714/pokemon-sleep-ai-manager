@@ -4,6 +4,8 @@ import {debugTrace} from './debug-trace-manager.js';
 
 const IMAGE_ACCEPT='image/png,image/jpeg,image/webp,image/avif,.png,.jpg,.jpeg,.webp,.avif';
 const ZIP_ACCEPT='.zip,application/zip,application/x-zip-compressed';
+// 保留舊版整合測試與外部呼叫的相容匯出；新版 UI 仍使用分離的 IMAGE/ZIP accept。
+const IMPORT_ACCEPT=`${ZIP_ACCEPT},${IMAGE_ACCEPT}`;
 const ERROR_MESSAGES={
   no_files_selected:'未選取任何檔案。',
   mixed_zip_and_images_not_allowed:'請勿同時選擇圖片與 ZIP；請改用對應的獨立按鈕。',
@@ -82,4 +84,8 @@ export function createAndroidImportFilePicker({onInspect,onError}={}){
   return wrapper;
 }
 
-export {IMAGE_ACCEPT as ANDROID_IMAGE_ACCEPT,ZIP_ACCEPT as ANDROID_ZIP_ACCEPT};
+export {
+  IMPORT_ACCEPT as ANDROID_IMPORT_ACCEPT,
+  IMAGE_ACCEPT as ANDROID_IMAGE_ACCEPT,
+  ZIP_ACCEPT as ANDROID_ZIP_ACCEPT,
+};
