@@ -1,6 +1,5 @@
 import {loadJSZip} from './jszip-loader.js';
 import {extractZipEntries} from './pokemon-zip-adapter.js';
-import {debugTrace} from './debug-trace-manager.js';
 
 const IMAGE_ACCEPT='image/png,image/jpeg,image/webp,image/avif,.png,.jpg,.jpeg,.webp,.avif';
 const ZIP_ACCEPT='.zip,application/zip,application/x-zip-compressed';
@@ -13,6 +12,16 @@ const ERROR_MESSAGES={
   zip_contains_no_images:'ZIP 內沒有支援的圖片。支援 PNG、JPG、JPEG、WEBP、AVIF。',
 };
 
+function getDebugTrace(){
+  const trace=globalThis.DebugTrace;
+  if(trace?.begin&&trace?.recordStage&&trace?.end&&trace?.fail)return trace;
+  return {
+    begin:()=>null,
+    recordStage:()=>null,
+    end:()=>null,
+    fail:()=>null,
+  };
+}
 function asFiles(list){return Array.from(list||[]).filter(Boolean);}
 function isZip(file){return /\.zip$/i.test(file?.name||'')||file?.type==='application/zip'||file?.type==='application/x-zip-compressed';}
 function isImage(file){return /^image\//.test(file?.type||'')||/\.(png|jpe?g|webp|avif)$/i.test(file?.name||'');}
@@ -54,6 +63,7 @@ export function createAndroidImportFilePicker({onInspect,onError}={}){
   imageButton.addEventListener('click',()=>imageInput.click());zipButton.addEventListener('click',()=>zipInput.click());
 
   const handle=async(input,sourceKind)=>{
+    const debugTrace=getDebugTrace();
     const buttons=[imageButton,zipButton];buttons.forEach(button=>button.disabled=true);
     const operationId=debugTrace.begin('import_source_inspection',{source_kind:sourceKind,file_count:input.files?.length||0});
     debugTrace.recordStage(operationId,'file_selection_received',{source_kind:sourceKind,file_count:input.files?.length||0});
