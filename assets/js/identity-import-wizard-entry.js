@@ -1,6 +1,7 @@
 import {summarizeIdentityImportWizard} from './identity-import-wizard.js';
 import {createAndroidImportFilePicker,humanizeImportError} from './android-import-file-picker.js';
 import {downloadPrivateZipInventory} from './data1-zip-inventory.js';
+import {createInventoryReviewWorkbench} from './data1-inventory-review-ui.js';
 
 let current={state:null,prepared:null,applyResult:null,fileResult:null,exportFeedback:null};
 let exportFeedbackTimer=null;
@@ -16,7 +17,7 @@ function ensureRoot(){
   if(anchor?.parentElement===updates){anchor.insertAdjacentElement('afterend',heading);heading.insertAdjacentElement('afterend',root);}else updates.append(heading,root);
   return root;
 }
-function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));}
+function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[char]));}
 function renderApplyResult(result){if(!result)return '';const status=result.ok?'已提交':'已回滾／未提交';const tone=result.ok?'success':'error';const snapshot=result.snapshot?.snapshot_id||'—';const errors=(result.errors||[]).map(escapeHtml).join('、')||'—';return `<div class="notice ${tone}"><strong>${status}</strong><br>Snapshot：${escapeHtml(snapshot)}<br>已處理：${Number(result.applied||0)}<br>錯誤：${errors}</div>`;}
 function renderExportFeedback(){
   const feedback=current.exportFeedback;
@@ -29,7 +30,7 @@ function fileSummary(result){
   if(result.ok){
     if(result.source_type==='zip'){
       const inventory=result.inventory;
-      return `<div class="notice success"><strong>ZIP 清點完成</strong><br>圖片：${archive?.summary?.image_count||0}/${archive?.summary?.entry_count||0}<br>待處理：${inventory?.summary?.pending||0}；疑似重複：${inventory?.summary?.duplicate||0}；待覆核：${inventory?.summary?.review_required||0}</div>${inventory?'<div class="buttons"><button id="data1ExportInventoryBtn" class="secondary">匯出私人清點 Manifest</button></div>':''}${renderExportFeedback()}`;
+      return `<div class="notice success"><strong>ZIP 清點完成</strong><br>圖片：${archive?.summary?.image_count||0}/${archive?.summary?.entry_count||0}<br>待處理：${inventory?.summary?.pending||0}；疑似重複：${inventory?.summary?.duplicate||0}；待覆核：${inventory?.summary?.review_required||0}</div>${inventory?'<div class="buttons"><button id="data1ExportInventoryBtn" class="secondary">匯出私人清點 Manifest</button></div><div id="data1ReviewWorkbenchSlot"></div>':''}${renderExportFeedback()}`;
     }
     return `<div class="notice success">圖片檢查完成：來源 ${result.files?.length||0}</div>`;
   }
@@ -59,14 +60,23 @@ function attachInventoryExport(root){
     },1200);
   });
 }
+function attachReviewWorkbench(root){
+  const slot=root.querySelector('#data1ReviewWorkbenchSlot');
+  if(!slot||!current.fileResult?.inventory)return;
+  slot.appendChild(createInventoryReviewWorkbench({manifest:current.fileResult.inventory,onChange:manifest=>{
+    current.fileResult={...current.fileResult,inventory:manifest};
+    globalThis.DebugTrace?.record?.('business_stage','inventory_review_updated',{status:'completed',details:{total:manifest.summary.total,pending:manifest.summary.pending,processed:manifest.summary.processed}});
+  }}));
+}
 function render(){
   const root=ensureRoot();if(!root)return;
   let stateHtml='<div class="notice">尚未載入匯入工作。請選擇多張同一情境圖片，或選擇一個 ZIP。ZIP 會先建立私人清點 Manifest，不會把圖片或私人資料提交 GitHub。</div>';
   if(current.state){const summary=summarizeIdentityImportWizard(current.state);const errors=summary.errors.length?`<div class="notice error">${summary.errors.map(escapeHtml).join('、')}</div>`:'';stateHtml=`<div class="identity-import-summary"><div><strong>階段</strong><br>${escapeHtml(summary.step)}</div><div><strong>進度</strong><br>${summary.progress_percent}%</div><div><strong>觀察資料</strong><br>${summary.observation_count}</div><div><strong>候選解析</strong><br>${summary.resolution_count}</div><div><strong>待確認</strong><br>${summary.confirmation_count}</div><div><strong>操作預覽</strong><br>${summary.operation_count}</div></div>${errors}`;}
-  root.innerHTML=`<div id="tech2dFilePickerSlot"></div>${fileSummary(current.fileResult)}${stateHtml}${renderApplyResult(current.applyResult)}<div class="notice">只有完成最終確認後才可套用；套用前必須建立 Snapshot，失敗時整批 rollback。</div>`;attachPicker(root);attachInventoryExport(root);
+  root.innerHTML=`<div id="tech2dFilePickerSlot"></div>${fileSummary(current.fileResult)}${stateHtml}${renderApplyResult(current.applyResult)}<div class="notice">只有完成最終確認後才可套用；套用前必須建立 Snapshot，失敗時整批 rollback。</div>`;
+  attachPicker(root);attachInventoryExport(root);attachReviewWorkbench(root);
 }
 export function mountIdentityImportWizard(prepared){current={...current,state:prepared?.state||prepared||null,prepared:prepared||null,applyResult:prepared?.applyResult||current.applyResult};render();}
 export function mountIdentityImportApplyResult(result){current.applyResult=result||null;render();}
 window.PokemonSleepIdentityImportWizard={mount:mountIdentityImportWizard,showApplyResult:mountIdentityImportApplyResult,clear:()=>{current={state:null,prepared:null,applyResult:null,fileResult:null,exportFeedback:null};render();}};
 window.addEventListener('pokemon-sleep:identity-import-state',event=>mountIdentityImportWizard(event.detail?.prepared||event.detail?.state||null));window.addEventListener('pokemon-sleep:identity-import-result',event=>mountIdentityImportApplyResult(event.detail||null));
-const style=document.createElement('style');style.textContent='.identity-import-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:10px}.identity-import-summary>div{border:1px solid #dfe8e3;border-radius:10px;padding:10px;background:#fff}.tech2d-file-picker{display:grid;gap:8px;margin-bottom:10px}.tech2d-file-picker-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.tech2d-file-picker button{min-height:44px;width:100%}@media(max-width:560px){.identity-import-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.identity-import-summary>div{min-height:44px}.tech2d-file-picker-actions{grid-template-columns:1fr}}';style.id='identityImportWizardStyles';if(!document.getElementById(style.id))document.head.appendChild(style);render();
+const style=document.createElement('style');style.textContent='.identity-import-summary,.data1-review-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:10px}.identity-import-summary>div,.data1-review-summary>div{border:1px solid #dfe8e3;border-radius:10px;padding:10px;background:#fff}.tech2d-file-picker{display:grid;gap:8px;margin-bottom:10px}.tech2d-file-picker-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.tech2d-file-picker button{min-height:44px;width:100%}.data1-review-workbench{margin-top:12px;padding-top:12px;border-top:1px solid #dfe8e3}.data1-review-filters,.data1-review-batch{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:10px}.data1-review-list{display:grid;gap:8px;max-height:420px;overflow:auto;margin-bottom:10px}.data1-review-item{border:1px solid #dfe8e3;border-radius:10px;padding:10px;background:#fff;display:grid;gap:4px}@media(max-width:560px){.identity-import-summary,.data1-review-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.identity-import-summary>div,.data1-review-summary>div{min-height:44px}.tech2d-file-picker-actions{grid-template-columns:1fr}}';style.id='identityImportWizardStyles';if(!document.getElementById(style.id))document.head.appendChild(style);render();
