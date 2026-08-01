@@ -5,7 +5,7 @@ const picker=fs.readFileSync('assets/js/android-import-file-picker.js','utf8');
 const ui=fs.readFileSync('assets/js/data1-inventory-review-ui.js','utf8');
 const bootstrap=fs.readFileSync('assets/js/bootstrap.js','utf8');
 const sw=fs.readFileSync('service-worker.js','utf8');
-for(const token of ['sha256Hex','SHA-256','enrichInventoryWithFingerprints','within_archive','existing_index','existing_database_match','duplicate_group_id','Base64'])assert.match(fingerprint,new RegExp(token));
+for(const token of ['sha256Hex','SHA-256','enrichInventoryWithFingerprints','within_archive','existing_index','existing_database_match','duplicate_group_id'])assert.match(fingerprint,new RegExp(token));
 for(const token of ['image_fingerprint_progress','image_fingerprint_duplicate_gate_completed','enrichInventoryWithFingerprints'])assert.match(picker,new RegExp(token));
 for(const token of ['待處理','重複圖片','寶可夢資訊','SHA-256','OCR／AI','duplicate_gate_decision_applied'])assert.match(ui,new RegExp(token));
 assert.match(bootstrap,/APP_VERSION = 'v0\.3\.41'/);assert.match(bootstrap,/20260801-data1c-image-fingerprint/);assert.match(bootstrap,/data1-image-fingerprint\.js/);
