@@ -14,7 +14,7 @@ const pickerTokens=['IMAGE_ACCEPT','ZIP_ACCEPT','tech2dImageInput','tech2dZipInp
 for(const token of pickerTokens)if(!picker.includes(token))throw new Error(`picker_contract_missing:${token}`);
 for(const token of ['PRIVATE_ZIP_INVENTORY_SCHEMA','source_image_ref','review_required','validatePrivateZipInventory','downloadPrivateZipInventory'])if(!inventory.includes(token))throw new Error(`inventory_contract_missing:${token}`);
 for(const token of ['filterInventoryItems','bulkPatchInventoryReview','buildReviewPackage'])if(!review.includes(token))throw new Error(`review_contract_missing:${token}`);
-for(const token of ['createInventoryReviewWorkbench','duplicate_gate_decision_applied','reviewed_manifest_exported','review_package_exported','待處理','重複圖片','寶可夢資訊'])if(!reviewUi.includes(token))throw new Error(`review_ui_contract_missing:${token}`);
+for(const token of ['createInventoryReviewWorkbench','duplicate_gate_decision_applied','fingerprint_manifest_exported','review_package_exported','待處理','重複圖片','寶可夢資訊'])if(!reviewUi.includes(token))throw new Error(`review_ui_contract_missing:${token}`);
 for(const token of ['sha256Hex','SHA-256','enrichInventoryWithFingerprints','within_archive','existing_index','existing_database_match','duplicate_group_id'])if(!fingerprint.includes(token))throw new Error(`fingerprint_contract_missing:${token}`);
 if(/btoa\(|base64/i.test(fingerprint))throw new Error('fingerprint_must_not_persist_base64');
 if(!wizard.includes('humanizeImportError'))throw new Error('wizard_human_error_missing');
