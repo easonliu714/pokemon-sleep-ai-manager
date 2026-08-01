@@ -1,9 +1,9 @@
-import {debugTrace} from './debug-trace-manager.js?v=20260801-debug-trace-manager';
+import {debugTrace} from './debug-trace-manager.js?v=20260801-core-debug2-import-ux';
 
 const status = document.getElementById('dbStatus');
 const warning = document.getElementById('storageWarning');
-const APP_VERSION = 'v0.3.37';
-const VERSION = '20260801-debug-trace-manager';
+const APP_VERSION = 'v0.3.38';
+const VERSION = '20260801-core-debug2-import-ux';
 
 document.documentElement.dataset.appVersion = APP_VERSION;
 document.documentElement.dataset.appBuild = VERSION;
