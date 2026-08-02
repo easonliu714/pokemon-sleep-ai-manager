@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const ui=fs.readFileSync('assets/js/ai-project-pool-settings.js','utf8');
+const bootstrap=fs.readFileSync('assets/js/bootstrap.js','utf8');
+const sw=fs.readFileSync('service-worker.js','utf8');
+for(const token of ['splitKeys','sessionStorage','顯示 Key','隱藏 Key','測試 Key 與取得模型','gemini-3.6-flash','generativelanguage.googleapis.com','supportedGenerationMethods','ai_project_pool_tested'])assert.match(ui,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+assert.doesNotMatch(ui,/localStorage/);
+assert.doesNotMatch(ui,/console\.log\([^)]*key/i);
+assert.match(bootstrap,/APP_VERSION = 'v0\.3\.44'/);
+assert.match(bootstrap,/20260802-data1d-ocr-ui-ai-settings/);
+assert.match(bootstrap,/ai-project-pool-settings\.js/);
+assert.match(sw,/v0\.3\.44-data1d-ocr-ui-ai-settings/);
+assert.match(sw,/ai-project-pool-settings\.js/);
+console.log('PASS AI project pool browser-local settings contract');
