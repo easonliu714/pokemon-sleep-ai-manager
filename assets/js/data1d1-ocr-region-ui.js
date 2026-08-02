@@ -9,15 +9,36 @@ function isDuplicateReviewCandidate(item){return item?.status==='duplicate'||ite
 function reviewCandidates(inventory){return (inventory?.items||[]).filter(item=>itemId(item)&&(isDefaultReviewItem(item)||isDuplicateReviewCandidate(item)));}
 function presetOptions(selected){return Object.entries(OCR_REGION_PRESETS).map(([key,preset])=>`<option value="${escapeHtml(key)}" ${key===selected?'selected':''}>${escapeHtml(preset.label)}</option>`).join('');}
 function regionBoxes(config){return config.regions.map((region,index)=>`<div class="ocr-region-box" style="left:${region.x*100}%;top:${region.y*100}%;width:${region.width*100}%;height:${region.height*100}%"><span>${index+1}. ${escapeHtml(region.label)}</span></div>`).join('');}
+function regionList(config){return config.regions.map((region,index)=>`<div><strong>${index+1}. ${escapeHtml(region.label)}</strong><br>x ${region.x.toFixed(2)} / y ${region.y.toFixed(2)} / w ${region.width.toFixed(2)} / h ${region.height.toFixed(2)}</div>`).join('');}
 
 export function createOcrRegionAiReviewPanel({inventory,model=DEFAULT_MODEL,projectAlias='主要 Project',onPrepared=()=>{}}={}){
   const root=document.createElement('section');root.className='ocr-region-ai-panel';
-  let preset='full_image';let selected=new Set();let confirmed=false;let acknowledgedUpload=false;let previewUrl='';let previewItem=null;let disposed=false;
-  const releasePreview=()=>{if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl='';}previewItem=null;};
-  const onPreview=event=>{const detail=event?.detail||{};if(disposed||!(detail.blob instanceof Blob))return;releasePreview();previewUrl=URL.createObjectURL(detail.blob);previewItem=detail.item||null;preset=detail.preset||preset;globalThis.DebugTrace?.record?.('ocr_thumbnail','ocr_region_preview_rendered',{status:'completed',details:{path:itemName(previewItem),blob_size:detail.blob.size,preset}});render();};
-  const onPreviewClear=event=>{if(disposed)return;releasePreview();globalThis.DebugTrace?.record?.('ocr_thumbnail','ocr_region_preview_released',{status:'completed',details:{reason:event?.detail?.reason||'clear'}});render();};
+  let preset='full_image';let selected=new Set();let confirmed=false;let acknowledgedUpload=false;let previewUrl='';let previewBlob=null;let previewItem=null;let disposed=false;
+  const releasePreview=()=>{if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl='';}previewBlob=null;previewItem=null;};
+  const previewMarkup=()=>previewUrl?`<img class="ocr-region-preview-image" src="${escapeHtml(previewUrl)}" alt="${escapeHtml(itemName(previewItem))}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;">`:'<div class="ocr-region-preview-empty" style="display:grid;place-items:center;width:100%;height:100%;padding:12px;text-align:center;">點選下方待覆核圖片以載入本機預覽</div>';
+  const updatePreviewDom=()=>{
+    const config=buildRegionConfig({preset});
+    const preview=root.querySelector('#ocrRegionPreview');
+    const notice=root.querySelector('#ocrPreviewNotice');
+    const list=root.querySelector('#ocrRegionList');
+    if(preview)preview.innerHTML=`${previewMarkup()}${regionBoxes(config)}`;
+    if(notice){notice.textContent=previewItem?`目前預覽：${itemName(previewItem)}`:'';notice.hidden=!previewItem;}
+    if(list)list.innerHTML=regionList(config);
+  };
+  const onPreview=event=>{
+    const detail=event?.detail||{};
+    if(disposed||!(detail.blob instanceof Blob))return;
+    const nextItem=detail.item||null;const nextPreset=detail.preset||preset;
+    if(previewBlob===detail.blob&&itemId(previewItem)===itemId(nextItem)&&preset===nextPreset)return;
+    releasePreview();previewBlob=detail.blob;previewUrl=URL.createObjectURL(detail.blob);previewItem=nextItem;preset=nextPreset;
+    updatePreviewDom();
+    globalThis.DebugTrace?.record?.('ocr_thumbnail','ocr_region_preview_rendered',{status:'completed',details:{path:itemName(previewItem),blob_size:detail.blob.size,preset,list_position_preserved:true}});
+  };
+  const onPreviewClear=event=>{if(disposed)return;releasePreview();updatePreviewDom();globalThis.DebugTrace?.record?.('ocr_thumbnail','ocr_region_preview_released',{status:'completed',details:{reason:event?.detail?.reason||'clear'}});};
 
   const render=()=>{
+    const previousList=root.querySelector('.ocr-ai-candidates');
+    const previousScrollTop=previousList?.scrollTop||0;
     const config=buildRegionConfig({preset});
     const items=reviewCandidates(inventory);
     const queue=buildAiConsentQueue(items,{selectedIds:[...selected],model,projectAlias});
@@ -25,12 +46,12 @@ export function createOcrRegionAiReviewPanel({inventory,model=DEFAULT_MODEL,proj
     const rows=items.slice(0,150).map(item=>{
       const id=itemId(item);const duplicate=isDuplicateReviewCandidate(item);
       const note=duplicate?'此圖片已存在；系統預設不重跑。人工勾選後仍可加入 AI 覆判 Queue。':((item.classification_evidence||[]).join('、')||item.ocr_error||'需要人工覆核');
-      return `<label class="ocr-ai-candidate ${duplicate?'ocr-ai-candidate-duplicate':''}"><input type="checkbox" data-ai-item="${escapeHtml(id)}" ${selected.has(id)?'checked':''}><span><strong>${escapeHtml(itemName(item))}</strong><br>分類：${escapeHtml(item.suggested_category||'未判定')}；信心度：${typeof item.classification_confidence==='number'?Math.round(item.classification_confidence*100)+'%':'—'}${duplicate?'<br><strong>重複圖片：需人工勾選才覆判</strong>':''}<br>${escapeHtml(note)}</span></label>`;
+      return `<label class="ocr-ai-candidate ${duplicate?'ocr-ai-candidate-duplicate':''}" data-ai-row="${escapeHtml(id)}"><input type="checkbox" data-ai-item="${escapeHtml(id)}" ${selected.has(id)?'checked':''}><span><strong>${escapeHtml(itemName(item))}</strong><br>分類：${escapeHtml(item.suggested_category||'未判定')}；信心度：${typeof item.classification_confidence==='number'?Math.round(item.classification_confidence*100)+'%':'—'}${duplicate?'<br><strong>重複圖片：需人工勾選才覆判</strong>':''}<br>${escapeHtml(note)}</span></label>`;
     }).join('');
-    const previewImage=previewUrl?`<img class="ocr-region-preview-image" src="${escapeHtml(previewUrl)}" alt="${escapeHtml(itemName(previewItem))}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;">`:'<div class="ocr-region-preview-empty" style="display:grid;place-items:center;width:100%;height:100%;padding:12px;text-align:center;">點選下方待覆核圖片以載入本機預覽</div>';
-    root.innerHTML=`<h4>OCR 分區與 AI 覆核準備</h4><label>辨識區域 preset<select id="ocrRegionPreset">${presetOptions(preset)}</select></label><div class="ocr-region-preview" aria-label="OCR 裁切區域預覽" style="position:relative;overflow:hidden;">${previewImage}${regionBoxes(config)}</div>${previewItem?`<div class="notice">目前預覽：${escapeHtml(itemName(previewItem))}</div>`:''}<div class="ocr-region-list">${config.regions.map((r,i)=>`<div><strong>${i+1}. ${escapeHtml(r.label)}</strong><br>x ${r.x.toFixed(2)} / y ${r.y.toFixed(2)} / w ${r.width.toFixed(2)} / h ${r.height.toFixed(2)}</div>`).join('')}</div><h5>待覆核圖片</h5><div class="notice">已存在的重複圖片不會自動重跑，但可逐張人工勾選加入 AI 覆判 Queue。</div><div class="ocr-ai-selection-actions"><button type="button" id="ocrAiSelectAll" class="secondary">全選一般待覆核</button><button type="button" id="ocrAiClear" class="secondary">清除選取</button></div><div class="ocr-ai-candidates">${rows||'<div class="notice">目前沒有可覆核項目。</div>'}</div><div class="notice">預計建立 Queue ${queue.selected_count} 張；其中人工重複覆判 ${queue.manual_duplicate_count||0} 張；模型 ${escapeHtml(model)}；Project ${escapeHtml(projectAlias)}。</div><div class="notice"><strong>目前此按鈕只建立待送 Queue，不會呼叫 AI。</strong> API Key 測試僅確認 Key 與模型可用；實際 AI 執行器將由下一階段串接。</div><label class="ocr-ai-consent"><input type="checkbox" id="ocrAiConsent" ${confirmed?'checked':''}>我明確同意將勾選項目交由 AI 覆核。</label><label class="ocr-ai-consent"><input type="checkbox" id="ocrAiUploadAck" ${acknowledgedUpload?'checked':''}>我了解實際執行時圖片會上傳至 AI Provider，且 API Key 僅暫存於本瀏覽器工作階段。</label><button type="button" id="prepareAiReviewBtn" ${validation.ok?'':'disabled'}>建立 AI 覆核 Queue（尚不送出）</button>${validation.ok?'':'<div class="notice">需先選取圖片並完成兩項同意。</div>'}`;
+    root.innerHTML=`<h4>OCR 分區與 AI 覆核準備</h4><label>辨識區域 preset<select id="ocrRegionPreset">${presetOptions(preset)}</select></label><div id="ocrRegionPreview" class="ocr-region-preview" aria-label="OCR 裁切區域預覽" style="position:relative;overflow:hidden;">${previewMarkup()}${regionBoxes(config)}</div><div id="ocrPreviewNotice" class="notice" ${previewItem?'':'hidden'}>${previewItem?`目前預覽：${escapeHtml(itemName(previewItem))}`:''}</div><div id="ocrRegionList" class="ocr-region-list">${regionList(config)}</div><h5>待覆核圖片</h5><div class="notice">已存在的重複圖片不會自動重跑，但可逐張人工勾選加入 AI 覆判 Queue。</div><div class="ocr-ai-selection-actions"><button type="button" id="ocrAiSelectAll" class="secondary">全選一般待覆核</button><button type="button" id="ocrAiClear" class="secondary">清除選取</button></div><div class="ocr-ai-candidates" style="max-height:46vh;overflow:auto;">${rows||'<div class="notice">目前沒有可覆核項目。</div>'}</div><div class="notice">預計建立 Queue ${queue.selected_count} 張；其中人工重複覆判 ${queue.manual_duplicate_count||0} 張；模型 ${escapeHtml(model)}；Project ${escapeHtml(projectAlias)}。</div><div class="notice"><strong>目前此按鈕只建立待送 Queue，不會呼叫 AI。</strong> API Key 測試僅確認 Key 與模型可用；實際 AI 執行器將由下一階段串接。</div><label class="ocr-ai-consent"><input type="checkbox" id="ocrAiConsent" ${confirmed?'checked':''}>我明確同意將勾選項目交由 AI 覆核。</label><label class="ocr-ai-consent"><input type="checkbox" id="ocrAiUploadAck" ${acknowledgedUpload?'checked':''}>我了解實際執行時圖片會上傳至 AI Provider，且 API Key 僅暫存於本瀏覽器工作階段。</label><button type="button" id="prepareAiReviewBtn" ${validation.ok?'':'disabled'}>建立 AI 覆核 Queue（尚不送出）</button>${validation.ok?'':'<div class="notice">需先選取圖片並完成兩項同意。</div>'}`;
 
-    root.querySelector('#ocrRegionPreset')?.addEventListener('change',event=>{preset=event.target.value;globalThis.DebugTrace?.record?.('ocr_region','ocr_region_preset_changed',{status:'completed',details:{preset,region_count:buildRegionConfig({preset}).regions.length}});render();});
+    const nextList=root.querySelector('.ocr-ai-candidates');if(nextList)nextList.scrollTop=previousScrollTop;
+    root.querySelector('#ocrRegionPreset')?.addEventListener('change',event=>{preset=event.target.value;globalThis.DebugTrace?.record?.('ocr_region','ocr_region_preset_changed',{status:'completed',details:{preset,region_count:buildRegionConfig({preset}).regions.length}});updatePreviewDom();});
     root.querySelectorAll('[data-ai-item]').forEach(input=>input.addEventListener('change',()=>{input.checked?selected.add(input.dataset.aiItem):selected.delete(input.dataset.aiItem);const item=items.find(candidate=>itemId(candidate)===input.dataset.aiItem);if(item&&isDuplicateReviewCandidate(item)&&input.checked){globalThis.DebugTrace?.record?.('ai_review','duplicate_ai_review_manually_selected',{status:'completed',details:{item_id:itemId(item),source_image_ref:itemName(item)}});}render();}));
     root.querySelector('#ocrAiSelectAll')?.addEventListener('click',()=>{selected=new Set(items.filter(isDefaultReviewItem).map(itemId).filter(Boolean));render();});
     root.querySelector('#ocrAiClear')?.addEventListener('click',()=>{selected.clear();render();});
