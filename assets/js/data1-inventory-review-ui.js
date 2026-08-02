@@ -1,5 +1,6 @@
 import {bulkPatchInventoryReview,buildReviewPackage,filterInventoryItems,summarizeReviewProgress} from './data1-inventory-review.js';
 import {downloadPrivateZipInventory} from './data1-zip-inventory.js';
+import {attachRuntimeVersion,buildVersionedExportFilename} from './runtime-version.js';
 
 const STATUS_OPTIONS=['pending','processed','duplicate','unreadable','review_required','ignored'];
 const CATEGORY_OPTIONS=['unclassified','pokemon','recipe','ingredient','item','capacity','account','other'];
@@ -8,7 +9,6 @@ const CATEGORY_LABEL={unclassified:'尚未分類',pokemon:'寶可夢資訊',reci
 const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const optionHtml=(values,labels,current='')=>values.map(value=>`<option value="${value}"${current===value?' selected':''}>${labels[value]}（${value}）</option>`).join('');
 const downloadJson=(payload,fileName)=>{const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=fileName;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);};
-const safeBase=name=>String(name||'pokemon_sleep').replace(/\.zip$/i,'').replace(/[^a-zA-Z0-9_-]+/g,'_');
 
 export function createInventoryReviewWorkbench({manifest,onChange=()=>{}}={}){
   const root=document.createElement('section');root.className='data1-review-workbench';let current=manifest;let selected=new Set();let filters={status:'all',category:'all',query:''};let feedback='';
@@ -26,7 +26,7 @@ export function createInventoryReviewWorkbench({manifest,onChange=()=>{}}={}){
     root.querySelectorAll('.data1-review-check').forEach(box=>box.addEventListener('change',()=>{box.checked?selected.add(box.dataset.ref):selected.delete(box.dataset.ref);}));
     root.querySelector('#data1ReviewSelectAll').addEventListener('change',event=>{for(const item of items){event.target.checked?selected.add(item.source_image_ref):selected.delete(item.source_image_ref);}render();});
     root.querySelector('#data1ReviewApplyBatch').addEventListener('click',()=>{const status=root.querySelector('#data1ReviewBatchStatus').value;const category=root.querySelector('#data1ReviewBatchCategory').value;if(!selected.size){feedback='請先勾選至少一個項目。';render();return;}if(!status&&!category){feedback='請選擇保留、排除、覆核或進階分類。';render();return;}current=bulkPatchInventoryReview(current,[...selected],{...(status?{status}:{}),...(category?{category}:{})});feedback=`已更新 ${selected.size} 筆項目。`;globalThis.DebugTrace?.record?.('data1','duplicate_gate_decision_applied',{status:'completed',details:{selected_count:selected.size,status:status||null,category:category||null}});selected=new Set();onChange(current);render();});
-    root.querySelector('#data1ReviewExportManifest').addEventListener('click',()=>{const fileName=`${safeBase(current?.archive?.name)}_fingerprint_duplicate_manifest.json`;downloadPrivateZipInventory(current,{fileName});feedback=`已下載 ${fileName}`;globalThis.DebugTrace?.record?.('data1','fingerprint_manifest_exported',{status:'completed',details:{file_name:fileName,total:current?.summary?.total||0}});render();});
-    root.querySelector('#data1ReviewExportPackage').addEventListener('click',()=>{const fileName=`${safeBase(current?.archive?.name)}_private_review_package.json`;const reviewPackage=buildReviewPackage(current);downloadJson(reviewPackage,fileName);feedback=`已下載 ${fileName}`;globalThis.DebugTrace?.record?.('data1','review_package_exported',{status:'completed',details:{file_name:fileName,total:reviewPackage?.summary?.total||0}});render();});
+    root.querySelector('#data1ReviewExportManifest').addEventListener('click',()=>{const fileName=buildVersionedExportFilename('fingerprint_duplicate_manifest',{sourceName:current?.archive?.name});downloadPrivateZipInventory(current,{fileName});feedback=`已下載 ${fileName}`;globalThis.DebugTrace?.record?.('data1','fingerprint_manifest_exported',{status:'completed',details:{file_name:fileName,total:current?.summary?.total||0}});render();});
+    root.querySelector('#data1ReviewExportPackage').addEventListener('click',()=>{const fileName=buildVersionedExportFilename('private_review_package',{sourceName:current?.archive?.name});const reviewPackage=attachRuntimeVersion(buildReviewPackage(current));downloadJson(reviewPackage,fileName);feedback=`已下載 ${fileName}`;globalThis.DebugTrace?.record?.('data1','review_package_exported',{status:'completed',details:{file_name:fileName,total:reviewPackage?.summary?.total||0}});render();});
   };render();return root;
 }
