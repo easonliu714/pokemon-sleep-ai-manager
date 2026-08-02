@@ -1,0 +1,28 @@
+name: Frontend Regression Gate - DATA.1D.1 Layout Aware Region OCR
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/data1d-ocr-first-classifier.js'
+      - 'assets/js/data1d1-ocr-region-ai-consent.js'
+      - 'assets/js/bootstrap.js'
+      - 'service-worker.js'
+      - 'scripts/data1d1-layout-aware-region-ocr-regression.mjs'
+      - '.github/workflows/data1d1-layout-aware-region-ocr.yml'
+  workflow_dispatch:
+
+jobs:
+  layout-aware-region-ocr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: |
+          node --check assets/js/data1d-ocr-first-classifier.js
+          node --check assets/js/data1d1-ocr-region-ai-consent.js
+          node --check scripts/data1d1-layout-aware-region-ocr-regression.mjs
+      - name: Run layout-aware OCR regression
+        run: node scripts/data1d1-layout-aware-region-ocr-regression.mjs
