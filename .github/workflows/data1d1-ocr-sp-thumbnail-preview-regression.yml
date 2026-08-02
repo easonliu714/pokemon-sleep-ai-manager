@@ -1,0 +1,25 @@
+name: Frontend Regression Gate - DATA.1D.1 OCR SP Thumbnail Preview
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/data1d-ocr-first-classifier.js'
+      - 'assets/js/data1d1-ocr-region-ui.js'
+      - 'assets/js/data1d1-ocr-overlay-preview-event-wiring.js'
+      - 'assets/js/bootstrap.js'
+      - 'service-worker.js'
+      - 'scripts/data1d1-ocr-sp-thumbnail-preview-regression.mjs'
+      - '.github/workflows/data1d1-ocr-sp-thumbnail-preview-regression.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/data1d1-ocr-sp-thumbnail-preview-regression.mjs
