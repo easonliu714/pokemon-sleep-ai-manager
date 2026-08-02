@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const picker=fs.readFileSync('assets/js/android-import-file-picker.js','utf8');
+const wizard=fs.readFileSync('assets/js/identity-import-wizard-entry.js','utf8');
+const bootstrap=fs.readFileSync('assets/js/bootstrap.js','utf8');
+const sw=fs.readFileSync('service-worker.js','utf8');
+for(const pattern of [/AbortController/,/pokemon-sleep:ocr-cancel-requested/,/signal:activeController\.signal/,/ocr_classification_cancelled/,/was_cancelled/])assert.match(picker,pattern);
+for(const pattern of [/buildOcrReviewQueue/,/downloadPrivateOcrReviewPackage/,/OCR 覆核佇列/,/停止 OCR/,/匯出私人 OCR Review Package/,/classification_confidence/,/classification_evidence/])assert.match(wizard,pattern);
+assert.match(bootstrap,/APP_VERSION = 'v0\.3\.46'/);
+assert.match(bootstrap,/20260802-data1d1-ocr-review-ui/);
+assert.match(bootstrap,/data1d1-ocr-review-package\.js/);
+assert.match(sw,/v0\.3\.46-data1d1-ocr-review-ui/);
+assert.match(sw,/data1d1-ocr-review-package\.js/);
+assert.doesNotMatch(wizard,/base64|image_bytes/i);
+console.log('PASS DATA.1D.1 OCR review UI, export, and cancellable batch wiring');
