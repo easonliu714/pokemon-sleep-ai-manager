@@ -17,9 +17,10 @@ for(const token of ['filterInventoryItems','bulkPatchInventoryReview','buildRevi
 for(const token of ['createInventoryReviewWorkbench','duplicate_gate_decision_applied','fingerprint_manifest_exported','review_package_exported','待處理','重複圖片','寶可夢資訊'])if(!reviewUi.includes(token))throw new Error(`review_ui_contract_missing:${token}`);
 for(const token of ['sha256Hex','SHA-256','enrichInventoryWithFingerprints','within_archive','existing_index','existing_database_match','duplicate_group_id'])if(!fingerprint.includes(token))throw new Error(`fingerprint_contract_missing:${token}`);
 for(const token of ['PokemonSleepOCR','chi_tra+eng','classification_status','suggested_category','classification_confidence','classification_evidence','requires_review','ocr_first_ai_opt_in_only','ai_requests'])if(!ocrClassifier.includes(token))throw new Error(`ocr_classifier_contract_missing:${token}`);
-for(const token of ['Tesseract','5.1.1','chi_tra','eng','ocr_runtime_loading','ocr_runtime_progress','ocr_runtime_ready','ocr_runtime_failed','IndexedDB','recognize'])if(!ocrRuntime.includes(token))throw new Error(`ocr_runtime_contract_missing:${token}`);
-if(/OpenAI|Gemini|Anthropic/i.test(ocrRuntime))throw new Error('ocr_runtime_must_not_call_external_ai');
+for(const token of ['Tesseract','5.1.1','chi_tra','eng','ocr_runtime_loading','ocr_runtime_progress','ocr_runtime_ready','ocr_runtime_failed','recognize','offline_after_first_load','network_required_for_first_load','workerPromise'])if(!ocrRuntime.includes(token))throw new Error(`ocr_runtime_contract_missing:${token}`);
+if(!/cacheMethod\s*:\s*['"]write['"]/.test(ocrRuntime))throw new Error('ocr_runtime_cache_contract_missing');
 if(/fetch\s*\(|XMLHttpRequest|OpenAI|Gemini|Anthropic/i.test(ocrClassifier))throw new Error('ocr_classifier_must_not_call_external_ai');
+if(/OpenAI|Gemini|Anthropic/i.test(ocrRuntime))throw new Error('ocr_runtime_must_not_call_external_ai');
 if(/btoa\(|base64/i.test(fingerprint))throw new Error('fingerprint_must_not_persist_base64');
 if(!wizard.includes('humanizeImportError'))throw new Error('wizard_human_error_missing');
 if(!wizard.includes('tech2d-file-picker-actions'))throw new Error('split_picker_layout_missing');
@@ -31,4 +32,4 @@ for(const token of ['data1-zip-inventory.js','data1-inventory-review.js','data1-
 for(const token of ['./assets/js/debug-trace-manager.js','./assets/js/data1-zip-inventory.js','./assets/js/data1-inventory-review.js','./assets/js/data1-inventory-review-ui.js','./assets/js/data1-image-fingerprint.js','./assets/js/data1d-ocr-first-classifier.js','./assets/js/data1d-local-ocr-runtime.js'])if(!worker.includes(token))throw new Error(`module_not_precached:${token}`);
 if(!worker.includes('v0.3.43-data1d-local-ocr-runtime'))throw new Error('service_worker_cache_not_bumped');
 if(/\.content\b|\.payload\b/.test(trace.match(/function safeFile[\s\S]*?\n}/)?.[0]||''))throw new Error('file_content_must_not_be_exported');
-console.log(JSON.stringify({ok:true,trace_schema:'pokemon-sleep-debug-trace/1.1',version:'v0.3.43',checks:requiredTraceTokens.length+pickerTokens.length+57}));
+console.log(JSON.stringify({ok:true,trace_schema:'pokemon-sleep-debug-trace/1.1',version:'v0.3.43',checks:requiredTraceTokens.length+pickerTokens.length+55}));
