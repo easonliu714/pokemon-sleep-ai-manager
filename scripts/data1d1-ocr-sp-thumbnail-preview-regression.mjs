@@ -35,9 +35,9 @@ assert.equal(buildAiConsentQueue([duplicate,review],{selectedIds:['dup-sha','rev
 for(const token of ['ocr-ai-candidate','PREVIEW_ROW_SELECTOR',"archive.readImage(path,{type:'blob'})",'pokemon-sleep:ocr-overlay-preview-requested'])assert.match(source.wiring,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
 for(const token of ['URL.createObjectURL','URL.revokeObjectURL','ocr-region-preview-image','updatePreviewDom','previousScrollTop','list_position_preserved','ocr_region_preview_rendered','pokemon-sleep:ocr-overlay-preview-cleared','重複圖片：需人工勾選才覆判','duplicate_ai_review_manually_selected','全選一般待覆核','root.dispose'])assert.match(source.regionUi,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
 assert.doesNotMatch(source.regionUi,/localStorage|sessionStorage|image_base64|btoa\(/);
-const appVersion=source.bootstrap.match(/APP_VERSION\s*=\s*'([^']+)'/)?.[1];
-const build=source.bootstrap.match(/VERSION\s*=\s*'([^']+)'/)?.[1];
-const cache=source.worker.match(/const CACHE\s*=\s*'([^']+)'/)?.[1];
+const appVersion=source.bootstrap.match(/^const APP_VERSION\s*=\s*'([^']+)'/m)?.[1];
+const build=source.bootstrap.match(/^const VERSION\s*=\s*'([^']+)'/m)?.[1];
+const cache=source.worker.match(/^const CACHE\s*=\s*'([^']+)'/m)?.[1];
 assert.equal(appVersion,'v0.3.55');
 assert.equal(build,'20260802-data1d1-layout-aware-region-ocr');
 assert.equal(cache,'pokemon-sleep-ai-v0.3.55-data1d1-layout-aware-region-ocr');
