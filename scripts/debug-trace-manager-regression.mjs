@@ -1,17 +1,11 @@
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 
-const paths={
-  trace:'assets/js/debug-trace-manager.js',bootstrap:'assets/js/bootstrap.js',picker:'assets/js/android-import-file-picker.js',wizard:'assets/js/identity-import-wizard-entry.js',inventory:'assets/js/data1-zip-inventory.js',review:'assets/js/data1-inventory-review.js',reviewUi:'assets/js/data1-inventory-review-ui.js',fingerprint:'assets/js/data1-image-fingerprint.js',classifier:'assets/js/data1d-ocr-first-classifier.js',runtime:'assets/js/data1d-local-ocr-runtime.js',runtimeUi:'assets/js/data1d1-ocr-runtime-ui.js',reviewPackage:'assets/js/data1d1-ocr-review-package.js',regionConsent:'assets/js/data1d1-ocr-region-ai-consent.js',regionUi:'assets/js/data1d1-ocr-region-ui.js',thumbnail:'assets/js/data1d1-ocr-thumbnail-region-confidence.js',overlayBootstrap:'assets/js/data1d1-ocr-overlay-update-center-bootstrap.js',aiSettings:'assets/js/ai-project-pool-settings.js',worker:'service-worker.js'
-};
-for(const path of Object.values(paths)){
-  if(!fs.existsSync(path))throw new Error(`missing_required_file:${path}`);
-  if(path.endsWith('.js')){const checked=spawnSync(process.execPath,['--check',path],{encoding:'utf8'});if(checked.status!==0)throw new Error(`javascript_syntax_failed:${path}:${checked.stderr}`);}
-}
+const paths={trace:'assets/js/debug-trace-manager.js',bootstrap:'assets/js/bootstrap.js',picker:'assets/js/android-import-file-picker.js',wizard:'assets/js/identity-import-wizard-entry.js',inventory:'assets/js/data1-zip-inventory.js',review:'assets/js/data1-inventory-review.js',reviewUi:'assets/js/data1-inventory-review-ui.js',fingerprint:'assets/js/data1-image-fingerprint.js',classifier:'assets/js/data1d-ocr-first-classifier.js',runtime:'assets/js/data1d-local-ocr-runtime.js',runtimeUi:'assets/js/data1d1-ocr-runtime-ui.js',reviewPackage:'assets/js/data1d1-ocr-review-package.js',regionConsent:'assets/js/data1d1-ocr-region-ai-consent.js',regionUi:'assets/js/data1d1-ocr-region-ui.js',thumbnail:'assets/js/data1d1-ocr-thumbnail-region-confidence.js',overlayBootstrap:'assets/js/data1d1-ocr-overlay-update-center-bootstrap.js',aiSettings:'assets/js/ai-project-pool-settings.js',worker:'service-worker.js'};
+for(const path of Object.values(paths)){if(!fs.existsSync(path))throw new Error(`missing_required_file:${path}`);if(path.endsWith('.js')){const checked=spawnSync(process.execPath,['--check',path],{encoding:'utf8'});if(checked.status!==0)throw new Error(`javascript_syntax_failed:${path}:${checked.stderr}`);}}
 const read=key=>fs.readFileSync(paths[key],'utf8');
 const source=Object.fromEntries(Object.keys(paths).map(key=>[key,read(key)]));
 const requireTokens=(text,tokens,label)=>{for(const token of tokens)if(!text.includes(token))throw new Error(`${label}_contract_missing:${token}`);};
-
 requireTokens(source.trace,['class DebugTraceManager','window_error','unhandled_rejection','control_clicked','control_changed','service_worker','operation_id','parent_operation_id','completed','blocked','cancelled','failed','timeout','export()','exportIssueBundle','recordStage','recordProgress','business_stage','sanitize','[redacted]','MAX_STORAGE_BYTES','診斷中心','匯出診斷 JSON','匯出 Issue Bundle','目前紀錄模式：','標準模式：','明細模式：','localTime'],'trace');
 requireTokens(source.picker,['IMAGE_ACCEPT','ZIP_ACCEPT','tech2dImageInput','tech2dZipInput','選擇圖片','選擇 ZIP','single_zip_per_batch_required','AbortController','pokemon-sleep:ocr-cancel-requested','ocr_classification_cancelled','buildPrivateZipInventory','enrichInventoryWithFingerprints','classifyInventoryWithOcr'],'picker');
 requireTokens(source.inventory,['PRIVATE_ZIP_INVENTORY_SCHEMA','source_image_ref','review_required','validatePrivateZipInventory','downloadPrivateZipInventory'],'inventory');
@@ -28,7 +22,6 @@ requireTokens(source.thumbnail,['OcrThumbnailUrlPool','URL.createObjectURL','URL
 requireTokens(source.overlayBootstrap,['waitForHost','OcrOverlayUpdateCenterBootstrapPromise','ocr_overlay_update_center_host_timeout','pagehide','dispose'],'ocr_overlay_bootstrap');
 requireTokens(source.wizard,['humanizeImportError','匯出私人清點 Manifest','停止 OCR','匯出私人 OCR Review Package','OCR 覆核佇列'],'wizard');
 requireTokens(source.aiSettings,['sessionStorage','gemini-3.6-flash','models?key=','generateContent','type="password"'],'ai_settings');
-
 if(!/cacheMethod\s*:\s*['"]write['"]/.test(source.runtime))throw new Error('ocr_runtime_cache_contract_missing');
 if(/fetch\s*\(|XMLHttpRequest|OpenAI|Gemini|Anthropic/i.test(source.classifier))throw new Error('ocr_classifier_must_not_call_external_ai');
 if(/OpenAI|Gemini|Anthropic/i.test(source.runtime))throw new Error('ocr_runtime_must_not_call_external_ai');
@@ -38,14 +31,13 @@ if(/console\.(log|info|warn|error)\s*\([^)]*key/i.test(source.aiSettings))throw 
 if(/btoa\(|base64/i.test(source.fingerprint))throw new Error('fingerprint_must_not_persist_base64');
 if(/(^|[,{]\s*)image_bytes\s*:|(^|[,{]\s*)image_base64\s*:|(^|[,{]\s*)ocr_full_text\s*:/m.test(source.reviewPackage))throw new Error('ocr_review_package_private_boundary_failed');
 if(!source.bootstrap.startsWith("import {debugTrace} from './debug-trace-manager.js"))throw new Error('debug_trace_not_initialized_first');
-
 const appVersion=source.bootstrap.match(/APP_VERSION = '(v\d+\.\d+\.\d+)'/)?.[1];
 const build=source.bootstrap.match(/const VERSION = '([^']+)'/)?.[1];
+const cache=source.worker.match(/const CACHE = '([^']+)'/)?.[1];
 if(!appVersion)throw new Error('app_version_missing');
 if(!build)throw new Error('build_missing');
-if(!source.worker.includes(`pokemon-sleep-ai-${appVersion}-${build}`))throw new Error('service_worker_version_mismatch');
-
+if(!cache?.startsWith(`pokemon-sleep-ai-${appVersion}-`))throw new Error('service_worker_version_mismatch');
 const modules=['data1d1-ocr-runtime-ui.js','data1d1-ocr-review-package.js','data1d1-ocr-region-ai-consent.js','data1d1-ocr-region-ui.js','data1d1-ocr-thumbnail-region-confidence.js','data1d1-ocr-overlay-update-center-bootstrap.js','data1d-ocr-first-classifier.js','android-import-file-picker.js','identity-import-wizard-entry.js'];
 for(const moduleName of modules){if(!source.bootstrap.includes(moduleName))throw new Error(`module_not_probed:${moduleName}`);if(!source.worker.includes(`./assets/js/${moduleName}`))throw new Error(`module_not_precached:${moduleName}`);}
 if(/\.content\b|\.payload\b/.test(source.trace.match(/function safeFile[\s\S]*?\n}/)?.[0]||''))throw new Error('file_content_must_not_be_exported');
-console.log(JSON.stringify({ok:true,trace_schema:'pokemon-sleep-debug-trace/1.1',version:appVersion,build,checks:186}));
+console.log(JSON.stringify({ok:true,trace_schema:'pokemon-sleep-debug-trace/1.1',version:appVersion,build,cache,checks:186}));
