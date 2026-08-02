@@ -27,7 +27,7 @@ export function createOcrRegionAiReviewPanel({inventory,model=DEFAULT_MODEL,proj
     root.querySelector('#ocrAiClear')?.addEventListener('click',()=>{selected.clear();render();});
     root.querySelector('#ocrAiConsent')?.addEventListener('change',event=>{confirmed=event.target.checked;render();});
     root.querySelector('#ocrAiUploadAck')?.addEventListener('change',event=>{acknowledgedUpload=event.target.checked;render();});
-    root.querySelector('#prepareAiReviewBtn')?.addEventListener('click',()=>{const latestQueue=buildAiConsentQueue(items,{selectedIds:[...selected],model,projectAlias});const latestValidation=validateAiConsent({confirmed,acknowledgedUpload,queue:latestQueue});recordAiConsentTrace(latestQueue,{confirmed:latestValidation.ok});if(latestValidation.ok)onPrepared({queue:latestQueue,region_config:config,consent:{confirmed,acknowledged_upload:acknowledgedUpload}});});
+    root.querySelector('#prepareAiReviewBtn')?.addEventListener('click',()=>{const latestQueue=buildAiConsentQueue(items,{selectedIds:[...selected],model,projectAlias});const latestValidation=validateAiConsent({confirmed,acknowledgedUpload,queue:latestQueue});recordAiConsentTrace(latestQueue,{confirmed:latestValidation.ok});if(latestValidation.ok){globalThis.DebugTrace?.record?.('ai_review','ai_review_queue_ready',{status:'completed',details:{selected_count:latestQueue.selected_count,model:latestQueue.model,project_alias:latestQueue.project_alias}});onPrepared({queue:latestQueue,region_config:config,consent:{confirmed,acknowledged_upload:acknowledgedUpload}});}});
   };
   render();
   return root;
