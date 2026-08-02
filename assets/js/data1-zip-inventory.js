@@ -1,3 +1,5 @@
+import {attachRuntimeVersion,buildVersionedExportFilename} from './runtime-version.js';
+
 const MANIFEST_SCHEMA='pokemon-sleep-private-zip-inventory/1.0';
 const VALID_STATUS=new Set(['pending','processed','duplicate','unreadable','review_required','ignored']);
 const IMAGE_KINDS=new Set(['png','jpg','jpeg','webp','avif']);
@@ -34,22 +36,7 @@ export function buildPrivateZipInventory(archive,{archiveName=null,existing=[]}=
     if(!firstRef)seen.set(duplicateKey,source_image_ref);
     const saved=prior.get(source_image_ref);
     const status=firstRef?'duplicate':(VALID_STATUS.has(saved?.status)?saved.status:'pending');
-    items.push({
-      source_image_ref,
-      archive_name:archiveName,
-      path,
-      file_name:basename(path),
-      extension:ext,
-      size:Number(entry?.size||0),
-      modified_at:entry?.modified_at||null,
-      category:saved?.category||classifyInventoryCategory(path),
-      status,
-      duplicate_of:firstRef,
-      confidence:Number.isFinite(Number(saved?.confidence))?Number(saved.confidence):null,
-      notes:clean(saved?.notes)||null,
-      output_package_ref:saved?.output_package_ref||null,
-      updated_at:saved?.updated_at||null
-    });
+    items.push({source_image_ref,archive_name:archiveName,path,file_name:basename(path),extension:ext,size:Number(entry?.size||0),modified_at:entry?.modified_at||null,category:saved?.category||classifyInventoryCategory(path),status,duplicate_of:firstRef,confidence:Number.isFinite(Number(saved?.confidence))?Number(saved.confidence):null,notes:clean(saved?.notes)||null,output_package_ref:saved?.output_package_ref||null,updated_at:saved?.updated_at||null});
   });
   return finalizeInventory({schema:MANIFEST_SCHEMA,archive:{name:archiveName,entry_count:Number(archive?.summary?.entry_count||entries.length),image_count:items.length,total_uncompressed_bytes:Number(archive?.summary?.total_uncompressed_bytes||0)},items});
 }
@@ -91,11 +78,14 @@ export function validatePrivateZipInventory(manifest){
   return {ok:errors.length===0,errors};
 }
 
-export function downloadPrivateZipInventory(manifest,{fileName='pokemon_sleep_private_zip_inventory.json'}={}){
+export function downloadPrivateZipInventory(manifest,{fileName=null}={}){
   const validated=validatePrivateZipInventory(manifest);
   if(!validated.ok)throw new Error(`invalid_private_zip_inventory:${validated.errors.join(',')}`);
-  const blob=new Blob([JSON.stringify(manifest,null,2)],{type:'application/json'});
-  const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=fileName;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+  const payload=attachRuntimeVersion(manifest);
+  const resolved=fileName||buildVersionedExportFilename('private_zip_inventory',{sourceName:manifest?.archive?.name});
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=resolved;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+  return payload;
 }
 
 export {MANIFEST_SCHEMA as PRIVATE_ZIP_INVENTORY_SCHEMA,VALID_STATUS as PRIVATE_ZIP_INVENTORY_STATUSES};
