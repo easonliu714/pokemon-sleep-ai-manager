@@ -26,10 +26,11 @@ const bootstrap=read('bootstrap');
 const overlayBootstrap=read('overlayBootstrap');
 const worker=read('worker');
 const token=(source,value,label)=>assert.match(source,new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')),`${label}:${value}`);
-const appVersion=bootstrap.match(/APP_VERSION\s*=\s*'([^']+)'/)?.[1];
-const build=bootstrap.match(/VERSION\s*=\s*'([^']+)'/)?.[1];
+const appVersion=bootstrap.match(/\bAPP_VERSION\s*=\s*'([^']+)'/)?.[1];
+const build=bootstrap.match(/(?:^|\n)const\s+VERSION\s*=\s*'([^']+)'/)?.[1];
 assert.ok(appVersion,'app_version_missing');
 assert.ok(build,'build_missing');
+assert.notEqual(build,appVersion,'build_must_not_equal_app_version');
 
 for(const value of [
   'data1d1-ocr-overlay-update-center-bootstrap.js',
@@ -73,6 +74,6 @@ console.log(JSON.stringify({
   gate:'DATA.1D.1 OCR overlay bootstrap integration',
   version:appVersion,
   build,
-  checks:38,
+  checks:39,
   hardware_validation_required_next:true
 }));
