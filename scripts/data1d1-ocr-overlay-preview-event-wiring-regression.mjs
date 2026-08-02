@@ -22,7 +22,7 @@ tokens(source.wiring,[
   'pokemon-sleep:ocr-overlay-preview-requested',
   'pokemon-sleep:ocr-region-preset-changed',
   'pokemon-sleep:ocr-overlay-preview-cleared',
-  'archive.readImage(path',{type:'blob'}',
+  "archive.readImage(path,{type:'blob'})",
   'buildRegionConfig',
   'MutationObserver',
   "setAttribute('role','button')",
@@ -36,7 +36,7 @@ tokens(source.wiring,[
   'dispose()'
 ],'wiring');
 assert.doesNotMatch(source.wiring,/localStorage|sessionStorage|fetch\s*\(|XMLHttpRequest|image_base64|btoa\(/);
-tokens(source.adapter,['readImage(path',{type='blob'}],'zip_adapter');
+tokens(source.adapter,["readImage(path,{type='blob'}"],'zip_adapter');
 tokens(source.bridge,['pokemon-sleep:ocr-overlay-preview-requested','pokemon-sleep:ocr-region-preset-changed','pokemon-sleep:ocr-overlay-preview-cleared'],'bridge');
 assert.match(source.bootstrap,/APP_VERSION = 'v0\.3\.51'/);
 assert.match(source.bootstrap,/20260802-data1d1-ocr-overlay-preview-event-wiring/);
