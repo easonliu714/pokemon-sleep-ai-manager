@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.51-data1d1-ocr-overlay-preview-event-wiring';
+const CACHE = 'pokemon-sleep-ai-v0.3.52-data1d1-device-validation-fix';
 const ASSETS = [
   './','./index.html','./manifest.webmanifest','./assets/css/app.css','./assets/css/editor.css',
   './assets/js/bootstrap.js','./assets/js/debug-trace-manager.js','./assets/js/app.js','./assets/js/database.js','./assets/js/storage.js',

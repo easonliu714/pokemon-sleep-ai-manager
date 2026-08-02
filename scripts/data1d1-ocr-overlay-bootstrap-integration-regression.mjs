@@ -37,7 +37,10 @@ assert.notEqual(build,appVersion,'build_must_not_equal_app_version');
 for(const value of [
   'data1d1-ocr-overlay-update-center-bootstrap.js',
   'bootstrapOcrOverlayUpdateCenter',
-  'OcrOverlayUpdateCenterBootstrap'
+  'OcrOverlayUpdateCenterBootstrap',
+  "document.querySelector('#ocrThumbnailOverlaySlot')",
+  'pokemon-sleep:identity-import-files-selected',
+  'ocr_thumbnail_overlay_bootstrap_deferred'
 ])token(bootstrap,value,'bootstrap_contract_missing');
 
 for(const value of [
@@ -70,7 +73,7 @@ for(const moduleName of overlayModules){
 const cacheBuildSuffix=build.replace(/^\d{8}-/,'');
 assert.equal(cacheName,`pokemon-sleep-ai-${appVersion}-${cacheBuildSuffix}`,'service_worker_version_mismatch');
 assert.doesNotMatch(overlayBootstrap,/fetch\s*\(|XMLHttpRequest|localStorage|sessionStorage/);
-assert.match(bootstrap,/if\(!globalThis\.OcrOverlayUpdateCenterBootstrap\)/);
+assert.match(bootstrap,/if\(globalThis\.OcrOverlayUpdateCenterBootstrap\|\|!document\.querySelector\('#ocrThumbnailOverlaySlot'\)\)return;/);
 
 console.log(JSON.stringify({
   ok:true,
@@ -78,6 +81,6 @@ console.log(JSON.stringify({
   version:appVersion,
   build,
   cache_name:cacheName,
-  checks:40,
+  checks:43,
   hardware_validation_required_next:true
 }));

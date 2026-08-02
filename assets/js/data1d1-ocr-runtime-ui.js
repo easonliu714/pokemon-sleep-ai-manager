@@ -1,98 +1,13 @@
 const STATE={status:'idle',progress:0,message:'尚未啟動 OCR',offlineReady:false,active:false,cancelRequested:false};
 
-function emitTrace(event,details={}){
-  globalThis.DebugTrace?.record?.('ocr_runtime_ui',event,{status:'completed',details});
-}
-
+function emitTrace(event,details={}){globalThis.DebugTrace?.record?.('ocr_runtime_ui',event,{status:'completed',details});}
 function clamp(value,min,max){return Math.max(min,Math.min(max,value));}
-
-function preprocessImage(source,options={}){
-  const scale=clamp(Number(options.scale||2),1,4);
-  const contrast=clamp(Number(options.contrast||1.35),0.5,3);
-  const threshold=clamp(Number(options.threshold||165),0,255);
-  const grayscale=options.grayscale!==false;
-  const binary=options.binary===true;
-  const canvas=document.createElement('canvas');
-  const width=Math.max(1,Math.round((source.naturalWidth||source.width||1)*scale));
-  const height=Math.max(1,Math.round((source.naturalHeight||source.height||1)*scale));
-  canvas.width=width;canvas.height=height;
-  const ctx=canvas.getContext('2d',{willReadFrequently:true});
-  ctx.imageSmoothingEnabled=true;
-  ctx.imageSmoothingQuality='high';
-  ctx.drawImage(source,0,0,width,height);
-  const imageData=ctx.getImageData(0,0,width,height);
-  const data=imageData.data;
-  for(let i=0;i<data.length;i+=4){
-    let r=data[i],g=data[i+1],b=data[i+2];
-    if(grayscale){const y=Math.round(0.299*r+0.587*g+0.114*b);r=g=b=y;}
-    r=clamp((r-128)*contrast+128,0,255);
-    g=clamp((g-128)*contrast+128,0,255);
-    b=clamp((b-128)*contrast+128,0,255);
-    if(binary){const y=(r+g+b)/3;const v=y>=threshold?255:0;r=g=b=v;}
-    data[i]=r;data[i+1]=g;data[i+2]=b;
-  }
-  ctx.putImageData(imageData,0,0);
-  emitTrace('ocr_preprocess_completed',{width,height,scale,contrast,threshold,grayscale,binary});
-  return canvas;
-}
-
-function render(){
-  const root=document.getElementById('ocrRuntimeStatusPanel');
-  if(!root)return;
-  root.innerHTML=`
-    <h4>本機 OCR 狀態</h4>
-    <div class="data1d1-ocr-summary">
-      <div><strong>狀態</strong><br>${STATE.status}</div>
-      <div><strong>進度</strong><br>${Math.round(STATE.progress)}%</div>
-      <div><strong>離線</strong><br>${STATE.offlineReady?'已可使用':'首次需連線'}</div>
-    </div>
-    <progress max="100" value="${Math.round(STATE.progress)}" style="width:100%"></progress>
-    <p class="notice">${STATE.message}</p>
-    <details>
-      <summary>小字截圖前處理</summary>
-      <div class="data1d1-preprocess-grid">
-        <label>放大倍率<select id="ocrScale"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label>
-        <label>對比<input id="ocrContrast" type="number" min="0.5" max="3" step="0.05" value="1.35"></label>
-        <label>二值化門檻<input id="ocrThreshold" type="number" min="0" max="255" step="1" value="165"></label>
-        <label><input id="ocrGrayscale" type="checkbox" checked> 灰階</label>
-        <label><input id="ocrBinary" type="checkbox"> 二值化</label>
-      </div>
-      <p class="notice">前處理只在本機記憶體執行，不會上傳或保存原圖。</p>
-    </details>
-    <div class="buttons"><button id="cancelOcrBtn" class="secondary" ${STATE.active?'':'disabled'}>取消 OCR</button></div>`;
-  root.querySelector('#cancelOcrBtn')?.addEventListener('click',()=>{
-    STATE.cancelRequested=true;STATE.message='已要求取消，目前圖片完成後停止。';render();
-    globalThis.dispatchEvent(new CustomEvent('pokemon-sleep:ocr-cancel-requested'));
-    emitTrace('ocr_cancel_requested',{});
-  });
-}
-
-function ensurePanel(){
-  if(document.getElementById('ocrRuntimeStatusPanel'))return;
-  const host=document.getElementById('identityImportWizardRoot')||document.getElementById('updates');
-  if(!host)return;
-  const panel=document.createElement('section');panel.id='ocrRuntimeStatusPanel';panel.className='panel';host.appendChild(panel);render();
-}
-
-function updateFromEvent(type,detail={}){
-  if(type==='loading'){STATE.status='載入中';STATE.active=true;STATE.message='正在載入 Tesseract.js 與語言模型，首次使用需要網路。';}
-  if(type==='progress'){STATE.status='辨識中';STATE.active=true;STATE.progress=clamp(Number(detail.progress??detail.percent??0),0,100);STATE.message=detail.message||'正在進行本機 OCR。';}
-  if(type==='ready'){STATE.status='可用';STATE.active=false;STATE.progress=100;STATE.offlineReady=true;STATE.message='OCR Runtime 已就緒；語言資源已可供後續離線重用。';}
-  if(type==='failed'){STATE.status='失敗';STATE.active=false;STATE.message=`OCR 載入或辨識失敗：${detail.message||detail.error||'未知錯誤'}`;}
-  render();
-}
-
-for(const [event,type] of [['ocr_runtime_loading','loading'],['ocr_runtime_progress','progress'],['ocr_runtime_ready','ready'],['ocr_runtime_failed','failed']]){
-  globalThis.addEventListener(event,e=>updateFromEvent(type,e.detail||{}));
-  globalThis.addEventListener(`pokemon-sleep:${event}`,e=>updateFromEvent(type,e.detail||{}));
-}
-
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ensurePanel,{once:true});else ensurePanel();
-globalThis.addEventListener('pokemon-sleep:identity-import-files-selected',ensurePanel);
-
-const style=document.createElement('style');
-style.id='data1d1OcrRuntimeStyles';
-style.textContent='.data1d1-ocr-summary,.data1d1-preprocess-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}.data1d1-ocr-summary>div{border:1px solid #dfe8e3;border-radius:10px;padding:10px;background:#fff}.data1d1-preprocess-grid label{display:grid;gap:4px;align-content:start}@media(max-width:560px){.data1d1-ocr-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}';
-if(!document.getElementById(style.id))document.head.appendChild(style);
-
+function preprocessImage(source,options={}){const scale=clamp(Number(options.scale||2),1,4);const contrast=clamp(Number(options.contrast||1.35),0.5,3);const threshold=clamp(Number(options.threshold||165),0,255);const grayscale=options.grayscale!==false;const binary=options.binary===true;const canvas=document.createElement('canvas');const width=Math.max(1,Math.round((source.naturalWidth||source.width||1)*scale));const height=Math.max(1,Math.round((source.naturalHeight||source.height||1)*scale));canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(source,0,0,width,height);const imageData=ctx.getImageData(0,0,width,height);const data=imageData.data;for(let i=0;i<data.length;i+=4){let r=data[i],g=data[i+1],b=data[i+2];if(grayscale){const y=Math.round(0.299*r+0.587*g+0.114*b);r=g=b=y;}r=clamp((r-128)*contrast+128,0,255);g=clamp((g-128)*contrast+128,0,255);b=clamp((b-128)*contrast+128,0,255);if(binary){const y=(r+g+b)/3;const v=y>=threshold?255:0;r=g=b=v;}data[i]=r;data[i+1]=g;data[i+2]=b;}ctx.putImageData(imageData,0,0);emitTrace('ocr_preprocess_completed',{width,height,scale,contrast,threshold,grayscale,binary});return canvas;}
+function render(){const root=document.getElementById('ocrRuntimeStatusPanel');if(!root)return;root.innerHTML=`<h4>本機 OCR 狀態</h4><div class="data1d1-ocr-summary"><div><strong>狀態</strong><br>${STATE.status}</div><div><strong>進度</strong><br>${Math.round(STATE.progress)}%</div><div><strong>離線</strong><br>${STATE.offlineReady?'已可使用':'首次需連線'}</div></div><progress max="100" value="${Math.round(STATE.progress)}" style="width:100%"></progress><p class="notice">${STATE.message}</p><details><summary>小字截圖前處理</summary><div class="data1d1-preprocess-grid"><label>放大倍率<select id="ocrScale"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label><label>對比<input id="ocrContrast" type="number" min="0.5" max="3" step="0.05" value="1.35"></label><label>二值化門檻<input id="ocrThreshold" type="number" min="0" max="255" step="1" value="165"></label><label><input id="ocrGrayscale" type="checkbox" checked> 灰階</label><label><input id="ocrBinary" type="checkbox"> 二值化</label></div><p class="notice">前處理只在本機記憶體執行，不會上傳或保存原圖。</p></details><div class="buttons"><button id="cancelOcrBtn" class="secondary" ${STATE.active?'':'disabled'}>取消 OCR</button></div>`;root.querySelector('#cancelOcrBtn')?.addEventListener('click',()=>{STATE.cancelRequested=true;STATE.message='已要求取消，目前圖片完成後停止。';render();globalThis.dispatchEvent(new CustomEvent('pokemon-sleep:ocr-cancel-requested'));emitTrace('ocr_cancel_requested',{});});}
+function ensurePanel(){if(document.getElementById('ocrRuntimeStatusPanel'))return;const host=document.getElementById('identityImportWizardRoot')||document.getElementById('updates');if(!host)return;const panel=document.createElement('section');panel.id='ocrRuntimeStatusPanel';panel.className='panel';host.appendChild(panel);render();}
+function updateFromEvent(type,detail={}){if(type==='loading'){STATE.status='載入中';STATE.active=true;STATE.progress=0;STATE.cancelRequested=false;STATE.message='正在載入 Tesseract.js 與語言模型，首次使用需要網路。';}if(type==='progress'){STATE.status='辨識中';STATE.active=true;STATE.progress=clamp(Number(detail.progress??detail.percent??0),0,100);STATE.message=detail.message||'正在進行本機 OCR。';}if(type==='ready'){STATE.status='可用';STATE.active=false;STATE.progress=100;STATE.offlineReady=true;STATE.message='OCR Runtime 已就緒；語言資源已可供後續離線重用。';}if(type==='batch_started'){STATE.status='準備中';STATE.active=true;STATE.progress=0;STATE.cancelRequested=false;STATE.message='已開始新的圖片辨識批次。';}if(type==='batch_completed'){STATE.status='完成';STATE.active=false;STATE.progress=100;STATE.cancelRequested=false;STATE.message=`OCR 批次完成：已分析 ${Number(detail.analyzed||0)} 張；待覆核 ${Number(detail.requires_review||0)} 張。`;}if(type==='batch_cancelled'){STATE.status='已停止';STATE.active=false;STATE.cancelRequested=false;STATE.message=`OCR 已停止：已完成 ${Number(detail.analyzed||0)} 張；取消 ${Number(detail.cancelled||0)} 張。`;}if(type==='failed'||type==='batch_failed'){STATE.status='失敗';STATE.active=false;STATE.cancelRequested=false;STATE.message=`OCR 載入或辨識失敗：${detail.message||detail.error||(detail.errors||[]).join('、')||'未知錯誤'}`;}render();}
+for(const [event,type] of [['ocr_runtime_loading','loading'],['ocr_runtime_progress','progress'],['ocr_runtime_ready','ready'],['ocr_runtime_failed','failed']]){globalThis.addEventListener(event,e=>updateFromEvent(type,e.detail||{}));globalThis.addEventListener(`pokemon-sleep:${event}`,e=>updateFromEvent(type,e.detail||{}));}
+for(const [event,type] of [['pokemon-sleep:ocr-batch-started','batch_started'],['pokemon-sleep:ocr-batch-progress','progress'],['pokemon-sleep:ocr-batch-completed','batch_completed'],['pokemon-sleep:ocr-batch-cancelled','batch_cancelled'],['pokemon-sleep:ocr-batch-failed','batch_failed']])globalThis.addEventListener(event,e=>updateFromEvent(type,e.detail||{}));
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ensurePanel,{once:true});else ensurePanel();globalThis.addEventListener('pokemon-sleep:identity-import-files-selected',ensurePanel);
+const style=document.createElement('style');style.id='data1d1OcrRuntimeStyles';style.textContent='.data1d1-ocr-summary,.data1d1-preprocess-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}.data1d1-ocr-summary>div{border:1px solid #dfe8e3;border-radius:10px;padding:10px;background:#fff}.data1d1-preprocess-grid label{display:grid;gap:4px;align-content:start}@media(max-width:560px){.data1d1-ocr-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}';if(!document.getElementById(style.id))document.head.appendChild(style);
 export {preprocessImage,updateFromEvent,ensurePanel};
