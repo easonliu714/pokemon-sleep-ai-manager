@@ -28,8 +28,10 @@ const worker=read('worker');
 const token=(source,value,label)=>assert.match(source,new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')),`${label}:${value}`);
 const appVersion=bootstrap.match(/\bAPP_VERSION\s*=\s*'([^']+)'/)?.[1];
 const build=bootstrap.match(/(?:^|\n)const\s+VERSION\s*=\s*'([^']+)'/)?.[1];
+const cacheName=worker.match(/\bCACHE\s*=\s*'([^']+)'/)?.[1];
 assert.ok(appVersion,'app_version_missing');
 assert.ok(build,'build_missing');
+assert.ok(cacheName,'service_worker_cache_name_missing');
 assert.notEqual(build,appVersion,'build_must_not_equal_app_version');
 
 for(const value of [
@@ -65,7 +67,8 @@ for(const moduleName of overlayModules){
   token(worker,`./assets/js/${moduleName}`,'module_not_precached');
 }
 
-token(worker,`pokemon-sleep-ai-${appVersion}-${build}`,'service_worker_version_missing');
+const cacheBuildSuffix=build.replace(/^\d{8}-/,'');
+assert.equal(cacheName,`pokemon-sleep-ai-${appVersion}-${cacheBuildSuffix}`,'service_worker_version_mismatch');
 assert.doesNotMatch(overlayBootstrap,/fetch\s*\(|XMLHttpRequest|localStorage|sessionStorage/);
 assert.match(bootstrap,/if\(!globalThis\.OcrOverlayUpdateCenterBootstrap\)/);
 
@@ -74,6 +77,7 @@ console.log(JSON.stringify({
   gate:'DATA.1D.1 OCR overlay bootstrap integration',
   version:appVersion,
   build,
-  checks:39,
+  cache_name:cacheName,
+  checks:40,
   hardware_validation_required_next:true
 }));
