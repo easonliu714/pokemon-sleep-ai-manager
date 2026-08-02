@@ -59,7 +59,7 @@ await eventController.attach({item:{sha256:'life-3'},blob:blob('l3')});
 target.dispatchEvent(new Event('pokemon-sleep:ocr-cancel-requested'));
 assert.equal(eventController.activeCount,0);
 await eventController.attach({item:{sha256:'life-4'},blob:blob('l4')});
-target.dispatchEvent(new Event('zip-selection-cleared'));
+target.dispatchEvent(new Event('pokemon-sleep:zip-selection-cleared'));
 assert.equal(eventController.activeCount,0);
 await eventController.attach({item:{sha256:'life-5'},blob:blob('l5')});
 target.dispatchEvent(new Event('pagehide'));
