@@ -1,6 +1,7 @@
 const STORAGE_KEY='pokemon-sleep:ai-project-pool/session';
 const DEFAULT_MODEL='gemini-3.6-flash';
-const MODELS_ENDPOINT='https://generativelanguage.googleapis.com/v1beta/models';
+const MODELS_ENDPOINT='https://generativelanguage.googleapis.com/v1beta/models?key=';
+// Multiline textarea equivalent of type="password": CSS text security preserves comma/newline-separated key input.
 
 function splitKeys(value=''){
   return [...new Set(String(value).split(/[\s,，;；]+/u).map(v=>v.trim()).filter(Boolean))];
@@ -12,7 +13,7 @@ function saveSession(data){sessionStorage.setItem(STORAGE_KEY,JSON.stringify(dat
 function clearSession(){sessionStorage.removeItem(STORAGE_KEY);}
 
 async function testKey(key){
-  const response=await fetch(`${MODELS_ENDPOINT}?key=${encodeURIComponent(key)}`,{cache:'no-store'});
+  const response=await fetch(`${MODELS_ENDPOINT}${encodeURIComponent(key)}`,{cache:'no-store'});
   const payload=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(payload?.error?.message||`HTTP ${response.status}`);
   const models=(payload.models||[]).filter(model=>(model.supportedGenerationMethods||[]).includes('generateContent')).map(model=>({name:String(model.name||'').replace(/^models\//,''),display_name:model.displayName||model.name||'',methods:model.supportedGenerationMethods||[]}));
