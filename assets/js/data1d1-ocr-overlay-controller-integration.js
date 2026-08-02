@@ -1,11 +1,11 @@
 import {createOcrThumbnailOverlayController} from './data1d1-ocr-thumbnail-overlay-wiring.js';
-import {createOcrOverlayLifecycleCoordinator} from './data1d1-ocr-overlay-lifecycle-events.js';
+import {bindOcrOverlayLifecycle} from './data1d1-ocr-overlay-lifecycle-events.js';
 
-const INTEGRATION_SCHEMA='pokemon-sleep-ocr-overlay-integration/1.0';
+const INTEGRATION_SCHEMA='pokemon-sleep-ocr-overlay-integration/1.1';
 
-export function createOcrOverlayIntegration({root=document,maxActive=8}={}){
+export function createOcrOverlayIntegration({root=document,maxActive=8,target=globalThis}={}){
   const controller=createOcrThumbnailOverlayController({maxActive});
-  const lifecycle=createOcrOverlayLifecycleCoordinator({controller,target:globalThis});
+  const lifecycle=bindOcrOverlayLifecycle({controller,target});
   let disposed=false;
 
   async function renderItem({slot,item,index=0,blob,preset='full_image',regions=[]}={}){
@@ -36,7 +36,7 @@ export function createOcrOverlayIntegration({root=document,maxActive=8}={}){
     disposed=true;
     lifecycle.dispose();
     controller.releaseAll();
-    globalThis.DebugTrace?.record?.('ocr_thumbnail','ocr_thumbnail_overlay_integration_disposed',{status:'completed',details:{active_count:0}});
+    target.DebugTrace?.record?.('ocr_thumbnail','ocr_thumbnail_overlay_integration_disposed',{status:'completed',details:{active_count:0}});
   }
 
   return {schema:INTEGRATION_SCHEMA,controller,lifecycle,renderItem,rerender,clearSlot,dispose,get activeCount(){return controller.activeCount;}};
