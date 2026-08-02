@@ -20,7 +20,10 @@ assert.match(inventory,/attachRuntimeVersion\(manifest\)/);
 assert.match(ocrReview,/buildVersionedExportFilename\('private_ocr_review'/);
 assert.doesNotMatch(reviewUi,/safeBase\(current\?\.archive\?\.name\)_fingerprint/);
 
-for(const token of ['GENERAL_SCALE=2','SMALL_TEXT_SCALE=4','two_stage:true','stage:\x27general\x27','stage:\x27small_text\x27','evidence_merged:true','mergeUniqueTexts'])assert.match(manual,new RegExp(token));
+for(const token of ['GENERAL_SCALE=2','SMALL_TEXT_SCALE=4','two_stage:true','evidence_merged:true','mergeUniqueTexts'])assert.match(manual,new RegExp(token));
+assert.match(manual,/provider,'general'\)/);
+assert.match(manual,/provider,'small_text'\)/);
+assert.match(manual,/stage:output\.stage/);
 assert.match(manual,/binary:false/);
 assert.match(manual,/全圖一般倍率/);
 assert.match(manual,/全圖小字補辨識/);
