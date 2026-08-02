@@ -26,10 +26,15 @@ const bootstrap=read('bootstrap');
 const overlayBootstrap=read('overlayBootstrap');
 const worker=read('worker');
 const token=(source,value,label)=>assert.match(source,new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')),`${label}:${value}`);
+const appVersion=bootstrap.match(/\bAPP_VERSION\s*=\s*'([^']+)'/)?.[1];
+const build=bootstrap.match(/(?:^|\n)const\s+VERSION\s*=\s*'([^']+)'/)?.[1];
+const cacheName=worker.match(/\bCACHE\s*=\s*'([^']+)'/)?.[1];
+assert.ok(appVersion,'app_version_missing');
+assert.ok(build,'build_missing');
+assert.ok(cacheName,'service_worker_cache_name_missing');
+assert.notEqual(build,appVersion,'build_must_not_equal_app_version');
 
 for(const value of [
-  "APP_VERSION = 'v0.3.50'",
-  '20260802-data1d1-ocr-overlay-bootstrap-integration',
   'data1d1-ocr-overlay-update-center-bootstrap.js',
   'bootstrapOcrOverlayUpdateCenter',
   'OcrOverlayUpdateCenterBootstrap'
@@ -58,18 +63,21 @@ const overlayModules=[
   'data1d1-ocr-overlay-update-center-bootstrap.js'
 ];
 for(const moduleName of overlayModules){
-  token(bootstrap,moduleName,`module_not_probed`);
-  token(worker,`./assets/js/${moduleName}`,`module_not_precached`);
+  token(bootstrap,moduleName,'module_not_probed');
+  token(worker,`./assets/js/${moduleName}`,'module_not_precached');
 }
 
-token(worker,'pokemon-sleep-ai-v0.3.50-data1d1-ocr-overlay-bootstrap-integration','service_worker_version_missing');
+const cacheBuildSuffix=build.replace(/^\d{8}-/,'');
+assert.equal(cacheName,`pokemon-sleep-ai-${appVersion}-${cacheBuildSuffix}`,'service_worker_version_mismatch');
 assert.doesNotMatch(overlayBootstrap,/fetch\s*\(|XMLHttpRequest|localStorage|sessionStorage/);
 assert.match(bootstrap,/if\(!globalThis\.OcrOverlayUpdateCenterBootstrap\)/);
 
 console.log(JSON.stringify({
   ok:true,
   gate:'DATA.1D.1 OCR overlay bootstrap integration',
-  version:'v0.3.50',
-  checks:38,
+  version:appVersion,
+  build,
+  cache_name:cacheName,
+  checks:40,
   hardware_validation_required_next:true
 }));
