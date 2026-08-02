@@ -1,9 +1,9 @@
-import {debugTrace} from './debug-trace-manager.js?v=20260802-data1d1-ocr-sp-thumbnail-preview';
+import {debugTrace} from './debug-trace-manager.js?v=20260802-data1d1-preview-scroll-ocr-precision';
 
 const status = document.getElementById('dbStatus');
 const warning = document.getElementById('storageWarning');
-const APP_VERSION = 'v0.3.53';
-const VERSION = '20260802-data1d1-ocr-sp-thumbnail-preview';
+const APP_VERSION = 'v0.3.54';
+const VERSION = '20260802-data1d1-preview-scroll-ocr-precision';
 
 document.documentElement.dataset.appVersion = APP_VERSION;
 document.documentElement.dataset.appBuild = VERSION;
