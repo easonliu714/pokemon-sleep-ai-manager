@@ -2,29 +2,8 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
 const read=path=>fs.readFileSync(path,'utf8');
-const dedup=read('assets/js/identity-dedup.js');
-const quality=read('assets/js/identity-quality-guard.js');
-const evidence=read('assets/js/identity-evidence-builder.js');
-const recipeGuard=read('assets/js/recipe-render-guard.js');
-const shared=read('assets/js/shared-knowledge-ui.js');
-const master=read('assets/js/pokemon-master-options.js');
-const detail=read('assets/js/pokemon-detail.js');
-const bootstrap=read('assets/js/bootstrap.js');
-const sw=read('service-worker.js');
-const picker=read('assets/js/android-import-file-picker.js');
-const loader=read('assets/js/jszip-loader.js');
-const wizard=read('assets/js/identity-import-wizard-entry.js');
-const inventory=read('assets/js/data1-zip-inventory.js');
-const review=read('assets/js/data1-inventory-review.js');
-const reviewUi=read('assets/js/data1-inventory-review-ui.js');
-const fingerprint=read('assets/js/data1-image-fingerprint.js');
-const classifier=read('assets/js/data1d-ocr-first-classifier.js');
-const runtime=read('assets/js/data1d-local-ocr-runtime.js');
-const runtimeUi=read('assets/js/data1d1-ocr-runtime-ui.js');
-const reviewPackage=read('assets/js/data1d1-ocr-review-package.js');
-const aiSettings=read('assets/js/ai-project-pool-settings.js');
+const dedup=read('assets/js/identity-dedup.js'),quality=read('assets/js/identity-quality-guard.js'),evidence=read('assets/js/identity-evidence-builder.js'),recipeGuard=read('assets/js/recipe-render-guard.js'),shared=read('assets/js/shared-knowledge-ui.js'),master=read('assets/js/pokemon-master-options.js'),detail=read('assets/js/pokemon-detail.js'),bootstrap=read('assets/js/bootstrap.js'),sw=read('service-worker.js'),picker=read('assets/js/android-import-file-picker.js'),loader=read('assets/js/jszip-loader.js'),wizard=read('assets/js/identity-import-wizard-entry.js'),inventory=read('assets/js/data1-zip-inventory.js'),review=read('assets/js/data1-inventory-review.js'),reviewUi=read('assets/js/data1-inventory-review-ui.js'),fingerprint=read('assets/js/data1-image-fingerprint.js'),classifier=read('assets/js/data1d-ocr-first-classifier.js'),runtime=read('assets/js/data1d-local-ocr-runtime.js'),runtimeUi=read('assets/js/data1d1-ocr-runtime-ui.js'),reviewPackage=read('assets/js/data1d1-ocr-review-package.js'),aiSettings=read('assets/js/ai-project-pool-settings.js');
 const matchTokens=(source,tokens)=>{for(const token of tokens)assert.match(source,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));};
-
 for(const pattern of [/snapshot\(`identity-merge-v4:/,/begin\(\)/,/commit\(\)/,/rollback\(\)/,/status='archived'/,/SYSTEM-IDENTITY-MERGE-v0\.3\.30/])assert.match(dedup,pattern);
 for(const pattern of [/isProfileComplete/,/profileCompleteness\(item\)>=4/,/profileCompleteness\(item\)<=1/])assert.match(quality,pattern);
 for(const pattern of [/identity_review_required/,/registered_at/,/identity_fingerprint/])assert.doesNotMatch(quality,pattern);
@@ -33,27 +12,19 @@ const {isWeakSkeleton,isProfileComplete,planSkeletonMerges,auditActivePokemon}=a
 const complete=(id,name,level,overrides={})=>({pokemon_id:id,original_label:name,species:name,level,specialty:'食材',type:'毒',identity_confidence:0,identity_review_required:0,registered_at:null,identity_fingerprint:null,sp:1183,main_skill:'活力填充S',main_skill_level:1,nature:'慢吞吞',helper_seconds:3290,carry_limit:31,core_role:'咖啡／可可核心',recommendation:'目標Lv.50食材機率S',...overrides});
 const skeleton=(id,name,level,overrides={})=>({pokemon_id:id,original_label:name,species:name,level,specialty:'食材',type:'毒',identity_confidence:0.99,identity_review_required:0,registered_at:'legacy',identity_fingerprint:'legacy',sp:null,main_skill:null,main_skill_level:null,nature:null,helper_seconds:null,carry_limit:null,core_role:'咖啡／可可核心',recommendation:'目標Lv.50食材機率S',...overrides});
 const quagsire=complete('pkm-quagsire','土王',31),staleQuagsire=skeleton('pkm-private-quagsire','土王',30);
-assert.equal(isProfileComplete(quagsire),true);assert.equal(isWeakSkeleton(staleQuagsire),true);
-assert.equal(planSkeletonMerges([quagsire,staleQuagsire]).length,1);assert.equal(auditActivePokemon([quagsire,staleQuagsire]).ok,false);assert.equal(auditActivePokemon([quagsire]).ok,true);
-
+assert.equal(isProfileComplete(quagsire),true);assert.equal(isWeakSkeleton(staleQuagsire),true);assert.equal(planSkeletonMerges([quagsire,staleQuagsire]).length,1);assert.equal(auditActivePokemon([quagsire,staleQuagsire]).ok,false);assert.equal(auditActivePokemon([quagsire]).ok,true);
 assert.match(evidence,/buildAbilitySignature/);assert.match(recipeGuard,/MutationObserver/);assert.match(recipeGuard,/renderSharedKnowledge\(true\)/);assert.match(shared,/renderSharedKnowledge\(force=false\)/);assert.match(master,/BERRY_BY_TYPE/);assert.match(detail,/pokemonTypeSelect/);
 assert.match(bootstrap,/APP_VERSION = 'v0\.3\.46'/);assert.match(bootstrap,/20260802-data1d1-ocr-review-ui/);
 matchTokens(bootstrap,['data1-zip-inventory.js','data1-inventory-review.js','data1-inventory-review-ui.js','data1-image-fingerprint.js','data1d-local-ocr-runtime.js','data1d-ocr-first-classifier.js','data1d1-ocr-runtime-ui.js','data1d1-ocr-review-package.js','ai-project-pool-settings.js','debug-trace-manager.js','identity-import-wizard-entry.js','pokemon-screenshot-grouping.js','pokemon-zip-manifest.js','identity-import-transaction.js','jszip-loader.js','android-import-file-picker.js']);
-assert.match(sw,/pokemon-sleep-ai-v0\.3\.46-data1d1-ocr-review-ui/);
-matchTokens(sw,['data1-zip-inventory.js','data1-inventory-review.js','data1-inventory-review-ui.js','data1-image-fingerprint.js','data1d-local-ocr-runtime.js','data1d-ocr-first-classifier.js','data1d1-ocr-runtime-ui.js','data1d1-ocr-review-package.js','ai-project-pool-settings.js','debug-trace-manager.js','identity-import-pipeline.js','pokemon-screenshot-grouping.js','pokemon-zip-manifest.js','identity-import-transaction.js','identity-import-wizard-entry.js','android-import-file-picker.js']);
-assert.match(sw,/jszip@3\.10\.1\/dist\/jszip\.min\.js/);assert.match(sw,/tesseract\.js@5\.1\.1\/dist\/tesseract\.min\.js/);
-
+assert.match(sw,/pokemon-sleep-ai-v0\.3\.46-data1d1-ocr-review-ui/);matchTokens(sw,['data1-zip-inventory.js','data1-inventory-review.js','data1-inventory-review-ui.js','data1-image-fingerprint.js','data1d-local-ocr-runtime.js','data1d-ocr-first-classifier.js','data1d1-ocr-runtime-ui.js','data1d1-ocr-review-package.js','ai-project-pool-settings.js','debug-trace-manager.js','identity-import-pipeline.js','pokemon-screenshot-grouping.js','pokemon-zip-manifest.js','identity-import-transaction.js','identity-import-wizard-entry.js','android-import-file-picker.js']);assert.match(sw,/jszip@3\.10\.1\/dist\/jszip\.min\.js/);assert.match(sw,/tesseract\.js@5\.1\.1\/dist\/tesseract\.min\.js/);
 matchTokens(loader,['DEFAULT_JSZIP_URL','jszip_script_load_failed']);assert.match(loader,/data-tech2d-dependency|tech2dDependency/);
 matchTokens(picker,['IMAGE_ACCEPT','ZIP_ACCEPT','tech2dImageInput','tech2dZipInput','multiple:true','multiple:false','mixed_zip_and_images_not_allowed','single_zip_per_batch_required','createAndroidImportFilePicker','humanizeImportError','import_source_inspection','buildPrivateZipInventory','enrichInventoryWithFingerprints','classifyInventoryWithOcr','ocr_classification_progress','ocr_first_classification_completed','AbortController','pokemon-sleep:ocr-cancel-requested','ocr_classification_cancelled','was_cancelled']);
-matchTokens(inventory,['source_image_ref','review_required','output_package_ref','validatePrivateZipInventory']);
-matchTokens(review,['filterInventoryItems','bulkPatchInventoryReview','buildReviewPackage']);
-matchTokens(reviewUi,['createInventoryReviewWorkbench','duplicate_gate_decision_applied','fingerprint_manifest_exported','review_package_exported','待處理','重複圖片','寶可夢資訊']);
+matchTokens(inventory,['source_image_ref','review_required','output_package_ref','validatePrivateZipInventory']);matchTokens(review,['filterInventoryItems','bulkPatchInventoryReview','buildReviewPackage']);matchTokens(reviewUi,['createInventoryReviewWorkbench','duplicate_gate_decision_applied','fingerprint_manifest_exported','review_package_exported','待處理','重複圖片','寶可夢資訊']);
 matchTokens(fingerprint,['sha256Hex','SHA-256','enrichInventoryWithFingerprints','within_archive','existing_index','existing_database_match','duplicate_group_id']);assert.doesNotMatch(fingerprint,/btoa\(|base64/i);
 matchTokens(classifier,['PokemonSleepOCR','chi_tra+eng','classification_status','suggested_category','classification_confidence','classification_evidence','requires_review','ocr_first_ai_opt_in_only','ai_requests','AbortSignal','shouldCancel','cancelled','recognizeRegion','ocr_region_count','was_cancelled','region_mode']);assert.doesNotMatch(classifier,/fetch\s*\(|XMLHttpRequest|OpenAI|Gemini|Anthropic/i);
 for(const pattern of [/Tesseract/,/5\.1\.1/,/chi_tra/,/eng/,/ocr_runtime_loading/,/ocr_runtime_progress/,/ocr_runtime_ready/,/ocr_runtime_failed/,/cacheMethod\s*:\s*['"]write['"]/,/offline_after_first_load/,/network_required_for_first_load/,/workerPromise/,/recognize/])assert.match(runtime,pattern);assert.doesNotMatch(runtime,/OpenAI|Gemini|Anthropic/i);
 matchTokens(runtimeUi,['ocr_runtime_loading','ocr_runtime_progress','ocr_runtime_ready','ocr_runtime_failed','pokemon-sleep:ocr-cancel-requested','ocr_preprocess_completed','ocr_cancel_requested','canvas','grayscale','threshold']);assert.doesNotMatch(runtimeUi,/fetch\s*\(|XMLHttpRequest|OpenAI|Gemini|Anthropic/i);
-matchTokens(reviewPackage,['OCR_REVIEW_SCHEMA','buildOcrReviewQueue','buildPrivateOcrReviewPackage','downloadPrivateOcrReviewPackage','ocr_review_package_exported','contains_image_bytes:false','contains_ocr_full_text:false']);assert.doesNotMatch(reviewPackage,/image_bytes|image_base64|ocr_full_text/);
+matchTokens(reviewPackage,['OCR_REVIEW_SCHEMA','buildOcrReviewQueue','buildPrivateOcrReviewPackage','downloadPrivateOcrReviewPackage','ocr_review_package_exported','contains_image_bytes:false','contains_ocr_full_text:false']);assert.doesNotMatch(reviewPackage,/(^|[,{]\s*)image_bytes\s*:|(^|[,{]\s*)image_base64\s*:|(^|[,{]\s*)ocr_full_text\s*:/m);
 for(const pattern of [/sessionStorage/,/gemini-3\.6-flash/,/models\?key=/,/generateContent/,/ai_project_pool_tested/,/type="password"/,/，/,/；/])assert.match(aiSettings,pattern);assert.doesNotMatch(aiSettings,/localStorage/);assert.doesNotMatch(aiSettings,/console\.(log|info|warn|error)\s*\([^)]*key/i);
 matchTokens(wizard,['pokemon-sleep:identity-import-files-selected','tech2dFilePickerSlot','tech2d-file-picker-actions','匯出私人清點 Manifest','createInventoryReviewWorkbench','停止 OCR','匯出私人 OCR Review Package','OCR 覆核佇列','classification_confidence','classification_evidence','min-height:44px']);
-
 console.log('PASS identity guard, DATA.1D.1 OCR cancel wiring, private review UI, local preprocessing, browser-local AI settings, Android split picker, offline PWA, and Debug Trace contracts');
