@@ -1,7 +1,9 @@
-const CLASSIFIER_SCHEMA='pokemon-sleep-ocr-first-classifier/1.3';
+import {OCR_REGION_PRESETS} from './data1d1-ocr-region-ai-consent.js';
+
+const CLASSIFIER_SCHEMA='pokemon-sleep-ocr-first-classifier/1.4';
 const DEFAULT_REVIEW_THRESHOLD=0.78;
 const CATEGORY_RULES={
-  pokemon:{label:'寶可夢資訊',tokens:['主技能','副技能','幫忙速度','食材機率','持有上限','性格','等級','lv.','lv ','sp']},
+  pokemon:{label:'寶可夢資訊',tokens:['主技能','副技能','幫忙速度','食材機率','持有上限','性格','相遇的日子','相遇的營地','一起睡覺的時間','幫忙能力','等級','lv.','lv ','sp']},
   recipe:{label:'料理／食譜',tokens:['食譜','料理','所需食材','鍋子','能量','美味','大成功']},
   ingredient:{label:'食材',tokens:['食材庫存','食材','蘋果','牛奶','蜂蜜','香腸','可可','咖啡','油']},
   item:{label:'道具',tokens:['道具包','道具','糖果','主技能種子','副技能種子','夢之碎片']},
@@ -9,69 +11,39 @@ const CATEGORY_RULES={
   account:{label:'帳號資訊',tokens:['研究者代碼','玩家名稱','睡眠點數','帳號','好友','研究等級']}
 };
 const POKEMON_WEAK_TOKENS=new Set(['等級','lv.','lv ','sp']);
+const BASIC_LAYOUT_ANCHORS=['幫忙能力','樹果','食材','幫忙間隔','持有上限'];
+const SKILL_LAYOUT_ANCHORS=['主技能','副技能','能力詳情','相遇的日子','相遇的營地','一起睡覺的時間'];
 const normalize=value=>String(value??'').normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim();
 const safeEvidence=value=>normalize(value).slice(0,120);
-function tokenMatches(normalized,token){
-  const normalizedToken=normalize(token);
-  if(normalizedToken==='sp')return /(^|[^a-z0-9])sp([^a-z0-9]|$)/i.test(normalized);
-  return normalized.includes(normalizedToken);
-}
-function scorePokemonHits(hits){
-  const strongHits=hits.filter(token=>!POKEMON_WEAK_TOKENS.has(token));
-  const hasLevel=hits.some(token=>['等級','lv.','lv '].includes(token));
-  const hasSp=hits.includes('sp');
-  if(!strongHits.length&&!(hasLevel&&hasSp))return 0;
-  let score=strongHits.length;
-  if(hasLevel)score+=0.35;
-  if(hasSp)score+=0.35;
-  if(hasLevel&&hasSp)score+=1.3;
-  return score;
-}
+function tokenMatches(normalized,token){const normalizedToken=normalize(token);if(normalizedToken==='sp')return /(^|[^a-z0-9])s[pр]([^a-z0-9]|$)/i.test(normalized)||/(^|[^a-z0-9])[s5][pр][\s:.,-]*[\d,]{2,}([^a-z0-9]|$)/i.test(normalized);if(['lv.','lv '].includes(normalizedToken))return /(^|[^a-z0-9])[l1i][vν][.\s:]?\s*\d{1,3}([^a-z0-9]|$)/i.test(normalized);return normalized.includes(normalizedToken);}
+function scorePokemonHits(hits){const strongHits=hits.filter(token=>!POKEMON_WEAK_TOKENS.has(token));const hasLevel=hits.some(token=>['等級','lv.','lv '].includes(token));const hasSp=hits.includes('sp');if(!strongHits.length&&!(hasLevel&&hasSp))return 0;let score=strongHits.length;if(hasLevel)score+=0.35;if(hasSp)score+=0.35;if(hasLevel&&hasSp)score+=1.3;return score;}
+function countAnchors(text,anchors){const normalized=normalize(text);return anchors.filter(anchor=>normalized.includes(normalize(anchor))).length;}
+export function detectPokemonLayout(text){const basic=countAnchors(text,BASIC_LAYOUT_ANCHORS),skill=countAnchors(text,SKILL_LAYOUT_ANCHORS);if(skill>=2&&skill>basic)return {preset:'pokemon_skill_detail',confidence:Math.min(0.98,0.55+skill*0.1),basic_anchor_count:basic,skill_anchor_count:skill};if(basic>=2)return {preset:'pokemon_basic_profile',confidence:Math.min(0.98,0.55+basic*0.1),basic_anchor_count:basic,skill_anchor_count:skill};return {preset:'full_image',confidence:0.35,basic_anchor_count:basic,skill_anchor_count:skill};}
 
-export function classifyOcrText(text,{reviewThreshold=DEFAULT_REVIEW_THRESHOLD}={}){
+export function classifyOcrText(text,{reviewThreshold=DEFAULT_REVIEW_THRESHOLD,regionEvidence=[]}={}){
   const normalized=normalize(text);
-  if(!normalized)return {classification_status:'not_analyzed',suggested_category:null,confirmed_category:null,classification_source:'none',classification_confidence:null,classification_evidence:[],classifier_version:CLASSIFIER_SCHEMA,requires_review:false};
-  const scored=Object.entries(CATEGORY_RULES).map(([category,rule])=>{
-    const hits=rule.tokens.filter(token=>tokenMatches(normalized,token));
-    const score=category==='pokemon'?scorePokemonHits(hits):hits.length;
-    return {category,label:rule.label,hits,score};
-  }).filter(item=>item.score>0).sort((a,b)=>b.score-a.score||a.category.localeCompare(b.category));
-  if(!scored.length)return {classification_status:'suggested',suggested_category:'other',confirmed_category:null,classification_source:'ocr_rules',classification_confidence:0.35,classification_evidence:['OCR 已完成，但未命中足夠的已知版面關鍵字'],classifier_version:CLASSIFIER_SCHEMA,requires_review:true};
-  const top=scored[0],second=scored[1];const conflict=Boolean(second&&second.score===top.score);const confidence=Math.min(0.98,0.5+top.score*0.12-(conflict?0.18:0));
-  return {classification_status:'suggested',suggested_category:top.category,confirmed_category:null,classification_source:'ocr_rules',classification_confidence:Number(confidence.toFixed(2)),classification_evidence:top.hits.slice(0,6).map(token=>`OCR 命中「${safeEvidence(token)}」`),classifier_version:CLASSIFIER_SCHEMA,requires_review:conflict||confidence<reviewThreshold};
+  if(!normalized)return {classification_status:'not_analyzed',suggested_category:null,confirmed_category:null,classification_source:'none',classification_confidence:null,classification_evidence:[],classifier_version:CLASSIFIER_SCHEMA,requires_review:false,matched_categories:[]};
+  const scored=Object.entries(CATEGORY_RULES).map(([category,rule])=>{const hits=rule.tokens.filter(token=>tokenMatches(normalized,token));const score=category==='pokemon'?scorePokemonHits(hits):hits.length;return {category,label:rule.label,hits,score};}).filter(item=>item.score>0).sort((a,b)=>b.score-a.score||a.category.localeCompare(b.category));
+  if(!scored.length)return {classification_status:'suggested',suggested_category:'other',confirmed_category:null,classification_source:'ocr_rules',classification_confidence:0.35,classification_evidence:['OCR 已完成，但未命中足夠的已知版面關鍵字'],classifier_version:CLASSIFIER_SCHEMA,requires_review:true,matched_categories:[]};
+  const top=scored[0],second=scored[1];const conflict=Boolean(second&&second.score===top.score);const crossRegionBonus=Math.min(0.12,new Set(regionEvidence.filter(item=>item.hits?.length).map(item=>item.region_id)).size*0.03);const confidence=Math.min(0.98,0.5+top.score*0.12+crossRegionBonus-(conflict?0.18:0));
+  return {classification_status:'suggested',suggested_category:top.category,confirmed_category:null,classification_source:'ocr_rules',classification_confidence:Number(confidence.toFixed(2)),classification_evidence:top.hits.slice(0,8).map(token=>`OCR 命中「${safeEvidence(token)}」`),classifier_version:CLASSIFIER_SCHEMA,requires_review:conflict||confidence<reviewThreshold,matched_categories:scored.slice(0,4).map(item=>({category:item.category,score:Number(item.score.toFixed(2)),hits:item.hits.slice(0,8)}))};
 }
 
 export function resolveOcrProvider(provider=globalThis.PokemonSleepOCR){return provider?.recognize&&typeof provider.recognize==='function'?provider:null;}
 function cancelled(signal,shouldCancel){return Boolean(signal?.aborted||shouldCancel?.());}
-async function recognizeWithRegions(ocrProvider,buffer,item,{regions=[]}={}){
-  const baseOptions={mimeType:item.mime_type||'image/png',language:'chi_tra+eng'};
-  if(regions.length&&typeof ocrProvider.recognizeRegion==='function'){
-    const regionResults=[];
-    for(const region of regions){const result=await ocrProvider.recognizeRegion(buffer,{...baseOptions,region});regionResults.push(typeof result==='string'?result:(result?.text||''));}
-    return {text:regionResults.join('\n'),region_count:regionResults.length};
-  }
-  const result=await ocrProvider.recognize(buffer,baseOptions);
-  return {text:typeof result==='string'?result:(result?.text||''),region_count:0};
+async function recognizeFull(ocrProvider,buffer,item){const result=await ocrProvider.recognize(buffer,{mimeType:item.mime_type||'image/png',language:'chi_tra+eng'});return typeof result==='string'?result:(result?.text||'');}
+async function recognizeRegionSet(ocrProvider,buffer,item,regions){const outputs=[];for(const region of regions){const result=await ocrProvider.recognizeRegion(buffer,{mimeType:item.mime_type||'image/png',language:'chi_tra+eng',region,scale:region.scale||2});outputs.push({region_id:region.id,region_label:region.label,text:typeof result==='string'?result:(result?.text||'')});}return outputs;}
+function buildRegionEvidence(outputs){return outputs.map(output=>{const normalized=normalize(output.text);const hits=[...new Set(Object.values(CATEGORY_RULES).flatMap(rule=>rule.tokens).filter(token=>tokenMatches(normalized,token)))];return {region_id:output.region_id,region_label:output.region_label,hits:hits.slice(0,12),text_length:normalized.length,level_detected:hits.some(token=>['等級','lv.','lv '].includes(token)),sp_detected:hits.includes('sp')};});}
+async function recognizeLayoutAware(ocrProvider,buffer,item,{regions=[]}={}){
+  if(regions.length&&typeof ocrProvider.recognizeRegion==='function'){const outputs=await recognizeRegionSet(ocrProvider,buffer,item,regions);return {text:outputs.map(output=>output.text).join('\n'),region_count:outputs.length,layout_preset:'manual_regions',layout_confidence:1,region_evidence:buildRegionEvidence(outputs)};}
+  const fullText=await recognizeFull(ocrProvider,buffer,item);const layout=detectPokemonLayout(fullText);
+  if(layout.preset==='full_image'||typeof ocrProvider.recognizeRegion!=='function')return {text:fullText,region_count:0,layout_preset:layout.preset,layout_confidence:layout.confidence,region_evidence:[]};
+  const outputs=await recognizeRegionSet(ocrProvider,buffer,item,OCR_REGION_PRESETS[layout.preset].regions);const regionEvidence=buildRegionEvidence(outputs);return {text:[fullText,...outputs.map(output=>output.text)].join('\n'),region_count:outputs.length,layout_preset:layout.preset,layout_confidence:layout.confidence,region_evidence:regionEvidence};
 }
 
 export async function classifyInventoryWithOcr(archive,manifest,{ocrProvider=resolveOcrProvider(),onProgress=()=>{},reviewThreshold=DEFAULT_REVIEW_THRESHOLD,signal=null,shouldCancel=()=>false,regions=[]}={}){
   const items=[];const sourceItems=manifest?.items||[];let wasCancelled=false;
-  for(let index=0;index<sourceItems.length;index+=1){
-    const item=sourceItems[index];
-    if(cancelled(signal,shouldCancel)){wasCancelled=true;for(let rest=index;rest<sourceItems.length;rest+=1)items.push({...sourceItems[rest],classification_status:'cancelled',suggested_category:null,confirmed_category:null,classification_source:'user_cancelled',classification_confidence:null,classification_evidence:['使用者取消 OCR 批次處理'],classifier_version:CLASSIFIER_SCHEMA,requires_review:false});break;}
-    if(item.status==='duplicate'||item.status==='ignored'||item.status==='unreadable')items.push({...item,classification_status:'skipped',suggested_category:null,confirmed_category:null,classification_source:'duplicate_gate',classification_confidence:null,classification_evidence:[],classifier_version:CLASSIFIER_SCHEMA,requires_review:false});
-    else if(!ocrProvider)items.push({...item,classification_status:'not_analyzed',suggested_category:null,confirmed_category:null,classification_source:'ocr_unavailable',classification_confidence:null,classification_evidence:['裝置尚未載入本機 OCR 引擎'],classifier_version:CLASSIFIER_SCHEMA,requires_review:false});
-    else try{
-      const buffer=await archive.readImage(item.path,{type:'arraybuffer'});
-      const recognized=await recognizeWithRegions(ocrProvider,buffer,item,{regions});
-      const classified=classifyOcrText(recognized.text,{reviewThreshold});
-      items.push({...item,...classified,ocr_text_length:normalize(recognized.text).length,ocr_engine:ocrProvider.name||'local_ocr',ocr_region_count:recognized.region_count,ocr_completed_at:new Date().toISOString()});
-    }catch(error){items.push({...item,classification_status:'failed',suggested_category:null,confirmed_category:null,classification_source:'ocr_failed',classification_confidence:null,classification_evidence:[],classifier_version:CLASSIFIER_SCHEMA,requires_review:true,ocr_error:error?.message||String(error)});}
-    onProgress({current:index+1,total:sourceItems.length,percent:sourceItems.length?Math.round((index+1)/sourceItems.length*100):100,cancelled:false});
-  }
-  const analyzed=items.filter(item=>item.classification_status==='suggested');
-  const category_counts=Object.fromEntries(['pokemon','recipe','ingredient','item','capacity','account','other'].map(category=>[category,analyzed.filter(item=>item.suggested_category===category).length]));
-  return {...manifest,items,classification_schema:CLASSIFIER_SCHEMA,classification_policy:'ocr_first_ai_opt_in_only',classified_at:new Date().toISOString(),classification_summary:{total:items.length,analyzed:analyzed.length,not_analyzed:items.filter(item=>item.classification_status==='not_analyzed').length,failed:items.filter(item=>item.classification_status==='failed').length,skipped:items.filter(item=>item.classification_status==='skipped').length,cancelled:items.filter(item=>item.classification_status==='cancelled').length,requires_review:items.filter(item=>item.requires_review).length,ai_requests:0,was_cancelled:wasCancelled,region_mode:regions.length>0,category_counts}};
+  for(let index=0;index<sourceItems.length;index+=1){const item=sourceItems[index];if(cancelled(signal,shouldCancel)){wasCancelled=true;for(let rest=index;rest<sourceItems.length;rest+=1)items.push({...sourceItems[rest],classification_status:'cancelled',suggested_category:null,confirmed_category:null,classification_source:'user_cancelled',classification_confidence:null,classification_evidence:['使用者取消 OCR 批次處理'],classifier_version:CLASSIFIER_SCHEMA,requires_review:false});break;}if(item.status==='duplicate'||item.status==='ignored'||item.status==='unreadable')items.push({...item,classification_status:'skipped',suggested_category:null,confirmed_category:null,classification_source:'duplicate_gate',classification_confidence:null,classification_evidence:[],classifier_version:CLASSIFIER_SCHEMA,requires_review:false});else if(!ocrProvider)items.push({...item,classification_status:'not_analyzed',suggested_category:null,confirmed_category:null,classification_source:'ocr_unavailable',classification_confidence:null,classification_evidence:['裝置尚未載入本機 OCR 引擎'],classifier_version:CLASSIFIER_SCHEMA,requires_review:false});else try{const buffer=await archive.readImage(item.path,{type:'arraybuffer'});const recognized=await recognizeLayoutAware(ocrProvider,buffer,item,{regions});const classified=classifyOcrText(recognized.text,{reviewThreshold,regionEvidence:recognized.region_evidence});const levelDetected=classified.classification_evidence.some(value=>/lv|等級/i.test(value))||recognized.region_evidence.some(value=>value.level_detected);const spDetected=classified.classification_evidence.some(value=>/sp/i.test(value))||recognized.region_evidence.some(value=>value.sp_detected);items.push({...item,...classified,ocr_text_length:normalize(recognized.text).length,ocr_engine:ocrProvider.name||'local_ocr',ocr_region_count:recognized.region_count,ocr_layout_preset:recognized.layout_preset,ocr_layout_confidence:recognized.layout_confidence,ocr_region_evidence:recognized.region_evidence,ocr_level_detected:levelDetected,ocr_sp_detected:spDetected,ocr_completed_at:new Date().toISOString()});globalThis.DebugTrace?.record?.('ocr_classification','ocr_layout_classification_completed',{status:'completed',details:{path:item.path,layout_preset:recognized.layout_preset,region_count:recognized.region_count,level_detected:levelDetected,sp_detected:spDetected,matched_categories:classified.matched_categories}});}catch(error){items.push({...item,classification_status:'failed',suggested_category:null,confirmed_category:null,classification_source:'ocr_failed',classification_confidence:null,classification_evidence:[],classifier_version:CLASSIFIER_SCHEMA,requires_review:true,ocr_error:error?.message||String(error)});}onProgress({current:index+1,total:sourceItems.length,percent:sourceItems.length?Math.round((index+1)/sourceItems.length*100):100,cancelled:false});}
+  const analyzed=items.filter(item=>item.classification_status==='suggested');const category_counts=Object.fromEntries(['pokemon','recipe','ingredient','item','capacity','account','other'].map(category=>[category,analyzed.filter(item=>item.suggested_category===category).length]));return {...manifest,items,classification_schema:CLASSIFIER_SCHEMA,classification_policy:'layout_aware_ocr_first_ai_opt_in_only',classified_at:new Date().toISOString(),classification_summary:{total:items.length,analyzed:analyzed.length,not_analyzed:items.filter(item=>item.classification_status==='not_analyzed').length,failed:items.filter(item=>item.classification_status==='failed').length,skipped:items.filter(item=>item.classification_status==='skipped').length,cancelled:items.filter(item=>item.classification_status==='cancelled').length,requires_review:items.filter(item=>item.requires_review).length,ai_requests:0,was_cancelled:wasCancelled,region_mode:regions.length>0,layout_aware:true,category_counts}};
 }
-
-export {CLASSIFIER_SCHEMA,DEFAULT_REVIEW_THRESHOLD,CATEGORY_RULES,POKEMON_WEAK_TOKENS,tokenMatches,scorePokemonHits};
+export {CLASSIFIER_SCHEMA,DEFAULT_REVIEW_THRESHOLD,CATEGORY_RULES,POKEMON_WEAK_TOKENS,tokenMatches,scorePokemonHits,BASIC_LAYOUT_ANCHORS,SKILL_LAYOUT_ANCHORS};
