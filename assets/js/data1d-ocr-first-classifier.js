@@ -1,7 +1,7 @@
-const CLASSIFIER_SCHEMA='pokemon-sleep-ocr-first-classifier/1.1';
+const CLASSIFIER_SCHEMA='pokemon-sleep-ocr-first-classifier/1.2';
 const DEFAULT_REVIEW_THRESHOLD=0.78;
 const CATEGORY_RULES={
-  pokemon:{label:'寶可夢資訊',tokens:['主技能','副技能','幫忙速度','食材機率','持有上限','性格','等級','lv.','lv ']},
+  pokemon:{label:'寶可夢資訊',tokens:['主技能','副技能','幫忙速度','食材機率','持有上限','性格','等級','lv.','lv ','sp']},
   recipe:{label:'料理／食譜',tokens:['食譜','料理','所需食材','鍋子','能量','美味','大成功']},
   ingredient:{label:'食材',tokens:['食材庫存','食材','蘋果','牛奶','蜂蜜','香腸','可可','咖啡','油']},
   item:{label:'道具',tokens:['道具包','道具','糖果','主技能種子','副技能種子','夢之碎片']},
@@ -14,7 +14,7 @@ const safeEvidence=value=>normalize(value).slice(0,120);
 export function classifyOcrText(text,{reviewThreshold=DEFAULT_REVIEW_THRESHOLD}={}){
   const normalized=normalize(text);
   if(!normalized)return {classification_status:'not_analyzed',suggested_category:null,confirmed_category:null,classification_source:'none',classification_confidence:null,classification_evidence:[],classifier_version:CLASSIFIER_SCHEMA,requires_review:false};
-  const scored=Object.entries(CATEGORY_RULES).map(([category,rule])=>{const hits=rule.tokens.filter(token=>normalized.includes(normalize(token)));return {category,label:rule.label,hits,score:hits.length};}).filter(item=>item.score>0).sort((a,b)=>b.score-a.score||a.category.localeCompare(b.category));
+  const scored=Object.entries(CATEGORY_RULES).map(([category,rule])=>{const hits=rule.tokens.filter(token=>normalized.includes(normalize(token)));let score=hits.length;if(category==='pokemon'){const hasLevel=hits.some(token=>['等級','lv.','lv '].includes(token));const hasSp=hits.includes('sp');if(hasLevel&&hasSp)score+=1.5;}return {category,label:rule.label,hits,score};}).filter(item=>item.score>0).sort((a,b)=>b.score-a.score||a.category.localeCompare(b.category));
   if(!scored.length)return {classification_status:'suggested',suggested_category:'other',confirmed_category:null,classification_source:'ocr_rules',classification_confidence:0.35,classification_evidence:['OCR 已完成，但未命中已知版面關鍵字'],classifier_version:CLASSIFIER_SCHEMA,requires_review:true};
   const top=scored[0],second=scored[1];const conflict=Boolean(second&&second.score===top.score);const confidence=Math.min(0.98,0.5+top.score*0.12-(conflict?0.18:0));
   return {classification_status:'suggested',suggested_category:top.category,confirmed_category:null,classification_source:'ocr_rules',classification_confidence:Number(confidence.toFixed(2)),classification_evidence:top.hits.slice(0,6).map(token=>`OCR 命中「${safeEvidence(token)}」`),classifier_version:CLASSIFIER_SCHEMA,requires_review:conflict||confidence<reviewThreshold};
