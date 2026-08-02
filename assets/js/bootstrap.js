@@ -1,9 +1,9 @@
-import {debugTrace} from './debug-trace-manager.js?v=20260802-data1d1-device-validation-fix';
+import {debugTrace} from './debug-trace-manager.js?v=20260802-data1d1-ocr-sp-thumbnail-preview';
 
 const status = document.getElementById('dbStatus');
 const warning = document.getElementById('storageWarning');
-const APP_VERSION = 'v0.3.52';
-const VERSION = '20260802-data1d1-device-validation-fix';
+const APP_VERSION = 'v0.3.53';
+const VERSION = '20260802-data1d1-ocr-sp-thumbnail-preview';
 
 document.documentElement.dataset.appVersion = APP_VERSION;
 document.documentElement.dataset.appBuild = VERSION;
