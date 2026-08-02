@@ -38,7 +38,7 @@ assert.doesNotMatch(source.regionUi,/localStorage|sessionStorage|image_base64|bt
 const appVersion=source.bootstrap.match(/^const APP_VERSION\s*=\s*'([^']+)'/m)?.[1];
 const build=source.bootstrap.match(/^const VERSION\s*=\s*'([^']+)'/m)?.[1];
 const cache=source.worker.match(/^const CACHE\s*=\s*'([^']+)'/m)?.[1];
-assert.equal(appVersion,'v0.3.55');
-assert.equal(build,'20260802-data1d1-layout-aware-region-ocr');
-assert.equal(cache,'pokemon-sleep-ai-v0.3.55-data1d1-layout-aware-region-ocr');
+assert.equal(appVersion,'v0.3.56');
+assert.equal(build,'20260803-data1d1-manual-reocr');
+assert.equal(cache,'pokemon-sleep-ai-v0.3.56-data1d1-manual-reocr');
 console.log(JSON.stringify({ok:true,gate:'SP thumbnail preview compatibility contract',classifier_schema:CLASSIFIER_SCHEMA,ai_consent_schema:AI_CONSENT_SCHEMA,app_version:appVersion,build,joint_confidence:joint.classification_confidence,level_only_category:levelOnly.suggested_category,sp_only_category:spOnly.suggested_category,manual_duplicate_queue_count:manual.selected_count}));
