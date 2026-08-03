@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.64-g13-2f-region-ai-review-deferred';
+const CACHE = 'pokemon-sleep-ai-v0.3.65-g13-2g-lightweight-ai-review';
 const ASSETS = [
   './','./index.html','./manifest.webmanifest','./assets/css/app.css','./assets/css/editor.css',
   './assets/js/bootstrap.js','./assets/js/runtime-version.js','./assets/js/debug-trace-manager.js','./assets/js/app.js','./assets/js/database.js','./assets/js/storage.js',
