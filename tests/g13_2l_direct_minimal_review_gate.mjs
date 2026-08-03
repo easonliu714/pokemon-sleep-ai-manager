@@ -23,12 +23,12 @@ for(const token of [
   'createSingleItemOcrRegionAiReviewPanel',
   'direct_minimal_review_intercepted',
   'direct_minimal_review_completed',
-  "HOTFIX_VERSION='v0.3.69'",
-  "HOTFIX_BUILD='20260803-g13-2l-direct-minimal-review'"
+  "HOTFIX_VERSION='v0.3.70'",
+  "HOTFIX_BUILD='20260803-g13-2m-live-debug-deferred-render'"
 ])assert.match(hotfix,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
 assert.match(index,/data1d1-ocr-region-direct-minimal-hotfix\.js\?v=20260803-g13-2l-direct-minimal-review/);
 assert.match(index,/bootstrap\.js\?v=20260803-g13-2l-direct-minimal-review/);
 assert.match(worker,/pokemon-sleep-ai-v0\.3\.68-g13-2j-android-raf-timeout-fallback/);
 assert.match(worker,/data1d1-ocr-region-direct-minimal-hotfix\.js/);
 assert.ok(index.indexOf('bootstrap.js?v=20260803-g13-2l-direct-minimal-review')<index.indexOf('data1d1-ocr-region-direct-minimal-hotfix.js?v=20260803-g13-2l-direct-minimal-review'));
-console.log(JSON.stringify({ok:true,gate:'G13.2L direct minimal review preemption',version:'v0.3.69',cache_contract:'v0.3.68-bootstrap-compatible'}));
+console.log(JSON.stringify({ok:true,gate:'G13.2L direct minimal review preemption',version:'v0.3.70',cache_contract:'v0.3.68-bootstrap-compatible'}));
