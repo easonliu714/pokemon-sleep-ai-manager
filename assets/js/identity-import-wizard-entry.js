@@ -9,23 +9,157 @@ let current={state:null,prepared:null,applyResult:null,fileResult:null,exportFee
 let renderGeneration=0;
 const yieldUi=()=>new Promise(resolve=>setTimeout(resolve,0));
 const emit=(name,detail={})=>globalThis.dispatchEvent?.(new CustomEvent(`pokemon-sleep:${name}`,{detail}));
-const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[char]));
 
-function ensureRoot(){let root=document.getElementById('identityImportWizardRoot');if(root)return root;const updates=document.getElementById('updates');if(!updates)return null;const heading=document.createElement('h3');heading.id='identityImportWizardHeading';heading.textContent='AI 匯入精靈';root=document.createElement('section');root.id='identityImportWizardRoot';root.className='panel';const dynamic=document.getElementById('updateCenterDynamicContent');if(dynamic){dynamic.append(heading,root);return root;}updates.append(heading,root);return root;}
-function duplicateOnly(inventory){const summary=inventory?.classification_summary||{};const total=Number(summary.total??inventory?.summary?.total??0);return total>0&&Number(summary.analyzed||0)===0&&Number(summary.failed||0)===0&&Number(summary.skipped||0)>=total;}
-function renderApplyResult(result){if(!result)return '';return `<div class="notice ${result.ok?'success':'error'}"><strong>${result.ok?'已提交':'已回滾／未提交'}</strong><br>Snapshot：${escapeHtml(result.snapshot?.snapshot_id||'—')}<br>已處理：${Number(result.applied||0)}</div>`;}
-function renderExportFeedback(){return current.exportFeedback?`<div class="notice success"><strong>Manifest 已下載</strong><br>檔名：${escapeHtml(current.exportFeedback.file_name)}</div>`:'';}
-function renderOcrReview(inventory){if(!inventory)return '';const queue=buildOcrReviewQueue(inventory),summary=inventory.classification_summary||{};const rows=queue.slice(0,100).map(item=>`<div class="ocr-review-item"><div><strong>${escapeHtml(item.path||item.source_image_ref||'未命名圖片')}</strong></div><div>建議分類：${escapeHtml(item.suggested_category||'未判定')}</div><div>信心度：${typeof item.classification_confidence==='number'?Math.round(item.classification_confidence*100)+'%':'—'}</div><div>原因：${escapeHtml((item.classification_evidence||[]).join('、')||item.ocr_error||'需要人工覆核')}</div></div>`).join('');return `<section class="ocr-review-panel"><h4>OCR 覆核佇列</h4><div class="ocr-review-summary"><div><strong>已初判</strong><br>${Number(summary.analyzed||0)}</div><div><strong>低信心／衝突／失敗</strong><br>${queue.length}</div><div><strong>已取消</strong><br>${Number(summary.cancelled||0)}</div></div><div class="buttons"><button id="cancelOcrBtn" class="secondary" type="button">停止 OCR</button><button id="exportOcrReviewBtn" class="secondary" type="button" ${queue.length?'':'disabled'}>匯出私人 OCR Review Package</button></div>${current.ocrReviewFeedback?`<div class="notice success">${escapeHtml(current.ocrReviewFeedback)}</div>`:''}<div class="ocr-review-list">${rows||'<div class="notice">目前沒有需要覆核的 OCR 項目。</div>'}</div><div id="ocrRegionAiReviewSlot"></div></section>`;}
-function renderDuplicateLite(inventory){const items=(inventory?.items||[]).filter(item=>item.status==='duplicate').slice(0,100);return `<section class="duplicate-lite"><h4>重複圖片清單</h4><p class="notice">此批次全部為完全重複圖片，已略過完整人工工作台以避免阻塞。需要覆判時，可在下方 AI 覆核區人工勾選，或匯出 Manifest。</p><div class="ocr-review-list">${items.map(item=>`<div class="ocr-review-item"><strong>${escapeHtml(item.file_name||item.path||item.source_image_ref)}</strong><div>狀態：重複圖片</div><small>${escapeHtml(item.duplicate_of||item.duplicate_group_id||'SHA-256 相同')}</small></div>`).join('')||'<div class="notice">沒有重複項目。</div>'}</div></section>`;}
-function fileSummary(result){if(!result)return '';const archive=result.archives?.[0];if(result.ok&&result.source_type==='zip'){const inventory=result.inventory;return `<div class="notice success"><strong>ZIP 清點完成</strong><br>圖片：${archive?.summary?.image_count||0}/${archive?.summary?.entry_count||0}<br>待處理：${inventory?.summary?.pending||0}；疑似重複：${inventory?.summary?.duplicate||0}；待覆核：${inventory?.classification_summary?.requires_review||0}</div><div class="buttons"><button id="data1ExportInventoryBtn" class="secondary">匯出私人清點 Manifest</button></div>${duplicateOnly(inventory)?renderDuplicateLite(inventory):'<div id="data1ReviewWorkbenchSlot"><div class="notice">完整人工工作台將在批次完成後延後載入。</div></div>'}${renderOcrReview(inventory)}${renderExportFeedback()}`;}if(result.ok)return `<div class="notice success">圖片檢查完成：來源 ${result.files?.length||0}</div>`;return `<div class="notice error"><strong>檔案檢查未通過</strong><br>${(result.errors||[]).map(code=>`${humanizeImportError(code)} <small>(${escapeHtml(code)})</small>`).join('<br>')}</div>`;}
+function ensureRoot(){
+  let root=document.getElementById('identityImportWizardRoot');
+  if(root)return root;
+  const updates=document.getElementById('updates');
+  if(!updates)return null;
+  const heading=document.createElement('h3');
+  heading.id='identityImportWizardHeading';
+  heading.textContent='AI 匯入精靈';
+  root=document.createElement('section');
+  root.id='identityImportWizardRoot';
+  root.className='panel';
+  const dynamic=document.getElementById('updateCenterDynamicContent');
+  if(dynamic){dynamic.append(heading,root);return root;}
+  updates.append(heading,root);
+  return root;
+}
+function duplicateOnly(inventory){
+  const summary=inventory?.classification_summary||{};
+  const total=Number(summary.total??inventory?.summary?.total??0);
+  return total>0&&Number(summary.analyzed||0)===0&&Number(summary.failed||0)===0&&Number(summary.skipped||0)>=total;
+}
+function renderApplyResult(result){
+  if(!result)return '';
+  return `<div class="notice ${result.ok?'success':'error'}"><strong>${result.ok?'已提交':'已回滾／未提交'}</strong><br>Snapshot：${escapeHtml(result.snapshot?.snapshot_id||'—')}<br>已處理：${Number(result.applied||0)}</div>`;
+}
+function renderExportFeedback(){
+  return current.exportFeedback?`<div class="notice success"><strong>Manifest 已下載</strong><br>檔名：${escapeHtml(current.exportFeedback.file_name)}</div>`:'';
+}
+function renderOcrReview(inventory){
+  if(!inventory)return '';
+  const queue=buildOcrReviewQueue(inventory),summary=inventory.classification_summary||{};
+  const rows=queue.slice(0,100).map(item=>`<div class="ocr-review-item"><div><strong>${escapeHtml(item.path||item.source_image_ref||'未命名圖片')}</strong></div><div>建議分類：${escapeHtml(item.suggested_category||'未判定')}</div><div>信心度：${typeof item.classification_confidence==='number'?Math.round(item.classification_confidence*100)+'%':'—'}</div><div>原因：${escapeHtml((item.classification_evidence||[]).join('、')||item.ocr_error||'需要人工覆核')}</div></div>`).join('');
+  return `<section class="ocr-review-panel"><h4>OCR 覆核佇列</h4><div class="ocr-review-summary"><div><strong>已初判</strong><br>${Number(summary.analyzed||0)}</div><div><strong>低信心／衝突／失敗</strong><br>${queue.length}</div><div><strong>已取消</strong><br>${Number(summary.cancelled||0)}</div></div><div class="buttons"><button id="cancelOcrBtn" class="secondary" type="button">停止 OCR</button><button id="exportOcrReviewBtn" class="secondary" type="button" ${queue.length?'':'disabled'}>匯出私人 OCR Review Package</button></div>${current.ocrReviewFeedback?`<div class="notice success">${escapeHtml(current.ocrReviewFeedback)}</div>`:''}<div class="ocr-review-list">${rows||'<div class="notice">目前沒有需要覆核的 OCR 項目。</div>'}</div><div id="ocrRegionAiReviewSlot"><div class="notice"><strong>AI 覆核面板已改為手動載入。</strong><br>批次完成後再按下按鈕，避免圖片匯入與清單完成被重型面板阻塞。<div class="buttons"><button id="loadRegionAiReviewBtn" type="button" class="secondary">載入 AI 覆核面板</button></div></div></div></section>`;
+}
+function renderDuplicateLite(inventory){
+  const items=(inventory?.items||[]).filter(item=>item.status==='duplicate').slice(0,100);
+  return `<section class="duplicate-lite"><h4>重複圖片清單</h4><p class="notice">此批次全部為完全重複圖片，已略過完整人工工作台以避免阻塞。需要覆判時，可在下方手動載入 AI 覆核面板，或匯出 Manifest。</p><div class="ocr-review-list">${items.map(item=>`<div class="ocr-review-item"><strong>${escapeHtml(item.file_name||item.path||item.source_image_ref)}</strong><div>狀態：重複圖片</div><small>${escapeHtml(item.duplicate_of||item.duplicate_group_id||'SHA-256 相同')}</small></div>`).join('')||'<div class="notice">沒有重複項目。</div>'}</div></section>`;
+}
+function fileSummary(result){
+  if(!result)return '';
+  const archive=result.archives?.[0];
+  if(result.ok&&result.source_type==='zip'){
+    const inventory=result.inventory;
+    return `<div class="notice success"><strong>ZIP 清點完成</strong><br>圖片：${archive?.summary?.image_count||0}/${archive?.summary?.entry_count||0}<br>待處理：${inventory?.summary?.pending||0}；疑似重複：${inventory?.summary?.duplicate||0}；待覆核：${inventory?.classification_summary?.requires_review||0}</div><div class="buttons"><button id="data1ExportInventoryBtn" class="secondary">匯出私人清點 Manifest</button></div>${duplicateOnly(inventory)?renderDuplicateLite(inventory):'<div id="data1ReviewWorkbenchSlot"><div class="notice">完整人工工作台已改為手動載入。<div class="buttons"><button id="loadReviewWorkbenchBtn" type="button" class="secondary">載入完整人工工作台</button></div></div></div>'}${renderOcrReview(inventory)}${renderExportFeedback()}`;
+  }
+  if(result.ok)return `<div class="notice success">圖片檢查完成：來源 ${result.files?.length||0}</div>`;
+  return `<div class="notice error"><strong>檔案檢查未通過</strong><br>${(result.errors||[]).map(code=>`${humanizeImportError(code)} <small>(${escapeHtml(code)})</small>`).join('<br>')}</div>`;
+}
 
-function attachPicker(root){const slot=root.querySelector('#tech2dFilePickerSlot');if(!slot||slot.childElementCount)return;slot.appendChild(createAndroidImportFilePicker({onInspect:async result=>{current.fileResult=result;current.exportFeedback=null;current.ocrReviewFeedback=null;current.aiPrepared=null;const isDuplicateOnly=duplicateOnly(result.inventory);emit('review-render-started',{total:result.inventory?.summary?.total||0,duplicate_only:isDuplicateOnly});await renderCore();emit('identity-import-files-selected',result);emit('review-render-completed',{total:result.inventory?.summary?.total||0,optional_workbench_deferred:!isDuplicateOnly});if(!isDuplicateOnly)scheduleOptionalWorkbench(renderGeneration);},onError:async result=>{current.fileResult=result;current.exportFeedback=null;current.ocrReviewFeedback=null;current.aiPrepared=null;await renderCore();}}));}
-function attachInventoryExport(root){const button=root.querySelector('#data1ExportInventoryBtn');if(!button||!current.fileResult?.inventory)return;button.onclick=()=>{const archiveName=current.fileResult.files?.[0]?.name||'pokemon_sleep';const fileName=`${archiveName.replace(/\.zip$/i,'').replace(/[^a-zA-Z0-9_-]+/g,'_')}_private_inventory_manifest.json`;downloadPrivateZipInventory(current.fileResult.inventory,{fileName});current.exportFeedback={file_name:fileName};void renderCore();};}
-function attachOcrReviewActions(root){root.querySelector('#cancelOcrBtn')?.addEventListener('click',()=>emit('ocr-cancel-requested'));const button=root.querySelector('#exportOcrReviewBtn');if(button&&current.fileResult?.inventory)button.onclick=()=>{const archiveName=current.fileResult.files?.[0]?.name||'pokemon_sleep';const fileName=`${archiveName.replace(/\.zip$/i,'').replace(/[^a-zA-Z0-9_-]+/g,'_')}_private_ocr_review.json`;const payload=downloadPrivateOcrReviewPackage(current.fileResult.inventory,{fileName});current.ocrReviewFeedback=`已下載 ${fileName}，共 ${payload.summary.review_required} 筆待覆核。`;void renderCore();};}
-function attachRegionAiReview(root){const slot=root.querySelector('#ocrRegionAiReviewSlot');if(!slot||slot.childElementCount||!current.fileResult?.inventory)return;slot.appendChild(createOcrRegionAiReviewPanel({inventory:current.fileResult.inventory,onPrepared:payload=>{current.aiPrepared=payload;void renderCore();}}));}
-async function attachEssentialBatches(root){attachPicker(root);const batches=[['inventory_export',attachInventoryExport],['ocr_actions',attachOcrReviewActions],['region_ai_review',attachRegionAiReview]];let index=0;for(const [name,attach] of batches){await yieldUi();emit('review-render-batch',{name,index:++index,total:batches.length});attach(root);}await yieldUi();}
-function scheduleOptionalWorkbench(generation){setTimeout(()=>{if(generation!==renderGeneration)return;const root=ensureRoot(),slot=root?.querySelector('#data1ReviewWorkbenchSlot');if(!slot||!current.fileResult?.inventory)return;emit('optional-workbench-started',{total:current.fileResult.inventory?.summary?.total||0});try{slot.replaceChildren(createInventoryReviewWorkbench({manifest:current.fileResult.inventory,onChange:manifest=>{current.fileResult={...current.fileResult,inventory:manifest};}}));emit('optional-workbench-completed',{total:current.fileResult.inventory?.summary?.total||0});}catch(error){slot.innerHTML='<div class="notice error">完整人工工作台載入失敗；批次結果仍已完成，可匯出 Manifest 後重新整理。</div>';emit('optional-workbench-failed',{message:error?.message||String(error)});}},250);}
-async function renderCore(){const generation=++renderGeneration,root=ensureRoot();if(!root)return;let stateHtml='<div class="notice">尚未載入匯入工作。請選擇多張同一情境圖片，或選擇一個 ZIP。</div>';if(current.state){const summary=summarizeIdentityImportWizard(current.state);stateHtml=`<div class="identity-import-summary"><div><strong>階段</strong><br>${escapeHtml(summary.step)}</div><div><strong>進度</strong><br>${summary.progress_percent}%</div><div><strong>待確認</strong><br>${summary.confirmation_count}</div></div>`;}root.innerHTML=`<div id="tech2dFilePickerSlot"></div>${fileSummary(current.fileResult)}${stateHtml}${renderApplyResult(current.applyResult)}<div class="notice">只有完成最終確認後才可套用；套用前必須建立 Snapshot，失敗時整批 rollback。</div>`;await attachEssentialBatches(root);return generation;}
+function attachPicker(root){
+  const slot=root.querySelector('#tech2dFilePickerSlot');
+  if(!slot||slot.childElementCount)return;
+  slot.appendChild(createAndroidImportFilePicker({
+    onInspect:async result=>{
+      current.fileResult=result;current.exportFeedback=null;current.ocrReviewFeedback=null;current.aiPrepared=null;
+      const isDuplicateOnly=duplicateOnly(result.inventory);
+      emit('review-render-started',{total:result.inventory?.summary?.total||0,duplicate_only:isDuplicateOnly});
+      await renderCore();
+      emit('review-render-completed',{total:result.inventory?.summary?.total||0,optional_region_ai_review_deferred:true,optional_workbench_deferred:!isDuplicateOnly});
+      emit('identity-import-files-selected',result);
+      emit('optional-region-ai-review-ready',{total:result.inventory?.summary?.total||0,manual_trigger:true});
+      if(!isDuplicateOnly)emit('optional-workbench-ready',{total:result.inventory?.summary?.total||0,manual_trigger:true});
+    },
+    onError:async result=>{current.fileResult=result;current.exportFeedback=null;current.ocrReviewFeedback=null;current.aiPrepared=null;await renderCore();}
+  }));
+}
+function attachInventoryExport(root){
+  const button=root.querySelector('#data1ExportInventoryBtn');
+  if(!button||!current.fileResult?.inventory)return;
+  button.onclick=()=>{
+    const archiveName=current.fileResult.files?.[0]?.name||'pokemon_sleep';
+    const fileName=`${archiveName.replace(/\.zip$/i,'').replace(/[^a-zA-Z0-9_-]+/g,'_')}_private_inventory_manifest.json`;
+    downloadPrivateZipInventory(current.fileResult.inventory,{fileName});
+    current.exportFeedback={file_name:fileName};
+    void renderCore();
+  };
+}
+function attachOcrReviewActions(root){
+  root.querySelector('#cancelOcrBtn')?.addEventListener('click',()=>emit('ocr-cancel-requested'));
+  const button=root.querySelector('#exportOcrReviewBtn');
+  if(button&&current.fileResult?.inventory)button.onclick=()=>{
+    const archiveName=current.fileResult.files?.[0]?.name||'pokemon_sleep';
+    const fileName=`${archiveName.replace(/\.zip$/i,'').replace(/[^a-zA-Z0-9_-]+/g,'_')}_private_ocr_review.json`;
+    const payload=downloadPrivateOcrReviewPackage(current.fileResult.inventory,{fileName});
+    current.ocrReviewFeedback=`已下載 ${fileName}，共 ${payload.summary.review_required} 筆待覆核。`;
+    void renderCore();
+  };
+}
+function mountRegionAiReview(root,generation){
+  const slot=root.querySelector('#ocrRegionAiReviewSlot');
+  const button=root.querySelector('#loadRegionAiReviewBtn');
+  if(!slot||!button||!current.fileResult?.inventory)return;
+  button.onclick=()=>{
+    if(generation!==renderGeneration)return;
+    button.disabled=true;button.textContent='正在載入 AI 覆核面板…';
+    emit('optional-region-ai-review-started',{total:current.fileResult.inventory?.summary?.total||0});
+    setTimeout(()=>{
+      if(generation!==renderGeneration)return;
+      try{
+        slot.replaceChildren(createOcrRegionAiReviewPanel({inventory:current.fileResult.inventory,onPrepared:payload=>{current.aiPrepared=payload;void renderCore();}}));
+        emit('optional-region-ai-review-completed',{total:current.fileResult.inventory?.summary?.total||0});
+      }catch(error){
+        slot.innerHTML='<div class="notice error">AI 覆核面板載入失敗；批次結果仍已完成，可匯出 Manifest 或重新整理後再試。</div>';
+        emit('optional-region-ai-review-failed',{message:error?.message||String(error)});
+      }
+    },0);
+  };
+}
+function mountOptionalWorkbench(root,generation){
+  const slot=root.querySelector('#data1ReviewWorkbenchSlot');
+  const button=root.querySelector('#loadReviewWorkbenchBtn');
+  if(!slot||!button||!current.fileResult?.inventory)return;
+  button.onclick=()=>{
+    if(generation!==renderGeneration)return;
+    button.disabled=true;button.textContent='正在載入完整人工工作台…';
+    emit('optional-workbench-started',{total:current.fileResult.inventory?.summary?.total||0});
+    setTimeout(()=>{
+      if(generation!==renderGeneration)return;
+      try{
+        slot.replaceChildren(createInventoryReviewWorkbench({manifest:current.fileResult.inventory,onChange:manifest=>{current.fileResult={...current.fileResult,inventory:manifest};}}));
+        emit('optional-workbench-completed',{total:current.fileResult.inventory?.summary?.total||0});
+      }catch(error){
+        slot.innerHTML='<div class="notice error">完整人工工作台載入失敗；批次結果仍已完成，可匯出 Manifest 後重新整理。</div>';
+        emit('optional-workbench-failed',{message:error?.message||String(error)});
+      }
+    },0);
+  };
+}
+async function attachEssentialBatches(root){
+  attachPicker(root);
+  const batches=[['inventory_export',attachInventoryExport],['ocr_actions',attachOcrReviewActions]];
+  let index=0;
+  for(const [name,attach] of batches){await yieldUi();emit('review-render-batch',{name,index:++index,total:batches.length});attach(root);}
+  await yieldUi();
+}
+async function renderCore(){
+  const generation=++renderGeneration,root=ensureRoot();
+  if(!root)return;
+  let stateHtml='<div class="notice">尚未載入匯入工作。請選擇多張同一情境圖片，或選擇一個 ZIP。</div>';
+  if(current.state){
+    const summary=summarizeIdentityImportWizard(current.state);
+    stateHtml=`<div class="identity-import-summary"><div><strong>階段</strong><br>${escapeHtml(summary.step)}</div><div><strong>進度</strong><br>${summary.progress_percent}%</div><div><strong>待確認</strong><br>${summary.confirmation_count}</div></div>`;
+  }
+  root.innerHTML=`<div id="tech2dFilePickerSlot"></div>${fileSummary(current.fileResult)}${stateHtml}${renderApplyResult(current.applyResult)}<div class="notice">只有完成最終確認後才可套用；套用前必須建立 Snapshot，失敗時整批 rollback。</div>`;
+  await attachEssentialBatches(root);
+  mountRegionAiReview(root,generation);
+  mountOptionalWorkbench(root,generation);
+  return generation;
+}
 export function mountIdentityImportWizard(prepared){current={...current,state:prepared?.state||prepared||null,prepared:prepared||null,applyResult:prepared?.applyResult||current.applyResult};void renderCore();}
 export function mountIdentityImportApplyResult(result){current.applyResult=result||null;void renderCore();}
 window.PokemonSleepIdentityImportWizard={mount:mountIdentityImportWizard,showApplyResult:mountIdentityImportApplyResult,clear:()=>{current={state:null,prepared:null,applyResult:null,fileResult:null,exportFeedback:null,ocrReviewFeedback:null,aiPrepared:null};void renderCore();}};
