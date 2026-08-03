@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.62-g13-2d-duplicate-finalize-isolation';
+const CACHE = 'pokemon-sleep-ai-v0.3.63-g13-2e-finalize-nonblocking-workbench';
 const ASSETS = [
   './','./index.html','./manifest.webmanifest','./assets/css/app.css','./assets/css/editor.css',
   './assets/js/bootstrap.js','./assets/js/runtime-version.js','./assets/js/debug-trace-manager.js','./assets/js/app.js','./assets/js/database.js','./assets/js/storage.js',
