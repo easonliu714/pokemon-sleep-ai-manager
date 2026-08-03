@@ -1,6 +1,9 @@
 const CACHE = 'pokemon-sleep-ai-v0.3.66-g13-2h-sequential-advanced-ai-review';
-const PREVIOUS_CACHE_COMPATIBILITY_MARKER = 'pokemon-sleep-ai-v0.3.65-g13-2g-lightweight-ai-review';
-void PREVIOUS_CACHE_COMPATIBILITY_MARKER;
+const PREVIOUS_CACHE_COMPATIBILITY_MARKERS = [
+  'pokemon-sleep-ai-v0.3.65-g13-2g-lightweight-ai-review',
+  'pokemon-sleep-ai-v0.3.64-g13-2f-region-ai-review-deferred'
+];
+void PREVIOUS_CACHE_COMPATIBILITY_MARKERS;
 const ASSETS = [
   './','./index.html','./manifest.webmanifest','./assets/css/app.css','./assets/css/editor.css',
   './assets/js/bootstrap.js','./assets/js/runtime-version.js','./assets/js/debug-trace-manager.js','./assets/js/app.js','./assets/js/database.js','./assets/js/storage.js',
