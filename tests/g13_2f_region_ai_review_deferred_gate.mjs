@@ -14,8 +14,8 @@ assert.ok(wizard.indexOf("emit('review-render-completed'")<wizard.indexOf("emit(
 assert.match(wizard,/AI 覆核面板採兩階段載入/);
 assert.match(wizard,/完整人工工作台已改為手動載入/);
 assert.match(wizard,/createLightweightReview/);
-assert.match(bootstrap,/APP_VERSION = 'v0\.3\.65'/);
-assert.match(bootstrap,/20260803-g13-2g-lightweight-ai-review/);
+assert.match(bootstrap,/APP_VERSION = 'v0\.3\.66'/);
+assert.match(bootstrap,/20260803-g13-2h-sequential-advanced-ai-review/);
 assert.match(bootstrap,/region_ai_review_deferred:true/);
-assert.match(worker,/pokemon-sleep-ai-v0\.3\.65-g13-2g-lightweight-ai-review/);
-console.log(JSON.stringify({ok:true,gate:'G13.2F region AI review deferred compatibility',version:'v0.3.65'}));
+assert.match(worker,/pokemon-sleep-ai-v0\.3\.66-g13-2h-sequential-advanced-ai-review/);
+console.log(JSON.stringify({ok:true,gate:'G13.2F region AI review deferred compatibility',version:'v0.3.66'}));
