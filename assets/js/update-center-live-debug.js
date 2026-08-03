@@ -15,6 +15,7 @@ const eventMap={'pokemon-sleep:ocr-batch-started':'ocr_batch_started','pokemon-s
 for(const [event,label] of Object.entries(eventMap))globalThis.addEventListener?.(event,e=>record(label,e.detail||{}));
 globalThis.addEventListener?.('pokemon-sleep:update-center-debug',e=>record(e.detail?.stage||'update_center_checkpoint',e.detail?.details||{}));
 globalThis.addEventListener?.('pokemon-sleep:update-center-activated',()=>{if(!sessionStartedAt){sessionStartedAt=now();record('update_center_activated');}scheduleRender(true);});
+document.addEventListener('click',event=>{const button=event.target?.closest?.('nav button[data-view="updates"]');if(!button)return;globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:update-center-activated'));},true);
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>scheduleRender(true),{once:true});else scheduleRender(true);
 const style=document.createElement('style');style.id='updateCenterLiveDebugStyles';style.textContent='.update-live-debug-table{max-height:300px;overflow:auto}.update-live-debug-table td code{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px}.update-live-debug-table th:first-child,.update-live-debug-table td:first-child{white-space:nowrap}';if(!document.getElementById(style.id))document.head.appendChild(style);
 globalThis.UpdateCenterLiveDebug={schema:LIVE_DEBUG_SCHEMA,record,clear,exportSnapshot,get entries(){return [...entries];}};
