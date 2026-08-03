@@ -56,7 +56,7 @@ for(const token of [
   assert.match(source.regionUi,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
 }
 assert.doesNotMatch(source.regionUi,/const previousList=root\.querySelector\('\.ocr-ai-candidates'\)/);
-assert.doesNotMatch(source.regionUi,/root\.querySelectorAll\('\[data-ai-item\]'\)\.forEach/);
+assert.doesNotMatch(source.regionUi,/querySelectorAll\('\[data-ai-item\]'\)\.forEach\([^\n]*addEventListener/);
 assert.doesNotMatch(source.regionUi,/localStorage|sessionStorage|image_base64|btoa\(/);
 
 const appVersion=source.bootstrap.match(/^const APP_VERSION\s*=\s*'([^']+)'/m)?.[1];
@@ -65,4 +65,4 @@ const cache=source.worker.match(/^const CACHE\s*=\s*'([^']+)'/m)?.[1];
 assert.equal(appVersion,'v0.3.67');
 assert.equal(build,'20260803-g13-2i-progressive-ai-review-bootstrap');
 assert.equal(cache,'pokemon-sleep-ai-v0.3.67-g13-2i-progressive-ai-review-bootstrap');
-console.log(JSON.stringify({ok:true,gate:'SP thumbnail preview compatibility contract',classifier_schema:CLASSIFIER_SCHEMA,app_version:appVersion,build,incremental_dom:true}));
+console.log(JSON.stringify({ok:true,gate:'SP thumbnail preview compatibility contract',classifier_schema:CLASSIFIER_SCHEMA,app_version:appVersion,build,incremental_dom:true,delegated_candidate_listener:true}));
