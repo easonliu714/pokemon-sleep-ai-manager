@@ -1,0 +1,31 @@
+name: Frontend Regression Gate - G13.2A AI Project Pool Executor
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/ai-key-vault.js'
+      - 'assets/js/ai-project-pool-runtime.js'
+      - 'assets/js/ai-project-pool-settings.js'
+      - 'assets/js/ai-review-image-resolver.js'
+      - 'assets/js/ai-review-queue-executor.js'
+      - 'assets/js/ai-review-executor-controller.js'
+      - 'assets/js/ai-review-executor-status-ui.js'
+      - 'assets/js/data1d1-ocr-region-ai-consent.js'
+      - 'assets/js/bootstrap.js'
+      - 'service-worker.js'
+      - 'scripts/g13-2a-ai-project-pool-executor-regression.mjs'
+      - '.github/workflows/g13-2a-ai-project-pool-executor.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/g13-2a-ai-project-pool-executor-regression.mjs
