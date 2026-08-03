@@ -1,7 +1,7 @@
-import {createSingleItemOcrRegionAiReviewPanel} from './data1d1-ocr-region-single-item-ui.js?v=20260803-g13-2l-direct-minimal-review';
+import {createSingleItemOcrRegionAiReviewPanel} from './data1d1-ocr-region-single-item-ui.js?v=20260803-g13-2m-live-debug-deferred-render';
 
-const HOTFIX_VERSION='v0.3.69';
-const HOTFIX_BUILD='20260803-g13-2l-direct-minimal-review';
+const HOTFIX_VERSION='v0.3.70';
+const HOTFIX_BUILD='20260803-g13-2m-live-debug-deferred-render';
 let activePanel=null;
 
 function trace(event,detail={}){
@@ -115,4 +115,4 @@ document.addEventListener('click',event=>{
 updateVisibleVersion();
 setTimeout(updateVisibleVersion,0);
 setTimeout(updateVisibleVersion,500);
-trace('direct_minimal_review_hotfix_ready',{version:HOTFIX_VERSION,build:HOTFIX_BUILD});
+trace('direct_minimal_review_hotfix_ready',{version:HOTFIX_VERSION,build:HOTFIX_BUILD,diagnostics_mode:'deferred_bounded_render'});
