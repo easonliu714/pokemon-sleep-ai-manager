@@ -1,0 +1,21 @@
+name: Frontend Regression Gate - G13.2B OCR Runtime Hardening
+on:
+  pull_request:
+    paths:
+      - 'assets/js/data1d-local-ocr-runtime.js'
+      - 'assets/js/data1d-ocr-first-classifier.js'
+      - 'assets/js/android-import-file-picker.js'
+      - 'assets/js/ocr-runtime-monitor.js'
+      - 'assets/js/bootstrap.js'
+      - 'service-worker.js'
+      - 'scripts/g13-2b-ocr-runtime-hardening-regression.mjs'
+      - '.github/workflows/g13-2b-ocr-runtime-hardening.yml'
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/g13-2b-ocr-runtime-hardening-regression.mjs
