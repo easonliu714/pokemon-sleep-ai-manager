@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.57-data1d1-two-stage-ocr-versioned-exports';
+const CACHE = 'pokemon-sleep-ai-v0.3.58-data1d1-ocr-export-summary-consistency';
 const ASSETS = [
   './','./index.html','./manifest.webmanifest','./assets/css/app.css','./assets/css/editor.css',
   './assets/js/bootstrap.js','./assets/js/runtime-version.js','./assets/js/debug-trace-manager.js','./assets/js/app.js','./assets/js/database.js','./assets/js/storage.js',

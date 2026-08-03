@@ -3,11 +3,14 @@ import {attachRuntimeVersion,buildVersionedExportFilename} from './runtime-versi
 const MANIFEST_SCHEMA='pokemon-sleep-private-zip-inventory/1.0';
 const VALID_STATUS=new Set(['pending','processed','duplicate','unreadable','review_required','ignored']);
 const IMAGE_KINDS=new Set(['png','jpg','jpeg','webp','avif']);
+const CLASSIFICATION_CATEGORIES=['pokemon','recipe','ingredient','item','capacity','account','other'];
 
 const clean=value=>String(value??'').trim();
 const basename=path=>clean(path).split('/').filter(Boolean).at(-1)||clean(path);
 const extension=path=>{const name=basename(path);const index=name.lastIndexOf('.');return index<0?'':name.slice(index+1).toLowerCase();};
 const stableRef=(path,index)=>`zip-image-${String(index+1).padStart(4,'0')}:${clean(path)}`;
+const effectiveCategory=item=>clean(item?.confirmed_category||item?.suggested_category||item?.category||'unclassified')||'unclassified';
+const latestTimestamp=(items,keys)=>items.map(item=>keys.map(key=>Date.parse(item?.[key]||'')).filter(Number.isFinite)).flat().reduce((max,value)=>Math.max(max,value),0);
 
 export function classifyInventoryCategory(path){
   const text=clean(path).toLowerCase();
@@ -55,12 +58,31 @@ export function updateInventoryItem(manifest,sourceImageRef,patch={}){
   return finalizeInventory({...manifest,items});
 }
 
+export function buildClassificationSummary(items=[]){
+  const counts=Object.fromEntries(CLASSIFICATION_CATEGORIES.map(category=>[category,0]));
+  let analyzed=0,notAnalyzed=0,failed=0,skipped=0,cancelled=0,requiresReview=0;
+  for(const item of items){
+    const status=clean(item?.classification_status);
+    const category=effectiveCategory(item);
+    const hasResult=Number.isFinite(Number(item?.classification_confidence))&&clean(item?.suggested_category);
+    if(hasResult){analyzed+=1;if(category in counts)counts[category]+=1;}
+    else if(status==='failed')failed+=1;
+    else if(status==='cancelled')cancelled+=1;
+    else if(status==='skipped'||item?.status==='duplicate')skipped+=1;
+    else notAnalyzed+=1;
+    if(item?.requires_review===true)requiresReview+=1;
+  }
+  return {total:items.length,analyzed,not_analyzed:notAnalyzed,failed,skipped,cancelled,requires_review:requiresReview,ai_requests:0,was_cancelled:cancelled>0,region_mode:items.some(item=>Number(item?.ocr_region_count||0)>0),layout_aware:true,category_counts:counts};
+}
+
 export function finalizeInventory(manifest){
   const items=Array.isArray(manifest?.items)?manifest.items:[];
   const count=status=>items.filter(item=>item.status===status).length;
   const byCategory={};
-  for(const item of items)byCategory[item.category]=(byCategory[item.category]||0)+1;
-  return {...manifest,schema:MANIFEST_SCHEMA,generated_at:new Date().toISOString(),summary:{total:items.length,pending:count('pending'),processed:count('processed'),duplicate:count('duplicate'),unreadable:count('unreadable'),review_required:count('review_required'),ignored:count('ignored'),completed:items.filter(item=>!['pending','review_required'].includes(item.status)).length,by_category:byCategory}};
+  for(const item of items){const category=effectiveCategory(item);byCategory[category]=(byCategory[category]||0)+1;}
+  const now=new Date().toISOString();
+  const latestClassified=latestTimestamp(items,['ocr_completed_at','updated_at']);
+  return {...manifest,schema:MANIFEST_SCHEMA,generated_at:now,classified_at:latestClassified?new Date(latestClassified).toISOString():(manifest?.classified_at||null),summary:{total:items.length,pending:count('pending'),processed:count('processed'),duplicate:count('duplicate'),unreadable:count('unreadable'),review_required:count('review_required'),ignored:count('ignored'),completed:items.filter(item=>!['pending','review_required'].includes(item.status)).length,by_category:byCategory},classification_summary:buildClassificationSummary(items)};
 }
 
 export function validatePrivateZipInventory(manifest){
@@ -75,17 +97,21 @@ export function validatePrivateZipInventory(manifest){
     if(item.confidence!=null&&(Number(item.confidence)<0||Number(item.confidence)>1))errors.push(`invalid_confidence:${index}`);
     if(item.status==='duplicate'&&!item.duplicate_of)errors.push(`missing_duplicate_of:${index}`);
   }
+  const rebuilt=finalizeInventory({...manifest});
+  if(JSON.stringify(manifest?.summary||{})!==JSON.stringify(rebuilt.summary))errors.push('stale_inventory_summary');
+  if(JSON.stringify(manifest?.classification_summary||{})!==JSON.stringify(rebuilt.classification_summary))errors.push('stale_classification_summary');
   return {ok:errors.length===0,errors};
 }
 
 export function downloadPrivateZipInventory(manifest,{fileName=null}={}){
-  const validated=validatePrivateZipInventory(manifest);
+  const refreshed=finalizeInventory(manifest);
+  const validated=validatePrivateZipInventory(refreshed);
   if(!validated.ok)throw new Error(`invalid_private_zip_inventory:${validated.errors.join(',')}`);
-  const payload=attachRuntimeVersion(manifest);
+  const payload=attachRuntimeVersion(refreshed);
   const resolved=fileName||buildVersionedExportFilename('private_zip_inventory',{sourceName:manifest?.archive?.name});
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=resolved;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
   return payload;
 }
 
-export {MANIFEST_SCHEMA as PRIVATE_ZIP_INVENTORY_SCHEMA,VALID_STATUS as PRIVATE_ZIP_INVENTORY_STATUSES};
+export {MANIFEST_SCHEMA as PRIVATE_ZIP_INVENTORY_SCHEMA,VALID_STATUS as PRIVATE_ZIP_INVENTORY_STATUSES,effectiveCategory};

@@ -16,7 +16,8 @@ for(const token of ['getRuntimeVersion','buildVersionedExportFilename','attachRu
 assert.match(runtime,/pokemon_sleep_\$\{cleanToken\(kind/);
 assert.match(reviewUi,/buildVersionedExportFilename\('fingerprint_duplicate_manifest'/);
 assert.match(reviewUi,/buildVersionedExportFilename\('private_review_package'/);
-assert.match(inventory,/attachRuntimeVersion\(manifest\)/);
+assert.match(inventory,/attachRuntimeVersion\(refreshed\)/);
+assert.match(inventory,/finalizeInventory\(manifest\)/);
 assert.match(ocrReview,/buildVersionedExportFilename\('private_ocr_review'/);
 assert.doesNotMatch(reviewUi,/safeBase\(current\?\.archive\?\.name\)_fingerprint/);
 
@@ -29,9 +30,9 @@ assert.match(manual,/全圖一般倍率/);
 assert.match(manual,/全圖小字補辨識/);
 assert.doesNotMatch(manual,/localStorage|sessionStorage|indexedDB|image_base64|btoa\(/i);
 
-assert.match(bootstrap,/APP_VERSION = 'v0\.3\.57'/);
-assert.match(bootstrap,/20260803-data1d1-two-stage-ocr-versioned-exports/);
+assert.match(bootstrap,/APP_VERSION = 'v0\.3\.58'/);
+assert.match(bootstrap,/20260803-data1d1-ocr-export-summary-consistency/);
 assert.match(bootstrap,/runtime-version\.js/);
-assert.match(worker,/pokemon-sleep-ai-v0\.3\.57-data1d1-two-stage-ocr-versioned-exports/);
+assert.match(worker,/pokemon-sleep-ai-v0\.3\.58-data1d1-ocr-export-summary-consistency/);
 assert.match(worker,/runtime-version\.js/);
-console.log(JSON.stringify({ok:true,gate:'v0.3.57 two-stage OCR and versioned exports',general_scale:2,small_text_scale:4,versioned_exports:true}));
+console.log(JSON.stringify({ok:true,gate:'v0.3.58 two-stage OCR and versioned exports compatibility',general_scale:2,small_text_scale:4,versioned_exports:true,summary_refreshed:true}));
