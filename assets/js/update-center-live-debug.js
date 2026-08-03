@@ -1,0 +1,81 @@
+const LIVE_DEBUG_SCHEMA='pokemon-sleep-update-center-live-debug/1.0';
+const MAX_ENTRIES=120;
+const entries=[];
+let sessionStartedAt=null;
+let renderTimer=null;
+
+const now=()=>new Date().toISOString();
+const safe=value=>{
+  if(value==null)return value;
+  if(typeof value==='string')return value.slice(0,300);
+  if(typeof value==='number'||typeof value==='boolean')return value;
+  if(Array.isArray(value))return value.slice(0,20).map(safe);
+  if(typeof value==='object'){
+    const out={};
+    for(const [key,item] of Object.entries(value).slice(0,30)){
+      if(/key|secret|token|password|authorization|content|image|blob|bytes|base64|ocr.*text/i.test(key)){out[key]='[redacted]';continue;}
+      out[key]=safe(item);
+    }
+    return out;
+  }
+  return String(value).slice(0,300);
+};
+
+function ensureSession(){if(!sessionStartedAt)sessionStartedAt=now();}
+function record(event,detail={}){
+  ensureSession();
+  entries.push({timestamp:now(),event,detail:safe(detail)});
+  if(entries.length>MAX_ENTRIES)entries.splice(0,entries.length-MAX_ENTRIES);
+  scheduleRender();
+}
+function clear(){entries.length=0;sessionStartedAt=now();record('live_debug_cleared');}
+function scheduleRender(immediate=false){
+  if(immediate){if(renderTimer)clearTimeout(renderTimer);renderTimer=null;render();return;}
+  if(renderTimer)return;
+  renderTimer=setTimeout(()=>{renderTimer=null;render();},150);
+}
+function render(){
+  const host=document.getElementById('updateCenterLiveDebug');
+  if(!host)return;
+  const rows=entries.slice(-40).reverse().map(item=>`<tr><td>${new Date(item.timestamp).toLocaleTimeString()}</td><td>${item.event}</td><td><code>${JSON.stringify(item.detail)}</code></td></tr>`).join('');
+  host.innerHTML=`<div class="section-head"><h3>本頁即時除錯紀錄</h3><span class="badge">${entries.length}/${MAX_ENTRIES}</span></div><p class="notice">只記錄本次更新中心啟動後的階段與狀態；不保存 API Key、圖片內容或完整 OCR 文字。</p><div class="buttons"><button id="clearUpdateLiveDebug" type="button" class="secondary">清除本頁紀錄</button><button id="exportUpdateLiveDebug" type="button" class="secondary">匯出本頁紀錄</button></div><div class="table-wrap update-live-debug-table"><table><thead><tr><th>時間</th><th>事件</th><th>摘要</th></tr></thead><tbody>${rows||'<tr><td colspan="3">尚無事件</td></tr>'}</tbody></table></div>`;
+  host.querySelector('#clearUpdateLiveDebug')?.addEventListener('click',clear);
+  host.querySelector('#exportUpdateLiveDebug')?.addEventListener('click',exportSnapshot);
+}
+function exportSnapshot(){
+  const version=document.documentElement.dataset.appVersion||'unknown';
+  const build=document.documentElement.dataset.appBuild||'unknown';
+  const payload={schema:LIVE_DEBUG_SCHEMA,app_version:version,app_build:build,session_started_at:sessionStartedAt,exported_at:now(),entries:[...entries]};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const link=document.createElement('a');
+  link.href=URL.createObjectURL(blob);
+  link.download=`pokemon_sleep_update_center_live_debug_${version}_${build}_${now().replace(/[:.]/g,'-')}.json`;
+  link.click();
+  setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+}
+
+const eventMap={
+  'pokemon-sleep:ocr-batch-started':'ocr_batch_started',
+  'pokemon-sleep:ocr-batch-progress':'ocr_batch_progress',
+  'pokemon-sleep:ocr-batch-finalizing':'ocr_batch_finalizing',
+  'pokemon-sleep:ocr-batch-completed':'ocr_batch_completed',
+  'pokemon-sleep:ocr-batch-cancelled':'ocr_batch_cancelled',
+  'pokemon-sleep:ocr-batch-failed':'ocr_batch_failed',
+  'pokemon-sleep:review-render-started':'review_render_started',
+  'pokemon-sleep:review-render-batch':'review_render_batch',
+  'pokemon-sleep:review-render-completed':'review_render_completed',
+  'pokemon-sleep:review-render-failed':'review_render_failed',
+  'pokemon-sleep:identity-import-files-selected':'identity_import_files_selected'
+};
+for(const [event,label] of Object.entries(eventMap))globalThis.addEventListener?.(event,e=>record(label,e.detail||{}));
+
+globalThis.addEventListener?.('pokemon-sleep:update-center-activated',()=>{if(!sessionStartedAt){sessionStartedAt=now();record('update_center_activated');}scheduleRender(true);});
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>scheduleRender(true),{once:true});else scheduleRender(true);
+
+const style=document.createElement('style');
+style.id='updateCenterLiveDebugStyles';
+style.textContent='.update-live-debug-table{max-height:300px;overflow:auto}.update-live-debug-table td code{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px}.update-live-debug-table th:first-child,.update-live-debug-table td:first-child{white-space:nowrap}';
+if(!document.getElementById(style.id))document.head.appendChild(style);
+
+globalThis.UpdateCenterLiveDebug={schema:LIVE_DEBUG_SCHEMA,record,clear,exportSnapshot,get entries(){return [...entries];}};
+export {LIVE_DEBUG_SCHEMA,record,clear,exportSnapshot};
