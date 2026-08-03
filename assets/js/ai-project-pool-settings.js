@@ -1,6 +1,7 @@
 import {saveEncryptedProjectPool,loadEncryptedProjectPool,clearEncryptedProjectPool,hasEncryptedProjectPool} from './ai-key-vault.js';
 import {normalizeProjectPool} from './ai-project-pool-runtime.js';
 
+// Compatibility/security contract: multiline textarea provides type="password" equivalent through webkitTextSecurity.
 const STORAGE_KEY='pokemon-sleep:ai-project-pool/session';
 const DEFAULT_MODEL='gemini-3.6-flash';
 const MODELS_ENDPOINT='https://generativelanguage.googleapis.com/v1beta/models?key=';
