@@ -48,7 +48,8 @@ for(const token of ['ocr-ai-candidate','PREVIEW_ROW_SELECTOR',"archive.readImage
 }
 for(const token of [
   'URL.createObjectURL','URL.revokeObjectURL','ocr-region-preview-image','updatePreviewDom',
-  'requestAnimationFrame','CANDIDATE_BATCH_SIZE','createDocumentFragment','list.appendChild(fragment)',
+  'requestAnimationFrame','FRAME_FALLBACK_MS=48','setTimeout','advanced_review_frame_fallback',
+  'CANDIDATE_BATCH_SIZE','createDocumentFragment','list.appendChild(fragment)',
   "root.querySelector('.ocr-ai-candidates')?.addEventListener('change'",'list_position_preserved',
   'ocr_region_preview_rendered','重複圖片：需人工勾選才覆判',
   'duplicate_ai_review_manually_selected','全選一般待覆核','root.dispose'
@@ -62,7 +63,7 @@ assert.doesNotMatch(source.regionUi,/localStorage|sessionStorage|image_base64|bt
 const appVersion=source.bootstrap.match(/^const APP_VERSION\s*=\s*'([^']+)'/m)?.[1];
 const build=source.bootstrap.match(/^const VERSION\s*=\s*'([^']+)'/m)?.[1];
 const cache=source.worker.match(/^const CACHE\s*=\s*'([^']+)'/m)?.[1];
-assert.equal(appVersion,'v0.3.67');
-assert.equal(build,'20260803-g13-2i-progressive-ai-review-bootstrap');
-assert.equal(cache,'pokemon-sleep-ai-v0.3.67-g13-2i-progressive-ai-review-bootstrap');
-console.log(JSON.stringify({ok:true,gate:'SP thumbnail preview compatibility contract',classifier_schema:CLASSIFIER_SCHEMA,app_version:appVersion,build,incremental_dom:true,delegated_candidate_listener:true}));
+assert.equal(appVersion,'v0.3.68');
+assert.equal(build,'20260803-g13-2j-android-raf-timeout-fallback');
+assert.equal(cache,'pokemon-sleep-ai-v0.3.68-g13-2j-android-raf-timeout-fallback');
+console.log(JSON.stringify({ok:true,gate:'SP thumbnail preview compatibility contract',classifier_schema:CLASSIFIER_SCHEMA,app_version:appVersion,build,incremental_dom:true,delegated_candidate_listener:true,android_raf_timeout_fallback:true}));
