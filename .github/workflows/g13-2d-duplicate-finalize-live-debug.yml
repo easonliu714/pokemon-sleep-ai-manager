@@ -1,0 +1,18 @@
+name: G13.2D Duplicate Finalize and Live Debug
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  g13-2d-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run G13.2D gate
+        run: node tests/g13_2d_duplicate_finalize_live_debug_gate.mjs
