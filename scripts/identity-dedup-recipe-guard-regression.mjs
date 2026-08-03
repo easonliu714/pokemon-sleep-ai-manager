@@ -31,5 +31,6 @@ matchTokens(sources.regionUi,['createOcrRegionAiReviewPanel','ocrRegionPreset','
 matchTokens(sources.thumbnail,['OcrThumbnailUrlPool','URL.createObjectURL','URL.revokeObjectURL','maxActive','releaseAll','normalizeRegionConfidence','buildRegionConfidenceSummary'],'thumbnail');assert.doesNotMatch(sources.thumbnail,/fetch\s*\(|XMLHttpRequest|localStorage/);
 matchTokens(sources.overlayBootstrap,['waitForHost','OcrOverlayUpdateCenterBootstrapPromise','pagehide','dispose'],'overlay_bootstrap');assert.doesNotMatch(sources.overlayBootstrap,/fetch\s*\(|XMLHttpRequest|localStorage/);
 matchTokens(sources.aiSettings,['sessionStorage','gemini-3.6-flash','models?key=','generateContent','type="password"'],'ai_settings');assert.doesNotMatch(sources.aiSettings,/localStorage/);
-matchTokens(sources.wizard,['pokemon-sleep:identity-import-files-selected','tech2dFilePickerSlot','匯出私人清點 Manifest','createInventoryReviewWorkbench','停止 OCR','匯出私人 OCR Review Package','OCR 覆核佇列','ocrRegionAiReviewSlot'],'wizard');
+assert.match(sources.wizard,/emit\('identity-import-files-selected'/);
+matchTokens(sources.wizard,['tech2dFilePickerSlot','匯出私人清點 Manifest','createInventoryReviewWorkbench','停止 OCR','匯出私人 OCR Review Package','OCR 覆核佇列','ocrRegionAiReviewSlot'],'wizard');
 console.log(`PASS identity, recipe, OCR overlay, Android import, offline PWA, and privacy contracts on ${appVersion}`);
