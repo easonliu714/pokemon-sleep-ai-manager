@@ -1,154 +1,47 @@
 import {OCR_REGION_PRESETS,buildRegionConfig} from './data1d1-ocr-region-ai-consent.js';
-import {createSingleItemOcrRegionAiReviewPanel} from './data1d1-ocr-region-single-item-ui.js?v=20260803-g13-2m-live-debug-deferred-render';
+import {createSingleItemOcrRegionAiReviewPanel} from './data1d1-ocr-region-single-item-ui.js?v=20260803-g13-3a-real-ocr-ai-execution';
+import {localOcrRuntime} from './data1d-local-ocr-runtime.js';
+import {executeAiReviewQueue,PROMPT_VERSION} from './ai-review-queue-executor.js';
+import {readBlobAsData,createArchiveImageResolver} from './ai-review-image-resolver.js';
+import {saveAnalysisRevision,listAnalysisRevisions} from './analysis-revision-store.js';
 
-const BUILD='20260803-g13-2m-live-debug-deferred-render';
-let activeDispose=null;
-let standalonePreviewUrl=null;
-
+const BUILD='20260803-g13-3a-real-ocr-ai-execution';
+let activeDispose=null,standalonePreviewUrl=null,latestImportResult=null;
+const standaloneFiles=new Map();
 const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-const trace=(event,detail={})=>{
-  globalThis.UpdateCenterLiveDebug?.record?.(event,detail);
-  globalThis.DebugTrace?.record?.('ai_review',event,{status:'completed',details:detail});
-};
+const trace=(event,detail={})=>{globalThis.UpdateCenterLiveDebug?.record?.(event,detail);globalThis.DebugTrace?.record?.('ai_review',event,{status:'completed',details:detail});};
+const itemId=item=>String(item?.sha256||item?.source_image_ref||item?.path||'');
+const itemName=item=>String(item?.file_name||item?.path||item?.source_image_ref||'未命名圖片');
 
-function selectedItems(panel){
-  return [...panel.querySelectorAll('.light-review-check:checked')].map(box=>{
-    const article=box.closest('.light-review-item');
-    const name=article?.querySelector('strong')?.textContent?.trim()||box.value||'未命名圖片';
-    return {sha256:String(box.value||''),source_image_ref:name,path:name,file_name:name,status:'review',classification_status:'manual_ocr_review',requires_review:true};
-  });
-}
-
-function controls({index,total,onPrevious,onNext,onBack}){
-  const row=document.createElement('div');
-  row.className='buttons';
-  const previous=document.createElement('button');
-  previous.type='button';previous.className='secondary';previous.textContent='上一張';previous.disabled=index===0;previous.onclick=onPrevious;
-  const next=document.createElement('button');
-  next.type='button';next.className='secondary';next.textContent=index===total-1?'已是最後一張':'下一張';next.disabled=index===total-1;next.onclick=onNext;
-  const back=document.createElement('button');
-  back.type='button';back.className='secondary';back.textContent='返回輕量清單';back.onclick=onBack;
-  row.append(previous,next,back);
-  return row;
-}
+addEventListener('pokemon-sleep:identity-import-files-selected',event=>{latestImportResult=event.detail||null;trace('real_analysis_source_registered',{source_type:latestImportResult?.source_type||null,item_count:latestImportResult?.inventory?.items?.length||0});});
+function inventoryItemById(id){return (latestImportResult?.inventory?.items||[]).find(item=>itemId(item)===String(id))||null;}
+function selectedItems(panel){return [...panel.querySelectorAll('.light-review-check:checked')].map(box=>inventoryItemById(box.value)||{sha256:String(box.value||''),source_image_ref:box.closest('.light-review-item')?.querySelector('strong')?.textContent?.trim()||box.value,path:box.closest('.light-review-item')?.querySelector('strong')?.textContent?.trim()||box.value,file_name:box.closest('.light-review-item')?.querySelector('strong')?.textContent?.trim()||box.value,status:'duplicate',classification_status:'skipped',requires_review:true});}
+async function resolveBlob(item){const standalone=standaloneFiles.get(itemId(item));if(standalone)return standalone;const archive=latestImportResult?.archives?.[0];if(!archive?.readImage)throw new Error('找不到原始圖片來源，請重新匯入 ZIP。');return archive.readImage(item.path||item.source_image_ref,{type:'blob'});}
+async function cropBlob(blob,region){const bitmap=await createImageBitmap(blob);const sx=Math.max(0,Math.floor(bitmap.width*region.x)),sy=Math.max(0,Math.floor(bitmap.height*region.y)),sw=Math.max(1,Math.floor(bitmap.width*region.width)),sh=Math.max(1,Math.floor(bitmap.height*region.height));const canvas=document.createElement('canvas');canvas.width=sw;canvas.height=sh;canvas.getContext('2d',{alpha:false}).drawImage(bitmap,sx,sy,sw,sh,0,0,sw,sh);bitmap.close?.();return new Promise((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error('ocr_region_crop_failed')),'image/png'));}
+function controls({index,total,onPrevious,onNext,onBack}){const row=document.createElement('div');row.className='buttons';for(const [text,disabled,handler] of [['上一張',index===0,onPrevious],[index===total-1?'已是最後一張':'下一張',index===total-1,onNext],['返回輕量清單',false,onBack]]){const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent=text;button.disabled=disabled;button.onclick=handler;row.append(button);}return row;}
+function renderRevisionSummary(root,item,type){const node=root.querySelector('[data-analysis-history]');if(!node)return;try{const revisions=listAnalysisRevisions(itemId(item),type);node.innerHTML=revisions.length?`<strong>既有 ${type.toUpperCase()} revisions：${revisions.length}</strong><br>最新 revision ${revisions[0].revision_no}，${escapeHtml(revisions[0].created_at)}`:'尚無既有分析 revision。';}catch{node.textContent='分析歷程尚未初始化。';}}
 
 function createOcrOnlyPanel(item){
-  const root=document.createElement('section');
-  root.className='ocr-only-review-panel';
-  let preset='full_image';
-  const renderRegions=()=>{
-    const config=buildRegionConfig({preset});
-    const list=root.querySelector('[data-ocr-only-regions]');
-    if(list)list.innerHTML=config.regions.map((region,index)=>`<div><strong>${index+1}. ${escapeHtml(region.label)}</strong><br>x ${region.x.toFixed(2)} / y ${region.y.toFixed(2)} / w ${region.width.toFixed(2)} / h ${region.height.toFixed(2)}</div>`).join('');
-    trace('ocr_only_regions_rendered',{preset,region_count:config.regions.length});
-  };
-  root.innerHTML=`<div class="notice success"><strong>OCR-only 單張覆核</strong><br>不建立 AI Consent、Queue 或 Provider 元件。</div><div class="notice"><strong>${escapeHtml(item.file_name)}</strong><br>${escapeHtml(item.sha256||item.source_image_ref)}</div><label>辨識區域 preset <select data-ocr-only-preset>${Object.entries(OCR_REGION_PRESETS).map(([key,value])=>`<option value="${escapeHtml(key)}">${escapeHtml(value.label)}</option>`).join('')}</select></label><div class="ocr-region-list" data-ocr-only-regions></div><label>人工 OCR 判定 <select data-ocr-only-decision><option value="pending">待判定</option><option value="accepted">OCR 結果可接受</option><option value="manual_fix">需要人工修正</option><option value="reocr">需要重新 OCR</option></select></label><textarea data-ocr-only-note placeholder="人工覆核註記"></textarea><div class="buttons"><button type="button" data-ocr-only-save>保存本次 OCR 覆核結果</button></div><div class="notice" data-ocr-only-result></div>`;
-  root.querySelector('[data-ocr-only-preset]')?.addEventListener('change',event=>{preset=event.target.value;renderRegions();});
-  root.querySelector('[data-ocr-only-save]')?.addEventListener('click',()=>{
-    const decision=root.querySelector('[data-ocr-only-decision]')?.value||'pending';
-    const note=root.querySelector('[data-ocr-only-note]')?.value||'';
-    const result=root.querySelector('[data-ocr-only-result]');
-    if(result)result.textContent=`已保存：${decision}${note?`；${note}`:''}`;
-    trace('ocr_only_review_saved',{item_id:item.sha256||item.source_image_ref,preset,decision,note_length:note.length});
-  });
-  renderRegions();
-  trace('ocr_only_review_completed',{item_id:item.sha256||item.source_image_ref});
-  root.dispose=()=>{};
-  return root;
+  const root=document.createElement('section');root.className='ocr-only-review-panel';let preset='full_image',controller=null,disposed=false;
+  root.innerHTML=`<div class="notice success"><strong>真實 OCR 單張覆核</strong><br>即使圖片為 SHA256 重複，也可由使用者強制重新辨識。</div><div class="notice"><strong>${escapeHtml(itemName(item))}</strong><br>${escapeHtml(itemId(item))}</div><div class="notice" data-analysis-history></div><label>辨識區域 preset <select data-ocr-only-preset>${Object.entries(OCR_REGION_PRESETS).map(([key,value])=>`<option value="${escapeHtml(key)}">${escapeHtml(value.label)}</option>`).join('')}</select></label><div class="ocr-region-list" data-ocr-only-regions></div><div class="buttons"><button type="button" data-real-ocr-run>強制重新執行 OCR</button><button type="button" class="secondary" data-real-ocr-cancel disabled>取消 OCR</button></div><div class="notice" data-real-ocr-status>尚未執行 OCR。</div><div data-real-ocr-results></div>`;
+  const renderRegions=()=>{const config=buildRegionConfig({preset});root.querySelector('[data-ocr-only-regions]').innerHTML=config.regions.map((region,index)=>`<div><strong>${index+1}. ${escapeHtml(region.label)}</strong><br>x ${region.x.toFixed(2)} / y ${region.y.toFixed(2)} / w ${region.width.toFixed(2)} / h ${region.height.toFixed(2)}</div>`).join('');trace('ocr_only_regions_rendered',{preset,region_count:config.regions.length});};
+  root.querySelector('[data-ocr-only-preset]').onchange=event=>{preset=event.target.value;renderRegions();};
+  root.querySelector('[data-real-ocr-cancel]').onclick=()=>controller?.abort();
+  root.querySelector('[data-real-ocr-run]').onclick=async()=>{const run=root.querySelector('[data-real-ocr-run]'),cancel=root.querySelector('[data-real-ocr-cancel]'),status=root.querySelector('[data-real-ocr-status]'),results=root.querySelector('[data-real-ocr-results]');controller=new AbortController();run.disabled=true;cancel.disabled=false;results.replaceChildren();trace('forced_ocr_started',{item_id:itemId(item),preset,duplicate:item.status==='duplicate'});try{const blob=await resolveBlob(item);const config=buildRegionConfig({preset});const output=[];for(let index=0;index<config.regions.length;index++){if(disposed||controller.signal.aborted)throw new DOMException('OCR cancelled','AbortError');const region=config.regions[index];status.textContent=`OCR 進度 ${index+1}/${config.regions.length}：${region.label}`;const cropped=await cropBlob(blob,region);const recognized=await localOcrRuntime.recognize(await cropped.arrayBuffer(),{mimeType:'image/png',signal:controller.signal,timeoutMs:30000,stallMs:20000,retry:1});output.push({region_id:region.id,region_label:region.label,text:recognized.text,confidence:recognized.confidence,duration_ms:recognized.duration_ms});const card=document.createElement('section');card.className='panel';card.innerHTML=`<strong>${escapeHtml(region.label)}</strong><br>信心值：${recognized.confidence==null?'—':Number(recognized.confidence).toFixed(1)}；耗時：${recognized.duration_ms} ms<br><textarea data-ocr-correction="${escapeHtml(region.id)}" rows="5">${escapeHtml(recognized.text)}</textarea>`;results.append(card);await new Promise(resolve=>setTimeout(resolve,0));}const revision=await saveAnalysisRevision({imageSha256:itemId(item),sourceImageRef:itemName(item),analysisType:'ocr',forced:true,provider:localOcrRuntime.name,regionPreset:preset,result:{regions:output}});status.textContent=`OCR 完成：${output.length} 個區域；已保存 revision ${revision.revision_no}。`;trace('forced_ocr_completed',{item_id:itemId(item),preset,region_count:output.length,revision_no:revision.revision_no});renderRevisionSummary(root,item,'ocr');}catch(error){status.textContent=error?.name==='AbortError'?'OCR 已取消。':`OCR 失敗：${error?.message||error}`;trace('forced_ocr_failed',{item_id:itemId(item),preset,message:error?.message||String(error)});}finally{run.disabled=false;cancel.disabled=true;controller=null;}};
+  renderRegions();renderRevisionSummary(root,item,'ocr');trace('ocr_only_review_completed',{item_id:itemId(item)});root.dispose=()=>{disposed=true;controller?.abort();};return root;
 }
 
-function mountOcrOnly(button){
-  const originalPanel=button.closest('.lightweight-ai-review');
-  const slot=document.getElementById('ocrRegionAiReviewSlot');
-  if(!originalPanel||!slot)return false;
-  const items=selectedItems(originalPanel);
-  if(!items.length)return false;
-  trace('ocr_only_review_started',{selected_count:items.length});
-  activeDispose?.();
-  let index=0;
-  const wrapper=document.createElement('section');
-  wrapper.className='sequential-ocr-only-review';
-  const render=()=>{
-    wrapper.replaceChildren();
-    const item=items[index];
-    const header=document.createElement('div');
-    header.className='notice success';
-    header.innerHTML=`<strong>OCR-only 覆核：${index+1}/${items.length}</strong><br>${escapeHtml(item.file_name)}`;
-    const panel=createOcrOnlyPanel(item);
-    wrapper.append(header,controls({index,total:items.length,onPrevious:()=>{if(index>0){index-=1;render();}},onNext:()=>{if(index<items.length-1){index+=1;render();}},onBack:()=>{panel.dispose?.();slot.replaceChildren(originalPanel);trace('ocr_only_review_closed',{selected_count:items.length,index});}}),panel);
-    activeDispose=()=>panel.dispose?.();
-  };
-  slot.replaceChildren(wrapper);
-  render();
-  return true;
+export async function executePreparedAiPayload({queue,item,preset='full_image',statusNode=null,resultNode=null,bypassCache=true}={}){
+  const poolData=globalThis.PokemonSleepAiProjectPool;if(!poolData?.projects?.length)throw new Error('請先至「使用說明」設定並測試至少一組 AI API Key。');
+  const source=inventoryItemById(itemId(item))||item;let resolveImage;if(standaloneFiles.has(itemId(item)))resolveImage=async()=>readBlobAsData(standaloneFiles.get(itemId(item)));else{const archive=latestImportResult?.archives?.[0];resolveImage=createArchiveImageResolver(archive);}
+  statusNode&&(statusNode.textContent='正在送出單張圖片至 AI Provider…');trace('real_ai_analysis_started',{item_id:itemId(item),preset,bypass_cache:bypassCache,model:poolData.model});
+  const outcome=await executeAiReviewQueue({queue,inventory:{items:[source]},poolData,resolveImage,bypassCache,onProgress:progress=>{statusNode&&(statusNode.textContent=`AI 分析進度 ${progress.current}/${progress.total}${progress.cached?'（Cache）':''}`);},onTrace:(event,detail)=>trace(event,detail)});
+  if(outcome.status!=='completed')throw new Error(`AI 分析暫停：${outcome.reason||'unknown'}`);const result=outcome.results[0];const revision=await saveAnalysisRevision({imageSha256:itemId(item),sourceImageRef:itemName(item),analysisType:'ai',forced:bypassCache,provider:'gemini',model:result.model,promptVersion:PROMPT_VERSION,regionPreset:preset,result:result.analysis});
+  if(resultNode){resultNode.innerHTML=`<div class="notice success"><strong>AI 分析完成 · revision ${revision.revision_no}</strong><br>Project：${escapeHtml(result.project_alias||'—')}；Model：${escapeHtml(result.model||'—')}</div><pre class="prompt-box">${escapeHtml(JSON.stringify(result.analysis,null,2))}</pre>`;}statusNode&&(statusNode.textContent=`AI 分析完成；已保存 revision ${revision.revision_no}。`);trace('real_ai_analysis_completed',{item_id:itemId(item),revision_no:revision.revision_no,model:result.model,project_alias:result.project_alias});return {outcome,revision};
 }
 
-function ensureComparisonButtons(panel){
-  const buttonRow=panel.querySelector('.buttons');
-  if(!buttonRow||panel.querySelector('#loadSelectedOcrOnlyReview'))return;
-  const button=document.createElement('button');
-  button.id='loadSelectedOcrOnlyReview';
-  button.type='button';
-  button.className='secondary';
-  button.disabled=true;
-  button.textContent='OCR-only 覆核選取圖片';
-  buttonRow.append(button);
-  const sync=()=>{const count=panel.querySelectorAll('.light-review-check:checked').length;button.disabled=count===0;button.textContent=count?`OCR-only 覆核選取圖片（${count}）`:'OCR-only 覆核選取圖片';};
-  panel.addEventListener('change',sync);
-  button.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();mountOcrOnly(button);});
-  sync();
-  trace('ocr_only_review_entry_ready');
-}
+function mountOcrOnly(button){const originalPanel=button.closest('.lightweight-ai-review'),slot=document.getElementById('ocrRegionAiReviewSlot');if(!originalPanel||!slot)return false;const items=selectedItems(originalPanel);if(!items.length)return false;trace('ocr_only_review_started',{selected_count:items.length});activeDispose?.();let index=0;const wrapper=document.createElement('section');wrapper.className='sequential-ocr-only-review';const render=()=>{wrapper.replaceChildren();const item=items[index],panel=createOcrOnlyPanel(item);wrapper.append(controls({index,total:items.length,onPrevious:()=>{panel.dispose();if(index>0){index--;render();}},onNext:()=>{panel.dispose();if(index<items.length-1){index++;render();}},onBack:()=>{panel.dispose();slot.replaceChildren(originalPanel);trace('ocr_only_review_closed',{selected_count:items.length,index});}}),panel);activeDispose=()=>panel.dispose();};slot.replaceChildren(wrapper);render();return true;}
+function ensureComparisonButtons(panel){const row=panel.querySelector('.buttons');if(!row||panel.querySelector('#loadSelectedOcrOnlyReview'))return;const button=document.createElement('button');button.id='loadSelectedOcrOnlyReview';button.type='button';button.className='secondary';button.disabled=true;button.textContent='對選取圖片執行真實 OCR';row.append(button);const sync=()=>{const count=panel.querySelectorAll('.light-review-check:checked').length;button.disabled=count===0;button.textContent=count?`對選取圖片執行真實 OCR（${count}）`:'對選取圖片執行真實 OCR';};panel.addEventListener('change',sync);button.onclick=event=>{event.preventDefault();event.stopPropagation();mountOcrOnly(button);};sync();trace('ocr_only_review_entry_ready');}
 
-function ensureStandaloneHost(){
-  const updates=document.getElementById('updates');
-  if(!updates||document.getElementById('standaloneSingleImageAiDiagnostic'))return;
-  const host=document.createElement('section');
-  host.id='standaloneSingleImageAiDiagnostic';
-  host.className='panel';
-  host.innerHTML=`<h3>單張圖片 AI 分析（獨立診斷）</h3><p class="notice">直接選一張圖片；不經 ZIP、清單或多張序列。只在本機建立預覽與 AI Queue，絕不自動送出。</p><input type="file" accept="image/png,image/jpeg,image/webp,image/avif" data-standalone-ai-file><div data-standalone-ai-status class="notice">尚未選擇圖片。</div><div data-standalone-ai-preview></div><div data-standalone-ai-mount></div>`;
-  const dynamic=document.getElementById('updateCenterDynamicContent');
-  if(dynamic?.parentElement)dynamic.parentElement.insertBefore(host,dynamic);
-  else updates.append(host);
-  const input=host.querySelector('[data-standalone-ai-file]');
-  input?.addEventListener('change',async()=>{
-    const file=input.files?.[0];
-    if(!file)return;
-    trace('standalone_single_image_ai_started',{name:file.name,size:file.size,type:file.type});
-    activeDispose?.();
-    if(standalonePreviewUrl)URL.revokeObjectURL(standalonePreviewUrl);
-    standalonePreviewUrl=URL.createObjectURL(file);
-    const preview=host.querySelector('[data-standalone-ai-preview]');
-    preview.replaceChildren();
-    const image=document.createElement('img');
-    image.className='light-review-preview';
-    image.alt=file.name;
-    image.src=standalonePreviewUrl;
-    preview.append(image);
-    const status=host.querySelector('[data-standalone-ai-status]');
-    status.textContent='圖片已載入；正在建立獨立單張 AI 分析介面。';
-    const item={sha256:`standalone:${file.name}:${file.size}:${file.lastModified}`,source_image_ref:file.name,path:file.name,file_name:file.name,status:'review',classification_status:'standalone_single_image',requires_review:true};
-    const panel=createSingleItemOcrRegionAiReviewPanel({item,onPrepared:payload=>trace('standalone_single_image_ai_queue_prepared',{selected_count:payload?.queue?.selected_count||0})});
-    host.querySelector('[data-standalone-ai-mount]').replaceChildren(panel);
-    activeDispose=()=>panel.dispose?.();
-    await panel.ready;
-    status.textContent='獨立單張 AI 分析介面已完成載入。';
-    trace('standalone_single_image_ai_completed',{name:file.name,size:file.size});
-  });
-  trace('standalone_single_image_ai_entry_ready',{build:BUILD});
-}
-
-const observer=new MutationObserver(()=>{
-  document.querySelectorAll('.lightweight-ai-review').forEach(ensureComparisonButtons);
-  ensureStandaloneHost();
-});
-observer.observe(document.documentElement,{subtree:true,childList:true});
-document.querySelectorAll('.lightweight-ai-review').forEach(ensureComparisonButtons);
-ensureStandaloneHost();
-
-addEventListener('pagehide',()=>{
-  activeDispose?.();
-  if(standalonePreviewUrl)URL.revokeObjectURL(standalonePreviewUrl);
-},{once:true});
-
-trace('ocr_ai_ab_diagnostic_ready',{build:BUILD});
+function ensureStandaloneHost(){const updates=document.getElementById('updates');if(!updates||document.getElementById('standaloneSingleImageAiDiagnostic'))return;const host=document.createElement('section');host.id='standaloneSingleImageAiDiagnostic';host.className='panel';host.innerHTML=`<h3>單張圖片 AI 分析</h3><p class="notice">直接選擇一張圖片；完成明確同意後可執行真實 AI 分析。API Key 只從本機安全 Project Pool 讀取。</p><input type="file" accept="image/png,image/jpeg,image/webp,image/avif" data-standalone-ai-file><div data-standalone-ai-status class="notice">尚未選擇圖片。</div><div data-standalone-ai-preview></div><div data-standalone-ai-mount></div><div data-standalone-ai-result></div>`;const dynamic=document.getElementById('updateCenterDynamicContent');dynamic?.parentElement?dynamic.parentElement.insertBefore(host,dynamic):updates.append(host);const input=host.querySelector('[data-standalone-ai-file]');input.onchange=async()=>{const file=input.files?.[0];if(!file)return;const id=`standalone:${file.name}:${file.size}:${file.lastModified}`,item={sha256:id,source_image_ref:file.name,path:file.name,file_name:file.name,status:'review',classification_status:'standalone_single_image',requires_review:true};standaloneFiles.set(id,file);trace('standalone_single_image_ai_started',{name:file.name,size:file.size,type:file.type});activeDispose?.();if(standalonePreviewUrl)URL.revokeObjectURL(standalonePreviewUrl);standalonePreviewUrl=URL.createObjectURL(file);const preview=host.querySelector('[data-standalone-ai-preview]');preview.innerHTML=`<img class="light-review-preview" alt="${escapeHtml(file.name)}" src="${standalonePreviewUrl}">`;const status=host.querySelector('[data-standalone-ai-status]'),resultNode=host.querySelector('[data-standalone-ai-result]');status.textContent='圖片已載入；請完成同意後執行 AI 分析。';const panel=createSingleItemOcrRegionAiReviewPanel({item,onPrepared:async payload=>{try{await executePreparedAiPayload({queue:payload.queue,item,preset:payload.region_config?.preset||'full_image',statusNode:status,resultNode,bypassCache:true});}catch(error){status.textContent=`AI 分析失敗：${error?.message||error}`;trace('real_ai_analysis_failed',{item_id:id,message:error?.message||String(error)});}}});host.querySelector('[data-standalone-ai-mount]').replaceChildren(panel);activeDispose=()=>panel.dispose?.();await panel.ready;trace('standalone_single_image_ai_completed',{name:file.name,size:file.size});};trace('standalone_single_image_ai_entry_ready',{build:BUILD});}
+const observer=new MutationObserver(()=>{document.querySelectorAll('.lightweight-ai-review').forEach(ensureComparisonButtons);ensureStandaloneHost();});observer.observe(document.documentElement,{subtree:true,childList:true});document.querySelectorAll('.lightweight-ai-review').forEach(ensureComparisonButtons);ensureStandaloneHost();addEventListener('pagehide',()=>{activeDispose?.();if(standalonePreviewUrl)URL.revokeObjectURL(standalonePreviewUrl);},{once:true});trace('ocr_ai_ab_diagnostic_ready',{build:BUILD,real_ocr:true,real_ai:true});
