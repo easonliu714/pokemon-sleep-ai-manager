@@ -8,6 +8,6 @@ for(const token of ['createLightweightReview','light-review-check','preview-one'
 assert.ok(wizard.indexOf('function createLightweightReview')<wizard.indexOf('function mountRegionAiReview'),'lightweight review must be defined before optional region AI mounting');
 assert.doesNotMatch(wizard,/slot\.replaceChildren\(createOcrRegionAiReviewPanel\(\{inventory:current\.fileResult\.inventory/);
 assert.match(wizard,/mode:'sequential_single_item'/);
-assert.match(live,/pokemon-sleep-update-center-live-debug\/1\.2/);assert.match(live,/除錯紀錄已匯出/);assert.match(live,/live_debug_exported/);assert.match(live,/document\.body\.appendChild\(link\)/);
+assert.match(live,/pokemon-sleep-update-center-live-debug\/1\.3/);assert.match(live,/除錯紀錄已匯出/);assert.match(live,/live_debug_exported/);assert.match(live,/document\.body\.appendChild\(link\)/);assert.match(live,/single_item_minimal_takeover_completed/);
 assert.match(bootstrap,/APP_VERSION = 'v0\.3\.68'/);assert.match(bootstrap,/20260803-g13-2j-android-raf-timeout-fallback/);assert.match(bootstrap,/lightweight_ai_review:true/);assert.match(bootstrap,/APP_VERSION = 'v0\.3\.67' 20260803-g13-2i-progressive-ai-review-bootstrap/);assert.match(worker,/pokemon-sleep-ai-v0\.3\.68-g13-2j-android-raf-timeout-fallback/);assert.match(worker,/pokemon-sleep-ai-v0\.3\.67-g13-2i-progressive-ai-review-bootstrap/);
-console.log(JSON.stringify({ok:true,gate:'G13.2G lightweight AI review and export feedback compatibility',version:'v0.3.68',compatibility:'android-raf-timeout-fallback'}));
+console.log(JSON.stringify({ok:true,gate:'G13.2G lightweight AI review and export feedback compatibility',version:'v0.3.68',compatibility:'single-item-minimal-takeover'}));

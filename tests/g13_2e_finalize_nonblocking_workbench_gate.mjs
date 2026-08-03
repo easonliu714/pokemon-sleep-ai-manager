@@ -8,11 +8,12 @@ for(const token of ['duplicateOnly','renderDuplicateLite','attachEssentialBatche
 assert.ok(wizard.indexOf("emit('review-render-completed'")<wizard.indexOf("emit('optional-workbench-ready'"),'terminal completion must precede optional workbench readiness');
 assert.doesNotMatch(wizard,/\['review_workbench',attachReviewWorkbench\]/);
 assert.match(wizard,/完整人工工作台已改為手動載入/);
-assert.match(live,/LIVE_DEBUG_SCHEMA='pokemon-sleep-update-center-live-debug\/1\.2'/);
+assert.match(live,/LIVE_DEBUG_SCHEMA='pokemon-sleep-update-center-live-debug\/1\.3'/);
 assert.match(live,/optional-workbench-failed/);
 assert.match(live,/const REDACT_KEY=\/\^\(/);
-assert.match(live,/ocr_full_text\)\$\/i/);
+assert.match(live,/source_entry\|compressedContent\|_data/);
+assert.match(live,/depth>=4/);
 assert.match(bootstrap,/APP_VERSION = 'v0\.3\.65'/);
 assert.match(bootstrap,/20260803-g13-2g-lightweight-ai-review/);
 assert.match(worker,/pokemon-sleep-ai-v0\.3\.65-g13-2g-lightweight-ai-review/);
-console.log(JSON.stringify({ok:true,gate:'G13.2E finalize nonblocking workbench compatibility',version:'v0.3.65'}));
+console.log(JSON.stringify({ok:true,gate:'G13.2E finalize nonblocking workbench compatibility',version:'v0.3.65',live_debug_schema:'1.3'}));
