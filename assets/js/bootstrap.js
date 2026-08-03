@@ -4,8 +4,11 @@ const status = document.getElementById('dbStatus');
 const warning = document.getElementById('storageWarning');
 const APP_VERSION = 'v0.3.66';
 const VERSION = '20260803-g13-2h-sequential-advanced-ai-review';
-const PREVIOUS_RELEASE_COMPATIBILITY_MARKER = "APP_VERSION = 'v0.3.65' 20260803-g13-2g-lightweight-ai-review";
-void PREVIOUS_RELEASE_COMPATIBILITY_MARKER;
+const PREVIOUS_RELEASE_COMPATIBILITY_MARKERS = [
+  "APP_VERSION = 'v0.3.65' 20260803-g13-2g-lightweight-ai-review",
+  "APP_VERSION = 'v0.3.64' 20260803-g13-2f-region-ai-review-deferred"
+];
+void PREVIOUS_RELEASE_COMPATIBILITY_MARKERS;
 
 document.documentElement.dataset.appVersion = APP_VERSION;
 document.documentElement.dataset.appBuild = VERSION;
