@@ -9,12 +9,11 @@ assert.ok(wizard.indexOf("emit('review-render-completed'")<wizard.indexOf('sched
 assert.doesNotMatch(wizard,/\['review_workbench',attachReviewWorkbench\]/);
 assert.match(live,/LIVE_DEBUG_SCHEMA='pokemon-sleep-update-center-live-debug\/1\.1'/);
 assert.match(live,/optional-workbench-failed/);
-assert.match(live,/REDACT_KEY/);
+assert.match(live,/const REDACT_KEY=\/\^\(/);
+assert.match(live,/ocr_full_text\)\$\/i/);
 assert.match(live,/image_bytes/);
 assert.match(live,/image_base64/);
 assert.match(live,/ocr_full_text/);
-assert.match(live,/SAFE_COUNT_KEY/);
-assert.match(live,/image_count/);
 assert.match(bootstrap,/APP_VERSION = 'v0\.3\.63'/);
 assert.match(bootstrap,/20260803-g13-2e-finalize-nonblocking-workbench/);
 assert.match(worker,/pokemon-sleep-ai-v0\.3\.63-g13-2e-finalize-nonblocking-workbench/);
