@@ -1,0 +1,19 @@
+name: G13.2H Sequential Advanced AI Review
+on:
+  pull_request:
+    paths:
+      - 'assets/js/identity-import-wizard-entry.js'
+      - 'assets/js/bootstrap.js'
+      - 'service-worker.js'
+      - 'tests/g13_2h_sequential_advanced_ai_review_gate.mjs'
+      - '.github/workflows/g13-2h-sequential-advanced-ai-review.yml'
+jobs:
+  g13-2h-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run G13.2H gate
+        run: node tests/g13_2h_sequential_advanced_ai_review_gate.mjs

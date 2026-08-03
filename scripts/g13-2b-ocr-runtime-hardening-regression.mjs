@@ -8,7 +8,7 @@ for(const token of ['DEFAULT_TIMEOUT_MS=30000','DEFAULT_STALL_MS=20000','ocr_tim
 for(const token of ['signal,timeoutMs','throwIfCancelled','itemTimeoutMs=DEFAULT_ITEM_TIMEOUT_MS','ocr-item-started','ocr-item-failed','await new Promise(resolve=>setTimeout(resolve,0))'])assert.ok(classifier.includes(token),`classifier:${token}`);
 for(const token of ['PokemonSleepOCR?.cancel','正在強制停止 OCR','itemTimeoutMs:30000','FINALIZING'])assert.ok(picker.includes(token),`picker:${token}`);
 for(const token of ['OCR Runtime Monitor','exportOcrRuntimeMonitor','active_job','ocr_runtime_job_failed','pokemon_sleep_ocr_runtime_','scheduleRender'])assert.ok(monitor.includes(token),`monitor:${token}`);
-assert.match(bootstrap,/APP_VERSION = 'v0\.3\.64'/);assert.match(bootstrap,/20260803-g13-2f-region-ai-review-deferred/);assert.match(bootstrap,/ocr-runtime-monitor\.js/);
-assert.match(worker,/pokemon-sleep-ai-v0\.3\.64-g13-2f-region-ai-review-deferred/);assert.match(worker,/ocr-runtime-monitor\.js/);
+assert.match(bootstrap,/APP_VERSION = 'v0\.3\.66'/);assert.match(bootstrap,/20260803-g13-2h-sequential-advanced-ai-review/);assert.match(bootstrap,/ocr-runtime-monitor\.js/);
+assert.match(worker,/pokemon-sleep-ai-v0\.3\.66-g13-2h-sequential-advanced-ai-review/);assert.match(worker,/ocr-runtime-monitor\.js/);
 assert.doesNotMatch(monitor,/image_base64|image_bytes|ocr_full_text|api.?key/i);
-console.log(JSON.stringify({ok:true,gate:'G13.2B OCR runtime hardening compatibility',timeout_ms:30000,stall_ms:20000,worker_recovery:true,abort_terminate:true,runtime_monitor:true,version:'v0.3.64'}));
+console.log(JSON.stringify({ok:true,gate:'G13.2B OCR runtime hardening compatibility',timeout_ms:30000,stall_ms:20000,worker_recovery:true,abort_terminate:true,runtime_monitor:true,version:'v0.3.66'}));
