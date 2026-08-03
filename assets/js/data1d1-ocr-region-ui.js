@@ -2,7 +2,8 @@ import {OCR_REGION_PRESETS,buildRegionConfig,buildAiConsentQueue,validateAiConse
 
 const DEFAULT_MODEL='gemini-3.6-flash';
 const CANDIDATE_BATCH_SIZE=12;
-function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));}
+const FRAME_FALLBACK_MS=48;
+function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[char]));}
 function itemId(item){return String(item?.sha256||item?.source_image_ref||item?.path||'');}
 function itemName(item){return String(item?.path||item?.source_image_ref||'未命名圖片');}
 function isDefaultReviewItem(item){return item?.requires_review===true||['low_confidence','conflict','failed'].includes(item?.classification_status);}
@@ -11,7 +12,15 @@ function reviewCandidates(inventory){return (inventory?.items||[]).filter(item=>
 function presetOptions(selected){return Object.entries(OCR_REGION_PRESETS).map(([key,preset])=>`<option value="${escapeHtml(key)}" ${key===selected?'selected':''}>${escapeHtml(preset.label)}</option>`).join('');}
 function regionBoxes(config){return config.regions.map((region,index)=>`<div class="ocr-region-box" style="left:${region.x*100}%;top:${region.y*100}%;width:${region.width*100}%;height:${region.height*100}%"><span>${index+1}. ${escapeHtml(region.label)}</span></div>`).join('');}
 function regionList(config){return config.regions.map((region,index)=>`<div><strong>${index+1}. ${escapeHtml(region.label)}</strong><br>x ${region.x.toFixed(2)} / y ${region.y.toFixed(2)} / w ${region.width.toFixed(2)} / h ${region.height.toFixed(2)}</div>`).join('');}
-function nextFrame(){return new Promise(resolve=>requestAnimationFrame(()=>resolve()));}
+function nextFrame(){
+  return new Promise(resolve=>{
+    let settled=false;
+    const finish=source=>{if(settled)return;settled=true;clearTimeout(timer);resolve(source);};
+    const timer=setTimeout(()=>finish('timeout'),FRAME_FALLBACK_MS);
+    if(typeof globalThis.requestAnimationFrame==='function')globalThis.requestAnimationFrame(()=>finish('raf'));
+    else queueMicrotask(()=>finish('microtask'));
+  });
+}
 function trace(event,status='completed',details={},error){globalThis.DebugTrace?.record?.('ai_review',event,{status,details,error});}
 
 export function createOcrRegionAiReviewPanel({inventory,model=DEFAULT_MODEL,projectAlias='主要 Project',onPrepared=()=>{}}={}){
@@ -45,8 +54,9 @@ export function createOcrRegionAiReviewPanel({inventory,model=DEFAULT_MODEL,proj
     if(disposed||id!==initializationId)throw new DOMException('Advanced review initialization cancelled','AbortError');
   };
   const yieldFrame=async id=>{
-    await nextFrame();
+    const source=await nextFrame();
     assertActive(id);
+    if(source!=='raf')trace('advanced_review_frame_fallback','completed',{source,fallback_ms:FRAME_FALLBACK_MS});
   };
   const updateBootstrapStatus=(message,kind='')=>{
     const node=root.querySelector('[data-ai-bootstrap-status]');
@@ -102,6 +112,7 @@ export function createOcrRegionAiReviewPanel({inventory,model=DEFAULT_MODEL,proj
 
       const mount=root.querySelector('[data-ai-core-mount]');
       assertActive(id);
+      if(!mount)throw new Error('Advanced review mount point unavailable');
       mount.replaceChildren();
 
       const regionSection=document.createElement('section');
@@ -224,4 +235,4 @@ export function createOcrRegionAiReviewPanel({inventory,model=DEFAULT_MODEL,proj
   return root;
 }
 
-export {DEFAULT_MODEL,isDefaultReviewItem,isDuplicateReviewCandidate,reviewCandidates};
+export {DEFAULT_MODEL,isDefaultReviewItem,isDuplicateReviewCandidate,reviewCandidates,FRAME_FALLBACK_MS};
