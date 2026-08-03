@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.60-g13-2b-ocr-runtime-hardening';
+const CACHE = 'pokemon-sleep-ai-v0.3.61-g13-2c-ocr-isolation-secret-redaction';
 const ASSETS = [
   './','./index.html','./manifest.webmanifest','./assets/css/app.css','./assets/css/editor.css',
   './assets/js/bootstrap.js','./assets/js/runtime-version.js','./assets/js/debug-trace-manager.js','./assets/js/app.js','./assets/js/database.js','./assets/js/storage.js',
