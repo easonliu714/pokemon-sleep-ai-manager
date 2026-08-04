@@ -17,7 +17,7 @@ def test_static_shell_contains_all_public_navigation_and_views():
     assert "收集指南載入中" in html
 
 
-def test_debug_ui_is_hidden_by_default_and_admin_entry_is_in_guide():
+def test_debug_ui_is_hidden_in_static_html_and_admin_entry_is_in_guide():
     html = (ROOT / "index.html").read_text(encoding="utf-8")
     assert 'id="adminAuthPanel"' in html
     assert 'id="updateCenterLiveDebug"' in html
@@ -27,7 +27,24 @@ def test_debug_ui_is_hidden_by_default_and_admin_entry_is_in_guide():
     assert "admin-auth.js" in html
 
 
-def test_local_admin_auth_uses_non_reversible_hash_and_session_scope():
+def test_identity_review_remains_a_general_user_tool():
+    source = (ROOT / "assets/js/admin-auth.js").read_text(encoding="utf-8")
+    assert "const DEBUG_LABELS=new Set(['診斷中心']);" in source
+    assert "['診斷中心','身份覆核']" not in source
+    assert "寶可夢身份覆核等一般工具" in source
+
+
+def test_development_phase_opens_debug_without_password():
+    source = (ROOT / "assets/js/admin-auth.js").read_text(encoding="utf-8")
+    assert "const ACCESS_MODE='development-open';" in source
+    assert "const DEVELOPMENT_OPEN=ACCESS_MODE==='development-open';" in source
+    assert "let authenticated=DEVELOPMENT_OPEN||" in source
+    assert "目前為開發模式：診斷與除錯介面已直接開放，不需要管理密碼" in source
+    assert "isDevelopmentOpen:()=>DEVELOPMENT_OPEN" in source
+    assert "default_password" not in source
+
+
+def test_local_admin_auth_uses_non_reversible_hash_and_session_scope_for_release_mode():
     source = (ROOT / "assets/js/admin-auth.js").read_text(encoding="utf-8")
     assert "PBKDF2" in source
     assert "SHA-256" in source
