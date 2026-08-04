@@ -1,0 +1,26 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
+
+const workbench=fs.readFileSync('assets/js/analysis-confirmation-workbench.js','utf8');
+const store=fs.readFileSync('assets/js/analysis-revision-store.js','utf8');
+const index=fs.readFileSync('index.html','utf8');
+const sw=fs.readFileSync('service-worker.js','utf8');
+execFileSync(process.execPath,['--check','assets/js/analysis-confirmation-workbench.js']);
+execFileSync(process.execPath,['--check','assets/js/analysis-revision-store.js']);
+assert.match(store,/pokemon-sleep:analysis-revision-saved/);
+assert.match(workbench,/分析結果只作為草稿/);
+assert.match(workbench,/確認並寫入正式資料/);
+assert.match(workbench,/before_analysis_confirmation_/);
+assert.match(workbench,/begin\(\)/);
+assert.match(workbench,/commit\(\)/);
+assert.match(workbench,/rollback\(\)/);
+assert.match(workbench,/pokemon_subskills/);
+assert.match(workbench,/pokemon_ingredients/);
+assert.match(workbench,/pokemon_history/);
+assert.match(workbench,/analysis_confirmed_applied/);
+assert.doesNotMatch(workbench,/api[_-]?key/i);
+assert.match(index,/analysis-confirmation-workbench\.js/);
+assert.match(sw,/analysis-confirmation-workbench\.js/);
+assert.match(sw,/v0\.3\.73-g13-3b-analysis-confirmation-apply/);
+console.log('G13.3B analysis confirmation apply gate: PASS');
