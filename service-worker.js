@@ -1,4 +1,4 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.76-version-authority-hotfix';
+const CACHE = 'pokemon-sleep-ai-v0.3.76-v0376-version-authority-hotfix';
 const PREVIOUS_CACHE_COMPATIBILITY_MARKERS = [
   'pokemon-sleep-ai-v0.3.75-g13-5-unified-import-pipeline',
   'pokemon-sleep-ai-v0.3.74-g13-4-ocr-ai-cross-check-confidence',
