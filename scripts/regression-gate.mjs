@@ -24,23 +24,24 @@ async function syntaxGate(){
 async function migrationStaticGate(){
   const schema=await text('assets/js/schema.js');const database=await text('assets/js/database.js');const migrations=await text('assets/js/migrations.js');const canonical=await text('assets/js/canonical-registry.js');
   for(const field of ['recipe_level','current_energy','updated_at','notes'])assert.match(migrations,new RegExp(`addColumnIfMissing\\(db,'recipes','${field}'`),`missing recipe migration field: ${field}`);
-  for(const version of [1,2,3,4,5,6])assert.match(`${schema}\n${migrations}\n${canonical}`,new RegExp(`schema_migrations[^\\n]*${version}|VALUES\\(${version},`),`migration ${version} is not registered`);
+  for(const version of [1,2,3,4,5,6,7])assert.match(`${schema}\n${migrations}\n${canonical}`,new RegExp(`schema_migrations[^\\n]*${version}|VALUES\\(${version},`),`migration ${version} is not registered`);
   const initialization=database.match(/export async function initializeDatabase\(\)[\s\S]*?return \{seeded\};/u)?.[0]||'';
   const replacement=database.match(/export async function replaceDatabase\(bytes\)[\s\S]*?await persist\(\);\n\}/u)?.[0]||'';
   assert.match(initialization,/applyAllMigrations\(db\)/u,'migrations missing from initializeDatabase');
   assert.match(replacement,/applyAllMigrations\(db\)/u,'migrations missing from replaceDatabase');
   assert.match(migrations,/SELECT pokemon_id,70[\s\S]*unlock_level=75/u,'75→70 migration missing');
   assert.match(migrations,/SELECT pokemon_id,80[\s\S]*unlock_level=100/u,'100→80 migration missing');
+  assert.match(migrations,/pokemon_analysis_observation/u,'analysis observation migration missing');
   assert.match(canonical,/CREATE TABLE IF NOT EXISTS canonical_term/u,'canonical term table missing');
   assert.match(canonical,/CREATE TABLE IF NOT EXISTS canonical_term_alias/u,'canonical alias table missing');
-  console.log('PASS migration structure: schema versions 1-6 and lifecycle hooks');
+  console.log('PASS migration structure: schema versions 1-7 and lifecycle hooks');
 }
 
 async function migrationFixtureGate(){
   const SQL=await initSqlJs({locateFile:file=>join(dirname(require.resolve('sql.js')),file)});
   const fresh=new SQL.Database();fresh.run(DDL);fresh.run(SEED_SQL);applyAllMigrations(fresh);
   assert.equal(scalar(fresh,'PRAGMA integrity_check'),'ok','fresh DB integrity check failed');
-  assert.deepEqual(queryRows(fresh,'SELECT version FROM schema_migrations ORDER BY version').map(row=>row.version),[1,2,3,4,5,6]);
+  assert.deepEqual(queryRows(fresh,'SELECT version FROM schema_migrations ORDER BY version').map(row=>row.version),[1,2,3,4,5,6,7]);
   assert.equal(scalar(fresh,'SELECT COUNT(*) FROM pokemon'),0,'public master must not seed Pokémon');
   assert.equal(scalar(fresh,'SELECT COUNT(*) FROM ingredient_inventory'),0,'public master must not seed ingredient quantities');
   assert.equal(scalar(fresh,'SELECT COUNT(*) FROM item_inventory'),0,'public master must not seed item quantities');
@@ -51,6 +52,7 @@ async function migrationFixtureGate(){
   assert.ok(scalar(fresh,'SELECT COUNT(*) FROM canonical_term')>0,'canonical registry is empty');
   assert.equal(scalar(fresh,"SELECT canonical_name_zh_tw FROM canonical_term_alias a JOIN canonical_term t ON t.term_id=a.term_id WHERE a.alias_text='辣味香草'"),'火辣香草','safe ingredient alias mismatch');
   for(const field of ['recipe_level','current_energy','updated_at','notes'])assert.ok(queryRows(fresh,"PRAGMA table_info('recipes')").some(row=>row.name===field),`fresh DB missing recipes.${field}`);
+  for(const field of ['sleep_hours','sleep_time_text','evolution_sleep_hours_required','source_image_refs_json'])assert.ok(queryRows(fresh,"PRAGMA table_info('pokemon')").some(row=>row.name===field),`fresh DB missing pokemon.${field}`);
 
   const legacy=new SQL.Database();
   legacy.run(`
@@ -76,9 +78,9 @@ async function migrationFixtureGate(){
   assert.equal(scalar(restored,"SELECT pokemon_instance_id FROM pokemon WHERE pokemon_id='LEGACY-001'"),'LEGACY-001');
   assert.equal(scalar(restored,"SELECT COUNT(*) FROM pokemon_subskills WHERE unlock_level IN (75,100)"),0,'legacy subskill levels remain');
   assert.equal(scalar(restored,"SELECT COUNT(*) FROM pokemon_subskills WHERE unlock_level IN (70,80)"),2,'migrated subskill levels missing');
-  assert.deepEqual(queryRows(restored,'SELECT version FROM schema_migrations ORDER BY version').map(row=>row.version),[1,2,3,4,5,6]);
+  assert.deepEqual(queryRows(restored,'SELECT version FROM schema_migrations ORDER BY version').map(row=>row.version),[1,2,3,4,5,6,7]);
   restored.close();fresh.close();
-  console.log(`PASS SQLite fixtures: fresh integrity=ok; canonical migration=6; legacy restore integrity=ok; personal rows ${JSON.stringify(before)} preserved`);
+  console.log(`PASS SQLite fixtures: fresh integrity=ok; canonical migration=6; detail observation migration=7; legacy restore integrity=ok; personal rows ${JSON.stringify(before)} preserved`);
 }
 
 async function knowledgeGate(){

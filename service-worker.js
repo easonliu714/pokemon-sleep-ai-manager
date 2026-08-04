@@ -1,8 +1,9 @@
-const APP_VERSION = 'v0.3.80';
-const APP_BUILD = '20260804-v0380-static-shell-admin-debug-gate';
-const CACHE = 'pokemon-sleep-ai-v0.3.80-v0380-static-shell-admin-debug-gate';
+const APP_VERSION = 'v0.3.81';
+const APP_BUILD = '20260804-v0381-pokemon-detail-review-merge';
+const CACHE = 'pokemon-sleep-ai-v0.3.81-v0381-pokemon-detail-review-merge';
 
 const PREVIOUS_CACHE_COMPATIBILITY_MARKERS = [
+  'pokemon-sleep-ai-v0.3.80-v0380-static-shell-admin-debug-gate',
   'pokemon-sleep-ai-v0.3.79-v0379-canonical-public-catalog',
   'pokemon-sleep-ai-v0.3.78-v0377c-data-consistency-multicapture',
   'pokemon-sleep-ai-v0.3.77-v0377a-backup-truth-restore-verification',

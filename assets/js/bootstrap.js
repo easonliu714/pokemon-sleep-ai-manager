@@ -1,12 +1,13 @@
-import {debugTrace} from './debug-trace-manager.js?v=20260804-v0380-static-shell-admin-debug-gate';
+import {debugTrace} from './debug-trace-manager.js?v=20260804-v0381-pokemon-detail-review-merge';
 
 const status = document.getElementById('dbStatus');
 const warning = document.getElementById('storageWarning');
 
-const APP_VERSION = 'v0.3.80';
-const VERSION = '20260804-v0380-static-shell-admin-debug-gate';
+const APP_VERSION = 'v0.3.81';
+const VERSION = '20260804-v0381-pokemon-detail-review-merge';
 
 const PREVIOUS_RELEASE_COMPATIBILITY_MARKERS = [
+  "APP_VERSION = 'v0.3.80' 20260804-v0380-static-shell-admin-debug-gate",
   "APP_VERSION = 'v0.3.79' 20260804-v0379-canonical-public-catalog",
   "APP_VERSION = 'v0.3.78' 20260804-v0377c-data-consistency-multicapture",
   "APP_VERSION = 'v0.3.77' 20260804-v0377a-backup-truth-restore-verification",
@@ -77,13 +78,13 @@ function enforceVersionAuthority() {
 }
 
 const versionObserver = new MutationObserver(enforceVersionAuthority);
-versionObserver.observe(document.documentElement, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['data-app-version', 'data-app-build'] });
-globalThis.addEventListener('pagehide', () => versionObserver.disconnect(), { once: true });
+versionObserver.observe(document.documentElement, { subtree:true, childList:true, characterData:true, attributes:true, attributeFilter:['data-app-version','data-app-build'] });
+globalThis.addEventListener('pagehide', () => versionObserver.disconnect(), { once:true });
 
 function showFailure(label, error) {
   console.error(`Module probe failed: ${label}`, error);
-  debugTrace.record('bootstrap', 'module_probe_failed', { status: 'failed', details: { label }, error });
-  if (status) { status.textContent = '載入失敗'; status.className = 'badge error'; }
+  debugTrace.record('bootstrap', 'module_probe_failed', { status:'failed', details:{label}, error });
+  if (status) { status.textContent='載入失敗'; status.className='badge error'; }
   if (warning) {
     warning.textContent = `前端模組載入失敗：${label}：${error?.message || error}。請至診斷中心匯出 JSON。`;
     warning.classList.remove('hidden');
@@ -95,14 +96,14 @@ const probes = [
 ];
 
 (async () => {
-  const operationId = debugTrace.begin('module_bootstrap', { probe_count: probes.length });
+  const operationId = debugTrace.begin('module_bootstrap', { probe_count:probes.length });
   for (const file of probes) {
     try {
       await import(`./${file}?v=${VERSION}`);
-      debugTrace.record('bootstrap', 'module_probe_completed', { status: 'completed', operation_id: operationId, details: { file } });
+      debugTrace.record('bootstrap', 'module_probe_completed', { status:'completed', operation_id:operationId, details:{file} });
     } catch (error) {
       showFailure(file, error);
-      debugTrace.fail(operationId, error, { file });
+      debugTrace.fail(operationId, error, {file});
       return;
     }
   }
@@ -118,15 +119,15 @@ const probes = [
     const {bootstrapOcrOverlayUpdateCenter} = await import(`./data1d1-ocr-overlay-update-center-bootstrap.js?v=${VERSION}`);
     const startOverlay = () => {
       if (globalThis.OcrOverlayUpdateCenterBootstrap || !document.querySelector('#ocrThumbnailOverlaySlot')) return;
-      bootstrapOcrOverlayUpdateCenter({timeoutMs: 2000}).then((instance) => { globalThis.OcrOverlayUpdateCenterBootstrap = instance; }).catch((error) => {
-        debugTrace.record('ocr_thumbnail', 'ocr_thumbnail_overlay_bootstrap_deferred', { status: 'blocked', details: {reason: error?.message || String(error)} });
+      bootstrapOcrOverlayUpdateCenter({timeoutMs:2000}).then(instance => { globalThis.OcrOverlayUpdateCenterBootstrap = instance; }).catch(error => {
+        debugTrace.record('ocr_thumbnail', 'ocr_thumbnail_overlay_bootstrap_deferred', { status:'blocked', details:{reason:error?.message || String(error)} });
       });
     };
     startOverlay();
-    globalThis.addEventListener('pokemon-sleep:identity-import-files-selected', () => setTimeout(startOverlay, 0));
+    globalThis.addEventListener('pokemon-sleep:identity-import-files-selected', () => setTimeout(startOverlay,0));
     enforceVersionAuthority();
     debugTrace.end(operationId, 'completed', {
-      entry_modules_loaded:true,ocr_overlay_bootstrap_deferred:true,ocr_overlay_preview_wiring:true,layout_aware_ocr:true,manual_reocr:true,two_stage_ocr:true,versioned_exports:true,export_summary_consistency:true,encrypted_key_vault:true,ai_project_pool_executor:true,ocr_watchdog:true,ocr_abort_terminate:true,ocr_runtime_monitor:true,secret_redaction:true,debug_persistence_throttled:true,ocr_progress_state_machine:true,duplicate_only_fast_path:true,review_render_batched:true,update_center_live_debug:true,finalize_nonblocking_workbench:true,duplicate_lightweight_review:true,region_ai_review_deferred:true,optional_panels_manual_load:true,lightweight_ai_review:true,single_image_preview:true,export_feedback:true,sequential_advanced_ai_review:true,single_item_advanced_mount:true,progressive_ai_review_bootstrap:true,incremental_ai_review_dom:true,android_raf_timeout_fallback:true,version_authority:APP_VERSION,version_downgrade_guard:true,unified_import_pipeline:true,backup_truth_manifest:true,staged_restore_verification:true,multicapture_merge:true,patch_semantics:true,immediate_pokemon_refresh:true,canonical_registry:true,public_zero_state_catalog:true,static_app_shell:true,single_knowledge_authority:true,development_open_debug:true
+      entry_modules_loaded:true,ocr_overlay_bootstrap_deferred:true,ocr_overlay_preview_wiring:true,layout_aware_ocr:true,manual_reocr:true,two_stage_ocr:true,versioned_exports:true,export_summary_consistency:true,encrypted_key_vault:true,ai_project_pool_executor:true,ocr_watchdog:true,ocr_abort_terminate:true,ocr_runtime_monitor:true,secret_redaction:true,debug_persistence_throttled:true,ocr_progress_state_machine:true,duplicate_only_fast_path:true,review_render_batched:true,update_center_live_debug:true,finalize_nonblocking_workbench:true,duplicate_lightweight_review:true,region_ai_review_deferred:true,optional_panels_manual_load:true,lightweight_ai_review:true,single_image_preview:true,export_feedback:true,sequential_advanced_ai_review:true,single_item_advanced_mount:true,progressive_ai_review_bootstrap:true,incremental_ai_review_dom:true,android_raf_timeout_fallback:true,version_authority:APP_VERSION,version_downgrade_guard:true,unified_import_pipeline:true,backup_truth_manifest:true,staged_restore_verification:true,multicapture_merge:true,patch_semantics:true,immediate_pokemon_refresh:true,canonical_registry:true,public_zero_state_catalog:true,static_app_shell:true,single_knowledge_authority:true,development_open_debug:true,canonical_review_ui:true,additive_multicapture:true,sleep_evolution_fields:true
     });
     debugTrace.record('bootstrap', 'app_ready', {status:'completed'});
   } catch (error) {
