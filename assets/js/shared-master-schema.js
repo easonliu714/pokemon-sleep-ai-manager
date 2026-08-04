@@ -16,6 +16,15 @@ export function applySharedMasterSchema(db){
     verified_at TEXT,
     data_version TEXT NOT NULL
   )`);
+  db.run(`CREATE TABLE IF NOT EXISTS item_master(
+    item_name TEXT PRIMARY KEY,
+    item_category TEXT,
+    source_type TEXT NOT NULL,
+    source_name TEXT NOT NULL,
+    source_ref TEXT,
+    verified_at TEXT,
+    data_version TEXT NOT NULL
+  )`);
   db.run(`CREATE TABLE IF NOT EXISTS recipe_master(
     recipe_id TEXT PRIMARY KEY,
     category TEXT NOT NULL,
