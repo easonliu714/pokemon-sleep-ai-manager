@@ -1,0 +1,43 @@
+name: G14 FULL75 Recovery Closure
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  full75-recovery-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: |
+          node --check assets/js/full75-recovery-contract.js
+          node --check assets/js/full75-recovery-engine.js
+          node --check assets/js/full75-recovery-workbench.js
+      - name: Verify immutable FULL75 counts
+        run: |
+          grep -q "total: 821" assets/js/full75-recovery-contract.js
+          grep -q "pokemon_upsert: 75" assets/js/full75-recovery-contract.js
+          grep -q "pokemon_archive: 5" assets/js/full75-recovery-contract.js
+          grep -q "pokemon_subskills: 369" assets/js/full75-recovery-contract.js
+          grep -q "pokemon_ingredients: 222" assets/js/full75-recovery-contract.js
+          grep -q "pokemon_identity_evidence: 150" assets/js/full75-recovery-contract.js
+      - name: Verify recovery safety boundaries
+        run: |
+          grep -q "review_required" assets/js/full75-recovery-engine.js
+          grep -q "confirmed_independent" assets/js/full75-recovery-engine.js
+          grep -q "target_pokemon_id" assets/js/full75-recovery-engine.js
+          grep -q "dryRun" assets/js/full75-recovery-engine.js
+          grep -q "applyPayload" assets/js/full75-recovery-engine.js
+          grep -q "verifyAppliedPackage" assets/js/full75-recovery-engine.js
+          grep -q "integrity_ok" assets/js/full75-recovery-engine.js
+          grep -q "foreign_key_errors" assets/js/full75-recovery-engine.js
+          grep -q "private_data_committed_to_repo:false" assets/js/full75-recovery-workbench.js
+      - name: Verify browser entry
+        run: |
+          grep -q "full75-recovery-workbench.js?v=20260804-v0377b-full75-recovery-closure" index.html
+          ! grep -R "PRIVATE-ABILITY-FULL75-REFRESH" assets .github docs --exclude='g14-full75-recovery.yml'
