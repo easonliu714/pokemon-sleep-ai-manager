@@ -2,7 +2,14 @@ const CACHE = 'pokemon-sleep-ai-v0.3.68-g13-2j-android-raf-timeout-fallback';
 const PREVIOUS_CACHE_COMPATIBILITY_MARKERS = [
   'pokemon-sleep-ai-v0.3.73-g13-3b-analysis-confirmation-apply',
   'pokemon-sleep-ai-v0.3.72-g13-3a-real-ocr-ai-execution',
-  'pokemon-sleep-ai-v0.3.67-g13-2i-progressive-ai-review-bootstrap'
+  'pokemon-sleep-ai-v0.3.71-g13-3a-ultra-minimal-ai-shell',
+  'pokemon-sleep-ai-v0.3.70-g13-2m-ocr-ai-ab-diagnostic',
+  'pokemon-sleep-ai-v0.3.69-g13-2l-direct-minimal-review',
+  'pokemon-sleep-ai-v0.3.68-g13-2j-android-raf-timeout-fallback',
+  'pokemon-sleep-ai-v0.3.67-g13-2i-progressive-ai-review-bootstrap',
+  'pokemon-sleep-ai-v0.3.66-g13-2h-sequential-advanced-ai-review',
+  'pokemon-sleep-ai-v0.3.65-g13-2g-lightweight-ai-review',
+  'pokemon-sleep-ai-v0.3.64-g13-2f-region-ai-review-deferred'
 ];
 void PREVIOUS_CACHE_COMPATIBILITY_MARKERS;
 const ASSETS = [
