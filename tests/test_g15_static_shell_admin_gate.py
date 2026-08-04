@@ -17,6 +17,20 @@ def test_static_shell_contains_all_public_navigation_and_views():
     assert "收集指南載入中" in html
 
 
+def test_knowledge_page_has_single_static_authority():
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    source = (ROOT / "assets/js/shared-knowledge-ui.js").read_text(encoding="utf-8")
+    assert html.count('data-view="knowledge"') == 1
+    assert html.count('id="knowledge"') == 1
+    assert 'id="sharedKnowledgePanel"' in html
+    assert "document.getElementById('knowledge')" in source
+    assert "document.getElementById('sharedKnowledgePanel')" in source
+    assert "document.createElement('button')" not in source
+    assert "data.view='encyclopedia'" not in source
+    assert "section.id='encyclopedia'" not in source
+    assert "encyclopediaNavBtn')?.remove" in source
+
+
 def test_debug_ui_is_hidden_in_static_html_and_admin_entry_is_in_guide():
     html = (ROOT / "index.html").read_text(encoding="utf-8")
     assert 'id="adminAuthPanel"' in html

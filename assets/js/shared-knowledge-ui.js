@@ -5,37 +5,26 @@ const esc=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':
 let rendering=false;
 let lastSignature='';
 
-function activateView(button,viewId){
-  document.querySelectorAll('.view').forEach(view=>view.classList.toggle('active',view.id===viewId));
-  document.querySelectorAll('nav button').forEach(item=>item.classList.toggle('active',item===button));
-}
-
-function ensureEncyclopediaUi(){
-  const nav=document.querySelector('nav');
-  const main=document.querySelector('main');
-  if(!nav||!main)return false;
-  let button=document.getElementById('encyclopediaNavBtn');
-  if(!button){
-    button=document.createElement('button');
-    button.id='encyclopediaNavBtn';
-    button.dataset.view='encyclopedia';
-    button.textContent='資料百科';
-    nav.insertBefore(button,nav.querySelector('[data-view="guide"]')||null);
-    button.onclick=()=>activateView(button,'encyclopedia');
-  }
-  if(!document.getElementById('encyclopedia')){
-    const section=document.createElement('section');
-    section.id='encyclopedia';
-    section.className='view';
-    section.innerHTML=`<h2>資料百科</h2><h3>樹果與屬性對照</h3><p class="notice">樹果為共享參考資料，官方資訊優先，第三方資料僅作補充。</p><div class="table-wrap"><table id="berryMasterTable"></table></div>`;
-    main.insertBefore(section,document.getElementById('guide')||null);
+function ensureKnowledgeUi(){
+  const section=document.getElementById('knowledge');
+  const panel=document.getElementById('sharedKnowledgePanel');
+  if(!section||!panel)return false;
+  if(!document.getElementById('berryMasterTable')){
+    panel.classList.remove('loading-placeholder');
+    panel.innerHTML='<h3>樹果與屬性對照</h3><p class="notice">樹果為共享參考資料，官方資訊優先，第三方資料僅作補充。</p><div class="table-wrap"><table id="berryMasterTable"></table></div>';
   }
   return true;
 }
 
+function removeLegacyDuplicate(){
+  document.getElementById('encyclopediaNavBtn')?.remove();
+  document.getElementById('encyclopedia')?.remove();
+}
+
 function ensureReferenceUi(){
+  removeLegacyDuplicate();
   const section=document.getElementById('recipes');
-  if(!section||!ensureEncyclopediaUi())return false;
+  if(!section||!ensureKnowledgeUi())return false;
   const personalTable=document.getElementById('recipeTable');
   if(personalTable&&!document.getElementById('personalRecipeHeading')){
     const heading=document.createElement('h3');
@@ -103,13 +92,11 @@ export function renderSharedKnowledge(force=false){
     const reference=buildReferenceAnalysis(inventory);
     const personalWeekly=weeklyRecommendations(personal);
     const referenceWeekly=weeklyRecommendations(reference);
-    const signature=JSON.stringify({inventory,personal:personal.map(r=>[r.recipe_id,r.total_shortage]),reference:reference.map(r=>[r.recipe_id,r.total_shortage]),personalWeekly:[...personalWeekly],referenceWeekly:[...referenceWeekly]});
+    const signature=JSON.stringify({inventory,berries,personal:personal.map(r=>[r.recipe_id,r.total_shortage]),reference:reference.map(r=>[r.recipe_id,r.total_shortage]),personalWeekly:[...personalWeekly],referenceWeekly:[...referenceWeekly]});
     if(!force&&signature===lastSignature)return;
-
     table(document.getElementById('berryMasterTable'),berries,[
       {label:'屬性',key:'type_name'},{label:'樹果種類',key:'berry_name'},{label:'資料來源',key:'source_name'},{label:'核對日期',key:'verified_at'}
     ]);
-
     table(document.getElementById('recipeTable'),personal,[
       {label:'本週',render:r=>personalWeekly.has(r.recipe_id)?'<b>推薦</b>':'—'},
       {label:'分類',key:'category'},{label:'食譜',key:'recipe_name'},
@@ -118,7 +105,6 @@ export function renderSharedKnowledge(force=false){
       {label:'庫存判定',render:r=>inventoryStatus(r.requirements)},
       {label:'缺料',render:r=>shortageText(r.requirements)}
     ],r=>personalWeekly.has(r.recipe_id)?'weekly-recommended':'');
-
     table(document.getElementById('referenceRecipeTable'),reference,[
       {label:'本週',render:r=>referenceWeekly.has(r.recipe_id)?'<b>推薦</b>':'—'},
       {label:'分類',key:'category'},{label:'料理',key:'recipe_name'},
@@ -127,10 +113,19 @@ export function renderSharedKnowledge(force=false){
       {label:'庫存判定',render:r=>r.can_attempt?'<b>材料足夠，可嘗試</b>':(r.status==='near'?'接近可嘗試':'材料不足')},
       {label:'缺料',render:r=>shortageText(r.requirements)},{label:'來源',key:'source_name'}
     ],r=>referenceWeekly.has(r.recipe_id)?'weekly-recommended':'');
-
     lastSignature=signature;
-  }catch(error){console.warn('Shared knowledge render deferred',error);}finally{rendering=false;}
+  }catch(error){
+    console.warn('Shared knowledge render deferred',error);
+  }finally{rendering=false;}
 }
 
-function boot(){renderSharedKnowledge();setTimeout(renderSharedKnowledge,300);setTimeout(renderSharedKnowledge,1200);setInterval(renderSharedKnowledge,1500);document.querySelector('nav')?.addEventListener('click',()=>setTimeout(renderSharedKnowledge,100));document.addEventListener('pokemon-sleep-data-refreshed',renderSharedKnowledge);}
+function boot(){
+  removeLegacyDuplicate();
+  renderSharedKnowledge();
+  setTimeout(renderSharedKnowledge,300);
+  setTimeout(renderSharedKnowledge,1200);
+  setInterval(renderSharedKnowledge,1500);
+  document.querySelector('nav')?.addEventListener('click',()=>setTimeout(renderSharedKnowledge,100));
+  document.addEventListener('pokemon-sleep-data-refreshed',renderSharedKnowledge);
+}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
