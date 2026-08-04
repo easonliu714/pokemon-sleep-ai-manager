@@ -39,3 +39,13 @@ export function applyPublicEmptyProfileMaster(db){
   db.run(`INSERT OR REPLACE INTO settings(key,value_json,updated_at)
     VALUES('public_profile_contract',?,datetime('now'))`,[JSON.stringify({version:ITEM_MASTER_VERSION,personal_seed:false,player_tables_untouched:true,catalog_defaults:{quantity:0,recipe_unlocked:false},screenshot_verified_item_count:SCREENSHOT_VERIFIED_ITEMS.length})]);
 }
+
+// The commit gate is a browser-only controller. Dynamic loading here avoids a
+// database-module cycle while ensuring it registers before the later
+// multi-capture document-level transaction handler.
+if(typeof window!=='undefined'){
+  import('./canonical-commit-gate.js?v=20260804-v0379-canonical-commit-gate').catch((error)=>{
+    console.error('Canonical commit gate load failed',error);
+    globalThis.UpdateCenterLiveDebug?.record?.('canonical_commit_gate_load_failed',{message:error?.message||String(error)});
+  });
+}
