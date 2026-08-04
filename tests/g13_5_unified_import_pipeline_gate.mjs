@@ -4,7 +4,7 @@ const unified=fs.readFileSync('assets/js/unified-import-analysis-workbench.js','
 const entry=fs.readFileSync('assets/js/two-stage-forced-ocr-entry.js','utf8');
 const contract=fs.readFileSync('docs/UNIFIED_IMPORT_PIPELINE_CONTRACT.md','utf8');
 const required=[
-  [picker,'createImageArchive'],[picker,'archive.readImage'],[picker,"sourceType:zipFiles.length?'zip':'images'"],
+  [picker,'createImageArchive'],[picker,'async readImage'],[picker,"sourceType:zipFiles.length?'zip':'images'"],
   [picker,'enrichInventoryWithFingerprints'],[picker,'classifyInventoryWithOcr'],
   [unified,"const VERSION='v0.3.75'"],[unified,"value=\"ocr_ai\""],[unified,'GENERAL_SCALE=2'],[unified,'SMALL_TEXT_SCALE=4'],
   [unified,'runTwoStageOcr'],[unified,'runAi'],[unified,'executePreparedAiPayload'],[unified,'unified_pipeline_completed'],
