@@ -1,0 +1,13 @@
+name: G13.3B Analysis Confirmation Apply
+on:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  regression:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tests/g13_3b_analysis_confirmation_apply_gate.mjs
