@@ -1,0 +1,21 @@
+name: G13.5 Unified Import Pipeline
+on:
+  pull_request:
+  push:
+    branches:
+      - feat/v0375-unified-import-pipeline
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: |
+          node --check assets/js/android-import-file-picker.js
+          node --check assets/js/unified-import-analysis-workbench.js
+          node --check assets/js/two-stage-forced-ocr-entry.js
+      - name: Unified pipeline contract
+        run: node tests/g13_5_unified_import_pipeline_gate.mjs
