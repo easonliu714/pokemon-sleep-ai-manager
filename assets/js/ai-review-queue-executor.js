@@ -1,8 +1,48 @@
 import {executeWithProjectPool,hashCacheKey,readAiResultCache,writeAiResultCache} from './ai-project-pool-runtime.js';
 
-const EXECUTOR_SCHEMA='pokemon-sleep-ai-review-executor/1.1';
-const PROMPT_VERSION='pokemon-sleep-image-review/1.1';
-const DEFAULT_PROMPT='分析這張 Pokémon Sleep 截圖。只輸出 JSON，包含 screen_type、pokemon_name、level、sp、main_skill、sub_skills、nature、ingredients、confidence、uncertain_fields。無法確認的欄位使用 null，不要猜測。';
+const EXECUTOR_SCHEMA='pokemon-sleep-ai-review-executor/1.2';
+const PROMPT_VERSION='pokemon-sleep-image-review/1.2';
+const DEFAULT_PROMPT=`分析這張 Pokémon Sleep 遊戲截圖。只輸出單一 JSON 物件，不要 Markdown，不要補猜畫面中不存在的值。
+
+完整欄位：
+{
+  "screen_type": null,
+  "pokemon_name": null,
+  "nickname": null,
+  "level": null,
+  "sp": null,
+  "specialty": null,
+  "type": null,
+  "main_skill": {"name": null, "level": null, "description": null},
+  "sub_skills": [{"level": 10, "name": null, "unlocked": false}],
+  "nature": {"name": null, "up": null, "down": null},
+  "ingredients": [{"level": 1, "name": null, "count": null}],
+  "helper_seconds": null,
+  "carry_limit": null,
+  "favorite_berry": null,
+  "sleep_hours": null,
+  "sleep_time_text": null,
+  "evolution_requirements": {
+    "level_required": null,
+    "sleep_hours_required": null,
+    "candy_required": null,
+    "item_required": null,
+    "other": null
+  },
+  "obtained_at": null,
+  "is_favorite": null,
+  "confidence": null,
+  "uncertain_fields": [],
+  "field_evidence": {}
+}
+
+規則：
+1. 畫面沒有顯示的欄位一律使用 null 或空陣列，不可由遊戲常識猜補。
+2. 共眠時間必須同時保留可解析數值 sleep_hours 與原畫面 sleep_time_text；例如「2756 小時 30 分」可轉為 2756.5。
+3. 食材層級固定優先辨識 Lv1、Lv30、Lv60；副技能層級固定優先辨識 Lv10、Lv25、Lv50、Lv70、Lv80。
+4. nature 必須是物件，禁止輸出 [object Object] 可造成的未結構化值。
+5. field_evidence 以欄位名稱對應畫面短文字，供人工覆核；不要放圖片或敏感資訊。
+6. 同一張畫面可能只提供部分欄位，保留 partial observation。`;
 const itemId=item=>String(item?.sha256||item?.source_image_ref||item?.path||'');
 const itemPath=item=>String(item?.path||item?.source_image_ref||'');
 function extractJson(payload){const text=payload?.candidates?.[0]?.content?.parts?.map(part=>part.text||'').join('\n')||'';const cleaned=text.replace(/^```json\s*/i,'').replace(/```$/,'').trim();try{return JSON.parse(cleaned);}catch{return {raw_text:cleaned,parse_failed:true};}}
