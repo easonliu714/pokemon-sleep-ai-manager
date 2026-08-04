@@ -1,0 +1,21 @@
+name: G14 Backup Truth Restore Verification
+
+on:
+  push:
+    branches:
+      - feat/v0377a-backup-truth-restore-verification
+      - main
+  pull_request:
+
+jobs:
+  backup-truth-restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Static contract gate
+        run: python tests/test_g14_backup_truth_restore.py
+      - name: JavaScript syntax
+        run: node --check assets/js/backup-truth-restore.js
