@@ -19,16 +19,9 @@ export function applyPublicEmptyProfileMaster(db){
       verified_at=excluded.verified_at,data_version=excluded.data_version`,[name,category,...meta]);
   }
 
-  // Player-facing tables receive only neutral defaults. INSERT OR IGNORE keeps
-  // every existing user's local quantities and unlock choices intact.
-  db.run(`INSERT OR IGNORE INTO ingredient_inventory(ingredient_name,quantity,updated_at,source_update_id)
-    SELECT ingredient_name,0,datetime('now'),'PUBLIC-EMPTY-PROFILE' FROM ingredient_master`);
-  db.run(`INSERT OR IGNORE INTO item_inventory(item_name,quantity,safe_reserve,recommendation,updated_at,source_update_id)
-    SELECT item_name,0,0,NULL,datetime('now'),'PUBLIC-EMPTY-PROFILE' FROM item_master`);
-  db.run(`INSERT OR IGNORE INTO recipes(recipe_id,category,recipe_name,unlocked,total_ingredients,source)
-    SELECT recipe_id,category,recipe_name,0,total_ingredients,'PUBLIC-MASTER' FROM recipe_master`);
-  db.run(`INSERT OR IGNORE INTO recipe_ingredients(recipe_id,ingredient_name,quantity)
-    SELECT recipe_id,ingredient_name,quantity FROM recipe_master_ingredients`);
+  // Public master loading must never create or mutate player-owned inventory,
+  // recipe unlock, capacity or Pokémon rows. Neutral 0/locked projections are
+  // exposed through read-only catalog views defined in shared-master-schema.js.
   db.run(`INSERT OR REPLACE INTO settings(key,value_json,updated_at)
-    VALUES('public_profile_contract',?,datetime('now'))`,[JSON.stringify({version:ITEM_MASTER_VERSION,personal_seed:false,default_quantities:0,default_recipe_unlocked:false})]);
+    VALUES('public_profile_contract',?,datetime('now'))`,[JSON.stringify({version:ITEM_MASTER_VERSION,personal_seed:false,player_tables_untouched:true,catalog_defaults:{quantity:0,recipe_unlocked:false}})]);
 }
