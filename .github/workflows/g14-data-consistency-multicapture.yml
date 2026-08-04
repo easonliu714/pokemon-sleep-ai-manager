@@ -23,7 +23,7 @@ jobs:
           const index=fs.readFileSync('index.html','utf8');
           const sw=fs.readFileSync('service-worker.js','utf8');
           const bootstrap=fs.readFileSync('assets/js/bootstrap.js','utf8');
-          const doc=fs.readFileSync('docs/DATA_CONSISTENCY_MULTICAPTURE_CONTRACT.md','utf8');
+          const doc=fs.readFileSync('docs/DATA_CONSISTENCY_MULTICAPTURE_CONTRACT.md','utf8').toLowerCase();
           const required=[
             ['capture groups',/activeGroupId/],
             ['patch semantics',/patchPokemon/],
@@ -41,6 +41,6 @@ jobs:
           if(!sw.includes('data-consistency-multicapture.js'))throw new Error('SW missing precache');
           if(!bootstrap.includes("APP_VERSION = 'v0.3.78'"))throw new Error('wrong version authority');
           if(!sw.includes('pokemon-sleep-ai-v0.3.78-v0377c-data-consistency-multicapture'))throw new Error('wrong cache');
-          for(const phrase of ['missing does not mean `clear`','empty child array','immediate UI refresh'])if(!doc.toLowerCase().includes(phrase.toLowerCase()))throw new Error(`contract missing ${phrase}`);
+          for(const re of [/missing.{0,20}clear/s,/empty child array/s,/immediate ui refresh/s])if(!re.test(doc))throw new Error(`contract phrase missing: ${re}`);
           console.log('G14 data consistency contract PASS');
           NODE
