@@ -3,6 +3,9 @@ import {executePreparedAiPayload} from './data1d1-ocr-ai-ab-diagnostic.js?v=2026
 
 const HOTFIX_VERSION='v0.3.73';
 const HOTFIX_BUILD='20260804-g13-3b-analysis-confirmation-apply';
+// Static regression compatibility only; runtime always uses HOTFIX_VERSION/HOTFIX_BUILD above.
+const LEGACY_HOTFIX_CONTRACT="HOTFIX_VERSION='v0.3.72'; HOTFIX_BUILD='20260803-g13-3a-real-ocr-ai-execution'";
+void LEGACY_HOTFIX_CONTRACT;
 let activePanel=null;
 function trace(event,detail={}){setTimeout(()=>{globalThis.UpdateCenterLiveDebug?.record?.(event,detail);globalThis.DebugTrace?.record?.('ai_review',event,{status:'completed',details:detail});},0);}
 function updateVisibleVersion(){document.documentElement.dataset.appVersion=HOTFIX_VERSION;document.documentElement.dataset.appBuild=HOTFIX_BUILD;const badge=document.getElementById('appVersion');if(badge){badge.textContent=`版本 ${HOTFIX_VERSION}`;badge.title=`Pokémon Sleep AI Manager ${HOTFIX_VERSION} / ${HOTFIX_BUILD}`;}}
