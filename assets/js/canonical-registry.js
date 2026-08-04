@@ -18,8 +18,6 @@ const INGREDIENT_ALIASES={
   '豆製火腿':'豆製肉',
 };
 
-function q(value){return String(value).replaceAll("'","''");}
-
 export function applyCanonicalRegistry(db){
   db.run(`CREATE TABLE IF NOT EXISTS game_data_release(
     release_id TEXT PRIMARY KEY,
@@ -72,11 +70,11 @@ export function applyCanonicalRegistry(db){
     ['berry','berry_master','berry_name'],
   ];
   for(const [entity,table,column] of masters){
-    const rows=[];
+    const values=[];
     const statement=db.prepare(`SELECT ${column} AS name,source_type,source_ref,verified_at FROM ${table}`);
-    while(statement.step()) rows.push(statement.getAsObject());
+    while(statement.step()) values.push(statement.getAsObject());
     statement.free();
-    for(const row of rows){
+    for(const row of values){
       const termId=`${entity}:${String(row.name).normalize('NFKC').toLowerCase().replace(/\s+/g,'-')}`;
       db.run(`INSERT INTO canonical_term(term_id,entity_type,canonical_name_zh_tw,game_release_id,is_active,verification_status,data_version)
         VALUES(?,?,?,?,1,?,?) ON CONFLICT(term_id) DO UPDATE SET canonical_name_zh_tw=excluded.canonical_name_zh_tw,
@@ -97,25 +95,25 @@ export function applyCanonicalRegistry(db){
       VALUES(?,?,?,?,?,?,?,?)`,[`alias:ingredient:${alias}`,termId,alias,'ocr_ai_confusion','zh-Hant',safe?1:0.9,safe,'manual_verified_from_game_screenshot']);
   }
   db.run(`INSERT OR REPLACE INTO settings(key,value_json,updated_at) VALUES('canonical_registry_version',?,datetime('now'))`,[JSON.stringify(CANONICAL_REGISTRY_VERSION)]);
-  db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(7,datetime('now'))`);
+  db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(6,datetime('now'))`);
 }
 
 export function resolveCanonicalTerm(db,{entityType,rawValue}){
   const raw=String(rawValue??'').normalize('NFKC').trim();
   if(!raw) return {raw_value:raw,canonical_value:'',resolution:'EMPTY',confidence:0,requires_review:true};
-  let s=db.prepare(`SELECT term_id,canonical_name_zh_tw FROM canonical_term WHERE entity_type=? AND canonical_name_zh_tw=? AND is_active=1`);
-  s.bind([entityType,raw]);
-  if(s.step()){
-    const row=s.getAsObject();s.free();
+  let statement=db.prepare(`SELECT term_id,canonical_name_zh_tw FROM canonical_term WHERE entity_type=? AND canonical_name_zh_tw=? AND is_active=1`);
+  statement.bind([entityType,raw]);
+  if(statement.step()){
+    const row=statement.getAsObject();statement.free();
     return {raw_value:raw,canonical_value:row.canonical_name_zh_tw,term_id:row.term_id,resolution:'CANONICAL_EXACT',confidence:1,requires_review:false};
   }
-  s.free();
-  s=db.prepare(`SELECT t.term_id,t.canonical_name_zh_tw,a.confidence,a.is_auto_replace_safe FROM canonical_term_alias a JOIN canonical_term t ON t.term_id=a.term_id WHERE t.entity_type=? AND a.alias_text=? AND a.locale='zh-Hant' AND t.is_active=1`);
-  s.bind([entityType,raw]);
-  if(s.step()){
-    const row=s.getAsObject();s.free();
+  statement.free();
+  statement=db.prepare(`SELECT t.term_id,t.canonical_name_zh_tw,a.confidence,a.is_auto_replace_safe FROM canonical_term_alias a JOIN canonical_term t ON t.term_id=a.term_id WHERE t.entity_type=? AND a.alias_text=? AND a.locale='zh-Hant' AND t.is_active=1`);
+  statement.bind([entityType,raw]);
+  if(statement.step()){
+    const row=statement.getAsObject();statement.free();
     return {raw_value:raw,canonical_value:row.canonical_name_zh_tw,term_id:row.term_id,resolution:row.is_auto_replace_safe?'CANONICAL_ALIAS_SAFE':'CANONICAL_ALIAS_REVIEW',confidence:Number(row.confidence||0),requires_review:!row.is_auto_replace_safe};
   }
-  s.free();
+  statement.free();
   return {raw_value:raw,canonical_value:'',resolution:'CANONICAL_UNKNOWN',confidence:0,requires_review:true};
 }
