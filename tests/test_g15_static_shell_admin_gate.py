@@ -27,6 +27,13 @@ def test_debug_ui_is_hidden_by_default_and_admin_entry_is_in_guide():
     assert "admin-auth.js" in html
 
 
+def test_identity_review_remains_a_general_user_tool():
+    source = (ROOT / "assets/js/admin-auth.js").read_text(encoding="utf-8")
+    assert "const DEBUG_LABELS=new Set(['診斷中心']);" in source
+    assert "['診斷中心','身份覆核']" not in source
+    assert "寶可夢身份覆核等一般工具不需要管理登入" in source
+
+
 def test_local_admin_auth_uses_non_reversible_hash_and_session_scope():
     source = (ROOT / "assets/js/admin-auth.js").read_text(encoding="utf-8")
     assert "PBKDF2" in source
