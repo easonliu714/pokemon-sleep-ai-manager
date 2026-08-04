@@ -1,0 +1,46 @@
+name: G14 Data Consistency Multi-Capture
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: node --check assets/js/data-consistency-multicapture.js
+      - name: Contract assertions
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const js=fs.readFileSync('assets/js/data-consistency-multicapture.js','utf8');
+          const index=fs.readFileSync('index.html','utf8');
+          const sw=fs.readFileSync('service-worker.js','utf8');
+          const bootstrap=fs.readFileSync('assets/js/bootstrap.js','utf8');
+          const doc=fs.readFileSync('docs/DATA_CONSISTENCY_MULTICAPTURE_CONTRACT.md','utf8');
+          const required=[
+            ['capture groups',/activeGroupId/],
+            ['patch semantics',/patchPokemon/],
+            ['no empty child replacement',/if\(draft\.subskills\.length\)/],
+            ['ingredient preservation',/if\(draft\.ingredients\.length\)/],
+            ['data changed event',/pokemon-sleep:data-changed/],
+            ['immediate refresh',/refreshPokemonUi/],
+            ['object string guard',/object Object/],
+            ['snapshot',/before_multicapture_confirmation/],
+            ['transaction',/begin\(\).*commit\(\)/s],
+            ['history source refs',/source_refs/],
+          ];
+          for(const [name,re] of required)if(!re.test(js))throw new Error(`missing ${name}`);
+          if(!index.includes('data-consistency-multicapture.js'))throw new Error('index missing module');
+          if(!sw.includes('data-consistency-multicapture.js'))throw new Error('SW missing precache');
+          if(!bootstrap.includes("APP_VERSION = 'v0.3.78'"))throw new Error('wrong version authority');
+          if(!sw.includes('pokemon-sleep-ai-v0.3.78-v0377c-data-consistency-multicapture'))throw new Error('wrong cache');
+          for(const phrase of ['missing does not mean `clear`','empty child array','immediate UI refresh'])if(!doc.toLowerCase().includes(phrase.toLowerCase()))throw new Error(`contract missing ${phrase}`);
+          console.log('G14 data consistency contract PASS');
+          NODE
