@@ -1,7 +1,7 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.73-g13-3b-analysis-confirmation-apply';
+const CACHE = 'pokemon-sleep-ai-v0.3.68-g13-2j-android-raf-timeout-fallback';
 const PREVIOUS_CACHE_COMPATIBILITY_MARKERS = [
+  'pokemon-sleep-ai-v0.3.73-g13-3b-analysis-confirmation-apply',
   'pokemon-sleep-ai-v0.3.72-g13-3a-real-ocr-ai-execution',
-  'pokemon-sleep-ai-v0.3.68-g13-2j-android-raf-timeout-fallback',
   'pokemon-sleep-ai-v0.3.67-g13-2i-progressive-ai-review-bootstrap'
 ];
 void PREVIOUS_CACHE_COMPATIBILITY_MARKERS;
