@@ -1,5 +1,9 @@
-const CACHE = 'pokemon-sleep-ai-v0.3.79-v0379-canonical-public-catalog';
+const APP_VERSION = 'v0.3.80';
+const APP_BUILD = '20260804-v0380-static-shell-admin-debug-gate';
+const CACHE = 'pokemon-sleep-ai-v0.3.80-v0380-static-shell-admin-debug-gate';
+
 const PREVIOUS_CACHE_COMPATIBILITY_MARKERS = [
+  'pokemon-sleep-ai-v0.3.79-v0379-canonical-public-catalog',
   'pokemon-sleep-ai-v0.3.78-v0377c-data-consistency-multicapture',
   'pokemon-sleep-ai-v0.3.77-v0377a-backup-truth-restore-verification',
   'pokemon-sleep-ai-v0.3.76-v0376-version-authority-hotfix',
@@ -17,6 +21,7 @@ const PREVIOUS_CACHE_COMPATIBILITY_MARKERS = [
   'pokemon-sleep-ai-v0.3.64-g13-2f-region-ai-review-deferred'
 ];
 void PREVIOUS_CACHE_COMPATIBILITY_MARKERS;
+
 const ASSETS = [
   './','./index.html','./manifest.webmanifest','./assets/css/app.css','./assets/css/editor.css',
   './assets/js/bootstrap.js','./assets/js/runtime-version.js','./assets/js/debug-trace-manager.js','./assets/js/app.js','./assets/js/database.js','./assets/js/storage.js','./assets/js/backup-truth-restore.js','./assets/js/data-consistency-multicapture.js','./assets/js/public-catalog-workbench.js',
@@ -26,6 +31,42 @@ const ASSETS = [
   './assets/js/update-center-ui-guard.js','./assets/js/update-center-live-debug.js','./assets/js/shared-master-schema.js','./assets/js/shared-master-data.js','./assets/js/public-empty-profile-master.js','./assets/js/canonical-registry.js','./assets/js/shared-knowledge-ui.js','./assets/js/recipe-render-guard.js','./assets/icons/icon.svg',
   'https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/sql-wasm.js','https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/sql-wasm.wasm','https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js','https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'
 ];
-self.addEventListener('install',(event)=>{event.waitUntil(caches.open(CACHE).then((cache)=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));});
-self.addEventListener('activate',(event)=>{event.waitUntil(caches.keys().then((keys)=>Promise.all(keys.filter((key) => key !== CACHE).map((key)=>caches.delete(key)))).then(()=>self.clients.claim()).then(()=>self.clients.matchAll({type:'window',includeUncontrolled:true})).then((clients)=>Promise.all(clients.map((client)=>client.postMessage({type:'pokemon-sleep-version-activated',app_version:'v0.3.79',build:'20260804-v0379-canonical-public-catalog'})))));});
-self.addEventListener('fetch',(event)=>{if(event.request.method!=='GET')return;const url=new URL(event.request.url);const sameOrigin=url.origin===self.location.origin;const versionAuthorityAsset=sameOrigin&&(url.pathname.endsWith('/index.html')||url.pathname.endsWith('/bootstrap.js')||url.pathname.endsWith('/service-worker.js'));const networkFirst=sameOrigin&&(event.request.mode==='navigate'||url.pathname.endsWith('.js')||url.pathname.endsWith('.html'));if(versionAuthorityAsset||networkFirst){event.respondWith(fetch(event.request,{cache:'no-store'}).then((response)=>{const copy=response.clone();caches.open(CACHE).then((cache)=>cache.put(event.request,copy));return response;}).catch(()=>caches.match(event.request).then((hit)=>hit||caches.match('./index.html'))));return;}event.respondWith(caches.match(event.request).then((hit)=>hit||fetch(event.request).then((response)=>{const copy=response.clone();caches.open(CACHE).then((cache)=>cache.put(event.request,copy));return response;})));});
+
+self.addEventListener('install',(event)=>{
+  event.waitUntil(caches.open(CACHE).then((cache)=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));
+});
+
+self.addEventListener('activate',(event)=>{
+  event.waitUntil(
+    caches.keys()
+      .then((keys)=>Promise.all(keys.filter((key) => key !== CACHE).map((key)=>caches.delete(key))))
+      .then(()=>self.clients.claim())
+      .then(()=>self.clients.matchAll({type:'window',includeUncontrolled:true}))
+      .then((clients)=>Promise.all(clients.map((client)=>client.postMessage({
+        type:'pokemon-sleep-version-activated',
+        app_version:APP_VERSION,
+        build:APP_BUILD
+      }))))
+  );
+});
+
+self.addEventListener('fetch',(event)=>{
+  if(event.request.method!=='GET')return;
+  const url=new URL(event.request.url);
+  const sameOrigin=url.origin===self.location.origin;
+  const versionAuthorityAsset=sameOrigin&&(url.pathname.endsWith('/index.html')||url.pathname.endsWith('/bootstrap.js')||url.pathname.endsWith('/service-worker.js'));
+  const networkFirst=sameOrigin&&(event.request.mode==='navigate'||url.pathname.endsWith('.js')||url.pathname.endsWith('.html'));
+  if(versionAuthorityAsset||networkFirst){
+    event.respondWith(fetch(event.request,{cache:'no-store'}).then((response)=>{
+      const copy=response.clone();
+      caches.open(CACHE).then((cache)=>cache.put(event.request,copy));
+      return response;
+    }).catch(()=>caches.match(event.request).then((hit)=>hit||caches.match('./index.html'))));
+    return;
+  }
+  event.respondWith(caches.match(event.request).then((hit)=>hit||fetch(event.request).then((response)=>{
+    const copy=response.clone();
+    caches.open(CACHE).then((cache)=>cache.put(event.request,copy));
+    return response;
+  })));
+});

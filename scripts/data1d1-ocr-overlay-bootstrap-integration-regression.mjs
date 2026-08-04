@@ -73,7 +73,11 @@ for(const moduleName of overlayModules){
 const cacheBuildSuffix=build.replace(/^\d{8}-/,'');
 assert.equal(cacheName,`pokemon-sleep-ai-${appVersion}-${cacheBuildSuffix}`,'service_worker_version_mismatch');
 assert.doesNotMatch(overlayBootstrap,/fetch\s*\(|XMLHttpRequest|localStorage|sessionStorage/);
-assert.match(bootstrap,/if\(globalThis\.OcrOverlayUpdateCenterBootstrap\|\|!document\.querySelector\('#ocrThumbnailOverlaySlot'\)\)return;/);
+assert.match(
+  bootstrap,
+  /if\s*\(\s*globalThis\.OcrOverlayUpdateCenterBootstrap\s*\|\|\s*!document\.querySelector\(\s*'#ocrThumbnailOverlaySlot'\s*\)\s*\)\s*return\s*;/,
+  'overlay bootstrap must use the existing-instance or missing-host early return'
+);
 
 console.log(JSON.stringify({
   ok:true,
