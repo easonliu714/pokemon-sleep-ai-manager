@@ -15,7 +15,8 @@ applyAllMigrations(db);
 db.run(`INSERT INTO recipes(recipe_id,category,recipe_name,unlocked,total_ingredients,source,recipe_level,current_energy,updated_at,notes)
   VALUES('PERSONAL-C-001','甜點','個人測試料理',1,25,'game-screen',33,9876,'2026-07-31T00:00:00+08:00','玩家備註')`);
 db.run(`INSERT INTO recipe_ingredients(recipe_id,ingredient_name,quantity) VALUES('PERSONAL-C-001','甜甜蜜',15),('PERSONAL-C-001','哞哞鮮奶',10)`);
-db.run(`UPDATE ingredient_inventory SET quantity=77,source_update_id='PERSONAL-INVENTORY' WHERE ingredient_name='甜甜蜜'`);
+db.run(`INSERT INTO ingredient_inventory(ingredient_name,quantity,updated_at,source_update_id)
+  VALUES('甜甜蜜',77,'2026-07-31T00:00:00+08:00','PERSONAL-INVENTORY')`);
 
 function rows(sql){
   const statement=db.prepare(sql);

@@ -1,6 +1,5 @@
 import {loadDatabaseBytes,saveDatabaseBytes,createSnapshot} from './storage.js';
 import {DDL,SEED_SQL} from './schema.js';
-import {applyG2ASeed} from './seed-data.js';
 import {applyAllMigrations} from './migrations.js';
 let SQL=null,db=null;
 
@@ -12,8 +11,8 @@ export async function initializeDatabase(){
   db.run(DDL);
   if((scalar('SELECT COUNT(*) FROM schema_migrations')||0)===0) db.run(SEED_SQL);
   applyAllMigrations(db);
-  const seeded=applyG2ASeed(db);
   await persist();
+  const seeded=false;
   return {seeded};
 }
 export function rows(sql,params=[]){const s=db.prepare(sql);s.bind(params);const out=[];while(s.step())out.push(s.getAsObject());s.free();return out;}
@@ -29,7 +28,6 @@ export async function replaceDatabase(bytes){
   if(!check.length||check[0].integrity_check!=='ok') throw new Error('SQLite integrity_check 未通過');
   db.run(DDL);
   applyAllMigrations(db);
-  applyG2ASeed(db);
   await persist();
 }
 export function begin(){run('BEGIN IMMEDIATE');}

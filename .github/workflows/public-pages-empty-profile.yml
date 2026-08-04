@@ -1,0 +1,56 @@
+name: Public Pages Empty Player Profile
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  privacy-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify public/private data separation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          seed = Path('assets/js/seed-data.js').read_text(encoding='utf-8')
+          schema = Path('assets/js/schema.js').read_text(encoding='utf-8')
+          database = Path('assets/js/database.js').read_text(encoding='utf-8')
+          defaults = Path('assets/js/public-empty-profile-master.js').read_text(encoding='utf-8')
+          shared = Path('assets/js/shared-master-data.js').read_text(encoding='utf-8')
+          master_schema = Path('assets/js/shared-master-schema.js').read_text(encoding='utf-8')
+
+          required = {
+              'empty Pokémon seed': 'CORE_POKEMON=Object.freeze([])' in seed,
+              'empty item seed': 'CORE_ITEMS=Object.freeze([])' in seed,
+              'no private seed call': 'applyG2ASeed' not in database,
+              'no capacity seed': 'INSERT OR IGNORE INTO account_capacity' not in schema,
+              'no ingredient quantity seed': 'SEED-PHASE-A' not in schema,
+              'player tables untouched': 'player_tables_untouched:true' in defaults,
+              'ingredient zero-state view': 'CREATE VIEW IF NOT EXISTS ingredient_catalog_state' in master_schema and 'COALESCE(i.quantity,0)' in master_schema,
+              'item zero-state view': 'CREATE VIEW IF NOT EXISTS item_catalog_state' in master_schema and 'COALESCE(i.safe_reserve,0)' in master_schema,
+              'recipe locked-state view': 'CREATE VIEW IF NOT EXISTS recipe_catalog_state' in master_schema and 'COALESCE(r.unlocked,0)' in master_schema,
+              'canonical ingredients retained': 'const INGREDIENTS' in shared,
+              'canonical berries retained': 'const BERRIES' in shared,
+              'canonical recipes retained': 'const RECIPES' in shared,
+              'canonical item master exists': 'CREATE TABLE IF NOT EXISTS item_master' in master_schema,
+          }
+          failed = [name for name, ok in required.items() if not ok]
+          if failed:
+              raise SystemExit('Public profile privacy contract failed: ' + ', '.join(failed))
+
+          forbidden = [
+              "['pkm_latios_b'", "['pkm_altaria'", "['pkm_typhlosion'",
+              "ingredient_bag',380,292", "item_bag',220,174", "pokemon_box',120,75",
+              'INSERT OR IGNORE INTO ingredient_inventory',
+              'INSERT OR IGNORE INTO item_inventory',
+              'INSERT OR IGNORE INTO recipes',
+          ]
+          corpus = seed + '\n' + schema + '\n' + defaults
+          leaked = [value for value in forbidden if value in corpus]
+          if leaked:
+              raise SystemExit('Private seed or player-table mutation remains in current source: ' + ', '.join(leaked))
+          print('PASS: public Pages exposes canonical masters through zero-state views and leaves player tables empty')
+          PY

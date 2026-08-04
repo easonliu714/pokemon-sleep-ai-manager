@@ -1,5 +1,6 @@
 import {applySharedMasterSchema} from './shared-master-schema.js';
 import {applySharedMasterData} from './shared-master-data.js';
+import {applyPublicEmptyProfileMaster} from './public-empty-profile-master.js';
 
 function rows(db,sql,params=[]){
   const statement=db.prepare(sql);
@@ -74,9 +75,14 @@ export function applyPersonalRecipeMigration(db){
   db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(5,datetime('now'))`);
 }
 
+export function applyPublicProfileContract(db){
+  applyPublicEmptyProfileMaster(db);
+}
+
 export function applyAllMigrations(db){
   applyIdentityMigration(db);
   applyGameDataMigration(db);
   applySharedKnowledgeBase(db);
   applyPersonalRecipeMigration(db);
+  applyPublicProfileContract(db);
 }
