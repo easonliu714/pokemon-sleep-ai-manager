@@ -10,7 +10,7 @@ assert.match(bootstrap,/const VERSION = '20260804-v0376-version-authority-hotfix
 assert.match(bootstrap,/version_authority_repaired/);
 assert.match(bootstrap,/MutationObserver/);
 assert.match(bootstrap,/unified-import-analysis-workbench\.js/);
-assert.match(worker,/pokemon-sleep-ai-v0\.3\.76-version-authority-hotfix/);
+assert.match(worker,/pokemon-sleep-ai-v0\.3\.76-v0376-version-authority-hotfix/);
 assert.match(worker,/pokemon-sleep-version-activated/);
 assert.match(worker,/cache:'no-store'/);
 assert.match(worker,/keys\.filter\(\(key\) => key !== CACHE\)/);
