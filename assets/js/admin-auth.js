@@ -1,7 +1,8 @@
 const CONFIG_KEY='pokemon-sleep-local-admin-auth/1.0';
 const SESSION_KEY='pokemon-sleep-local-admin-session/1.0';
 const ITERATIONS=210000;
-const DEBUG_LABELS=new Set(['診斷中心','身份覆核']);
+// Only true diagnostics are admin-gated. Identity review is a normal player data-governance tool.
+const DEBUG_LABELS=new Set(['診斷中心']);
 let authenticated=sessionStorage.getItem(SESSION_KEY)==='authenticated';
 let observer=null;
 
@@ -49,7 +50,7 @@ function renderAdminPanel(){
     host.querySelector('#adminLogoutBtn').onclick=()=>{sessionStorage.removeItem(SESSION_KEY);authenticated=false;applyGate();renderAdminPanel();};
     return;
   }
-  host.innerHTML=`<h3>進階管理模式</h3><p class="notice">管理密碼只在此裝置保存不可逆雜湊，不會寫入備份 JSON、GitHub 或除錯紀錄。登入只維持目前分頁工作階段。</p>
+  host.innerHTML=`<h3>進階管理模式</h3><p class="notice">管理密碼只在此裝置保存不可逆雜湊，不會寫入備份 JSON、GitHub 或除錯紀錄。登入只維持目前分頁工作階段。寶可夢身份覆核等一般工具不需要管理登入。</p>
   <form id="adminAuthForm" class="edit-grid">
     <label class="edit-field"><span>${config?'管理密碼':'建立管理密碼'}</span><input name="password" type="password" autocomplete="current-password" minlength="8" required></label>
     ${config?'':'<label class="edit-field"><span>再次確認</span><input name="confirm" type="password" autocomplete="new-password" minlength="8" required></label>'}
