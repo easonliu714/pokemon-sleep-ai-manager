@@ -25,6 +25,9 @@ export async function saveAnalysisRevision({imageSha256,sourceImageRef=null,anal
   const record={analysis_id:uuid(),image_sha256:imageSha256,source_image_ref:sourceImageRef,analysis_type:analysisType,revision_no:Number(previous?.revision_no||0)+1,forced:forced?1:0,provider,model,prompt_version:promptVersion,region_preset:regionPreset,result_json:JSON.stringify(result??null),created_at:new Date().toISOString(),supersedes_analysis_id:previous?.analysis_id||null};
   await snapshot(`before_analysis_revision_${analysisType}`);
   run('INSERT INTO image_analysis_revision (analysis_id,image_sha256,source_image_ref,analysis_type,revision_no,forced,provider,model,prompt_version,region_preset,result_json,created_at,supersedes_analysis_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',[record.analysis_id,record.image_sha256,record.source_image_ref,record.analysis_type,record.revision_no,record.forced,record.provider,record.model,record.prompt_version,record.region_preset,record.result_json,record.created_at,record.supersedes_analysis_id]);
-  await persist();return {...record,result};
+  await persist();
+  const completed={...record,result};
+  globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:analysis-revision-saved',{detail:completed}));
+  return completed;
 }
 export {TABLE_SQL};

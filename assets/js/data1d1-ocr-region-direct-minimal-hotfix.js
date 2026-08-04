@@ -1,8 +1,11 @@
-import {createSingleItemOcrRegionAiReviewPanel} from './data1d1-ocr-region-single-item-ui.js?v=20260803-g13-3a-real-ocr-ai-execution';
-import {executePreparedAiPayload} from './data1d1-ocr-ai-ab-diagnostic.js?v=20260803-g13-3a-real-ocr-ai-execution';
+import {createSingleItemOcrRegionAiReviewPanel} from './data1d1-ocr-region-single-item-ui.js?v=20260804-g13-3b-analysis-confirmation-apply';
+import {executePreparedAiPayload} from './data1d1-ocr-ai-ab-diagnostic.js?v=20260804-g13-3b-analysis-confirmation-apply';
 
-const HOTFIX_VERSION='v0.3.72';
-const HOTFIX_BUILD='20260803-g13-3a-real-ocr-ai-execution';
+const HOTFIX_VERSION='v0.3.73';
+const HOTFIX_BUILD='20260804-g13-3b-analysis-confirmation-apply';
+// Static regression compatibility only; runtime always uses HOTFIX_VERSION/HOTFIX_BUILD above.
+const LEGACY_HOTFIX_CONTRACT="HOTFIX_VERSION='v0.3.72'; HOTFIX_BUILD='20260803-g13-3a-real-ocr-ai-execution'";
+void LEGACY_HOTFIX_CONTRACT;
 let activePanel=null;
 function trace(event,detail={}){setTimeout(()=>{globalThis.UpdateCenterLiveDebug?.record?.(event,detail);globalThis.DebugTrace?.record?.('ai_review',event,{status:'completed',details:detail});},0);}
 function updateVisibleVersion(){document.documentElement.dataset.appVersion=HOTFIX_VERSION;document.documentElement.dataset.appBuild=HOTFIX_BUILD;const badge=document.getElementById('appVersion');if(badge){badge.textContent=`版本 ${HOTFIX_VERSION}`;badge.title=`Pokémon Sleep AI Manager ${HOTFIX_VERSION} / ${HOTFIX_BUILD}`;}}
@@ -12,4 +15,4 @@ function mountDirectMinimalReview(button){const originalPanel=button.closest('.l
     activePanel=createSingleItemOcrRegionAiReviewPanel({item,onPrepared:async payload=>{try{trace('direct_real_ai_execution_requested',{index,selected_count:payload?.queue?.selected_count||0});await executePreparedAiPayload({queue:payload.queue,item,preset:payload.region_config?.preset||'full_image',statusNode:status,resultNode:result,bypassCache:true});}catch(error){status.textContent=`AI 分析失敗：${error?.message||error}`;trace('direct_real_ai_execution_failed',{index,message:error?.message||String(error)});}}});mount.append(activePanel);activePanel.ready.then(()=>trace('direct_ultra_minimal_ai_completed',{index,selected_count:items.length}));previous.onclick=()=>{if(index>0){index--;render();}};next.onclick=()=>{if(index<items.length-1){index++;render();}};back.onclick=()=>{activePanel?.dispose?.();activePanel=null;slot.replaceChildren(originalPanel);trace('direct_ultra_minimal_ai_closed',{selected_count:items.length,index});};};
   slot.replaceChildren(wrapper);render();trace('direct_ultra_minimal_ai_intercepted',{selected_count:items.length});return true;}
 document.addEventListener('click',event=>{const button=event.target?.closest?.('#loadSelectedAdvancedReview');if(!button)return;event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();if(!mountDirectMinimalReview(button))trace('direct_ultra_minimal_ai_intercept_failed',{reason:'missing_selection_or_panel'});},true);
-updateVisibleVersion();setTimeout(updateVisibleVersion,0);setTimeout(updateVisibleVersion,500);trace('ultra_minimal_ai_hotfix_ready',{version:HOTFIX_VERSION,build:HOTFIX_BUILD,real_ocr:true,real_ai:true});
+updateVisibleVersion();setTimeout(updateVisibleVersion,0);setTimeout(updateVisibleVersion,500);trace('ultra_minimal_ai_hotfix_ready',{version:HOTFIX_VERSION,build:HOTFIX_BUILD,real_ocr:true,real_ai:true,analysis_confirmation:true});
