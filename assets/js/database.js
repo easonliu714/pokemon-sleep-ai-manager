@@ -12,7 +12,8 @@ export async function initializeDatabase(){
   if((scalar('SELECT COUNT(*) FROM schema_migrations')||0)===0) db.run(SEED_SQL);
   applyAllMigrations(db);
   await persist();
-  return {seeded:false,public_empty_profile:!bytes};
+  const seeded=false;
+  return {seeded};
 }
 export function rows(sql,params=[]){const s=db.prepare(sql);s.bind(params);const out=[];while(s.step())out.push(s.getAsObject());s.free();return out;}
 export function scalar(sql,params=[]){const r=rows(sql,params);return r.length?Object.values(r[0])[0]:null;}
