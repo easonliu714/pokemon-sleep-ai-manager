@@ -1,15 +1,22 @@
-import {debugTrace} from './debug-trace-manager.js?v=20260804-v03751-version-authority-hotfix';
+import {debugTrace} from './debug-trace-manager.js?v=20260804-v0376-version-authority-hotfix';
 
 const status = document.getElementById('dbStatus');
 const warning = document.getElementById('storageWarning');
-const APP_VERSION = 'v0.3.75.1';
-const VERSION = '20260804-v03751-version-authority-hotfix';
+const APP_VERSION = 'v0.3.76';
+const VERSION = '20260804-v0376-version-authority-hotfix';
 const PREVIOUS_RELEASE_COMPATIBILITY_MARKERS = [
   "APP_VERSION = 'v0.3.75' 20260804-g13-5-unified-import-pipeline",
   "APP_VERSION = 'v0.3.74' 20260804-g13-4-ocr-ai-cross-check-confidence",
   "APP_VERSION = 'v0.3.73' 20260804-g13-3b-analysis-confirmation-apply",
   "APP_VERSION = 'v0.3.72' 20260803-g13-3a-real-ocr-ai-execution",
-  "APP_VERSION = 'v0.3.68' 20260803-g13-2j-android-raf-timeout-fallback"
+  "APP_VERSION = 'v0.3.71' 20260803-g13-3a-ultra-minimal-ai-shell",
+  "APP_VERSION = 'v0.3.70' 20260803-g13-2m-ocr-ai-ab-diagnostic",
+  "APP_VERSION = 'v0.3.69' 20260803-g13-2l-direct-minimal-review",
+  "APP_VERSION = 'v0.3.68' 20260803-g13-2j-android-raf-timeout-fallback",
+  "APP_VERSION = 'v0.3.67' 20260803-g13-2i-progressive-ai-review-bootstrap",
+  "APP_VERSION = 'v0.3.66' 20260803-g13-2h-sequential-advanced-ai-review",
+  "APP_VERSION = 'v0.3.65' 20260803-g13-2g-lightweight-ai-review",
+  "APP_VERSION = 'v0.3.64' 20260803-g13-2f-region-ai-review-deferred"
 ];
 void PREVIOUS_RELEASE_COMPATIBILITY_MARKERS;
 
