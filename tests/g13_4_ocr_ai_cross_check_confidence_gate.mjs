@@ -1,0 +1,26 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
+
+const enginePath='assets/js/analysis-cross-check-confidence.js';
+const hotfixPath='assets/js/data1d1-ocr-region-direct-minimal-hotfix.js';
+const swPath='service-worker.js';
+const architecturePath='docs/ARCHITECTURE_OCR_AI_CONFIRMATION_CONTRACT.md';
+for(const file of [enginePath,hotfixPath,swPath,architecturePath])assert.ok(fs.existsSync(file),`missing:${file}`);
+execFileSync(process.execPath,['--check',enginePath]);
+execFileSync(process.execPath,['--check',hotfixPath]);
+const engine=fs.readFileSync(enginePath,'utf8');
+const hotfix=fs.readFileSync(hotfixPath,'utf8');
+const sw=fs.readFileSync(swPath,'utf8');
+const architecture=fs.readFileSync(architecturePath,'utf8');
+for(const token of ['buildCrossCheck','extractOcrCandidates','analysis_cross_check_ready','Confidence Engine','recommended_action','formal_apply_allowed','run_ai','manual_review','manual_confirm','analysis_confirmation_blocked_ai_required'])assert.match(engine,new RegExp(token));
+for(const token of ['pokemon_name','main_skill','sub_skills','ingredients','nature','sp','level'])assert.match(engine,new RegExp(token));
+assert.match(engine,/中文語意欄位不得由 OCR 自動定案/);
+assert.match(engine,/requires_review:true/);
+assert.match(engine,/formal_apply_allowed:Boolean\(ai\)/);
+assert.match(hotfix,/analysis-cross-check-confidence\.js/);
+assert.match(hotfix,/HOTFIX_VERSION='v0\.3\.74'/);
+assert.match(sw,/analysis-cross-check-confidence\.js/);
+for(const token of ['OCR 不作為 Pokémon Sleep 中文欄位的最終真值來源','Cross Check','Confidence Engine','人工確認','SQLite Transaction'])assert.match(architecture,new RegExp(token));
+assert.doesNotMatch(engine,/api[_-]?key/i);
+console.log('G13.4 OCR AI cross-check confidence gate: PASS');
