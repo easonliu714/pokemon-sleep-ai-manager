@@ -1,0 +1,44 @@
+{
+  "schema": "pokemon-sleep-game-ui-evidence-manifest/1.0",
+  "created_at": "2026-08-04T18:41:00+08:00",
+  "locale": "zh-Hant",
+  "source": "user-provided Pokémon Sleep game screenshots",
+  "privacy": {
+    "raw_images_committed": false,
+    "player_quantities_committed": false,
+    "player_unlock_state_committed": false,
+    "usage": "canonical terminology evidence only"
+  },
+  "summary": {
+    "file_count": 23,
+    "ingredient_catalog_evidence": true,
+    "item_catalog_evidence": true,
+    "recipe_catalog_evidence": true,
+    "recipe_unknown_placeholders_present": true
+  },
+  "files": [
+    ["Screenshot_20260804-183011.png","81bab32ddc64ee6d70770cde1913f7e55be0f921cd75492f30259ca6dbe374a9"],
+    ["Screenshot_20260804-183019.png","5074d5321ad51003b6bd14bb6ba640ceb8ed8d016caf687c1edabfba1b541e37"],
+    ["Screenshot_20260804-183025.png","1e130d947134ff1b4bf881cdc8276fd84ae375bc3b75ad7db46f1e8a7ec8a8a8"],
+    ["Screenshot_20260804-183032.png","575a1fe63f6f05e3f2ca367cbe1a43d3c7e40da5acbed2dc16f4ec3ecb8e394b"],
+    ["Screenshot_20260804-183042.png","8fa727819f3c4563bc2046aa888edeaf8c894a045a81a7874558b9c519a1d05c"],
+    ["Screenshot_20260804-183051.png","a379a7c79803aedd44b32d76d7ee1a95cf7d607b0acf758182085cac086d71ef"],
+    ["Screenshot_20260804-183106.png","d36f1c242884f5e70d6bf8bb37c6698ffa4c080df66a551406395a22e415a6c7"],
+    ["Screenshot_20260804-183159.png","5b2e685262c293646c2d6ac4cb912a687df73273caab729badee2221c48a3af1"],
+    ["Screenshot_20260804-183212.png","2d624c442479eba6878371d9119fd2492f41c6f6aaf87505feb5c4a501ba8748"],
+    ["Screenshot_20260804-183224.png","656922ac2f4e00b3e6a2c31f97b474db7da6fa8281e7b59e51bf79aa39de7da3"],
+    ["Screenshot_20260804-183231.png","393b1a19535a210abf4aa4f7347b485285e546ed014fc5dba526fcc88c3ef771"],
+    ["Screenshot_20260804-183240.png","0c8d7ad6c1a7bd45ee6282e11c7b97d53231e43c8fd223348276bd83a15a5100"],
+    ["Screenshot_20260804-183333.png","8080b2fd43fafd7355ff47e030ed81eaab053711a739f00a2a31770851a662b8"],
+    ["Screenshot_20260804-183343.png","16d897b7ca175c316d2e894fbbf19af15e1e70a49f449c5cd5ede12d2cf7c825"],
+    ["Screenshot_20260804-183350.png","000ece9e4102ae6f7bd79d21d0b842005702328a111fee578e85c0757d718571"],
+    ["Screenshot_20260804-183356.png","a9dfc62e2917e0735911befcd60c1ed5843348835dc7758f8bae7d9c004e5d63"],
+    ["Screenshot_20260804-183402.png","be61eac6e7f51741d6d7e1d600e6d464ff8e97cc67b71ac91f1f6a929acc9db8"],
+    ["Screenshot_20260804-183407.png","b29bee2798480aeb863f78189d966886fb4618ecf2a4b4f80e9c1b9fa12d4b02"],
+    ["Screenshot_20260804-183413.png","e066c3adff3ee7bd70d281f49b57ab9a4c28caaec49b136bcd40fad4535901d0"],
+    ["Screenshot_20260804-183420.png","c60473a855affc0bde6b46570bc18c62b1e0baa9b56646333201a8b6005dc846"],
+    ["Screenshot_20260804-183425.png","5a116f731dfd7ac61ee720b97aed2e271c0659bfaf671a792d46956946935ef9"],
+    ["Screenshot_20260804-183430.png","106dcd6c2693e8a7110057531fb04a72ef10d38f9fe4f3f0dce45684af87be14"],
+    ["Screenshot_20260804-183439.png","d815e9418ba5a0f15f93d28b3505a664e28c37ece05c34532909289bae676e7a"]
+  ]
+}
