@@ -1,6 +1,7 @@
 import {applySharedMasterSchema} from './shared-master-schema.js';
 import {applySharedMasterData} from './shared-master-data.js';
 import {applyPublicEmptyProfileMaster} from './public-empty-profile-master.js';
+import {applyCanonicalRegistry} from './canonical-registry.js';
 
 function rows(db,sql,params=[]){
   const statement=db.prepare(sql);
@@ -79,10 +80,15 @@ export function applyPublicProfileContract(db){
   applyPublicEmptyProfileMaster(db);
 }
 
+export function applyCanonicalTerminologyMigration(db){
+  applyCanonicalRegistry(db);
+}
+
 export function applyAllMigrations(db){
   applyIdentityMigration(db);
   applyGameDataMigration(db);
   applySharedKnowledgeBase(db);
   applyPersonalRecipeMigration(db);
   applyPublicProfileContract(db);
+  applyCanonicalTerminologyMigration(db);
 }
