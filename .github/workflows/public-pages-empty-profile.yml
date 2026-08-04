@@ -28,9 +28,10 @@ jobs:
               'no private seed call': 'applyG2ASeed' not in database,
               'no capacity seed': 'INSERT OR IGNORE INTO account_capacity' not in schema,
               'no ingredient quantity seed': 'SEED-PHASE-A' not in schema,
-              'zero ingredient default': "SELECT ingredient_name,0" in defaults,
-              'zero item default': "SELECT item_name,0,0,NULL" in defaults,
-              'recipes locked by default': "SELECT recipe_id,category,recipe_name,0" in defaults,
+              'player tables untouched': 'player_tables_untouched:true' in defaults,
+              'ingredient zero-state view': 'CREATE VIEW IF NOT EXISTS ingredient_catalog_state' in master_schema and 'COALESCE(i.quantity,0)' in master_schema,
+              'item zero-state view': 'CREATE VIEW IF NOT EXISTS item_catalog_state' in master_schema and 'COALESCE(i.safe_reserve,0)' in master_schema,
+              'recipe locked-state view': 'CREATE VIEW IF NOT EXISTS recipe_catalog_state' in master_schema and 'COALESCE(r.unlocked,0)' in master_schema,
               'canonical ingredients retained': 'const INGREDIENTS' in shared,
               'canonical berries retained': 'const BERRIES' in shared,
               'canonical recipes retained': 'const RECIPES' in shared,
@@ -43,10 +44,13 @@ jobs:
           forbidden = [
               "['pkm_latios_b'", "['pkm_altaria'", "['pkm_typhlosion'",
               "ingredient_bag',380,292", "item_bag',220,174", "pokemon_box',120,75",
+              'INSERT OR IGNORE INTO ingredient_inventory',
+              'INSERT OR IGNORE INTO item_inventory',
+              'INSERT OR IGNORE INTO recipes',
           ]
-          corpus = seed + '\n' + schema
+          corpus = seed + '\n' + schema + '\n' + defaults
           leaked = [value for value in forbidden if value in corpus]
           if leaked:
-              raise SystemExit('Private seed values remain in current source: ' + ', '.join(leaked))
-          print('PASS: public Pages initializes canonical masters with an empty player profile')
+              raise SystemExit('Private seed or player-table mutation remains in current source: ' + ', '.join(leaked))
+          print('PASS: public Pages exposes canonical masters through zero-state views and leaves player tables empty')
           PY
