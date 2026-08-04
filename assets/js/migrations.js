@@ -77,7 +77,6 @@ export function applyPersonalRecipeMigration(db){
 
 export function applyPublicProfileContract(db){
   applyPublicEmptyProfileMaster(db);
-  db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(6,datetime('now'))`);
 }
 
 export function applyAllMigrations(db){
