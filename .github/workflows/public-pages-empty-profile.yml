@@ -1,0 +1,52 @@
+name: Public Pages Empty Player Profile
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  privacy-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify public/private data separation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          seed = Path('assets/js/seed-data.js').read_text(encoding='utf-8')
+          schema = Path('assets/js/schema.js').read_text(encoding='utf-8')
+          database = Path('assets/js/database.js').read_text(encoding='utf-8')
+          defaults = Path('assets/js/public-empty-profile-master.js').read_text(encoding='utf-8')
+          shared = Path('assets/js/shared-master-data.js').read_text(encoding='utf-8')
+          master_schema = Path('assets/js/shared-master-schema.js').read_text(encoding='utf-8')
+
+          required = {
+              'empty Pokémon seed': 'CORE_POKEMON=Object.freeze([])' in seed,
+              'empty item seed': 'CORE_ITEMS=Object.freeze([])' in seed,
+              'no private seed call': 'applyG2ASeed' not in database,
+              'no capacity seed': 'INSERT OR IGNORE INTO account_capacity' not in schema,
+              'no ingredient quantity seed': 'SEED-PHASE-A' not in schema,
+              'zero ingredient default': "SELECT ingredient_name,0" in defaults,
+              'zero item default': "SELECT item_name,0,0,NULL" in defaults,
+              'recipes locked by default': "SELECT recipe_id,category,recipe_name,0" in defaults,
+              'canonical ingredients retained': 'const INGREDIENTS' in shared,
+              'canonical berries retained': 'const BERRIES' in shared,
+              'canonical recipes retained': 'const RECIPES' in shared,
+              'canonical item master exists': 'CREATE TABLE IF NOT EXISTS item_master' in master_schema,
+          }
+          failed = [name for name, ok in required.items() if not ok]
+          if failed:
+              raise SystemExit('Public profile privacy contract failed: ' + ', '.join(failed))
+
+          forbidden = [
+              "['pkm_latios_b'", "['pkm_altaria'", "['pkm_typhlosion'",
+              "ingredient_bag',380,292", "item_bag',220,174", "pokemon_box',120,75",
+          ]
+          corpus = seed + '\n' + schema
+          leaked = [value for value in forbidden if value in corpus]
+          if leaked:
+              raise SystemExit('Private seed values remain in current source: ' + ', '.join(leaked))
+          print('PASS: public Pages initializes canonical masters with an empty player profile')
+          PY
