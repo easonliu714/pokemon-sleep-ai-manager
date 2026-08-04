@@ -1,9 +1,9 @@
 import {debugTrace} from './debug-trace-manager.js?v=20260804-v0379-canonical-public-catalog';
 
-const status=document.getElementById('dbStatus');
-const warning=document.getElementById('storageWarning');
-const APP_VERSION='v0.3.79';
-const VERSION='20260804-v0379-canonical-public-catalog';
+const status = document.getElementById('dbStatus');
+const warning = document.getElementById('storageWarning');
+const APP_VERSION = 'v0.3.79';
+const VERSION = '20260804-v0379-canonical-public-catalog';
 const PREVIOUS_RELEASE_COMPATIBILITY_MARKERS=[
   "APP_VERSION = 'v0.3.78' 20260804-v0377c-data-consistency-multicapture",
   "APP_VERSION = 'v0.3.77' 20260804-v0377a-backup-truth-restore-verification",
