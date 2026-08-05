@@ -1,0 +1,43 @@
+name: v0.3.84 Recovery Patch
+
+on:
+  push:
+    branches:
+      - hotfix/v0384-database-catalog-recovery
+
+permissions:
+  contents: write
+
+jobs:
+  apply-recovery:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: hotfix/v0384-database-catalog-recovery
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply recovery patch
+        run: node scripts/apply-v0384-recovery-patch.mjs
+      - name: Validate recovery contract
+        run: |
+          node --check assets/js/v0383-catalog-ocr-review-contract.js
+          node --check assets/js/public-catalog-workbench.js
+          node --check assets/js/pokemon-detail.js
+          grep -q "const APP_VERSION = 'v0.3.84'" assets/js/bootstrap.js
+          grep -q "database_ready_wait" assets/js/v0383-catalog-ocr-review-contract.js
+          grep -q "v0384_database_catalog_recovery_ready" assets/js/v0383-catalog-ocr-review-contract.js
+          grep -q "effect_description_zh_tw" assets/js/public-catalog-workbench.js
+          grep -q "Number(p.level)>=l?' ✓':''" assets/js/pokemon-detail.js
+          grep -q "pokemon-sleep-ai-v0.3.84-v0384-database-catalog-recovery" service-worker.js
+      - name: Commit generated changes
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/js/v0383-catalog-ocr-review-contract.js assets/js/public-catalog-workbench.js assets/js/pokemon-detail.js assets/js/bootstrap.js assets/js/v0382-release-authority.js service-worker.js index.html
+          git commit -m "fix(v0.3.84): recover database catalog initialization"
+          git push origin HEAD:hotfix/v0384-database-catalog-recovery
