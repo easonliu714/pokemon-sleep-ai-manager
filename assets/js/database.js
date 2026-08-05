@@ -21,9 +21,9 @@ export async function initializeDatabase(){
   // v0.3.85: existing databases must become usable before any full db.export()/IndexedDB write.
   // Persist a new database immediately; existing databases are persisted only by explicit mutations.
   if(!bytes)await timeout(persist(),20000,'首次 SQLite 儲存');
-  const detail={seeded:isNew,restored:Boolean(bytes),boot_persist_skipped:Boolean(bytes)};
-  dispatchReady(detail);
-  return detail;
+  const seeded=isNew;
+  dispatchReady({seeded,restored:Boolean(bytes),boot_persist_skipped:Boolean(bytes)});
+  return {seeded};
 }
 export function rows(sql,params=[]){if(!db)throw new Error('database_not_ready');const s=db.prepare(sql);s.bind(params);const out=[];while(s.step())out.push(s.getAsObject());s.free();return out;}
 export function scalar(sql,params=[]){const r=rows(sql,params);return r.length?Object.values(r[0])[0]:null;}
