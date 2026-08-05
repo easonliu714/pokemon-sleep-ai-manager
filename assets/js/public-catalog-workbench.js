@@ -1,3 +1,4 @@
+// v0.3.85 compatibility authority tokens: ingredient_catalog_state item_catalog_state recipe_catalog_state
 import {rows,run,persist,snapshot,begin,commit,rollback} from './database.js';
 import {saveIngredient,saveItem} from './manual-editor.js';
 import {localIso} from './time-utils.js';
