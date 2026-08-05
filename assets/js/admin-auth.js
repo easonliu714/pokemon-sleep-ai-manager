@@ -1,4 +1,5 @@
 import './v0382-image-byte-snapshot.js';
+import './v0382-catalog-and-field-migration.js';
 
 const ACCESS_MODE='development-open';
 const DEVELOPMENT_OPEN=ACCESS_MODE==='development-open';
