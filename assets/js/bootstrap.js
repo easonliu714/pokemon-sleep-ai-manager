@@ -1,14 +1,14 @@
-import {debugTrace} from './debug-trace-manager.js?v=20260805-v0383-catalog-ocr-review-contract';
+import {debugTrace} from './debug-trace-manager.js?v=20260805-v0384-database-catalog-recovery';
 
 const status = document.getElementById('dbStatus');
 const warning = document.getElementById('storageWarning');
 
-const APP_VERSION = 'v0.3.83';
-const VERSION = '20260805-v0383-catalog-ocr-review-contract';
+const APP_VERSION = 'v0.3.84';
+const VERSION = '20260805-v0384-database-catalog-recovery';
 
 const PREVIOUS_RELEASE_COMPATIBILITY_MARKERS = [
   "APP_VERSION = 'v0.3.82' 20260805-v0382-file-snapshot-public-catalog",
-  "APP_VERSION = 'v0.3.82' 20260805-v0383-catalog-ocr-review-contract",
+  "APP_VERSION = 'v0.3.82' 20260805-v0384-database-catalog-recovery",
   "APP_VERSION = 'v0.3.81' 20260804-v0381-pokemon-detail-review-merge",
   "APP_VERSION = 'v0.3.80' 20260804-v0380-static-shell-admin-debug-gate",
   "APP_VERSION = 'v0.3.79' 20260804-v0379-canonical-public-catalog",

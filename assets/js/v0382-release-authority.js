@@ -1,5 +1,5 @@
-const APP_VERSION='v0.3.82';
-const APP_BUILD='20260805-v0382-file-snapshot-public-catalog';
+const APP_VERSION='v0.3.84';
+const APP_BUILD='20260805-v0384-database-catalog-recovery';
 
 function record(event,details={},status='completed',error=null){
   globalThis.UpdateCenterLiveDebug?.record?.(event,details);

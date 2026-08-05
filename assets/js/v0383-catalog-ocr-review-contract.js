@@ -15,7 +15,16 @@ const parseIngredients=summary=>String(summary||'').split('、').map(part=>{
   return match?{name:match[1].trim(),quantity:Number(match[2])}:null;
 }).filter(Boolean);
 
+function databaseReady(){try{return Number(rows('SELECT COUNT(*) AS count FROM schema_migrations')[0]?.count||0)>0;}catch{return false;}}
+
 async function applyRecipeCatalog(){
+  if(!databaseReady())throw new Error('database_not_ready');
+  run('DROP VIEW IF EXISTS item_catalog_state');
+  run(`CREATE VIEW item_catalog_state AS
+    SELECT m.item_name,m.item_category,m.effect_description_zh_tw,m.effect_source_type,m.effect_source_ref,
+           COALESCE(i.quantity,0) AS quantity,COALESCE(i.safe_reserve,0) AS safe_reserve,i.recommendation,
+           CASE WHEN i.item_name IS NULL THEN 0 ELSE 1 END AS player_record_exists,i.updated_at,m.data_version
+      FROM item_master m LEFT JOIN item_inventory i ON i.item_name=m.item_name`);
   run('DROP VIEW IF EXISTS recipe_catalog_state');
   run(`CREATE VIEW recipe_catalog_state AS
     SELECT m.recipe_id,m.category,m.recipe_name,m.base_energy,m.total_ingredients,
@@ -51,7 +60,7 @@ async function applyRecipeCatalog(){
       [id,category,name,null,total,'mixed_evidence','玩家提供食譜清單＋結構化參考','user-provided-recipe-workbook-and-structured-reference','2026-08-05',CATALOG_VERSION]);
     const actual=rows('SELECT recipe_id FROM recipe_master WHERE recipe_name=?',[name])[0]?.recipe_id||id;
     run('DELETE FROM recipe_master_ingredients WHERE recipe_id=?',[actual]);
-    for(const item of ingredients)run('INSERT OR REPLACE INTO recipe_master_ingredients(recipe_id,ingredient_name,quantity) VALUES(?,?,?)',[actual,item.name,item.quantity]);
+    for(const item of ingredients){run(`INSERT OR IGNORE INTO ingredient_master(ingredient_name,source_type,source_name,source_ref,verified_at,data_version) VALUES(?,?,?,?,?,?)`,[item.name,'mixed_evidence','v0.3.84 recipe catalog recovery','v0384-recipe-evidence','2026-08-05',CATALOG_VERSION]);run('INSERT OR REPLACE INTO recipe_master_ingredients(recipe_id,ingredient_name,quantity) VALUES(?,?,?)',[actual,item.name,item.quantity]);}
   }
   run(`INSERT OR REPLACE INTO settings(key,value_json,updated_at) VALUES('v0383_recipe_catalog_contract',?,datetime('now'))`,
     [JSON.stringify({catalog_version:CATALOG_VERSION,recipe_count:RECIPES.length,public_default_unlocked:false,public_default_level:1,player_state_write:false})]);
@@ -145,12 +154,18 @@ function installServiceWorkerScopeRepair(){
     .catch(error=>trace('service_worker_scope_repair_failed',{message:error?.message||String(error)},'failed',error));
 }
 
+let initialized=false,retryCount=0,retryTimer=null;
 async function initialize(){
-  try{await applyRecipeCatalog();}catch(error){trace('recipe_catalog_failed',{message:error?.message||String(error)},'failed',error);}
-  installOcrTerminalPatch();
-  installServiceWorkerScopeRepair();
-  globalThis.addEventListener('pokemon-sleep:analysis-revision-saved',event=>applyReviewProjection(event.detail));
-  trace('v0383_contract_ready',{version:APP_VERSION,build:APP_BUILD});
+  if(initialized)return;
+  if(!databaseReady()){
+    retryCount+=1;trace('database_ready_wait',{retry_count:retryCount});
+    clearTimeout(retryTimer);retryTimer=setTimeout(initialize,Math.min(2500,150+retryCount*100));return;
+  }
+  try{
+    await applyRecipeCatalog();initialized=true;installOcrTerminalPatch();installServiceWorkerScopeRepair();
+    globalThis.addEventListener('pokemon-sleep:analysis-revision-saved',event=>applyReviewProjection(event.detail));
+    trace('v0384_database_catalog_recovery_ready',{version:'v0.3.84',build:'20260805-v0384-database-catalog-recovery',retry_count:retryCount});
+  }catch(error){trace('recipe_catalog_retryable_failed',{message:error?.message||String(error),retry_count:retryCount},'failed',error);clearTimeout(retryTimer);retryTimer=setTimeout(initialize,1000);}
 }
-setTimeout(initialize,1800);
+initialize();globalThis.addEventListener('pokemon-sleep:database-ready',initialize);
 export {applyRecipeCatalog,mergeAiObservations};
