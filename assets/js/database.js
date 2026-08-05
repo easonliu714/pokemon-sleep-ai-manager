@@ -7,7 +7,11 @@ const timeout=(promise,ms,label)=>Promise.race([
   promise,
   new Promise((_,reject)=>setTimeout(()=>reject(new Error(`${label}逾時（${Math.round(ms/1000)}秒）`)),ms)),
 ]);
-const dispatchReady=detail=>globalThis.dispatchEvent(new CustomEvent('pokemon-sleep:database-ready',{detail}));
+const dispatchReady=detail=>{
+  if(typeof globalThis.dispatchEvent==='function'&&typeof globalThis.CustomEvent==='function'){
+    globalThis.dispatchEvent(new globalThis.CustomEvent('pokemon-sleep:database-ready',{detail}));
+  }
+};
 
 export async function initializeDatabase(){
   if(typeof initSqlJs!=='function') throw new Error('sql.js 載入失敗，請確認網路後重新整理');
