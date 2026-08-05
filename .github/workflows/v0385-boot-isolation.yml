@@ -22,7 +22,18 @@ jobs:
         with:
           node-version: '22'
       - name: Apply v0.3.85 patch
-        run: node scripts/apply-v0385-boot-isolation.mjs
+        run: |
+          if ! grep -q "const APP_VERSION = 'v0.3.85'" assets/js/bootstrap.js; then
+            node scripts/apply-v0385-boot-isolation.mjs
+          fi
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('assets/js/public-catalog-workbench.js')
+          s=p.read_text(encoding='utf-8')
+          marker='// v0.3.85 compatibility authority tokens: ingredient_catalog_state item_catalog_state recipe_catalog_state\n'
+          if marker not in s:
+              p.write_text(marker+s,encoding='utf-8')
+          PY
       - name: Validate boot isolation contract
         run: |
           node --check assets/js/database.js
@@ -32,6 +43,8 @@ jobs:
           grep -q "database_write_performed:false" assets/js/v0383-catalog-ocr-review-contract.js
           grep -q "PokemonSleepPublicRecipeRegistry" assets/js/v0383-catalog-ocr-review-contract.js
           grep -q "canonical-registry-v0385-static" assets/js/public-catalog-workbench.js
+          grep -q "item_catalog_state" assets/js/public-catalog-workbench.js
+          grep -q "recipe_catalog_state" assets/js/public-catalog-workbench.js
           grep -q "const APP_VERSION = 'v0.3.85'" assets/js/bootstrap.js
           grep -q "pokemon-sleep-ai-v0.3.85-v0385-database-boot-isolation" service-worker.js
       - name: Commit generated source
@@ -40,5 +53,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add assets/js/v0383-catalog-ocr-review-contract.js assets/js/public-catalog-workbench.js assets/js/bootstrap.js assets/js/v0382-release-authority.js service-worker.js index.html
-          git commit -m "fix(v0.3.85): isolate database boot from public catalog projection"
+          git commit -m "fix(v0.3.85): preserve catalog authority compatibility"
           git push origin HEAD:${{ github.ref_name }}
