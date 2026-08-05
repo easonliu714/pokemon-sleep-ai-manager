@@ -3,10 +3,13 @@ import {DDL,SEED_SQL} from './schema.js';
 import {applyAllMigrations} from './migrations.js';
 let SQL=null,db=null;
 
-const timeout=(promise,ms,label)=>Promise.race([
-  promise,
-  new Promise((_,reject)=>setTimeout(()=>reject(new Error(`${label}逾時（${Math.round(ms/1000)}秒）`)),ms)),
-]);
+const timeout=(promise,ms,label)=>new Promise((resolve,reject)=>{
+  const timer=setTimeout(()=>reject(new Error(`${label}逾時（${Math.round(ms/1000)}秒）`)),ms);
+  Promise.resolve(promise).then(
+    value=>{clearTimeout(timer);resolve(value);},
+    error=>{clearTimeout(timer);reject(error);},
+  );
+});
 const dispatchReady=detail=>{
   if(typeof globalThis.dispatchEvent==='function'&&typeof globalThis.CustomEvent==='function'){
     globalThis.dispatchEvent(new globalThis.CustomEvent('pokemon-sleep:database-ready',{detail}));
@@ -24,7 +27,7 @@ export async function initializeDatabase(){
   applyAllMigrations(db);
   // v0.3.85: existing databases must become usable before any full db.export()/IndexedDB write.
   // Persist a new database immediately; existing databases are persisted only by explicit mutations.
-  if(!bytes)await timeout(persist(),20000,'首次 SQLite 儲存');
+  if(!bytes)await persist();
   const seeded=isNew;
   dispatchReady({seeded,restored:Boolean(bytes),boot_persist_skipped:Boolean(bytes)});
   return {seeded};
