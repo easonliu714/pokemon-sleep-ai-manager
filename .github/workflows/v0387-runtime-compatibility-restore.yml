@@ -1,0 +1,50 @@
+name: V0.3.87 Runtime Compatibility Restore
+
+on:
+  push:
+    branches:
+      - hotfix/v0387-indexeddb-safe-boot-memory-guard
+    paths-ignore:
+      - 'assets/js/bootstrap.js'
+      - 'service-worker.js'
+
+permissions:
+  contents: write
+
+jobs:
+  restore-runtime-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: hotfix/v0387-indexeddb-safe-boot-memory-guard
+          fetch-depth: 0
+      - name: Restore validated runtime files and rotate authority
+        run: |
+          git fetch origin main
+          git show origin/main:assets/js/bootstrap.js > assets/js/bootstrap.js
+          git show origin/main:service-worker.js > service-worker.js
+          python - <<'PY'
+          from pathlib import Path
+          exact_replacements = [
+              ("pokemon-sleep-ai-v0.3.85-v0385-database-boot-isolation", "pokemon-sleep-ai-v0.3.87-v0387-indexeddb-safe-boot-memory-guard"),
+              ("20260805-v0385-database-boot-isolation", "20260805-v0387-indexeddb-safe-boot-memory-guard"),
+              ("v0.3.85", "v0.3.87"),
+          ]
+          for name in ('assets/js/bootstrap.js','service-worker.js'):
+              path = Path(name)
+              text = path.read_text(encoding='utf-8')
+              for old,new in exact_replacements:
+                  text = text.replace(old,new)
+              path.write_text(text,encoding='utf-8')
+          PY
+      - name: Commit compatibility restoration
+        run: |
+          if git diff --quiet -- assets/js/bootstrap.js service-worker.js; then
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/js/bootstrap.js service-worker.js
+          git commit -m 'fix(v0.3.87): preserve validated runtime compatibility contract'
+          git push origin HEAD:hotfix/v0387-indexeddb-safe-boot-memory-guard

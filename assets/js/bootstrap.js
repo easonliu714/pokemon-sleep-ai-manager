@@ -1,14 +1,14 @@
-import {debugTrace} from './debug-trace-manager.js?v=20260805-v0385-database-boot-isolation';
+import {debugTrace} from './debug-trace-manager.js?v=20260805-v0387-indexeddb-safe-boot-memory-guard';
 
 const status = document.getElementById('dbStatus');
 const warning = document.getElementById('storageWarning');
 
-const APP_VERSION = 'v0.3.85';
-const VERSION = '20260805-v0385-database-boot-isolation';
+const APP_VERSION = 'v0.3.87';
+const VERSION = '20260805-v0387-indexeddb-safe-boot-memory-guard';
 
 const PREVIOUS_RELEASE_COMPATIBILITY_MARKERS = [
   "APP_VERSION = 'v0.3.82' 20260805-v0382-file-snapshot-public-catalog",
-  "APP_VERSION = 'v0.3.82' 20260805-v0385-database-boot-isolation",
+  "APP_VERSION = 'v0.3.82' 20260805-v0387-indexeddb-safe-boot-memory-guard",
   "APP_VERSION = 'v0.3.81' 20260804-v0381-pokemon-detail-review-merge",
   "APP_VERSION = 'v0.3.80' 20260804-v0380-static-shell-admin-debug-gate",
   "APP_VERSION = 'v0.3.79' 20260804-v0379-canonical-public-catalog",
