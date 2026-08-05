@@ -1,5 +1,5 @@
-const APP_VERSION='v0.3.84';
-const APP_BUILD='20260805-v0384-database-catalog-recovery';
+const APP_VERSION='v0.3.85';
+const APP_BUILD='20260805-v0385-database-boot-isolation';
 
 function record(event,details={},status='completed',error=null){
   globalThis.UpdateCenterLiveDebug?.record?.(event,details);
