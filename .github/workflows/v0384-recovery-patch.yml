@@ -3,6 +3,7 @@ name: v0.3.84 Recovery Patch
 on:
   push:
     branches:
+      - main
       - hotfix/v0384-database-catalog-recovery
 
 permissions:
@@ -15,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: hotfix/v0384-database-catalog-recovery
+          ref: ${{ github.ref_name }}
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
@@ -40,4 +41,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add assets/js/v0383-catalog-ocr-review-contract.js assets/js/public-catalog-workbench.js assets/js/pokemon-detail.js assets/js/bootstrap.js assets/js/v0382-release-authority.js service-worker.js index.html
           git commit -m "fix(v0.3.84): recover database catalog initialization"
-          git push origin HEAD:hotfix/v0384-database-catalog-recovery
+          git push origin HEAD:${{ github.ref_name }}
