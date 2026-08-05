@@ -38,8 +38,8 @@ export async function replaceDatabase(bytes){
   if(!check.length||check[0].integrity_check!=='ok') throw new Error('SQLite integrity_check 未通過');
   db.run(DDL);
   applyAllMigrations(db);
-  await persist();
   dispatchReady({seeded:false,restored:true,replaced:true});
+  await persist();
 }
 export function begin(){run('BEGIN IMMEDIATE');}
 export function commit(){run('COMMIT');}
