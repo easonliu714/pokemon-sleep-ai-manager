@@ -26,9 +26,9 @@ async function registerServiceWorker(){
   const url=new URL('../../service-worker.js',import.meta.url);
   try{
     const registration=await navigator.serviceWorker.register(url,{scope:'../../',updateViaCache:'none'});
-    await registration.update();
-    record('v0382_service_worker_registered',{app_version:APP_VERSION,build:APP_BUILD,scope:registration.scope,script_url:url.href});
-    return registration;
+    if(typeof registration?.update==='function')await registration.update();
+    record('v0382_service_worker_registered',{app_version:APP_VERSION,build:APP_BUILD,scope:registration?.scope||null,script_url:url.href,registration_available:Boolean(registration)});
+    return registration||null;
   }catch(error){
     record('v0382_service_worker_failed',{app_version:APP_VERSION,build:APP_BUILD,message:error?.message||String(error)},'failed',error);
     throw error;
