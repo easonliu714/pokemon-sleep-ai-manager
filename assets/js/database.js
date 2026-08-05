@@ -35,23 +35,18 @@ function consumeForceLoad(){
 }
 
 async function createReadonlyRescueDatabase(error){
-  emit('RESCUE_DATABASE_PREPARING','正在建立不讀取玩家 SQLite 的唯讀救援資料庫');
-  if(typeof initSqlJs!=='function')throw new Error('sql.js 載入失敗，無法建立救援模式');
-  SQL=SQL||await timeout(initSqlJs({locateFile:file=>`https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/${file}`}),20000,'救援模式 SQL.js 初始化');
-  db=new SQL.Database();
-  db.run(DDL);
-  applyAllMigrations(db);
   rescueReadonly=true;
-  const detail={seeded:false,rescue:true,readonly:true,error_code:error.code,message:error.message,...error.details};
-  emit('RESCUE_READY','救援／唯讀模式已就緒；未讀取玩家 SQLite','completed',detail);
-  emit('BOOTSTRAP_COMPLETE','啟動流程已在救援／唯讀模式完成','completed',detail);
+  db=null;
+  const detail={seeded:false,rescue:true,readonly:true,zero_sql:true,error_code:error.code,message:error.message,...error.details};
+  emit('RESCUE_READY','救援／唯讀模式已就緒；未載入 SQL.js，也未讀取玩家 SQLite','completed',detail);
+  emit('BOOTSTRAP_COMPLETE','啟動流程已在零 SQLite 救援模式完成','completed',detail);
   dispatchReady(detail);
   setTimeout(()=>{
     const status=document.getElementById('dbStatus');
     const warning=document.getElementById('storageWarning');
     if(status){status.textContent='救援／唯讀模式';status.className='badge warning';}
-    if(warning){warning.textContent=`本機玩家資料尚未載入：${error.message}。目前僅可瀏覽，不會寫入玩家資料。`;warning.classList.remove('hidden');}
-    emit('APP_READY','App 已在救援／唯讀模式完成啟動','completed',detail);
+    if(warning){warning.textContent=`本機玩家資料尚未載入：${error.message}。目前僅可瀏覽公版頁面，不會寫入玩家資料。`;warning.classList.remove('hidden');}
+    emit('APP_READY','App 已在零 SQLite 救援模式完成啟動','completed',detail);
   },0);
   return detail;
 }
@@ -116,14 +111,14 @@ export function requestForcedDatabaseLoad(){
   return true;
 }
 export function cancelDatabaseBoot(){bootGeneration+=1;return bootGeneration;}
-export function isDatabaseReady(){return Boolean(db);}
+export function isDatabaseReady(){return Boolean(db)||rescueReadonly;}
 export function isRescueReadonly(){return rescueReadonly;}
-export function rows(sql,params=[]){if(!db)throw new Error('database_not_ready');const s=db.prepare(sql);s.bind(params);const out=[];while(s.step())out.push(s.getAsObject());s.free();return out;}
-export function scalar(sql,params=[]){const r=rows(sql,params);return r.length?Object.values(r[0])[0]:null;}
+export function rows(sql,params=[]){if(rescueReadonly)return [];if(!db)throw new Error('database_not_ready');const s=db.prepare(sql);s.bind(params);const out=[];while(s.step())out.push(s.getAsObject());s.free();return out;}
+export function scalar(sql,params=[]){if(rescueReadonly)return 0;const r=rows(sql,params);return r.length?Object.values(r[0])[0]:null;}
 export function run(sql,params=[]){if(!db)throw new Error('database_not_ready');if(rescueReadonly)throw new Error('readonly_rescue_mode');db.run(sql,params);}
 export async function persist(){if(!db)throw new Error('database_not_ready');if(rescueReadonly)throw new Error('readonly_rescue_mode');emit('SQLITE_PERSIST_RUNNING','正在儲存 SQLite');const exported=db.export();await timeout(saveDatabaseBytes(exported),30000,'SQLite 儲存');emit('SQLITE_PERSIST_COMPLETED','SQLite 儲存完成','running',{byte_length:exported.byteLength});}
 export async function snapshot(reason){if(!db)throw new Error('database_not_ready');if(rescueReadonly)throw new Error('readonly_rescue_mode');emit('SQLITE_SNAPSHOT_RUNNING',`正在建立快照：${reason}`);const exported=db.export();const result=await timeout(createSnapshot(exported,reason),30000,'SQLite 快照');emit('SQLITE_SNAPSHOT_COMPLETED',`快照已建立：${reason}`);return result;}
-export function exportBytes(){if(!db)throw new Error('database_not_ready');return db.export();}
+export function exportBytes(){if(rescueReadonly)throw new Error('readonly_rescue_mode');if(!db)throw new Error('database_not_ready');return db.export();}
 export async function replaceDatabase(bytes){
   emit('SQLITE_REPLACE_RUNNING','正在驗證並替換 SQLite 資料庫');
   if(db)db.close();
