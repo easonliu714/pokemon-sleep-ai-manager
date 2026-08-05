@@ -14,26 +14,25 @@ assert.match(storage,/getKey\(DB_KEY\)/);
 assert.match(storage,/onblocked/);
 assert.match(storage,/onversionchange/);
 assert.match(storage,/byte_length/);
-
 assert.match(database,/AUTO_LOAD_MAX_BYTES=48\*1024\*1024/);
 assert.match(database,/CONFIRM_LOAD_MAX_BYTES=128\*1024\*1024/);
 assert.match(database,/legacy_database_requires_confirmation/);
 assert.match(database,/large_database_requires_confirmation/);
 assert.match(database,/database_too_large_for_auto_load/);
 assert.match(database,/requestForcedDatabaseLoad/);
+assert.match(database,/sessionStorage\.removeItem\(FORCE_LOAD_KEY\)/);
 assert.match(database,/inspectDatabaseRecord\(\)/);
 
-assert.match(authority,/v0\.3\.87/);
-assert.match(authority,/嘗試載入本機資料/);
+assert.match(authority,/v0\.3\.(?:87|88|89)/);
+assert.match(authority,/(?:嘗試載入本機資料|載入玩家資料庫)/);
 assert.match(authority,/下載啟動紀錄/);
-assert.match(authority,/service-worker-v0387\.js/);
+assert.match(authority,/service-worker(?:-v0387)?\.js/);
+assert.match(authority,/detail\.rescue\|\|detail\.readonly/);
 
-// v0.3.87 establishes the Safe Boot contract; later releases may promote
-// runtime/cache authority while retaining the same storage and confirmation rules.
-assert.match(bootstrap,/const APP_VERSION\s*=\s*'v0\.3\.(?:87|88)'/);
-assert.match(bootstrap,/const VERSION\s*=\s*'20260805-v03(?:87-indexeddb-safe-boot-memory-guard|88-zero-sql-rescue)'/);
-assert.match(sw,/const APP_VERSION\s*=\s*'v0\.3\.(?:87|88)'/);
-assert.match(sw,/v03(?:87-indexeddb-safe-boot-memory-guard|88-zero-sql-rescue)/);
-assert.match(index,/bootstrap\.js\?v=20260805-v03(?:87-indexeddb-safe-boot-memory-guard|88-zero-sql-rescue)/);
+assert.match(bootstrap,/const APP_VERSION\s*=\s*'v0\.3\.(?:87|88|89)'/);
+assert.match(bootstrap,/const VERSION\s*=\s*'20260805-v03(?:87-indexeddb-safe-boot-memory-guard|88-zero-sql-rescue|89-rescue-catalog-import-recovery)'/);
+assert.match(sw,/const APP_VERSION\s*=\s*'v0\.3\.(?:87|88|89)'/);
+assert.match(sw,/v03(?:87-indexeddb-safe-boot-memory-guard|88-zero-sql-rescue|89-rescue-catalog-import-recovery)/);
+assert.match(index,/bootstrap\.js\?v=20260805-v03(?:87-indexeddb-safe-boot-memory-guard|88-zero-sql-rescue|89-rescue-catalog-import-recovery)/);
 
 console.log(JSON.stringify({status:'PASS',gate:'v0387_safe_boot_contract',player_data_write:false,legacy_auto_read:false,index_authority:true,forward_compatible_release:true}));
