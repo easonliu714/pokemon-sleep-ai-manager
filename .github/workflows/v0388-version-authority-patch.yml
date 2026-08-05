@@ -1,0 +1,67 @@
+name: V0.3.88 Version Authority Patch
+on:
+  push:
+    branches: [hotfix/v0388-version-authority]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: hotfix/v0388-version-authority
+      - name: Rotate version and cache authority
+        shell: python
+        run: |
+          from pathlib import Path
+          old_version='v0.3.87'
+          new_version='v0.3.88'
+          old_build='20260805-v0387-indexeddb-safe-boot-memory-guard'
+          new_build='20260805-v0388-zero-sql-rescue'
+          old_slug='v0387-indexeddb-safe-boot-memory-guard'
+          new_slug='v0388-zero-sql-rescue'
+          targets=[
+            'assets/js/bootstrap.js',
+            'assets/js/v0382-release-authority.js',
+            'assets/js/startup-progress.js',
+            'index.html',
+            'service-worker.js',
+            'service-worker-v0387.js'
+          ]
+          changed=[]
+          for name in targets:
+            p=Path(name)
+            if not p.exists():
+              continue
+            s=p.read_text()
+            n=s.replace(old_version,new_version).replace(old_build,new_build).replace(old_slug,new_slug)
+            if n!=s:
+              p.write_text(n)
+              changed.append(name)
+          if not changed:
+            raise SystemExit('no version authority files changed')
+          print('\n'.join(changed))
+      - name: Verify authority
+        shell: python
+        run: |
+          from pathlib import Path
+          required={
+            'assets/js/bootstrap.js':['v0.3.88','20260805-v0388-zero-sql-rescue'],
+            'index.html':['20260805-v0388-zero-sql-rescue'],
+            'service-worker.js':['v0.3.88','20260805-v0388-zero-sql-rescue','pokemon-sleep-ai-v0.3.88-v0388-zero-sql-rescue']
+          }
+          for name,tokens in required.items():
+            text=Path(name).read_text()
+            missing=[t for t in tokens if t not in text]
+            if missing:
+              raise SystemExit(f'{name} missing {missing}')
+          print('v0.3.88 version authority verified')
+      - name: Commit authority rotation
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add assets/js/bootstrap.js assets/js/v0382-release-authority.js assets/js/startup-progress.js index.html service-worker.js service-worker-v0387.js 2>/dev/null || true
+          git commit -m "fix(v0.3.88): rotate PWA version authority" || exit 0
+          git push origin HEAD:hotfix/v0388-version-authority
