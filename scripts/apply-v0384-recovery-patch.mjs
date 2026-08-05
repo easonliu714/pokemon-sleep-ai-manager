@@ -50,6 +50,6 @@ for(const [path,pairs] of Object.entries({
   'assets/js/bootstrap.js':[['v0.3.83','v0.3.84'],['20260805-v0383-catalog-ocr-review-contract',build]],
   'service-worker.js':[['v0.3.83','v0.3.84'],['20260805-v0383-catalog-ocr-review-contract',build],['pokemon-sleep-ai-v0.3.84-v0383-catalog-ocr-review-contract','pokemon-sleep-ai-v0.3.84-v0384-database-catalog-recovery']],
   'index.html':[['20260805-v0383-catalog-ocr-review-contract',build]],
-  'assets/js/v0382-release-authority.js':[['v0.3.83','v0.3.84'],['20260805-v0383-catalog-ocr-review-contract',build]]
+  'assets/js/v0382-release-authority.js':[['v0.3.82','v0.3.84'],['20260805-v0382-file-snapshot-public-catalog',build]]
 }))patch(path,source=>pairs.reduce((s,[a,b])=>all(s,a,b,`${path}:${a}`),source));
 console.log('v0.3.84 recovery patch applied');
