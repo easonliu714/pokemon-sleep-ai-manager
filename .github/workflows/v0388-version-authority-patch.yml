@@ -1,0 +1,61 @@
+name: V0.3.88 Version Authority Patch
+on:
+  push:
+    branches: [hotfix/v0388-version-authority]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: hotfix/v0388-version-authority
+          fetch-depth: 0
+      - name: Promote runtime and cache authority
+        shell: python
+        run: |
+          from pathlib import Path
+
+          old_build = '20260805-v0387-indexeddb-safe-boot-memory-guard'
+          new_build = '20260805-v0388-zero-sql-rescue'
+          targets = {
+              'assets/js/bootstrap.js': [
+                  ("const APP_VERSION = 'v0.3.87';", "const APP_VERSION = 'v0.3.88';"),
+                  (old_build, new_build),
+              ],
+              'service-worker.js': [
+                  ("const APP_VERSION = 'v0.3.87';", "const APP_VERSION = 'v0.3.88';"),
+                  ("pokemon-sleep-ai-v0.3.87-v0387-indexeddb-safe-boot-memory-guard", "pokemon-sleep-ai-v0.3.88-v0388-zero-sql-rescue"),
+                  (old_build, new_build),
+              ],
+              'index.html': [(old_build, new_build)],
+          }
+
+          for filename, replacements in targets.items():
+              path = Path(filename)
+              source = path.read_text(encoding='utf-8')
+              result = source
+              for old, new in replacements:
+                  result = result.replace(old, new)
+              if result == source:
+                  raise SystemExit(f'No expected v0.3.87 authority marker found in {filename}')
+              path.write_text(result, encoding='utf-8')
+
+          bootstrap = Path('assets/js/bootstrap.js').read_text(encoding='utf-8')
+          worker = Path('service-worker.js').read_text(encoding='utf-8')
+          index = Path('index.html').read_text(encoding='utf-8')
+          assert "const APP_VERSION = 'v0.3.88';" in bootstrap
+          assert new_build in bootstrap
+          assert "const APP_VERSION = 'v0.3.88';" in worker
+          assert 'pokemon-sleep-ai-v0.3.88-v0388-zero-sql-rescue' in worker
+          assert new_build in index
+      - name: Commit generated authority patch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add assets/js/bootstrap.js service-worker.js index.html
+          git diff --cached --exit-code && { echo 'authority patch produced no diff'; exit 1; } || true
+          git commit -m "fix: activate v0.3.88 runtime and cache authority"
+          git push origin HEAD:hotfix/v0388-version-authority

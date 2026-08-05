@@ -27,10 +27,13 @@ assert.match(authority,/v0\.3\.87/);
 assert.match(authority,/嘗試載入本機資料/);
 assert.match(authority,/下載啟動紀錄/);
 assert.match(authority,/service-worker-v0387\.js/);
-assert.match(bootstrap,/const APP_VERSION\s*=\s*'v0\.3\.87'/);
-assert.match(bootstrap,/const VERSION\s*=\s*'20260805-v0387-indexeddb-safe-boot-memory-guard'/);
-assert.match(sw,/const APP_VERSION\s*=\s*'v0\.3\.87'/);
-assert.match(sw,/v0387-indexeddb-safe-boot-memory-guard/);
-assert.match(index,/bootstrap\.js\?v=20260805-v0387-indexeddb-safe-boot-memory-guard/);
 
-console.log(JSON.stringify({status:'PASS',gate:'v0387_safe_boot_contract',player_data_write:false,legacy_auto_read:false,index_authority:true}));
+// v0.3.87 establishes the Safe Boot contract; later releases may promote
+// runtime/cache authority while retaining the same storage and confirmation rules.
+assert.match(bootstrap,/const APP_VERSION\s*=\s*'v0\.3\.(?:87|88)'/);
+assert.match(bootstrap,/const VERSION\s*=\s*'20260805-v03(?:87-indexeddb-safe-boot-memory-guard|88-zero-sql-rescue)'/);
+assert.match(sw,/const APP_VERSION\s*=\s*'v0\.3\.(?:87|88)'/);
+assert.match(sw,/v03(?:87-indexeddb-safe-boot-memory-guard|88-zero-sql-rescue)/);
+assert.match(index,/bootstrap\.js\?v=20260805-v03(?:87-indexeddb-safe-boot-memory-guard|88-zero-sql-rescue)/);
+
+console.log(JSON.stringify({status:'PASS',gate:'v0387_safe_boot_contract',player_data_write:false,legacy_auto_read:false,index_authority:true,forward_compatible_release:true}));
