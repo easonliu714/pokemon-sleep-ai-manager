@@ -12,56 +12,50 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: hotfix/v0388-version-authority
-      - name: Rotate version and cache authority
+          fetch-depth: 0
+      - name: Promote runtime and cache authority
         shell: python
         run: |
           from pathlib import Path
-          old_version='v0.3.87'
-          new_version='v0.3.88'
-          old_build='20260805-v0387-indexeddb-safe-boot-memory-guard'
-          new_build='20260805-v0388-zero-sql-rescue'
-          old_slug='v0387-indexeddb-safe-boot-memory-guard'
-          new_slug='v0388-zero-sql-rescue'
-          targets=[
-            'assets/js/bootstrap.js',
-            'assets/js/v0382-release-authority.js',
-            'assets/js/startup-progress.js',
-            'index.html',
-            'service-worker.js',
-            'service-worker-v0387.js'
-          ]
-          changed=[]
-          for name in targets:
-            p=Path(name)
-            if not p.exists():
-              continue
-            s=p.read_text()
-            n=s.replace(old_version,new_version).replace(old_build,new_build).replace(old_slug,new_slug)
-            if n!=s:
-              p.write_text(n)
-              changed.append(name)
-          if not changed:
-            raise SystemExit('no version authority files changed')
-          print('\n'.join(changed))
-      - name: Verify authority
-        shell: python
-        run: |
-          from pathlib import Path
-          required={
-            'assets/js/bootstrap.js':['v0.3.88','20260805-v0388-zero-sql-rescue'],
-            'index.html':['20260805-v0388-zero-sql-rescue'],
-            'service-worker.js':['v0.3.88','20260805-v0388-zero-sql-rescue','pokemon-sleep-ai-v0.3.88-v0388-zero-sql-rescue']
+
+          old_build = '20260805-v0387-indexeddb-safe-boot-memory-guard'
+          new_build = '20260805-v0388-zero-sql-rescue'
+          targets = {
+              'assets/js/bootstrap.js': [
+                  ("const APP_VERSION = 'v0.3.87';", "const APP_VERSION = 'v0.3.88';"),
+                  (old_build, new_build),
+              ],
+              'service-worker.js': [
+                  ("const APP_VERSION = 'v0.3.87';", "const APP_VERSION = 'v0.3.88';"),
+                  ("pokemon-sleep-ai-v0.3.87-v0387-indexeddb-safe-boot-memory-guard", "pokemon-sleep-ai-v0.3.88-v0388-zero-sql-rescue"),
+                  (old_build, new_build),
+              ],
+              'index.html': [(old_build, new_build)],
           }
-          for name,tokens in required.items():
-            text=Path(name).read_text()
-            missing=[t for t in tokens if t not in text]
-            if missing:
-              raise SystemExit(f'{name} missing {missing}')
-          print('v0.3.88 version authority verified')
-      - name: Commit authority rotation
+
+          for filename, replacements in targets.items():
+              path = Path(filename)
+              source = path.read_text(encoding='utf-8')
+              result = source
+              for old, new in replacements:
+                  result = result.replace(old, new)
+              if result == source:
+                  raise SystemExit(f'No expected v0.3.87 authority marker found in {filename}')
+              path.write_text(result, encoding='utf-8')
+
+          bootstrap = Path('assets/js/bootstrap.js').read_text(encoding='utf-8')
+          worker = Path('service-worker.js').read_text(encoding='utf-8')
+          index = Path('index.html').read_text(encoding='utf-8')
+          assert "const APP_VERSION = 'v0.3.88';" in bootstrap
+          assert new_build in bootstrap
+          assert "const APP_VERSION = 'v0.3.88';" in worker
+          assert 'pokemon-sleep-ai-v0.3.88-v0388-zero-sql-rescue' in worker
+          assert new_build in index
+      - name: Commit generated authority patch
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add assets/js/bootstrap.js assets/js/v0382-release-authority.js assets/js/startup-progress.js index.html service-worker.js service-worker-v0387.js 2>/dev/null || true
-          git commit -m "fix(v0.3.88): rotate PWA version authority" || exit 0
+          git add assets/js/bootstrap.js service-worker.js index.html
+          git diff --cached --exit-code && { echo 'authority patch produced no diff'; exit 1; } || true
+          git commit -m "fix: activate v0.3.88 runtime and cache authority"
           git push origin HEAD:hotfix/v0388-version-authority
