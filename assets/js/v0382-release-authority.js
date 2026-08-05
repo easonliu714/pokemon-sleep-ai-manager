@@ -25,8 +25,9 @@ async function registerServiceWorker(){
   }
   const url=new URL('../../service-worker.js',import.meta.url);
   try{
-    const registration=await navigator.serviceWorker.register(url,{scope:'../../',updateViaCache:'none'});
-    if(typeof registration?.update==='function')await registration.update();
+    const scope=new URL('../../',import.meta.url).pathname;
+    const registration=await navigator.serviceWorker.register(url,{scope,updateViaCache:'none'});
+    if(typeof registration?.update==='function')await registration?.update?.();
     record('v0382_service_worker_registered',{app_version:APP_VERSION,build:APP_BUILD,scope:registration?.scope||null,script_url:url.href,registration_available:Boolean(registration)});
     return registration||null;
   }catch(error){
