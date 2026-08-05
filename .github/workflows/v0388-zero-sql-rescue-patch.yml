@@ -1,10 +1,12 @@
 name: V0.3.88 Zero SQL Rescue Patch
 on:
-  workflow_dispatch:
+  push:
+    branches: [hotfix/v0388-zero-sql-rescue]
 permissions:
   contents: write
 jobs:
   patch:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
