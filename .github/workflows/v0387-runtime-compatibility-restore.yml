@@ -26,15 +26,15 @@ jobs:
           git show origin/main:service-worker.js > service-worker.js
           python - <<'PY'
           from pathlib import Path
-          replacements = {
-              "v0.3.85": "v0.3.87",
-              "20260805-v0385-database-boot-isolation": "20260805-v0387-indexeddb-safe-boot-memory-guard",
-              "pokemon-sleep-ai-v0.3.85-v0385-database-boot-isolation": "pokemon-sleep-ai-v0.3.87-v0387-indexeddb-safe-boot-memory-guard",
-          }
+          exact_replacements = [
+              ("pokemon-sleep-ai-v0.3.85-v0385-database-boot-isolation", "pokemon-sleep-ai-v0.3.87-v0387-indexeddb-safe-boot-memory-guard"),
+              ("20260805-v0385-database-boot-isolation", "20260805-v0387-indexeddb-safe-boot-memory-guard"),
+              ("v0.3.85", "v0.3.87"),
+          ]
           for name in ('assets/js/bootstrap.js','service-worker.js'):
               path = Path(name)
               text = path.read_text(encoding='utf-8')
-              for old,new in replacements.items():
+              for old,new in exact_replacements:
                   text = text.replace(old,new)
               path.write_text(text,encoding='utf-8')
           PY
