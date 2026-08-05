@@ -1,0 +1,22 @@
+name: V0.3.88 Zero SQL Rescue Gate
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --check assets/js/database.js
+      - run: node --check assets/js/app.js
+      - name: Verify zero SQL rescue contract
+        run: |
+          grep -q "zero_sql:true" assets/js/database.js
+          grep -q "if(rescueReadonly)return \[\]" assets/js/database.js
+          grep -q "if(rescueReadonly)return 0" assets/js/database.js
+          ! grep -A12 "createReadonlyRescueDatabase" assets/js/database.js | grep -q "initSqlJs"
