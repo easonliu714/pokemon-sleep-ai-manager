@@ -6,6 +6,28 @@ const trace=(event,details={},status='completed',error=null)=>{
   globalThis.DebugTrace?.record?.('image_snapshot',event,{status,details,error});
 };
 
+function assertVersion(){
+  document.documentElement.dataset.appVersion=VERSION;
+  document.documentElement.dataset.appBuild=BUILD;
+  globalThis.PokemonSleepRuntimeVersion=Object.freeze({app_version:VERSION,app_build:BUILD});
+  const badge=document.getElementById('appVersion');
+  if(badge){badge.textContent=`版本 ${VERSION}`;badge.title=`Pokémon Sleep AI Manager ${VERSION} / ${BUILD}`;badge.dataset.versionAuthority='v0382-release';}
+}
+function installVersionAuthority(){
+  const apply=()=>setTimeout(assertVersion,0);
+  assertVersion();
+  new MutationObserver(apply).observe(document.documentElement,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['data-app-version','data-app-build']});
+  document.addEventListener('DOMContentLoaded',apply,{once:true});
+  setTimeout(assertVersion,500);
+}
+async function registerReleaseServiceWorker(){
+  if(!('serviceWorker' in navigator))return;
+  try{
+    const registration=await navigator.serviceWorker.register('./service-worker-v0382.js',{scope:'./',updateViaCache:'none'});
+    await registration.update();
+    trace('v0382_service_worker_registered',{scope:registration.scope,version:VERSION,build:BUILD});
+  }catch(error){trace('v0382_service_worker_failed',{message:error?.message||String(error)},'failed',error);}
+}
 function normalizeType(type){return ['blob','arraybuffer','uint8array'].includes(type)?type:'blob';}
 function cloneBytes(bytes){return bytes.slice(0);}
 
@@ -60,5 +82,7 @@ globalThis.addEventListener('pokemon-sleep:identity-import-files-selected',event
   result.image_byte_snapshot_promise=promise;
 },{capture:true});
 
+installVersionAuthority();
+registerReleaseServiceWorker();
 trace('image_byte_snapshot_runtime_ready',{version:VERSION,build:BUILD});
 export {snapshotArchive,snapshotResult};
