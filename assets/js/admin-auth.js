@@ -1,3 +1,4 @@
+import './v0382-release-authority.js';
 import './v0382-image-byte-snapshot.js';
 import './v0382-catalog-and-field-migration.js';
 import './v0383-catalog-ocr-review-contract.js';
