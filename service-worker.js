@@ -1,6 +1,6 @@
-const APP_VERSION = 'v0.3.84';
-const APP_BUILD = '20260805-v0384-database-catalog-recovery';
-const CACHE = 'pokemon-sleep-ai-v0.3.84-v0384-database-catalog-recovery';
+const APP_VERSION = 'v0.3.85';
+const APP_BUILD = '20260805-v0385-database-boot-isolation';
+const CACHE = 'pokemon-sleep-ai-v0.3.85-v0385-database-boot-isolation';
 
 const PREVIOUS_CACHE_COMPATIBILITY_MARKERS = [
   'pokemon-sleep-ai-v0.3.82-v0382-file-snapshot-public-catalog',
