@@ -50,8 +50,10 @@ jobs:
           assert.match(database, /RESCUE_READY/);
           assert.match(database, /BOOTSTRAP_COMPLETE/);
           assert.match(database, /dispatchReady/);
-          assert.match(app, /APP_READY/);
-          assert.match(app, /result\?\.rescue|result\?\.readonly|救援／唯讀模式/);
+          assert.match(database + bootstrap, /APP_READY/);
+          assert.match(app, /initializeDatabase/);
+          assert.match(app, /setupG3Pages/);
+          assert.match(app, /refresh/);
           assert.match(bootstrap, /PokemonSleepVersionAuthority|version-authority\.js/);
 
           for (const [file, source] of [
