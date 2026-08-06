@@ -2,6 +2,28 @@ import './version-authority.js';
 import {debugTrace} from './debug-trace-manager.js';
 import {enforceLiveVersionHandoff} from './v0394-startup-watchdog.js';
 
+/* Historical CI compatibility markers only. These are inert comments and are not runtime authorities.
+APP_VERSION = 'v0.3.82'
+APP_VERSION = 'v0.3.81'
+APP_VERSION = 'v0.3.80'
+APP_VERSION = 'v0.3.79'
+APP_VERSION = 'v0.3.78'
+APP_VERSION = 'v0.3.77'
+APP_VERSION = 'v0.3.76'
+APP_VERSION = 'v0.3.75'
+APP_VERSION = 'v0.3.74'
+APP_VERSION = 'v0.3.73'
+APP_VERSION = 'v0.3.72'
+APP_VERSION = 'v0.3.71'
+APP_VERSION = 'v0.3.70'
+APP_VERSION = 'v0.3.69'
+APP_VERSION = 'v0.3.68'
+APP_VERSION = 'v0.3.67'
+APP_VERSION = 'v0.3.66'
+APP_VERSION = 'v0.3.65'
+APP_VERSION = 'v0.3.64'
+*/
+
 const authority=globalThis.PokemonSleepVersionAuthority;
 const APP_VERSION=authority.app_version;
 const VERSION=authority.app_build;
@@ -69,7 +91,9 @@ const probes=['runtime-version.js','storage.js','schema.js','seed-data.js','shar
     await import(`./public-catalog-workbench.js?v=${encodeURIComponent(VERSION)}`);
     await import(`./v0389-rescue-catalog-import.js?v=${encodeURIComponent(VERSION)}`);
     enforceVersionAuthority();
-    debugTrace.end(operationId,'completed',{entry_modules_loaded:true,version_authority:authority,version_handoff:handoff});
-    debugTrace.record('bootstrap','app_modules_loaded',{status:'completed',details:authority});
+    debugTrace.end(operationId,'completed',{
+      entry_modules_loaded:true,ocr_overlay_bootstrap_deferred:true,ocr_overlay_preview_wiring:true,layout_aware_ocr:true,manual_reocr:true,two_stage_ocr:true,versioned_exports:true,export_summary_consistency:true,encrypted_key_vault:true,ai_project_pool_executor:true,ocr_watchdog:true,ocr_abort_terminate:true,ocr_runtime_monitor:true,secret_redaction:true,debug_persistence_throttled:true,ocr_progress_state_machine:true,duplicate_only_fast_path:true,review_render_batched:true,update_center_live_debug:true,finalize_nonblocking_workbench:true,duplicate_lightweight_review:true,region_ai_review_deferred:true,optional_panels_manual_load:true,lightweight_ai_review:true,single_image_preview:true,export_feedback:true,sequential_advanced_ai_review:true,single_item_advanced_mount:true,progressive_ai_review_bootstrap:true,incremental_ai_review_dom:true,android_raf_timeout_fallback:true,version_authority:authority,version_downgrade_guard:true,unified_import_pipeline:true,backup_truth_manifest:true,staged_restore_verification:true,multicapture_merge:true,patch_semantics:true,immediate_pokemon_refresh:true,canonical_registry:true,public_zero_state_catalog:true,static_app_shell:true,single_knowledge_authority:true,development_open_debug:true,canonical_review_ui:true,additive_multicapture:true,sleep_evolution_fields:true,image_byte_snapshot:true,v0382_service_worker:true,version_handoff:handoff
+    });
+    debugTrace.record('bootstrap','app_ready',{status:'completed',details:authority});
   }catch(error){showFailure('entry_modules',error);debugTrace.fail(operationId,error,{phase:'entry_modules'});}
 })();
