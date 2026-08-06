@@ -6,6 +6,8 @@ const page = await browser.newPage({
   viewport: { width: 412, height: 915 },
   serviceWorkers: 'block',
 });
+page.setDefaultTimeout(30_000);
+page.setDefaultNavigationTimeout(30_000);
 
 const failures = [];
 const observed = {
@@ -45,7 +47,7 @@ try {
     if (!status) return false;
     const text = status.textContent?.trim() || '';
     return text !== '' && text !== '資料庫初始化中';
-  }, { timeout: 30_000 });
+  }, null, { timeout: 30_000 });
 
   const runtime = await page.evaluate(() => {
     const status = document.getElementById('dbStatus');
@@ -81,7 +83,11 @@ try {
   }
 
   await page.click('nav [data-view="recipes"]', { timeout: 10_000 });
-  await page.waitForFunction(() => document.getElementById('recipes')?.classList.contains('active'), { timeout: 10_000 });
+  await page.waitForFunction(
+    () => document.getElementById('recipes')?.classList.contains('active'),
+    null,
+    { timeout: 10_000 },
+  );
 
   const recipeState = await page.evaluate(() => ({
     active: document.getElementById('recipes')?.classList.contains('active') || false,
