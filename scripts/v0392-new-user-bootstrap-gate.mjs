@@ -19,9 +19,9 @@ requireText(migrations,"hasMigration",'migration idempotence');
 requireText(migrations,"export function applyFreshDatabaseBootstrap",'fresh database migration path');
 requireText(migrations,"if(!hasMigration(db,4))",'shared master once-only guard');
 requireText(migrations,"if(!hasMigration(db,6))",'canonical once-only guard');
-requireText(bootstrap,"const APP_VERSION = 'v0.3.92'",'bootstrap version');
-requireText(serviceWorker,"const APP_VERSION = 'v0.3.92'",'service worker version');
-requireText(index,'20260806-v0392-new-user-database-bootstrap-freeze','index build query');
+if(!/const APP_VERSION = 'v0\.3\.(?:92|93)'/.test(bootstrap))failures.push('bootstrap version: expected v0.3.92+');
+if(!/const APP_VERSION = 'v0\.3\.(?:92|93)'/.test(serviceWorker))failures.push('service worker version: expected v0.3.92+');
+if(!/20260806-v039(?:2-new-user-database-bootstrap-freeze|3-post-migration-startup-isolation)/.test(index))failures.push('index build query: expected v0.3.92+ authority');
 
 const newStart=database.indexOf('if(isNew){');
 const existingStart=database.indexOf('}else{',newStart);
@@ -42,4 +42,4 @@ try {
 } catch(error){failures.push(`migrations syntax: ${error.message}`);}
 
 if(failures.length){console.error(JSON.stringify({ok:false,failures},null,2));process.exit(1);}
-console.log(JSON.stringify({ok:true,version:'v0.3.92',scenarios:['cleared_browser_history','empty_indexeddb','database_cleared'],contracts:['fresh_bootstrap_skips_historical_data_rewrites','existing_migrations_are_idempotent','ui_yields_between_sync_sqlite_phases']},null,2));
+console.log(JSON.stringify({ok:true,version:'v0.3.92+',scenarios:['cleared_browser_history','empty_indexeddb','database_cleared'],contracts:['fresh_bootstrap_skips_historical_data_rewrites','existing_migrations_are_idempotent','ui_yields_between_sync_sqlite_phases']},null,2));
