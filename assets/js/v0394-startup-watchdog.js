@@ -39,16 +39,24 @@ addEventListener('pagehide',()=>clearInterval(watchdogTimer),{once:true});
 
 export async function enforceLiveVersionHandoff(){
   if(!('serviceWorker' in navigator))return {supported:false};
-  const registration=await navigator.serviceWorker.register('./service-worker.js',{updateViaCache:'none'});
-  await registration.update().catch(()=>{});
-  const active=registration.active;
+  let registration=null;
+  try{
+    registration=await navigator.serviceWorker.register('./service-worker.js',{updateViaCache:'none'});
+  }catch(error){
+    debugTrace.record('service_worker','version_handoff_registration_failed',{status:'blocked',details:{authority},error});
+    return {supported:true,registered:false,controlled:Boolean(navigator.serviceWorker.controller)};
+  }
+  if(registration&&typeof registration.update==='function'){
+    try{await registration.update();}catch{}
+  }
+  const active=registration?.active||null;
   const controller=navigator.serviceWorker.controller;
-  debugTrace.record('service_worker','version_handoff_checked',{status:'completed',details:{authority,active:Boolean(active),controlled:Boolean(controller)}});
+  debugTrace.record('service_worker','version_handoff_checked',{status:'completed',details:{authority,registered:Boolean(registration),active:Boolean(active),controlled:Boolean(controller)}});
   if(!controller&&active){
     const alreadyReloaded=sessionStorage.getItem(RELOAD_KEY)==='1';
     if(!alreadyReloaded){sessionStorage.setItem(RELOAD_KEY,'1');location.reload();return {reloading:true};}
   }
-  return {supported:true,controlled:Boolean(controller)};
+  return {supported:true,registered:Boolean(registration),controlled:Boolean(controller)};
 }
 
 export function getLastStartupStage(){
