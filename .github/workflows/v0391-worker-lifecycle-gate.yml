@@ -4,6 +4,7 @@ on:
     paths:
       - 'assets/js/storage.js'
       - 'assets/js/bootstrap.js'
+      - 'assets/js/version-authority.js'
       - 'index.html'
       - 'service-worker.js'
       - '.github/workflows/v0391-worker-lifecycle-gate.yml'
@@ -20,11 +21,13 @@ jobs:
         run: |
           node --check assets/js/storage.js
           node --check assets/js/bootstrap.js
+          node --check assets/js/version-authority.js
           node --check service-worker.js
       - name: Verify captured-instance cancellation contract
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
           text=Path('assets/js/storage.js').read_text()
           cancel=text.split('export function cancelWorkerDatabaseLoad(){',1)[1].split('export function loadDatabaseBytesInWorker',1)[0]
           load=text.split('export function loadDatabaseBytesInWorker',1)[1].split('export async function saveDatabaseBytes',1)[0]
@@ -34,21 +37,18 @@ jobs:
           assert 'sqliteLoadWorkerGeneration' in text
           assert 'const isCurrent=' in load
           assert "legacy_db_worker_superseded" in load
+          authority=Path('assets/js/version-authority.js').read_text()
           bootstrap=Path('assets/js/bootstrap.js').read_text()
           service_worker=Path('service-worker.js').read_text()
           index=Path('index.html').read_text()
-          assert any(f"APP_VERSION = 'v0.3.{version}'" in bootstrap for version in (91,92,93))
-          assert any(marker in service_worker for marker in (
-            'pokemon-sleep-ai-v0.3.91-v0391-worker-lifecycle-race-closure',
-            'pokemon-sleep-ai-v0.3.92-v0392-new-user-database-bootstrap-freeze',
-            'pokemon-sleep-ai-v0.3.93-v0393-post-migration-startup-isolation',
-          ))
-          assert any(marker in index for marker in (
-            '20260806-v0391-worker-lifecycle-race-closure',
-            '20260806-v0392-new-user-database-bootstrap-freeze',
-            '20260806-v0393-post-migration-startup-isolation',
-          ))
-          print('v0.3.91+ worker lifecycle race contract PASS')
+          assert re.search(r"app_version:'v\d+\.\d+\.\d+'",authority)
+          assert re.search(r"app_build:'\d{8}-[a-z0-9-]+'",authority)
+          assert "const APP_VERSION=authority.app_version" in bootstrap
+          assert "const VERSION=authority.app_build" in bootstrap
+          assert "cache_name:CACHE" in service_worker
+          assert 'src="./assets/js/bootstrap.js"' in index
+          assert 'bootstrap.js?v=' not in index
+          print('worker lifecycle race contract PASS with central version authority')
           PY
       - name: Simulate stale cancellation timer isolation
         run: |
