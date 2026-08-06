@@ -46,8 +46,10 @@ jobs:
           const app = fs.readFileSync('assets/js/app.js', 'utf8');
           assert.match(database, /RESCUE_READY/);
           assert.match(database, /BOOTSTRAP_COMPLETE/);
-          assert.match(database, /readonly|rescueReadonly/);
-          assert.match(app, /救援／唯讀模式|result\?\.rescue|result\?\.readonly/);
+          assert.match(database, /rescueReadonly/);
+          assert.match(database, /if\s*\(rescueReadonly\)\s*return\s*\[\]/);
+          assert.match(database, /readonly_rescue_mode/);
+          assert.match(app, /initializeDatabase/);
 
           for (const file of ['assets/js/database.js', 'assets/js/app.js']) {
             const source = fs.readFileSync(file, 'utf8');
