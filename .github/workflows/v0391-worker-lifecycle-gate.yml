@@ -41,11 +41,11 @@ jobs:
           bootstrap=Path('assets/js/bootstrap.js').read_text()
           service_worker=Path('service-worker.js').read_text()
           index=Path('index.html').read_text()
-          assert re.search(r"app_version:'v\d+\.\d+\.\d+'",authority)
-          assert re.search(r"app_build:'\d{8}-[a-z0-9-]+'",authority)
+          assert re.search(r"app_version\s*:\s*'v\d+\.\d+\.\d+'",authority)
+          assert re.search(r"app_build\s*:\s*'\d{8}-[a-z0-9-]+'",authority)
           assert "const APP_VERSION=authority.app_version" in bootstrap
           assert "const VERSION=authority.app_build" in bootstrap
-          assert "cache_name:CACHE" in service_worker
+          assert re.search(r"cache_name\s*:\s*CACHE",service_worker)
           assert 'src="./assets/js/bootstrap.js"' in index
           assert 'bootstrap.js?v=' not in index
           print('worker lifecycle race contract PASS with central version authority')
