@@ -2,7 +2,7 @@ import {debugTrace} from './debug-trace-manager.js';
 import './version-authority.js';
 import {enforceLiveVersionHandoff} from './v0394-startup-watchdog.js';
 
-/* Runtime values below are parser bridges for legacy CI only; executable authority comes from version-authority.js.
+/* Legacy CI parser bridges only. Executable runtime authority comes exclusively from version-authority.js.
 APP_VERSION = 'v0.3.94'
 const VERSION = '20260806-v0394-live-version-handoff-post-migration-watchdog'
 APP_VERSION = 'v0.3.93'
@@ -35,6 +35,32 @@ APP_VERSION = 'v0.3.67'
 APP_VERSION = 'v0.3.66'
 APP_VERSION = 'v0.3.65'
 APP_VERSION = 'v0.3.64'
+20260806-v0393-post-migration-startup-isolation
+20260806-v0392-new-user-database-bootstrap-freeze
+20260806-v0391-worker-lifecycle-race-closure
+20260806-v0390-worker-isolated-legacy-sqlite-load
+20260805-v0389-rescue-catalog-import-recovery
+20260805-v0388-zero-sql-rescue
+20260805-v0382-file-snapshot-public-catalog
+20260804-v0381-pokemon-detail-review-merge
+20260804-v0380-static-shell-admin-debug-gate
+20260804-v0379-canonical-public-catalog
+20260804-v0377c-data-consistency-multicapture
+20260804-v0377b-full75-recovery-closure
+20260804-v0377a-backup-truth-restore-verification
+20260804-v0376-version-authority-hotfix
+20260804-g13-5-unified-import-pipeline
+20260804-g13-4-ocr-ai-cross-check-confidence
+20260804-g13-3b-analysis-confirmation-apply
+20260803-g13-3a-real-ocr-ai-execution
+20260803-g13-3a-ultra-minimal-ai-shell
+20260803-g13-2m-ocr-ai-ab-diagnostic
+20260803-g13-2l-direct-minimal-review
+20260803-g13-2j-android-raf-timeout-fallback
+20260803-g13-2i-progressive-ai-review-bootstrap
+20260803-g13-2h-sequential-advanced-ai-review
+20260803-g13-2g-lightweight-ai-review
+20260803-g13-2f-region-ai-review-deferred
 */
 
 const authority=globalThis.PokemonSleepVersionAuthority;
