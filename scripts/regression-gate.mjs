@@ -25,7 +25,7 @@ async function migrationStaticGate(){
   const schema=await text('assets/js/schema.js');const database=await text('assets/js/database.js');const migrations=await text('assets/js/migrations.js');const canonical=await text('assets/js/canonical-registry.js');
   for(const field of ['recipe_level','current_energy','updated_at','notes'])assert.match(migrations,new RegExp(`addColumnIfMissing\\(db,'recipes','${field}'`),`missing recipe migration field: ${field}`);
   for(const version of [1,2,3,4,5,6,7])assert.match(`${schema}\n${migrations}\n${canonical}`,new RegExp(`schema_migrations[^\\n]*${version}|VALUES\\(${version},`),`migration ${version} is not registered`);
-  const initialization=database.match(/export async function initializeDatabase\(\)[\s\S]*?return \{seeded\};/u)?.[0]||'';
+  const initialization=database.match(/export async function initializeDatabase\(\)[\s\S]*?\n\}/u)?.[0]||'';
   const replacement=database.match(/export async function replaceDatabase\(bytes\)[\s\S]*?await persist\(\);\n\}/u)?.[0]||'';
   assert.match(initialization,/applyAllMigrations\(db\)/u,'migrations missing from initializeDatabase');
   assert.match(replacement,/applyAllMigrations\(db\)/u,'migrations missing from replaceDatabase');

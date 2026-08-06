@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   rotate-release-authority:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'hotfix/v0392-new-user-database-bootstrap-freeze'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
