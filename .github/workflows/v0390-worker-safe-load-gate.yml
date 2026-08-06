@@ -30,8 +30,8 @@ jobs:
           grep -q "LEGACY_DB_WORKER_UNRESPONSIVE" assets/js/storage.js
           grep -q "maxTransferBytes" assets/js/sqlite-load-worker.js
           grep -q "cancelForcedDatabaseLoad" assets/js/v0390-worker-load-control.js
-          grep -Eq "APP_VERSION = 'v0.3.(90|91)'" assets/js/bootstrap.js
-          grep -Eq "pokemon-sleep-ai-v0.3.(90-v0390-worker-isolated-legacy-sqlite-load|91-v0391-worker-lifecycle-race-closure)" service-worker.js
+          grep -Eq "APP_VERSION = 'v0.3.(90|91|92)'" assets/js/bootstrap.js
+          grep -Eq "pokemon-sleep-ai-v0.3.(90-v0390-worker-isolated-legacy-sqlite-load|91-v0391-worker-lifecycle-race-closure|92-v0392-new-user-database-bootstrap-freeze)" service-worker.js
           grep -q "v0390-worker-load-control.js" index.html
       - name: Verify legacy DB is not directly read after forced authorization
         run: |
