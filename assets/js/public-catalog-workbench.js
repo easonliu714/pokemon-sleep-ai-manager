@@ -1,114 +1,41 @@
 // v0.3.85 compatibility authority tokens: ingredient_catalog_state item_catalog_state recipe_catalog_state
-import {rows,run,persist,snapshot,begin,commit,rollback} from './database.js';
+import './version-authority.js';
+import {rows,run,persist,snapshot,begin,commit,rollback,isRescueReadonly} from './database.js';
 import {saveIngredient,saveItem} from './manual-editor.js';
 import {localIso} from './time-utils.js';
 
-const BUILD='20260804-v0379-public-catalog-main-renderer-r2';
-const esc=(value)=>String(value??'').replace(/[&<>"']/g,(ch)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]));
+const BUILD=globalThis.PokemonSleepVersionAuthority.app_build;
+const esc=(value)=>String(value??'').replace(/[&<>"']/g,(ch)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const $=(id)=>document.getElementById(id);
-let installed=false;
-let observer=null;
-let retryTimer=null;
+let installed=false,renderScheduled=false;
+const activeView=()=>document.querySelector('.view.active')?.id||'dashboard';
+const yieldToUi=()=>new Promise(resolve=>setTimeout(resolve,0));
 
-function databaseReady(){
-  try{return Number(rows('SELECT COUNT(*) AS count FROM schema_migrations')[0]?.count||0)>0;}
-  catch{return false;}
-}
+function databaseReady(){try{return !isRescueReadonly()&&Number(rows('SELECT COUNT(*) AS count FROM schema_migrations')[0]?.count||0)>0;}catch{return false;}}
+function progress(stage,message,status='running',details={}){globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:startup-progress',{detail:{stage,message,status,details}}));}
 
 function renderIngredientCatalog(){
   const table=$('ingredientTable');if(!table)return;
   const data=rows('SELECT * FROM ingredient_catalog_state ORDER BY ingredient_name');
-  table.innerHTML=`<thead><tr><th>食材</th><th>數量</th><th>玩家紀錄</th><th>主檔版本</th><th>操作</th></tr></thead><tbody>${data.map((row)=>`<tr><td>${esc(row.ingredient_name)}</td><td><input class="inline-number canonical-ingredient-qty" type="number" min="0" value="${Number(row.quantity||0)}" data-name="${esc(row.ingredient_name)}"></td><td>${row.player_record_exists?'已建立':'尚未建立'}</td><td>${esc(row.data_version||'')}</td><td><button class="canonical-save-ingredient" data-name="${esc(row.ingredient_name)}">儲存</button></td></tr>`).join('')}</tbody>`;
-  table.querySelectorAll('.canonical-save-ingredient').forEach((button)=>button.addEventListener('click',async()=>{
-    const name=button.dataset.name,input=table.querySelector(`.canonical-ingredient-qty[data-name="${CSS.escape(name)}"]`);
-    try{await saveIngredient(name,input.value);renderIngredientCatalog();window.dispatchEvent(new CustomEvent('pokemon-sleep:data-changed',{detail:{entity:'ingredient_inventory',operation:'manual_upsert'}}));}catch(error){alert(error.message);}
-  }));
+  table.innerHTML=`<thead><tr><th>食材</th><th>數量</th><th>玩家紀錄</th><th>主檔版本</th><th>操作</th></tr></thead><tbody>${data.map(row=>`<tr><td>${esc(row.ingredient_name)}</td><td><input class="inline-number canonical-ingredient-qty" type="number" min="0" value="${Number(row.quantity||0)}" data-name="${esc(row.ingredient_name)}"></td><td>${row.player_record_exists?'已建立':'尚未建立'}</td><td>${esc(row.data_version||'')}</td><td><button class="canonical-save-ingredient" data-name="${esc(row.ingredient_name)}">儲存</button></td></tr>`).join('')}</tbody>`;
+  table.querySelectorAll('.canonical-save-ingredient').forEach(button=>button.addEventListener('click',async()=>{const name=button.dataset.name,input=table.querySelector(`.canonical-ingredient-qty[data-name="${CSS.escape(name)}"]`);try{await saveIngredient(name,input.value);renderIngredientCatalog();window.dispatchEvent(new CustomEvent('pokemon-sleep:data-changed',{detail:{entity:'ingredient_inventory',operation:'manual_upsert'}}));}catch(error){alert(error.message);}}));
 }
-
 function renderItemCatalog(){
   const table=$('itemTable');if(!table)return;
-  const data=rows(`SELECT m.item_name,m.item_category,m.effect_description_zh_tw,m.effect_source_type,m.effect_source_ref,m.data_version,COALESCE(i.quantity,0) quantity,COALESCE(i.safe_reserve,0) safe_reserve,COALESCE(i.recommendation,'') recommendation,i.updated_at,CASE WHEN i.item_name IS NULL THEN 0 ELSE 1 END player_record_exists,MAX(0,COALESCE(i.quantity,0)-COALESCE(i.safe_reserve,0)) available FROM item_master m LEFT JOIN item_inventory i ON i.item_name=m.item_name ORDER BY m.item_category,m.item_name`);
-  table.innerHTML=`<thead><tr><th>道具</th><th>分類</th><th>庫存</th><th>保留</th><th>可動用</th><th>備註</th><th>主檔版本</th><th>操作</th></tr></thead><tbody>${data.map((row)=>`<tr><td>${esc(row.item_name)}</td><td>${esc(row.item_category||'未分類')}</td><td><input class="inline-number canonical-item-qty" type="number" min="0" value="${Number(row.quantity||0)}" data-name="${esc(row.item_name)}"></td><td><input class="inline-number canonical-item-reserve" type="number" min="0" value="${Number(row.safe_reserve||0)}" data-name="${esc(row.item_name)}"></td><td>${Number(row.available||0)}</td><td><div class="notice canonical-item-effect"><strong>功能：</strong>${esc(row.effect_description_zh_tw||'官方說明待補')}</div><textarea class="inline-text canonical-item-note" data-name="${esc(row.item_name)}" placeholder="玩家備註">${esc(row.recommendation||'')}</textarea></td><td>${esc(row.data_version||'')}</td><td><button class="canonical-save-item" data-name="${esc(row.item_name)}">儲存</button></td></tr>`).join('')}</tbody>`;
-  table.querySelectorAll('.canonical-save-item').forEach((button)=>button.addEventListener('click',async()=>{
-    const name=button.dataset.name,selector=CSS.escape(name);
-    const q=table.querySelector(`.canonical-item-qty[data-name="${selector}"]`).value;
-    const reserve=table.querySelector(`.canonical-item-reserve[data-name="${selector}"]`).value;
-    const note=table.querySelector(`.canonical-item-note[data-name="${selector}"]`).value;
-    try{await saveItem(name,q,reserve,note);renderItemCatalog();window.dispatchEvent(new CustomEvent('pokemon-sleep:data-changed',{detail:{entity:'item_inventory',operation:'manual_upsert'}}));}catch(error){alert(error.message);}
-  }));
+  const data=rows(`SELECT m.item_name,m.item_category,m.effect_description_zh_tw,m.data_version,COALESCE(i.quantity,0) quantity,COALESCE(i.safe_reserve,0) safe_reserve,COALESCE(i.recommendation,'') recommendation,CASE WHEN i.item_name IS NULL THEN 0 ELSE 1 END player_record_exists,MAX(0,COALESCE(i.quantity,0)-COALESCE(i.safe_reserve,0)) available FROM item_master m LEFT JOIN item_inventory i ON i.item_name=m.item_name ORDER BY m.item_category,m.item_name`);
+  table.innerHTML=`<thead><tr><th>道具</th><th>分類</th><th>庫存</th><th>保留</th><th>可動用</th><th>備註</th><th>主檔版本</th><th>操作</th></tr></thead><tbody>${data.map(row=>`<tr><td>${esc(row.item_name)}</td><td>${esc(row.item_category||'未分類')}</td><td><input class="inline-number canonical-item-qty" type="number" min="0" value="${Number(row.quantity||0)}" data-name="${esc(row.item_name)}"></td><td><input class="inline-number canonical-item-reserve" type="number" min="0" value="${Number(row.safe_reserve||0)}" data-name="${esc(row.item_name)}"></td><td>${Number(row.available||0)}</td><td><div class="notice"><strong>功能：</strong>${esc(row.effect_description_zh_tw||'官方說明待補')}</div><textarea class="inline-text canonical-item-note" data-name="${esc(row.item_name)}">${esc(row.recommendation||'')}</textarea></td><td>${esc(row.data_version||'')}</td><td><button class="canonical-save-item" data-name="${esc(row.item_name)}">儲存</button></td></tr>`).join('')}</tbody>`;
+  table.querySelectorAll('.canonical-save-item').forEach(button=>button.addEventListener('click',async()=>{const name=button.dataset.name,selector=CSS.escape(name),q=table.querySelector(`.canonical-item-qty[data-name="${selector}"]`).value,reserve=table.querySelector(`.canonical-item-reserve[data-name="${selector}"]`).value,note=table.querySelector(`.canonical-item-note[data-name="${selector}"]`).value;try{await saveItem(name,q,reserve,note);renderItemCatalog();window.dispatchEvent(new CustomEvent('pokemon-sleep:data-changed',{detail:{entity:'item_inventory',operation:'manual_upsert'}}));}catch(error){alert(error.message);}}));
 }
-
 async function saveRecipeState(row,unlocked,level,energy){
-  const before=rows('SELECT * FROM recipes WHERE recipe_id=?',[row.recipe_id])[0]||null;
-  const parsedLevel=level===''?null:Number(level),parsedEnergy=energy===''?null:Number(energy);
+  const before=rows('SELECT * FROM recipes WHERE recipe_id=?',[row.recipe_id])[0]||null,parsedLevel=level===''?null:Number(level),parsedEnergy=energy===''?null:Number(energy);
   if(parsedLevel!==null&&(!Number.isInteger(parsedLevel)||parsedLevel<1))throw new Error('料理等級必須為 1 以上整數');
   if(parsedEnergy!==null&&(!Number.isInteger(parsedEnergy)||parsedEnergy<0))throw new Error('目前能量必須為 0 以上整數');
   await snapshot(`manual:recipe:${row.recipe_id}`);begin();
-  try{
-    run(`INSERT INTO recipes(recipe_id,category,recipe_name,unlocked,total_ingredients,source,recipe_level,current_energy,updated_at,notes) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(recipe_id) DO UPDATE SET unlocked=excluded.unlocked,recipe_level=excluded.recipe_level,current_energy=excluded.current_energy,updated_at=excluded.updated_at`,[row.recipe_id,row.category,row.recipe_name,unlocked?1:0,row.total_ingredients,'public_catalog_manual',parsedLevel,parsedEnergy,localIso(),'']);
-    const after=rows('SELECT * FROM recipes WHERE recipe_id=?',[row.recipe_id])[0];
-    const updateId=`MANUAL-RECIPE-${Date.now()}-${Math.random().toString(16).slice(2,6)}`;
-    run('INSERT INTO import_batches(update_id,schema_version,generated_at,imported_at,source,operation_count,result_json) VALUES(?,?,?,?,?,?,?)',[updateId,'manual-1.0',localIso(),localIso(),'manual_frontend_edit',1,JSON.stringify({status:'applied'})]);
-    run('INSERT INTO import_changes(update_id,operation_index,entity,action,key_json,before_json,after_json,status,message) VALUES(?,?,?,?,?,?,?,?,?)',[updateId,0,'recipes','manual_update',JSON.stringify({recipe_id:row.recipe_id}),JSON.stringify(before),JSON.stringify(after),'applied','前端手動修改料理解鎖狀態']);
-    commit();await persist();
-  }catch(error){rollback();throw error;}
+  try{run(`INSERT INTO recipes(recipe_id,category,recipe_name,unlocked,total_ingredients,source,recipe_level,current_energy,updated_at,notes) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(recipe_id) DO UPDATE SET unlocked=excluded.unlocked,recipe_level=excluded.recipe_level,current_energy=excluded.current_energy,updated_at=excluded.updated_at`,[row.recipe_id,row.category,row.recipe_name,unlocked?1:0,row.total_ingredients,'public_catalog_manual',parsedLevel,parsedEnergy,localIso(),'']);const after=rows('SELECT * FROM recipes WHERE recipe_id=?',[row.recipe_id])[0],updateId=`MANUAL-RECIPE-${Date.now()}-${Math.random().toString(16).slice(2,6)}`;run('INSERT INTO import_batches(update_id,schema_version,generated_at,imported_at,source,operation_count,result_json) VALUES(?,?,?,?,?,?,?)',[updateId,'manual-1.0',localIso(),localIso(),'manual_frontend_edit',1,JSON.stringify({status:'applied'})]);run('INSERT INTO import_changes(update_id,operation_index,entity,action,key_json,before_json,after_json,status,message) VALUES(?,?,?,?,?,?,?,?,?)',[updateId,0,'recipes','manual_update',JSON.stringify({recipe_id:row.recipe_id}),JSON.stringify(before),JSON.stringify(after),'applied','前端手動修改料理解鎖狀態']);commit();await persist();}catch(error){rollback();throw error;}
 }
-
-function recipeIngredients(recipeId){return rows('SELECT ingredient_name,quantity FROM recipe_master_ingredients WHERE recipe_id=? ORDER BY ingredient_name',[recipeId]).map((row)=>`${row.ingredient_name}×${row.quantity}`).join('、');}
-
-function publicRecipeRows(){
-  const registry=Array.from(globalThis.PokemonSleepPublicRecipeRegistry||[]);
-  const privateRows=rows('SELECT * FROM recipes');
-  const privateByName=new Map(privateRows.map(row=>[row.recipe_name,row]));
-  const slug=value=>'recipe_public_'+Array.from(new TextEncoder().encode(value)).reduce((h,b)=>((h*33)^b)>>>0,5381).toString(16).padStart(8,'0');
-  const parse=summary=>String(summary||'').split('、').map(part=>{const m=part.match(/^(.*)×(\d+)$/);return m?{name:m[1].trim(),quantity:Number(m[2])}:null;}).filter(Boolean);
-  const publicRows=registry.map(item=>{
-    const personal=privateByName.get(item.recipe_name)||null;
-    const ingredients=parse(item.summary);
-    return {recipe_id:personal?.recipe_id||slug(item.recipe_name),category:item.category,recipe_name:item.recipe_name,base_energy:null,total_ingredients:ingredients.reduce((s,x)=>s+x.quantity,0),unlocked:personal?.unlocked||0,recipe_level:personal?.recipe_level||1,current_energy:personal?.current_energy??null,updated_at:personal?.updated_at??null,notes:personal?.notes??null,player_record_exists:personal?1:0,data_version:'canonical-registry-v0385-static',ingredients,summary:item.summary};
-  });
-  const publicNames=new Set(publicRows.map(row=>row.recipe_name));
-  return [...publicRows,...privateRows.filter(row=>!publicNames.has(row.recipe_name)).map(row=>({...row,ingredients:[],summary:'',data_version:'PLAYER_ONLY',player_record_exists:1}))];
-}
-function renderRecipeCatalog(){
-  const table=$('recipeTable');if(!table)return;
-  const data=publicRecipeRows().sort((a,b)=>String(a.category).localeCompare(String(b.category),'zh-Hant')||String(a.recipe_name).localeCompare(String(b.recipe_name),'zh-Hant'));
-  const notice=document.querySelector('#recipes .notice');if(notice)notice.textContent=`公版主檔 ${data.filter(row=>row.data_version!=='PLAYER_ONLY').length} 筆；公版預設未解鎖、料理等級 1，只有玩家手動儲存、圖片確認或 JSON 匯入才建立私人紀錄。`;
-  table.innerHTML=`<thead><tr><th>分類</th><th>料理</th><th>基礎能量</th><th>配方</th><th>已解鎖</th><th>料理等級</th><th>目前能量</th><th>主檔版本</th><th>操作</th></tr></thead><tbody>${data.map(row=>`<tr><td>${esc(row.category)}</td><td>${esc(row.recipe_name)}</td><td>${esc(row.base_energy??'—')}</td><td>${esc(row.summary||'—')}</td><td><input class="canonical-recipe-unlocked" type="checkbox" ${row.unlocked?'checked':''} data-id="${esc(row.recipe_id)}"></td><td><input class="inline-number canonical-recipe-level" type="number" min="1" value="${esc(row.recipe_level??1)}" data-id="${esc(row.recipe_id)}"></td><td><input class="inline-number canonical-recipe-energy" type="number" min="0" value="${esc(row.current_energy??'')}" data-id="${esc(row.recipe_id)}"></td><td>${esc(row.data_version||'')}</td><td><button class="canonical-save-recipe" data-id="${esc(row.recipe_id)}">儲存</button></td></tr>`).join('')}</tbody>`;
-  table.querySelectorAll('.canonical-save-recipe').forEach(button=>button.addEventListener('click',async()=>{
-    const id=button.dataset.id,row=data.find(item=>item.recipe_id===id),selector=CSS.escape(id);
-    const unlocked=table.querySelector(`.canonical-recipe-unlocked[data-id="${selector}"]`).checked;
-    const level=table.querySelector(`.canonical-recipe-level[data-id="${selector}"]`).value;
-    const energy=table.querySelector(`.canonical-recipe-energy[data-id="${selector}"]`).value;
-    try{await saveRecipeState(row,unlocked,level,energy);renderRecipeCatalog();window.dispatchEvent(new CustomEvent('pokemon-sleep:data-changed',{detail:{entity:'recipes',operation:'manual_upsert'}}));}catch(error){alert(error.message);}
-  }));
-}
-
-function renderCatalogStatus(){
-  const counts={ingredients:rows('SELECT COUNT(*) count FROM ingredient_master')[0]?.count||0,items:rows('SELECT COUNT(*) count FROM item_master')[0]?.count||0,recipes:rows('SELECT COUNT(*) count FROM recipe_master')[0]?.count||0,terms:rows('SELECT COUNT(*) count FROM canonical_term')[0]?.count||0};
-  for(const [view,label] of [['ingredients','食材'],['items','道具'],['recipes','料理']]){
-    const section=$(view);if(!section||section.querySelector('.canonical-catalog-status'))continue;
-    const box=document.createElement('div');box.className='panel canonical-catalog-status';
-    box.innerHTML=`<b>${label}公版主檔</b><br>Canonical Registry：${esc(rows("SELECT value_json FROM settings WHERE key='canonical_registry_version'")[0]?.value_json||'未建立')}<br>食材 ${counts.ingredients}、道具 ${counts.items}、料理 ${counts.recipes}、正規名詞 ${counts.terms}<br><span class="notice">玩家數量與解鎖狀態不由 GitHub 預載；初始為 0／未解鎖，儲存後才建立本機玩家紀錄。</span>`;
-    section.insertBefore(box,section.children[1]||null);
-  }
-}
-
-function renderAll(){if(!databaseReady())return false;renderIngredientCatalog();renderItemCatalog();renderRecipeCatalog();renderCatalogStatus();return true;}
-function catalogIsMissing(){return Boolean(($('ingredientTable')&&!$('ingredientTable').querySelector('.canonical-ingredient-qty'))||($('itemTable')&&!$('itemTable').querySelector('.canonical-item-qty'))||($('recipeTable')&&!$('recipeTable').querySelector('.canonical-recipe-unlocked')));}
-function ensureCatalogAuthority(){if(!databaseReady()){scheduleDatabaseRetry();return;}if(catalogIsMissing())renderAll();}
-function scheduleDatabaseRetry(){clearTimeout(retryTimer);retryTimer=setTimeout(ensureCatalogAuthority,120);}
-function scheduleRender(){for(const delay of [0,80,250,750,1500])setTimeout(ensureCatalogAuthority,delay);}
-function observeCompetingRenderer(){
-  observer?.disconnect();observer=new MutationObserver(()=>queueMicrotask(ensureCatalogAuthority));
-  for(const id of ['ingredientTable','itemTable','recipeTable']){const table=$(id);if(table)observer.observe(table,{childList:true,subtree:true});}
-}
-function install(){
-  if(installed){scheduleRender();return;}installed=true;observeCompetingRenderer();
-  document.querySelectorAll('nav button').forEach((button)=>button.addEventListener('click',scheduleRender,true));
-  window.addEventListener('pokemon-sleep:data-changed',scheduleRender);window.addEventListener('pokemon-sleep:public-recipe-registry-ready',scheduleRender);window.addEventListener('pageshow',scheduleRender);
-  window.dispatchEvent(new CustomEvent('pokemon-sleep:public-catalog-ready',{detail:{build:BUILD,authoritative_renderer:true,database_readiness_gate:true}}));
-  scheduleRender();
-}
-
+function publicRecipeRows(){const registry=Array.from(globalThis.PokemonSleepPublicRecipeRegistry||[]),privateRows=rows('SELECT * FROM recipes'),privateByName=new Map(privateRows.map(row=>[row.recipe_name,row])),slug=value=>'recipe_public_'+Array.from(new TextEncoder().encode(value)).reduce((h,b)=>((h*33)^b)>>>0,5381).toString(16).padStart(8,'0'),parse=summary=>String(summary||'').split('、').map(part=>{const m=part.match(/^(.*)×(\d+)$/);return m?{name:m[1].trim(),quantity:Number(m[2])}:null;}).filter(Boolean);const publicRows=registry.map(item=>{const personal=privateByName.get(item.recipe_name)||null,ingredients=parse(item.summary);return {recipe_id:personal?.recipe_id||slug(item.recipe_name),category:item.category,recipe_name:item.recipe_name,base_energy:null,total_ingredients:ingredients.reduce((s,x)=>s+x.quantity,0),unlocked:personal?.unlocked||0,recipe_level:personal?.recipe_level||1,current_energy:personal?.current_energy??null,player_record_exists:personal?1:0,data_version:'canonical-registry-v0385-static',summary:item.summary};});const publicNames=new Set(publicRows.map(row=>row.recipe_name));return [...publicRows,...privateRows.filter(row=>!publicNames.has(row.recipe_name)).map(row=>({...row,summary:'',data_version:'PLAYER_ONLY',player_record_exists:1}))];}
+function renderRecipeCatalog(){const table=$('recipeTable');if(!table)return;const data=publicRecipeRows().sort((a,b)=>String(a.category).localeCompare(String(b.category),'zh-Hant')||String(a.recipe_name).localeCompare(String(b.recipe_name),'zh-Hant'));table.innerHTML=`<thead><tr><th>分類</th><th>料理</th><th>配方</th><th>已解鎖</th><th>料理等級</th><th>目前能量</th><th>操作</th></tr></thead><tbody>${data.map(row=>`<tr><td>${esc(row.category)}</td><td>${esc(row.recipe_name)}</td><td>${esc(row.summary||'—')}</td><td><input class="canonical-recipe-unlocked" type="checkbox" ${row.unlocked?'checked':''} data-id="${esc(row.recipe_id)}"></td><td><input class="inline-number canonical-recipe-level" type="number" min="1" value="${esc(row.recipe_level??1)}" data-id="${esc(row.recipe_id)}"></td><td><input class="inline-number canonical-recipe-energy" type="number" min="0" value="${esc(row.current_energy??'')}" data-id="${esc(row.recipe_id)}"></td><td><button class="canonical-save-recipe" data-id="${esc(row.recipe_id)}">儲存</button></td></tr>`).join('')}</tbody>`;table.querySelectorAll('.canonical-save-recipe').forEach(button=>button.addEventListener('click',async()=>{const id=button.dataset.id,row=data.find(item=>item.recipe_id===id),selector=CSS.escape(id),unlocked=table.querySelector(`.canonical-recipe-unlocked[data-id="${selector}"]`).checked,level=table.querySelector(`.canonical-recipe-level[data-id="${selector}"]`).value,energy=table.querySelector(`.canonical-recipe-energy[data-id="${selector}"]`).value;try{await saveRecipeState(row,unlocked,level,energy);renderRecipeCatalog();window.dispatchEvent(new CustomEvent('pokemon-sleep:data-changed',{detail:{entity:'recipes',operation:'manual_upsert'}}));}catch(error){alert(error.message);}}));}
+function renderCurrent(){if(!databaseReady())return false;const view=activeView();progress('PUBLIC_CATALOG_RENDER_START',`正在載入${view}公版資料`,'running',{view});if(view==='ingredients')renderIngredientCatalog();else if(view==='items')renderItemCatalog();else if(view==='recipes')renderRecipeCatalog();else return false;progress('PUBLIC_CATALOG_RENDER_COMPLETED',`${view}公版資料載入完成`,'completed',{view});return true;}
+function scheduleRender(){if(renderScheduled)return;renderScheduled=true;setTimeout(async()=>{renderScheduled=false;await yieldToUi();renderCurrent();},0);}
+function install(){if(installed)return;installed=true;document.querySelectorAll('nav button').forEach(button=>button.addEventListener('click',scheduleRender,true));window.addEventListener('pokemon-sleep:data-changed',scheduleRender);window.addEventListener('pokemon-sleep:public-recipe-registry-ready',scheduleRender);window.addEventListener('pokemon-sleep:database-ready',()=>{progress('PUBLIC_CATALOG_LAZY_READY','公版資料已改為按頁載入','completed',{build:BUILD});});window.dispatchEvent(new CustomEvent('pokemon-sleep:public-catalog-ready',{detail:{build:BUILD,lazy_renderer:true,mutation_observer:false}}));}
 if(document.readyState==='loading')window.addEventListener('DOMContentLoaded',install,{once:true});else install();
