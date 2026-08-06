@@ -1,5 +1,5 @@
-import './version-authority.js';
 import {debugTrace} from './debug-trace-manager.js';
+import './version-authority.js';
 import {enforceLiveVersionHandoff} from './v0394-startup-watchdog.js';
 
 /* Runtime values below are parser bridges for legacy CI only; executable authority comes from version-authority.js.
