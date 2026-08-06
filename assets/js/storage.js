@@ -8,6 +8,7 @@ const META_KEY = "primary";
 
 let connectionPromise = null;
 let sqliteLoadWorker = null;
+let sqliteLoadWorkerGeneration = 0;
 
 function startup(stage,message,status='running',details={}){
   if(typeof globalThis.dispatchEvent==='function'&&typeof globalThis.CustomEvent==='function'){
@@ -64,9 +65,12 @@ export async function loadDatabaseBytes(){
 }
 
 export function cancelWorkerDatabaseLoad(){
-  if(!sqliteLoadWorker)return false;
-  try{sqliteLoadWorker.postMessage({type:'cancel'});}catch{}
-  setTimeout(()=>{try{sqliteLoadWorker?.terminate();}catch{}sqliteLoadWorker=null;},100);
+  const worker=sqliteLoadWorker;
+  if(!worker)return false;
+  sqliteLoadWorkerGeneration+=1;
+  if(sqliteLoadWorker===worker)sqliteLoadWorker=null;
+  try{worker.postMessage({type:'cancel'});}catch{}
+  setTimeout(()=>{try{worker.terminate();}catch{}},100);
   startup('LEGACY_DB_LOAD_CANCELLED','已取消玩家 SQLite 載入','warning');
   return true;
 }
@@ -74,25 +78,31 @@ export function cancelWorkerDatabaseLoad(){
 export function loadDatabaseBytesInWorker({maxTransferBytes=48*1024*1024,hardTimeoutMs=60000,heartbeatTimeoutMs=6000}={}){
   cancelWorkerDatabaseLoad();
   return new Promise((resolve,reject)=>{
+    const generation=++sqliteLoadWorkerGeneration;
     const worker=new Worker(new URL('./sqlite-load-worker.js',import.meta.url));
     sqliteLoadWorker=worker;
     let settled=false;let lastHeartbeat=Date.now();
-    const cleanup=()=>{clearInterval(watchdog);clearTimeout(hardTimer);try{worker.terminate();}catch{}if(sqliteLoadWorker===worker)sqliteLoadWorker=null;};
+    const isCurrent=()=>sqliteLoadWorker===worker&&sqliteLoadWorkerGeneration===generation;
+    const cleanup=()=>{clearInterval(watchdog);clearTimeout(hardTimer);try{worker.terminate();}catch{}if(isCurrent())sqliteLoadWorker=null;};
     const finish=(fn,value)=>{if(settled)return;settled=true;cleanup();fn(value);};
-    const watchdog=setInterval(()=>{if(Date.now()-lastHeartbeat>heartbeatTimeoutMs){startup('LEGACY_DB_WORKER_UNRESPONSIVE','SQLite 載入 Worker 心跳中斷，已終止載入','warning');finish(reject,Object.assign(new Error('legacy_db_worker_unresponsive'),{code:'legacy_db_worker_unresponsive'}));}},1000);
+    const watchdog=setInterval(()=>{
+      if(!isCurrent()){finish(reject,Object.assign(new Error('legacy_db_worker_superseded'),{code:'legacy_db_worker_superseded'}));return;}
+      if(Date.now()-lastHeartbeat>heartbeatTimeoutMs){startup('LEGACY_DB_WORKER_UNRESPONSIVE','SQLite 載入 Worker 心跳中斷，已終止載入','warning');finish(reject,Object.assign(new Error('legacy_db_worker_unresponsive'),{code:'legacy_db_worker_unresponsive'}));}
+    },1000);
     const hardTimer=setTimeout(()=>{startup('LEGACY_DB_WORKER_TIMEOUT','SQLite 載入超時，已終止 Worker','warning');finish(reject,Object.assign(new Error('legacy_db_worker_timeout'),{code:'legacy_db_worker_timeout'}));},hardTimeoutMs);
     watchdog?.unref?.();hardTimer?.unref?.();
-    worker.onerror=event=>finish(reject,Object.assign(new Error(event.message||'legacy_db_worker_error'),{code:'legacy_db_worker_error'}));
+    worker.onerror=event=>{if(!isCurrent())return;finish(reject,Object.assign(new Error(event.message||'legacy_db_worker_error'),{code:'legacy_db_worker_error'}));};
     worker.onmessage=event=>{
+      if(!isCurrent())return;
       const message=event.data||{};
-      if(message.type==='heartbeat'){lastHeartbeat=Date.now();startup(message.stage||'LEGACY_DB_WORKER_HEARTBEAT','玩家 SQLite Worker 運作中','running',{at:message.at});return;}
-      if(message.type==='stage'){lastHeartbeat=Date.now();const labels={LEGACY_DB_READING:'Worker 正在讀取玩家 SQLite',LEGACY_DB_BYTES_READY:'Worker 已取得玩家 SQLite 大小',LEGACY_DB_TRANSFER:'正在安全移交 SQLite'};startup(message.stage,labels[message.stage]||message.stage,'running',message);return;}
+      if(message.type==='heartbeat'){lastHeartbeat=Date.now();startup(message.stage||'LEGACY_DB_WORKER_HEARTBEAT','玩家 SQLite Worker 運作中','running',{at:message.at,generation});return;}
+      if(message.type==='stage'){lastHeartbeat=Date.now();const labels={LEGACY_DB_READING:'Worker 正在讀取玩家 SQLite',LEGACY_DB_BYTES_READY:'Worker 已取得玩家 SQLite 大小',LEGACY_DB_TRANSFER:'正在安全移交 SQLite'};startup(message.stage,labels[message.stage]||message.stage,'running',{...message,generation});return;}
       if(message.type==='too_large'){startup('LEGACY_DB_TOO_LARGE',`玩家 SQLite ${(message.byte_length/1048576).toFixed(1)} MB，超過手機安全載入門檻`,'warning',message);finish(reject,Object.assign(new Error('legacy_database_exceeds_mobile_safe_limit'),{code:'legacy_database_exceeds_mobile_safe_limit',details:message}));return;}
       if(message.type==='cancelled'){finish(reject,Object.assign(new Error('worker_load_cancelled'),{code:'worker_load_cancelled'}));return;}
       if(message.type==='error'){finish(reject,Object.assign(new Error(message.message||'worker_load_failed'),{code:message.code||'worker_load_failed'}));return;}
-      if(message.type==='result'){startup('LEGACY_DB_TRANSFERRED','玩家 SQLite 已由 Worker 安全移交','running',{byte_length:message.byte_length});finish(resolve,message.buffer);}
+      if(message.type==='result'){startup('LEGACY_DB_TRANSFERRED','玩家 SQLite 已由 Worker 安全移交','running',{byte_length:message.byte_length,generation});finish(resolve,message.buffer);}
     };
-    startup('LEGACY_DB_WORKER_STARTING','正在啟動玩家 SQLite 隔離載入 Worker');
+    startup('LEGACY_DB_WORKER_STARTING','正在啟動玩家 SQLite 隔離載入 Worker','running',{generation});
     worker.postMessage({type:'load',maxTransferBytes});
   });
 }
