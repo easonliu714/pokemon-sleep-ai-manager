@@ -1,82 +1,73 @@
-name: v0.3.82 one-shot branch patch
+name: V0.3.82 Historical Contract Validation
+
 on:
   push:
-    branches: [feature/v0382-file-snapshot-and-public-catalog]
+    branches: [main]
+    paths:
+      - 'assets/js/v0382-image-byte-snapshot.js'
+      - 'assets/js/unified-import-analysis-workbench.js'
+      - 'assets/js/migrations.js'
+      - 'assets/js/shared-master-data.js'
+      - 'assets/js/version-authority.js'
+      - '.github/workflows/v0382-branch-patch.yml'
+  pull_request:
+    paths:
+      - 'assets/js/v0382-image-byte-snapshot.js'
+      - 'assets/js/unified-import-analysis-workbench.js'
+      - 'assets/js/migrations.js'
+      - 'assets/js/shared-master-data.js'
+      - 'assets/js/version-authority.js'
+      - '.github/workflows/v0382-branch-patch.yml'
+  workflow_dispatch:
+
 permissions:
-  contents: write
+  contents: read
+
 jobs:
-  patch:
-    if: ${{ !contains(github.event.head_commit.message, '[v0382-patched]') }}
+  historical-contract-validation:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          ref: feature/v0382-file-snapshot-and-public-catalog
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Apply targeted v0.3.82 patch
+          node-version: '22'
+      - name: Validate snapshot, migration, public catalog, and authority contracts
         run: |
-          python - <<'PY'
-          from pathlib import Path
-          BUILD='20260805-v0382-file-snapshot-public-catalog'
-          p=Path('assets/js/bootstrap.js'); s=p.read_text()
-          s=s.replace("const APP_VERSION = 'v0.3.81';","const APP_VERSION = 'v0.3.82';")
-          s=s.replace("const VERSION = '20260804-v0381-pokemon-detail-review-merge';",f"const VERSION = '{BUILD}';")
-          s=s.replace('const PREVIOUS_RELEASE_COMPATIBILITY_MARKERS = [','const PREVIOUS_RELEASE_COMPATIBILITY_MARKERS = [\n  "APP_VERSION = \'v0.3.81\' 20260804-v0381-pokemon-detail-review-merge",')
-          s=s.replace("'android-import-file-picker.js'","'v0382-image-byte-snapshot.js','android-import-file-picker.js'")
-          s=s.replace('sleep_evolution_fields:true','sleep_evolution_fields:true,image_byte_snapshot:true,public_catalog_revision:true')
-          p.write_text(s)
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import vm from 'node:vm';
 
-          p=Path('assets/js/unified-import-analysis-workbench.js'); s=p.read_text()
-          s=s.replace("const VERSION='v0.3.75';","const VERSION='v0.3.82';").replace("const BUILD='20260804-g13-5-unified-import-pipeline';",f"const BUILD='{BUILD}';")
-          s=s.replace("async function sourceBlob(item){const archive=currentResult?.archives?.[0];if(!archive?.readImage)throw new Error('image_source_missing');return archive.readImage(item.path||item.source_image_ref,{type:'blob'});}","async function sourceBlob(item){if(currentResult?.image_byte_snapshot_promise)await currentResult.image_byte_snapshot_promise;const archive=currentResult?.archives?.[0];if(!archive?.readImage)throw new Error('image_source_missing');const blob=await archive.readImage(item.path||item.source_image_ref,{type:'blob'});if(!blob?.size)throw new Error('image_snapshot_empty');return blob;}")
-          s=s.replace("trace('unified_pipeline_failed',{message:error?.message||String(error)});","trace('unified_pipeline_failed',{message:error?.message||String(error),name:error?.name||null});globalThis.DebugTrace?.record?.('unified_pipeline','unified_pipeline_failed',{status:'failed',details:{message:error?.message||String(error),name:error?.name||null},error});")
-          p.write_text(s)
+          const required = [
+            'assets/js/v0382-image-byte-snapshot.js',
+            'assets/js/unified-import-analysis-workbench.js',
+            'assets/js/migrations.js',
+            'assets/js/shared-master-data.js',
+            'assets/js/version-authority.js',
+          ];
+          for (const file of required) assert.ok(fs.existsSync(file), `${file} missing`);
 
-          p=Path('assets/js/migrations.js'); s=p.read_text()
-          insert="""
-export function applyPokemonObservationFieldMigration(db){
-  addColumnIfMissing(db,'pokemon','gender','TEXT');
-  addColumnIfMissing(db,'pokemon','current_energy','REAL');
-  addColumnIfMissing(db,'pokemon','species_candy_count','INTEGER');
-  addColumnIfMissing(db,'pokemon','exp_to_next_level','INTEGER');
-  addColumnIfMissing(db,'pokemon','encounter_location','TEXT');
-  addColumnIfMissing(db,'pokemon','encountered_at','TEXT');
-  addColumnIfMissing(db,'pokemon','berry_quantity','INTEGER');
-  db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(8,datetime('now'))`);
-}
+          const authoritySource = fs.readFileSync('assets/js/version-authority.js', 'utf8');
+          const context = { globalThis: {} };
+          vm.runInNewContext(authoritySource, context);
+          const authority = context.globalThis.PokemonSleepVersionAuthority;
+          assert.ok(authority?.app_version);
+          assert.ok(authority?.app_build);
+          assert.ok(authority?.cache_name);
 
-"""
-          s=s.replace('export function applyAllMigrations(db){',insert+'export function applyAllMigrations(db){')
-          s=s.replace('applyCompletePokemonDetailMigration(db);}','applyCompletePokemonDetailMigration(db);applyPokemonObservationFieldMigration(db);}')
-          p.write_text(s)
+          const workbench = fs.readFileSync('assets/js/unified-import-analysis-workbench.js', 'utf8');
+          const migrations = fs.readFileSync('assets/js/migrations.js', 'utf8');
+          const sharedMaster = fs.readFileSync('assets/js/shared-master-data.js', 'utf8');
+          assert.match(workbench, /image_byte_snapshot|sourceBlob|readImage/);
+          assert.match(migrations, /schema_migrations|apply.*Migration/i);
+          assert.match(sharedMaster, /canonical|registry|catalog/i);
 
-          p=Path('assets/js/shared-master-data.js'); s=p.read_text()
-          s=s.replace("shared-master-2026-07-31-a","canonical-registry-2026-08-05-a")
-          p.write_text(s)
-
-          p=Path('service-worker.js'); s=p.read_text()
-          s=s.replace("const APP_VERSION = 'v0.3.81';","const APP_VERSION = 'v0.3.82';")
-          s=s.replace("const APP_BUILD = '20260804-v0381-pokemon-detail-review-merge';",f"const APP_BUILD = '{BUILD}';")
-          s=s.replace("const CACHE = 'pokemon-sleep-ai-v0.3.81-v0381-pokemon-detail-review-merge';",f"const CACHE = 'pokemon-sleep-ai-v0.3.82-v0382-file-snapshot-public-catalog';")
-          s=s.replace('const PREVIOUS_CACHE_COMPATIBILITY_MARKERS = [',"const PREVIOUS_CACHE_COMPATIBILITY_MARKERS = [\n  'pokemon-sleep-ai-v0.3.81-v0381-pokemon-detail-review-merge',")
-          s=s.replace("'./assets/js/android-import-file-picker.js'","'./assets/js/v0382-image-byte-snapshot.js','./assets/js/android-import-file-picker.js'")
-          p.write_text(s)
-
-          p=Path('index.html'); s=p.read_text()
-          s=s.replace('20260804-v0381-pokemon-detail-review-merge',BUILD)
-          s=s.replace('<script type="module" src="./assets/js/bootstrap.js',f'<script type="module" src="./assets/js/v0382-image-byte-snapshot.js?v={BUILD}"></script><script type="module" src="./assets/js/bootstrap.js')
-          p.write_text(s)
-
-          p=Path('assets/js/runtime-version.js'); s=p.read_text()
-          s=s.replace("v0.3.81","v0.3.82").replace("20260804-v0381-pokemon-detail-review-merge",BUILD)
-          p.write_text(s)
-
-          Path('.github/workflows/v0382-branch-patch.yml').unlink()
-          PY
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add assets/js/bootstrap.js assets/js/unified-import-analysis-workbench.js assets/js/migrations.js assets/js/shared-master-data.js assets/js/runtime-version.js service-worker.js index.html .github/workflows/v0382-branch-patch.yml
-          git commit -m '[v0382-patched] apply image snapshot, fields, version authority'
-          git push
+          for (const file of required.filter((path) => path !== 'assets/js/version-authority.js')) {
+            const source = fs.readFileSync(file, 'utf8');
+            assert.doesNotMatch(source, /const\s+APP_VERSION\s*=\s*['"]/,
+              `${file} must not define APP_VERSION`);
+            assert.doesNotMatch(source, /const\s+CACHE(?:_NAME)?\s*=\s*['"]/,
+              `${file} must not define cache authority`);
+          }
+          console.log('v0.3.82 historical contract PASS');
+          NODE
