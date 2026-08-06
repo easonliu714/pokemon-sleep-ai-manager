@@ -34,9 +34,15 @@ jobs:
 
           p=Path('index.html')
           s=p.read_text()
-          s=re.sub(r'bootstrap\.js\?v=[^"<]+', f'bootstrap.js?v={build}', s, count=1)
+          s=re.sub(
+              r'(src="\./assets/js/bootstrap\.js\?v=)[^"]+("[^>]*></script>)',
+              rf'\g<1>{build}\g<2>',
+              s,
+              count=1,
+          )
           marker='<script type="module" src="./assets/js/v0390-worker-load-control.js?v='+build+'"></script>'
-          if marker not in s:s=s.replace('</body>',marker+'</body>')
+          if marker not in s:
+              s=s.replace('</body>',marker+'</body>')
           p.write_text(s)
           PY
       - name: Commit generated authority
