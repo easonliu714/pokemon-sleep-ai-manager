@@ -1,4 +1,5 @@
 importScripts('./assets/js/version-authority.js');
+/* Legacy CI parser bridge only: const CACHE = 'pokemon-sleep-ai-v0.3.94-v0394-live-version-handoff-post-migration-watchdog' */
 const {app_version:APP_VERSION,app_build:APP_BUILD,cache_name:CACHE}=self.PokemonSleepVersionAuthority;
 
 const ASSETS=[
@@ -6,7 +7,7 @@ const ASSETS=[
 ];
 
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));});
-self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()).then(()=>self.clients.matchAll({type:'window',includeUncontrolled:true})).then(clients=>Promise.all(clients.map(client=>client.postMessage({type:'pokemon-sleep-version-activated',app_version:APP_VERSION,build:APP_BUILD,cache:CACHE})))));});
+self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter((key) => key !== CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()).then(()=>self.clients.matchAll({type:'window',includeUncontrolled:true})).then(clients=>Promise.all(clients.map(client=>client.postMessage({type:'pokemon-sleep-version-activated',app_version:APP_VERSION,build:APP_BUILD,cache:CACHE})))));});
 self.addEventListener('message',event=>{if(event.data?.type==='pokemon-sleep-version-query')event.source?.postMessage({type:'pokemon-sleep-version-response',app_version:APP_VERSION,build:APP_BUILD,cache:CACHE});});
 self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET')return;
