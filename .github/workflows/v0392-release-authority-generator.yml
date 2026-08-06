@@ -1,9 +1,9 @@
 name: v0.3.92 Release Authority Generator
 
 on:
-  push:
+  pull_request:
     branches:
-      - hotfix/v0392-new-user-database-bootstrap-freeze
+      - main
     paths:
       - 'assets/js/database.js'
       - 'assets/js/migrations.js'
@@ -16,11 +16,12 @@ permissions:
 
 jobs:
   rotate-release-authority:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: hotfix/v0392-new-user-database-bootstrap-freeze
+          ref: ${{ github.event.pull_request.head.ref || 'hotfix/v0392-new-user-database-bootstrap-freeze' }}
           fetch-depth: 0
       - name: Rotate v0.3.92 authority
         shell: bash
@@ -62,4 +63,4 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add assets/js/bootstrap.js service-worker.js index.html
           git commit -m 'chore(v0.3.92): rotate release authority'
-          git push origin HEAD:hotfix/v0392-new-user-database-bootstrap-freeze
+          git push origin HEAD:${{ github.event.pull_request.head.ref || 'hotfix/v0392-new-user-database-bootstrap-freeze' }}
