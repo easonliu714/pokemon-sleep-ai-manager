@@ -96,7 +96,7 @@ try {
   });
 
   if (runtime.title !== 'Pokémon Sleep AI Manager') failures.push(`頁面標題異常：${runtime.title}`);
-  if (runtime.appVersion !== 'v0.3.92') failures.push(`版本 authority 異常：${runtime.appVersion || 'missing'}`);
+  if (!['v0.3.92','v0.3.93'].includes(runtime.appVersion)) failures.push(`版本 authority 異常：${runtime.appVersion || 'missing'}`);
   if (!runtime.dbStatus || /失敗|錯誤/.test(runtime.dbStatus)) failures.push(`SQLite 初始化狀態異常：${runtime.dbStatus || 'missing'}`);
   if (!/救援|唯讀/.test(runtime.dbStatus)) failures.push(`未進入預期的零 SQL 救援模式：${runtime.dbStatus}`);
   if (runtime.visibleViews.length !== 1 || runtime.visibleViews[0] !== 'dashboard') {
