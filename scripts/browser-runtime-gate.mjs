@@ -72,9 +72,7 @@ try {
   });
   console.log('BROWSER_GATE_STAGE domcontentloaded');
 
-  if (!response?.ok()) {
-    failures.push(`首頁 HTTP 狀態異常：${response?.status() ?? 'no response'}`);
-  }
+  if (!response?.ok()) failures.push(`首頁 HTTP 狀態異常：${response?.status() ?? 'no response'}`);
 
   await page.waitForFunction(() => {
     const status = document.getElementById('dbStatus');
@@ -98,7 +96,7 @@ try {
   });
 
   if (runtime.title !== 'Pokémon Sleep AI Manager') failures.push(`頁面標題異常：${runtime.title}`);
-  if (runtime.appVersion !== 'v0.3.91') failures.push(`版本 authority 異常：${runtime.appVersion || 'missing'}`);
+  if (runtime.appVersion !== 'v0.3.92') failures.push(`版本 authority 異常：${runtime.appVersion || 'missing'}`);
   if (!runtime.dbStatus || /失敗|錯誤/.test(runtime.dbStatus)) failures.push(`SQLite 初始化狀態異常：${runtime.dbStatus || 'missing'}`);
   if (!/救援|唯讀/.test(runtime.dbStatus)) failures.push(`未進入預期的零 SQL 救援模式：${runtime.dbStatus}`);
   if (runtime.visibleViews.length !== 1 || runtime.visibleViews[0] !== 'dashboard') {

@@ -3,8 +3,8 @@ import {debugTrace} from './debug-trace-manager.js?v=20260805-v0388-zero-sql-res
 const status = document.getElementById('dbStatus');
 const warning = document.getElementById('storageWarning');
 
-const APP_VERSION = 'v0.3.91';
-const VERSION = '20260806-v0391-worker-lifecycle-race-closure';
+const APP_VERSION = 'v0.3.92';
+const VERSION = '20260806-v0392-new-user-database-bootstrap-freeze';
 
 const PREVIOUS_RELEASE_COMPATIBILITY_MARKERS = [
   "APP_VERSION = 'v0.3.82' 20260805-v0382-file-snapshot-public-catalog",

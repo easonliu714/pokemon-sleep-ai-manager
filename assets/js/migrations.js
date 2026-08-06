@@ -5,6 +5,7 @@ import {applyCanonicalRegistry} from './canonical-registry.js';
 
 function rows(db,sql,params=[]){const statement=db.prepare(sql);statement.bind(params);const output=[];while(statement.step())output.push(statement.getAsObject());statement.free();return output;}
 function scalar(db,sql,params=[]){const result=rows(db,sql,params);return result.length?Object.values(result[0])[0]:null;}
+function hasMigration(db,version){return Number(scalar(db,'SELECT COUNT(*) FROM schema_migrations WHERE version=?',[version])||0)>0;}
 function tableColumns(db,table){return new Set(rows(db,`PRAGMA table_info("${table}")`).map(item=>item.name));}
 function addColumnIfMissing(db,table,column,definition){if(!tableColumns(db,table).has(column))db.run(`ALTER TABLE "${table}" ADD COLUMN "${column}" ${definition}`);}
 
@@ -17,34 +18,24 @@ export function applyGameDataMigration(db){const hasSubskills=scalar(db,"SELECT 
 export function applySharedKnowledgeBase(db){applySharedMasterSchema(db);applySharedMasterData(db);db.run(`UPDATE pokemon SET favorite_berry=(SELECT berry_name FROM berry_master WHERE type_name=pokemon.type) WHERE EXISTS(SELECT 1 FROM berry_master WHERE type_name=pokemon.type)`);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(4,datetime('now'))`);}
 export function applyPersonalRecipeMigration(db){addColumnIfMissing(db,'recipes','recipe_level','INTEGER');addColumnIfMissing(db,'recipes','current_energy','INTEGER');addColumnIfMissing(db,'recipes','updated_at','TEXT');addColumnIfMissing(db,'recipes','notes','TEXT');db.run(`UPDATE recipes SET updated_at=datetime('now') WHERE updated_at IS NULL OR updated_at=''`);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(5,datetime('now'))`);}
 export function applyPublicProfileContract(db){applyPublicEmptyProfileMaster(db);}
-export function applyCanonicalTerminologyMigration(db){applyCanonicalRegistry(db);}
+export function applyCanonicalTerminologyMigration(db){applyCanonicalRegistry(db);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(6,datetime('now'))`);}
+export function applyCompletePokemonDetailMigration(db){addColumnIfMissing(db,'pokemon','sleep_hours','REAL');addColumnIfMissing(db,'pokemon','sleep_time_text','TEXT');addColumnIfMissing(db,'pokemon','evolution_level_required','INTEGER');addColumnIfMissing(db,'pokemon','evolution_sleep_hours_required','REAL');addColumnIfMissing(db,'pokemon','evolution_candy_required','INTEGER');addColumnIfMissing(db,'pokemon','evolution_item_required','TEXT');addColumnIfMissing(db,'pokemon','evolution_other_requirement','TEXT');addColumnIfMissing(db,'pokemon','main_skill_description','TEXT');addColumnIfMissing(db,'pokemon','field_evidence_json','TEXT');addColumnIfMissing(db,'pokemon','source_image_refs_json','TEXT');db.run(`CREATE TABLE IF NOT EXISTS pokemon_analysis_observation(observation_id TEXT PRIMARY KEY,pokemon_id TEXT,identity_group_key TEXT,source_image_ref TEXT NOT NULL,analysis_id TEXT,revision_no INTEGER,observed_json TEXT NOT NULL,canonical_json TEXT,conflict_json TEXT,created_at TEXT NOT NULL,applied_at TEXT)`);db.run(`CREATE INDEX IF NOT EXISTS idx_pokemon_analysis_observation_group ON pokemon_analysis_observation(identity_group_key,created_at)`);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(7,datetime('now'))`);}
 
-export function applyCompletePokemonDetailMigration(db){
-  addColumnIfMissing(db,'pokemon','sleep_hours','REAL');
-  addColumnIfMissing(db,'pokemon','sleep_time_text','TEXT');
-  addColumnIfMissing(db,'pokemon','evolution_level_required','INTEGER');
-  addColumnIfMissing(db,'pokemon','evolution_sleep_hours_required','REAL');
-  addColumnIfMissing(db,'pokemon','evolution_candy_required','INTEGER');
-  addColumnIfMissing(db,'pokemon','evolution_item_required','TEXT');
-  addColumnIfMissing(db,'pokemon','evolution_other_requirement','TEXT');
-  addColumnIfMissing(db,'pokemon','main_skill_description','TEXT');
-  addColumnIfMissing(db,'pokemon','field_evidence_json','TEXT');
-  addColumnIfMissing(db,'pokemon','source_image_refs_json','TEXT');
-  db.run(`CREATE TABLE IF NOT EXISTS pokemon_analysis_observation(
-    observation_id TEXT PRIMARY KEY,
-    pokemon_id TEXT,
-    identity_group_key TEXT,
-    source_image_ref TEXT NOT NULL,
-    analysis_id TEXT,
-    revision_no INTEGER,
-    observed_json TEXT NOT NULL,
-    canonical_json TEXT,
-    conflict_json TEXT,
-    created_at TEXT NOT NULL,
-    applied_at TEXT
-  )`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_pokemon_analysis_observation_group ON pokemon_analysis_observation(identity_group_key,created_at)`);
-  db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(7,datetime('now'))`);
+export function applyFreshDatabaseBootstrap(db){
+  applySharedMasterSchema(db);
+  applyIdentityMigration(db);
+  applyGameDataMigration(db);
+  applyPersonalRecipeMigration(db);
+  applyCompletePokemonDetailMigration(db);
+  db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(4,datetime('now'))`);
+  db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(6,datetime('now'))`);
 }
 
-export function applyAllMigrations(db){applyIdentityMigration(db);applyGameDataMigration(db);applySharedKnowledgeBase(db);applyPersonalRecipeMigration(db);applyPublicProfileContract(db);applyCanonicalTerminologyMigration(db);applyCompletePokemonDetailMigration(db);}
+export function applyAllMigrations(db){
+  if(!hasMigration(db,2))applyIdentityMigration(db);
+  if(!hasMigration(db,3))applyGameDataMigration(db);
+  if(!hasMigration(db,4))applySharedKnowledgeBase(db);
+  if(!hasMigration(db,5))applyPersonalRecipeMigration(db);
+  if(!hasMigration(db,6)){applyPublicProfileContract(db);applyCanonicalTerminologyMigration(db);}
+  if(!hasMigration(db,7))applyCompletePokemonDetailMigration(db);
+}

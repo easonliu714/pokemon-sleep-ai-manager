@@ -1,0 +1,26 @@
+name: V0.3.92 New User Database Bootstrap Gate
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/database.js'
+      - 'assets/js/migrations.js'
+      - 'assets/js/bootstrap.js'
+      - 'service-worker.js'
+      - 'index.html'
+      - 'scripts/v0392-new-user-bootstrap-gate.mjs'
+      - '.github/workflows/v0392-new-user-bootstrap-gate.yml'
+  push:
+    branches:
+      - hotfix/v0392-new-user-database-bootstrap-freeze
+
+jobs:
+  new-user-bootstrap-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify cleared-data and new-user bootstrap contracts
+        run: node scripts/v0392-new-user-bootstrap-gate.mjs

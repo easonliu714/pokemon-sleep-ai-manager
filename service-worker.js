@@ -1,6 +1,6 @@
-const APP_VERSION = 'v0.3.91';
-const APP_BUILD = '20260806-v0391-worker-lifecycle-race-closure';
-const CACHE = 'pokemon-sleep-ai-v0.3.91-v0391-worker-lifecycle-race-closure';
+const APP_VERSION = 'v0.3.92';
+const APP_BUILD = '20260806-v0392-new-user-database-bootstrap-freeze';
+const CACHE = 'pokemon-sleep-ai-v0.3.92-v0392-new-user-database-bootstrap-freeze';
 
 const PREVIOUS_CACHE_COMPATIBILITY_MARKERS = [
   'pokemon-sleep-ai-v0.3.90-v0390-worker-isolated-legacy-sqlite-load',

@@ -34,10 +34,19 @@ jobs:
           assert 'sqliteLoadWorkerGeneration' in text
           assert 'const isCurrent=' in load
           assert "legacy_db_worker_superseded" in load
-          assert "APP_VERSION = 'v0.3.91'" in Path('assets/js/bootstrap.js').read_text()
-          assert "pokemon-sleep-ai-v0.3.91-v0391-worker-lifecycle-race-closure" in Path('service-worker.js').read_text()
-          assert '20260806-v0391-worker-lifecycle-race-closure' in Path('index.html').read_text()
-          print('v0.3.91 worker lifecycle race contract PASS')
+          bootstrap=Path('assets/js/bootstrap.js').read_text()
+          service_worker=Path('service-worker.js').read_text()
+          index=Path('index.html').read_text()
+          assert any(f"APP_VERSION = 'v0.3.{version}'" in bootstrap for version in (91,92))
+          assert any(marker in service_worker for marker in (
+            'pokemon-sleep-ai-v0.3.91-v0391-worker-lifecycle-race-closure',
+            'pokemon-sleep-ai-v0.3.92-v0392-new-user-database-bootstrap-freeze',
+          ))
+          assert any(marker in index for marker in (
+            '20260806-v0391-worker-lifecycle-race-closure',
+            '20260806-v0392-new-user-database-bootstrap-freeze',
+          ))
+          print('v0.3.91+ worker lifecycle race contract PASS')
           PY
       - name: Simulate stale cancellation timer isolation
         run: |

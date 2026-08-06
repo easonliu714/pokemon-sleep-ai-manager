@@ -1,6 +1,6 @@
 import {inspectDatabaseRecord,loadDatabaseBytes,loadDatabaseBytesInWorker,cancelWorkerDatabaseLoad,saveDatabaseBytes,createSnapshot} from './storage.js';
 import {DDL,SEED_SQL} from './schema.js';
-import {applyAllMigrations} from './migrations.js';
+import {applyAllMigrations,applyFreshDatabaseBootstrap} from './migrations.js';
 let SQL=null,db=null;
 let rescueReadonly=false;
 
@@ -14,6 +14,7 @@ const timeout=(promise,ms,label)=>new Promise((resolve,reject)=>{const timer=set
 const emit=(stage,message,status='running',details={},error=null)=>{if(typeof globalThis.dispatchEvent==='function'&&typeof globalThis.CustomEvent==='function')globalThis.dispatchEvent(new globalThis.CustomEvent('pokemon-sleep:startup-progress',{detail:{stage,message,status,details,error:error?.message||error||null}}));};
 const dispatchReady=detail=>{if(typeof globalThis.dispatchEvent==='function'&&typeof globalThis.CustomEvent==='function')globalThis.dispatchEvent(new globalThis.CustomEvent('pokemon-sleep:database-ready',{detail}));};
 const safeBootError=(code,message,details={})=>Object.assign(new Error(message),{code,details,safe_boot:true});
+const yieldToUi=()=>new Promise(resolve=>setTimeout(resolve,0));
 
 function consumeForceLoad(){try{const enabled=sessionStorage.getItem(FORCE_LOAD_KEY)==='1';sessionStorage.removeItem(FORCE_LOAD_KEY);return enabled;}catch{return false;}}
 
@@ -52,14 +53,25 @@ export async function initializeDatabase(){
     if(inspection.exists&&!forced)bytes=await timeout(loadDatabaseBytes(),30000,'本機 SQLite 讀取');
     if(generation!==bootGeneration)throw safeBootError('stale_boot_generation','資料讀取完成，但本次啟動已取消');
     emit('SQLITE_BYTES_READY',bytes?`本機資料庫讀取完成（${(bytes.byteLength/1048576).toFixed(1)} MB）`:'準備建立新資料庫','running',{byte_length:bytes?.byteLength||0,restored:Boolean(bytes),forced});
+    await yieldToUi();
     emit('SQLITE_OPENING','正在開啟 SQLite 資料庫');
     db=bytes?new SQL.Database(new Uint8Array(bytes)):new SQL.Database();rescueReadonly=false;
+    await yieldToUi();
     emit('SCHEMA_CHECKING','正在檢查資料庫結構');db.run(DDL);
     const isNew=(scalar('SELECT COUNT(*) FROM schema_migrations')||0)===0;
-    if(isNew){emit('SEED_RUNNING','正在建立全新資料庫的基礎資料');db.run(SEED_SQL);}
-    emit('MIGRATION_RUNNING','正在執行資料庫 Migration');applyAllMigrations(db);emit('MIGRATION_COMPLETED','資料庫 Migration 完成');
+    if(isNew){
+      emit('FRESH_DATABASE_BOOTSTRAP','正在建立全新用戶資料庫；略過不適用的歷史資料校正','running',{fresh_database:true});
+      db.run(SEED_SQL);
+      applyFreshDatabaseBootstrap(db);
+      emit('FRESH_DATABASE_READY','全新用戶資料庫結構已建立','completed',{fresh_database:true});
+    }else{
+      emit('MIGRATION_RUNNING','正在執行尚未套用的資料庫 Migration');
+      applyAllMigrations(db);
+      emit('MIGRATION_COMPLETED','資料庫 Migration 完成');
+    }
+    await yieldToUi();
     if(!bytes){emit('FIRST_PERSIST_RUNNING','正在儲存全新 SQLite 資料庫');await persist();emit('FIRST_PERSIST_COMPLETED','全新 SQLite 資料庫已儲存');}
-    const seeded=isNew;dispatchReady({seeded,restored:Boolean(bytes),boot_persist_skipped:Boolean(bytes),byte_length:bytes?.byteLength||0,forced,worker_isolated:Boolean(forced)});return {seeded};
+    const seeded=isNew;dispatchReady({seeded,restored:Boolean(bytes),boot_persist_skipped:Boolean(bytes),byte_length:bytes?.byteLength||0,forced,worker_isolated:Boolean(forced),fresh_database:isNew});return {seeded};
   }catch(error){
     cancelWorkerDatabaseLoad();
     if(error?.safe_boot){emit('DATABASE_RESCUE_REQUIRED',error.message,'warning',{code:error.code,...error.details},error);return createReadonlyRescueDatabase(error);}
