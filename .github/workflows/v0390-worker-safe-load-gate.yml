@@ -1,0 +1,49 @@
+name: V0.3.90 Worker Safe Load Gate
+on:
+  pull_request:
+    paths:
+      - 'assets/js/database.js'
+      - 'assets/js/storage.js'
+      - 'assets/js/sqlite-load-worker.js'
+      - 'assets/js/v0390-worker-load-control.js'
+      - 'assets/js/bootstrap.js'
+      - 'index.html'
+      - 'service-worker.js'
+      - '.github/workflows/v0390-worker-safe-load-gate.yml'
+jobs:
+  worker-safe-load:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: JavaScript syntax
+        run: |
+          node --check assets/js/database.js
+          node --check assets/js/storage.js
+          node --check assets/js/sqlite-load-worker.js
+          node --check assets/js/v0390-worker-load-control.js
+      - name: Verify worker isolation contract
+        run: |
+          grep -q "loadDatabaseBytesInWorker" assets/js/database.js
+          grep -q "new Worker(new URL('./sqlite-load-worker.js'" assets/js/storage.js
+          grep -q "LEGACY_DB_WORKER_UNRESPONSIVE" assets/js/storage.js
+          grep -q "maxTransferBytes" assets/js/sqlite-load-worker.js
+          grep -q "cancelForcedDatabaseLoad" assets/js/v0390-worker-load-control.js
+          grep -q "APP_VERSION = 'v0.3.90'" assets/js/bootstrap.js
+          grep -q "pokemon-sleep-ai-v0.3.90-v0390-worker-isolated-legacy-sqlite-load" service-worker.js
+          grep -q "v0390-worker-load-control.js" index.html
+      - name: Verify legacy DB is not directly read after forced authorization
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text=Path('assets/js/database.js').read_text()
+          forced=text.split("if(inspection.exists&&forced){",1)[1].split("emit('SQLJS_LOADING'",1)[0]
+          assert 'loadDatabaseBytesInWorker' in forced
+          assert 'loadDatabaseBytes()' not in forced
+          worker=Path('assets/js/sqlite-load-worker.js').read_text()
+          assert "objectStore(DB_STORE).get(DB_KEY)" in worker
+          assert "postMessage({type:'result'" in worker
+          assert 'maxTransferBytes' in worker
+          print('v0.3.90 worker safe-load contract PASS')
+          PY

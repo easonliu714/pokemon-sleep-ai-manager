@@ -3,8 +3,8 @@ import {debugTrace} from './debug-trace-manager.js?v=20260805-v0388-zero-sql-res
 const status = document.getElementById('dbStatus');
 const warning = document.getElementById('storageWarning');
 
-const APP_VERSION = 'v0.3.89';
-const VERSION = '20260805-v0389-rescue-catalog-import-recovery';
+const APP_VERSION = 'v0.3.90';
+const VERSION = '20260806-v0390-worker-isolated-legacy-sqlite-load';
 
 const PREVIOUS_RELEASE_COMPATIBILITY_MARKERS = [
   "APP_VERSION = 'v0.3.82' 20260805-v0382-file-snapshot-public-catalog",
