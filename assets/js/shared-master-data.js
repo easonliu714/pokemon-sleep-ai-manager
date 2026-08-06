@@ -1,17 +1,17 @@
 export const MASTER_DATA_VERSION = 'shared-master-2026-07-31-a';
 
-const SOURCE_POLICY = {
+const SOURCE_POLICY = Object.freeze({
   source_type: 'mixed_verified_reference',
   source_name: 'Pokémon Sleep official first; RaenonX supplemental',
   source_ref: 'game-screenshots-and-raenonx-reference',
   verified_at: '2026-07-31',
-};
+});
 
-const BERRIES = [
+export const PUBLIC_BERRY_TYPES = Object.freeze([
   ['一般','柿仔果'],['火','蘋野果'],['水','橙橙果'],['電','葡萄果'],['草','金枕果'],['冰','莓莓果'],
   ['格鬥','櫻子果'],['毒','零餘果'],['地面','勿花果'],['飛行','椰木果'],['超能力','芒芒果'],['蟲','木子果'],
   ['岩石','文柚果'],['幽靈','墨莓果'],['龍','番荔果'],['惡','異奇果'],['鋼','靛莓果'],['妖精','桃桃果'],
-];
+].map(([type_name,berry_name])=>Object.freeze({type_name,berry_name,...SOURCE_POLICY,data_version:MASTER_DATA_VERSION})));
 
 const INGREDIENTS = [
   '沉甸甸南瓜','醒腦咖啡豆','萌綠玉米','萌綠大豆','放鬆可可','好眠番茄','暖暖薑','純粹油',
@@ -19,7 +19,6 @@ const INGREDIENTS = [
   '品鮮蘑菇','美味尾巴','特選酪梨',
 ];
 
-// category, id, name, base energy, total ingredients, ingredient pairs
 const RECIPES = [
   ['咖哩／濃湯','curry_ninja','忍者咖哩',9445,48,[['萌綠大豆',24],['粗枝大蔥',9],['品鮮蘑菇',12],['火辣香草',5]]],
   ['咖哩／濃湯','curry_dream_eater','絕對睡眠奶油咖哩',9010,55,[['窩心洋芋',18],['好眠番茄',15],['放鬆可可',12],['哞哞鮮奶',10]]],
@@ -47,11 +46,11 @@ const RECIPES = [
 
 export function applySharedMasterData(db) {
   const meta = SOURCE_POLICY;
-  for (const [type, berry] of BERRIES) {
+  for (const item of PUBLIC_BERRY_TYPES) {
     db.run(`INSERT INTO berry_master(type_name,berry_name,source_type,source_name,source_ref,verified_at,data_version)
       VALUES(?,?,?,?,?,?,?) ON CONFLICT(type_name) DO UPDATE SET berry_name=excluded.berry_name,source_type=excluded.source_type,
       source_name=excluded.source_name,source_ref=excluded.source_ref,verified_at=excluded.verified_at,data_version=excluded.data_version`,
-      [type,berry,meta.source_type,meta.source_name,meta.source_ref,meta.verified_at,MASTER_DATA_VERSION]);
+      [item.type_name,item.berry_name,meta.source_type,meta.source_name,meta.source_ref,meta.verified_at,MASTER_DATA_VERSION]);
   }
   for (const name of INGREDIENTS) {
     db.run(`INSERT INTO ingredient_master(ingredient_name,source_type,source_name,source_ref,verified_at,data_version)
