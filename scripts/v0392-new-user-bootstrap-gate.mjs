@@ -23,16 +23,21 @@ requireText(bootstrap,"const APP_VERSION = 'v0.3.92'",'bootstrap version');
 requireText(serviceWorker,"const APP_VERSION = 'v0.3.92'",'service worker version');
 requireText(index,'20260806-v0392-new-user-database-bootstrap-freeze','index build query');
 
-const forbiddenFreshBlock=/if\(isNew\)[\s\S]{0,1200}applyAllMigrations\(db\)/;
-if(forbiddenFreshBlock.test(database))failures.push('fresh database still executes complete historical migrations');
+const newStart=database.indexOf('if(isNew){');
+const existingStart=database.indexOf('}else{',newStart);
+if(newStart<0||existingStart<0){
+  failures.push('unable to isolate fresh database branch');
+}else{
+  const freshBlock=database.slice(newStart,existingStart);
+  if(freshBlock.includes('applyAllMigrations(db)'))failures.push('fresh database still executes complete historical migrations');
+  if(!freshBlock.includes('applyFreshDatabaseBootstrap(db)'))failures.push('fresh database does not use dedicated bootstrap');
+}
 
 const migrationCalls=[...migrations.matchAll(/if\(!hasMigration\(db,(\d+)\)\)/g)].map(match=>Number(match[1]));
 for(const version of [2,3,4,5,6,7])if(!migrationCalls.includes(version))failures.push(`missing migration guard v${version}`);
 
 try {
-  const stripped=migrations
-    .replace(/^import .*$/gm,'')
-    .replace(/export /g,'');
+  const stripped=migrations.replace(/^import .*$/gm,'').replace(/export /g,'');
   new vm.Script(stripped);
 } catch(error){failures.push(`migrations syntax: ${error.message}`);}
 
