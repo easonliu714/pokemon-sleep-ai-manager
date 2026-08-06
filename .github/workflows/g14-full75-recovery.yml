@@ -18,6 +18,7 @@ jobs:
           node --check assets/js/full75-recovery-contract.js
           node --check assets/js/full75-recovery-engine.js
           node --check assets/js/full75-recovery-workbench.js
+          node --check assets/js/version-authority.js
       - name: Verify immutable FULL75 counts
         run: |
           grep -q "total: 821" assets/js/full75-recovery-contract.js
@@ -39,5 +40,7 @@ jobs:
           grep -q "private_data_committed_to_repo:false" assets/js/full75-recovery-workbench.js
       - name: Verify browser entry
         run: |
-          grep -q "full75-recovery-workbench.js?v=20260804-v0377b-full75-recovery-closure" index.html
+          grep -q 'src="./assets/js/full75-recovery-workbench.js"' index.html
+          ! grep -q 'full75-recovery-workbench.js?v=' index.html
+          grep -q 'assets/js/version-authority.js' service-worker.js
           ! grep -R "PRIVATE-ABILITY-FULL75-REFRESH" assets .github docs --exclude='g14-full75-recovery.yml'

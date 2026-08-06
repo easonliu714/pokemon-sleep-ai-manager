@@ -1,10 +1,11 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
+import vm from 'node:vm';
 import {classifyOcrText,CLASSIFIER_SCHEMA,CATEGORY_RULES,tokenMatches} from '../assets/js/data1d-ocr-first-classifier.js';
 import {buildAiConsentQueue,AI_CONSENT_SCHEMA} from '../assets/js/data1d1-ocr-region-ai-consent.js';
 
-const paths={classifier:'assets/js/data1d-ocr-first-classifier.js',regionUi:'assets/js/data1d1-ocr-region-ui.js',consent:'assets/js/data1d1-ocr-region-ai-consent.js',wiring:'assets/js/data1d1-ocr-overlay-preview-event-wiring.js',bootstrap:'assets/js/bootstrap.js',worker:'service-worker.js'};
+const paths={classifier:'assets/js/data1d-ocr-first-classifier.js',regionUi:'assets/js/data1d1-ocr-region-ui.js',consent:'assets/js/data1d1-ocr-region-ai-consent.js',wiring:'assets/js/data1d1-ocr-overlay-preview-event-wiring.js',bootstrap:'assets/js/bootstrap.js',worker:'service-worker.js',authority:'assets/js/version-authority.js'};
 for(const path of Object.values(paths)){assert.equal(fs.existsSync(path),true,`missing:${path}`);const checked=spawnSync(process.execPath,['--check',path],{encoding:'utf8'});assert.equal(checked.status,0,`syntax:${path}:${checked.stderr}`);}
 const source=Object.fromEntries(Object.entries(paths).map(([key,path])=>[key,fs.readFileSync(path,'utf8')]));
 assert.match(CLASSIFIER_SCHEMA,/^pokemon-sleep-ocr-first-classifier\/1\.[5-9]\d*$/);assert.equal(CATEGORY_RULES.pokemon.tokens.includes('sp'),true);
@@ -15,6 +16,7 @@ assert.equal(buildAiConsentQueue([duplicate],{selectedIds:[]}).selected_count,0)
 for(const token of ['ocr-ai-candidate','PREVIEW_ROW_SELECTOR',"archive.readImage(path,{type:'blob'})",'pokemon-sleep:ocr-overlay-preview-requested'])assert.match(source.wiring,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
 for(const token of ['URL.createObjectURL','URL.revokeObjectURL','ocr-region-preview-image','updatePreviewDom','requestAnimationFrame','FRAME_FALLBACK_MS=48','setTimeout','advanced_review_frame_fallback','CANDIDATE_BATCH_SIZE','createDocumentFragment','list.appendChild(fragment)',"root.querySelector('.ocr-ai-candidates')?.addEventListener('change'",'list_position_preserved','ocr_region_preview_rendered','重複圖片：需人工勾選才覆判','duplicate_ai_review_manually_selected','全選一般待覆核','root.dispose'])assert.match(source.regionUi,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
 assert.doesNotMatch(source.regionUi,/const previousList=root\.querySelector\('\.ocr-ai-candidates'\)/);assert.doesNotMatch(source.regionUi,/querySelectorAll\('\[data-ai-item\]'\)\.forEach\([^\n]*addEventListener/);assert.doesNotMatch(source.regionUi,/localStorage|sessionStorage|image_base64|btoa\(/);
-const appVersion=source.bootstrap.match(/^const APP_VERSION\s*=\s*'([^']+)'/m)?.[1];const build=source.bootstrap.match(/^const VERSION\s*=\s*'([^']+)'/m)?.[1];const cache=source.worker.match(/^const CACHE\s*=\s*'([^']+)'/m)?.[1];
-assert.match(appVersion,/^v\d+\.\d+\.\d+$/);assert.match(build,/^\d{8}-[a-z0-9-]+$/);assert.equal(cache,`pokemon-sleep-ai-${appVersion}-${build.replace(/^\d{8}-/,'')}`);
-console.log(JSON.stringify({ok:true,gate:'SP thumbnail preview compatibility contract',classifier_schema:CLASSIFIER_SCHEMA,app_version:appVersion,build,incremental_dom:true,delegated_candidate_listener:true,android_raf_timeout_fallback:true}));
+const sandbox={};sandbox.globalThis=sandbox;vm.runInNewContext(source.authority,sandbox);const authority=sandbox.PokemonSleepVersionAuthority;
+assert.match(authority.app_version,/^v\d+\.\d+\.\d+$/);assert.match(authority.app_build,/^\d{8}-[a-z0-9-]+$/);assert.equal(authority.cache_name,`pokemon-sleep-ai-${authority.app_version}-${authority.app_build.replace(/^\d{8}-/,'')}`);
+assert.match(source.bootstrap,/authority\.app_version/);assert.match(source.worker,/cache_name:CACHE/);
+console.log(JSON.stringify({ok:true,gate:'SP thumbnail preview compatibility contract',classifier_schema:CLASSIFIER_SCHEMA,app_version:authority.app_version,build:authority.app_build,incremental_dom:true,delegated_candidate_listener:true,android_raf_timeout_fallback:true,central_version_authority:true}));
