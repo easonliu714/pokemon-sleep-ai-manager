@@ -78,5 +78,20 @@ export function run(sql,params=[]){if(!db)throw new Error('database_not_ready');
 export async function persist(){if(!db)throw new Error('database_not_ready');if(rescueReadonly)throw new Error('readonly_rescue_mode');emit('SQLITE_PERSIST_RUNNING','正在儲存 SQLite');const exported=db.export();await timeout(saveDatabaseBytes(exported),30000,'SQLite 儲存');emit('SQLITE_PERSIST_COMPLETED','SQLite 儲存完成','running',{byte_length:exported.byteLength});}
 export async function snapshot(reason){if(!db)throw new Error('database_not_ready');if(rescueReadonly)throw new Error('readonly_rescue_mode');emit('SQLITE_SNAPSHOT_RUNNING',`正在建立快照：${reason}`);const exported=db.export();const result=await timeout(createSnapshot(exported,reason),30000,'SQLite 快照');emit('SQLITE_SNAPSHOT_COMPLETED',`快照已建立：${reason}`);return result;}
 export function exportBytes(){if(rescueReadonly)throw new Error('readonly_rescue_mode');if(!db)throw new Error('database_not_ready');return db.export();}
-export async function replaceDatabase(bytes){emit('SQLITE_REPLACE_RUNNING','正在驗證並替換 SQLite 資料庫');if(db)db.close();db=new SQL.Database(bytes);rescueReadonly=false;const check=rows('PRAGMA integrity_check');if(!check.length||check[0].integrity_check!=='ok')throw new Error('SQLite integrity_check 未通過');db.run(DDL);applyAllMigrations(db);dispatchReady({seeded:false,restored:true,replaced:true});await persist();}
-export function begin(){run('BEGIN IMMEDIATE');}export function commit(){run('COMMIT');}export function rollback(){try{run('ROLLBACK')}catch{}}
+
+export async function replaceDatabase(bytes){
+  emit('SQLITE_REPLACE_RUNNING','正在驗證並替換 SQLite 資料庫');
+  if(db)db.close();
+  db=new SQL.Database(bytes);
+  rescueReadonly=false;
+  const check=rows('PRAGMA integrity_check');
+  if(!check.length||check[0].integrity_check!=='ok')throw new Error('SQLite integrity_check 未通過');
+  db.run(DDL);
+  applyAllMigrations(db);
+  dispatchReady({seeded:false,restored:true,replaced:true});
+  await persist();
+}
+
+export function begin(){run('BEGIN IMMEDIATE');}
+export function commit(){run('COMMIT');}
+export function rollback(){try{run('ROLLBACK')}catch{}}
