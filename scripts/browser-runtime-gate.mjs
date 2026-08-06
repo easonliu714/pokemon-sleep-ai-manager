@@ -1,5 +1,7 @@
 import { chromium } from 'playwright';
+import '../assets/js/version-authority.js';
 
+const expectedAuthority = globalThis.PokemonSleepVersionAuthority;
 const baseUrl = process.env.BASE_URL || 'http://127.0.0.1:4173/';
 const hardStop = setTimeout(() => {
   console.error(JSON.stringify({ ok: false, stage: 'node_hard_timeout', baseUrl }, null, 2));
@@ -89,6 +91,7 @@ try {
       dbStatus: status?.textContent?.trim() || null,
       dbStatusClass: status?.className || null,
       appVersion: document.documentElement.dataset.appVersion || null,
+      appBuild: document.documentElement.dataset.appBuild || null,
       visibleViews: [...document.querySelectorAll('section.view.active')].map(x => x.id),
       navTargets: [...document.querySelectorAll('nav [data-view]')].map(x => x.dataset.view),
       storageWarning: document.getElementById('storageWarning')?.textContent?.trim() || '',
@@ -96,7 +99,8 @@ try {
   });
 
   if (runtime.title !== 'Pokémon Sleep AI Manager') failures.push(`頁面標題異常：${runtime.title}`);
-  if (!['v0.3.92','v0.3.93'].includes(runtime.appVersion)) failures.push(`版本 authority 異常：${runtime.appVersion || 'missing'}`);
+  if (runtime.appVersion !== expectedAuthority.app_version) failures.push(`版本 authority 異常：${runtime.appVersion || 'missing'}；expected=${expectedAuthority.app_version}`);
+  if (runtime.appBuild !== expectedAuthority.app_build) failures.push(`Build authority 異常：${runtime.appBuild || 'missing'}；expected=${expectedAuthority.app_build}`);
   if (!runtime.dbStatus || /失敗|錯誤/.test(runtime.dbStatus)) failures.push(`SQLite 初始化狀態異常：${runtime.dbStatus || 'missing'}`);
   if (!/救援|唯讀/.test(runtime.dbStatus)) failures.push(`未進入預期的零 SQL 救援模式：${runtime.dbStatus}`);
   if (runtime.visibleViews.length !== 1 || runtime.visibleViews[0] !== 'dashboard') {
@@ -134,6 +138,7 @@ try {
     ok: failures.length === 0,
     mode: 'legacy_metadata_missing_zero_sql_rescue',
     baseUrl,
+    expectedAuthority,
     runtime,
     recipeState,
     observed,
@@ -141,7 +146,7 @@ try {
   }, null, 2));
 } catch (error) {
   failures.push(error?.stack || error?.message || String(error));
-  console.error(JSON.stringify({ ok: false, baseUrl, observed, failures }, null, 2));
+  console.error(JSON.stringify({ ok: false, baseUrl, expectedAuthority, observed, failures }, null, 2));
 } finally {
   clearTimeout(hardStop);
   await Promise.race([
