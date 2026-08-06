@@ -1,0 +1,46 @@
+name: V0.3.90 Release Authority Generator
+on:
+  push:
+    branches: [hotfix/v0390-worker-isolated-legacy-sqlite-load]
+permissions:
+  contents: write
+jobs:
+  rotate-authority:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: hotfix/v0390-worker-isolated-legacy-sqlite-load
+          fetch-depth: 0
+      - name: Rotate version, cache and runtime entry
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          build='20260806-v0390-worker-isolated-legacy-sqlite-load'
+          p=Path('assets/js/bootstrap.js')
+          s=p.read_text()
+          s=re.sub(r"const APP_VERSION = 'v[^']+';", "const APP_VERSION = 'v0.3.90';", s, count=1)
+          s=re.sub(r"const VERSION = '[^']+';", f"const VERSION = '{build}';", s, count=1)
+          p.write_text(s)
+          p=Path('service-worker.js')
+          s=p.read_text()
+          s=re.sub(r"v0\.3\.\d+", 'v0.3.90', s)
+          s=re.sub(r"2026080[0-9]-v0[0-9]+-[A-Za-z0-9-]+", build, s)
+          s=re.sub(r"pokemon-sleep-ai-v0\.3\.\d+-[^'\"]+", f'pokemon-sleep-ai-v0.3.90-v0390-worker-isolated-legacy-sqlite-load', s)
+          p.write_text(s)
+          p=Path('index.html')
+          s=p.read_text()
+          s=s.replace('bootstrap.js?v=20260805-v0389-rescue-catalog-import-recovery', f'bootstrap.js?v={build}')
+          marker='<script type="module" src="./assets/js/v0390-worker-load-control.js?v='+build+'"></script>'
+          if marker not in s:s=s.replace('</body>',marker+'</body>')
+          p.write_text(s)
+          PY
+      - name: Commit generated authority
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add assets/js/bootstrap.js service-worker.js index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "chore(v0.3.90): rotate runtime and PWA authority"
+          git push
