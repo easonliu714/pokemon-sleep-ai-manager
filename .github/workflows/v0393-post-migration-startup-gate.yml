@@ -1,0 +1,29 @@
+name: V0.3.93 Post Migration Startup Isolation Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'assets/js/database.js'
+      - 'assets/js/app.js'
+      - 'assets/js/bootstrap.js'
+      - 'service-worker.js'
+      - 'index.html'
+      - 'scripts/v0393-post-migration-startup-gate.mjs'
+      - '.github/workflows/v0393-post-migration-startup-gate.yml'
+  workflow_dispatch:
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: JavaScript syntax
+        run: |
+          node --check assets/js/database.js
+          node --check scripts/v0393-post-migration-startup-gate.mjs
+      - name: Post-migration startup isolation contract
+        run: node scripts/v0393-post-migration-startup-gate.mjs
