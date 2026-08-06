@@ -1,12 +1,16 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import vm from 'node:vm';
 
 const storage=fs.readFileSync('assets/js/storage.js','utf8');
 const database=fs.readFileSync('assets/js/database.js','utf8');
-const authority=fs.readFileSync('assets/js/v0382-release-authority.js','utf8');
+const releaseAuthority=fs.readFileSync('assets/js/v0382-release-authority.js','utf8');
+const versionSource=fs.readFileSync('assets/js/version-authority.js','utf8');
 const bootstrap=fs.readFileSync('assets/js/bootstrap.js','utf8');
 const sw=fs.readFileSync('service-worker.js','utf8');
 const index=fs.readFileSync('index.html','utf8');
+const sandbox={};sandbox.globalThis=sandbox;vm.runInNewContext(versionSource,sandbox);
+const current=sandbox.PokemonSleepVersionAuthority;
 
 assert.match(storage,/IDB_VERSION\s*=\s*2/);
 assert.match(storage,/META_STORE\s*=\s*["']metadata["']/);
@@ -24,17 +28,16 @@ assert.match(database,/sessionStorage\.removeItem\(FORCE_LOAD_KEY\)/);
 assert.match(database,/inspectDatabaseRecord\(\)/);
 assert.match(database,/loadDatabaseBytesInWorker/);
 assert.match(database,/applyFreshDatabaseBootstrap/);
-
-assert.match(authority,/v0\.3\.(?:87|88|89|90|91|92|93)/);
-assert.match(authority,/(?:嘗試載入本機資料|載入玩家資料庫)/);
-assert.match(authority,/下載啟動紀錄/);
-assert.match(authority,/service-worker(?:-v0387)?\.js/);
-assert.match(authority,/detail\.rescue\|\|detail\.readonly/);
-
-assert.match(bootstrap,/const APP_VERSION\s*=\s*'v0\.3\.(?:87|88|89|90|91|92|93)'/);
-assert.match(bootstrap,/const VERSION\s*=\s*'2026080[56]-v03(?:87-indexeddb-safe-boot-memory-guard|88-zero-sql-rescue|89-rescue-catalog-import-recovery|90-worker-isolated-legacy-sqlite-load|91-worker-lifecycle-race-closure|92-new-user-database-bootstrap-freeze|93-post-migration-startup-isolation)'/);
-assert.match(sw,/const APP_VERSION\s*=\s*'v0\.3\.(?:87|88|89|90|91|92|93)'/);
-assert.match(sw,/v03(?:87-indexeddb-safe-boot-memory-guard|88-zero-sql-rescue|89-rescue-catalog-import-recovery|90-worker-isolated-legacy-sqlite-load|91-worker-lifecycle-race-closure|92-new-user-database-bootstrap-freeze|93-post-migration-startup-isolation)/);
-assert.match(index,/bootstrap\.js\?v=2026080[56]-v03(?:87-indexeddb-safe-boot-memory-guard|88-zero-sql-rescue|89-rescue-catalog-import-recovery|90-worker-isolated-legacy-sqlite-load|91-worker-lifecycle-race-closure|92-new-user-database-bootstrap-freeze|93-post-migration-startup-isolation)/);
-
-console.log(JSON.stringify({status:'PASS',gate:'v0387_safe_boot_contract',player_data_write:false,legacy_auto_read:false,index_authority:true,forward_compatible_release:true,worker_isolated_load:true,worker_lifecycle_race_closed:true,fresh_database_bootstrap:true,post_migration_dispatch_isolated:true}));
+assert.match(releaseAuthority,/(?:嘗試載入本機資料|載入玩家資料庫)/);
+assert.match(releaseAuthority,/下載啟動紀錄/);
+assert.match(releaseAuthority,/service-worker(?:-v0387)?\.js/);
+assert.match(releaseAuthority,/detail\.rescue\|\|detail\.readonly/);
+assert.match(current.app_version,/^v0\.3\.\d+$/);
+assert.ok(current.app_build);
+assert.match(bootstrap,/version-authority\.js/);
+assert.match(bootstrap,/authority\.app_version/);
+assert.match(bootstrap,/authority\.app_build/);
+assert.match(sw,/importScripts\('\.\/assets\/js\/version-authority\.js'\)/);
+assert.match(sw,/cache_name:CACHE/);
+assert.ok(index.includes('bootstrap.js'));
+console.log(JSON.stringify({status:'PASS',gate:'v0387_safe_boot_contract',version:current.app_version,player_data_write:false,legacy_auto_read:false,index_authority:true,forward_compatible_release:true,worker_isolated_load:true,worker_lifecycle_race_closed:true,fresh_database_bootstrap:true,post_migration_dispatch_isolated:true,central_version_authority:true}));
