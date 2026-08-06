@@ -80,8 +80,8 @@ try {
     if (!runtime.navTargets.includes(view)) failures.push(`缺少導覽 view：${view}`);
   }
 
-  await page.click('nav [data-view="recipes"]');
-  await page.waitForFunction(() => document.getElementById('recipes')?.classList.contains('active'));
+  await page.click('nav [data-view="recipes"]', { timeout: 10_000 });
+  await page.waitForFunction(() => document.getElementById('recipes')?.classList.contains('active'), { timeout: 10_000 });
 
   const recipeState = await page.evaluate(() => ({
     active: document.getElementById('recipes')?.classList.contains('active') || false,
@@ -113,7 +113,10 @@ try {
   failures.push(error?.stack || error?.message || String(error));
   console.error(JSON.stringify({ ok: false, baseUrl, observed, failures }, null, 2));
 } finally {
-  await browser.close();
+  await Promise.race([
+    browser.close(),
+    new Promise(resolve => setTimeout(resolve, 5_000)),
+  ]);
 }
 
-if (failures.length) process.exit(1);
+process.exit(failures.length ? 1 : 0);
