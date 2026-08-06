@@ -1,8 +1,9 @@
-const APP_VERSION = 'v0.3.90';
-const APP_BUILD = '20260806-v0390-worker-isolated-legacy-sqlite-load';
-const CACHE = 'pokemon-sleep-ai-v0.3.90-v0390-worker-isolated-legacy-sqlite-load';
+const APP_VERSION = 'v0.3.91';
+const APP_BUILD = '20260806-v0391-worker-lifecycle-race-closure';
+const CACHE = 'pokemon-sleep-ai-v0.3.91-v0391-worker-lifecycle-race-closure';
 
 const PREVIOUS_CACHE_COMPATIBILITY_MARKERS = [
+  'pokemon-sleep-ai-v0.3.90-v0390-worker-isolated-legacy-sqlite-load',
   'pokemon-sleep-ai-v0.3.89-v0389-rescue-catalog-import-recovery',
   'pokemon-sleep-ai-v0.3.88-v0388-zero-sql-rescue',
   'pokemon-sleep-ai-v0.3.82-v0382-file-snapshot-public-catalog',
