@@ -31,7 +31,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Validate snapshot, migration, public catalog, and authority contracts
+      - name: Validate snapshot, migration, public master, and authority contracts
         run: |
           node --input-type=module <<'NODE'
           import assert from 'node:assert/strict';
@@ -60,7 +60,10 @@ jobs:
           const sharedMaster = fs.readFileSync('assets/js/shared-master-data.js', 'utf8');
           assert.match(workbench, /image_byte_snapshot|sourceBlob|readImage/);
           assert.match(migrations, /schema_migrations|apply.*Migration/i);
-          assert.match(sharedMaster, /canonical|registry|catalog/i);
+          assert.match(sharedMaster, /MASTER_DATA_VERSION/);
+          assert.match(sharedMaster, /applySharedMasterData/);
+          assert.match(sharedMaster, /ingredient_master/);
+          assert.match(sharedMaster, /recipe_master/);
 
           for (const file of required.filter((path) => path !== 'assets/js/version-authority.js')) {
             const source = fs.readFileSync(file, 'utf8');
