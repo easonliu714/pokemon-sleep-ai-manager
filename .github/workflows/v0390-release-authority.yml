@@ -12,26 +12,29 @@ jobs:
         with:
           ref: hotfix/v0390-worker-isolated-legacy-sqlite-load
           fetch-depth: 0
-      - name: Rotate version, cache and runtime entry
+      - name: Rotate active version, cache and runtime entry only
         run: |
           python - <<'PY'
           from pathlib import Path
           import re
           build='20260806-v0390-worker-isolated-legacy-sqlite-load'
+
           p=Path('assets/js/bootstrap.js')
           s=p.read_text()
-          s=re.sub(r"const APP_VERSION = 'v[^']+';", "const APP_VERSION = 'v0.3.90';", s, count=1)
-          s=re.sub(r"const VERSION = '[^']+';", f"const VERSION = '{build}';", s, count=1)
+          s=re.sub(r"^const APP_VERSION = '[^']+';$", "const APP_VERSION = 'v0.3.90';", s, count=1, flags=re.M)
+          s=re.sub(r"^const VERSION = '[^']+';$", f"const VERSION = '{build}';", s, count=1, flags=re.M)
           p.write_text(s)
+
           p=Path('service-worker.js')
           s=p.read_text()
-          s=re.sub(r"v0\.3\.\d+", 'v0.3.90', s)
-          s=re.sub(r"2026080[0-9]-v0[0-9]+-[A-Za-z0-9-]+", build, s)
-          s=re.sub(r"pokemon-sleep-ai-v0\.3\.\d+-[^'\"]+", f'pokemon-sleep-ai-v0.3.90-v0390-worker-isolated-legacy-sqlite-load', s)
+          s=re.sub(r"^const APP_VERSION = '[^']+';$", "const APP_VERSION = 'v0.3.90';", s, count=1, flags=re.M)
+          s=re.sub(r"^const APP_BUILD = '[^']+';$", f"const APP_BUILD = '{build}';", s, count=1, flags=re.M)
+          s=re.sub(r"^const CACHE = '[^']+';$", "const CACHE = 'pokemon-sleep-ai-v0.3.90-v0390-worker-isolated-legacy-sqlite-load';", s, count=1, flags=re.M)
           p.write_text(s)
+
           p=Path('index.html')
           s=p.read_text()
-          s=s.replace('bootstrap.js?v=20260805-v0389-rescue-catalog-import-recovery', f'bootstrap.js?v={build}')
+          s=re.sub(r'bootstrap\.js\?v=[^"<]+', f'bootstrap.js?v={build}', s, count=1)
           marker='<script type="module" src="./assets/js/v0390-worker-load-control.js?v='+build+'"></script>'
           if marker not in s:s=s.replace('</body>',marker+'</body>')
           p.write_text(s)
@@ -42,5 +45,5 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add assets/js/bootstrap.js service-worker.js index.html
           git diff --cached --quiet && exit 0
-          git commit -m "chore(v0.3.90): rotate runtime and PWA authority"
+          git commit -m "chore(v0.3.90): rotate active runtime and PWA authority"
           git push
