@@ -1,148 +1,70 @@
-name: V0.3.87.1 Bootstrap Finalize Patch
+name: V0.3.87.1 Bootstrap Finalize Historical Contract Validation
 
 on:
   push:
-    branches:
-      - hotfix/v03871-bootstrap-finalize
+    branches: [main]
+    paths:
+      - 'assets/js/database.js'
+      - 'assets/js/app.js'
+      - 'assets/js/bootstrap.js'
+      - 'assets/js/version-authority.js'
+      - '.github/workflows/v03871-bootstrap-finalize-patch.yml'
+  pull_request:
+    paths:
+      - 'assets/js/database.js'
+      - 'assets/js/app.js'
+      - 'assets/js/bootstrap.js'
+      - 'assets/js/version-authority.js'
+      - '.github/workflows/v03871-bootstrap-finalize-patch.yml'
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch:
-    if: github.actor != 'github-actions[bot]'
+  historical-contract-validation:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          ref: hotfix/v03871-bootstrap-finalize
-          fetch-depth: 0
-      - name: Apply exact rescue finalize patch
-        shell: python
+          node-version: '22'
+      - name: Validate bootstrap finalize and central authority contracts
         run: |
-          from pathlib import Path
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import vm from 'node:vm';
 
-          db_path = Path('assets/js/database.js')
-          app_path = Path('assets/js/app.js')
+          const authoritySource = fs.readFileSync('assets/js/version-authority.js', 'utf8');
+          const context = { globalThis: {} };
+          vm.runInNewContext(authoritySource, context);
+          const authority = context.globalThis.PokemonSleepVersionAuthority;
+          assert.ok(authority?.app_version, 'central app_version missing');
+          assert.ok(authority?.app_build, 'central app_build missing');
+          assert.ok(authority?.cache_name, 'central cache_name missing');
 
-          db = db_path.read_text(encoding='utf-8')
-          old_db = """    if(error?.safe_boot){
-      emit('DATABASE_RESCUE_REQUIRED',error.message,'warning',{code:error.code,...error.details},error);
-    }else{
-      emit('DATABASE_FAILED',`資料庫初始化失敗：${error?.message||error}`,'failed',{},error);
-    }
-    throw error;
-"""
-          new_db = """    if(error?.safe_boot){
-      const rescueDetail={
-        seeded:false,
-        rescue:true,
-        readonly:true,
-        error_code:error.code,
-        message:error.message,
-        ...error.details,
-      };
-      emit('DATABASE_RESCUE_REQUIRED',error.message,'warning',{code:error.code,...error.details},error);
-      emit('RESCUE_READY','救援／唯讀模式已就緒，等待使用者確認是否載入本機資料','completed',rescueDetail);
-      emit('BOOTSTRAP_COMPLETE','啟動流程已在救援／唯讀模式完成','completed',rescueDetail);
-      dispatchReady(rescueDetail);
-      return rescueDetail;
-    }
-    emit('DATABASE_FAILED',`資料庫初始化失敗：${error?.message||error}`,'failed',{},error);
-    throw error;
-"""
-          if old_db not in db:
-              raise SystemExit('database safe-boot catch block not found')
-          db = db.replace(old_db, new_db, 1)
-          db_path.write_text(db, encoding='utf-8')
+          const database = fs.readFileSync('assets/js/database.js', 'utf8');
+          const app = fs.readFileSync('assets/js/app.js', 'utf8');
+          const bootstrap = fs.readFileSync('assets/js/bootstrap.js', 'utf8');
+          assert.match(database, /RESCUE_READY/);
+          assert.match(database, /BOOTSTRAP_COMPLETE/);
+          assert.match(database, /dispatchReady/);
+          assert.match(database + bootstrap, /APP_READY/);
+          assert.match(app, /initializeDatabase/);
+          assert.match(app, /setupG3Pages/);
+          assert.match(app, /refresh/);
+          assert.match(bootstrap, /PokemonSleepVersionAuthority|version-authority\.js/);
 
-          app = app_path.read_text(encoding='utf-8')
-          old_app = """    const result = await initializeDatabase();
-    state.seeded = Boolean(result?.seeded);
-
-    setupG3Pages();
-    bindNavigation();
-
-    $('dbStatus').textContent = 'SQLite 已就緒';
-    $('dbStatus').className = 'badge ok';
-    await refresh();
-"""
-          new_app = """    const result = await initializeDatabase();
-    state.seeded = Boolean(result?.seeded);
-
-    setupG3Pages();
-    bindNavigation();
-
-    if (result?.rescue || result?.readonly) {
-      $('dbStatus').textContent = '救援／唯讀模式';
-      $('dbStatus').className = 'badge warning';
-      $('storageWarning').textContent = result?.message || '本機資料庫尚未載入；目前可瀏覽公版資料，請由跑馬燈展開救援工具後決定是否載入。';
-      $('storageWarning').classList.remove('hidden');
-      globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:startup-progress', {
-        detail: {
-          stage: 'APP_READY',
-          message: 'App 已在救援／唯讀模式完成啟動',
-          status: 'completed',
-          details: { rescue: true, readonly: true, error_code: result?.error_code || null },
-        },
-      }));
-      return;
-    }
-
-    $('dbStatus').textContent = 'SQLite 已就緒';
-    $('dbStatus').className = 'badge ok';
-    await refresh();
-"""
-          if old_app not in app:
-              raise SystemExit('app initialize block not found')
-          app = app.replace(old_app, new_app, 1)
-          app_path.write_text(app, encoding='utf-8')
-
-          old_version = 'v0.3.87'
-          old_build = '20260805-v0387-indexeddb-safe-boot-memory-guard'
-          new_version = 'v0.3.87.1'
-          new_build = '20260805-v03871-bootstrap-finalize'
-          runtime_files = [
-              Path('assets/js/bootstrap.js'),
-              Path('index.html'),
-              Path('service-worker.js'),
-              Path('service-worker-v0387.js'),
-              Path('assets/js/v0382-release-authority.js'),
-          ]
-          for path in runtime_files:
-              text = path.read_text(encoding='utf-8')
-              text = text.replace(old_build, new_build)
-              text = text.replace(old_version, new_version)
-              path.write_text(text, encoding='utf-8')
-
-          test_path = Path('tests/v03871-bootstrap-finalize-contract.test.mjs')
-          test_path.write_text("""import assert from 'node:assert/strict';
-import fs from 'node:fs';
-
-const database = fs.readFileSync('assets/js/database.js', 'utf8');
-const app = fs.readFileSync('assets/js/app.js', 'utf8');
-const bootstrap = fs.readFileSync('assets/js/bootstrap.js', 'utf8');
-const sw = fs.readFileSync('service-worker.js', 'utf8');
-
-assert.match(database, /RESCUE_READY/);
-assert.match(database, /BOOTSTRAP_COMPLETE/);
-assert.match(database, /return rescueDetail/);
-assert.match(app, /result\?\.rescue \|\| result\?\.readonly/);
-assert.match(app, /救援／唯讀模式/);
-assert.match(app, /stage: 'APP_READY'/);
-assert.match(bootstrap, /v0\.3\.87\.1/);
-assert.match(sw, /v0\.3\.87\.1/);
-console.log('v0.3.87.1 bootstrap finalize contract PASS');
-""", encoding='utf-8')
-      - name: Validate patch
-        run: |
-          node --check assets/js/database.js
-          node --check assets/js/app.js
-          node tests/v03871-bootstrap-finalize-contract.test.mjs
-      - name: Commit patch
-        run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add assets/js/database.js assets/js/app.js assets/js/bootstrap.js index.html service-worker.js service-worker-v0387.js assets/js/v0382-release-authority.js tests/v03871-bootstrap-finalize-contract.test.mjs
-          git commit -m "fix(v0.3.87.1): finalize rescue mode bootstrap"
-          git push origin HEAD:hotfix/v03871-bootstrap-finalize
+          for (const [file, source] of [
+            ['assets/js/database.js', database],
+            ['assets/js/app.js', app],
+            ['assets/js/bootstrap.js', bootstrap],
+          ]) {
+            assert.doesNotMatch(source, /const\s+APP_VERSION\s*=\s*['"]/,
+              `${file} must not define APP_VERSION`);
+            assert.doesNotMatch(source, /const\s+CACHE(?:_NAME)?\s*=\s*['"]/,
+              `${file} must not define cache authority`);
+          }
+          console.log('v0.3.87.1 historical bootstrap finalize contract PASS');
+          NODE
