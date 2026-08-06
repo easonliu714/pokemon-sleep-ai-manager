@@ -22,17 +22,18 @@ assert.match(database,/database_too_large_for_auto_load/);
 assert.match(database,/requestForcedDatabaseLoad/);
 assert.match(database,/sessionStorage\.removeItem\(FORCE_LOAD_KEY\)/);
 assert.match(database,/inspectDatabaseRecord\(\)/);
+assert.match(database,/loadDatabaseBytesInWorker/);
 
-assert.match(authority,/v0\.3\.(?:87|88|89)/);
+assert.match(authority,/v0\.3\.(?:87|88|89|90)/);
 assert.match(authority,/(?:嘗試載入本機資料|載入玩家資料庫)/);
 assert.match(authority,/下載啟動紀錄/);
 assert.match(authority,/service-worker(?:-v0387)?\.js/);
 assert.match(authority,/detail\.rescue\|\|detail\.readonly/);
 
-assert.match(bootstrap,/const APP_VERSION\s*=\s*'v0\.3\.(?:87|88|89)'/);
-assert.match(bootstrap,/const VERSION\s*=\s*'20260805-v03(?:87-indexeddb-safe-boot-memory-guard|88-zero-sql-rescue|89-rescue-catalog-import-recovery)'/);
-assert.match(sw,/const APP_VERSION\s*=\s*'v0\.3\.(?:87|88|89)'/);
-assert.match(sw,/v03(?:87-indexeddb-safe-boot-memory-guard|88-zero-sql-rescue|89-rescue-catalog-import-recovery)/);
-assert.match(index,/bootstrap\.js\?v=20260805-v03(?:87-indexeddb-safe-boot-memory-guard|88-zero-sql-rescue|89-rescue-catalog-import-recovery)/);
+assert.match(bootstrap,/const APP_VERSION\s*=\s*'v0\.3\.(?:87|88|89|90)'/);
+assert.match(bootstrap,/const VERSION\s*=\s*'2026080[56]-v03(?:87-indexeddb-safe-boot-memory-guard|88-zero-sql-rescue|89-rescue-catalog-import-recovery|90-worker-isolated-legacy-sqlite-load)'/);
+assert.match(sw,/const APP_VERSION\s*=\s*'v0\.3\.(?:87|88|89|90)'/);
+assert.match(sw,/v03(?:87-indexeddb-safe-boot-memory-guard|88-zero-sql-rescue|89-rescue-catalog-import-recovery|90-worker-isolated-legacy-sqlite-load)/);
+assert.match(index,/bootstrap\.js\?v=2026080[56]-v03(?:87-indexeddb-safe-boot-memory-guard|88-zero-sql-rescue|89-rescue-catalog-import-recovery|90-worker-isolated-legacy-sqlite-load)/);
 
-console.log(JSON.stringify({status:'PASS',gate:'v0387_safe_boot_contract',player_data_write:false,legacy_auto_read:false,index_authority:true,forward_compatible_release:true}));
+console.log(JSON.stringify({status:'PASS',gate:'v0387_safe_boot_contract',player_data_write:false,legacy_auto_read:false,index_authority:true,forward_compatible_release:true,worker_isolated_load:true}));
