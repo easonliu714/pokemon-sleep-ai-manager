@@ -42,4 +42,4 @@ jobs:
           grep -q "item_inventory_update" assets/js/ai-workflow.js
           grep -q "recipe_status_update" assets/js/ai-workflow.js
           grep -q "canonical_payload_synced:true" assets/js/general-update-field-audit-ui.js
-          ! grep -R "PRIVATE_CLEAN_BOOTSTRAP_75" assets tests/test_v0398_update_center_multiscenario_contract.py .github/workflows/v0398-update-center-multiscenario.yml
+          ! grep -R "PRIVATE_CLEAN_BOOTSTRAP_75" assets tests/test_v0398_update_center_multiscenario_contract.py
