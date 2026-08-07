@@ -13,20 +13,36 @@ function ensurePanel() {
   if (!updates || $('generalUpdateFieldAudit')) return;
   const panel = document.createElement('section');
   panel.id = 'generalUpdateFieldAudit';
-  panel.className = 'panel';
+  panel.className = 'panel update-review-panel';
   panel.innerHTML = `
-    <h3>一般 JSON 欄位稽核</h3>
-    <p class="notice">空值、空字串與缺少欄位預設不覆蓋既有非空值；數字 <code>0</code> 與布林 <code>false</code> 是有效更新值。只有 JSON 的 <code>clear_fields</code> 明確指定時才會清空。</p>
+    <div class="update-review-head">
+      <div>
+        <h3>更新內容確認</h3>
+        <p class="notice">先檢視 JSON 的待確認差異，再決定是否採納。完成必要確認後才會解除 Dry Run 阻擋。</p>
+      </div>
+      <span id="profileAuditProgress" class="badge pending">尚未載入</span>
+    </div>
     <div id="profileAuditConfirmation"></div>
-    <div id="fieldAuditSummary">載入 JSON 並執行 Dry Run 後顯示欄位決策。</div>
-    <div class="table-wrap"><table id="fieldAuditTable"></table></div>`;
-  $('importSummary')?.insertAdjacentElement('afterend', panel);
+    <details class="field-audit-details">
+      <summary>Dry Run 欄位決策明細</summary>
+      <div id="fieldAuditSummary">載入 JSON 並執行 Dry Run 後顯示欄位決策。</div>
+      <div class="table-wrap"><table id="fieldAuditTable"></table></div>
+    </details>`;
+  const issues = $('workflowIssues');
+  if (issues) issues.insertAdjacentElement('afterend', panel);
+  else $('importSummary')?.insertAdjacentElement('beforebegin', panel);
 }
 
-function confirmationLabel(item) {
+function confirmationMeta(item) {
   const scope = item.slot_type === 'ingredient' ? '食材槽' : item.slot_type === 'subskill' ? '副技能槽' : (item.field || '欄位');
   const levels = Array.isArray(item.unlock_levels) ? item.unlock_levels.join('／') : (item.unlock_level ?? '—');
-  return `${item.pokemon_label || item.pokemon_id}：${scope} ${levels} 目前未顯示`;
+  return {
+    pokemon: item.pokemon_label || item.pokemon_id || '未知寶可夢',
+    scope,
+    levels,
+    observed: item.status === 'user_confirmed_not_visible' ? '目前未顯示' : (item.status || '待判定'),
+    confirmed: item.confirmed_by_user === true,
+  };
 }
 
 function workflowErrorCount() {
@@ -65,9 +81,6 @@ async function synchronizeCanonicalPayload(reason = 'confirmation_change') {
       { type: 'application/json' },
     );
 
-    // v0.3.98.1 authoritative handshake: call the main Update Center file handler
-    // directly with the canonical in-memory File. Android DataTransfer/file-input
-    // replacement is no longer the state synchronization authority.
     const mainHandler = input.onchange;
     if (typeof mainHandler !== 'function') {
       throw new Error('update_center_main_file_handler_unavailable');
@@ -94,20 +107,52 @@ async function synchronizeCanonicalPayload(reason = 'confirmation_change') {
 
 function renderConfirmations() {
   const target = $('profileAuditConfirmation');
+  const progress = $('profileAuditProgress');
   if (!target) return;
   const items = Array.isArray(loadedPayload?.profile_audit_confirmations)
     ? loadedPayload.profile_audit_confirmations
     : [];
   if (!items.length) {
-    target.innerHTML = '<p>此更新包沒有「未顯示槽位」確認項目。</p>';
+    target.innerHTML = '<p class="notice">此更新包沒有需要人工確認的「未顯示槽位」。</p>';
+    if (progress) {
+      progress.textContent = '無待確認項目';
+      progress.className = 'badge ok';
+    }
     return;
   }
+
   const confirmedCount = items.filter((item) => item.status === 'user_confirmed_not_visible' && item.confirmed_by_user === true).length;
+  if (progress) {
+    progress.textContent = `已確認 ${confirmedCount}/${items.length}`;
+    progress.className = confirmedCount === items.length ? 'badge ok' : 'badge pending';
+  }
+
   target.innerHTML = `
-    <h4>用戶稽核確認（${confirmedCount}/${items.length}）</h4>
-    <p class="notice">這些槽位不是自動判定為 OCR 錯誤。勾選即代表核對遊戲畫面並採納目前辨識結果；每次勾選會直接同步到一般更新中心的正式 payload，全部完成後 Dry Run 會自動解除阻擋。</p>
-    ${items.map((item,index)=>`<label class="panel"><input type="checkbox" data-profile-confirmation="${index}" ${item.confirmed_by_user===true?'checked':''}> ${esc(confirmationLabel(item))}</label>`).join('')}
-    <div class="buttons"><button id="acceptProfileAuditBtn">全部採納目前辨識結果</button></div>`;
+    <div class="profile-audit-intro">
+      <h4>待確認差異預覽</h4>
+      <p class="notice">下表是 JSON 目前的判定，不代表系統已自動接受。請逐列核對遊戲畫面；確認後才會把「目前未顯示」寫回正式 payload。</p>
+    </div>
+    <div class="profile-audit-table-wrap">
+      <table class="profile-audit-table" aria-label="待確認差異預覽">
+        <thead><tr><th>確認</th><th>寶可夢</th><th>欄位</th><th>等級</th><th>JSON 判定</th><th>狀態</th></tr></thead>
+        <tbody>${items.map((item,index)=>{
+          const meta = confirmationMeta(item);
+          return `<tr class="profile-audit-row ${meta.confirmed ? 'is-confirmed' : 'is-pending'}">
+            <td data-label="確認"><input type="checkbox" aria-label="確認 ${esc(meta.pokemon)} ${esc(meta.scope)}" data-profile-confirmation="${index}" ${meta.confirmed?'checked':''}></td>
+            <td data-label="寶可夢"><strong>${esc(meta.pokemon)}</strong></td>
+            <td data-label="欄位">${esc(meta.scope)}</td>
+            <td data-label="等級">${esc(meta.levels)}</td>
+            <td data-label="JSON 判定"><span class="profile-observation">${esc(meta.observed)}</span></td>
+            <td data-label="狀態"><span class="profile-confirmation-state ${meta.confirmed ? 'confirmed' : 'pending'}">${meta.confirmed ? '已採納' : '待確認'}</span></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>
+    <div class="profile-audit-actions">
+      <button id="acceptProfileAuditBtn" ${confirmedCount===items.length?'disabled':''}>全部採納目前辨識結果</button>
+      <span class="notice">採納後仍需執行 Dry Run 才會產生正式差異與套用預覽。</span>
+    </div>`;
+
   target.querySelectorAll('[data-profile-confirmation]').forEach((checkbox) => {
     checkbox.addEventListener('change', async () => {
       const index = Number(checkbox.dataset.profileConfirmation);
@@ -126,6 +171,7 @@ function renderConfirmations() {
       renderConfirmations();
     });
   });
+
   $('acceptProfileAuditBtn')?.addEventListener('click', async () => {
     const confirmedAt = new Date().toISOString();
     loadedPayload = {
@@ -188,6 +234,10 @@ function bind() {
       queueMicrotask(()=>traceDryRunEligibility('json_file_loaded'));
     } catch {
       loadedPayload = null;
+      if ($('profileAuditProgress')) {
+        $('profileAuditProgress').textContent = '載入失敗';
+        $('profileAuditProgress').className = 'badge error';
+      }
     }
   });
   $('dryRunBtn')?.addEventListener('click', () => {
