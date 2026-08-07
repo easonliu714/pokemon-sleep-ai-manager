@@ -1,0 +1,47 @@
+name: V0.3.99 Human Readable Diff Review
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/general-update-field-audit-ui.js'
+      - 'assets/css/v0399-review.css'
+      - 'assets/css/editor.css'
+      - 'assets/js/version-authority.js'
+      - '.github/workflows/v0399-human-readable-diff-review.yml'
+  workflow_dispatch:
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: JavaScript syntax
+        run: node --check assets/js/general-update-field-audit-ui.js
+      - name: Human readable review contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          UI='assets/js/general-update-field-audit-ui.js'
+          CSS='assets/css/v0399-review.css'
+          VERSION='assets/js/version-authority.js'
+          grep -q "app_version: 'v0.3.99'" "$VERSION"
+          grep -q 'human_diff_review_ready' "$UI"
+          grep -q '玩家資料無差異' "$UI"
+          grep -q '此次不會改變可見的寶可夢能力' "$UI"
+          grep -q "sleep_hours:\['共眠時數'" "$UI"
+          grep -q "helper_seconds:\['幫忙速度'" "$UI"
+          grep -q '食材配置' "$UI"
+          grep -q '副技能' "$UI"
+          grep -q 'Identity fingerprint' "$UI"
+          grep -q 'review-detail-grid' "$CSS"
+          grep -q 'no-player-change' "$CSS"
+          grep -q 'profile_audit_confirmations.map' "$UI"
+          grep -q "confirmation_scope:'review_preview_only'" "$UI"
+          if grep -q 'profile-preview-key' "$UI"; then
+            echo 'raw JSON key/value preview must not be the primary review UI' >&2
+            exit 1
+          fi
+          echo 'v0.3.99 human-readable diff review contract PASS'
