@@ -63,7 +63,10 @@ def test_observation_v2_exposes_non_visible_slot_audit_candidates():
     assert "confirmed_by_user:item?.confirmed_by_user===true" in source
 
 
-def test_version_authority_is_v0396():
-    source = read("assets/js/version-authority.js")
-    assert "app_version: 'v0.3.96'" in source
-    assert "20260807-v0396-general-json-audit-full75-retirement" in source
+def test_v0396_contract_remains_available_after_release_advances():
+    authority = read("assets/js/version-authority.js")
+    workbench = read("assets/js/full75-recovery-workbench.js")
+    importer = read("assets/js/importer.js")
+    assert "app_version: 'v0.3.96'" in authority
+    assert "general_update_center_required:true" in workbench
+    assert "null_overwrite_policy:'preserve_existing_unless_clear_fields'" in importer
