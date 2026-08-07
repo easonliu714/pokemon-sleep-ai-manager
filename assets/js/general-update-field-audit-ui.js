@@ -5,6 +5,7 @@ const $ = (id) => document.getElementById(id);
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 let loadedPayload = null;
 let loadedFileName = '';
+let replacingPayload = false;
 
 function ensurePanel() {
   const updates = $('updates');
@@ -14,7 +15,7 @@ function ensurePanel() {
   panel.className = 'panel';
   panel.innerHTML = `
     <h3>一般 JSON 欄位稽核</h3>
-    <p class="notice">空值、空字串與缺少欄位預設不覆蓋既有非空值。只有 JSON 的 <code>clear_fields</code> 明確指定時才會清空。</p>
+    <p class="notice">空值、空字串與缺少欄位預設不覆蓋既有非空值；數字 <code>0</code> 與布林 <code>false</code> 是有效更新值。只有 JSON 的 <code>clear_fields</code> 明確指定時才會清空。</p>
     <div id="profileAuditConfirmation"></div>
     <div id="fieldAuditSummary">載入 JSON 並執行 Dry Run 後顯示欄位決策。</div>
     <div class="table-wrap"><table id="fieldAuditTable"></table></div>`;
@@ -27,6 +28,26 @@ function confirmationLabel(item) {
   return `${item.pokemon_label || item.pokemon_id}：${scope} ${levels} 目前未顯示`;
 }
 
+function replaceCanonicalFilePayload() {
+  if (!loadedPayload || replacingPayload) return;
+  const input = $('jsonFile');
+  if (!input) return;
+  replacingPayload = true;
+  try {
+    const file = new File(
+      [JSON.stringify(loadedPayload, null, 2)],
+      loadedFileName || `pokemon_sleep_confirmed_${Date.now()}.json`,
+      { type: 'application/json' },
+    );
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    input.files = transfer.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  } finally {
+    queueMicrotask(() => { replacingPayload = false; });
+  }
+}
+
 function renderConfirmations() {
   const target = $('profileAuditConfirmation');
   if (!target) return;
@@ -37,17 +58,27 @@ function renderConfirmations() {
     target.innerHTML = '<p>此更新包沒有「未顯示槽位」確認項目。</p>';
     return;
   }
-  const pending = items.filter((item) => item.status === 'user_confirmed_not_visible' && item.confirmed_by_user !== true);
+  const confirmedCount = items.filter((item) => item.status === 'user_confirmed_not_visible' && item.confirmed_by_user === true).length;
   target.innerHTML = `
-    <h4>用戶稽核確認（${items.length}）</h4>
-    <p class="notice">這些槽位不是自動判定為 OCR 錯誤。請核對遊戲畫面後，確認目前確實尚未開啟／未顯示；平台不會使用物種公版候選值補猜。</p>
+    <h4>用戶稽核確認（${confirmedCount}/${items.length}）</h4>
+    <p class="notice">這些槽位不是自動判定為 OCR 錯誤。勾選即代表核對遊戲畫面並採納目前辨識結果；每次勾選會立即同步到一般更新中心的正式 payload，全部完成後 Dry Run 會自動解除阻擋。</p>
     ${items.map((item,index)=>`<label class="panel"><input type="checkbox" data-profile-confirmation="${index}" ${item.confirmed_by_user===true?'checked':''}> ${esc(confirmationLabel(item))}</label>`).join('')}
-    <div class="buttons"><button id="acceptProfileAuditBtn" ${pending.length?'':'disabled'}>採納目前辨識結果並重新載入 JSON</button></div>`;
+    <div class="buttons"><button id="acceptProfileAuditBtn">全部採納目前辨識結果</button></div>`;
   target.querySelectorAll('[data-profile-confirmation]').forEach((checkbox) => {
     checkbox.addEventListener('change', () => {
-      const button = $('acceptProfileAuditBtn');
-      const allChecked = [...target.querySelectorAll('[data-profile-confirmation]')].every((item) => item.checked);
-      if (button) button.disabled = !allChecked;
+      const index = Number(checkbox.dataset.profileConfirmation);
+      const confirmedAt = new Date().toISOString();
+      const next = [...items];
+      next[index] = {
+        ...next[index],
+        status: 'user_confirmed_not_visible',
+        confirmed_by_user: checkbox.checked,
+        confirmed_at: checkbox.checked ? confirmedAt : null,
+        confirmation_scope: checkbox.checked ? 'current_observation' : null,
+      };
+      loadedPayload = { ...loadedPayload, profile_audit_confirmations: next };
+      replaceCanonicalFilePayload();
+      debugTrace.record('update_center','profile_audit_confirmation_changed',{status:'completed',details:{index,confirmed:checkbox.checked,canonical_payload_synced:true}});
     });
   });
   $('acceptProfileAuditBtn')?.addEventListener('click', () => {
@@ -62,17 +93,8 @@ function renderConfirmations() {
         confirmation_scope: 'current_observation',
       })),
     };
-    const file = new File(
-      [JSON.stringify(loadedPayload, null, 2)],
-      loadedFileName || `pokemon_sleep_confirmed_${Date.now()}.json`,
-      { type: 'application/json' },
-    );
-    const transfer = new DataTransfer();
-    transfer.items.add(file);
-    const input = $('jsonFile');
-    input.files = transfer.files;
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    debugTrace.record('update_center','profile_audit_confirmed',{status:'completed',details:{confirmation_count:items.length,empty_slots_preserved:true}});
+    replaceCanonicalFilePayload();
+    debugTrace.record('update_center','profile_audit_confirmed',{status:'completed',details:{confirmation_count:items.length,empty_slots_preserved:true,canonical_payload_synced:true}});
   });
 }
 
@@ -82,8 +104,8 @@ function decisionText(decision) {
     ignore_empty_incoming:'忽略空值',
     explicit_clear:'明確清空',
     same_value:'值相同',
-    update_non_empty:'更新非空值',
-    insert_non_empty:'新增非空值',
+    update_non_empty:'更新有效值',
+    insert_non_empty:'新增有效值',
     unchanged:'不變',
   })[decision] || decision;
 }
@@ -93,7 +115,7 @@ function renderAudit(preview) {
   const table = $('fieldAuditTable');
   if (!summary || !table) return;
   const audit = preview.audit_summary || {};
-  summary.innerHTML = `欄位：<b>${audit.field_count || 0}</b>；保留既有值：<b>${audit.preserved_existing_count || 0}</b>；明確清空：<b>${audit.explicit_clear_count || 0}</b>；非空更新：<b>${audit.non_empty_update_count || 0}</b>；用戶確認：<b>${audit.profile_confirmation_count || 0}</b>`;
+  summary.innerHTML = `情境：<b>${esc(preview.scenario || 'general')}</b>；欄位：<b>${audit.field_count || 0}</b>；保留既有值：<b>${audit.preserved_existing_count || 0}</b>；明確清空：<b>${audit.explicit_clear_count || 0}</b>；有效更新：<b>${audit.non_empty_update_count || 0}</b>；用戶確認：<b>${audit.profile_confirmation_count || 0}</b>`;
   const records = preview.changes.flatMap((change) => (change.field_audit || []).map((field) => ({
     operation: change.index + 1,
     entity: change.entity,

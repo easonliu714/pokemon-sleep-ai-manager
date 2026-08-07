@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.1",
+  "update_id": "UPD-V0398-RECIPE-STATUS-EXAMPLE",
+  "generated_at": "2026-08-07T00:00:00+08:00",
+  "source": "manual_example",
+  "scenario": "recipe_status_update",
+  "update_policy": {
+    "blank_values": "preserve_existing",
+    "missing_fields": "no_change",
+    "explicit_zero_and_false": "write_value"
+  },
+  "profile_audit_confirmations": [],
+  "operations": [
+    {
+      "operation_id": "OP-001",
+      "entity": "recipes",
+      "action": "upsert",
+      "key": {"recipe_name": "忍者咖哩"},
+      "data": {
+        "unlocked": false,
+        "recipe_level": 0,
+        "current_energy": 0
+      },
+      "clear_fields": [],
+      "review_required": false
+    }
+  ]
+}

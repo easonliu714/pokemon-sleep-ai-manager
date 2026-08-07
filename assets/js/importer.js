@@ -31,16 +31,12 @@ const KEYS = {
 const ACTIONS = new Set(['insert', 'update', 'upsert', 'archive', 'discarded', 'delete']);
 const MISSING_POLICIES = new Set(['conflict', 'skip', 'insert']);
 const AUDIT_STATUSES = new Set([
-  'observed',
-  'derived',
-  'user_confirmed_not_visible',
-  'not_observed_yet',
-  'missing',
-  'not_applicable',
-  'conflicting',
+  'observed','derived','user_confirmed_not_visible','not_observed_yet','missing','not_applicable','conflicting',
 ]);
 const quote = (value) => `"${String(value).replaceAll('"', '""')}"`;
 const isMeaningful = (value) => value !== null && value !== undefined && value !== '';
+const hasOwn = (object, key) => Object.prototype.hasOwnProperty.call(object || {}, key);
+const validNonNegativeInteger = (value) => Number.isInteger(value) && value >= 0;
 
 function acceptedReview(operation) {
   return operation.user_audit?.accepted_current_observation === true
@@ -61,6 +57,25 @@ function validateProfileAudit(payload) {
   });
 }
 
+function validateEntityValues(operation, index) {
+  const data = operation.data || {};
+  const label = `操作 ${index}`;
+  if (operation.entity === 'ingredient_inventory' && hasOwn(data, 'quantity') && isMeaningful(data.quantity) && !validNonNegativeInteger(data.quantity)) {
+    throw new Error(`${label}：quantity 必須為 0 以上整數`);
+  }
+  if (operation.entity === 'item_inventory') {
+    for (const field of ['quantity', 'safe_reserve']) {
+      if (hasOwn(data, field) && isMeaningful(data[field]) && !validNonNegativeInteger(data[field])) throw new Error(`${label}：${field} 必須為 0 以上整數`);
+    }
+  }
+  if (operation.entity === 'recipes') {
+    if (hasOwn(data, 'unlocked') && isMeaningful(data.unlocked) && ![true, false, 0, 1].includes(data.unlocked)) throw new Error(`${label}：unlocked 必須為 true/false 或 0/1`);
+    for (const field of ['recipe_level', 'current_energy']) {
+      if (hasOwn(data, field) && isMeaningful(data[field]) && !validNonNegativeInteger(data[field])) throw new Error(`${label}：${field} 必須為 0 以上整數`);
+    }
+  }
+}
+
 function validate(payload) {
   for (const key of ['schema_version', 'update_id', 'generated_at', 'operations']) {
     if (!(key in payload)) throw new Error(`缺少欄位：${key}`);
@@ -72,15 +87,14 @@ function validate(payload) {
   payload.operations.forEach((operation, index) => {
     if (!KEYS[operation.entity]) throw new Error(`操作 ${index}：不支援 entity`);
     if (!ACTIONS.has(operation.action)) throw new Error(`操作 ${index}：不支援 action`);
-    if (operation.missing_policy && !MISSING_POLICIES.has(operation.missing_policy)) {
-      throw new Error(`操作 ${index}：不支援 missing_policy`);
+    if (operation.missing_policy && !MISSING_POLICIES.has(operation.missing_policy)) throw new Error(`操作 ${index}：不支援 missing_policy`);
+    if (operation.review_required === true && !acceptedReview(operation)) throw new Error(`操作 ${index} 尚需人工確認`);
+    if (operation.entity === 'recipes') {
+      if (!isMeaningful(operation.key?.recipe_id) && !isMeaningful(operation.key?.recipe_name)) throw new Error(`操作 ${index}：recipes key 至少需要 recipe_id 或 recipe_name`);
+    } else {
+      for (const key of KEYS[operation.entity]) if (!(key in (operation.key || {}))) throw new Error(`操作 ${index}：key 缺少 ${key}`);
     }
-    if (operation.review_required === true && !acceptedReview(operation)) {
-      throw new Error(`操作 ${index} 尚需人工確認`);
-    }
-    for (const key of KEYS[operation.entity]) {
-      if (!(key in (operation.key || {}))) throw new Error(`操作 ${index}：key 缺少 ${key}`);
-    }
+    validateEntityValues(operation, index);
   });
 }
 
@@ -92,6 +106,16 @@ function existing(entity, key) {
   )[0] || null;
 }
 
+function resolveOperationKey(operation) {
+  const key = { ...(operation.key || {}) };
+  if (operation.entity === 'recipes' && !isMeaningful(key.recipe_id) && isMeaningful(key.recipe_name)) {
+    const master = rows('SELECT recipe_id FROM recipe_master WHERE recipe_name=?', [key.recipe_name])[0];
+    const player = rows('SELECT recipe_id FROM recipes WHERE recipe_name=?', [key.recipe_name])[0];
+    if (master?.recipe_id || player?.recipe_id) return { recipe_id: master?.recipe_id || player.recipe_id };
+  }
+  return key;
+}
+
 function sparseData(operation) {
   const source = operation.data || {};
   const clearFields = new Set(operation.clear_fields || []);
@@ -100,7 +124,28 @@ function sparseData(operation) {
     if (isMeaningful(value) || value === 0 || value === false) result[key] = value;
     else if (clearFields.has(key)) result[key] = null;
   }
+  if (operation.entity === 'recipes' && hasOwn(result, 'unlocked')) result.unlocked = result.unlocked === true || result.unlocked === 1 ? 1 : 0;
   return result;
+}
+
+function managedData(operation, key, before, inputData, payload) {
+  const data = { ...inputData };
+  const hasPlayerChange = Object.keys(inputData).some((field) => !['updated_at', 'source_update_id'].includes(field));
+  if (['ingredient_inventory', 'item_inventory'].includes(operation.entity) && hasPlayerChange) {
+    if (!hasOwn(data, 'updated_at')) data.updated_at = localIso();
+    if (!hasOwn(data, 'source_update_id')) data.source_update_id = payload.update_id;
+  }
+  if (operation.entity === 'recipes') {
+    const master = rows('SELECT recipe_id,category,recipe_name,total_ingredients FROM recipe_master WHERE recipe_id=?', [key.recipe_id])[0] || null;
+    if (!before && master) {
+      if (!hasOwn(data, 'category')) data.category = master.category;
+      if (!hasOwn(data, 'recipe_name')) data.recipe_name = master.recipe_name;
+      if (!hasOwn(data, 'total_ingredients')) data.total_ingredients = Number(master.total_ingredients || 0);
+      if (!hasOwn(data, 'source')) data.source = 'general_update_center';
+    }
+    if (hasPlayerChange && !hasOwn(data, 'updated_at')) data.updated_at = localIso();
+  }
+  return data;
 }
 
 function fieldAudit(operation, before, data) {
@@ -108,7 +153,7 @@ function fieldAudit(operation, before, data) {
   const source = operation.data || {};
   const fields = new Set([...Object.keys(source), ...clearFields]);
   return [...fields].map((field) => {
-    const incoming = Object.prototype.hasOwnProperty.call(source, field) ? source[field] : undefined;
+    const incoming = hasOwn(source, field) ? source[field] : undefined;
     const previous = before?.[field];
     let decision = 'unchanged';
     let effective = previous;
@@ -116,10 +161,8 @@ function fieldAudit(operation, before, data) {
       decision = 'explicit_clear';
       effective = null;
     } else if (!isMeaningful(incoming) && incoming !== 0 && incoming !== false) {
-      decision = isMeaningful(previous) || previous === 0 || previous === false
-        ? 'preserve_existing_empty_incoming'
-        : 'ignore_empty_incoming';
-    } else if (before && Object.is(previous, incoming)) {
+      decision = isMeaningful(previous) || previous === 0 || previous === false ? 'preserve_existing_empty_incoming' : 'ignore_empty_incoming';
+    } else if (before && (Object.is(previous, incoming) || (typeof previous === 'number' && typeof incoming === 'boolean' && previous === Number(incoming)))) {
       decision = 'same_value';
       effective = previous;
     } else {
@@ -160,20 +203,32 @@ function resolvePokemonIdentity(operation) {
   return { match: null, ambiguous: false, reason: '' };
 }
 
+function publicMasterExists(entity, key) {
+  if (entity === 'ingredient_inventory') return Number(scalar('SELECT COUNT(*) FROM ingredient_master WHERE ingredient_name=?', [key.ingredient_name]) || 0) > 0;
+  if (entity === 'item_inventory') return Number(scalar('SELECT COUNT(*) FROM item_master WHERE item_name=?', [key.item_name]) || 0) > 0;
+  if (entity === 'recipes') return Number(scalar('SELECT COUNT(*) FROM recipe_master WHERE recipe_id=?', [key.recipe_id]) || 0) > 0;
+  return true;
+}
+
 export function dryRun(payload) {
   validate(payload);
   if (scalar('SELECT COUNT(*) FROM import_batches WHERE update_id=?', [payload.update_id])) throw new Error(`update_id 已套用：${payload.update_id}`);
   const aliases = new Map();
   const changes = [];
   payload.operations.forEach((operation, index) => {
-    const incomingKey = { ...(operation.key || {}) };
+    const incomingKey = resolveOperationKey(operation);
     if (incomingKey.pokemon_id && aliases.has(incomingKey.pokemon_id)) incomingKey.pokemon_id = aliases.get(incomingKey.pokemon_id);
     let key = incomingKey;
-    let before = existing(operation.entity, key);
+    let before = isMeaningful(key[KEYS[operation.entity][0]]) ? existing(operation.entity, key) : null;
     let effectiveAction = operation.action;
     let message = '';
     let conflict = false;
     const missingPolicy = operation.missing_policy || 'conflict';
+    if (operation.entity === 'recipes' && !isMeaningful(key.recipe_id)) { conflict = true; message = `找不到公版料理：${operation.key?.recipe_name || 'unknown'}`; }
+    if (!before && ['ingredient_inventory','item_inventory','recipes'].includes(operation.entity) && !publicMasterExists(operation.entity, key)) {
+      conflict = true;
+      message = `${operation.entity} 對應公版主檔不存在，請先核對名稱／recipe_id`;
+    }
     if (operation.entity === 'pokemon' && !before && ['insert', 'upsert'].includes(operation.action)) {
       const resolution = resolvePokemonIdentity(operation);
       if (resolution.invalidTarget) { conflict = true; message = resolution.reason; }
@@ -195,7 +250,8 @@ export function dryRun(payload) {
       else if (missingPolicy === 'insert' && operation.action === 'update') { effectiveAction = 'insert'; message = '目標不存在，依 missing_policy=insert 改為新增'; }
       else { conflict = true; message = '目標不存在'; }
     }
-    const data = sparseData(operation);
+    const sparse = sparseData(operation);
+    const data = managedData(operation, key, before, sparse, payload);
     const audit = fieldAudit(operation, before, data);
     let after;
     if (['insert', 'update'].includes(effectiveAction)) after = { ...(before || {}), ...key, ...data };
@@ -208,6 +264,7 @@ export function dryRun(payload) {
   const allFieldAudit = changes.flatMap((change) => change.field_audit || []);
   return {
     update_id:payload.update_id,
+    scenario:payload.scenario||'general',
     operation_count:changes.length,
     ready_count:changes.filter(item=>item.status==='ready').length,
     conflict_count:changes.filter(item=>item.status==='conflict').length,
@@ -215,7 +272,7 @@ export function dryRun(payload) {
       field_count:allFieldAudit.length,
       preserved_existing_count:allFieldAudit.filter(item=>item.decision==='preserve_existing_empty_incoming').length,
       explicit_clear_count:allFieldAudit.filter(item=>item.decision==='explicit_clear').length,
-      non_empty_update_count:allFieldAudit.filter(item=>item.decision==='update_non_empty').length,
+      non_empty_update_count:allFieldAudit.filter(item=>['update_non_empty','insert_non_empty'].includes(item.decision)).length,
       profile_confirmation_count:Array.isArray(payload.profile_audit_confirmations)?payload.profile_audit_confirmations.length:0,
     },
     changes,
@@ -255,13 +312,15 @@ export async function applyPayload(payload) {
     });
     const resultJson = {
       status:'applied',
+      scenario:payload.scenario||'general',
       audit_summary:preview.audit_summary,
       profile_audit_confirmations:payload.profile_audit_confirmations||[],
       null_overwrite_policy:'preserve_existing_unless_clear_fields',
+      explicit_zero_and_false_are_values:true,
     };
     run('INSERT INTO import_batches(update_id,schema_version,generated_at,imported_at,source,operation_count,result_json) VALUES(?,?,?,?,?,?,?)',[payload.update_id,String(payload.schema_version),payload.generated_at,localIso(),payload.source||'',payload.operations.length,JSON.stringify(resultJson)]);
     commit();
     await persist();
-    return {operation_count:payload.operations.length,audit_summary:preview.audit_summary};
+    return {operation_count:payload.operations.length,scenario:payload.scenario||'general',audit_summary:preview.audit_summary};
   } catch(error){rollback();throw error;}
 }
