@@ -14,6 +14,9 @@ export function applyPublicEmptyProfileMaster(db){
       [item.item_name,item.item_category,item.effect_description_zh_tw,item.source_type,item.source_name,item.source_ref,item.verified_at,item.data_version]);
   }
 
+  db.run(`INSERT OR REPLACE INTO settings(key,value_json,updated_at)
+    VALUES('public_item_master_version',?,datetime('now'))`,[JSON.stringify(PUBLIC_ITEM_MASTER_VERSION)]);
+
   // Public master refresh only updates item_master. Player-owned inventory,
   // reserve, recommendation, recipe unlock, capacity and Pokémon rows remain untouched.
   db.run(`INSERT OR REPLACE INTO settings(key,value_json,updated_at)
