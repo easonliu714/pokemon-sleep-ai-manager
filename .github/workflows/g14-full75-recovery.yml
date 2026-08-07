@@ -18,8 +18,9 @@ jobs:
           node --check assets/js/full75-recovery-contract.js
           node --check assets/js/full75-recovery-engine.js
           node --check assets/js/full75-recovery-workbench.js
+          node --check assets/js/general-update-field-audit-ui.js
           node --check assets/js/version-authority.js
-      - name: Verify immutable FULL75 counts
+      - name: Verify immutable historical FULL75 counts
         run: |
           grep -q "total: 821" assets/js/full75-recovery-contract.js
           grep -q "pokemon_upsert: 75" assets/js/full75-recovery-contract.js
@@ -27,18 +28,21 @@ jobs:
           grep -q "pokemon_subskills: 369" assets/js/full75-recovery-contract.js
           grep -q "pokemon_ingredients: 222" assets/js/full75-recovery-contract.js
           grep -q "pokemon_identity_evidence: 150" assets/js/full75-recovery-contract.js
-      - name: Verify recovery safety boundaries
+      - name: Verify retired compatibility boundary
         run: |
           grep -q "review_required" assets/js/full75-recovery-engine.js
           grep -q "confirmed_independent" assets/js/full75-recovery-engine.js
           grep -q "target_pokemon_id" assets/js/full75-recovery-engine.js
           grep -q "dryRun" assets/js/full75-recovery-engine.js
-          grep -q "applyPayload" assets/js/full75-recovery-engine.js
           grep -q "verifyAppliedPackage" assets/js/full75-recovery-engine.js
-          grep -q "integrity_ok" assets/js/full75-recovery-engine.js
-          grep -q "foreign_key_errors" assets/js/full75-recovery-engine.js
-          grep -q "private_data_committed_to_repo:false" assets/js/full75-recovery-workbench.js
-      - name: Verify browser entry
+          grep -q "throw new Error(RETIRED_MESSAGE)" assets/js/full75-recovery-engine.js
+          ! grep -q "import .*applyPayload" assets/js/full75-recovery-engine.js
+          grep -q "panel.dataset.status = 'retired'" assets/js/full75-recovery-workbench.js
+          grep -q "送至一般更新中心" assets/js/full75-recovery-workbench.js
+          grep -q "blank_values_preserve_existing:true" assets/js/full75-recovery-workbench.js
+          grep -q "preserve_existing_empty_incoming" assets/js/importer.js
+          grep -q "accepted_current_observation" assets/js/ai-workflow.js
+      - name: Verify browser compatibility entry
         run: |
           grep -q 'src="./assets/js/full75-recovery-workbench.js"' index.html
           ! grep -q 'full75-recovery-workbench.js?v=' index.html

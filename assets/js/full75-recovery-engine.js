@@ -1,7 +1,8 @@
-import { dryRun, applyPayload } from './importer.js';
-import { rows, scalar, exportBytes } from './database.js';
+import { dryRun } from './importer.js';
+import { rows, scalar } from './database.js';
 import { validateFull75Contract } from './full75-recovery-contract.js';
 
+const RETIRED_MESSAGE = 'FULL75 專用套用流程已退役；請改用一般更新中心的結構檢查、待覆核確認、Dry Run 與套用更新。';
 const KEY_FIELDS = Object.freeze({
   pokemon: ['pokemon_id'],
   pokemon_subskills: ['pokemon_id', 'unlock_level'],
@@ -21,6 +22,11 @@ function resolveFull75Payload(payload, resolutions) {
     const selection = resolutions.get(index);
     if (!selection) throw new Error(`操作 ${index} 尚未完成身份覆核`);
     operation.review_required = false;
+    operation.user_audit = {
+      ...(operation.user_audit || {}),
+      accepted_current_observation: true,
+      accepted_via: 'legacy_full75_compatibility',
+    };
     if (selection === '__independent__') {
       operation.review_resolution = 'confirmed_independent';
       delete operation.identity_match;
@@ -38,7 +44,7 @@ function resolveFull75Payload(payload, resolutions) {
 function runFull75DryRun(payload, resolutions) {
   const resolvedPayload = resolveFull75Payload(payload, resolutions);
   const preview = dryRun(resolvedPayload);
-  return { resolvedPayload, preview };
+  return { resolvedPayload, preview, retired: true, next_action: 'general_update_center' };
 }
 
 function keyWhere(entity, key) {
@@ -64,38 +70,16 @@ function verifyAppliedPackage(payload) {
     else verified += 1;
   });
   const imported = Number(scalar('SELECT COUNT(*) FROM import_batches WHERE update_id=?', [payload.update_id]) || 0);
-  if (imported !== 1) failures.push('import_batches 未建立唯一 FULL75 紀錄');
-  return {
-    pass: failures.length === 0,
-    verified,
-    expectedVerifiable,
-    failures,
-    global: {
-      pokemon_active: Number(scalar("SELECT COUNT(*) FROM pokemon WHERE status='active'") || 0),
-      pokemon: Number(scalar('SELECT COUNT(*) FROM pokemon') || 0),
-      pokemon_subskills: Number(scalar('SELECT COUNT(*) FROM pokemon_subskills') || 0),
-      pokemon_ingredients: Number(scalar('SELECT COUNT(*) FROM pokemon_ingredients') || 0),
-      pokemon_identity_evidence: Number(scalar('SELECT COUNT(*) FROM pokemon_identity_evidence') || 0),
-    },
-  };
+  if (imported !== 1) failures.push('import_batches 未建立唯一更新紀錄');
+  return { pass: failures.length === 0, verified, expectedVerifiable, failures };
 }
 
-async function applyFull75Payload(payload, resolutions) {
-  const { resolvedPayload, preview } = runFull75DryRun(payload, resolutions);
-  if (preview.conflict_count) throw new Error(`FULL75 仍有 ${preview.conflict_count} 筆衝突`);
-  await applyPayload(resolvedPayload);
-  const verification = verifyAppliedPackage(resolvedPayload);
-  if (!verification.pass) throw new Error(`FULL75 套用後對帳失敗：${verification.failures.slice(0, 5).join('；')}`);
-  const inspector = globalThis.PokemonSleepBackupTruth?.inspectBytes;
-  if (typeof inspector !== 'function') throw new Error('備份真值檢查器尚未就緒');
-  const databaseReport = await inspector(exportBytes());
-  if (!databaseReport.integrity_ok || databaseReport.foreign_key_errors.length) {
-    throw new Error('Post-apply SQLite 完整性檢查失敗');
-  }
-  return { resolvedPayload, preview, verification, databaseReport };
+async function applyFull75Payload() {
+  throw new Error(RETIRED_MESSAGE);
 }
 
 export {
+  RETIRED_MESSAGE,
   reviewOperations,
   resolveFull75Payload,
   runFull75DryRun,

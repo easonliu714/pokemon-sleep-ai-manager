@@ -1,0 +1,43 @@
+name: V0.3.96 General JSON Audit
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/importer.js'
+      - 'assets/js/ai-workflow.js'
+      - 'assets/js/general-update-field-audit-ui.js'
+      - 'assets/js/full75-recovery-engine.js'
+      - 'assets/js/full75-recovery-workbench.js'
+      - 'assets/js/version-authority.js'
+      - 'tests/test_v0396_general_json_audit_contract.py'
+      - '.github/workflows/v0396-general-json-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependency
+        run: python -m pip install --disable-pip-version-check pytest
+      - name: Python contract tests
+        run: python -m pytest -q tests/test_v0396_general_json_audit_contract.py
+      - name: JavaScript syntax
+        run: |
+          node --check assets/js/importer.js
+          node --check assets/js/ai-workflow.js
+          node --check assets/js/general-update-field-audit-ui.js
+          node --check assets/js/full75-recovery-engine.js
+          node --check assets/js/full75-recovery-workbench.js
+      - name: Privacy and retirement assertions
+        run: |
+          ! grep -R "PRIVATE_CLEAN_BOOTSTRAP_75" assets tests .github/workflows/v0396-general-json-audit.yml
+          ! grep -q "applyPayload" assets/js/full75-recovery-engine.js
+          grep -q "preserve_existing_empty_incoming" assets/js/importer.js
+          grep -q "panel.dataset.status = 'retired'" assets/js/full75-recovery-workbench.js
