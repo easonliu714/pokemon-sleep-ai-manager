@@ -5,7 +5,8 @@ const $ = (id) => document.getElementById(id);
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 let loadedPayload = null;
 let loadedFileName = '';
-let replacingPayload = false;
+let handshakeInFlight = false;
+let lastDryRunEnabled = null;
 
 function ensurePanel() {
   const updates = $('updates');
@@ -28,23 +29,66 @@ function confirmationLabel(item) {
   return `${item.pokemon_label || item.pokemon_id}：${scope} ${levels} 目前未顯示`;
 }
 
-function replaceCanonicalFilePayload() {
-  if (!loadedPayload || replacingPayload) return;
+function workflowErrorCount() {
+  return document.querySelectorAll('#workflowIssues .status-conflict').length;
+}
+
+function traceDryRunEligibility(reason) {
+  const enabled = Boolean($('dryRunBtn') && !$('dryRunBtn').disabled);
+  if (enabled === lastDryRunEnabled && reason !== 'canonical_handshake') return;
+  lastDryRunEnabled = enabled;
+  debugTrace.record('update_center','dry_run_eligibility_changed',{
+    status:'completed',
+    details:{enabled,reason,workflow_error_count:workflowErrorCount()},
+  });
+}
+
+async function synchronizeCanonicalPayload(reason = 'confirmation_change') {
+  if (!loadedPayload || handshakeInFlight) return false;
   const input = $('jsonFile');
-  if (!input) return;
-  replacingPayload = true;
+  if (!input) return false;
+  handshakeInFlight = true;
+  const confirmationCount = Array.isArray(loadedPayload.profile_audit_confirmations)
+    ? loadedPayload.profile_audit_confirmations.length
+    : 0;
+  const confirmedCount = Array.isArray(loadedPayload.profile_audit_confirmations)
+    ? loadedPayload.profile_audit_confirmations.filter((item)=>item.confirmed_by_user===true).length
+    : 0;
+  debugTrace.record('update_center','canonical_payload_rebuilt',{
+    status:'completed',
+    details:{reason,confirmation_count:confirmationCount,confirmed_count:confirmedCount},
+  });
   try {
     const file = new File(
       [JSON.stringify(loadedPayload, null, 2)],
       loadedFileName || `pokemon_sleep_confirmed_${Date.now()}.json`,
       { type: 'application/json' },
     );
-    const transfer = new DataTransfer();
-    transfer.items.add(file);
-    input.files = transfer.files;
-    input.dispatchEvent(new Event('change', { bubbles: true }));
+
+    // v0.3.98.1 authoritative handshake: call the main Update Center file handler
+    // directly with the canonical in-memory File. Android DataTransfer/file-input
+    // replacement is no longer the state synchronization authority.
+    const mainHandler = input.onchange;
+    if (typeof mainHandler !== 'function') {
+      throw new Error('update_center_main_file_handler_unavailable');
+    }
+    await mainHandler.call(input, { target: { files: [file] }, currentTarget: input, type: 'change' });
+
+    debugTrace.record('update_center','main_state_payload_reloaded',{
+      status:'completed',
+      details:{reason,confirmation_count:confirmationCount,confirmed_count:confirmedCount},
+    });
+    debugTrace.record('update_center','workflow_validation_completed',{
+      status:'completed',
+      details:{reason,error_count:workflowErrorCount(),dry_run_enabled:Boolean($('dryRunBtn') && !$('dryRunBtn').disabled)},
+    });
+    traceDryRunEligibility('canonical_handshake');
+    return true;
+  } catch (error) {
+    debugTrace.record('update_center','canonical_payload_handshake_failed',{status:'failed',details:{reason},error});
+    throw error;
   } finally {
-    queueMicrotask(() => { replacingPayload = false; });
+    handshakeInFlight = false;
   }
 }
 
@@ -61,11 +105,11 @@ function renderConfirmations() {
   const confirmedCount = items.filter((item) => item.status === 'user_confirmed_not_visible' && item.confirmed_by_user === true).length;
   target.innerHTML = `
     <h4>用戶稽核確認（${confirmedCount}/${items.length}）</h4>
-    <p class="notice">這些槽位不是自動判定為 OCR 錯誤。勾選即代表核對遊戲畫面並採納目前辨識結果；每次勾選會立即同步到一般更新中心的正式 payload，全部完成後 Dry Run 會自動解除阻擋。</p>
+    <p class="notice">這些槽位不是自動判定為 OCR 錯誤。勾選即代表核對遊戲畫面並採納目前辨識結果；每次勾選會直接同步到一般更新中心的正式 payload，全部完成後 Dry Run 會自動解除阻擋。</p>
     ${items.map((item,index)=>`<label class="panel"><input type="checkbox" data-profile-confirmation="${index}" ${item.confirmed_by_user===true?'checked':''}> ${esc(confirmationLabel(item))}</label>`).join('')}
     <div class="buttons"><button id="acceptProfileAuditBtn">全部採納目前辨識結果</button></div>`;
   target.querySelectorAll('[data-profile-confirmation]').forEach((checkbox) => {
-    checkbox.addEventListener('change', () => {
+    checkbox.addEventListener('change', async () => {
       const index = Number(checkbox.dataset.profileConfirmation);
       const confirmedAt = new Date().toISOString();
       const next = [...items];
@@ -77,11 +121,12 @@ function renderConfirmations() {
         confirmation_scope: checkbox.checked ? 'current_observation' : null,
       };
       loadedPayload = { ...loadedPayload, profile_audit_confirmations: next };
-      replaceCanonicalFilePayload();
-      debugTrace.record('update_center','profile_audit_confirmation_changed',{status:'completed',details:{index,confirmed:checkbox.checked,canonical_payload_synced:true}});
+      debugTrace.record('update_center','profile_confirmation_checkbox_changed',{status:'completed',details:{index,confirmed:checkbox.checked}});
+      await synchronizeCanonicalPayload('single_confirmation');
+      renderConfirmations();
     });
   });
-  $('acceptProfileAuditBtn')?.addEventListener('click', () => {
+  $('acceptProfileAuditBtn')?.addEventListener('click', async () => {
     const confirmedAt = new Date().toISOString();
     loadedPayload = {
       ...loadedPayload,
@@ -93,8 +138,9 @@ function renderConfirmations() {
         confirmation_scope: 'current_observation',
       })),
     };
-    replaceCanonicalFilePayload();
-    debugTrace.record('update_center','profile_audit_confirmed',{status:'completed',details:{confirmation_count:items.length,empty_slots_preserved:true,canonical_payload_synced:true}});
+    debugTrace.record('update_center','profile_audit_confirmed',{status:'completed',details:{confirmation_count:items.length,empty_slots_preserved:true}});
+    await synchronizeCanonicalPayload('accept_all_confirmations');
+    renderConfirmations();
   });
 }
 
@@ -131,27 +177,34 @@ function bind() {
   ensurePanel();
   $('jsonFile')?.addEventListener('change', async (event) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file || handshakeInFlight) return;
     try {
       loadedPayload = JSON.parse(await file.text());
       loadedFileName = file.name;
+      debugTrace.record('update_center','json_file_loaded',{status:'completed',details:{confirmation_count:Array.isArray(loadedPayload?.profile_audit_confirmations)?loadedPayload.profile_audit_confirmations.length:0}});
       renderConfirmations();
       $('fieldAuditSummary').textContent = 'JSON 已載入；請完成必要確認並執行 Dry Run。';
       $('fieldAuditTable').innerHTML = '';
+      queueMicrotask(()=>traceDryRunEligibility('json_file_loaded'));
     } catch {
       loadedPayload = null;
     }
   });
   $('dryRunBtn')?.addEventListener('click', () => {
+    const blocked = Boolean($('dryRunBtn')?.disabled);
+    debugTrace.record('update_center',blocked?'dry_run_blocked':'dry_run_started',{status:blocked?'blocked':'started',details:{workflow_error_count:workflowErrorCount()}});
     setTimeout(() => {
-      if (!loadedPayload) return;
+      if (!loadedPayload || blocked) return;
       try {
-        renderAudit(dryRun(loadedPayload));
+        const preview = dryRun(loadedPayload);
+        renderAudit(preview);
+        debugTrace.record('update_center','dry_run_completed',{status:'completed',details:{operation_count:preview.operation_count,ready_count:preview.ready_count,conflict_count:preview.conflict_count}});
       } catch (error) {
         $('fieldAuditSummary').textContent = `欄位稽核尚未完成：${error.message}`;
+        debugTrace.record('update_center','dry_run_blocked',{status:'blocked',details:{reason:error.message,workflow_error_count:workflowErrorCount()}});
       }
     }, 0);
-  });
+  }, true);
 }
 
 window.addEventListener('DOMContentLoaded', bind, { once: true });
