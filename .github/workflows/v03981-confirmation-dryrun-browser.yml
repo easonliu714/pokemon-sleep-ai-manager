@@ -1,0 +1,29 @@
+name: V0.3.98.1 Confirmation Dry Run Browser
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  browser-handshake:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install browser runtime
+        run: |
+          npm install --no-save --no-package-lock playwright@1.54.1
+          npx playwright install --with-deps chromium
+      - name: Start static server
+        run: |
+          python3 -m http.server 8080 >/tmp/pokemon-sleep-v03981-http.log 2>&1 &
+          echo $! >/tmp/pokemon-sleep-v03981-http.pid
+      - name: Verify v0.3.98.1 confirmation-to-Dry-Run handshake in Chromium
+        run: node scripts/v03981-confirmation-dryrun-browser.mjs
+      - name: Print static server log on failure
+        if: failure()
+        run: cat /tmp/pokemon-sleep-v03981-http.log || true

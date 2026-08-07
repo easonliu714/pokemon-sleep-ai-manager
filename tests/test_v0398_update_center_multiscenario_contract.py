@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -7,19 +8,30 @@ def read(path: str) -> str:
     return (ROOT / path).read_text(encoding='utf-8')
 
 
-def test_version_authority_is_v0398():
+def test_release_may_advance_while_v0398_contract_remains_supported():
     source = read('assets/js/version-authority.js')
-    assert "app_version: 'v0.3.98'" in source
-    assert '20260807-v0398-update-center-multiscenario-dryrun-state' in source
+    match = re.search(r"app_version:\s*'v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?'", source)
+    assert match, 'central app_version must remain parseable'
+    version = tuple(int(value or 0) for value in match.groups())
+    assert version >= (0, 3, 98, 0), 'current release must not regress below v0.3.98'
+    assert Path(ROOT / 'docs/V0398_UPDATE_CENTER_MULTISCENARIO_CONTRACT.md').exists()
 
 
-def test_profile_confirmation_changes_replace_canonical_json_input():
-    source = read('assets/js/general-update-field-audit-ui.js')
-    assert 'replaceCanonicalFilePayload' in source
-    assert "input.dispatchEvent(new Event('change', { bubbles: true }))" in source
-    assert "profile_audit_confirmation_changed" in source
-    assert 'canonical_payload_synced:true' in source
-    assert '全部採納目前辨識結果' in source
+def test_profile_confirmation_changes_sync_to_main_update_center_payload():
+    audit = read('assets/js/general-update-field-audit-ui.js')
+    app = read('assets/js/app.js')
+    assert 'synchronizeCanonicalPayload' in audit
+    assert 'const mainHandler = input.onchange' in audit
+    assert 'await mainHandler.call' in audit
+    assert 'profile_confirmation_checkbox_changed' in audit
+    assert 'canonical_payload_rebuilt' in audit
+    assert 'main_state_payload_reloaded' in audit
+    assert 'workflow_validation_completed' in audit
+    assert 'dry_run_eligibility_changed' in audit
+    assert '全部採納目前辨識結果' in audit
+    assert 'state.payload = JSON.parse(await file.text())' in app
+    assert 'state.workflow = validateWorkflow(state.payload)' in app
+    assert "$('dryRunBtn').disabled = Boolean(result.errors.length || result.review.length)" in app
 
 
 def test_general_importer_supports_all_private_update_scenarios():

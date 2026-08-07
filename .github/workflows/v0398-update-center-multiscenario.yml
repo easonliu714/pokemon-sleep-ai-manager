@@ -41,5 +41,9 @@ jobs:
           grep -q "ingredient_inventory_update" assets/js/ai-workflow.js
           grep -q "item_inventory_update" assets/js/ai-workflow.js
           grep -q "recipe_status_update" assets/js/ai-workflow.js
-          grep -q "canonical_payload_synced:true" assets/js/general-update-field-audit-ui.js
+          grep -q "synchronizeCanonicalPayload" assets/js/general-update-field-audit-ui.js
+          grep -q "main_state_payload_reloaded" assets/js/general-update-field-audit-ui.js
+          grep -q "dry_run_eligibility_changed" assets/js/general-update-field-audit-ui.js
+          ! grep -q "replaceCanonicalFilePayload" assets/js/general-update-field-audit-ui.js
+          ! grep -q "new DataTransfer" assets/js/general-update-field-audit-ui.js
           ! grep -R "PRIVATE_CLEAN_BOOTSTRAP_75" assets tests/test_v0398_update_center_multiscenario_contract.py
