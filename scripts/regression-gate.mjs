@@ -15,6 +15,7 @@ const require=createRequire(import.meta.url);
 function queryRows(db,sql){const statement=db.prepare(sql);const output=[];while(statement.step())output.push(statement.getAsObject());statement.free();return output;}
 function scalar(db,sql){const result=queryRows(db,sql);return result.length?Object.values(result[0])[0]:null;}
 async function listJs(dirUrl){const out=[];for(const name of await readdir(dirUrl)){const url=new URL(`${name}${(await stat(new URL(name,dirUrl))).isDirectory()?'/':''}`,dirUrl);if((await stat(url)).isDirectory())out.push(...await listJs(url));else if(name.endsWith('.js'))out.push(url);}return out;}
+function functionBlock(source,startToken,nextToken){const start=source.indexOf(startToken);const end=source.indexOf(nextToken,start+startToken.length);return start>=0&&end>start?source.slice(start,end):'';}
 
 async function syntaxGate(){
   const temp=await mkdtemp(join(tmpdir(),'pokemon-sleep-regression-'));
@@ -25,10 +26,11 @@ async function migrationStaticGate(){
   const schema=await text('assets/js/schema.js');const database=await text('assets/js/database.js');const migrations=await text('assets/js/migrations.js');const canonical=await text('assets/js/canonical-registry.js');
   for(const field of ['recipe_level','current_energy','updated_at','notes'])assert.match(migrations,new RegExp(`addColumnIfMissing\\(db,'recipes','${field}'`),`missing recipe migration field: ${field}`);
   for(const version of [1,2,3,4,5,6,7])assert.match(`${schema}\n${migrations}\n${canonical}`,new RegExp(`schema_migrations[^\\n]*${version}|VALUES\\(${version},`),`migration ${version} is not registered`);
-  const initialization=database.match(/export async function initializeDatabase\(\)[\s\S]*?\n\}/u)?.[0]||'';
-  const replacement=database.match(/export async function replaceDatabase\(bytes\)[\s\S]*?await persist\(\);\n\}/u)?.[0]||'';
+  const initialization=functionBlock(database,'export async function initializeDatabase()','export function requestForcedDatabaseLoad');
+  const replacement=functionBlock(database,'export async function replaceDatabase(bytes)','export function begin');
   assert.match(initialization,/applyAllMigrations\(db\)/u,'migrations missing from initializeDatabase');
   assert.match(replacement,/applyAllMigrations\(db\)/u,'migrations missing from replaceDatabase');
+  assert.match(replacement,/await persist\(\)/u,'persist missing from replaceDatabase');
   assert.match(migrations,/SELECT pokemon_id,70[\s\S]*unlock_level=75/u,'75→70 migration missing');
   assert.match(migrations,/SELECT pokemon_id,80[\s\S]*unlock_level=100/u,'100→80 migration missing');
   assert.match(migrations,/pokemon_analysis_observation/u,'analysis observation migration missing');
@@ -91,11 +93,11 @@ async function knowledgeGate(){
   assert.match(ui,/document\.getElementById\('referenceRecipeTable'\)/,'shared UI must render referenceRecipeTable');
   assert.doesNotMatch(ui,/table\(recipeTable,recipes/u,'shared recipes must not overwrite personal recipeTable');
   assert.match(catalog,/ingredient_catalog_state/u,'ingredient catalog view not used');
-  assert.match(catalog,/item_catalog_state/u,'item catalog view not used');
+  assert.match(catalog,/item_catalog_state/u,'item public catalog view not used');
   assert.match(catalog,/recipe_catalog_state/u,'recipe catalog view not used');
   console.log('PASS knowledge UI: public zero-state catalogs editable; personal/reference data separated');
 }
 
-async function serviceWorkerGate(){const sw=await text('service-worker.js');for(const asset of ['shared-master-schema.js','shared-master-data.js','public-empty-profile-master.js','canonical-registry.js','public-catalog-workbench.js','shared-knowledge-ui.js'])assert.ok(sw.includes(asset),`service-worker cache missing ${asset}`);assert.match(sw,/skipWaiting\(\)/,'service worker must call skipWaiting');assert.match(sw,/clients\.claim\(\)/,'service worker must claim clients');assert.match(sw,/keys\.filter\(\(key\) => key !== CACHE\)/,'service worker must delete stale caches');console.log('PASS service worker: canonical/public catalog modules cached and stale caches removed');}
+async function serviceWorkerGate(){const sw=await text('service-worker.js');for(const asset of ['shared-master-schema.js','shared-master-data.js','public-empty-profile-master.js','public-item-master.js','canonical-registry.js','public-catalog-workbench.js','shared-knowledge-ui.js'])assert.ok(sw.includes(asset),`service-worker cache missing ${asset}`);assert.match(sw,/skipWaiting\(\)/,'service worker must call skipWaiting');assert.match(sw,/clients\.claim\(\)/,'service worker must claim clients');assert.match(sw,/keys\.filter\(\(key\) => key !== CACHE\)/,'service worker must delete stale caches');console.log('PASS service worker: canonical/public catalog modules cached and stale caches removed');}
 
 await syntaxGate();await migrationStaticGate();await migrationFixtureGate();await knowledgeGate();await serviceWorkerGate();console.log('REGRESSION GATE PASS');

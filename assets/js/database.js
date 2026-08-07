@@ -8,84 +8,36 @@ const AUTO_LOAD_MAX_BYTES=48*1024*1024;
 const CONFIRM_LOAD_MAX_BYTES=128*1024*1024;
 const MOBILE_SAFE_TRANSFER_BYTES=48*1024*1024;
 const FORCE_LOAD_KEY='pokemon-sleep-force-database-load-once';
-let bootGeneration=0;
-let readyDispatchGeneration=0;
-
+let bootGeneration=0,readyDispatchGeneration=0;
 const timeout=(promise,ms,label)=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error(`${label}逾時（${Math.round(ms/1000)}秒）`)),ms);timer?.unref?.();Promise.resolve(promise).then(value=>{clearTimeout(timer);resolve(value);},error=>{clearTimeout(timer);reject(error);});});
 const emit=(stage,message,status='running',details={},error=null)=>{if(typeof globalThis.dispatchEvent==='function'&&typeof globalThis.CustomEvent==='function')globalThis.dispatchEvent(new globalThis.CustomEvent('pokemon-sleep:startup-progress',{detail:{stage,message,status,details,error:error?.message||error||null}}));};
-const dispatchReadyAsync=detail=>{const dispatchGeneration=++readyDispatchGeneration;emit('DATABASE_READY_DISPATCH_SCHEDULED','資料庫已就緒；正在排程非同步 App 初始化','completed',{dispatch_generation:dispatchGeneration,...detail});setTimeout(()=>{const started=performance?.now?.()||Date.now();emit('DATABASE_READY_DISPATCH_START','正在通知 App 載入一般模式','running',{dispatch_generation:dispatchGeneration,...detail});try{if(typeof globalThis.dispatchEvent==='function'&&typeof globalThis.CustomEvent==='function')globalThis.dispatchEvent(new globalThis.CustomEvent('pokemon-sleep:database-ready',{detail:{...detail,dispatch_generation:dispatchGeneration}}));const elapsed=Math.round((performance?.now?.()||Date.now())-started);emit('DATABASE_READY_DISPATCH_COMPLETED','資料庫就緒通知已完成','completed',{dispatch_generation:dispatchGeneration,elapsed_ms:elapsed,...detail});}catch(error){emit('DATABASE_READY_DISPATCH_FAILED','資料庫就緒通知失敗','failed',{dispatch_generation:dispatchGeneration,...detail},error);}},0);};
+const dispatchReadyAsync=detail=>{const dispatchGeneration=++readyDispatchGeneration;emit('DATABASE_READY_DISPATCH_SCHEDULED','資料庫已就緒；正在排程非同步 App 初始化','completed',{dispatch_generation:dispatchGeneration,...detail});setTimeout(()=>{const started=performance?.now?.()||Date.now();emit('DATABASE_READY_DISPATCH_START','正在通知 App 載入一般模式','running',{dispatch_generation:dispatchGeneration,...detail});try{globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:database-ready',{detail:{...detail,dispatch_generation:dispatchGeneration}}));emit('DATABASE_READY_DISPATCH_COMPLETED','資料庫就緒通知已完成','completed',{dispatch_generation:dispatchGeneration,elapsed_ms:Math.round((performance?.now?.()||Date.now())-started),...detail});}catch(error){emit('DATABASE_READY_DISPATCH_FAILED','資料庫就緒通知失敗','failed',{dispatch_generation:dispatchGeneration,...detail},error);}},0);};
 const safeBootError=(code,message,details={})=>Object.assign(new Error(message),{code,details,safe_boot:true});
 const yieldToUi=()=>new Promise(resolve=>setTimeout(resolve,0));
-
 function consumeForceLoad(){try{const enabled=sessionStorage.getItem(FORCE_LOAD_KEY)==='1';sessionStorage.removeItem(FORCE_LOAD_KEY);return enabled;}catch{return false;}}
 
-async function createReadonlyRescueDatabase(error){
-  rescueReadonly=true;db=null;
-  const detail={seeded:false,rescue:true,readonly:true,zero_sql:true,error_code:error.code,message:error.message,...error.details};
-  emit('RESCUE_READY','救援／唯讀模式已就緒；未載入 SQL.js，也未讀取玩家 SQLite','completed',detail);
-  emit('BOOTSTRAP_COMPLETE','啟動流程已在零 SQLite 救援模式完成','completed',detail);dispatchReadyAsync(detail);
-  setTimeout(()=>{const status=document.getElementById('dbStatus');const warning=document.getElementById('storageWarning');if(status){status.textContent='救援／唯讀模式';status.className='badge warning';}if(warning){warning.textContent=`本機玩家資料尚未載入：${error.message}。目前僅可瀏覽公版頁面，不會寫入玩家資料。`;warning.classList.remove('hidden');}emit('APP_READY','App 已在零 SQLite 救援模式完成啟動','completed',detail);},0);
-  return detail;
-}
-
+async function createReadonlyRescueDatabase(error){rescueReadonly=true;db=null;const detail={seeded:false,rescue:true,readonly:true,zero_sql:true,error_code:error.code,message:error.message,...error.details};emit('RESCUE_READY','救援／唯讀模式已就緒；未載入 SQL.js，也未讀取玩家 SQLite','completed',detail);emit('BOOTSTRAP_COMPLETE','啟動流程已在零 SQLite 救援模式完成','completed',detail);dispatchReadyAsync(detail);setTimeout(()=>{const status=document.getElementById('dbStatus'),warning=document.getElementById('storageWarning');if(status){status.textContent='救援／唯讀模式';status.className='badge warning';}if(warning){warning.textContent=`本機玩家資料尚未載入：${error.message}。目前僅可瀏覽公版頁面，不會寫入玩家資料。`;warning.classList.remove('hidden');}emit('APP_READY','App 已在零 SQLite 救援模式完成啟動','completed',detail);},0);return detail;}
 export async function inspectDatabaseBoot(){const inspection=await timeout(inspectDatabaseRecord(),8000,'本機資料庫 metadata 讀取');const byteLength=Number(inspection.metadata?.byte_length||0);return {...inspection,byte_length:byteLength,metadata_known:Boolean(inspection.metadata&&byteLength>=0)};}
 
 export async function initializeDatabase(){
   const generation=++bootGeneration;
   try{
-    emit('DATABASE_METADATA_CHECK','正在檢查本機資料庫大小');
-    const inspection=await inspectDatabaseBoot();const forced=consumeForceLoad();
+    emit('DATABASE_METADATA_CHECK','正在檢查本機資料庫大小');const inspection=await inspectDatabaseBoot();const forced=consumeForceLoad();
     emit('DATABASE_METADATA_READY',inspection.exists?(inspection.metadata_known?`本機資料庫大小 ${(inspection.byte_length/1048576).toFixed(1)} MB`:'偵測到舊版資料庫，但尚無大小資訊'):'未找到既有資料庫','running',inspection);
     if(inspection.exists&&!forced&&!inspection.metadata_known)throw safeBootError('legacy_database_requires_confirmation','為避免手機記憶體不足，舊版資料庫需由使用者確認後再載入',inspection);
     if(inspection.exists&&!forced&&inspection.byte_length>AUTO_LOAD_MAX_BYTES){const code=inspection.byte_length>CONFIRM_LOAD_MAX_BYTES?'database_too_large_for_auto_load':'large_database_requires_confirmation';throw safeBootError(code,`本機資料庫 ${(inspection.byte_length/1048576).toFixed(1)} MB，已停止自動載入`,inspection);}
-
     let bytes=null;
-    if(inspection.exists&&forced){
-      emit('LEGACY_DB_WORKER_REQUIRED','已授權一次性載入；將由隔離 Worker 探測舊版 SQLite','running',inspection);
-      try{bytes=await loadDatabaseBytesInWorker({maxTransferBytes:MOBILE_SAFE_TRANSFER_BYTES,hardTimeoutMs:60000,heartbeatTimeoutMs:6000});}
-      catch(error){throw safeBootError(error.code||'legacy_worker_load_failed',error.message||'玩家 SQLite Worker 載入失敗',error.details||inspection);}
-    }
-
-    emit('SQLJS_LOADING','正在載入 SQLite 引擎');
-    if(typeof initSqlJs!=='function')throw new Error('sql.js 載入失敗，請確認網路後重新整理');
-    SQL=await timeout(initSqlJs({locateFile:file=>`https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/${file}`}),20000,'SQL.js 初始化');
-    if(generation!==bootGeneration)throw safeBootError('stale_boot_generation','較新的資料庫啟動流程已取代本次操作');emit('SQLJS_READY','SQLite 引擎載入完成');
-
-    if(inspection.exists&&!forced)bytes=await timeout(loadDatabaseBytes(),30000,'本機 SQLite 讀取');
-    if(generation!==bootGeneration)throw safeBootError('stale_boot_generation','資料讀取完成，但本次啟動已取消');
-    const byteLength=bytes?.byteLength||0;
-    const restored=Boolean(bytes);
-    emit('SQLITE_BYTES_READY',bytes?`本機資料庫讀取完成（${(byteLength/1048576).toFixed(1)} MB）`:'準備建立新資料庫','running',{byte_length:byteLength,restored,forced});
-    await yieldToUi();
-    emit('SQLITE_OPENING','正在開啟 SQLite 資料庫');
-    db=bytes?new SQL.Database(new Uint8Array(bytes)):new SQL.Database();rescueReadonly=false;
-    bytes=null;
-    emit('SQLITE_SOURCE_BUFFER_RELEASED','原始 SQLite 傳輸緩衝區已釋放','completed',{byte_length:byteLength,restored});
-    await yieldToUi();
-    emit('SCHEMA_CHECKING','正在檢查資料庫結構');db.run(DDL);
-    const isNew=(scalar('SELECT COUNT(*) FROM schema_migrations')||0)===0;
-    if(isNew){
-      emit('FRESH_DATABASE_BOOTSTRAP','正在建立全新用戶資料庫；略過不適用的歷史資料校正','running',{fresh_database:true});
-      db.run(SEED_SQL);
-      applyFreshDatabaseBootstrap(db);
-      emit('FRESH_DATABASE_READY','全新用戶資料庫結構已建立','completed',{fresh_database:true});
-    }else{
-      emit('MIGRATION_RUNNING','正在執行尚未套用的資料庫 Migration');
-      applyAllMigrations(db);
-      emit('MIGRATION_COMPLETED','資料庫 Migration 完成','completed',{byte_length:byteLength,restored});
-    }
-    await yieldToUi();
-    if(!restored){emit('FIRST_PERSIST_RUNNING','正在儲存全新 SQLite 資料庫');await persist();emit('FIRST_PERSIST_COMPLETED','全新 SQLite 資料庫已儲存');}
-    const seeded=isNew;
-    const detail={seeded,restored,boot_persist_skipped:restored,byte_length:byteLength,forced,worker_isolated:Boolean(forced),fresh_database:isNew};
-    emit('POST_MIGRATION_HANDOFF','資料庫階段完成；將控制權交還 App 首屏初始化','completed',detail);
-    dispatchReadyAsync(detail);
-    return {seeded,...detail};
-  }catch(error){
-    cancelWorkerDatabaseLoad();
-    if(error?.safe_boot){emit('DATABASE_RESCUE_REQUIRED',error.message,'warning',{code:error.code,...error.details},error);return createReadonlyRescueDatabase(error);}
-    emit('DATABASE_FAILED',`資料庫初始化失敗：${error?.message||error}`,'failed',{},error);throw error;
-  }
+    if(inspection.exists&&forced){emit('LEGACY_DB_WORKER_REQUIRED','已授權一次性載入；將由隔離 Worker 探測舊版 SQLite','running',inspection);try{bytes=await loadDatabaseBytesInWorker({maxTransferBytes:MOBILE_SAFE_TRANSFER_BYTES,hardTimeoutMs:60000,heartbeatTimeoutMs:6000});}catch(error){throw safeBootError(error.code||'legacy_worker_load_failed',error.message||'玩家 SQLite Worker 載入失敗',error.details||inspection);}}
+    emit('SQLJS_LOADING','正在載入 SQLite 引擎');if(typeof initSqlJs!=='function')throw new Error('sql.js 載入失敗，請確認網路後重新整理');SQL=await timeout(initSqlJs({locateFile:file=>`https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/${file}`}),20000,'SQL.js 初始化');if(generation!==bootGeneration)throw safeBootError('stale_boot_generation','較新的資料庫啟動流程已取代本次操作');emit('SQLJS_READY','SQLite 引擎載入完成');
+    if(inspection.exists&&!forced)bytes=await timeout(loadDatabaseBytes(),30000,'本機 SQLite 讀取');if(generation!==bootGeneration)throw safeBootError('stale_boot_generation','資料讀取完成，但本次啟動已取消');
+    const byteLength=bytes?.byteLength||0,restored=Boolean(bytes);emit('SQLITE_BYTES_READY',bytes?`本機資料庫讀取完成（${(byteLength/1048576).toFixed(1)} MB）`:'準備建立新資料庫','running',{byte_length:byteLength,restored,forced});await yieldToUi();emit('SQLITE_OPENING','正在開啟 SQLite 資料庫');db=bytes?new SQL.Database(new Uint8Array(bytes)):new SQL.Database();rescueReadonly=false;bytes=null;emit('SQLITE_SOURCE_BUFFER_RELEASED','原始 SQLite 傳輸緩衝區已釋放','completed',{byte_length:byteLength,restored});await yieldToUi();
+    emit('SCHEMA_CHECKING','正在檢查資料庫結構');db.run(DDL);const isNew=(scalar('SELECT COUNT(*) FROM schema_migrations')||0)===0;let migrationResult;
+    if(isNew){emit('FRESH_DATABASE_BOOTSTRAP','正在建立全新用戶資料庫並載入完整公版主檔','running',{fresh_database:true});db.run(SEED_SQL);migrationResult=applyFreshDatabaseBootstrap(db);emit('FRESH_DATABASE_READY','全新用戶資料庫與公版主檔已建立','completed',{fresh_database:true,public_master:migrationResult.public_master});}
+    else{emit('MIGRATION_RUNNING','正在執行資料庫 Migration 與公版版本稽核');migrationResult=applyAllMigrations(db);emit('MIGRATION_COMPLETED','資料庫 Migration／公版版本稽核完成','completed',{byte_length:byteLength,restored,public_master:migrationResult.public_master});}
+    await yieldToUi();const persistRequired=!restored||Boolean(migrationResult?.database_changed);
+    if(persistRequired){emit('BOOT_PERSIST_RUNNING',isNew?'正在儲存全新 SQLite 資料庫':'正在儲存必要的 Schema／公版主檔更新');await persist();emit('BOOT_PERSIST_COMPLETED','SQLite 必要更新已儲存','completed',{reason:isNew?'fresh_database':'schema_or_public_master_changed'});}else emit('BOOT_PERSIST_SKIPPED','Schema 與公版版本未變更；直接使用本機 SQLite','completed',{restored:true});
+    const seeded=isNew,detail={seeded,restored,boot_persist_skipped:!persistRequired,byte_length:byteLength,forced,worker_isolated:Boolean(forced),fresh_database:isNew,public_master:migrationResult?.public_master||null};emit('POST_MIGRATION_HANDOFF','資料庫階段完成；將控制權交還 App 首屏初始化','completed',detail);dispatchReadyAsync(detail);return {seeded,...detail};
+  }catch(error){cancelWorkerDatabaseLoad();if(error?.safe_boot){emit('DATABASE_RESCUE_REQUIRED',error.message,'warning',{code:error.code,...error.details},error);return createReadonlyRescueDatabase(error);}emit('DATABASE_FAILED',`資料庫初始化失敗：${error?.message||error}`,'failed',{},error);throw error;}
 }
 
 export function requestForcedDatabaseLoad(){try{sessionStorage.setItem(FORCE_LOAD_KEY,'1');}catch{}return true;}
@@ -96,23 +48,10 @@ export function isRescueReadonly(){return rescueReadonly;}
 export function rows(sql,params=[]){if(rescueReadonly)return [];if(!db)throw new Error('database_not_ready');const s=db.prepare(sql);s.bind(params);const out=[];while(s.step())out.push(s.getAsObject());s.free();return out;}
 export function scalar(sql,params=[]){if(rescueReadonly)return 0;const r=rows(sql,params);return r.length?Object.values(r[0])[0]:null;}
 export function run(sql,params=[]){if(!db)throw new Error('database_not_ready');if(rescueReadonly)throw new Error('readonly_rescue_mode');db.run(sql,params);}
-export async function persist(){if(!db)throw new Error('database_not_ready');if(rescueReadonly)throw new Error('readonly_rescue_mode');emit('SQLITE_PERSIST_RUNNING','正在儲存 SQLite');const exported=db.export();await timeout(saveDatabaseBytes(exported),30000,'SQLite 儲存');emit('SQLITE_PERSIST_COMPLETED','SQLite 儲存完成','running',{byte_length:exported.byteLength});}
+export async function persist(){if(!db)throw new Error('database_not_ready');if(rescueReadonly)throw new Error('readonly_rescue_mode');emit('SQLITE_PERSIST_RUNNING','正在儲存 SQLite');const exported=db.export();await timeout(saveDatabaseBytes(exported),30000,'SQLite 儲存');emit('SQLITE_PERSIST_COMPLETED','SQLite 儲存完成','completed',{byte_length:exported.byteLength});}
 export async function snapshot(reason){if(!db)throw new Error('database_not_ready');if(rescueReadonly)throw new Error('readonly_rescue_mode');emit('SQLITE_SNAPSHOT_RUNNING',`正在建立快照：${reason}`);const exported=db.export();const result=await timeout(createSnapshot(exported,reason),30000,'SQLite 快照');emit('SQLITE_SNAPSHOT_COMPLETED',`快照已建立：${reason}`);return result;}
 export function exportBytes(){if(rescueReadonly)throw new Error('readonly_rescue_mode');if(!db)throw new Error('database_not_ready');return db.export();}
-
-export async function replaceDatabase(bytes){
-  emit('SQLITE_REPLACE_RUNNING','正在驗證並替換 SQLite 資料庫');
-  if(db)db.close();
-  db=new SQL.Database(bytes);
-  rescueReadonly=false;
-  const check=rows('PRAGMA integrity_check');
-  if(!check.length||check[0].integrity_check!=='ok')throw new Error('SQLite integrity_check 未通過');
-  db.run(DDL);
-  applyAllMigrations(db);
-  dispatchReadyAsync({seeded:false,restored:true,replaced:true});
-  await persist();
-}
-
+export async function replaceDatabase(bytes){emit('SQLITE_REPLACE_RUNNING','正在驗證並替換 SQLite 資料庫');if(db)db.close();db=new SQL.Database(bytes);rescueReadonly=false;const check=rows('PRAGMA integrity_check');if(!check.length||check[0].integrity_check!=='ok')throw new Error('SQLite integrity_check 未通過');db.run(DDL);const migrationResult=applyAllMigrations(db);await persist();dispatchReadyAsync({seeded:false,restored:true,replaced:true,public_master:migrationResult.public_master});}
 export function begin(){run('BEGIN IMMEDIATE');}
 export function commit(){run('COMMIT');}
 export function rollback(){try{run('ROLLBACK')}catch{}}
