@@ -10,8 +10,6 @@ try {
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => document.getElementById('dbStatus')?.textContent?.includes('SQLite 已就緒'), null, { timeout: 30000 });
 
-  // Reproduce the real user path. The confirmation controls live inside the
-  // Update Center view and must be visible/clickable, not force-clicked while hidden.
   const updatesNav = page.locator('nav button[data-view="updates"]');
   await updatesNav.waitFor({ state: 'visible', timeout: 10000 });
   await updatesNav.click();
@@ -52,6 +50,7 @@ try {
   await page.waitForFunction(() => document.querySelectorAll('#workflowIssues .status-conflict').length === 4);
   assert.equal(await page.locator('#dryRunBtn').isDisabled(), true, 'Dry Run must be blocked before confirmation');
   assert.equal(await page.locator('[data-profile-confirmation]').count(), 4, 'four confirmation controls must render');
+  assert.equal(await page.locator('.profile-confirmation-card').count(), 2, 'confirmations must group into two Pokémon review cards');
 
   const acceptAll = page.locator('#acceptProfileAuditBtn');
   await acceptAll.waitFor({ state: 'visible', timeout: 10000 });
@@ -64,6 +63,14 @@ try {
   await page.locator('#dryRunBtn').click();
   await page.waitForFunction(() => document.getElementById('importSummary')?.textContent?.includes('可套用'), null, { timeout: 10000 });
   assert.match(await page.locator('#importSummary').innerText(), /衝突：0/);
+
+  // UI completion and the audit module's trace write are separate event-loop turns.
+  // Wait for the trace contract itself instead of racing immediately after importSummary updates.
+  await page.waitForFunction(() => {
+    const manager = globalThis.DebugTrace;
+    const sessionId = manager?.sessionId;
+    return (manager?.events || []).some((event) => event.session_id === sessionId && event.event === 'dry_run_completed');
+  }, null, { timeout: 10000 });
 
   const trace = await page.evaluate(() => {
     const manager = globalThis.DebugTrace;
@@ -83,7 +90,7 @@ try {
     assert.ok(trace.includes(required), `missing debug event ${required}`);
   }
 
-  console.log('PASS v0.3.98.1 browser handshake: real Update Center navigation -> 4 confirmation errors -> 0 -> Dry Run enabled -> Dry Run completed');
+  console.log('PASS v0.3.98.2 browser review UX: real Update Center navigation -> grouped 4 confirmations -> 0 -> Dry Run enabled -> Dry Run completed');
 } finally {
   await browser.close();
 }
