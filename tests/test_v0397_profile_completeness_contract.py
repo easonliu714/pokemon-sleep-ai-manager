@@ -44,7 +44,9 @@ def test_full75_workbench_loads_general_completeness_module():
     assert 'profile_completeness_enabled:true' in workbench
 
 
-def test_version_authority_is_v0397():
-    source = read('assets/js/version-authority.js')
-    assert "app_version: 'v0.3.97'" in source
-    assert '20260807-v0397-profile-completeness-derived-readiness' in source
+def test_v0397_contract_remains_available_after_release_advances():
+    authority = read('assets/js/version-authority.js')
+    completeness = read('assets/js/profile-completeness.js')
+    assert "app_version: 'v0.3.97'" in authority
+    assert 'buildProfileCompletenessReport' in completeness
+    assert 'profile_completeness_rendered' in completeness
