@@ -1,7 +1,8 @@
 import './general-update-field-audit-ui.js';
+import './profile-completeness.js';
 import { debugTrace } from './debug-trace-manager.js';
 
-const BUILD = '20260807-v0396-general-json-audit-full75-retirement';
+const BUILD = '20260807-v0397-profile-completeness-derived-readiness';
 const $ = (id) => document.getElementById(id);
 
 function forwardToGeneralUpdateCenter(file) {
@@ -55,12 +56,7 @@ function installRetirementNotice() {
 
   debugTrace.record('full75_recovery','full75_recovery_workbench_retired',{
     status:'completed',
-    details:{
-      build:BUILD,
-      dedicated_apply_enabled:false,
-      general_update_center_required:true,
-      blank_values_preserve_existing:true,
-    },
+    details:{build:BUILD,dedicated_apply_enabled:false,general_update_center_required:true,blank_values_preserve_existing:true,profile_completeness_enabled:true},
   });
 }
 
