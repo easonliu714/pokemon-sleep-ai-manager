@@ -13,9 +13,11 @@ def test_standard_catalog_schema_compatibility_contract():
     renderer = read("assets/js/public-catalog-workbench.js")
 
     assert "applyStandardCatalogCompatibilityMigration" in migrations
+    assert "hadEffectDescription" in migrations
+    assert "if(hadEffectDescription)return false" in migrations
     assert "addColumnIfMissing(db,'item_master','effect_description_zh_tw','TEXT')" in migrations
-    assert "VALUES(8,datetime('now'))" in migrations
-    assert "if(!hasMigration(db,8))applyStandardCatalogCompatibilityMigration(db)" in migrations
+    assert "applyStandardCatalogCompatibilityMigration(db);" in migrations
+    assert "VALUES(8,datetime('now'))" not in migrations
     assert "effect_description_zh_tw TEXT" in schema
     assert "tableHasColumn('item_master','effect_description_zh_tw')" in renderer
     assert "NULL AS effect_description_zh_tw" in renderer
