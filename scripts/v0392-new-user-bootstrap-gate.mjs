@@ -20,7 +20,9 @@ requireText(migrations,'hasMigration','migration idempotence');
 requireText(migrations,'export function applyFreshDatabaseBootstrap','fresh database migration path');
 requireText(migrations,'if(!hasMigration(db,4))','shared master once-only guard');
 requireText(migrations,'if(!hasMigration(db,6))','canonical once-only guard');
-if(!/^v0\.3\.\d+$/.test(authority?.app_version||''))failures.push('central app version missing');
+requireText(migrations,'applyStandardCatalogCompatibilityMigration','standard catalog compatibility repair');
+requireText(migrations,'if(hadEffectDescription)return false','standard catalog repair idempotence');
+if(!/^v\d+\.\d+\.\d+(?:\.\d+)?$/.test(authority?.app_version||''))failures.push('central app version missing');
 if(!authority?.app_build)failures.push('central build missing');
 if(!bootstrap.includes('version-authority.js')||!bootstrap.includes('authority.app_version'))failures.push('bootstrap does not consume central authority');
 if(!serviceWorker.includes("importScripts('./assets/js/version-authority.js')")||!serviceWorker.includes('cache_name:CACHE'))failures.push('service worker does not consume central authority');
@@ -34,6 +36,7 @@ if(newStart<0||existingStart<0){failures.push('unable to isolate fresh database 
 }
 const migrationCalls=[...migrations.matchAll(/if\(!hasMigration\(db,(\d+)\)\)/g)].map(match=>Number(match[1]));
 for(const version of [2,3,4,5,6,7])if(!migrationCalls.includes(version))failures.push(`missing migration guard v${version}`);
+if(migrationCalls.includes(8))failures.push('catalog compatibility repair must not expand public migration versions');
 try{new vm.Script(migrations.replace(/^import .*$/gm,'').replace(/export /g,''));}catch(error){failures.push(`migrations syntax: ${error.message}`);}
 if(failures.length){console.error(JSON.stringify({ok:false,failures},null,2));process.exit(1);}
-console.log(JSON.stringify({ok:true,version:authority.app_version,build:authority.app_build,scenarios:['cleared_browser_history','empty_indexeddb','database_cleared'],contracts:['fresh_bootstrap_skips_historical_data_rewrites','existing_migrations_are_idempotent','ui_yields_between_sync_sqlite_phases','central_version_authority']},null,2));
+console.log(JSON.stringify({ok:true,version:authority.app_version,build:authority.app_build,scenarios:['cleared_browser_history','empty_indexeddb','database_cleared'],contracts:['fresh_bootstrap_skips_historical_data_rewrites','existing_migrations_are_idempotent','ui_yields_between_sync_sqlite_phases','central_version_authority','conditional_standard_catalog_schema_repair']},null,2));

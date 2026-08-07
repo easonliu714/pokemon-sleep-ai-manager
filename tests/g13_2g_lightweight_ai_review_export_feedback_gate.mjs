@@ -21,6 +21,6 @@ assert.match(bootstrap,/20260803-g13-2j-android-raf-timeout-fallback/);
 assert.match(bootstrap,/20260803-g13-2i-progressive-ai-review-bootstrap/);
 assert.match(worker,/pokemon-sleep-ai-v0\.3\.68-g13-2j-android-raf-timeout-fallback/);
 assert.match(worker,/pokemon-sleep-ai-v0\.3\.67-g13-2i-progressive-ai-review-bootstrap/);
-assert.match(authority,/app_version:\s*'v0\.3\.\d+'/);
+assert.match(authority,/app_version:\s*'v\d+\.\d+\.\d+(?:\.\d+)?'/);
 assert.match(bootstrap,/authority\.app_version/);
 console.log(JSON.stringify({ok:true,gate:'G13.2G lightweight AI review and export feedback compatibility',version_authority:'central',compatibility:'bounded-deferred-live-debug'}));
