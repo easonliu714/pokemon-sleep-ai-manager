@@ -34,6 +34,21 @@ def test_profile_confirmation_changes_sync_to_main_update_center_payload():
     assert "$('dryRunBtn').disabled = Boolean(result.errors.length || result.review.length)" in app
 
 
+def test_mobile_review_ui_groups_confirmations_and_previews_imported_json():
+    audit = read('assets/js/general-update-field-audit-ui.js')
+    css = read('assets/css/app.css')
+    assert "issues.insertAdjacentElement('afterend', panel)" in audit
+    assert 'profile-confirmation-groups' in audit
+    assert 'profile-confirmation-card' in audit
+    assert 'previewRowsForPokemon' in audit
+    assert '目前 JSON 預覽' in audit
+    assert 'profile-preview-row' in audit
+    assert '.profile-confirmation-check{display:grid' in css
+    assert 'overflow-wrap:anywhere' in css
+    assert '@media(max-width:700px)' in css
+    assert '.profile-confirmation-groups{grid-template-columns:1fr' in css
+
+
 def test_general_importer_supports_all_private_update_scenarios():
     source = read('assets/js/importer.js')
     assert "ingredient_inventory: ['ingredient_name']" in source
@@ -73,7 +88,7 @@ def test_prompt_catalog_exposes_inventory_and_recipe_status_contracts():
     assert 'quantity=0' in source
     assert 'unlocked=false' in source
     assert "explicit_zero_and_false:'write_value'" in source
-    assert "recipes:['recipes']" not in source  # prevent accidental static malformed mapping
+    assert "recipes:['recipes']" not in source
 
 
 def test_scenario_entity_boundaries_are_enforced():

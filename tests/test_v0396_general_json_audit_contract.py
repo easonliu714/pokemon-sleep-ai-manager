@@ -37,7 +37,9 @@ def test_full75_dedicated_apply_is_retired():
 
 def test_update_center_exposes_field_audit_and_confirmation_ui():
     source = read("assets/js/general-update-field-audit-ui.js")
-    assert "一般 JSON 欄位稽核" in source
+    # Historical v0.3.96 contract is behavioral, not tied to the original heading text.
+    assert "generalUpdateFieldAudit" in source
+    assert "profileAuditConfirmation" in source
     assert "user_confirmed_not_visible" in source
     assert "採納目前辨識結果" in source
     assert "fieldAuditTable" in source
