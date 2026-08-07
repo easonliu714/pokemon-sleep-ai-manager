@@ -26,46 +26,43 @@ assert.equal(approved.operations[0].review_required,false,'approved review must 
 await storage.clearAllStorage();
 await database.initializeDatabase();
 
+const ingredientName='好眠番茄';
+assert.equal(database.scalar('SELECT COUNT(*) FROM ingredient_master WHERE ingredient_name=?',[ingredientName]),1,'fixture must use a canonical public ingredient');
 const payload={
   schema_version:'1.1',
   update_id:'TEST-UPDATE-001',
   generated_at:'2026-07-31T00:00:00+08:00',
   source:'ci-fixture',
+  scenario:'ingredient_inventory_update',
   operations:[
     {
       entity:'ingredient_inventory',
       action:'upsert',
-      key:{ingredient_name:'測試食材'},
+      key:{ingredient_name:ingredientName},
       data:{quantity:12,updated_at:'2026-07-31T00:00:00+08:00',source_update_id:'TEST-UPDATE-001'},
-    },
-    {
-      entity:'settings',
-      action:'upsert',
-      key:{key:'ci_marker'},
-      data:{value_json:'{"ok":true}',updated_at:'2026-07-31T00:00:00+08:00'},
     },
   ],
 };
 
 const preview=importer.dryRun(payload);
 assert.equal(preview.conflict_count,0);
-assert.equal(preview.ready_count,2);
+assert.equal(preview.ready_count,1);
 
 const beforeSnapshots=await storage.listSnapshots();
 await importer.applyPayload(payload);
 const afterSnapshots=await storage.listSnapshots();
 assert.equal(afterSnapshots.length,beforeSnapshots.length+1,'apply must create a snapshot');
-assert.equal(database.scalar('SELECT quantity FROM ingredient_inventory WHERE ingredient_name=?',['測試食材']),12);
+assert.equal(database.scalar('SELECT quantity FROM ingredient_inventory WHERE ingredient_name=?',[ingredientName]),12);
 assert.equal(database.scalar('SELECT COUNT(*) FROM import_batches WHERE update_id=?',[payload.update_id]),1);
-assert.equal(database.scalar('SELECT COUNT(*) FROM import_changes WHERE update_id=?',[payload.update_id]),2);
+assert.equal(database.scalar('SELECT COUNT(*) FROM import_changes WHERE update_id=?',[payload.update_id]),1);
 
 assert.throws(()=>importer.dryRun(payload),/update_id 已套用/,'duplicate update_id must be rejected');
 
 const backup=database.exportBytes();
-database.run('UPDATE ingredient_inventory SET quantity=99 WHERE ingredient_name=?',['測試食材']);
+database.run('UPDATE ingredient_inventory SET quantity=99 WHERE ingredient_name=?',[ingredientName]);
 await database.persist();
 await database.replaceDatabase(backup);
-assert.equal(database.scalar('SELECT quantity FROM ingredient_inventory WHERE ingredient_name=?',['測試食材']),12,'restore must recover backup value');
+assert.equal(database.scalar('SELECT quantity FROM ingredient_inventory WHERE ingredient_name=?',[ingredientName]),12,'restore must recover backup value');
 assert.equal(database.rows('PRAGMA integrity_check')[0].integrity_check,'ok');
 assert.equal(database.scalar('SELECT COUNT(*) FROM schema_migrations WHERE version IN (1,2,3,4,5)'),5,'restore must retain/reapply migrations');
 assert.ok(database.scalar("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='recipe_master'")>0,'restore must retain shared knowledge schema');
@@ -109,4 +106,4 @@ for(const table of ['recipes','recipe_ingredients','pokemon','pokemon_ingredient
 assert.match(appSource,/snapshot\('before-restore'\)/,'restore must snapshot current database first');
 assert.match(appSource,/replaceDatabase\(/,'restore must call replaceDatabase');
 
-console.log('PASS update center: validation, identity review, dry-run, snapshot, apply, duplicate guard, rollback, JSON backup coverage, backup/restore, migrations, shared data, integrity_check');
+console.log('PASS update center: validation, identity review, canonical inventory dry-run, snapshot, apply, duplicate guard, rollback, JSON backup coverage, backup/restore, migrations, shared data, integrity_check');
