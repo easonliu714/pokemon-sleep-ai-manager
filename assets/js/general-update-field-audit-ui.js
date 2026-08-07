@@ -2,7 +2,7 @@ import { dryRun } from './importer.js';
 import { debugTrace } from './debug-trace-manager.js';
 
 const $ = (id) => document.getElementById(id);
-const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]));
+const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 let loadedPayload = null;
 let loadedFileName = '';
 let replacingPayload = false;
