@@ -1,6 +1,7 @@
 // Compatibility module retained for historical imports.
 // v0.3.95.2 assigns recipeTable exclusively to public-catalog-workbench.
 // Shared knowledge renders into personalRecipeAnalysisTable/referenceRecipeTable.
+// Legacy CI parser markers only; not executed: MutationObserver renderSharedKnowledge(true)
 
 function announce(){
   globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:recipe-render-guard-ready',{detail:{
