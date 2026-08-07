@@ -22,6 +22,8 @@ export function applyCanonicalTerminologyMigration(db){applyCanonicalRegistry(db
 export function applyCompletePokemonDetailMigration(db){addColumnIfMissing(db,'pokemon','sleep_hours','REAL');addColumnIfMissing(db,'pokemon','sleep_time_text','TEXT');addColumnIfMissing(db,'pokemon','evolution_level_required','INTEGER');addColumnIfMissing(db,'pokemon','evolution_sleep_hours_required','REAL');addColumnIfMissing(db,'pokemon','evolution_candy_required','INTEGER');addColumnIfMissing(db,'pokemon','evolution_item_required','TEXT');addColumnIfMissing(db,'pokemon','evolution_other_requirement','TEXT');addColumnIfMissing(db,'pokemon','main_skill_description','TEXT');addColumnIfMissing(db,'pokemon','field_evidence_json','TEXT');addColumnIfMissing(db,'pokemon','source_image_refs_json','TEXT');db.run(`CREATE TABLE IF NOT EXISTS pokemon_analysis_observation(observation_id TEXT PRIMARY KEY,pokemon_id TEXT,identity_group_key TEXT,source_image_ref TEXT NOT NULL,analysis_id TEXT,revision_no INTEGER,observed_json TEXT NOT NULL,canonical_json TEXT,conflict_json TEXT,created_at TEXT NOT NULL,applied_at TEXT)`);db.run(`CREATE INDEX IF NOT EXISTS idx_pokemon_analysis_observation_group ON pokemon_analysis_observation(identity_group_key,created_at)`);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(7,datetime('now'))`);}
 export function applyStandardCatalogCompatibilityMigration(db){
   applySharedMasterSchema(db);
+  const hadEffectDescription=tableColumns(db,'item_master').has('effect_description_zh_tw');
+  if(hadEffectDescription)return false;
   addColumnIfMissing(db,'item_master','effect_description_zh_tw','TEXT');
   db.run('DROP VIEW IF EXISTS item_catalog_state');
   db.run(`CREATE VIEW item_catalog_state AS
@@ -34,7 +36,7 @@ export function applyStandardCatalogCompatibilityMigration(db){
            m.data_version
       FROM item_master m
       LEFT JOIN item_inventory i ON i.item_name=m.item_name`);
-  db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(8,datetime('now'))`);
+  return true;
 }
 
 export function applyFreshDatabaseBootstrap(db){
@@ -55,5 +57,5 @@ export function applyAllMigrations(db){
   if(!hasMigration(db,5))applyPersonalRecipeMigration(db);
   if(!hasMigration(db,6)){applyPublicProfileContract(db);applyCanonicalTerminologyMigration(db);}
   if(!hasMigration(db,7))applyCompletePokemonDetailMigration(db);
-  if(!hasMigration(db,8))applyStandardCatalogCompatibilityMigration(db);
+  applyStandardCatalogCompatibilityMigration(db);
 }
