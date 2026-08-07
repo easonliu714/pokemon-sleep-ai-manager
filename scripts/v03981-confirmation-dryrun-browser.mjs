@@ -10,6 +10,14 @@ try {
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => document.getElementById('dbStatus')?.textContent?.includes('SQLite 已就緒'), null, { timeout: 30000 });
 
+  // Reproduce the real user path. The confirmation controls live inside the
+  // Update Center view and must be visible/clickable, not force-clicked while hidden.
+  const updatesNav = page.locator('nav button[data-view="updates"]');
+  await updatesNav.waitFor({ state: 'visible', timeout: 10000 });
+  await updatesNav.click();
+  await page.waitForFunction(() => document.getElementById('updates')?.classList.contains('active'), null, { timeout: 10000 });
+  await page.locator('#updates').waitFor({ state: 'visible', timeout: 10000 });
+
   const payload = {
     schema_version: '1.1',
     update_id: `CI-V03981-${Date.now()}`,
@@ -45,7 +53,9 @@ try {
   assert.equal(await page.locator('#dryRunBtn').isDisabled(), true, 'Dry Run must be blocked before confirmation');
   assert.equal(await page.locator('[data-profile-confirmation]').count(), 4, 'four confirmation controls must render');
 
-  await page.locator('#acceptProfileAuditBtn').click();
+  const acceptAll = page.locator('#acceptProfileAuditBtn');
+  await acceptAll.waitFor({ state: 'visible', timeout: 10000 });
+  await acceptAll.click();
   await page.waitForFunction(() => document.querySelectorAll('#workflowIssues .status-conflict').length === 0 && !document.getElementById('dryRunBtn')?.disabled, null, { timeout: 10000 });
 
   assert.equal(await page.locator('#dryRunBtn').isDisabled(), false, 'Dry Run must unlock after canonical handshake');
@@ -73,7 +83,7 @@ try {
     assert.ok(trace.includes(required), `missing debug event ${required}`);
   }
 
-  console.log('PASS v0.3.98.1 browser handshake: 4 confirmation errors -> 0 -> Dry Run enabled -> Dry Run completed');
+  console.log('PASS v0.3.98.1 browser handshake: real Update Center navigation -> 4 confirmation errors -> 0 -> Dry Run enabled -> Dry Run completed');
 } finally {
   await browser.close();
 }
