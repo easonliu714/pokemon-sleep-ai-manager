@@ -16,7 +16,19 @@ jobs:
       - run: node --check assets/js/app.js
       - name: Verify zero SQL rescue contract
         run: |
-          grep -q "zero_sql:true" assets/js/database.js
-          grep -q "if(rescueReadonly)return \[\]" assets/js/database.js
-          grep -q "if(rescueReadonly)return 0" assets/js/database.js
-          ! grep -A12 "createReadonlyRescueDatabase" assets/js/database.js | grep -q "initSqlJs"
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {readFileSync} from 'node:fs';
+          const source=readFileSync('assets/js/database.js','utf8');
+          assert.match(source,/zero_sql:true/);
+          assert.match(source,/if\(rescueReadonly\)return \[\]/);
+          assert.match(source,/if\(rescueReadonly\)return 0/);
+          const start=source.indexOf('async function createReadonlyRescueDatabase');
+          const end=source.indexOf('export async function inspectDatabaseBoot',start);
+          assert.ok(start>=0&&end>start,'unable to isolate createReadonlyRescueDatabase');
+          const rescueFunction=source.slice(start,end);
+          assert.doesNotMatch(rescueFunction,/initSqlJs|new SQL\.Database|loadDatabaseBytes/,'rescue function must remain zero-SQL');
+          assert.match(rescueFunction,/db=null/);
+          assert.match(rescueFunction,/dispatchReadyAsync\(detail\)/);
+          console.log('PASS zero-SQL rescue function boundary');
+          NODE
