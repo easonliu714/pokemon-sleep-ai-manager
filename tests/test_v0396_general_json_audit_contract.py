@@ -60,7 +60,7 @@ def test_observation_v2_exposes_non_visible_slot_audit_candidates():
     assert "user_confirmed_not_visible" in source
     assert "public_candidate_fill:'forbidden'" in source
     assert "空值在更新中心代表保留既有值" in source
-    assert "confirmed_by_user:false" in source
+    assert "confirmed_by_user:item?.confirmed_by_user===true" in source
 
 
 def test_version_authority_is_v0396():
