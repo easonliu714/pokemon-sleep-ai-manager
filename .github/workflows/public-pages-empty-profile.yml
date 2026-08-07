@@ -33,7 +33,7 @@ jobs:
               'item zero-state view': 'CREATE VIEW IF NOT EXISTS item_catalog_state' in master_schema and 'COALESCE(i.safe_reserve,0)' in master_schema,
               'recipe locked-state view': 'CREATE VIEW IF NOT EXISTS recipe_catalog_state' in master_schema and 'COALESCE(r.unlocked,0)' in master_schema,
               'canonical ingredients retained': 'const INGREDIENTS' in shared,
-              'canonical berries retained': 'const BERRIES' in shared,
+              'canonical berry/type authority retained': 'export const PUBLIC_BERRY_TYPES' in shared and 'type_name' in shared and 'berry_name' in shared,
               'canonical recipes retained': 'const RECIPES' in shared,
               'canonical item master exists': 'CREATE TABLE IF NOT EXISTS item_master' in master_schema,
           }
