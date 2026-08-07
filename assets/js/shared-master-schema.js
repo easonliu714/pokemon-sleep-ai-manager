@@ -19,6 +19,7 @@ export function applySharedMasterSchema(db){
   db.run(`CREATE TABLE IF NOT EXISTS item_master(
     item_name TEXT PRIMARY KEY,
     item_category TEXT,
+    effect_description_zh_tw TEXT,
     source_type TEXT NOT NULL,
     source_name TEXT NOT NULL,
     source_ref TEXT,
@@ -54,7 +55,7 @@ export function applySharedMasterSchema(db){
       FROM ingredient_master m
       LEFT JOIN ingredient_inventory i ON i.ingredient_name=m.ingredient_name`);
   db.run(`CREATE VIEW IF NOT EXISTS item_catalog_state AS
-    SELECT m.item_name,m.item_category,
+    SELECT m.item_name,m.item_category,m.effect_description_zh_tw,
            COALESCE(i.quantity,0) AS quantity,
            COALESCE(i.safe_reserve,0) AS safe_reserve,
            i.recommendation,
