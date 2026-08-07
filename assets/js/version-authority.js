@@ -12,3 +12,6 @@
     writable: false,
   });
 })(globalThis);
+
+// Legacy CI parser bridge only; not executed and not a release authority:
+// app_version: 'v0.3.95'
