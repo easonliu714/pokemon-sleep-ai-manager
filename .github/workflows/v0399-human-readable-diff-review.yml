@@ -1,4 +1,4 @@
-name: V0.4.0.4 Post Apply Terminal State And Inventory Summary
+name: V0.4.1 Evolution Master Coverage Completion
 
 on:
   pull_request:
@@ -57,12 +57,28 @@ jobs:
           set -euo pipefail
           node --input-type=module <<'NODE'
           import {auditPublicPokemonKnowledgeBundle,buildObservedProjectionCoverage,resolvePublicMainSkillName} from './assets/js/public-pokemon-knowledge-coverage.js';
+          import {PUBLIC_EVOLUTION_MASTER,PUBLIC_EVOLUTION_STATUS_MASTER} from './assets/js/public-pokemon-knowledge-master.js';
           const bundle=auditPublicPokemonKnowledgeBundle();
           if(!bundle.ok) throw new Error(`bundle integrity failed: ${bundle.errors.join('; ')}`);
           if(bundle.manifest.nature_rows!==25||bundle.manifest.nature_expected!==25) throw new Error('nature coverage must be 25/25');
           if(bundle.manifest.player_rows_may_be_mutated!==false||bundle.manifest.projection_only!==true) throw new Error('projection-only manifest violated');
           if(bundle.manifest.evolution_triage_status!=='VERIFIED_OUTGOING_OR_VERIFIED_TERMINAL_OR_UNKNOWN') throw new Error('three-state evolution triage missing');
-          if(bundle.manifest.evolution_verified_terminal_rows<1) throw new Error('verified terminal master must not be empty');
+          if(bundle.manifest.evolution_route_rows!==74) throw new Error(`v0.4.1 evolution route count mismatch: ${bundle.manifest.evolution_route_rows}`);
+          if(bundle.manifest.evolution_from_species_rows!==66) throw new Error(`v0.4.1 outgoing species count mismatch: ${bundle.manifest.evolution_from_species_rows}`);
+          if(bundle.manifest.evolution_verified_terminal_rows!==55) throw new Error(`v0.4.1 terminal species count mismatch: ${bundle.manifest.evolution_verified_terminal_rows}`);
+          const route=(from,to)=>PUBLIC_EVOLUTION_MASTER.find(row=>row.from_species===from&&row.to_species===to);
+          const terminal=new Set(PUBLIC_EVOLUTION_STATUS_MASTER.map(row=>row.species_name));
+          const slowking=route('呆呆獸','呆呆王');
+          if(!slowking||slowking.required_candy!==80||slowking.required_item!=='王者之證＋連結繩') throw new Error(`Slowking route mismatch: ${JSON.stringify(slowking)}`);
+          const pawmot=route('布土撥','巴布土撥');
+          if(!pawmot||pawmot.required_sleep_hours!==150||pawmot.required_candy!==80) throw new Error(`Pawmot route mismatch: ${JSON.stringify(pawmot)}`);
+          const salamence=route('甲殼龍','暴飛龍');
+          if(!salamence||salamence.required_level!==38||salamence.required_candy!==100) throw new Error(`Salamence route mismatch: ${JSON.stringify(salamence)}`);
+          const gourgeist=route('南瓜精','南瓜怪人');
+          if(!gourgeist||gourgeist.required_item!=='連結繩'||gourgeist.required_candy!==80) throw new Error(`Gourgeist route mismatch: ${JSON.stringify(gourgeist)}`);
+          const tyrantrum=route('寶寶暴龍','怪顎龍');
+          if(!tyrantrum||tyrantrum.required_level!==29||tyrantrum.required_candy!==80||!String(tyrantrum.other_requirement).includes('6:00')) throw new Error(`Tyrantrum route mismatch: ${JSON.stringify(tyrantrum)}`);
+          for(const species of ['拉達','呆呆王','快龍','巴布土撥','浩大鯨']) if(!terminal.has(species)) throw new Error(`verified terminal fixture missing: ${species}`);
           const aliases=new Map([
             ['樹果遞增','樹果遽增'],
             ['樹果速增','樹果遽增'],
@@ -80,18 +96,20 @@ jobs:
             {nature:'自大',main_skill:'樹果遞增',type:'飛行',current_species:'小磁怪'},
             {nature:'勤奮',main_skill:'樹果遽增\u200B',type:'蟲',current_species:'巴大蝶'},
             {nature:'浮躁',main_skill:'禮物(食材獲取S)',type:'地面',current_species:'土王'},
+            {nature:'溫和',main_skill:'活力療癒S',type:'水',current_species:'呆呆獸'},
+            {nature:'害羞',main_skill:'能量填充S',type:'龍',current_species:'快龍'},
             {nature:'測試未收錄性格',main_skill:'測試未收錄技能',type:'測試未收錄屬性',current_species:'測試未收錄物種'},
           ]);
-          if(sample.nature.resolved!==5||sample.nature.unresolved!==1) throw new Error('nature observed coverage split failed');
-          if(sample.main_skill.resolved!==5||sample.main_skill.unresolved!==1) throw new Error(`observed main skill closure failed: ${JSON.stringify(sample.main_skill)}`);
+          if(sample.nature.resolved!==7||sample.nature.unresolved!==1) throw new Error('nature observed coverage split failed');
+          if(sample.main_skill.resolved!==7||sample.main_skill.unresolved!==1) throw new Error(`observed main skill closure failed: ${JSON.stringify(sample.main_skill)}`);
           if(sample.main_skill.unresolved_values.includes('樹果遞增')) throw new Error('legacy typo must resolve to canonical master');
           if(sample.main_skill.unresolved_values.includes('樹果遽增\u200B')) throw new Error('zero-width skill label must resolve to canonical master');
-          for(const species of ['小果然','小拳石','小磁怪']) if(!sample.evolution.verified_outgoing_values.includes(species)) throw new Error(`verified outgoing fixture failed: ${species}`);
-          for(const species of ['巴大蝶','土王']) if(!sample.evolution.verified_terminal_values.includes(species)) throw new Error(`verified terminal fixture failed: ${species}`);
+          for(const species of ['小果然','小拳石','小磁怪','呆呆獸']) if(!sample.evolution.verified_outgoing_values.includes(species)) throw new Error(`verified outgoing fixture failed: ${species}`);
+          for(const species of ['巴大蝶','土王','快龍']) if(!sample.evolution.verified_terminal_values.includes(species)) throw new Error(`verified terminal fixture failed: ${species}`);
           if(!sample.evolution.unknown_evolution_status_values.includes('測試未收錄物種')) throw new Error('unknown evolution fixture failed');
           if(sample.evolution.terminal_semantics!=='VERIFIED_TERMINAL_CURRENT_SLEEP') throw new Error('terminal semantics mismatch');
           if(sample.evolution.unknown_semantics!=='UNKNOWN_NOT_YET_VERIFIED') throw new Error('unknown evolution semantics mismatch');
-          console.log('v0.4.0.4 coverage engine canonical resolution contract PASS');
+          console.log('v0.4.1 evolution master coverage completion contract PASS');
           NODE
       - name: Update package classification contract
         shell: bash
@@ -101,7 +119,7 @@ jobs:
           import {validateWorkflow} from './assets/js/ai-workflow.js';
           const manifest={
             generated_at:'2026-08-08T00:00:00+08:00',
-            target_runtime:'v0.4.0.4',
+            target_runtime:'v0.4.1',
             files:[{file:'ingredient.json'},{file:'item.json'}],
             safety:{private_data_must_not_be_committed_to_github:true},
           };
@@ -116,7 +134,7 @@ jobs:
           const item={...base,update_id:'TEST-ITEM',scenario:'item_inventory_update',operations:[{operation_id:'OP-1',entity:'item_inventory',action:'upsert',key:{item_name:'月之石'},data:{quantity:1},clear_fields:[],review_required:false}]};
           const itemResult=validateWorkflow(item);
           if(itemResult.errors.length||itemResult.review.length) throw new Error(`item inventory compatibility failed: ${JSON.stringify(itemResult)}`);
-          console.log('v0.4.0.4 update package classification contract PASS');
+          console.log('v0.4.1 update package classification contract PASS');
           NODE
       - name: Scenario-aware review summary contract
         shell: bash
@@ -141,7 +159,7 @@ jobs:
             {changes:[{entity:'pokemon',field_audit:[field(1,2)]}]},
           );
           if(pokemon!==null) throw new Error('Pokemon packages must keep the dedicated Pokemon review summary');
-          console.log('v0.4.0.4 scenario-aware review summary contract PASS');
+          console.log('v0.4.1 scenario-aware review summary contract PASS');
           NODE
       - name: Public master projection and historical UI contract
         shell: bash
@@ -164,9 +182,9 @@ jobs:
           CSS='assets/css/v0399-review.css'
           VERSION='assets/js/version-authority.js'
 
-          grep -q "app_version: 'v0.4.0.4'" "$VERSION"
-          grep -q "app_build: '20260808-v04004-post-apply-terminal-state-inventory-summary'" "$VERSION"
-          grep -q "PUBLIC_POKEMON_KNOWLEDGE_VERSION='pokemon-knowledge-2026-08-08-b'" "$MASTER"
+          grep -q "app_version: 'v0.4.1'" "$VERSION"
+          grep -q "app_build: '20260808-v041-evolution-master-coverage-completion'" "$VERSION"
+          grep -q "PUBLIC_POKEMON_KNOWLEDGE_VERSION='pokemon-knowledge-2026-08-08-c'" "$MASTER"
 
           # v0.3.99.x review-only, game-native and mobile fixes remain mandatory.
           grep -q 'human_diff_review_ready' "$UI"
@@ -253,7 +271,11 @@ jobs:
           grep -q 'CREATE TABLE IF NOT EXISTS pokemon_evolution_status_master' "$MASTER"
           grep -q 'PUBLIC_EVOLUTION_STATUS_MASTER' "$MASTER"
           for skill in '食材精選S' '蓄力（能量填充S）' '樹果遽增' '樹果速增' '禮物（食材獲取S）'; do grep -q "$skill" "$MASTER"; done
-          for species in '小果然' '果然翁' '小拳石' '隆隆石' '小磁怪' '三合一磁怪' '不良蛙' '毒骷蛙' '六尾' '九尾'; do grep -q "$species" "$MASTER"; done
+          for species in '小果然' '果然翁' '小拳石' '隆隆石' '小磁怪' '三合一磁怪' '不良蛙' '毒骷蛙' '六尾' '九尾' '呆呆獸' '呆呆王' '迷你龍' '快龍' '布土撥' '巴布土撥' '南瓜精' '南瓜怪人'; do grep -q "$species" "$MASTER"; done
+          grep -q "EVO('呆呆獸','呆呆王',null,null,80,'王者之證＋連結繩'" "$MASTER"
+          grep -q "EVO('布土撥','巴布土撥',null,150,80" "$MASTER"
+          grep -q "EVO('甲殼龍','暴飛龍',38,null,100" "$MASTER"
+          grep -q "EVO('寶寶暴龍','怪顎龍',29,null,80" "$MASTER"
           grep -q 'VERIFIED_TERMINAL_CURRENT_SLEEP' "$MASTER"
           grep -q 'VERIFIED_OUTGOING_OR_VERIFIED_TERMINAL_OR_UNKNOWN' "$COVERAGE"
           grep -q 'UNKNOWN_NOT_YET_VERIFIED' "$COVERAGE"
@@ -289,4 +311,4 @@ jobs:
             echo 'public Pokémon knowledge must not be written into player pokemon rows' >&2
             exit 1
           fi
-          echo 'v0.4.0.4 post-apply terminal state and inventory summary hotfix contract PASS'
+          echo 'v0.4.1 evolution master coverage completion contract PASS'
