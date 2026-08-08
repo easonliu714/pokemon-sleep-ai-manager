@@ -18,6 +18,10 @@ v0.3.99.2 adds these versioned public authorities:
 - `main_skill_master`: main-skill name and public description.
 - `pokemon_evolution_master`: verified evolution routes and requirements.
 
+v0.4.0 adds:
+
+- `pokemon_evolution_status_master`: source-verified current Pokémon Sleep terminal classification used only to distinguish a verified terminal species from an unresolved evolution gap.
+
 The release version is stored in `settings.public_pokemon_knowledge_version` and compared with `PUBLIC_POKEMON_KNOWLEDGE_VERSION` during database bootstrap / migration audit.
 
 If the installed version already matches, the local SQLite master is used directly. If the version differs, only the public master tables are refreshed.
@@ -37,12 +41,29 @@ Examples:
 - `pokemon.nature = 固執` is player data; `nature_master` supplies the public boosted/reduced axes when the individual `nature_bonus` / `nature_penalty` fields are empty.
 - `pokemon.main_skill` and `pokemon.main_skill_level` are player data; `main_skill_master` can supply the description when `pokemon.main_skill_description` is empty.
 - Explicit player/imported evolution fields take precedence. Otherwise `pokemon_evolution_master` is shown as a public reference route.
+- `pokemon.type` may be projected through the public type→berry master for display, but that relationship must not be written into `pokemon.favorite_berry` by a master sync.
 
-## Missing evolution route semantics
+## Evolution coverage semantics
 
-Absence from `pokemon_evolution_master` means **NOT_YET_VERIFIED_NOT_NO_EVOLUTION**.
+### Historical compatibility
 
-The application must never infer that a Pokémon cannot evolve only because the current public master has no verified route for that species.
+Absence from `pokemon_evolution_master` historically meant **NOT_YET_VERIFIED_NOT_NO_EVOLUTION**. The legacy coverage label `UNKNOWN_OR_TERMINAL_NOT_CLASSIFIED` remains available for regression compatibility, but it is not the primary v0.4.0 interpretation.
+
+### v0.4.0 three-state triage
+
+Every observed species is classified into exactly one public-knowledge state:
+
+1. **VERIFIED_OUTGOING** — at least one source-verified row exists in `pokemon_evolution_master`.
+2. **VERIFIED_TERMINAL_CURRENT_SLEEP** — no outgoing row exists, and a source-verified terminal row exists in `pokemon_evolution_status_master` for the current public Pokémon Sleep reference.
+3. **UNKNOWN_NOT_YET_VERIFIED** — neither condition is satisfied.
+
+The three-state coverage contract is named:
+
+`VERIFIED_OUTGOING_OR_VERIFIED_TERMINAL_OR_UNKNOWN`
+
+A terminal row is version-scoped public knowledge, not a permanent claim about the Pokémon franchise. A future Pokémon Sleep update may introduce another evolution path; such a change requires a new public-master version and source evidence.
+
+An unknown row must never be promoted to “cannot evolve”, “terminal”, or any fabricated route without evidence.
 
 ## Date semantics
 
@@ -68,6 +89,8 @@ A public-master update must not mutate player-owned values in these tables or do
 
 An empty or missing private field is not permission to guess it from species knowledge.
 
+This prohibition applies to every public-master authority, including type→berry sync. Master bootstrap/migration may create or update public master rows and version settings only; it must not use public facts to populate private Pokémon columns.
+
 ## Source and evidence policy
 
 Every public-master row must carry:
@@ -79,6 +102,8 @@ Every public-master row must carry:
 - `data_version`
 
 Where the official Pokémon Sleep site explicitly documents a name or effect, it is preferred. Supplemental structured references may be used for gaps, but their verification status must remain distinguishable from official verification.
+
+A `pokemon_evolution_status_master` terminal row additionally requires a public source that supports the current evolution-chain endpoint. Presence in the player's local collection is not evidence of terminal status.
 
 ## Update Center relationship
 
