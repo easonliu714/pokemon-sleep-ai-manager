@@ -37,13 +37,16 @@ def test_full75_dedicated_apply_is_retired():
 
 def test_update_center_exposes_field_audit_and_confirmation_ui():
     source = read("assets/js/general-update-field-audit-ui.js")
-    # Historical v0.3.96 contract is behavioral, not tied to the original heading text.
+    # Historical v0.3.96 contract is behavioral, not tied to the original review implementation.
     assert "generalUpdateFieldAudit" in source
     assert "profileAuditConfirmation" in source
     assert "user_confirmed_not_visible" in source
     assert "採納目前辨識結果" in source
     assert "fieldAuditTable" in source
-    assert "dryRun(loadedPayload)" in source
+    assert "dryRun(" in source
+    assert "reviewPayload()" in source
+    assert "REVIEW-ONLY-" in source
+    assert "synchronizeCanonicalPayload" in source
 
 
 def test_prompt_catalog_uses_non_destructive_update_contract():
