@@ -2,7 +2,7 @@ import {rows,isRescueReadonly} from './database.js';
 import {auditPublicPokemonKnowledgeBundle,buildObservedProjectionCoverage} from './public-pokemon-knowledge-coverage.js';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-let scheduled=false;
+let scheduled=false,lastSignature='';
 
 function ensureStyle(){
   if(document.getElementById('v03993CoverageStyle'))return;
@@ -50,6 +50,9 @@ export function renderPublicKnowledgeCoverage(){
   const observed=buildObservedProjectionCoverage(rescue?[]:playerRows());
   const integrityClass=bundle.ok?'public-coverage-ok':'public-coverage-warn';
   const manifest=bundle.manifest;
+  const signature=JSON.stringify({version:bundle.version,ok:bundle.ok,errors:bundle.errors,manifest,rescue,observed});
+  if(signature===lastSignature&&host.childElementCount)return true;
+  lastSignature=signature;
 
   host.innerHTML=`
     <div class="public-coverage-head"><div><h3>Pokémon 公版 Master Coverage</h3><p class="notice">此區只稽核公版資料與本機「名稱／類型」是否能被 Master 解讀；不會把公版值回寫到玩家 Pokémon row。</p></div><span class="badge ${bundle.ok?'ok':'pending'}">${bundle.ok?'Bundle Integrity PASS':'需檢查'}</span></div>
