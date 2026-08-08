@@ -4,6 +4,7 @@ import {
   PUBLIC_NATURE_MASTER,
   PUBLIC_MAIN_SKILL_MASTER,
   PUBLIC_EVOLUTION_MASTER,
+  PUBLIC_EVOLUTION_STATUS_MASTER,
 } from './public-pokemon-knowledge-master.js';
 
 const text=value=>String(value??'').normalize('NFKC').trim();
@@ -16,6 +17,9 @@ export const PUBLIC_POKEMON_KNOWLEDGE_COVERAGE_SEMANTICS=Object.freeze({
   nature:'COMPLETE_GAME_VISIBLE_EFFECT_AXES',
   main_skill:'PARTIAL_VERIFIED_ONLY',
   evolution:'PARTIAL_VERIFIED_ONLY_NON_TERMINAL',
+  evolution_triage:'VERIFIED_OUTGOING_OR_VERIFIED_TERMINAL_OR_UNKNOWN',
+  verified_terminal:'VERIFIED_TERMINAL_CURRENT_SLEEP',
+  unknown_evolution_status:'UNKNOWN_NOT_YET_VERIFIED',
   berry:'PUBLIC_TYPE_TO_BERRY_REFERENCE',
   no_verified_evolution_route:'UNKNOWN_OR_TERMINAL_NOT_CLASSIFIED',
 });
@@ -26,6 +30,7 @@ export function auditPublicPokemonKnowledgeBundle(){
   const natureNames=PUBLIC_NATURE_MASTER.map(row=>row.nature_name);
   const skillNames=PUBLIC_MAIN_SKILL_MASTER.map(row=>row.main_skill_name);
   const evolutionKeys=PUBLIC_EVOLUTION_MASTER.map(row=>`${row.from_species}→${row.to_species}`);
+  const terminalNames=PUBLIC_EVOLUTION_STATUS_MASTER.map(row=>row.species_name);
 
   if(PUBLIC_NATURE_MASTER.length!==25)errors.push(`nature_master 應有 25 種性格，目前為 ${PUBLIC_NATURE_MASTER.length}`);
   for(const value of duplicateValues(natureNames))errors.push(`nature_master 名稱重複：${value}`);
@@ -54,6 +59,17 @@ export function auditPublicPokemonKnowledgeBundle(){
     if(row.data_version!==PUBLIC_POKEMON_KNOWLEDGE_VERSION)errors.push(`pokemon_evolution_master 版本不一致：${row.from_species}→${row.to_species}`);
   }
 
+  for(const value of duplicateValues(terminalNames))errors.push(`pokemon_evolution_status_master 名稱重複：${value}`);
+  const outgoingSet=new Set(PUBLIC_EVOLUTION_MASTER.map(row=>text(row.from_species)));
+  for(const row of PUBLIC_EVOLUTION_STATUS_MASTER){
+    if(!text(row.species_name))errors.push('pokemon_evolution_status_master 存在空白 species_name');
+    if(row.evolution_status!==PUBLIC_POKEMON_KNOWLEDGE_COVERAGE_SEMANTICS.verified_terminal)errors.push(`pokemon_evolution_status_master status 不支援：${row.species_name}`);
+    if(outgoingSet.has(text(row.species_name)))errors.push(`終階物種不可同時存在 outgoing route：${row.species_name}`);
+    if(!text(row.source_ref))errors.push(`pokemon_evolution_status_master 缺少 source_ref：${row.species_name}`);
+    if(!text(row.verification_status))errors.push(`pokemon_evolution_status_master 缺少 verification_status：${row.species_name}`);
+    if(row.data_version!==PUBLIC_POKEMON_KNOWLEDGE_VERSION)errors.push(`pokemon_evolution_status_master 版本不一致：${row.species_name}`);
+  }
+
   const canonicalSkillCount=PUBLIC_MAIN_SKILL_MASTER.filter(row=>row.verification_status!=='COMPATIBILITY_ALIAS').length;
   const compatibilityAliasCount=PUBLIC_MAIN_SKILL_MASTER.length-canonicalSkillCount;
   if(canonicalSkillCount===0)warnings.push('main_skill_master 尚無 canonical verified rows');
@@ -72,10 +88,12 @@ export function auditPublicPokemonKnowledgeBundle(){
       main_skill_compatibility_alias_rows:compatibilityAliasCount,
       evolution_route_rows:PUBLIC_EVOLUTION_MASTER.length,
       evolution_from_species_rows:new Set(PUBLIC_EVOLUTION_MASTER.map(row=>text(row.from_species))).size,
+      evolution_verified_terminal_rows:PUBLIC_EVOLUTION_STATUS_MASTER.length,
       berry_type_rows:PUBLIC_BERRY_TYPES.length,
       nature_coverage_status:PUBLIC_POKEMON_KNOWLEDGE_COVERAGE_SEMANTICS.nature,
       main_skill_coverage_status:PUBLIC_POKEMON_KNOWLEDGE_COVERAGE_SEMANTICS.main_skill,
       evolution_coverage_status:PUBLIC_POKEMON_KNOWLEDGE_COVERAGE_SEMANTICS.evolution,
+      evolution_triage_status:PUBLIC_POKEMON_KNOWLEDGE_COVERAGE_SEMANTICS.evolution_triage,
       berry_coverage_status:PUBLIC_POKEMON_KNOWLEDGE_COVERAGE_SEMANTICS.berry,
       projection_only:true,
       player_rows_may_be_mutated:false,
@@ -106,6 +124,7 @@ export function buildObservedProjectionCoverage(pokemonRows=[]){
   const natureSet=new Set(PUBLIC_NATURE_MASTER.map(row=>text(row.nature_name)));
   const berryTypeSet=new Set(PUBLIC_BERRY_TYPES.map(row=>text(row.type_name)));
   const evolutionFromSet=new Set(PUBLIC_EVOLUTION_MASTER.map(row=>text(row.from_species)));
+  const verifiedTerminalSet=new Set(PUBLIC_EVOLUTION_STATUS_MASTER.filter(row=>row.evolution_status===PUBLIC_POKEMON_KNOWLEDGE_COVERAGE_SEMANTICS.verified_terminal).map(row=>text(row.species_name)));
 
   const resolvedNatures=observedNatures.filter(value=>natureSet.has(value));
   const unresolvedNatures=observedNatures.filter(value=>!natureSet.has(value));
@@ -114,6 +133,8 @@ export function buildObservedProjectionCoverage(pokemonRows=[]){
   const resolvedTypes=observedTypes.filter(value=>berryTypeSet.has(value));
   const unresolvedTypes=observedTypes.filter(value=>!berryTypeSet.has(value));
   const knownOutgoing=observedSpecies.filter(value=>evolutionFromSet.has(value));
+  const verifiedTerminal=observedSpecies.filter(value=>verifiedTerminalSet.has(value));
+  const unknownEvolution=observedSpecies.filter(value=>!evolutionFromSet.has(value)&&!verifiedTerminalSet.has(value));
   const noVerifiedOutgoing=observedSpecies.filter(value=>!evolutionFromSet.has(value));
 
   const metric=(observed,resolved,unresolved)=>Object.freeze({observed:observed.length,resolved:resolved.length,unresolved:unresolved.length,resolved_values:Object.freeze(resolved),unresolved_values:Object.freeze(unresolved)});
@@ -125,10 +146,17 @@ export function buildObservedProjectionCoverage(pokemonRows=[]){
     evolution:Object.freeze({
       observed_species:observedSpecies.length,
       verified_outgoing_route_species:knownOutgoing.length,
+      verified_terminal_species:verifiedTerminal.length,
+      unknown_evolution_status_species:unknownEvolution.length,
       no_verified_outgoing_route_species:noVerifiedOutgoing.length,
       verified_outgoing_values:Object.freeze(knownOutgoing),
+      verified_terminal_values:Object.freeze(verifiedTerminal),
+      unknown_evolution_status_values:Object.freeze(unknownEvolution),
       no_verified_outgoing_values:Object.freeze(noVerifiedOutgoing),
       semantics:PUBLIC_POKEMON_KNOWLEDGE_COVERAGE_SEMANTICS.no_verified_evolution_route,
+      triage_semantics:PUBLIC_POKEMON_KNOWLEDGE_COVERAGE_SEMANTICS.evolution_triage,
+      terminal_semantics:PUBLIC_POKEMON_KNOWLEDGE_COVERAGE_SEMANTICS.verified_terminal,
+      unknown_semantics:PUBLIC_POKEMON_KNOWLEDGE_COVERAGE_SEMANTICS.unknown_evolution_status,
     }),
   });
 }

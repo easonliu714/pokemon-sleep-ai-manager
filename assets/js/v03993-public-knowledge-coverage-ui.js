@@ -59,7 +59,7 @@ export function renderPublicKnowledgeCoverage(){
     <div class="public-coverage-grid">
       <div class="public-coverage-card"><b class="${integrityClass}">${manifest.nature_rows}/${manifest.nature_expected}</b><span>性格公版</span><small>${esc(manifest.nature_coverage_status)}</small></div>
       <div class="public-coverage-card"><b>${manifest.main_skill_canonical_rows}</b><span>已核對主技能</span><small>另有 ${manifest.main_skill_compatibility_alias_rows} 個相容別名；${esc(manifest.main_skill_coverage_status)}</small></div>
-      <div class="public-coverage-card"><b>${manifest.evolution_route_rows}</b><span>已核對進化 route</span><small>${manifest.evolution_from_species_rows} 個進化前物種；${esc(manifest.evolution_coverage_status)}</small></div>
+      <div class="public-coverage-card"><b>${manifest.evolution_route_rows}</b><span>已核對進化 route</span><small>${manifest.evolution_from_species_rows} 個進化前物種 · ${manifest.evolution_verified_terminal_rows} 個已核對終階物種</small></div>
       <div class="public-coverage-card"><b>${manifest.berry_type_rows}</b><span>屬性→樹果公版</span><small>${esc(manifest.berry_coverage_status)}</small></div>
     </div>
     ${rescue?'<div class="notice">目前為救援模式：只顯示 bundled public master integrity，不讀取玩家 SQLite Coverage。</div>':`
@@ -68,15 +68,16 @@ export function renderPublicKnowledgeCoverage(){
         <div class="public-coverage-card"><b>${ratio(observed.nature)}</b><span>性格名稱</span><small>未解析 ${observed.nature.unresolved}</small></div>
         <div class="public-coverage-card"><b>${ratio(observed.main_skill)}</b><span>主技能名稱</span><small>未解析 ${observed.main_skill.unresolved}</small></div>
         <div class="public-coverage-card"><b>${ratio(observed.berry_type)}</b><span>屬性→樹果</span><small>未解析 ${observed.berry_type.unresolved}</small></div>
-        <div class="public-coverage-card"><b>${observed.evolution.verified_outgoing_route_species}/${observed.evolution.observed_species||'—'}</b><span>有已核對 outgoing route 的物種</span><small>沒有 route 的物種不可判定為「不能進化」</small></div>
+        <div class="public-coverage-card"><b>${observed.evolution.verified_outgoing_route_species}/${observed.evolution.observed_species||'—'}</b><span>進化三態 Coverage</span><small>outgoing ${observed.evolution.verified_outgoing_route_species} · 終階 ${observed.evolution.verified_terminal_species} · 未核對 ${observed.evolution.unknown_evolution_status_species}</small></div>
       </div>
       <div class="public-coverage-lists">
         ${list('尚未解析的性格名稱',observed.nature.unresolved_values,'目前觀察到的性格名稱皆可解析。')}
         ${list('尚未解析的主技能名稱',observed.main_skill.unresolved_values,'目前觀察到的主技能名稱皆可解析。')}
         ${list('尚未解析的屬性名稱',observed.berry_type.unresolved_values,'目前觀察到的屬性皆可對應公版樹果。')}
-        ${list('目前沒有已核對 outgoing route 的物種',observed.evolution.no_verified_outgoing_values,'目前觀察物種皆已有至少一條已核對 route。')}
+        ${list('已核對終階物種（目前版本）',observed.evolution.verified_terminal_values,'目前觀察物種尚未命中已核對終階清單。')}
+        ${list('仍待核對 evolution status 的物種',observed.evolution.unknown_evolution_status_values,'目前觀察物種皆已有 outgoing route 或已核對終階狀態。')}
       </div>
-      <p class="notice">進化缺口語意：<b>${esc(observed.evolution.semantics)}</b>。此清單可能同時包含最終進化型與尚未補齊公版 route 的物種，系統不得自行判斷。</p>`}
+      <p class="notice">進化三態語意：<b>${esc(observed.evolution.triage_semantics)}</b>。只有有來源的終階物種才會標記為 <b>${esc(observed.evolution.terminal_semantics)}</b>；其餘缺口保持 <b>${esc(observed.evolution.unknown_semantics)}</b>，不得自行判斷「不能進化」。</p>`}
     ${bundle.errors.length?`<details><summary>Bundle Integrity 錯誤 ${bundle.errors.length} 項</summary><ul>${bundle.errors.map(item=>`<li>${esc(item)}</li>`).join('')}</ul></details>`:''}
     <p class="notice">Public Pokémon Knowledge Version：<b>${esc(bundle.version)}</b> · projection_only=true · player_rows_may_be_mutated=false</p>`;
   return true;

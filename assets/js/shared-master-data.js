@@ -69,7 +69,6 @@ export function applySharedMasterData(db) {
       db.run('INSERT INTO recipe_master_ingredients(recipe_id,ingredient_name,quantity) VALUES(?,?,?)',[id,ingredient,quantity]);
     }
   }
-  db.run(`UPDATE pokemon SET favorite_berry=(SELECT berry_name FROM berry_master WHERE type_name=pokemon.type)
-    WHERE (favorite_berry IS NULL OR favorite_berry='') AND type IS NOT NULL`);
+  // Public type→berry knowledge is projection-only; never write it into player Pokémon rows.
   db.run(`INSERT OR REPLACE INTO settings(key,value_json,updated_at) VALUES('shared_master_version',?,datetime('now'))`,[JSON.stringify(MASTER_DATA_VERSION)]);
 }
