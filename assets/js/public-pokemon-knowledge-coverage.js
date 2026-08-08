@@ -17,6 +17,16 @@ const SKILL_INVISIBLE_FORMAT_RE=/[\u00AD\u034F\u061C\u180E\u200B-\u200F\u202A-\u
 const normalizeSkillPunctuation=value=>text(value).replace(SKILL_INVISIBLE_FORMAT_RE,'').replaceAll('(','（').replaceAll(')','）');
 const skillKey=value=>normalizeSkillPunctuation(value).replace(/\s+/g,'');
 
+// Resolver-only compatibility aliases. These strings came from older OCR/AI update
+// payloads and are not canonical game labels. They are used only to project public
+// knowledge and calculate coverage; player SQLite values are never rewritten here.
+const LEGACY_SKILL_CANONICAL_ALIASES=new Map([
+  [skillKey('樹果遞增'),'樹果遽增'],
+  [skillKey('樹果速增'),'樹果遽增'],
+  [skillKey('流星群（樹果遞增）'),'流星群（樹果遽增）'],
+  [skillKey('流星群（樹果速增）'),'流星群（樹果遽增）'],
+]);
+
 export const PUBLIC_POKEMON_KNOWLEDGE_COVERAGE_SEMANTICS=Object.freeze({
   nature:'COMPLETE_GAME_VISIBLE_EFFECT_AXES',
   main_skill:'PARTIAL_VERIFIED_ONLY',
@@ -105,13 +115,17 @@ export function auditPublicPokemonKnowledgeBundle(){
   });
 }
 
-function resolveSkill(value){
+export function resolvePublicMainSkillName(value){
   const raw=normalizeSkillPunctuation(value);
   if(!raw)return null;
+  const alias=LEGACY_SKILL_CANONICAL_ALIASES.get(skillKey(raw));
+  if(alias)return alias;
   const exact=PUBLIC_MAIN_SKILL_MASTER.find(row=>skillKey(row.main_skill_name)===skillKey(raw));
   if(exact)return exact.main_skill_name;
   const base=raw.split('（')[0].trim();
   if(base&&base!==raw){
+    const baseAlias=LEGACY_SKILL_CANONICAL_ALIASES.get(skillKey(base));
+    if(baseAlias)return baseAlias;
     const candidate=PUBLIC_MAIN_SKILL_MASTER.find(row=>skillKey(row.main_skill_name)===skillKey(base));
     if(candidate)return candidate.main_skill_name;
   }
@@ -132,8 +146,8 @@ export function buildObservedProjectionCoverage(pokemonRows=[]){
 
   const resolvedNatures=observedNatures.filter(value=>natureSet.has(value));
   const unresolvedNatures=observedNatures.filter(value=>!natureSet.has(value));
-  const resolvedSkills=observedSkills.filter(value=>Boolean(resolveSkill(value)));
-  const unresolvedSkills=observedSkills.filter(value=>!resolveSkill(value));
+  const resolvedSkills=observedSkills.filter(value=>Boolean(resolvePublicMainSkillName(value)));
+  const unresolvedSkills=observedSkills.filter(value=>!resolvePublicMainSkillName(value));
   const resolvedTypes=observedTypes.filter(value=>berryTypeSet.has(value));
   const unresolvedTypes=observedTypes.filter(value=>!berryTypeSet.has(value));
   const knownOutgoing=observedSpecies.filter(value=>evolutionFromSet.has(value));

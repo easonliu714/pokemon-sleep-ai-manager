@@ -33,9 +33,39 @@ function validateScenarioValue(operation,label,errors){
   }
 }
 
+function detectNonExecutableFileKind(payload){
+  if(!payload||typeof payload!=='object'||Array.isArray(payload))return null;
+  const looksLikeManifest=Array.isArray(payload.files)&&hasOwn(payload,'target_runtime')&&hasOwn(payload,'safety')&&!hasOwn(payload,'operations');
+  if(!looksLikeManifest)return null;
+  return {
+    file_kind:'package_manifest',
+    message:`此檔案為更新包清單（Package Manifest），不是可執行更新 JSON。請改選 files 清單中的實際更新檔（共 ${payload.files.length} 個）。`,
+  };
+}
+
 function validateUpdatePackage(payload){
   const errors=[],warnings=[],review=[];
   if(!payload||typeof payload!=='object')return {errors:['JSON 根節點必須是物件'],warnings,review,summary:{}};
+  const nonExecutable=detectNonExecutableFileKind(payload);
+  if(nonExecutable){
+    return {
+      errors:[nonExecutable.message],
+      warnings,
+      review,
+      summary:{
+        file_kind:nonExecutable.file_kind,
+        non_executable_manifest:true,
+        operation_count:0,
+        entity_counts:{},
+        review_required_count:0,
+        empty_field_count:0,
+        explicit_zero_count:0,
+        explicit_false_count:0,
+        profile_confirmation_count:0,
+        null_overwrite_policy:'not_applicable',
+      },
+    };
+  }
   for(const key of REQUIRED_ROOT)if(!(key in payload))errors.push(`缺少根欄位：${key}`);
   if(!Array.isArray(payload.operations)){errors.push('operations 必須是陣列');return {errors,warnings,review,summary:{}};}
   if(payload.profile_audit_confirmations!=null&&!Array.isArray(payload.profile_audit_confirmations))errors.push('profile_audit_confirmations 必須是陣列');
