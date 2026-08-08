@@ -1,6 +1,7 @@
 import { dryRun } from './importer.js';
 import { scalar } from './database.js';
 import { debugTrace } from './debug-trace-manager.js';
+import { buildScenarioReviewSummary } from './update-review-summary.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -50,7 +51,7 @@ function ensurePanel() {
   panel.className = 'panel update-review-panel';
   panel.innerHTML = `
     <div class="update-review-head">
-      <div><h3>匯入內容確認</h3><p class="notice">一般 JSON 欄位稽核會直接比對目前 SQLite 與即將套用內容；請先閱讀能力差異，再確認「目前未顯示」槽位。</p></div>
+      <div><h3>匯入內容確認</h3><p class="notice">一般 JSON 欄位稽核會直接比對目前 SQLite 與即將套用內容；請先閱讀本次情境的資料差異。只有寶可夢能力更新才需要確認「目前未顯示」槽位。</p></div>
       <span id="profileAuditProgress" class="badge pending">待確認</span>
     </div>
     <div id="packageDiffSummary"></div>
@@ -159,6 +160,8 @@ function packageDiffStats(){
 function renderPackageSummary(){
   const target=$('packageDiffSummary'); if(!target)return;
   if(!reviewPreview){target.innerHTML='<div class="notice">尚未建立唯讀差異預覽。</div>';return;}
+  const scenarioSummary=buildScenarioReviewSummary(loadedPayload,reviewPreview);
+  if(scenarioSummary){target.innerHTML=`<div class="no-player-change"><b>${esc(scenarioSummary.title)}</b><span>${esc(scenarioSummary.detail)}</span></div>`;return;}
   const s=packageDiffStats();
   target.innerHTML=`<div class="no-player-change"><b>${s.changedPokemon?`${s.changedPokemon}/${s.pokemonCount} 隻有玩家資料差異`:`✓ ${s.pokemonCount} 隻玩家資料無差異`}</b><span>${s.visibleFields?`共 ${s.visibleFields} 個人類可讀能力欄位會改變。`:'目前可見能力與 JSON 相同。'}${s.evidence?` 另有 ${s.evidence} 筆 Evidence／來源異動。`:''}</span></div>`;
 }
