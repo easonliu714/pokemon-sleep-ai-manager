@@ -1,4 +1,4 @@
-export const PUBLIC_POKEMON_KNOWLEDGE_VERSION='pokemon-knowledge-2026-08-08-a';
+export const PUBLIC_POKEMON_KNOWLEDGE_VERSION='pokemon-knowledge-2026-08-08-b';
 
 const BASE_SOURCE=Object.freeze({
   source_type:'official_first_reference_verified',
@@ -33,11 +33,16 @@ export const PUBLIC_MAIN_SKILL_MASTER=Object.freeze([
   SKILL('料理成功率提升S','提升下一次料理漂亮成功的機率；此名稱保留供既有玩家資料相容。','https://www.pokemonsleep.net/zh/news/333832393735353631373931373030393935/','COMPATIBILITY_ALIAS'),
   SKILL('料理強化S','增加下一次料理可放入的食材數量；效果依主技能等級而異。','https://www.pokemonsleep.net/zh/news/333832393735353631373931373030393935/','OFFICIAL_NAME_VERIFIED'),
   SKILL('食材獲取S','隨機獲得食材；獲得量依主技能等級而異。','https://www.pokemonsleep.net/zh/news/333832393735353631373931373030393935/','OFFICIAL_NAME_VERIFIED'),
+  SKILL('食材精選S','從特定食材候選中隨機選擇1種食材取得；獲得量依主技能等級而異。','https://www.serebii.net/pokemonsleep/skills.shtml'),
   SKILL('幫手支援S','讓幫手寶可夢立即進行額外幫忙；效果依主技能等級而異。','https://www.serebii.net/pokemonsleep/skills.shtml'),
   SKILL('夢之碎片獲取S','獲得夢之碎片；獲得量依主技能等級而異。','https://www.pokemonsleep.net/zh/news/333832393735353631373931373030393935/','OFFICIAL_NAME_VERIFIED'),
   SKILL('夢之碎片獲取M','獲得夢之碎片；獲得量依主技能等級而異。','https://www.serebii.net/pokemonsleep/skills.shtml'),
   SKILL('揮指','隨機發動其他主技能的效果。','https://www.pokemonsleep.net/zh/news/333832393735353631373931373030393935/','OFFICIAL_VERIFIED'),
   SKILL('十項全能','發動已設置的主技能效果，並獲得隊伍中1隻寶可夢的糖果。','https://www.pokemonsleep.net/zh/news/333832393735353631373931373030393935/','OFFICIAL_VERIFIED'),
+  SKILL('蓄力（能量填充S）','累積蓄力；發動噴出時依蓄力次數增加卡比獸能量，之後重置蓄力次數。','https://www.serebii.net/pokemonsleep/skills.shtml'),
+  SKILL('樹果遽增','獲得自己的樹果，並獲得隊伍中其他寶可夢會撿來的樹果。','https://www.serebii.net/pokemonsleep/skills.shtml'),
+  SKILL('樹果速增','獲得自己的樹果，並獲得隊伍中其他寶可夢會撿來的樹果；此舊名稱保留供既有玩家資料相容。','https://www.serebii.net/pokemonsleep/skills.shtml','COMPATIBILITY_ALIAS'),
+  SKILL('禮物（食材獲取S）','隨機獲得食材；有時會額外獲得隊伍中1隻寶可夢的糖果。','https://www.serebii.net/pokemonsleep/skills.shtml'),
   SKILL('夢魘（能量填充M）','大量增加卡比獸的能量，但會讓隊伍中惡屬性以外的幫手寶可夢活力稍微減少。','https://www.pokemonsleep.net/zh/news/323536313935363036303134333238383333/','OFFICIAL_VERIFIED'),
   SKILL('夢魘','大量增加卡比獸的能量；此簡稱映射到「夢魘（能量填充M）」的公版說明。','https://www.pokemonsleep.net/zh/news/323536313935363036303134333238383333/','COMPATIBILITY_ALIAS'),
   SKILL('新月祈禱（活力全體療癒S）','讓隊伍所有寶可夢回復活力，並獲得隊伍中寶可夢會撿來的樹果。','https://www.pokemonsleep.net/zh/news/323436343633383531373435323437323333/','OFFICIAL_VERIFIED'),
@@ -53,6 +58,9 @@ const EVO=(from_species,to_species,required_level,required_sleep_hours,required_
   from_species,to_species,required_level,required_sleep_hours,required_candy,required_item,other_requirement,
   source_ref,verification_status:'REFERENCE_VERIFIED',...BASE_SOURCE,
 });
+const EVO_STATUS=(species_name,evolution_status,source_ref,verification_status='REFERENCE_VERIFIED')=>Object.freeze({
+  species_name,evolution_status,source_ref,verification_status,...BASE_SOURCE,
+});
 
 // Only source-verified routes are seeded. Missing rows mean "public master not
 // yet verified", never "this Pokémon cannot evolve".
@@ -63,6 +71,13 @@ export const PUBLIC_EVOLUTION_MASTER=Object.freeze([
   EVO('火恐龍','噴火龍',27,null,80,null,null,'https://www.serebii.net/pokemonsleep/pokemon/charmander.shtml'),
   EVO('傑尼龜','卡咪龜',12,null,40,null,null,'https://www.serebii.net/pokemonsleep/pokemon/squirtle.shtml'),
   EVO('卡咪龜','水箭龜',27,null,80,null,null,'https://www.serebii.net/pokemonsleep/pokemon/squirtle.shtml'),
+  EVO('小果然','果然翁',11,null,20,null,null,'https://www.serebii.net/pokemonsleep/pokemon/wynaut.shtml'),
+  EVO('小拳石','隆隆石',19,null,40,null,null,'https://www.serebii.net/pokemonsleep/pokemon/geodude.shtml'),
+  EVO('隆隆石','隆隆岩',null,null,80,'連結繩',null,'https://www.serebii.net/pokemonsleep/pokemon/geodude.shtml'),
+  EVO('小磁怪','三合一磁怪',23,null,40,null,null,'https://www.serebii.net/pokemonsleep/pokemon/magnemite.shtml'),
+  EVO('三合一磁怪','自爆磁怪',null,null,80,'雷之石',null,'https://www.serebii.net/pokemonsleep/pokemon/magnemite.shtml'),
+  EVO('不良蛙','毒骷蛙',28,null,40,null,null,'https://www.serebii.net/pokemonsleep/pokemon/croagunk.shtml'),
+  EVO('六尾','九尾',null,null,80,'火之石',null,'https://www.serebii.net/pokemonsleep/pokemon/vulpix.shtml'),
   EVO('皮丘','皮卡丘',null,50,20,null,null,'https://www.serebii.net/pokemonsleep/pokemon/pichu.shtml'),
   EVO('皮卡丘','雷丘',null,null,80,'雷之石',null,'https://www.serebii.net/pokemonsleep/pokemon/pichu.shtml'),
   EVO('咩利羊','茸茸羊',11,null,40,null,null,'https://www.serebii.net/pokemonsleep/pokemon/mareep.shtml'),
@@ -82,6 +97,21 @@ export const PUBLIC_EVOLUTION_MASTER=Object.freeze([
   EVO('伊布','仙子伊布',null,150,80,null,null,'https://www.serebii.net/pokemonsleep/pokemon/sylveon.shtml'),
 ]);
 
+// A terminal row is source-verified for the current Pokémon Sleep public
+// reference only. It does not assert that the franchise can never add another
+// evolution in a future game update.
+export const PUBLIC_EVOLUTION_STATUS_MASTER=Object.freeze([
+  EVO_STATUS('果然翁','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/wynaut.shtml'),
+  EVO_STATUS('隆隆岩','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/geodude.shtml'),
+  EVO_STATUS('自爆磁怪','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/magnemite.shtml'),
+  EVO_STATUS('毒骷蛙','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/croagunk.shtml'),
+  EVO_STATUS('九尾','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/vulpix.shtml'),
+  EVO_STATUS('巴大蝶','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/butterfree.shtml'),
+  EVO_STATUS('土王','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/clodsire.shtml'),
+  EVO_STATUS('七夕青鳥','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/altaria.shtml'),
+  EVO_STATUS('火暴獸','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/typhlosion.shtml'),
+]);
+
 export function applyPublicPokemonKnowledgeSchema(db){
   db.run(`CREATE TABLE IF NOT EXISTS nature_master(
     nature_name TEXT PRIMARY KEY,positive_effect TEXT,negative_effect TEXT,description_zh_tw TEXT,
@@ -97,7 +127,12 @@ export function applyPublicPokemonKnowledgeSchema(db){
     source_type TEXT NOT NULL,source_name TEXT NOT NULL,source_ref TEXT,verified_at TEXT,data_version TEXT NOT NULL,
     PRIMARY KEY(from_species,to_species)
   )`);
+  db.run(`CREATE TABLE IF NOT EXISTS pokemon_evolution_status_master(
+    species_name TEXT PRIMARY KEY,evolution_status TEXT NOT NULL,verification_status TEXT NOT NULL,
+    source_type TEXT NOT NULL,source_name TEXT NOT NULL,source_ref TEXT,verified_at TEXT,data_version TEXT NOT NULL
+  )`);
   db.run('CREATE INDEX IF NOT EXISTS idx_public_evolution_from_species ON pokemon_evolution_master(from_species)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_public_evolution_status ON pokemon_evolution_status_master(evolution_status)');
 }
 
 export function applyPublicPokemonKnowledgeData(db){
@@ -121,10 +156,17 @@ export function applyPublicPokemonKnowledgeData(db){
       source_type=excluded.source_type,source_name=excluded.source_name,source_ref=excluded.source_ref,verified_at=excluded.verified_at,data_version=excluded.data_version`,
       [row.from_species,row.to_species,row.required_level,row.required_sleep_hours,row.required_candy,row.required_item,row.other_requirement,row.verification_status,row.source_type,row.source_name,row.source_ref,row.verified_at,row.data_version]);
   }
+  for(const row of PUBLIC_EVOLUTION_STATUS_MASTER){
+    db.run(`INSERT INTO pokemon_evolution_status_master(species_name,evolution_status,verification_status,source_type,source_name,source_ref,verified_at,data_version)
+      VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(species_name) DO UPDATE SET evolution_status=excluded.evolution_status,verification_status=excluded.verification_status,
+      source_type=excluded.source_type,source_name=excluded.source_name,source_ref=excluded.source_ref,verified_at=excluded.verified_at,data_version=excluded.data_version`,
+      [row.species_name,row.evolution_status,row.verification_status,row.source_type,row.source_name,row.source_ref,row.verified_at,row.data_version]);
+  }
   db.run(`INSERT OR REPLACE INTO settings(key,value_json,updated_at) VALUES('public_pokemon_knowledge_version',?,datetime('now'))`,[JSON.stringify(PUBLIC_POKEMON_KNOWLEDGE_VERSION)]);
   db.run(`INSERT OR REPLACE INTO settings(key,value_json,updated_at) VALUES('public_pokemon_knowledge_contract',?,datetime('now'))`,[JSON.stringify({
     version:PUBLIC_POKEMON_KNOWLEDGE_VERSION,player_tables_untouched:true,projection_only:true,
     nature_count:PUBLIC_NATURE_MASTER.length,main_skill_count:PUBLIC_MAIN_SKILL_MASTER.length,evolution_route_count:PUBLIC_EVOLUTION_MASTER.length,
-    missing_evolution_route_semantics:'NOT_YET_VERIFIED_NOT_NO_EVOLUTION',
+    evolution_terminal_count:PUBLIC_EVOLUTION_STATUS_MASTER.length,
+    missing_evolution_route_semantics:'UNKNOWN_NOT_YET_VERIFIED_AFTER_TERMINAL_TRIAGE',
   })]);
 }
