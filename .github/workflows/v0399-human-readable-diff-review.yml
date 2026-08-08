@@ -1,4 +1,4 @@
-name: V0.4.0.3 Canonical Skill Projection And Scenario Review Hotfix
+name: V0.4.0.4 Post Apply Terminal State And Inventory Summary
 
 on:
   pull_request:
@@ -91,7 +91,7 @@ jobs:
           if(!sample.evolution.unknown_evolution_status_values.includes('測試未收錄物種')) throw new Error('unknown evolution fixture failed');
           if(sample.evolution.terminal_semantics!=='VERIFIED_TERMINAL_CURRENT_SLEEP') throw new Error('terminal semantics mismatch');
           if(sample.evolution.unknown_semantics!=='UNKNOWN_NOT_YET_VERIFIED') throw new Error('unknown evolution semantics mismatch');
-          console.log('v0.4.0.3 coverage engine canonical resolution contract PASS');
+          console.log('v0.4.0.4 coverage engine canonical resolution contract PASS');
           NODE
       - name: Update package classification contract
         shell: bash
@@ -101,7 +101,7 @@ jobs:
           import {validateWorkflow} from './assets/js/ai-workflow.js';
           const manifest={
             generated_at:'2026-08-08T00:00:00+08:00',
-            target_runtime:'v0.4.0.3',
+            target_runtime:'v0.4.0.4',
             files:[{file:'ingredient.json'},{file:'item.json'}],
             safety:{private_data_must_not_be_committed_to_github:true},
           };
@@ -116,7 +116,7 @@ jobs:
           const item={...base,update_id:'TEST-ITEM',scenario:'item_inventory_update',operations:[{operation_id:'OP-1',entity:'item_inventory',action:'upsert',key:{item_name:'月之石'},data:{quantity:1},clear_fields:[],review_required:false}]};
           const itemResult=validateWorkflow(item);
           if(itemResult.errors.length||itemResult.review.length) throw new Error(`item inventory compatibility failed: ${JSON.stringify(itemResult)}`);
-          console.log('v0.4.0.3 update package classification contract PASS');
+          console.log('v0.4.0.4 update package classification contract PASS');
           NODE
       - name: Scenario-aware review summary contract
         shell: bash
@@ -141,7 +141,7 @@ jobs:
             {changes:[{entity:'pokemon',field_audit:[field(1,2)]}]},
           );
           if(pokemon!==null) throw new Error('Pokemon packages must keep the dedicated Pokemon review summary');
-          console.log('v0.4.0.3 scenario-aware review summary contract PASS');
+          console.log('v0.4.0.4 scenario-aware review summary contract PASS');
           NODE
       - name: Public master projection and historical UI contract
         shell: bash
@@ -164,8 +164,8 @@ jobs:
           CSS='assets/css/v0399-review.css'
           VERSION='assets/js/version-authority.js'
 
-          grep -q "app_version: 'v0.4.0.3'" "$VERSION"
-          grep -q "app_build: '20260808-v04003-canonical-skill-projection-scenario-review'" "$VERSION"
+          grep -q "app_version: 'v0.4.0.4'" "$VERSION"
+          grep -q "app_build: '20260808-v04004-post-apply-terminal-state-inventory-summary'" "$VERSION"
           grep -q "PUBLIC_POKEMON_KNOWLEDGE_VERSION='pokemon-knowledge-2026-08-08-b'" "$MASTER"
 
           # v0.3.99.x review-only, game-native and mobile fixes remain mandatory.
@@ -224,6 +224,16 @@ jobs:
           grep -q '#workflowSummary{max-height' "$GUIDED"
           grep -q '#workflowIssues{max-height' "$GUIDED"
           grep -q 'text.replace(normalized\[0\],replacement)' "$GUIDED"
+          grep -q "import {scalar} from './database.js'" "$GUIDED"
+          grep -q 'function appliedComplete' "$GUIDED"
+          grep -q '套用更新已完成；本機 SQLite 已寫入' "$GUIDED"
+          grep -q 'guided-apply-ready' "$GUIDED"
+          grep -q 'ingredientInventorySummary' "$GUIDED"
+          grep -q 'itemInventorySummary' "$GUIDED"
+          grep -q '食材類別數' "$GUIDED"
+          grep -q '道具類別數' "$GUIDED"
+          grep -q '庫存總量' "$GUIDED"
+          grep -q '可動用總量' "$GUIDED"
           grep -q "key==='events'?value.slice(-MAX_EVENTS)" "$DEBUG"
           grep -q 'saved.slice(-MAX_EVENTS).map' "$DEBUG"
 
@@ -279,4 +289,4 @@ jobs:
             echo 'public Pokémon knowledge must not be written into player pokemon rows' >&2
             exit 1
           fi
-          echo 'v0.4.0.3 canonical skill projection and scenario review hotfix contract PASS'
+          echo 'v0.4.0.4 post-apply terminal state and inventory summary hotfix contract PASS'
