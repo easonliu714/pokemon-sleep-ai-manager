@@ -1,4 +1,4 @@
-name: V0.4.0 Public Pokémon Master Coverage Triage
+name: V0.4.0.1 Skill Unicode Normalization Hotfix
 
 on:
   pull_request:
@@ -61,18 +61,19 @@ jobs:
             {nature:'固執',main_skill:'食材精選S',type:'惡',current_species:'小果然'},
             {nature:'認真',main_skill:'蓄力(能量填充S)',type:'電',current_species:'小拳石'},
             {nature:'自大',main_skill:'樹果速增',type:'飛行',current_species:'小磁怪'},
-            {nature:'勤奮',main_skill:'樹果遽增',type:'蟲',current_species:'巴大蝶'},
+            {nature:'勤奮',main_skill:'樹果遽增\u200B',type:'蟲',current_species:'巴大蝶'},
             {nature:'浮躁',main_skill:'禮物(食材獲取S)',type:'地面',current_species:'土王'},
             {nature:'測試未收錄性格',main_skill:'測試未收錄技能',type:'測試未收錄屬性',current_species:'測試未收錄物種'},
           ]);
           if(sample.nature.resolved!==5||sample.nature.unresolved!==1) throw new Error('nature observed coverage split failed');
-          if(sample.main_skill.resolved!==5||sample.main_skill.unresolved!==1) throw new Error('observed main skill closure failed');
+          if(sample.main_skill.resolved!==5||sample.main_skill.unresolved!==1) throw new Error(`observed main skill closure failed: ${JSON.stringify(sample.main_skill)}`);
+          if(sample.main_skill.unresolved_values.includes('樹果遽增\u200B')) throw new Error('zero-width skill label must resolve to canonical master');
           for(const species of ['小果然','小拳石','小磁怪']) if(!sample.evolution.verified_outgoing_values.includes(species)) throw new Error(`verified outgoing fixture failed: ${species}`);
           for(const species of ['巴大蝶','土王']) if(!sample.evolution.verified_terminal_values.includes(species)) throw new Error(`verified terminal fixture failed: ${species}`);
           if(!sample.evolution.unknown_evolution_status_values.includes('測試未收錄物種')) throw new Error('unknown evolution fixture failed');
           if(sample.evolution.terminal_semantics!=='VERIFIED_TERMINAL_CURRENT_SLEEP') throw new Error('terminal semantics mismatch');
           if(sample.evolution.unknown_semantics!=='UNKNOWN_NOT_YET_VERIFIED') throw new Error('unknown evolution semantics mismatch');
-          console.log('v0.4.0 coverage engine executable contract PASS');
+          console.log('v0.4.0.1 coverage engine Unicode normalization contract PASS');
           NODE
       - name: Public master projection and historical UI contract
         shell: bash
@@ -93,8 +94,8 @@ jobs:
           CSS='assets/css/v0399-review.css'
           VERSION='assets/js/version-authority.js'
 
-          grep -q "app_version: 'v0.4.0'" "$VERSION"
-          grep -q "app_build: '20260808-v0400-public-pokemon-master-coverage-triage'" "$VERSION"
+          grep -q "app_version: 'v0.4.0.1'" "$VERSION"
+          grep -q "app_build: '20260808-v04001-skill-unicode-normalization-hotfix'" "$VERSION"
           grep -q "PUBLIC_POKEMON_KNOWLEDGE_VERSION='pokemon-knowledge-2026-08-08-b'" "$MASTER"
 
           # v0.3.99.x review-only, game-native and mobile fixes remain mandatory.
@@ -155,6 +156,7 @@ jobs:
           grep -q 'VERIFIED_TERMINAL_CURRENT_SLEEP' "$MASTER"
           grep -q 'VERIFIED_OUTGOING_OR_VERIFIED_TERMINAL_OR_UNKNOWN' "$COVERAGE"
           grep -q 'UNKNOWN_NOT_YET_VERIFIED' "$COVERAGE"
+          grep -q 'SKILL_INVISIBLE_FORMAT_RE' "$COVERAGE"
           grep -q 'normalizeSkillPunctuation' "$COVERAGE"
           grep -q '已核對終階物種' "$COVERAGE_UI"
           grep -q '仍待核對 evolution status 的物種' "$COVERAGE_UI"
@@ -186,4 +188,4 @@ jobs:
             echo 'public Pokémon knowledge must not be written into player pokemon rows' >&2
             exit 1
           fi
-          echo 'v0.4.0 public Pokémon master coverage triage contract PASS'
+          echo 'v0.4.0.1 skill Unicode normalization hotfix contract PASS'
