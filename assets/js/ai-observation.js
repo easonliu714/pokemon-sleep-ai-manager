@@ -1,5 +1,5 @@
 const UNKNOWN_VALUES=new Set(['','n/a','na','unknown','未知','不明','看不清楚','無法辨識','null','none','-']);
-const NUMBER_FIELDS=new Set(['level','sp','main_skill_level','helper_seconds','carry_limit','quantity','unlock_level']);
+const NUMBER_FIELDS=new Set(['level','sp','main_skill_level','helper_seconds','carry_limit','quantity','unlock_level','sleep_hours']);
 const SUBSKILL_LEVEL_MAP=new Map([[75,70],[100,80]]);
 const AUDIT_STATUSES=new Set(['user_confirmed_not_visible','not_observed_yet','missing','conflicting']);
 
@@ -70,7 +70,7 @@ function normalizeObservation(item,index){
   return normalized;
 }
 
-export const AI_OBSERVATION_PROMPT=`你是 Pokémon Sleep 圖片資料觀察器。請只輸出單一 JSON 物件，不輸出 Markdown、解釋或前後文字。\n\n重要規則：\n1. 你只記錄圖片中可見的事實，不判斷這是新成員、升級、更名或進化。\n2. requested_action 固定為 resolve_on_import。\n3. 不得自行建立 pokemon_id、pokemon_instance_id、instance_discriminator、insert、update 或 upsert。\n4. 只有提示詞已提供 target_pokemon_instance_id 或 target_update_token 時，才能原樣回傳；否則填 null。\n5. 看不清楚、未顯示或無法確認的欄位填 null，不可猜測；空值在更新中心代表保留既有值，不是清空。\n6. 食材等級只用 1、30、60；副技能等級只用 10、25、50、70、80。\n7. 畫面只顯示部分食材槽或副技能槽時，不得用物種公版候選補齊；在 audit_candidates 加入 slot_type、unlock_levels、status=user_confirmed_not_visible、confirmed_by_user=false。\n8. 數值使用 JSON number，不使用含單位字串。\n9. schema_version 固定為 2.0-observation，source 固定為 ai_screenshot_observation。`;
+export const AI_OBSERVATION_PROMPT=`你是 Pokémon Sleep 圖片資料觀察器。請只輸出單一 JSON 物件，不輸出 Markdown、解釋或前後文字。\n\n重要規則：\n1. 你只記錄圖片中可見的事實，不判斷這是新成員、升級、更名或進化。\n2. requested_action 固定為 resolve_on_import。\n3. 不得自行建立 pokemon_id、pokemon_instance_id、instance_discriminator、insert、update 或 upsert。\n4. 只有提示詞已提供 target_pokemon_instance_id 或 target_update_token 時，才能原樣回傳；否則填 null。\n5. 看不清楚、未顯示或無法確認的欄位填 null，不可猜測；空值在更新中心代表保留既有值，不是清空。\n6. 食材等級只用 1、30、60；副技能等級只用 10、25、50、70、80。\n7. 畫面只顯示部分食材槽或副技能槽時，不得用物種公版候選補齊；在 audit_candidates 加入 slot_type、unlock_levels、status=user_confirmed_not_visible、confirmed_by_user=false。\n8. 遊戲畫面若出現「一起睡覺的時間」，必須以這個遊戲原文辨識：profile.sleep_time_text 保存畫面原文（例如 154小時3分），profile.sleep_hours 保存換算後的小時數。若畫面沒有顯示，兩者填 null；不得由等級、入手日期或其他欄位推算。\n9. 「一起睡覺的時間」與「進化所需一起睡覺的時間」屬同一語意家族：前者是目前累積值，後者是進化條件門檻，不得互相混填。\n10. 其他欄位也優先依遊戲畫面實際標題理解；JSON machine key 僅用於資料交換，不可反過來改寫畫面語意。\n11. 數值使用 JSON number，不使用含單位字串；只有 sleep_time_text 例外，因為它專門保存遊戲原文。\n12. schema_version 固定為 2.0-observation，source 固定為 ai_screenshot_observation。`;
 
 export function buildObservationTemplate(){
   const now=new Date().toISOString();
@@ -83,7 +83,7 @@ export function buildObservationTemplate(){
     observations:[{
       incoming_ref:'pokemon-image-001',requested_action:'resolve_on_import',
       identity:{target_pokemon_instance_id:null,target_update_token:null,capture_species_id:null,current_species_id:null,registered_date:null,instance_discriminator:null},
-      profile:{species:null,nickname:null,level:null,sp:null,specialty:null,type:null,nature:null,nature_bonus:null,nature_penalty:null,main_skill:null,main_skill_level:null,helper_seconds:null,carry_limit:null,favorite_berry:null},
+      profile:{species:null,nickname:null,level:null,sp:null,specialty:null,type:null,nature:null,nature_bonus:null,nature_penalty:null,main_skill:null,main_skill_level:null,helper_seconds:null,carry_limit:null,favorite_berry:null,sleep_time_text:null,sleep_hours:null},
       ingredients:[{unlock_level:1,ingredient_name:null,quantity:null},{unlock_level:30,ingredient_name:null,quantity:null},{unlock_level:60,ingredient_name:null,quantity:null}],
       subskills:[{unlock_level:10,subskill_name:null},{unlock_level:25,subskill_name:null},{unlock_level:50,subskill_name:null},{unlock_level:70,subskill_name:null},{unlock_level:80,subskill_name:null}],
       audit_candidates:[],
