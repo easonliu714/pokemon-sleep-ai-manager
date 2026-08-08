@@ -21,7 +21,7 @@ def test_profile_confirmation_changes_sync_to_main_update_center_payload():
     audit = read('assets/js/general-update-field-audit-ui.js')
     app = read('assets/js/app.js')
     assert 'synchronizeCanonicalPayload' in audit
-    assert 'const mainHandler = input.onchange' in audit
+    assert 'input.onchange' in audit
     assert 'await mainHandler.call' in audit
     assert 'profile_confirmation_checkbox_changed' in audit
     assert 'canonical_payload_rebuilt' in audit
@@ -34,19 +34,25 @@ def test_profile_confirmation_changes_sync_to_main_update_center_payload():
     assert "$('dryRunBtn').disabled = Boolean(result.errors.length || result.review.length)" in app
 
 
-def test_mobile_review_ui_groups_confirmations_and_previews_imported_json():
+def test_mobile_review_ui_groups_confirmations_and_preserves_human_review_evidence():
     audit = read('assets/js/general-update-field-audit-ui.js')
-    css = read('assets/css/app.css')
+    app_css = read('assets/css/app.css')
+    review_css = read('assets/css/v0399-review.css')
     assert "issues.insertAdjacentElement('afterend', panel)" in audit
     assert 'profile-confirmation-groups' in audit
     assert 'profile-confirmation-card' in audit
-    assert 'previewRowsForPokemon' in audit
-    assert '目前 JSON 預覽' in audit
-    assert 'profile-preview-row' in audit
-    assert '.profile-confirmation-check{display:grid' in css
-    assert 'overflow-wrap:anywhere' in css
-    assert '@media(max-width:700px)' in css
-    assert '.profile-confirmation-groups{grid-template-columns:1fr' in css
+    assert 'semanticPokemonPreview' in audit
+    assert '目前 SQLite' in audit
+    assert '玩家資料無差異' in audit
+    assert '食材配置' in audit
+    assert '副技能' in audit
+    assert '.profile-confirmation-check{display:grid' in app_css
+    assert 'overflow-wrap:anywhere' in app_css
+    assert '@media(max-width:700px)' in app_css
+    assert '.profile-confirmation-groups{grid-template-columns:1fr' in app_css
+    assert '.review-detail-grid' in review_css
+    assert '.no-player-change' in review_css
+    assert 'profile-preview-key' not in audit
 
 
 def test_general_importer_supports_all_private_update_scenarios():
