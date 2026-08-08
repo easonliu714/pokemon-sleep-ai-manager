@@ -59,17 +59,19 @@ try {
 
   assert.equal(await page.locator('#dryRunBtn').isDisabled(), false, 'Dry Run must unlock after canonical handshake');
   assert.match(await page.locator('#workflowSummary').innerText(), /錯誤：0/);
+  assert.match(await page.locator('#profileAuditDryRunState').innerText(), /已可執行 Dry Run/);
 
   await page.locator('#dryRunBtn').click();
   await page.waitForFunction(() => document.getElementById('importSummary')?.textContent?.includes('可套用'), null, { timeout: 10000 });
   assert.match(await page.locator('#importSummary').innerText(), /衝突：0/);
 
-  // UI completion and the audit module's trace write are separate event-loop turns.
-  // Wait for the trace contract itself instead of racing immediately after importSummary updates.
+  // Formal Dry Run success is established by importSummary above. The review UI then
+  // synchronizes that result in a separate event-loop turn without invoking a second
+  // formal dryRun on the canonical payload.
   await page.waitForFunction(() => {
     const manager = globalThis.DebugTrace;
     const sessionId = manager?.sessionId;
-    return (manager?.events || []).some((event) => event.session_id === sessionId && event.event === 'dry_run_completed');
+    return (manager?.events || []).some((event) => event.session_id === sessionId && event.event === 'dry_run_review_synced');
   }, null, { timeout: 10000 });
 
   const trace = await page.evaluate(() => {
@@ -85,12 +87,12 @@ try {
     'workflow_validation_completed',
     'dry_run_eligibility_changed',
     'dry_run_started',
-    'dry_run_completed',
+    'dry_run_review_synced',
   ]) {
     assert.ok(trace.includes(required), `missing debug event ${required}`);
   }
 
-  console.log('PASS v0.3.98.2 browser review UX: real Update Center navigation -> grouped 4 confirmations -> 0 -> Dry Run enabled -> Dry Run completed');
+  console.log('PASS browser review UX: real Update Center navigation -> grouped 4 confirmations -> 0 -> Dry Run enabled -> formal Dry Run success -> review synchronized');
 } finally {
   await browser.close();
 }
