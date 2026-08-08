@@ -1,8 +1,10 @@
-name: V0.4.0.1 Skill Unicode Normalization Hotfix
+name: V0.4.0.2 Legacy Skill Alias And Manifest UX Hotfix
 
 on:
   pull_request:
     paths:
+      - 'assets/js/app.js'
+      - 'assets/js/ai-workflow.js'
       - 'assets/js/general-update-field-audit-ui.js'
       - 'assets/js/pokemon-detail.js'
       - 'assets/js/manual-editor.js'
@@ -32,6 +34,8 @@ jobs:
           node-version: 24
       - name: JavaScript syntax
         run: |
+          node --check assets/js/app.js
+          node --check assets/js/ai-workflow.js
           node --check assets/js/general-update-field-audit-ui.js
           node --check assets/js/pokemon-detail.js
           node --check assets/js/manual-editor.js
@@ -50,30 +54,67 @@ jobs:
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
-          import {auditPublicPokemonKnowledgeBundle,buildObservedProjectionCoverage} from './assets/js/public-pokemon-knowledge-coverage.js';
+          import {auditPublicPokemonKnowledgeBundle,buildObservedProjectionCoverage,resolvePublicMainSkillName} from './assets/js/public-pokemon-knowledge-coverage.js';
           const bundle=auditPublicPokemonKnowledgeBundle();
           if(!bundle.ok) throw new Error(`bundle integrity failed: ${bundle.errors.join('; ')}`);
           if(bundle.manifest.nature_rows!==25||bundle.manifest.nature_expected!==25) throw new Error('nature coverage must be 25/25');
           if(bundle.manifest.player_rows_may_be_mutated!==false||bundle.manifest.projection_only!==true) throw new Error('projection-only manifest violated');
           if(bundle.manifest.evolution_triage_status!=='VERIFIED_OUTGOING_OR_VERIFIED_TERMINAL_OR_UNKNOWN') throw new Error('three-state evolution triage missing');
           if(bundle.manifest.evolution_verified_terminal_rows<1) throw new Error('verified terminal master must not be empty');
+          const aliases=new Map([
+            ['樹果遞增','樹果遽增'],
+            ['樹果速增','樹果遽增'],
+            ['流星群（樹果遞增）','流星群（樹果遽增）'],
+            ['流星群（樹果速增）','流星群（樹果遽增）'],
+          ]);
+          for(const [legacy,canonical] of aliases){
+            const resolved=resolvePublicMainSkillName(legacy);
+            if(resolved!==canonical) throw new Error(`legacy skill alias failed: ${legacy} -> ${resolved}`);
+          }
+          if(resolvePublicMainSkillName('樹果遽增\u200B')!=='樹果遽增') throw new Error('zero-width canonical skill must resolve');
           const sample=buildObservedProjectionCoverage([
             {nature:'固執',main_skill:'食材精選S',type:'惡',current_species:'小果然'},
             {nature:'認真',main_skill:'蓄力(能量填充S)',type:'電',current_species:'小拳石'},
-            {nature:'自大',main_skill:'樹果速增',type:'飛行',current_species:'小磁怪'},
+            {nature:'自大',main_skill:'樹果遞增',type:'飛行',current_species:'小磁怪'},
             {nature:'勤奮',main_skill:'樹果遽增\u200B',type:'蟲',current_species:'巴大蝶'},
             {nature:'浮躁',main_skill:'禮物(食材獲取S)',type:'地面',current_species:'土王'},
             {nature:'測試未收錄性格',main_skill:'測試未收錄技能',type:'測試未收錄屬性',current_species:'測試未收錄物種'},
           ]);
           if(sample.nature.resolved!==5||sample.nature.unresolved!==1) throw new Error('nature observed coverage split failed');
           if(sample.main_skill.resolved!==5||sample.main_skill.unresolved!==1) throw new Error(`observed main skill closure failed: ${JSON.stringify(sample.main_skill)}`);
+          if(sample.main_skill.unresolved_values.includes('樹果遞增')) throw new Error('legacy typo must resolve to canonical master');
           if(sample.main_skill.unresolved_values.includes('樹果遽增\u200B')) throw new Error('zero-width skill label must resolve to canonical master');
           for(const species of ['小果然','小拳石','小磁怪']) if(!sample.evolution.verified_outgoing_values.includes(species)) throw new Error(`verified outgoing fixture failed: ${species}`);
           for(const species of ['巴大蝶','土王']) if(!sample.evolution.verified_terminal_values.includes(species)) throw new Error(`verified terminal fixture failed: ${species}`);
           if(!sample.evolution.unknown_evolution_status_values.includes('測試未收錄物種')) throw new Error('unknown evolution fixture failed');
           if(sample.evolution.terminal_semantics!=='VERIFIED_TERMINAL_CURRENT_SLEEP') throw new Error('terminal semantics mismatch');
           if(sample.evolution.unknown_semantics!=='UNKNOWN_NOT_YET_VERIFIED') throw new Error('unknown evolution semantics mismatch');
-          console.log('v0.4.0.1 coverage engine Unicode normalization contract PASS');
+          console.log('v0.4.0.2 coverage engine legacy alias contract PASS');
+          NODE
+      - name: Update package classification contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import {validateWorkflow} from './assets/js/ai-workflow.js';
+          const manifest={
+            generated_at:'2026-08-08T00:00:00+08:00',
+            target_runtime:'v0.4.0.2',
+            files:[{file:'ingredient.json'},{file:'item.json'}],
+            safety:{private_data_must_not_be_committed_to_github:true},
+          };
+          const manifestResult=validateWorkflow(manifest);
+          if(manifestResult.errors.length!==1) throw new Error(`manifest should have one targeted blocking message: ${JSON.stringify(manifestResult)}`);
+          if(!manifestResult.errors[0].includes('Package Manifest')) throw new Error('manifest targeted message missing');
+          if(manifestResult.summary.file_kind!=='package_manifest'||manifestResult.summary.non_executable_manifest!==true) throw new Error('manifest classification summary missing');
+          const base={schema_version:'1.1',generated_at:'2026-08-08T00:00:00+08:00',source:'synthetic contract fixture'};
+          const ingredient={...base,update_id:'TEST-INGREDIENT',scenario:'ingredient_inventory_update',operations:[{operation_id:'OP-1',entity:'ingredient_inventory',action:'upsert',key:{ingredient_name:'好眠番茄'},data:{quantity:0},clear_fields:[],review_required:false}]};
+          const ingredientResult=validateWorkflow(ingredient);
+          if(ingredientResult.errors.length||ingredientResult.review.length) throw new Error(`ingredient inventory compatibility failed: ${JSON.stringify(ingredientResult)}`);
+          const item={...base,update_id:'TEST-ITEM',scenario:'item_inventory_update',operations:[{operation_id:'OP-1',entity:'item_inventory',action:'upsert',key:{item_name:'月之石'},data:{quantity:1},clear_fields:[],review_required:false}]};
+          const itemResult=validateWorkflow(item);
+          if(itemResult.errors.length||itemResult.review.length) throw new Error(`item inventory compatibility failed: ${JSON.stringify(itemResult)}`);
+          console.log('v0.4.0.2 update package classification contract PASS');
           NODE
       - name: Public master projection and historical UI contract
         shell: bash
@@ -91,11 +132,12 @@ jobs:
           GUIDED='assets/js/v03992-update-center-guided-ux.js'
           DEBUG='assets/js/debug-trace-manager.js'
           MIGRATIONS='assets/js/migrations.js'
+          WORKFLOW='assets/js/ai-workflow.js'
           CSS='assets/css/v0399-review.css'
           VERSION='assets/js/version-authority.js'
 
-          grep -q "app_version: 'v0.4.0.1'" "$VERSION"
-          grep -q "app_build: '20260808-v04001-skill-unicode-normalization-hotfix'" "$VERSION"
+          grep -q "app_version: 'v0.4.0.2'" "$VERSION"
+          grep -q "app_build: '20260808-v04002-legacy-skill-alias-manifest-ux'" "$VERSION"
           grep -q "PUBLIC_POKEMON_KNOWLEDGE_VERSION='pokemon-knowledge-2026-08-08-b'" "$MASTER"
 
           # v0.3.99.x review-only, game-native and mobile fixes remain mandatory.
@@ -145,6 +187,15 @@ jobs:
           grep -q "key==='events'?value.slice(-MAX_EVENTS)" "$DEBUG"
           grep -q 'saved.slice(-MAX_EVENTS).map' "$DEBUG"
 
+          # v0.4.0.2 resolver-only compatibility aliases and non-executable package manifest UX.
+          grep -q 'LEGACY_SKILL_CANONICAL_ALIASES' "$COVERAGE"
+          grep -q "樹果遞增.*樹果遽增" "$COVERAGE"
+          grep -q "流星群（樹果遞增）.*流星群（樹果遽增）" "$COVERAGE"
+          grep -q 'resolvePublicMainSkillName' "$COVERAGE"
+          grep -q 'detectNonExecutableFileKind' "$WORKFLOW"
+          grep -q 'Package Manifest' "$WORKFLOW"
+          grep -q 'non_executable_manifest:true' "$WORKFLOW"
+
           # Public Pokémon knowledge schema, observed skill closure, and three-state evolution triage.
           grep -q 'CREATE TABLE IF NOT EXISTS nature_master' "$MASTER"
           grep -q 'CREATE TABLE IF NOT EXISTS main_skill_master' "$MASTER"
@@ -188,4 +239,4 @@ jobs:
             echo 'public Pokémon knowledge must not be written into player pokemon rows' >&2
             exit 1
           fi
-          echo 'v0.4.0.1 skill Unicode normalization hotfix contract PASS'
+          echo 'v0.4.0.2 legacy skill alias and manifest UX hotfix contract PASS'
