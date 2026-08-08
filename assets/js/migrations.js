@@ -18,7 +18,7 @@ export function applyIdentityMigration(db){
   db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_pokemon_instance_id ON pokemon(pokemon_instance_id) WHERE pokemon_instance_id IS NOT NULL AND pokemon_instance_id<>''`);db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_pokemon_game_id ON pokemon(game_pokemon_id) WHERE game_pokemon_id IS NOT NULL AND game_pokemon_id<>''`);db.run(`CREATE INDEX IF NOT EXISTS idx_pokemon_identity_fingerprint ON pokemon(identity_fingerprint,registered_at)`);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(2,datetime('now'))`);
 }
 export function applyGameDataMigration(db){const hasSubskills=scalar(db,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='pokemon_subskills'");if(hasSubskills){db.run(`INSERT OR REPLACE INTO pokemon_subskills(pokemon_id,unlock_level,subskill_name,is_unlocked) SELECT pokemon_id,70,subskill_name,is_unlocked FROM pokemon_subskills WHERE unlock_level=75`);db.run(`DELETE FROM pokemon_subskills WHERE unlock_level=75`);db.run(`INSERT OR REPLACE INTO pokemon_subskills(pokemon_id,unlock_level,subskill_name,is_unlocked) SELECT pokemon_id,80,subskill_name,is_unlocked FROM pokemon_subskills WHERE unlock_level=100`);db.run(`DELETE FROM pokemon_subskills WHERE unlock_level=100`);}db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(3,datetime('now'))`);}
-export function applySharedKnowledgeBase(db){applySharedMasterSchema(db);applySharedMasterData(db);applyPublicPokemonKnowledgeSchema(db);applyPublicPokemonKnowledgeData(db);db.run(`UPDATE pokemon SET favorite_berry=(SELECT berry_name FROM berry_master WHERE type_name=pokemon.type) WHERE EXISTS(SELECT 1 FROM berry_master WHERE type_name=pokemon.type)`);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(4,datetime('now'))`);}
+export function applySharedKnowledgeBase(db){applySharedMasterSchema(db);applySharedMasterData(db);applyPublicPokemonKnowledgeSchema(db);applyPublicPokemonKnowledgeData(db);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(4,datetime('now'))`);}
 export function applyPersonalRecipeMigration(db){addColumnIfMissing(db,'recipes','recipe_level','INTEGER');addColumnIfMissing(db,'recipes','current_energy','INTEGER');addColumnIfMissing(db,'recipes','updated_at','TEXT');addColumnIfMissing(db,'recipes','notes','TEXT');db.run(`UPDATE recipes SET updated_at=datetime('now') WHERE updated_at IS NULL OR updated_at=''`);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(5,datetime('now'))`);}
 export function applyPublicProfileContract(db){applyPublicEmptyProfileMaster(db);}
 export function applyCanonicalTerminologyMigration(db){applyCanonicalRegistry(db);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(6,datetime('now'))`);}
@@ -69,4 +69,14 @@ export function applyAllMigrations(db){
   if(applyStandardCatalogCompatibilityMigration(db))databaseChanged=true;
   const publicMaster=auditAndSyncPublicMasters(db);
   return {database_changed:databaseChanged||publicMaster.updated,public_master:publicMaster};
+}
+
+// v0.3.99.3 browser-only presentation guards. Dynamic imports keep migration
+// functions usable in non-DOM tests while enforcing projection-only semantics
+// and rendering coverage once the application is running.
+if(typeof window!=='undefined'){
+  Promise.all([
+    import('./v03993-projection-integrity.js'),
+    import('./v03993-public-knowledge-coverage-ui.js'),
+  ]).catch(error=>console.warn('v0.3.99.3 projection/coverage bootstrap deferred',error));
 }
