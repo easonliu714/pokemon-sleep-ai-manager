@@ -9,7 +9,8 @@ import {
 const text=value=>String(value??'').normalize('NFKC').trim();
 const uniqueSorted=values=>[...new Set(values.map(text).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
 const duplicateValues=values=>{const seen=new Set(),duplicates=new Set();for(const value of values.map(text).filter(Boolean)){if(seen.has(value))duplicates.add(value);else seen.add(value);}return [...duplicates].sort();};
-const skillKey=value=>text(value).replace(/\s+/g,'');
+const normalizeSkillPunctuation=value=>text(value).replaceAll('(','（').replaceAll(')','）');
+const skillKey=value=>normalizeSkillPunctuation(value).replace(/\s+/g,'');
 
 export const PUBLIC_POKEMON_KNOWLEDGE_COVERAGE_SEMANTICS=Object.freeze({
   nature:'COMPLETE_GAME_VISIBLE_EFFECT_AXES',
@@ -83,7 +84,7 @@ export function auditPublicPokemonKnowledgeBundle(){
 }
 
 function resolveSkill(value){
-  const raw=text(value);
+  const raw=normalizeSkillPunctuation(value);
   if(!raw)return null;
   const exact=PUBLIC_MAIN_SKILL_MASTER.find(row=>skillKey(row.main_skill_name)===skillKey(raw));
   if(exact)return exact.main_skill_name;
