@@ -1,9 +1,11 @@
-name: V0.3.99 Human Readable Diff Review
+name: V0.3.99.1 Review Dry Run and Game Native Semantics
 
 on:
   pull_request:
     paths:
       - 'assets/js/general-update-field-audit-ui.js'
+      - 'assets/js/pokemon-detail.js'
+      - 'assets/js/ai-observation.js'
       - 'assets/css/v0399-review.css'
       - 'assets/css/editor.css'
       - 'assets/js/version-authority.js'
@@ -19,20 +21,31 @@ jobs:
         with:
           node-version: 24
       - name: JavaScript syntax
-        run: node --check assets/js/general-update-field-audit-ui.js
-      - name: Human readable review contract
+        run: |
+          node --check assets/js/general-update-field-audit-ui.js
+          node --check assets/js/pokemon-detail.js
+          node --check assets/js/ai-observation.js
+      - name: Review and semantic contract
         shell: bash
         run: |
           set -euo pipefail
           UI='assets/js/general-update-field-audit-ui.js'
+          DETAIL='assets/js/pokemon-detail.js'
+          OBS='assets/js/ai-observation.js'
           CSS='assets/css/v0399-review.css'
           VERSION='assets/js/version-authority.js'
-          grep -q "app_version: 'v0.3.99'" "$VERSION"
+
+          grep -q "app_version: 'v0.3.99.1'" "$VERSION"
           grep -q 'human_diff_review_ready' "$UI"
+          grep -q 'REVIEW-ONLY-' "$UI"
+          grep -q 'appliedUpdateId' "$UI"
+          grep -q '唯讀比對模式' "$UI"
+          grep -q '已可執行 Dry Run' "$UI"
+          grep -q "SLEEP_FIELDS = new Set(\['sleep_hours','sleep_time_text'\])" "$UI"
+          grep -q "sleep_time_text:\['一起睡覺的時間'\]" "$UI"
+          grep -q '進化所需一起睡覺的時間' "$UI"
           grep -q '玩家資料無差異' "$UI"
           grep -q '此次不會改變可見的寶可夢能力' "$UI"
-          grep -q "sleep_hours:\['共眠時數'" "$UI"
-          grep -q "helper_seconds:\['幫忙速度'" "$UI"
           grep -q '食材配置' "$UI"
           grep -q '副技能' "$UI"
           grep -q 'Identity fingerprint' "$UI"
@@ -40,8 +53,22 @@ jobs:
           grep -q 'no-player-change' "$CSS"
           grep -q 'profile_audit_confirmations.map' "$UI"
           grep -q "confirmation_scope:'review_preview_only'" "$UI"
+
+          grep -q "\['一起睡覺的時間',sleepDisplay(p)\]" "$DETAIL"
+          grep -q '進化所需一起睡覺的時間' "$DETAIL"
+          grep -q '一起睡覺的時間（遊戲原文）' "$DETAIL"
+          grep -q '一起睡覺的時間（換算小時）' "$DETAIL"
+
+          grep -q '遊戲畫面若出現「一起睡覺的時間」' "$OBS"
+          grep -q 'sleep_time_text:null,sleep_hours:null' "$OBS"
+          grep -q '不得由等級、入手日期或其他欄位推算' "$OBS"
+
           if grep -q 'profile-preview-key' "$UI"; then
             echo 'raw JSON key/value preview must not be the primary review UI' >&2
             exit 1
           fi
-          echo 'v0.3.99 human-readable diff review contract PASS'
+          if grep -q "DETAIL_FIELDS = .*'sleep_hours'.*'sleep_time_text'" "$UI"; then
+            echo 'sleep_hours and sleep_time_text must not render as duplicate primary fields' >&2
+            exit 1
+          fi
+          echo 'v0.3.99.1 review dry-run and game-native semantic contract PASS'
