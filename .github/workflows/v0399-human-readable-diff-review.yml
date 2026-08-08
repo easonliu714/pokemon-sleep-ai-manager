@@ -1,4 +1,4 @@
-name: V0.3.99.4 Mobile Validation Hotfix
+name: V0.4.0 Public Pokémon Master Coverage Triage
 
 on:
   pull_request:
@@ -8,6 +8,7 @@ on:
       - 'assets/js/manual-editor.js'
       - 'assets/js/ai-observation.js'
       - 'assets/js/shared-knowledge-ui.js'
+      - 'assets/js/shared-master-data.js'
       - 'assets/js/public-pokemon-knowledge-master.js'
       - 'assets/js/public-pokemon-knowledge-coverage.js'
       - 'assets/js/v03992-update-center-guided-ux.js'
@@ -36,6 +37,7 @@ jobs:
           node --check assets/js/manual-editor.js
           node --check assets/js/ai-observation.js
           node --check assets/js/shared-knowledge-ui.js
+          node --check assets/js/shared-master-data.js
           node --check assets/js/public-pokemon-knowledge-master.js
           node --check assets/js/public-pokemon-knowledge-coverage.js
           node --check assets/js/v03992-update-center-guided-ux.js
@@ -53,19 +55,26 @@ jobs:
           if(!bundle.ok) throw new Error(`bundle integrity failed: ${bundle.errors.join('; ')}`);
           if(bundle.manifest.nature_rows!==25||bundle.manifest.nature_expected!==25) throw new Error('nature coverage must be 25/25');
           if(bundle.manifest.player_rows_may_be_mutated!==false||bundle.manifest.projection_only!==true) throw new Error('projection-only manifest violated');
-          if(bundle.manifest.evolution_coverage_status!=='PARTIAL_VERIFIED_ONLY_NON_TERMINAL') throw new Error('evolution partial semantics missing');
+          if(bundle.manifest.evolution_triage_status!=='VERIFIED_OUTGOING_OR_VERIFIED_TERMINAL_OR_UNKNOWN') throw new Error('three-state evolution triage missing');
+          if(bundle.manifest.evolution_verified_terminal_rows<1) throw new Error('verified terminal master must not be empty');
           const sample=buildObservedProjectionCoverage([
-            {nature:'固執',main_skill:'夢魘（能量填充M）',type:'惡',current_species:'伊布'},
-            {nature:'認真',main_skill:'十項全能(揮指)',type:'超能力',current_species:'夢幻'},
+            {nature:'固執',main_skill:'食材精選S',type:'惡',current_species:'小果然'},
+            {nature:'認真',main_skill:'蓄力(能量填充S)',type:'電',current_species:'小拳石'},
+            {nature:'自大',main_skill:'樹果速增',type:'飛行',current_species:'小磁怪'},
+            {nature:'勤奮',main_skill:'樹果遽增',type:'蟲',current_species:'巴大蝶'},
+            {nature:'浮躁',main_skill:'禮物(食材獲取S)',type:'地面',current_species:'土王'},
             {nature:'測試未收錄性格',main_skill:'測試未收錄技能',type:'測試未收錄屬性',current_species:'測試未收錄物種'},
           ]);
-          if(sample.nature.resolved!==2||sample.nature.unresolved!==1) throw new Error('nature observed coverage split failed');
-          if(sample.main_skill.resolved!==2||sample.main_skill.unresolved!==1) throw new Error('main skill punctuation normalization failed');
-          if(!sample.evolution.verified_outgoing_values.includes('伊布')) throw new Error('verified outgoing evolution route fixture failed');
-          if(sample.evolution.semantics!=='UNKNOWN_OR_TERMINAL_NOT_CLASSIFIED') throw new Error('no-route semantics must stay non-terminal');
-          console.log('v0.3.99.4 coverage engine executable contract PASS');
+          if(sample.nature.resolved!==5||sample.nature.unresolved!==1) throw new Error('nature observed coverage split failed');
+          if(sample.main_skill.resolved!==5||sample.main_skill.unresolved!==1) throw new Error('observed main skill closure failed');
+          for(const species of ['小果然','小拳石','小磁怪']) if(!sample.evolution.verified_outgoing_values.includes(species)) throw new Error(`verified outgoing fixture failed: ${species}`);
+          for(const species of ['巴大蝶','土王']) if(!sample.evolution.verified_terminal_values.includes(species)) throw new Error(`verified terminal fixture failed: ${species}`);
+          if(!sample.evolution.unknown_evolution_status_values.includes('測試未收錄物種')) throw new Error('unknown evolution fixture failed');
+          if(sample.evolution.terminal_semantics!=='VERIFIED_TERMINAL_CURRENT_SLEEP') throw new Error('terminal semantics mismatch');
+          if(sample.evolution.unknown_semantics!=='UNKNOWN_NOT_YET_VERIFIED') throw new Error('unknown evolution semantics mismatch');
+          console.log('v0.4.0 coverage engine executable contract PASS');
           NODE
-      - name: Guided review and mobile hotfix contract
+      - name: Public master projection and historical UI contract
         shell: bash
         run: |
           set -euo pipefail
@@ -73,8 +82,8 @@ jobs:
           DETAIL='assets/js/pokemon-detail.js'
           MANUAL='assets/js/manual-editor.js'
           OBS='assets/js/ai-observation.js'
-          KNOWLEDGE='assets/js/shared-knowledge-ui.js'
           MASTER='assets/js/public-pokemon-knowledge-master.js'
+          SHARED_MASTER='assets/js/shared-master-data.js'
           COVERAGE='assets/js/public-pokemon-knowledge-coverage.js'
           COVERAGE_UI='assets/js/v03993-public-knowledge-coverage-ui.js'
           PROJECTION='assets/js/v03993-projection-integrity.js'
@@ -84,10 +93,11 @@ jobs:
           CSS='assets/css/v0399-review.css'
           VERSION='assets/js/version-authority.js'
 
-          grep -q "app_version: 'v0.3.99.4'" "$VERSION"
-          grep -q "app_build: '20260808-v03994-mobile-validation-hotfix'" "$VERSION"
+          grep -q "app_version: 'v0.4.0'" "$VERSION"
+          grep -q "app_build: '20260808-v0400-public-pokemon-master-coverage-triage'" "$VERSION"
+          grep -q "PUBLIC_POKEMON_KNOWLEDGE_VERSION='pokemon-knowledge-2026-08-08-b'" "$MASTER"
 
-          # Existing review-only and game-native semantics remain mandatory.
+          # v0.3.99.x review-only, game-native and mobile fixes remain mandatory.
           grep -q 'human_diff_review_ready' "$UI"
           grep -q 'REVIEW-ONLY-' "$UI"
           grep -q 'appliedUpdateId' "$UI"
@@ -106,8 +116,6 @@ jobs:
           grep -q 'profile_audit_confirmations.map' "$UI"
           grep -q "confirmation_scope:'review_preview_only'" "$UI"
 
-          # registered_at is the canonical visible identity date. obtained_at is
-          # retained only as a legacy DB compatibility column, not a detail/editor field.
           grep -q "\['登錄日期',p.registered_at\]" "$DETAIL"
           if grep -q "\['入手日期',p.obtained_at\]" "$DETAIL"; then
             echo 'legacy obtained_at must not render in Pokemon detail' >&2
@@ -125,42 +133,44 @@ jobs:
           grep -q '個體／匯入條件優先' "$DETAIL"
           grep -q '公版進化條件' "$DETAIL"
           grep -q '公版引用' "$DETAIL"
-
           grep -q '遊戲畫面若出現「一起睡覺的時間」' "$OBS"
           grep -q 'sleep_time_text:null,sleep_hours:null' "$OBS"
           grep -q '不得由等級、入手日期或其他欄位推算' "$OBS"
 
-          # Update Center summary normalization must be idempotent. The previous
-          # regex matched inside already-normalized 「結構錯誤」 and recursively
-          # produced 結構結構結構... through MutationObserver.
           grep -q 'normalized=text.match(/結構錯誤' "$GUIDED"
           grep -q '#workflowSummary{max-height' "$GUIDED"
           grep -q '#workflowIssues{max-height' "$GUIDED"
           grep -q 'text.replace(normalized\[0\],replacement)' "$GUIDED"
-
-          # Debug export must preserve newest/current events instead of the
-          # generic sanitizer truncating restored events to the first 100 rows.
           grep -q "key==='events'?value.slice(-MAX_EVENTS)" "$DEBUG"
           grep -q 'saved.slice(-MAX_EVENTS).map' "$DEBUG"
 
-          # Versioned public Pokémon knowledge remains projection-only.
-          grep -q "PUBLIC_POKEMON_KNOWLEDGE_VERSION='pokemon-knowledge-2026-08-08-a'" "$MASTER"
+          # Public Pokémon knowledge schema, observed skill closure, and three-state evolution triage.
           grep -q 'CREATE TABLE IF NOT EXISTS nature_master' "$MASTER"
           grep -q 'CREATE TABLE IF NOT EXISTS main_skill_master' "$MASTER"
           grep -q 'CREATE TABLE IF NOT EXISTS pokemon_evolution_master' "$MASTER"
-          grep -q 'COMPLETE_GAME_VISIBLE_EFFECT_AXES' "$COVERAGE"
-          grep -q 'PARTIAL_VERIFIED_ONLY_NON_TERMINAL' "$COVERAGE"
-          grep -q 'UNKNOWN_OR_TERMINAL_NOT_CLASSIFIED' "$COVERAGE"
+          grep -q 'CREATE TABLE IF NOT EXISTS pokemon_evolution_status_master' "$MASTER"
+          grep -q 'PUBLIC_EVOLUTION_STATUS_MASTER' "$MASTER"
+          for skill in '食材精選S' '蓄力（能量填充S）' '樹果遽增' '樹果速增' '禮物（食材獲取S）'; do grep -q "$skill" "$MASTER"; done
+          for species in '小果然' '果然翁' '小拳石' '隆隆石' '小磁怪' '三合一磁怪' '不良蛙' '毒骷蛙' '六尾' '九尾'; do grep -q "$species" "$MASTER"; done
+          grep -q 'VERIFIED_TERMINAL_CURRENT_SLEEP' "$MASTER"
+          grep -q 'VERIFIED_OUTGOING_OR_VERIFIED_TERMINAL_OR_UNKNOWN' "$COVERAGE"
+          grep -q 'UNKNOWN_NOT_YET_VERIFIED' "$COVERAGE"
           grep -q 'normalizeSkillPunctuation' "$COVERAGE"
-          grep -q 'Pokémon 公版 Master Coverage' "$COVERAGE_UI"
+          grep -q '已核對終階物種' "$COVERAGE_UI"
+          grep -q '仍待核對 evolution status 的物種' "$COVERAGE_UI"
           grep -q 'Bundle Integrity PASS' "$COVERAGE_UI"
 
+          # Historical compatibility semantics remain exported, but are no longer the primary triage UI.
+          grep -q 'PARTIAL_VERIFIED_ONLY_NON_TERMINAL' "$COVERAGE"
+          grep -q 'UNKNOWN_OR_TERMINAL_NOT_CLASSIFIED' "$COVERAGE"
+
+          # Every public master path is projection-only. No master sync may write favorite_berry into player rows.
           grep -q "id!=='pokemonNatureSelect'&&id!=='pokemonTypeSelect'" "$PROJECTION"
           grep -q 'event.stopImmediatePropagation()' "$PROJECTION"
           grep -q "pokemon_knowledge:settingValue" "$MIGRATIONS"
           grep -q "pokemon_knowledge:PUBLIC_POKEMON_KNOWLEDGE_VERSION" "$MIGRATIONS"
-
-          if grep -q 'UPDATE pokemon SET favorite_berry' "$MIGRATIONS"; then
+          grep -q 'Public type→berry knowledge is projection-only' "$SHARED_MASTER"
+          if grep -R -Eq 'UPDATE[[:space:]]+pokemon[[:space:]]+SET[[:space:]]+favorite_berry' assets/js; then
             echo 'public type/berry master must never write favorite_berry into player pokemon rows' >&2
             exit 1
           fi
@@ -176,4 +186,4 @@ jobs:
             echo 'public Pokémon knowledge must not be written into player pokemon rows' >&2
             exit 1
           fi
-          echo 'v0.3.99.4 mobile validation hotfix contract PASS'
+          echo 'v0.4.0 public Pokémon master coverage triage contract PASS'
