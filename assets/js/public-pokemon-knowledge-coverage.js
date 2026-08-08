@@ -10,7 +10,11 @@ import {
 const text=value=>String(value??'').normalize('NFKC').trim();
 const uniqueSorted=values=>[...new Set(values.map(text).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
 const duplicateValues=values=>{const seen=new Set(),duplicates=new Set();for(const value of values.map(text).filter(Boolean)){if(seen.has(value))duplicates.add(value);else seen.add(value);}return [...duplicates].sort();};
-const normalizeSkillPunctuation=value=>text(value).replaceAll('(','（').replaceAll(')','）');
+// Game/OCR/AI JSON can contain invisible format code points that render identically
+// to the canonical skill label. Strip only format/variation characters from the
+// comparison key; the original player value remains untouched in SQLite/UI.
+const SKILL_INVISIBLE_FORMAT_RE=/[\u00AD\u034F\u061C\u180E\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFE00-\uFE0F\uFEFF]/g;
+const normalizeSkillPunctuation=value=>text(value).replace(SKILL_INVISIBLE_FORMAT_RE,'').replaceAll('(','（').replaceAll(')','）');
 const skillKey=value=>normalizeSkillPunctuation(value).replace(/\s+/g,'');
 
 export const PUBLIC_POKEMON_KNOWLEDGE_COVERAGE_SEMANTICS=Object.freeze({
