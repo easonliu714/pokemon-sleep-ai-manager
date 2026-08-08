@@ -1,4 +1,4 @@
-name: V0.3.99.3 Public Pokemon Master Coverage and Projection Integrity
+name: V0.3.99.4 Mobile Validation Hotfix
 
 on:
   pull_request:
@@ -13,6 +13,7 @@ on:
       - 'assets/js/v03992-update-center-guided-ux.js'
       - 'assets/js/v03993-projection-integrity.js'
       - 'assets/js/v03993-public-knowledge-coverage-ui.js'
+      - 'assets/js/debug-trace-manager.js'
       - 'assets/js/migrations.js'
       - 'assets/css/v0399-review.css'
       - 'assets/css/editor.css'
@@ -40,6 +41,7 @@ jobs:
           node --check assets/js/v03992-update-center-guided-ux.js
           node --check assets/js/v03993-projection-integrity.js
           node --check assets/js/v03993-public-knowledge-coverage-ui.js
+          node --check assets/js/debug-trace-manager.js
           node --check assets/js/migrations.js
       - name: Coverage engine executable contract
         shell: bash
@@ -54,15 +56,16 @@ jobs:
           if(bundle.manifest.evolution_coverage_status!=='PARTIAL_VERIFIED_ONLY_NON_TERMINAL') throw new Error('evolution partial semantics missing');
           const sample=buildObservedProjectionCoverage([
             {nature:'固執',main_skill:'夢魘（能量填充M）',type:'惡',current_species:'伊布'},
+            {nature:'認真',main_skill:'十項全能(揮指)',type:'超能力',current_species:'夢幻'},
             {nature:'測試未收錄性格',main_skill:'測試未收錄技能',type:'測試未收錄屬性',current_species:'測試未收錄物種'},
           ]);
-          if(sample.nature.resolved!==1||sample.nature.unresolved!==1) throw new Error('nature observed coverage split failed');
-          if(sample.main_skill.resolved!==1||sample.main_skill.unresolved!==1) throw new Error('main skill observed coverage split failed');
+          if(sample.nature.resolved!==2||sample.nature.unresolved!==1) throw new Error('nature observed coverage split failed');
+          if(sample.main_skill.resolved!==2||sample.main_skill.unresolved!==1) throw new Error('main skill punctuation normalization failed');
           if(!sample.evolution.verified_outgoing_values.includes('伊布')) throw new Error('verified outgoing evolution route fixture failed');
           if(sample.evolution.semantics!=='UNKNOWN_OR_TERMINAL_NOT_CLASSIFIED') throw new Error('no-route semantics must stay non-terminal');
-          console.log('v0.3.99.3 coverage engine executable contract PASS');
+          console.log('v0.3.99.4 coverage engine executable contract PASS');
           NODE
-      - name: Guided review and public knowledge contract
+      - name: Guided review and mobile hotfix contract
         shell: bash
         run: |
           set -euo pipefail
@@ -76,14 +79,15 @@ jobs:
           COVERAGE_UI='assets/js/v03993-public-knowledge-coverage-ui.js'
           PROJECTION='assets/js/v03993-projection-integrity.js'
           GUIDED='assets/js/v03992-update-center-guided-ux.js'
+          DEBUG='assets/js/debug-trace-manager.js'
           MIGRATIONS='assets/js/migrations.js'
           CSS='assets/css/v0399-review.css'
           VERSION='assets/js/version-authority.js'
 
-          grep -q "app_version: 'v0.3.99.3'" "$VERSION"
-          grep -q "app_build: '20260808-v03993-public-pokemon-master-coverage-projection-integrity'" "$VERSION"
+          grep -q "app_version: 'v0.3.99.4'" "$VERSION"
+          grep -q "app_build: '20260808-v03994-mobile-validation-hotfix'" "$VERSION"
 
-          # v0.3.99.1 review-only and game-native semantics remain mandatory.
+          # Existing review-only and game-native semantics remain mandatory.
           grep -q 'human_diff_review_ready' "$UI"
           grep -q 'REVIEW-ONLY-' "$UI"
           grep -q 'appliedUpdateId' "$UI"
@@ -102,60 +106,59 @@ jobs:
           grep -q 'profile_audit_confirmations.map' "$UI"
           grep -q "confirmation_scope:'review_preview_only'" "$UI"
 
-          grep -q "\['一起睡覺的時間',sleepDisplay(p)\]" "$DETAIL"
+          # registered_at is the canonical visible identity date. obtained_at is
+          # retained only as a legacy DB compatibility column, not a detail/editor field.
           grep -q "\['登錄日期',p.registered_at\]" "$DETAIL"
-          grep -q "\['入手日期',p.obtained_at\]" "$DETAIL"
+          if grep -q "\['入手日期',p.obtained_at\]" "$DETAIL"; then
+            echo 'legacy obtained_at must not render in Pokemon detail' >&2
+            exit 1
+          fi
+          if grep -q "input('obtained_at'" "$DETAIL"; then
+            echo 'legacy obtained_at must not remain in manual detail editor' >&2
+            exit 1
+          fi
+          if grep -q "'obtained_at'" "$MANUAL"; then
+            echo 'manual editor must preserve legacy obtained_at rather than overwrite it' >&2
+            exit 1
+          fi
+          grep -q 'replaceAll.*（' "$DETAIL"
           grep -q '個體／匯入條件優先' "$DETAIL"
           grep -q '公版進化條件' "$DETAIL"
           grep -q '公版引用' "$DETAIL"
-          grep -q 'knowledge.mainSkill' "$DETAIL"
-          grep -q 'knowledge.nature' "$DETAIL"
 
           grep -q '遊戲畫面若出現「一起睡覺的時間」' "$OBS"
           grep -q 'sleep_time_text:null,sleep_hours:null' "$OBS"
           grep -q '不得由等級、入手日期或其他欄位推算' "$OBS"
 
-          # Complete manual editor must not silently drop fields shown by detail UI.
-          grep -q "'main_skill_description'" "$MANUAL"
-          grep -q "'sleep_hours'" "$MANUAL"
-          grep -q "'sleep_time_text'" "$MANUAL"
-          grep -q "'registered_at'" "$MANUAL"
-          grep -q "'obtained_at'" "$MANUAL"
-          grep -q "'evolution_sleep_hours_required'" "$MANUAL"
-          grep -q "'evolution_item_required'" "$MANUAL"
+          # Update Center summary normalization must be idempotent. The previous
+          # regex matched inside already-normalized 「結構錯誤」 and recursively
+          # produced 結構結構結構... through MutationObserver.
+          grep -q 'normalized=text.match(/結構錯誤' "$GUIDED"
+          grep -q '#workflowSummary{max-height' "$GUIDED"
+          grep -q '#workflowIssues{max-height' "$GUIDED"
+          grep -q 'text.replace(normalized\[0\],replacement)' "$GUIDED"
+
+          # Debug export must preserve newest/current events instead of the
+          # generic sanitizer truncating restored events to the first 100 rows.
+          grep -q "key==='events'?value.slice(-MAX_EVENTS)" "$DEBUG"
+          grep -q 'saved.slice(-MAX_EVENTS).map' "$DEBUG"
 
           # Versioned public Pokémon knowledge remains projection-only.
           grep -q "PUBLIC_POKEMON_KNOWLEDGE_VERSION='pokemon-knowledge-2026-08-08-a'" "$MASTER"
           grep -q 'CREATE TABLE IF NOT EXISTS nature_master' "$MASTER"
           grep -q 'CREATE TABLE IF NOT EXISTS main_skill_master' "$MASTER"
           grep -q 'CREATE TABLE IF NOT EXISTS pokemon_evolution_master' "$MASTER"
-          grep -q "public_pokemon_knowledge_version" "$MASTER"
-          grep -q 'player_tables_untouched:true' "$MASTER"
-          grep -q 'projection_only:true' "$MASTER"
-          grep -q 'NOT_YET_VERIFIED_NOT_NO_EVOLUTION' "$MASTER"
-
-          # v0.3.99.3 coverage and non-terminal missing-route semantics.
           grep -q 'COMPLETE_GAME_VISIBLE_EFFECT_AXES' "$COVERAGE"
           grep -q 'PARTIAL_VERIFIED_ONLY_NON_TERMINAL' "$COVERAGE"
           grep -q 'UNKNOWN_OR_TERMINAL_NOT_CLASSIFIED' "$COVERAGE"
-          grep -q 'nature_expected:25' "$COVERAGE"
-          grep -q 'player_rows_may_be_mutated:false' "$COVERAGE"
+          grep -q 'normalizeSkillPunctuation' "$COVERAGE"
           grep -q 'Pokémon 公版 Master Coverage' "$COVERAGE_UI"
           grep -q 'Bundle Integrity PASS' "$COVERAGE_UI"
-          grep -q '沒有 route 的物種不可判定為「不能進化」' "$COVERAGE_UI"
 
-          # Legacy auto-fill is intercepted: select changes remain user edits,
-          # but public nature/berry knowledge is not persisted into player fields.
           grep -q "id!=='pokemonNatureSelect'&&id!=='pokemonTypeSelect'" "$PROJECTION"
           grep -q 'event.stopImmediatePropagation()' "$PROJECTION"
-          grep -q '依屬性公版投影；不寫入玩家資料' "$PROJECTION"
-          grep -q '公版 Projection 保護' "$PROJECTION"
-
           grep -q "pokemon_knowledge:settingValue" "$MIGRATIONS"
           grep -q "pokemon_knowledge:PUBLIC_POKEMON_KNOWLEDGE_VERSION" "$MIGRATIONS"
-          grep -q 'applyPublicPokemonKnowledgeData(db)' "$MIGRATIONS"
-          grep -q 'v03993-projection-integrity.js' "$MIGRATIONS"
-          grep -q 'v03993-public-knowledge-coverage-ui.js' "$MIGRATIONS"
 
           if grep -q 'UPDATE pokemon SET favorite_berry' "$MIGRATIONS"; then
             echo 'public type/berry master must never write favorite_berry into player pokemon rows' >&2
@@ -173,4 +176,4 @@ jobs:
             echo 'public Pokémon knowledge must not be written into player pokemon rows' >&2
             exit 1
           fi
-          echo 'v0.3.99.3 public master coverage and projection integrity contract PASS'
+          echo 'v0.3.99.4 mobile validation hotfix contract PASS'

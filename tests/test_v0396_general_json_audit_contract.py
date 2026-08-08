@@ -24,12 +24,17 @@ def test_user_review_acceptance_is_recorded():
     assert "空值欄位" in source
 
 
-def test_full75_dedicated_apply_is_retired():
+def test_full75_dedicated_apply_and_frontend_are_retired():
     workbench = read("assets/js/full75-recovery-workbench.js")
     engine = read("assets/js/full75-recovery-engine.js")
-    assert "panel.dataset.status = 'retired'" in workbench
-    assert "送至一般更新中心" in workbench
-    assert "此區不再提供獨立 Dry Run 或 Apply" in workbench
+    assert "dedicated_ui_present: false" in workbench
+    assert "dedicated_apply_enabled: false" in workbench
+    assert "dedicated_forward_control_present: false" in workbench
+    assert "general_update_center_required: true" in workbench
+    assert "legacy_json_compatibility_retained: true" in workbench
+    assert "full75RecoveryWorkbench" not in workbench
+    assert "full75RecoveryFile" not in workbench
+    assert "full75ForwardBtn" not in workbench
     assert "applyFull75Payload()" in engine
     assert "throw new Error(RETIRED_MESSAGE)" in engine
     assert "import { applyPayload" not in engine
@@ -73,5 +78,6 @@ def test_v0396_contract_remains_available_after_release_advances():
     workbench = read("assets/js/full75-recovery-workbench.js")
     importer = read("assets/js/importer.js")
     assert "app_version: 'v0.3.96'" in authority
-    assert "general_update_center_required:true" in workbench
+    assert "general_update_center_required: true" in workbench
+    assert "legacy_json_compatibility_retained: true" in workbench
     assert "null_overwrite_policy:'preserve_existing_unless_clear_fields'" in importer

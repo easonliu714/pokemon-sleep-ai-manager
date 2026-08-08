@@ -40,4 +40,7 @@ jobs:
           ! grep -R "PRIVATE_CLEAN_BOOTSTRAP_75" assets tests .github/workflows/v0396-general-json-audit.yml
           ! grep -q "applyPayload" assets/js/full75-recovery-engine.js
           grep -q "preserve_existing_empty_incoming" assets/js/importer.js
-          grep -q "panel.dataset.status = 'retired'" assets/js/full75-recovery-workbench.js
+          grep -q "dedicated_ui_present: false" assets/js/full75-recovery-workbench.js
+          grep -q "general_update_center_required: true" assets/js/full75-recovery-workbench.js
+          grep -q "legacy_json_compatibility_retained: true" assets/js/full75-recovery-workbench.js
+          ! grep -q "full75RecoveryWorkbench" assets/js/full75-recovery-workbench.js

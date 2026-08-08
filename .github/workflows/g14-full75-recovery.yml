@@ -37,12 +37,19 @@ jobs:
           grep -q "verifyAppliedPackage" assets/js/full75-recovery-engine.js
           grep -q "throw new Error(RETIRED_MESSAGE)" assets/js/full75-recovery-engine.js
           ! grep -q "import .*applyPayload" assets/js/full75-recovery-engine.js
-          grep -q "panel.dataset.status = 'retired'" assets/js/full75-recovery-workbench.js
-          grep -q "送至一般更新中心" assets/js/full75-recovery-workbench.js
-          grep -q "blank_values_preserve_existing:true" assets/js/full75-recovery-workbench.js
+          grep -q "dedicated_ui_present: false" assets/js/full75-recovery-workbench.js
+          grep -q "dedicated_apply_enabled: false" assets/js/full75-recovery-workbench.js
+          grep -q "dedicated_forward_control_present: false" assets/js/full75-recovery-workbench.js
+          grep -q "general_update_center_required: true" assets/js/full75-recovery-workbench.js
+          grep -q "legacy_json_compatibility_retained: true" assets/js/full75-recovery-workbench.js
+          grep -q "blank_values_preserve_existing: true" assets/js/full75-recovery-workbench.js
+          ! grep -q "full75RecoveryWorkbench" assets/js/full75-recovery-workbench.js
+          ! grep -q "full75RecoveryFile" assets/js/full75-recovery-workbench.js
+          ! grep -q "full75ForwardBtn" assets/js/full75-recovery-workbench.js
+          ! grep -q "document.createElement" assets/js/full75-recovery-workbench.js
           grep -q "preserve_existing_empty_incoming" assets/js/importer.js
           grep -q "accepted_current_observation" assets/js/ai-workflow.js
-      - name: Verify browser compatibility entry
+      - name: Verify browser compatibility anchor
         run: |
           grep -q 'src="./assets/js/full75-recovery-workbench.js"' index.html
           ! grep -q 'full75-recovery-workbench.js?v=' index.html

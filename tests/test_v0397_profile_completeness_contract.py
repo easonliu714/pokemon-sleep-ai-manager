@@ -38,10 +38,13 @@ def test_confirmations_are_persisted_in_general_import_history():
     assert 'result_json' in importer
 
 
-def test_full75_workbench_loads_general_completeness_module():
+def test_full75_compatibility_anchor_keeps_general_completeness_without_ui():
     workbench = read('assets/js/full75-recovery-workbench.js')
     assert "import './profile-completeness.js';" in workbench
-    assert 'profile_completeness_enabled:true' in workbench
+    assert 'profile_completeness_enabled: true' in workbench
+    assert 'general_update_center_required: true' in workbench
+    assert 'dedicated_ui_present: false' in workbench
+    assert 'full75RecoveryWorkbench' not in workbench
 
 
 def test_v0397_contract_remains_available_after_release_advances():

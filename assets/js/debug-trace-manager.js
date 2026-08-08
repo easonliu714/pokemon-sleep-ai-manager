@@ -20,7 +20,7 @@ function sanitize(value,depth=0,key=''){
   if(depth>5)return '[max-depth]';if(SENSITIVE.test(key))return '[redacted]';if(value instanceof Error)return safeError(value);
   if(typeof File!=='undefined'&&value instanceof File)return safeFile(value);if(typeof FileList!=='undefined'&&value instanceof FileList)return Array.from(value).map(safeFile);
   if(value==null||['string','number','boolean'].includes(typeof value))return typeof value==='string'?redactString(value).slice(0,3000):value;
-  if(Array.isArray(value))return value.slice(0,100).map(item=>sanitize(item,depth+1,key));
+  if(Array.isArray(value)){const source=key==='events'?value.slice(-MAX_EVENTS):value.slice(0,100);return source.map(item=>sanitize(item,depth+1,key==='events'?'event':key));}
   if(typeof value==='object'){const output={};for(const [childKey,childValue] of Object.entries(value).slice(0,100))output[childKey]=sanitize(childValue,depth+1,childKey);return output;}
   return redactString(value).slice(0,1000);
 }
@@ -29,7 +29,7 @@ function environment(){return {url:location.href.split('#')[0],origin:location.o
 
 class DebugTraceManager {
   constructor(){this.sessionId=uuid();this.sequence=0;this.events=[];this.operations=new Map();this.mode=localStorage.getItem(MODE_KEY)||'standard';this.startedAt=now();this.listenersInstalled=false;this.persistTimer=null;this.uiTimer=null;this.restore();this.record('app','session_started',{status:'started',environment:environment()});}
-  restore(){try{const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');if(Array.isArray(saved))this.events=sanitize(saved).slice(-MAX_EVENTS);}catch{this.events=[];}}
+  restore(){try{const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');if(Array.isArray(saved))this.events=saved.slice(-MAX_EVENTS).map(item=>sanitize(item));}catch{this.events=[];}}
   schedulePersist(){if(this.persistTimer)return;this.persistTimer=setTimeout(()=>{this.persistTimer=null;this.persistNow();},PERSIST_DEBOUNCE_MS);if(!this.uiTimer)this.uiTimer=setTimeout(()=>{this.uiTimer=null;this.refreshUI();},PERSIST_DEBOUNCE_MS);}
   persistNow(){let candidate=this.events.slice(-MAX_EVENTS);while(candidate.length&&byteLength(JSON.stringify(candidate))>MAX_STORAGE_BYTES)candidate=candidate.slice(Math.max(1,Math.floor(candidate.length*.1)));this.events=candidate;try{localStorage.setItem(STORAGE_KEY,JSON.stringify(candidate));}catch(error){console.warn('[DebugTrace] persistence failed',error);}}
   flush(){if(this.persistTimer){clearTimeout(this.persistTimer);this.persistTimer=null;}this.persistNow();this.refreshUI();}
