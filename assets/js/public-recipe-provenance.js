@@ -1,10 +1,10 @@
 import {
   PUBLIC_RECIPE_MASTER,
   PUBLIC_RECIPE_MASTER_VERSION,
-} from './public-recipe-master.js';
+} from './public-recipe-canonical-authority.js';
 
-export const PUBLIC_RECIPE_PROVENANCE_VERSION='public-recipe-provenance-2026-08-09-a';
-export const REVIEWED_RECIPE_MASTER_VERSION='public-recipe-master-2026-08-09-a';
+export const PUBLIC_RECIPE_PROVENANCE_VERSION='public-recipe-provenance-2026-08-09-b';
+export const REVIEWED_RECIPE_MASTER_VERSION=PUBLIC_RECIPE_MASTER_VERSION;
 
 const ACTIVE_FORMULA_REFERENCE=Object.freeze({
   source_type:'reference_structured_current',
@@ -13,51 +13,45 @@ const ACTIVE_FORMULA_REFERENCE=Object.freeze({
   observed_at:'2026-08-09',
 });
 
-const ACTIVE_NAME_REFERENCE=Object.freeze({
+const HISTORICAL_NAME_REFERENCE=Object.freeze({
   source_type:'sanitized_user_reference',
   source_name:'sanitized zh-TW recipe list retained from pre-v0.4.2 catalog evidence',
   source_ref:'internal:sanitized-recipe-catalog-evidence:v0383',
   observed_at:'2026-08-05',
 });
 
-/**
- * Evidence is intentionally separate from recipe facts.
- *
- * - The 76 active zh-TW names come from sanitized historical user/game catalog
- *   evidence and are NOT labelled as official zh-TW verification.
- * - Ingredient formulas were cross-checked against the current structured
- *   Serebii Pokémon Sleep Dishes reference on 2026-08-09.
- * - `PUBLIC_RECIPE_MASTER_VERSION` is pinned by the audit gate below; future
- *   master revisions must perform a new provenance review instead of silently
- *   inheriting this evidence.
- */
-export const PUBLIC_RECIPE_PROVENANCE=Object.freeze(PUBLIC_RECIPE_MASTER.map(recipe=>Object.freeze({
-  recipe_id:recipe.recipe_id,
-  recipe_name_zh_tw:recipe.recipe_name,
-  category:recipe.category,
-  lifecycle:'ACTIVE',
-  name_evidence:'SANITIZED_USER_REFERENCE',
-  name_source_type:ACTIVE_NAME_REFERENCE.source_type,
-  name_source_name:ACTIVE_NAME_REFERENCE.source_name,
-  name_source_ref:ACTIVE_NAME_REFERENCE.source_ref,
-  name_observed_at:ACTIVE_NAME_REFERENCE.observed_at,
-  formula_evidence:'REFERENCE_VERIFIED',
-  formula_source_type:ACTIVE_FORMULA_REFERENCE.source_type,
-  formula_source_name:ACTIVE_FORMULA_REFERENCE.source_name,
-  formula_source_ref:ACTIVE_FORMULA_REFERENCE.source_ref,
-  formula_verified_at:ACTIVE_FORMULA_REFERENCE.observed_at,
-  reference_match_basis:'category_order+ingredient_signature+historical_zh_tw_identity',
-  overall_status:'ACTIVE_MIXED_EVIDENCE',
-  provenance_version:PUBLIC_RECIPE_PROVENANCE_VERSION,
-  reviewed_recipe_master_version:REVIEWED_RECIPE_MASTER_VERSION,
-})));
+const SCREENSHOT_NAME_REFERENCE=Object.freeze({
+  source_type:'game_screenshot_verified',
+  source_name:'sanitized in-game zh-TW recipe screenshot evidence',
+  source_ref:'internal:public-recipe-zh-tw-screenshot-evidence-2026-08-09',
+  observed_at:'2026-08-09',
+});
 
-/**
- * Reference-discovered rows are deliberately excluded from PUBLIC_RECIPE_MASTER.
- * They cannot appear in SQLite recipe_master, Ingredient Gap, or strategy
- * candidates until a later activation gate supplies a verified zh-TW name and
- * confirms the actual game effective date.
- */
+export const PUBLIC_RECIPE_PROVENANCE=Object.freeze(PUBLIC_RECIPE_MASTER.map(recipe=>{
+  const screenshotVerifiedName=recipe.source_type==='game_screenshot_verified';
+  const nameSource=screenshotVerifiedName?SCREENSHOT_NAME_REFERENCE:HISTORICAL_NAME_REFERENCE;
+  return Object.freeze({
+    recipe_id:recipe.recipe_id,
+    recipe_name_zh_tw:recipe.recipe_name,
+    category:recipe.category,
+    lifecycle:'ACTIVE',
+    name_evidence:screenshotVerifiedName?'GAME_SCREENSHOT_VERIFIED':'SANITIZED_USER_REFERENCE',
+    name_source_type:nameSource.source_type,
+    name_source_name:nameSource.source_name,
+    name_source_ref:nameSource.source_ref,
+    name_observed_at:nameSource.observed_at,
+    formula_evidence:'REFERENCE_VERIFIED',
+    formula_source_type:ACTIVE_FORMULA_REFERENCE.source_type,
+    formula_source_name:ACTIVE_FORMULA_REFERENCE.source_name,
+    formula_source_ref:ACTIVE_FORMULA_REFERENCE.source_ref,
+    formula_verified_at:ACTIVE_FORMULA_REFERENCE.observed_at,
+    reference_match_basis:screenshotVerifiedName?'category+ingredient_signature+in_game_zh_tw_name':'category_order+ingredient_signature+historical_zh_tw_identity',
+    overall_status:screenshotVerifiedName?'ACTIVE_SCREENSHOT_NAME_REFERENCE_FORMULA':'ACTIVE_MIXED_EVIDENCE',
+    provenance_version:PUBLIC_RECIPE_PROVENANCE_VERSION,
+    reviewed_recipe_master_version:REVIEWED_RECIPE_MASTER_VERSION,
+  });
+}));
+
 export const PUBLIC_RECIPE_UPCOMING_EVIDENCE=Object.freeze([
   Object.freeze({
     evidence_id:'upcoming_recipe_greengrass_curry_bun_20260809',
