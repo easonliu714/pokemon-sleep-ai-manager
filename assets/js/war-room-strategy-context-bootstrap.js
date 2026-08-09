@@ -1,7 +1,9 @@
+import {isDatabaseReady} from './database.js';
 import {renderWarRoomStrategyContext} from './war-room-strategy-context-ui.js';
 
 let installed=false;
 function mount(){
+  if(!isDatabaseReady())return;
   const panel=document.getElementById('warroomPanel');if(!panel)return;
   let root=document.getElementById('warroomStrategyContext');
   if(!root){
