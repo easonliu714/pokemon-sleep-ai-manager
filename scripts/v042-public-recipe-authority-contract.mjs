@@ -51,10 +51,17 @@ assert(aliasTypes.legacy_recipe_name===13,`legacy_name_alias_count:${aliasTypes.
 const sharedSource=read('assets/js/shared-master-data.js');
 const historicalSource=read('assets/js/v0383-catalog-ocr-review-contract.js');
 const rendererSource=read('assets/js/public-catalog-workbench.js');
+const syncSource=read('assets/js/public-recipe-master-sync.js');
+const migrationsSource=read('assets/js/migrations.js');
+const serviceWorkerSource=read('service-worker.js');
 assert(!sharedSource.includes('const RECIPES'),'shared_master_duplicate_recipe_authority');
 assert(!historicalSource.includes('const RECIPES'),'historical_runtime_duplicate_recipe_authority');
 assert(!rendererSource.includes('PokemonSleepPublicRecipeRegistry'),'renderer_uses_legacy_registry');
 assert(rendererSource.includes("from './public-recipe-master.js'"),'renderer_missing_public_recipe_authority_import');
+assert(migrationsSource.includes("import {syncPublicRecipeMaster} from './public-recipe-master-sync.js'"),'migration_missing_controlled_recipe_sync');
+assert(!migrationsSource.includes('applyPublicRecipeMaster(db)'),'migration_uses_legacy_full_rebuild');
+assert(serviceWorkerSource.includes("'./assets/js/public-recipe-master.js'"),'offline_cache_missing_recipe_authority');
+assert(serviceWorkerSource.includes("'./assets/js/public-recipe-master-sync.js'"),'offline_cache_missing_recipe_sync');
 
 const ingredientLiteral=extractArrayLiteral(sharedSource,'const INGREDIENTS');
 const ingredientRows=vm.runInNewContext(`(${ingredientLiteral})`,Object.create(null),{timeout:1000});
@@ -77,9 +84,16 @@ assertIngredients('鬼面鬆餅',{'好眠番茄':29,'沉甸甸南瓜':18,'特選
 assertIngredients('採蜜巧克力鬆餅',{'放鬆可可':21,'甜甜蜜':38,'純粹油':28,'萌綠玉米':28});
 
 const authoritySource=read('assets/js/public-recipe-master.js');
-for(const forbidden of ['DELETE FROM recipes','UPDATE recipes SET','INSERT INTO recipes(','INSERT OR REPLACE INTO recipes']){
-  assert(!authoritySource.includes(forbidden),`public_recipe_player_write:${forbidden}`);
+for(const [label,source] of [['authority',authoritySource],['sync',syncSource]]){
+  for(const forbidden of ['DELETE FROM recipes','UPDATE recipes SET','INSERT INTO recipes(','INSERT OR REPLACE INTO recipes']){
+    assert(!source.includes(forbidden),`${label}_player_recipe_write:${forbidden}`);
+  }
 }
+assert(syncSource.includes("DELETE FROM recipe_master WHERE recipe_id=? AND recipe_name=?"),'controlled_master_retirement_missing_identity_guard');
+assert(!syncSource.includes("db.run('DELETE FROM recipe_master')"),'unqualified_master_delete');
+assert(syncSource.includes('preserved_unrecognized_master_rows'),'unrecognized_master_preservation_missing');
+assert(syncSource.includes("alias.alias_type==='legacy_recipe_name'"),'legacy_name_retirement_not_explicit');
+assert(syncSource.includes("alias.alias_type==='legacy_recipe_id'"),'legacy_id_retirement_not_explicit');
 
 const coverage=recipeModule.recipeMasterCoverage();
 assert(coverage.recipe_count===76,'coverage_recipe_count');
@@ -87,7 +101,7 @@ assert(coverage.alias_count===89,'coverage_alias_count');
 
 process.stdout.write(`${JSON.stringify({
   status:'PASS',
-  schema:'pokemon-sleep-public-recipe-authority-contract/1.0',
+  schema:'pokemon-sleep-public-recipe-authority-contract/1.1',
   version:PUBLIC_RECIPE_MASTER_VERSION,
   recipe_count:PUBLIC_RECIPE_MASTER.length,
   alias_count:PUBLIC_RECIPE_ALIASES.length,
@@ -97,5 +111,8 @@ process.stdout.write(`${JSON.stringify({
   review_required:coverage.review_required,
   duplicate_runtime_authority:false,
   player_write_performed:false,
+  controlled_legacy_retirement:true,
+  preserve_unrecognized_master_rows:true,
+  offline_authority_cached:true,
   critical_conflict_fixtures:['忍者咖哩','電光香料可樂','鬼面鬆餅','採蜜巧克力鬆餅'],
 },null,2)}\n`);
