@@ -1,13 +1,19 @@
-name: V0.4.3 R2.1 Recipe zh-TW Evidence Audit
+name: V0.4.3 Recipe zh-TW Authority Contracts
 
 on:
   pull_request:
     paths:
       - 'assets/js/public-recipe-master.js'
+      - 'assets/js/public-recipe-canonical-authority.js'
+      - 'assets/js/public-recipe-master-sync.js'
+      - 'assets/js/public-recipe-provenance.js'
+      - 'assets/js/public-catalog-workbench.js'
+      - 'assets/js/recipe-strategy-local.js'
       - 'assets/data/public-recipe-zh-tw-screenshot-evidence-2026-08-09.json'
       - 'scripts/v043-recipe-zh-tw-evidence-audit.mjs'
       - 'scripts/v043-recipe-zh-tw-evidence-audit-contract.mjs'
       - 'scripts/v043-full50-recipe-evidence-contract.mjs'
+      - 'scripts/v043-r22-recipe-canonical-name-contract.mjs'
       - 'tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json'
       - '.github/workflows/v043-r21-recipe-zh-tw-evidence-audit.yml'
   push:
@@ -15,15 +21,21 @@ on:
       - main
     paths:
       - 'assets/js/public-recipe-master.js'
+      - 'assets/js/public-recipe-canonical-authority.js'
+      - 'assets/js/public-recipe-master-sync.js'
+      - 'assets/js/public-recipe-provenance.js'
+      - 'assets/js/public-catalog-workbench.js'
+      - 'assets/js/recipe-strategy-local.js'
       - 'assets/data/public-recipe-zh-tw-screenshot-evidence-2026-08-09.json'
       - 'scripts/v043-recipe-zh-tw-evidence-audit.mjs'
       - 'scripts/v043-recipe-zh-tw-evidence-audit-contract.mjs'
       - 'scripts/v043-full50-recipe-evidence-contract.mjs'
+      - 'scripts/v043-r22-recipe-canonical-name-contract.mjs'
       - 'tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json'
       - '.github/workflows/v043-r21-recipe-zh-tw-evidence-audit.yml'
 
 jobs:
-  recipe-zh-tw-evidence-audit:
+  recipe-zh-tw-authority-contracts:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -73,8 +85,14 @@ jobs:
           if (report.category_counts['咖哩／濃湯'] !== 13 || report.category_counts['沙拉'] !== 17 || report.category_counts['甜點／飲料'] !== 20) {
             throw new Error('Full screenshot evidence category counts drifted');
           }
-          if (report.classification_counts.FORMULA_CONFLICT < 1) throw new Error('Known screenshot/public formula conflict disappeared without review');
+          if (report.classification_counts.FORMULA_CONFLICT !== 2) throw new Error('R2.1 must preserve exactly two known formula conflicts');
           NODE
+
+      - name: Run R2.2 canonical name and legacy alias contract
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/v043-r22-recipe-canonical-name-contract.mjs | tee /tmp/v043-r22-contract.json
 
       - name: Verify fixture is synthetic and private source is absent
         shell: bash
@@ -84,13 +102,14 @@ jobs:
           if grep -R --line-number --fixed-strings 'Pokemon_Sleep_PRIVATE_RECIPES_FROM_ZIP_20260731.json' \
             scripts/v043-recipe-zh-tw-evidence-audit*.mjs \
             scripts/v043-full50-recipe-evidence-contract.mjs \
+            scripts/v043-r22-recipe-canonical-name-contract.mjs \
             tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json \
             assets/data/public-recipe-zh-tw-screenshot-evidence-2026-08-09.json; then
-            echo 'Private source filename must not be embedded in Repo R2.1 artifacts.' >&2
+            echo 'Private source filename must not be embedded in Repo artifacts.' >&2
             exit 1
           fi
 
-      - name: Verify audit produced no repository mutation
+      - name: Verify contracts produced no repository mutation
         shell: bash
         run: |
           set -o errexit -o nounset -o pipefail
