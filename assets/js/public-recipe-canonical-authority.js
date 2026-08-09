@@ -113,9 +113,20 @@ export function resolvePublicRecipeName(value){
   const text=String(value??'').normalize('NFKC').trim();
   if(!text)return null;
   const exact=PUBLIC_RECIPE_MASTER.find(row=>row.recipe_name===text);
-  if(exact)return Object.freeze({recipe_id:exact.recipe_id,recipe_name:exact.recipe_name,resolution:'CANONICAL_EXACT'});
+  if(exact)return Object.freeze({
+    recipe_id:exact.recipe_id,recipe_name:exact.recipe_name,resolution:'CANONICAL_EXACT',
+    requires_review:false,commit_allowed:true,
+  });
   const alias=PUBLIC_RECIPE_ALIASES.find(row=>row.alias_type==='legacy_recipe_name'&&row.alias_value===text);
   if(!alias)return null;
   const recipe=PUBLIC_RECIPE_MASTER.find(row=>row.recipe_id===alias.recipe_id);
-  return recipe?Object.freeze({recipe_id:recipe.recipe_id,recipe_name:recipe.recipe_name,resolution:'LEGACY_NAME_ALIAS'}):null;
+  if(!recipe)return null;
+  const safe=Boolean(alias.is_auto_replace_safe);
+  return Object.freeze({
+    recipe_id:recipe.recipe_id,
+    recipe_name:recipe.recipe_name,
+    resolution:safe?'LEGACY_NAME_ALIAS_SAFE':'LEGACY_NAME_ALIAS_REVIEW',
+    requires_review:!safe,
+    commit_allowed:safe,
+  });
 }
