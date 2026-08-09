@@ -23,7 +23,7 @@ const __filename=fileURLToPath(import.meta.url);
 const root=path.resolve(path.dirname(__filename),'..');
 const read=relative=>fs.readFileSync(path.join(root,relative),'utf8');
 
-assert.equal(CONTROLLED_SELECTOR_VERSION,'controlled-selector-2026-08-09-b');
+assert.equal(CONTROLLED_SELECTOR_VERSION,'controlled-selector-2026-08-09-c');
 assert.equal(WAR_ROOM_CONTROLLED_OPTIONS_VERSION,'war-room-controlled-options-2026-08-09-a');
 assert.equal(POKEMON_CANDIDATE_FEATURE_VERSION,'pokemon-candidate-features-2026-08-09-b');
 
@@ -123,9 +123,14 @@ for(const required of [
 ]) assert.equal(ui.includes(required),true,`controlled selector wiring missing: ${required}`);
 
 const component=read('assets/js/controlled-selector.js');
-for(const required of ['AMBIGUOUS_LEGACY_VALUE','UNKNOWN_LEGACY_VALUE','REVIEW','aria-multiselectable','data-cs-search','data-cs-remove','maxSelections','data-cs-option-value','optionByValue.get'])assert.equal(component.includes(required),true,`selector contract token missing: ${required}`);
+for(const required of [
+  'AMBIGUOUS_LEGACY_VALUE','UNKNOWN_LEGACY_VALUE','REVIEW','aria-multiselectable','data-cs-search','data-cs-remove','maxSelections',
+  'data-cs-option-value','optionByValue.get','compositionstart','compositionend','event.isComposing','renderOptions','refreshState','refocusSearch',
+]) assert.equal(component.includes(required),true,`selector contract token missing: ${required}`);
 assert.equal(component.includes('normalized.indexOf(option)'),false,'filtered result click must not depend on object identity/indexOf');
 assert.equal(component.includes("selectOption(normalized[Number(button.dataset.csOption)])"),false,'legacy index-based click commit path must be removed');
+assert.equal(component.includes("query=event.target.value;render();"),false,'search input must not be destroyed/recreated on every input event');
+assert.equal(component.includes("next?.focus()"),false,'legacy rerender-refocus IME workaround must be removed');
 
 const css=read('assets/css/editor.css');
 for(const required of ['.controlled-selector','.controlled-chip.review','.controlled-option','.controlled-number-map-row'])assert.equal(css.includes(required),true,`selector CSS missing: ${required}`);
@@ -145,6 +150,8 @@ process.stdout.write(`${JSON.stringify({
   role_options:WAR_ROOM_ROLE_OPTIONS.length,
   filtered_click_uses_stable_value:true,
   object_identity_index_commit_removed:true,
+  ime_composition_guard:true,
+  search_input_dom_preserved_while_typing:true,
   free_text_hard_constraint_inputs_removed:5,
   player_db_query_before_ready:false,
 },null,2)}\n`);
