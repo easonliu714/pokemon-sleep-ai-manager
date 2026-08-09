@@ -20,6 +20,7 @@ jobs:
           database = Path('assets/js/database.js').read_text(encoding='utf-8')
           defaults = Path('assets/js/public-empty-profile-master.js').read_text(encoding='utf-8')
           shared = Path('assets/js/shared-master-data.js').read_text(encoding='utf-8')
+          recipe_master = Path('assets/js/public-recipe-master.js').read_text(encoding='utf-8')
           master_schema = Path('assets/js/shared-master-schema.js').read_text(encoding='utf-8')
 
           required = {
@@ -34,7 +35,8 @@ jobs:
               'recipe locked-state view': 'CREATE VIEW IF NOT EXISTS recipe_catalog_state' in master_schema and 'COALESCE(r.unlocked,0)' in master_schema,
               'canonical ingredients retained': 'const INGREDIENTS' in shared,
               'canonical berry/type authority retained': 'export const PUBLIC_BERRY_TYPES' in shared and 'type_name' in shared and 'berry_name' in shared,
-              'canonical recipes retained': 'const RECIPES' in shared,
+              'canonical recipe authority retained': 'export const PUBLIC_RECIPE_MASTER_VERSION=' in recipe_master and 'export const PUBLIC_RECIPE_MASTER=' in recipe_master and 'applyPublicRecipeMaster' in recipe_master,
+              'shared master does not duplicate recipe authority': 'const RECIPES' not in shared,
               'canonical item master exists': 'CREATE TABLE IF NOT EXISTS item_master' in master_schema,
           }
           failed = [name for name, ok in required.items() if not ok]
@@ -52,5 +54,14 @@ jobs:
           leaked = [value for value in forbidden if value in corpus]
           if leaked:
               raise SystemExit('Private seed or player-table mutation remains in current source: ' + ', '.join(leaked))
+
+          public_recipe_forbidden = [
+              'DELETE FROM recipes', 'UPDATE recipes SET', 'INSERT INTO recipes(',
+              'INSERT OR REPLACE INTO recipes',
+          ]
+          recipe_writes = [value for value in public_recipe_forbidden if value in recipe_master]
+          if recipe_writes:
+              raise SystemExit('Public recipe authority mutates player recipe rows: ' + ', '.join(recipe_writes))
+
           print('PASS: public Pages exposes canonical masters through zero-state views and leaves player tables empty')
           PY
