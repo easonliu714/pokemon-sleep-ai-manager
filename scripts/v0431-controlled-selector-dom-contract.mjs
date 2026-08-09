@@ -26,20 +26,40 @@ const selector=createControlledSelector(root,{
   onChange:(values,meta)=>{changePayload={values:[...values],meta};},
 });
 
-assert.equal(CONTROLLED_SELECTOR_VERSION,'controlled-selector-2026-08-09-b');
+assert.equal(CONTROLLED_SELECTOR_VERSION,'controlled-selector-2026-08-09-c');
 assert.deepEqual(selector.values(),[]);
 
-// Reproduce Android LIVE-H1 exactly: type a search that narrows the list, then tap a row.
+// Android IME regression: composition/backspace must never replace the search input node.
 let search=root.querySelector('[data-cs-search]');
+const originalSearchNode=search;
+search.focus();
+search.dispatchEvent(new Event('compositionstart',{bubbles:true}));
+search.value='卡蒂狗';
+search.dispatchEvent(new Event('input',{bubbles:true}));
+assert.strictEqual(root.querySelector('[data-cs-search]'),originalSearchNode,'IME composition must preserve the search input DOM node');
+search.value='卡蒂';
+search.dispatchEvent(new Event('input',{bubbles:true}));
+assert.strictEqual(root.querySelector('[data-cs-search]'),originalSearchNode,'backspace during composition must preserve the search input DOM node');
+search.dispatchEvent(new Event('compositionend',{bubbles:true}));
+assert.strictEqual(root.querySelector('[data-cs-search]'),originalSearchNode,'compositionend must refresh options without rebuilding the search input');
+
+// Normal deletion after composition must also keep the keyboard-owning input node stable.
+search.value='卡';
+search.dispatchEvent(new Event('input',{bubbles:true}));
+assert.strictEqual(root.querySelector('[data-cs-search]'),originalSearchNode,'ordinary backspace/search edits must not rebuild the input');
+
+// Reproduce LIVE-H1 exactly: search to one row, then tap it and commit stable ID.
 search.value='個體 12';
 search.dispatchEvent(new Event('input',{bubbles:true}));
 let rows=[...root.querySelectorAll('[data-cs-option-value]')];
 assert.equal(rows.length,1,'filtered search must produce exactly one selectable row');
 assert.equal(rows[0].dataset.csOptionValue,'poke_010','filtered row must carry stable value, not a transient object index');
 rows[0].click();
+await Promise.resolve();
 assert.deepEqual(selector.values(),['poke_010'],'filtered row tap must commit stable Pokémon ID');
 assert.deepEqual(changePayload?.values,['poke_010'],'onChange must receive the committed stable Pokémon ID');
 assert.match(root.querySelector('.controlled-selector-chips')?.textContent||'',/卡蒂狗 · Lv8 · 技能 · 個體 12/,'selected chip must render after filtered tap');
+assert.strictEqual(root.querySelector('[data-cs-search]'),originalSearchNode,'multi-select commit must preserve the search input for continued selection');
 
 // Search again for the same species and choose the other individual; identities must remain separate.
 search=root.querySelector('[data-cs-search]');
@@ -49,15 +69,19 @@ rows=[...root.querySelectorAll('[data-cs-option-value]')];
 assert.equal(rows.length,1);
 assert.equal(rows[0].dataset.csOptionValue,'poke_013');
 rows[0].click();
+await Promise.resolve();
 assert.deepEqual(selector.values(),['poke_010','poke_013']);
+assert.strictEqual(root.querySelector('[data-cs-search]'),originalSearchNode,'second multi-select commit must still preserve input identity');
 
 // Remove and clear still work after stable-value commit.
 root.querySelector('[data-cs-remove="0"]')?.click();
 assert.deepEqual(selector.values(),['poke_013']);
 root.querySelector('[data-cs-clear]')?.click();
+await Promise.resolve();
 assert.deepEqual(selector.values(),[]);
+assert.strictEqual(root.querySelector('[data-cs-search]'),originalSearchNode,'clear must not destroy the search input');
 
-// The ingredient number-map editor reuses the same selector path and must inherit the fix.
+// The ingredient number-map editor reuses the same selector path and must inherit the stable-value fix.
 let mapPayload=null;
 const mapRoot=document.querySelector('#map');
 const mapEditor=createControlledNumberMapEditor(mapRoot,{
@@ -86,6 +110,9 @@ process.stdout.write(`${JSON.stringify({
   filtered_tap_commits_chip:true,
   onchange_stable_id:true,
   duplicate_species_individual_identity:true,
+  ime_composition_preserves_input_node:true,
+  backspace_preserves_input_node:true,
+  multi_select_keeps_search_input:true,
   remove_and_clear:true,
   ingredient_number_map_inherits_fix:true,
 },null,2)}\n`);
