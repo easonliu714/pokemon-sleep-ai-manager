@@ -1,0 +1,76 @@
+name: V0.4.3 R2.1 Recipe zh-TW Evidence Audit
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/public-recipe-master.js'
+      - 'scripts/v043-recipe-zh-tw-evidence-audit.mjs'
+      - 'scripts/v043-recipe-zh-tw-evidence-audit-contract.mjs'
+      - 'tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json'
+      - '.github/workflows/v043-r21-recipe-zh-tw-evidence-audit.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'assets/js/public-recipe-master.js'
+      - 'scripts/v043-recipe-zh-tw-evidence-audit.mjs'
+      - 'scripts/v043-recipe-zh-tw-evidence-audit-contract.mjs'
+      - 'tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json'
+      - '.github/workflows/v043-r21-recipe-zh-tw-evidence-audit.yml'
+
+jobs:
+  recipe-zh-tw-evidence-audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Run R2.1 blocking contract
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/v043-recipe-zh-tw-evidence-audit-contract.mjs | tee /tmp/v043-r21-contract.json
+
+      - name: Exercise privacy-safe CLI
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/v043-recipe-zh-tw-evidence-audit.mjs \
+            --private-file=tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json \
+            --require-count=5 \
+            | tee /tmp/v043-r21-audit.json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync('/tmp/v043-r21-audit.json', 'utf8'));
+          if (report.database_opened !== false || report.database_write_performed !== false) {
+            throw new Error('R2.1 audit must remain database-free/read-only');
+          }
+          if (report.classification_counts.FORMULA_CONFLICT !== 1) {
+            throw new Error('Expected formula conflict fixture was not preserved');
+          }
+          NODE
+
+      - name: Verify fixture is synthetic and private source is absent
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          grep -q '"fixture_only": true' tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json
+          if grep -R --line-number --fixed-strings 'Pokemon_Sleep_PRIVATE_RECIPES_FROM_ZIP_20260731.json' \
+            scripts/v043-recipe-zh-tw-evidence-audit*.mjs \
+            tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json; then
+            echo 'Private source filename must not be embedded in Repo R2.1 artifacts.' >&2
+            exit 1
+          fi
+
+      - name: Verify audit produced no repository mutation
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          git diff --exit-code
