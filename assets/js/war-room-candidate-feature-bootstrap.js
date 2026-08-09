@@ -1,7 +1,9 @@
+import {isDatabaseReady} from './database.js';
 import {renderWarRoomCandidateFeatures} from './war-room-candidate-feature-ui.js';
 
 let installed=false;
 function mount(){
+  if(!isDatabaseReady())return;
   const panel=document.getElementById('warroomPanel');if(!panel)return;
   let root=document.getElementById('warroomCandidateFeatures');
   if(!root){
