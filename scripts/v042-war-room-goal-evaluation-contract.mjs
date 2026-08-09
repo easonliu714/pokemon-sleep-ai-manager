@@ -49,7 +49,8 @@ for(const dimension of EVALUATION_DIMENSIONS)assert(fact[dimension]===null,`fact
 assert(fact.evaluation_status==='FACT_SNAPSHOT_ONLY','fact_snapshot_status');
 assert(fact.score_breakdown.fact_snapshot.favorite_berry_match===true,'favorite_berry_fact_missing');
 assert(fact.score_breakdown.fact_snapshot.unlocked_subskills.length===2,'unlocked_subskills_fact');
-assert(fact.score_breakdown.fact_snapshot.unlocked_ingredients.length===0,'locked_level30_ingredient_was_marked_unlocked');
+assert(fact.score_breakdown.fact_snapshot.unlocked_ingredients.length===1,'lv1_ingredient_not_unlocked_or_lv30_unlocked_early');
+assert(fact.score_breakdown.fact_snapshot.unlocked_ingredients[0]==='哞哞鮮奶','unexpected_unlocked_ingredient');
 assert(fact.reasons.includes('FACTS_CAPTURED_WITHOUT_GUESSED_SCORE'),'no_guess_reason_missing');
 assert(fact.missing_inputs.length===5,'missing_scoring_rules_not_explicit');
 
@@ -75,12 +76,13 @@ assert(store.includes('player_rows_modified:false'),'snapshot_player_write_contr
 assert(goalStore.includes('UPDATE strategy_goal_profile SET is_active=0'),'single_active_goal_contract_missing');
 assert(localRecipe.includes('getActiveStrategyGoalProfile'),'recipe_strategy_not_connected_to_goal_profile');
 assert(localRecipe.includes('ingredient_safe_reserve'),'ingredient_safe_reserve_not_applied');
-assert(localRecipe.includes('recipe_unlock_policy'),'recipe_unlock_policy_not_applied');
-assert(localRecipe.includes('pot_capacity_limit'),'pot_capacity_limit_not_applied');
+assert(localRecipe.includes('require_verified_master'),'verified_master_goal_constraint_not_applied');
+for(const module of ['war-room-goal-profile-bootstrap.js','war-room-candidate-feature-bootstrap.js','war-room-strategy-context-bootstrap.js'])assert(localRecipe.includes(module),`war_room_bootstrap_not_wired:${module}`);
 
 console.log(JSON.stringify({
-  status:'PASS',schema:'pokemon-sleep-war-room-goal-evaluation-contract/1.0',goal_profile_version:STRATEGY_GOAL_PROFILE_VERSION,evaluation_rule_version:POKEMON_EVALUATION_RULE_VERSION,
+  status:'PASS',schema:'pokemon-sleep-war-room-goal-evaluation-contract/1.1',goal_profile_version:STRATEGY_GOAL_PROFILE_VERSION,evaluation_rule_version:POKEMON_EVALUATION_RULE_VERSION,
   goal_profile_order_invariant:true,include_exclude_conflict_blocked:true,no_untrained_minimum_level_required:true,fresh_db_player_strategy_rows:0,
   evaluation_fingerprint_order_invariant:true,weekly_goal_master_changes_invalidate_fingerprint:true,fact_only_scores_null:true,legacy_ai_score_not_reused:true,
   snapshot_reuse_contract:true,stale_lifecycle_contract:true,pokemon_master_rows_modified:false,recipe_projection_uses_active_goal_constraints:true,
+  war_room_runtime_bootstraps:3,
 },null,2));
