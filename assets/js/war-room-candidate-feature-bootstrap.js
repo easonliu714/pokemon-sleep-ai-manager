@@ -8,8 +8,9 @@ function mount(){
   let root=document.getElementById('warroomCandidateFeatures');
   if(!root){
     root=document.createElement('div');root.id='warroomCandidateFeatures';
+    const team=document.getElementById('warroomTeamOptimizer');
     const goal=document.getElementById('warroomGoalProfile');
-    if(goal)goal.insertAdjacentElement('afterend',root);else panel.prepend(root);
+    if(team)team.insertAdjacentElement('afterend',root);else if(goal)goal.insertAdjacentElement('afterend',root);else panel.prepend(root);
   }
   renderWarRoomCandidateFeatures(root);
 }
