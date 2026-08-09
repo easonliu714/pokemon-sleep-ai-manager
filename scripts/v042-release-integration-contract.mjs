@@ -5,13 +5,23 @@ import {PUBLIC_RECIPE_PROVENANCE,PUBLIC_RECIPE_UPCOMING_EVIDENCE} from '../asset
 
 const assert=(condition,message)=>{if(!condition)throw new Error(message);};
 const read=path=>fs.readFileSync(path,'utf8');
+function versionAtLeast(actual,minimum){
+  const parse=value=>{const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)$/);return match?match.slice(1).map(Number):null;};
+  const a=parse(actual),b=parse(minimum);if(!a||!b)return false;
+  for(let i=0;i<3;i+=1){if(a[i]>b[i])return true;if(a[i]<b[i])return false;}
+  return true;
+}
 
 const authoritySource=read('assets/js/version-authority.js');
 const sandbox={};sandbox.globalThis=sandbox;vm.runInNewContext(authoritySource,sandbox);
 const authority=sandbox.PokemonSleepVersionAuthority;
-assert(authority?.app_version==='v0.4.2','central_version_not_v042');
-assert(authority?.app_build==='20260809-v042-recipe-war-room-strategy-readiness','unexpected_v042_build');
-assert(authority?.cache_name==='pokemon-sleep-ai-v0.4.2-v042-recipe-war-room-strategy-readiness','unexpected_v042_cache');
+assert(versionAtLeast(authority?.app_version,'v0.4.2'),`central_version_older_than_v042:${authority?.app_version}`);
+assert(typeof authority?.app_build==='string'&&authority.app_build.length>0,'missing_current_build');
+assert(typeof authority?.cache_name==='string'&&authority.cache_name.length>0,'missing_current_cache');
+if(authority.app_version==='v0.4.2'){
+  assert(authority.app_build==='20260809-v042-recipe-war-room-strategy-readiness','unexpected_v042_build');
+  assert(authority.cache_name==='pokemon-sleep-ai-v0.4.2-v042-recipe-war-room-strategy-readiness','unexpected_v042_cache');
+}
 
 const bootstrapModules=[
   'war-room-goal-profile-bootstrap.js',
@@ -73,8 +83,9 @@ for(const forbidden of ['ai-project-pool-runtime.js','applyPayload(','INSERT INT
 
 console.log(JSON.stringify({
   status:'PASS',
-  schema:'pokemon-sleep-v042-release-integration-contract/1.2',
-  app_version:authority.app_version,
+  schema:'pokemon-sleep-v042-release-integration-contract/1.3',
+  historical_contract_version:'v0.4.2',
+  current_app_version:authority.app_version,
   build:authority.app_build,
   cache:authority.cache_name,
   active_recipe_count:PUBLIC_RECIPE_MASTER.length,
@@ -86,4 +97,5 @@ console.log(JSON.stringify({
   strategy_context_scoring_adapter:true,
   offline_after_online_js_cache:true,
   direct_provider_apply:false,
+  forward_compatible_release_authority:true,
 },null,2));

@@ -13,7 +13,7 @@ export function renderWarRoomCandidateFeatures(root=document.getElementById('war
   try{
     const featureResult=buildLocalPokemonCandidateFeatures(),rules=scoringRuleCoverage();
     if(featureResult.projection_status!=='READY'){
-      root.innerHTML='<div class="panel"><h3>寶可夢候選特徵</h3><p class="notice">目前沒有玩家資料可進行本機候選特徵投影。</p></div>';return;
+      root.innerHTML='<div class="panel"><h3>候選／替補池</h3><p class="notice">目前沒有玩家資料可進行本機候選特徵投影。</p></div>';return;
     }
     const scored=scorePokemonCandidateFeatures(featureResult);
     const ordered=[...scored.candidates].sort((a,b)=>{
@@ -23,18 +23,20 @@ export function renderWarRoomCandidateFeatures(root=document.getElementById('war
       const ar=a.current_readiness_score??-1,br=b.current_readiness_score??-1;
       if(br!==ar)return br-ar;
       return String(a.species).localeCompare(String(b.species),'zh-Hant');
-    }).slice(0,15);
+    }).slice(0,20);
     root.innerHTML=`<div class="panel">
-      <h3>寶可夢候選特徵</h3>
-      <p class="notice">Facts/Features 與分數分層計算。現在唯一啟用的數值規則是「解鎖成熟度」：只表示已記錄食材／副技能槽位目前解鎖比例，不代表產能、總體強度或長期價值。其餘缺乏 Evidence 的分數維度保持 NULL。Hard Constraint FAIL 不進後續排名。</p>
-      <p class="notice">候選：<b>${featureResult.summary.candidate_count}</b>　可進排名：<b>${scored.summary.rank_eligible_count}</b>　PASS：<b>${featureResult.summary.hard_constraint_counts.PASS||0}</b>　REVIEW：<b>${featureResult.summary.hard_constraint_counts.REVIEW||0}</b>　FAIL：<b>${featureResult.summary.hard_constraint_counts.FAIL||0}</b>　已啟用 numeric rules：<b>${rules.active_numeric_count}</b></p>
-      <div class="table-wrap"><table><thead><tr><th>限制</th><th>寶可夢</th><th>Lv</th><th>專長</th><th>必帶</th><th>解鎖成熟度</th><th>喜好樹果</th><th>本週缺料能力</th><th>資料完整</th><th>原因</th></tr></thead><tbody>
-        ${ordered.length?ordered.map(row=>`<tr>
-          <td>${esc(row.hard_constraint_status)}</td><td>${esc(row.species)}</td><td>${esc(row.level??'—')}</td><td>${esc(row.specialty||'—')}</td>
-          <td>${row.mandatory_candidate?'是':'否'}</td><td>${readiness(row)}</td><td>${yesNo(row.favorite_berry_match)}</td><td>${esc(overlap(row))}</td><td>${completeness(row)}</td>
-          <td>${esc([...row.failed_constraints,...row.review_constraints].join('、')||'—')}</td></tr>`).join(''):'<tr><td colspan="10">目前沒有 active Pokémon。</td></tr>'}
-      </tbody></table></div>
-      <p class="notice">Feature Fingerprint：<code>${esc(featureResult.input_fingerprint||'—')}</code>　Scoring Registry：<code>${esc(scored.scoring_rule_registry_version||'—')}</code></p>
+      <details class="war-candidate-pool">
+        <summary>候選／替補池 · 顯示前 ${ordered.length} / ${featureResult.summary.candidate_count}</summary>
+        <p class="notice">此表是自動組隊的解釋／替補資料，不是最終隊伍。Facts/Features 與分數分層計算；唯一啟用的數值規則仍是「解鎖成熟度」，不代表產能或總體強度。Hard Constraint FAIL 不進正式建議隊伍。</p>
+        <p class="notice">可進排名：<b>${scored.summary.rank_eligible_count}</b>　PASS：<b>${featureResult.summary.hard_constraint_counts.PASS||0}</b>　REVIEW：<b>${featureResult.summary.hard_constraint_counts.REVIEW||0}</b>　FAIL：<b>${featureResult.summary.hard_constraint_counts.FAIL||0}</b>　已啟用 numeric rules：<b>${rules.active_numeric_count}</b></p>
+        <div class="table-wrap"><table><thead><tr><th>限制</th><th>寶可夢</th><th>Lv</th><th>專長</th><th>必帶</th><th>解鎖成熟度</th><th>喜好樹果</th><th>本週缺料能力</th><th>資料完整</th><th>原因</th></tr></thead><tbody>
+          ${ordered.length?ordered.map(row=>`<tr>
+            <td>${esc(row.hard_constraint_status)}</td><td>${esc(row.species)}</td><td>${esc(row.level??'—')}</td><td>${esc(row.specialty||'—')}</td>
+            <td>${row.mandatory_candidate?'是':'否'}</td><td>${readiness(row)}</td><td>${yesNo(row.favorite_berry_match)}</td><td>${esc(overlap(row))}</td><td>${completeness(row)}</td>
+            <td>${esc([...row.failed_constraints,...row.review_constraints].join('、')||'—')}</td></tr>`).join(''):'<tr><td colspan="10">目前沒有 active Pokémon。</td></tr>'}
+        </tbody></table></div>
+        <p class="notice">Feature Fingerprint：<code>${esc(featureResult.input_fingerprint||'—')}</code>　Scoring Registry：<code>${esc(scored.scoring_rule_registry_version||'—')}</code></p>
+      </details>
     </div>`;
-  }catch(error){root.innerHTML=`<div class="panel"><h3>寶可夢候選特徵</h3><p class="notice">Feature/Scoring Projection 尚未就緒：${esc(error?.message||String(error))}</p></div>`;}
+  }catch(error){root.innerHTML=`<div class="panel"><h3>候選／替補池</h3><p class="notice">Feature/Scoring Projection 尚未就緒：${esc(error?.message||String(error))}</p></div>`;}
 }

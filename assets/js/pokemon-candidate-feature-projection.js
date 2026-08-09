@@ -1,4 +1,4 @@
-export const POKEMON_CANDIDATE_FEATURE_VERSION='pokemon-candidate-features-2026-08-09-a';
+export const POKEMON_CANDIDATE_FEATURE_VERSION='pokemon-candidate-features-2026-08-09-b';
 
 const text=value=>String(value??'').normalize('NFKC').trim();
 const num=value=>{const n=Number(value);return value===null||value===undefined||value===''||!Number.isFinite(n)?null:n;};
@@ -12,6 +12,17 @@ function collectionBySpecies(targets=[]){
   const map=new Map();
   for(const target of targets){const species=text(target.species);if(!species)continue;if(!map.has(species))map.set(species,[]);map.get(species).push(target);}
   return map;
+}
+function speciesFrequency(pokemon=[]){
+  const counts=new Map();
+  for(const row of pokemon){const species=text(row.current_species||row.species);if(species)counts.set(species,(counts.get(species)||0)+1);}
+  return counts;
+}
+function controlledMemberMatch(tokens,pokemonId,species,frequency){
+  if(tokens.has(pokemonId))return {matched:true,ambiguous:false,source:'STABLE_ID'};
+  if(!tokens.has(species))return {matched:false,ambiguous:false,source:null};
+  const count=Number(frequency.get(species)||0);
+  return count===1?{matched:true,ambiguous:false,source:'UNIQUE_LEGACY_SPECIES'}:{matched:false,ambiguous:true,source:'AMBIGUOUS_LEGACY_SPECIES'};
 }
 function ingredientDemand(recipeProjection){
   const demand={};
@@ -63,7 +74,7 @@ export function projectPokemonCandidateFeatures({
   const demand=ingredientDemand(recipeStrategyProjection),totalDemand=Object.values(demand).reduce((sum,value)=>sum+value,0);
   const favoriteBerries=new Set([weeklyContext.favorite_berry_1,weeklyContext.favorite_berry_2,weeklyContext.favorite_berry_3].map(text).filter(Boolean));
   const mustInclude=new Set(list(constraints.must_include_pokemon)),requiredRoles=new Set(list(constraints.must_include_role)),nightTargets=new Set(list(constraints.sleep_evolution_member_at_night));
-  const rows=[];
+  const frequencies=speciesFrequency(pokemon),rows=[];
   for(const raw of [...pokemon].sort((a,b)=>text(a.pokemon_id).localeCompare(text(b.pokemon_id)))){
     const pokemonId=text(raw.pokemon_id);if(!pokemonId)continue;
     const species=text(raw.current_species||raw.species),level=num(raw.level),detail=details.get(pokemonId)||{};
@@ -71,6 +82,11 @@ export function projectPokemonCandidateFeatures({
     const ingredientNames=[...new Set(ingredients.map(row=>row.ingredient_name).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
     const overlap=ingredientNames.filter(name=>Number(demand[name]||0)>0),coveredDemand=overlap.reduce((sum,name)=>sum+Number(demand[name]||0),0);
     const completeness=profileCompleteness(raw),hard=hardConstraintResult({pokemon:raw,constraints,completeness});
+    const mustMatch=controlledMemberMatch(mustInclude,pokemonId,species,frequencies),nightMatch=controlledMemberMatch(nightTargets,pokemonId,species,frequencies);
+    const extraReview=[...hard.review_constraints];
+    if(mustMatch.ambiguous)extraReview.push('ambiguous_legacy_must_include_species');
+    if(nightMatch.ambiguous)extraReview.push('ambiguous_legacy_night_target_species');
+    const hardStatus=hard.failed_constraints.length?'FAIL':extraReview.length?'REVIEW':'PASS';
     const speciesTargets=targets.get(species)||[];
     const feature={
       pokemon_id:pokemonId,pokemon_instance_id:text(raw.pokemon_instance_id)||null,species,level,sp:num(raw.sp),specialty:text(raw.specialty)||null,type:text(raw.type)||null,
@@ -80,10 +96,10 @@ export function projectPokemonCandidateFeatures({
       unlocked_ingredients:ingredients,unlocked_subskills:subskills,weekly_ingredient_overlap:overlap,
       weekly_ingredient_demand_covered:coveredDemand,weekly_ingredient_demand_total:totalDemand,weekly_ingredient_demand_coverage:totalDemand?coveredDemand/totalDemand:null,
       profile_completeness:completeness,identity_confidence:num(raw.identity_confidence),identity_review_required:Number(raw.identity_review_required||0)===1,
-      mandatory_candidate:mustInclude.has(pokemonId)||mustInclude.has(species),matches_required_role:requiredRoles.size?requiredRoles.has(text(raw.specialty)):null,
-      night_evolution_target:nightTargets.has(pokemonId)||nightTargets.has(species),collection_target_types:list(speciesTargets.map(row=>row.target_type)),
-      hard_constraint_status:hard.status,failed_constraints:hard.failed_constraints,review_constraints:hard.review_constraints,
-      rank_eligible:hard.status!=='FAIL',
+      mandatory_candidate:mustMatch.matched,must_include_match_source:mustMatch.source,matches_required_role:requiredRoles.size?requiredRoles.has(text(raw.specialty)):null,
+      night_evolution_target:nightMatch.matched,night_target_match_source:nightMatch.source,collection_target_types:list(speciesTargets.map(row=>row.target_type)),
+      hard_constraint_status:hardStatus,failed_constraints:hard.failed_constraints,review_constraints:[...new Set(extraReview)].sort(),
+      rank_eligible:hardStatus!=='FAIL',
     };
     rows.push(feature);
   }

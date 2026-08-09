@@ -4,6 +4,7 @@ import {buildLocalPokemonCandidateScoring} from './pokemon-candidate-local.js';
 import {buildLocalRecipeStrategyProjection} from './recipe-strategy-local.js';
 import {currentEvaluationMasterVersions} from './pokemon-evaluation-store.js';
 import {buildStrategyContextPackage} from './strategy-context-package.js';
+import {normalizeGeminiStrategyResponse} from './strategy-gemini-contract.js';
 
 const latestWeeklyContext=()=>rows('SELECT * FROM weekly_context ORDER BY updated_at DESC LIMIT 1')[0]||{};
 
@@ -21,4 +22,11 @@ export function buildLocalStrategyContextPreview({includeEventText=false,candida
   if(!weeklyContext.context_id)missing_inputs.push('weekly_context');
   if(!currentTeamPokemonIds.length)missing_inputs.push('current_team_selection');
   return {...packageResult,status:'READY',missing_inputs};
+}
+
+export function normalizeLocalStrategyResponse(input,preview){
+  const payload=preview?.payload||{};
+  const validCandidateRefs=(payload.candidate_pokemon||[]).map(row=>row.candidate_ref).filter(Boolean);
+  const validRecipeIds=(payload.recipe_gap_summary||[]).map(row=>row.recipe_id).filter(Boolean);
+  return normalizeGeminiStrategyResponse(input,{validCandidateRefs,validRecipeIds});
 }

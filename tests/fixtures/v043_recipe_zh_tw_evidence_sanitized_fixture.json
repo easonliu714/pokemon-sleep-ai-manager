@@ -1,0 +1,25 @@
+{
+  "schema_version": "fixture-1.0",
+  "update_id": "SYNTHETIC_PRIVATE_UPDATE_DO_NOT_LEAK",
+  "privacy": {
+    "github_commit_allowed": false,
+    "contains_personal_account_data": false,
+    "fixture_only": true
+  },
+  "operations": [
+    {"operation_id":"FIX-001","entity":"recipes","action":"upsert","key":{"recipe_id":"synthetic_private_001"},"data":{"category":"咖哩／濃湯","recipe_name":"特選蘋果咖哩","recipe_level":99,"current_energy":98765,"notes":"SYNTHETIC_PRIVATE_NOTE_SHOULD_NOT_LEAK"},"evidence":{"source_image_ref":"SYNTHETIC_SCREENSHOT_DO_NOT_LEAK.png"}},
+    {"operation_id":"FIX-002","entity":"recipe_ingredients","action":"upsert","key":{"recipe_id":"synthetic_private_001","ingredient_name":"特選蘋果"},"data":{"quantity":7},"evidence":{"source_image_ref":"SYNTHETIC_SCREENSHOT_DO_NOT_LEAK.png"}},
+    {"operation_id":"FIX-003","entity":"recipes","action":"upsert","key":{"recipe_id":"synthetic_private_002"},"data":{"category":"咖哩／濃湯","recipe_name":"柔軟玉米濃湯"}},
+    {"operation_id":"FIX-004","entity":"recipe_ingredients","action":"upsert","key":{"recipe_id":"synthetic_private_002","ingredient_name":"萌綠玉米"},"data":{"quantity":14}},
+    {"operation_id":"FIX-005","entity":"recipe_ingredients","action":"upsert","key":{"recipe_id":"synthetic_private_002","ingredient_name":"哞哞鮮奶"},"data":{"quantity":8}},
+    {"operation_id":"FIX-006","entity":"recipe_ingredients","action":"upsert","key":{"recipe_id":"synthetic_private_002","ingredient_name":"窩心洋芋"},"data":{"quantity":8}},
+    {"operation_id":"FIX-007","entity":"recipes","action":"upsert","key":{"recipe_id":"synthetic_private_003"},"data":{"category":"咖哩／濃湯","recipe_name":"單純白醬濃湯"}},
+    {"operation_id":"FIX-008","entity":"recipe_ingredients","action":"upsert","key":{"recipe_id":"synthetic_private_003","ingredient_name":"哞哞鮮奶"},"data":{"quantity":7}},
+    {"operation_id":"FIX-009","entity":"recipes","action":"upsert","key":{"recipe_id":"synthetic_private_004"},"data":{"category":"咖哩／濃湯","recipe_name":"迷昏拳辣味咖哩"}},
+    {"operation_id":"FIX-010","entity":"recipe_ingredients","action":"upsert","key":{"recipe_id":"synthetic_private_004","ingredient_name":"萌綠大豆"},"data":{"quantity":11}},
+    {"operation_id":"FIX-011","entity":"recipe_ingredients","action":"upsert","key":{"recipe_id":"synthetic_private_004","ingredient_name":"火辣香草"},"data":{"quantity":11}},
+    {"operation_id":"FIX-012","entity":"recipe_ingredients","action":"upsert","key":{"recipe_id":"synthetic_private_004","ingredient_name":"甜甜蜜"},"data":{"quantity":11}},
+    {"operation_id":"FIX-013","entity":"recipes","action":"upsert","key":{"recipe_id":"synthetic_private_005"},"data":{"category":"點心／飲料","recipe_name":"哞哞熱鮮奶"}},
+    {"operation_id":"FIX-014","entity":"recipe_ingredients","action":"upsert","key":{"recipe_id":"synthetic_private_005","ingredient_name":"哞哞鮮奶"},"data":{"quantity":7}}
+  ]
+}

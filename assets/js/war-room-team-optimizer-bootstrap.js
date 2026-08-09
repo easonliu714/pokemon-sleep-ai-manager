@@ -1,18 +1,17 @@
 import {isDatabaseReady} from './database.js';
-import {renderWarRoomCandidateFeatures} from './war-room-candidate-feature-ui.js';
+import {renderWarRoomTeamOptimizer} from './war-room-team-optimizer-ui.js';
 
 let installed=false;
 function mount(){
   if(!isDatabaseReady())return;
   const panel=document.getElementById('warroomPanel');if(!panel)return;
-  let root=document.getElementById('warroomCandidateFeatures');
+  let root=document.getElementById('warroomTeamOptimizer');
   if(!root){
-    root=document.createElement('div');root.id='warroomCandidateFeatures';
-    const team=document.getElementById('warroomTeamOptimizer');
+    root=document.createElement('div');root.id='warroomTeamOptimizer';
     const goal=document.getElementById('warroomGoalProfile');
-    if(team)team.insertAdjacentElement('afterend',root);else if(goal)goal.insertAdjacentElement('afterend',root);else panel.prepend(root);
+    if(goal)goal.insertAdjacentElement('afterend',root);else panel.prepend(root);
   }
-  renderWarRoomCandidateFeatures(root);
+  renderWarRoomTeamOptimizer(root);
 }
 function install(){
   if(installed)return;installed=true;

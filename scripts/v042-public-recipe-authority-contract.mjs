@@ -7,6 +7,8 @@ const __filename=fileURLToPath(import.meta.url);
 const __dirname=path.dirname(__filename);
 const root=path.resolve(__dirname,'..');
 
+// Historical v0.4.2 base-fact contract: formula identity remains owned here even
+// when a later release layers a canonical zh-TW name projection on top.
 const recipeModule=await import(pathToFileURL(path.join(root,'assets/js/public-recipe-master.js')).href);
 const {PUBLIC_RECIPE_MASTER,PUBLIC_RECIPE_ALIASES,PUBLIC_RECIPE_MASTER_VERSION}=recipeModule;
 
@@ -57,10 +59,11 @@ const serviceWorkerSource=read('service-worker.js');
 assert(!sharedSource.includes('const RECIPES'),'shared_master_duplicate_recipe_authority');
 assert(!historicalSource.includes('const RECIPES'),'historical_runtime_duplicate_recipe_authority');
 assert(!rendererSource.includes('PokemonSleepPublicRecipeRegistry'),'renderer_uses_legacy_registry');
-assert(rendererSource.includes("from './public-recipe-master.js'"),'renderer_missing_public_recipe_authority_import');
+assert(rendererSource.includes("from './public-recipe-canonical-authority.js'"),'renderer_missing_recipe_runtime_authority_import');
+assert(!rendererSource.includes("from './public-recipe-master.js'"),'renderer_bypasses_recipe_canonical_projection');
 assert(migrationsSource.includes("import {syncPublicRecipeMaster} from './public-recipe-master-sync.js'"),'migration_missing_controlled_recipe_sync');
 assert(!migrationsSource.includes('applyPublicRecipeMaster(db)'),'migration_uses_legacy_full_rebuild');
-assert(serviceWorkerSource.includes("'./assets/js/public-recipe-master.js'"),'offline_cache_missing_recipe_authority');
+assert(serviceWorkerSource.includes("'./assets/js/public-recipe-master.js'"),'offline_cache_missing_recipe_base_authority');
 assert(serviceWorkerSource.includes("'./assets/js/public-recipe-master-sync.js'"),'offline_cache_missing_recipe_sync');
 
 const ingredientLiteral=extractArrayLiteral(sharedSource,'const INGREDIENTS');
@@ -101,7 +104,7 @@ assert(coverage.alias_count===89,'coverage_alias_count');
 
 process.stdout.write(`${JSON.stringify({
   status:'PASS',
-  schema:'pokemon-sleep-public-recipe-authority-contract/1.1',
+  schema:'pokemon-sleep-public-recipe-authority-contract/1.2',
   version:PUBLIC_RECIPE_MASTER_VERSION,
   recipe_count:PUBLIC_RECIPE_MASTER.length,
   alias_count:PUBLIC_RECIPE_ALIASES.length,
@@ -110,9 +113,10 @@ process.stdout.write(`${JSON.stringify({
   ingredient_relation_count:coverage.ingredient_relation_count,
   review_required:coverage.review_required,
   duplicate_runtime_authority:false,
+  runtime_name_projection_forward_compatible:true,
   player_write_performed:false,
   controlled_legacy_retirement:true,
   preserve_unrecognized_master_rows:true,
-  offline_authority_cached:true,
+  offline_base_authority_cached:true,
   critical_conflict_fixtures:['忍者咖哩','電光香料可樂','鬼面鬆餅','採蜜巧克力鬆餅'],
 },null,2)}\n`);

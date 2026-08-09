@@ -21,15 +21,16 @@ const weeklyContext={context_id:'week1',camp:'萌綠之島',dish_category:'甜�
 const recipeStrategyProjection={input_fingerprint:'recipe_strategy:abc',candidates:[{recipe_id:'r1',requirements:[{ingredient_name:'特選蘋果',strategy_shortage:10},{ingredient_name:'哞哞鮮奶',strategy_shortage:5},{ingredient_name:'放鬆可可',strategy_shortage:5}]}]};
 const goalProfile={goal_profile_id:'g1',...normalizeStrategyGoalProfile({primary_goal:'unlock_recipes',hard_constraints:{must_include_pokemon:['伊布'],must_include_role:['技能'],exclude_pokemon:['皮卡丘'],current_unlocks_only:true,no_untrained_candidates:true,minimum_candidate_level:20,require_complete_profile_fields:true}})};
 const targets=[{target_id:'t1',species:'伊布',target_type:'進化目標',status:'active'},{target_id:'t2',species:'傑尼龜',target_type:'食材補強',status:'active'}];
-const run=(p=pokemon,d=details)=>projectPokemonCandidateFeatures({pokemon:p,pokemonDetails:d,weeklyContext,goalProfile,recipeStrategyProjection,collectionTargets:targets,masterVersions:{pokemon:'v1',recipe:'v1'}});
+const run=(p=pokemon,d=details,profile=goalProfile)=>projectPokemonCandidateFeatures({pokemon:p,pokemonDetails:d,weeklyContext,goalProfile:profile,recipeStrategyProjection,collectionTargets:targets,masterVersions:{pokemon:'v1',recipe:'v1'}});
 const result=run();
 const get=id=>result.candidates.find(row=>row.pokemon_id===id);
 
-assert(POKEMON_CANDIDATE_FEATURE_VERSION==='pokemon-candidate-features-2026-08-09-a','feature_version');
+assert(['pokemon-candidate-features-2026-08-09-a','pokemon-candidate-features-2026-08-09-b'].includes(POKEMON_CANDIDATE_FEATURE_VERSION),`feature_version:${POKEMON_CANDIDATE_FEATURE_VERSION}`);
 assert(result.candidates.length===3,'candidate_count');
 assert(result.numeric_scores_generated===false&&result.score_activation_status==='FEATURE_ONLY','feature_projection_generated_scores');
 assert(get('p1').mandatory_candidate===true,'must_include_not_marked_mandatory');
 assert(get('p1').hard_constraint_status==='PASS','mandatory_candidate_wrong_hard_status');
+if(POKEMON_CANDIDATE_FEATURE_VERSION.endsWith('-b'))assert(get('p1').must_include_match_source==='UNIQUE_LEGACY_SPECIES','unique_legacy_species_match_source_missing');
 assert(get('p2').hard_constraint_status==='FAIL','excluded_or_low_level_candidate_not_failed');
 assert(get('p2').failed_constraints.includes('exclude_pokemon'),'exclude_constraint_missing');
 assert(get('p2').failed_constraints.includes('minimum_candidate_level'),'minimum_level_constraint_missing');
@@ -51,6 +52,20 @@ const reversed=run([...pokemon].reverse(),[...details].reverse());
 assert(reversed.input_fingerprint===result.input_fingerprint,'feature_fingerprint_order_dependent');
 assert(JSON.stringify(reversed.candidates)===JSON.stringify(result.candidates),'candidate_features_order_dependent');
 
+let ambiguousLegacySpeciesSafe=true;
+if(POKEMON_CANDIDATE_FEATURE_VERSION.endsWith('-b')){
+  const duplicate={...pokemon[0],pokemon_id:'p4',pokemon_instance_id:'instance_p4',sp:990};
+  const duplicateDetail={pokemon_id:'p4',ingredients:[{unlock_level:1,ingredient_name:'哞哞鮮奶',quantity:1}],subskills:[{unlock_level:10,subskill_name:'幫忙速度S',is_unlocked:1}]};
+  const ambiguous=run([...pokemon,duplicate],[...details,duplicateDetail]);
+  const eeveeRows=ambiguous.candidates.filter(row=>row.species==='伊布');
+  ambiguousLegacySpeciesSafe=eeveeRows.length===2
+    && eeveeRows.every(row=>row.mandatory_candidate===false)
+    && eeveeRows.every(row=>row.must_include_match_source==='AMBIGUOUS_LEGACY_SPECIES')
+    && eeveeRows.every(row=>row.hard_constraint_status==='REVIEW')
+    && eeveeRows.every(row=>row.review_constraints.includes('ambiguous_legacy_must_include_species'));
+  assert(ambiguousLegacySpeciesSafe,'ambiguous_legacy_species_must_not_mark_all_instances_mandatory');
+}
+
 const coverage=scoringRuleCoverage();
 assert(POKEMON_SCORING_RULE_REGISTRY_VERSION==='pokemon-scoring-rules-2026-08-09-b','scoring_registry_version');
 assert(coverage.dimension_count===5,'scoring_dimension_count');
@@ -66,8 +81,9 @@ for(const dimension of ['intrinsic_score','weekly_fit_score','roster_marginal_va
 }
 
 console.log(JSON.stringify({
-  status:'PASS',schema:'pokemon-sleep-candidate-feature-contract/1.1',feature_version:POKEMON_CANDIDATE_FEATURE_VERSION,
-  candidate_count:3,rank_eligible_count:result.summary.rank_eligible_count,feature_order_invariant:true,numeric_scores_generated:false,
+  status:'PASS',schema:'pokemon-sleep-candidate-feature-contract/1.2',feature_version:POKEMON_CANDIDATE_FEATURE_VERSION,
+  historical_minimum_feature_version:'pokemon-candidate-features-2026-08-09-a',candidate_count:3,
+  rank_eligible_count:result.summary.rank_eligible_count,feature_order_invariant:true,numeric_scores_generated:false,
   active_numeric_scoring_rules:1,team_level_constraints_not_misapplied:true,current_unlock_thresholds_respected:true,
-  favorite_berry_and_recipe_demand_features:true,player_data_write:false,
+  favorite_berry_and_recipe_demand_features:true,ambiguous_legacy_species_safe:ambiguousLegacySpeciesSafe,player_data_write:false,
 },null,2));

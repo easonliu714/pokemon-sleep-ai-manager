@@ -1,0 +1,198 @@
+name: V0.4.3 Recipe and War Room Authority Contracts
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/public-recipe-master.js'
+      - 'assets/js/public-recipe-canonical-authority.js'
+      - 'assets/js/public-recipe-master-sync.js'
+      - 'assets/js/public-recipe-provenance.js'
+      - 'assets/js/public-catalog-workbench.js'
+      - 'assets/js/recipe-strategy-local.js'
+      - 'assets/js/migrations.js'
+      - 'assets/js/controlled-selector.js'
+      - 'assets/js/war-room-controlled-options.js'
+      - 'assets/js/war-room-goal-profile-ui.js'
+      - 'assets/js/team-optimizer.js'
+      - 'assets/js/team-optimizer-local.js'
+      - 'assets/js/war-room-team-optimizer-ui.js'
+      - 'assets/js/war-room-team-optimizer-bootstrap.js'
+      - 'assets/js/war-room-candidate-feature-ui.js'
+      - 'assets/js/war-room-candidate-feature-bootstrap.js'
+      - 'assets/css/editor.css'
+      - 'assets/data/public-recipe-zh-tw-screenshot-evidence-2026-08-09.json'
+      - 'scripts/v042-recipe-provenance-audit.mjs'
+      - 'scripts/v042-recipe-sync-preservation-contract.mjs'
+      - 'scripts/v043-recipe-zh-tw-evidence-audit.mjs'
+      - 'scripts/v043-recipe-zh-tw-evidence-audit-contract.mjs'
+      - 'scripts/v043-full50-recipe-evidence-contract.mjs'
+      - 'scripts/v043-r22-recipe-canonical-name-contract.mjs'
+      - 'scripts/v043-r24-controlled-selector-contract.mjs'
+      - 'scripts/v043-r25-team-optimizer-contract.mjs'
+      - 'scripts/v043-r26-team-ux-contract.mjs'
+      - 'tests/test_g14_public_catalog_renderer_authority.py'
+      - 'tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json'
+      - '.github/workflows/v043-r21-recipe-zh-tw-evidence-audit.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'assets/js/public-recipe-master.js'
+      - 'assets/js/public-recipe-canonical-authority.js'
+      - 'assets/js/public-recipe-master-sync.js'
+      - 'assets/js/public-recipe-provenance.js'
+      - 'assets/js/public-catalog-workbench.js'
+      - 'assets/js/recipe-strategy-local.js'
+      - 'assets/js/migrations.js'
+      - 'assets/js/controlled-selector.js'
+      - 'assets/js/war-room-controlled-options.js'
+      - 'assets/js/war-room-goal-profile-ui.js'
+      - 'assets/js/team-optimizer.js'
+      - 'assets/js/team-optimizer-local.js'
+      - 'assets/js/war-room-team-optimizer-ui.js'
+      - 'assets/js/war-room-team-optimizer-bootstrap.js'
+      - 'assets/js/war-room-candidate-feature-ui.js'
+      - 'assets/js/war-room-candidate-feature-bootstrap.js'
+      - 'assets/css/editor.css'
+      - 'assets/data/public-recipe-zh-tw-screenshot-evidence-2026-08-09.json'
+      - 'scripts/v042-recipe-provenance-audit.mjs'
+      - 'scripts/v042-recipe-sync-preservation-contract.mjs'
+      - 'scripts/v043-recipe-zh-tw-evidence-audit.mjs'
+      - 'scripts/v043-recipe-zh-tw-evidence-audit-contract.mjs'
+      - 'scripts/v043-full50-recipe-evidence-contract.mjs'
+      - 'scripts/v043-r22-recipe-canonical-name-contract.mjs'
+      - 'scripts/v043-r24-controlled-selector-contract.mjs'
+      - 'scripts/v043-r25-team-optimizer-contract.mjs'
+      - 'scripts/v043-r26-team-ux-contract.mjs'
+      - 'tests/test_g14_public_catalog_renderer_authority.py'
+      - 'tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json'
+      - '.github/workflows/v043-r21-recipe-zh-tw-evidence-audit.yml'
+
+jobs:
+  recipe-war-room-authority-contracts:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Run R2.1 synthetic privacy contract
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/v043-recipe-zh-tw-evidence-audit-contract.mjs | tee /tmp/v043-r21-contract.json
+
+      - name: Exercise privacy-safe private-input CLI
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/v043-recipe-zh-tw-evidence-audit.mjs \
+            --private-file=tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json \
+            --require-count=5 \
+            | tee /tmp/v043-r21-audit.json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync('/tmp/v043-r21-audit.json', 'utf8'));
+          if (report.database_opened !== false || report.database_write_performed !== false) {
+            throw new Error('R2.1 audit must remain database-free/read-only');
+          }
+          if (report.classification_counts.FORMULA_CONFLICT !== 1) {
+            throw new Error('Expected formula conflict fixture was not preserved');
+          }
+          NODE
+
+      - name: Run full-50 sanitized screenshot reconciliation
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/v043-full50-recipe-evidence-contract.mjs | tee /tmp/v043-r21-full50.json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync('/tmp/v043-r21-full50.json', 'utf8'));
+          if (report.observed_recipe_count !== 50) throw new Error('Full screenshot evidence set must contain exactly 50 recipes');
+          if (report.category_counts['咖哩／濃湯'] !== 13 || report.category_counts['沙拉'] !== 17 || report.category_counts['甜點／飲料'] !== 20) {
+            throw new Error('Full screenshot evidence category counts drifted');
+          }
+          if (report.classification_counts.FORMULA_CONFLICT !== 2) throw new Error('R2.1 must preserve exactly two known formula conflicts');
+          NODE
+
+      - name: Run R2.2 canonical name and legacy alias contract
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/v043-r22-recipe-canonical-name-contract.mjs | tee /tmp/v043-r22-contract.json
+
+      - name: Verify projected provenance coverage
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/v042-recipe-provenance-audit.mjs | tee /tmp/v043-r22-provenance.json
+
+      - name: Run R2.4 controlled selector contract
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/v043-r24-controlled-selector-contract.mjs | tee /tmp/v043-r24-selector.json
+
+      - name: Run R2.5 deterministic five-member optimizer contract
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/v043-r25-team-optimizer-contract.mjs | tee /tmp/v043-r25-team.json
+
+      - name: Run R2.6 five-member Team Card UX contract
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/v043-r26-team-ux-contract.mjs | tee /tmp/v043-r26-team-ux.json
+
+      - name: Install SQL.js fixture runtime
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          npm install --no-save --ignore-scripts sql.js@1.13.0
+
+      - name: Run R2.3 existing-player preservation and idempotency
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/v042-recipe-sync-preservation-contract.mjs | tee /tmp/v043-r23-preservation.json
+
+      - name: Verify migration authority and G14 renderer authority
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          grep -q "PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-canonical-authority.js'" assets/js/migrations.js
+          grep -q "PUBLIC_RECIPE_MASTER,PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-canonical-authority.js'" assets/js/public-catalog-workbench.js
+          if grep -q "from './public-recipe-master.js'" assets/js/public-catalog-workbench.js; then
+            echo 'Renderer bypassed canonical recipe authority.' >&2
+            exit 1
+          fi
+          python tests/test_g14_public_catalog_renderer_authority.py
+
+      - name: Verify fixture is synthetic and private source is absent
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          grep -q '"fixture_only": true' tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json
+          if grep -R --line-number --fixed-strings 'Pokemon_Sleep_PRIVATE_RECIPES_FROM_ZIP_20260731.json' \
+            scripts/v043-recipe-zh-tw-evidence-audit*.mjs \
+            scripts/v043-full50-recipe-evidence-contract.mjs \
+            scripts/v043-r22-recipe-canonical-name-contract.mjs \
+            tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json \
+            assets/data/public-recipe-zh-tw-screenshot-evidence-2026-08-09.json; then
+            echo 'Private source filename must not be embedded in Repo artifacts.' >&2
+            exit 1
+          fi
+
+      - name: Verify contracts produced no repository mutation
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          git diff --exit-code -- . ':!package-lock.json'

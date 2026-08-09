@@ -8,6 +8,7 @@ database = (root / 'assets/js/database.js').read_text(encoding='utf-8')
 item_master = (root / 'assets/js/public-item-master.js').read_text(encoding='utf-8')
 item_seed = (root / 'assets/js/public-empty-profile-master.js').read_text(encoding='utf-8')
 recipe_master = (root / 'assets/js/public-recipe-master.js').read_text(encoding='utf-8')
+recipe_canonical = (root / 'assets/js/public-recipe-canonical-authority.js').read_text(encoding='utf-8')
 legacy_recipe = (root / 'assets/js/v0383-catalog-ocr-review-contract.js').read_text(encoding='utf-8')
 shared_master = (root / 'assets/js/shared-master-data.js').read_text(encoding='utf-8')
 rescue = (root / 'assets/js/v0389-rescue-catalog-import.js').read_text(encoding='utf-8')
@@ -58,12 +59,17 @@ assert "import {PUBLIC_ITEM_MASTER,PUBLIC_ITEM_MASTER_VERSION} from './public-it
 assert 'effect_description_zh_tw=excluded.effect_description_zh_tw' in item_seed
 assert "VALUES('public_item_master_version'" in item_seed
 
-# v0.4.2 recipe facts must also have exactly one runtime authority.
+# Recipe base facts remain in public-recipe-master.js, while every runtime display/sync
+# consumer must go through the v0.4.3 canonical-name projection.
 assert 'export const PUBLIC_RECIPE_MASTER_VERSION=' in recipe_master
 assert 'export const PUBLIC_RECIPE_MASTER=' in recipe_master
 assert 'export const PUBLIC_RECIPE_ALIASES=' in recipe_master
 assert 'export function applyPublicRecipeMaster' in recipe_master
-assert "import {PUBLIC_RECIPE_MASTER,PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-master.js'" in module
+assert 'export const PUBLIC_RECIPE_CANONICAL_NAME_VERSION=' in recipe_canonical
+assert 'export const PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES=' in recipe_canonical
+assert "from './public-recipe-master.js'" in recipe_canonical
+assert "import {PUBLIC_RECIPE_MASTER,PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-canonical-authority.js'" in module
+assert "from './public-recipe-master.js'" not in module
 assert 'PokemonSleepPublicRecipeRegistry' not in module
 assert 'const RECIPES' not in shared_master
 assert 'const RECIPES' not in legacy_recipe
@@ -75,6 +81,7 @@ for forbidden in [
     'INSERT OR REPLACE INTO recipes',
 ]:
     assert forbidden not in recipe_master, f'public recipe updater mutates player data: {forbidden}'
+    assert forbidden not in recipe_canonical, f'canonical recipe projection mutates player data: {forbidden}'
 
 # Version audit must be local-first and only persist when schema/master changed.
 for token in [
@@ -114,6 +121,8 @@ print({
     'renderer': 'cause_aware_generation_queue',
     'single_item_authority': True,
     'single_recipe_authority': True,
+    'recipe_runtime_authority': 'public-recipe-canonical-authority.js',
+    'recipe_base_fact_authority': 'public-recipe-master.js',
     'version_audit': True,
     'unchanged_version_persist': False,
     'mutation_observer': False,
