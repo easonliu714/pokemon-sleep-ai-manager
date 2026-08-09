@@ -4,8 +4,10 @@ on:
   pull_request:
     paths:
       - 'assets/js/public-recipe-master.js'
+      - 'assets/data/public-recipe-zh-tw-screenshot-evidence-2026-08-09.json'
       - 'scripts/v043-recipe-zh-tw-evidence-audit.mjs'
       - 'scripts/v043-recipe-zh-tw-evidence-audit-contract.mjs'
+      - 'scripts/v043-full50-recipe-evidence-contract.mjs'
       - 'tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json'
       - '.github/workflows/v043-r21-recipe-zh-tw-evidence-audit.yml'
   push:
@@ -13,8 +15,10 @@ on:
       - main
     paths:
       - 'assets/js/public-recipe-master.js'
+      - 'assets/data/public-recipe-zh-tw-screenshot-evidence-2026-08-09.json'
       - 'scripts/v043-recipe-zh-tw-evidence-audit.mjs'
       - 'scripts/v043-recipe-zh-tw-evidence-audit-contract.mjs'
+      - 'scripts/v043-full50-recipe-evidence-contract.mjs'
       - 'tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json'
       - '.github/workflows/v043-r21-recipe-zh-tw-evidence-audit.yml'
 
@@ -32,13 +36,13 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Run R2.1 blocking contract
+      - name: Run R2.1 synthetic privacy contract
         shell: bash
         run: |
           set -o errexit -o nounset -o pipefail
           node scripts/v043-recipe-zh-tw-evidence-audit-contract.mjs | tee /tmp/v043-r21-contract.json
 
-      - name: Exercise privacy-safe CLI
+      - name: Exercise privacy-safe private-input CLI
         shell: bash
         run: |
           set -o errexit -o nounset -o pipefail
@@ -57,6 +61,21 @@ jobs:
           }
           NODE
 
+      - name: Run full-50 sanitized screenshot reconciliation
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/v043-full50-recipe-evidence-contract.mjs | tee /tmp/v043-r21-full50.json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync('/tmp/v043-r21-full50.json', 'utf8'));
+          if (report.observed_recipe_count !== 50) throw new Error('Full screenshot evidence set must contain exactly 50 recipes');
+          if (report.category_counts['咖哩／濃湯'] !== 13 || report.category_counts['沙拉'] !== 17 || report.category_counts['甜點／飲料'] !== 20) {
+            throw new Error('Full screenshot evidence category counts drifted');
+          }
+          if (report.classification_counts.FORMULA_CONFLICT < 1) throw new Error('Known screenshot/public formula conflict disappeared without review');
+          NODE
+
       - name: Verify fixture is synthetic and private source is absent
         shell: bash
         run: |
@@ -64,7 +83,9 @@ jobs:
           grep -q '"fixture_only": true' tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json
           if grep -R --line-number --fixed-strings 'Pokemon_Sleep_PRIVATE_RECIPES_FROM_ZIP_20260731.json' \
             scripts/v043-recipe-zh-tw-evidence-audit*.mjs \
-            tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json; then
+            scripts/v043-full50-recipe-evidence-contract.mjs \
+            tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json \
+            assets/data/public-recipe-zh-tw-screenshot-evidence-2026-08-09.json; then
             echo 'Private source filename must not be embedded in Repo R2.1 artifacts.' >&2
             exit 1
           fi
