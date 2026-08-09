@@ -21,6 +21,8 @@ jobs:
           defaults = Path('assets/js/public-empty-profile-master.js').read_text(encoding='utf-8')
           shared = Path('assets/js/shared-master-data.js').read_text(encoding='utf-8')
           recipe_master = Path('assets/js/public-recipe-master.js').read_text(encoding='utf-8')
+          recipe_sync = Path('assets/js/public-recipe-master-sync.js').read_text(encoding='utf-8')
+          migrations = Path('assets/js/migrations.js').read_text(encoding='utf-8')
           master_schema = Path('assets/js/shared-master-schema.js').read_text(encoding='utf-8')
 
           required = {
@@ -35,7 +37,9 @@ jobs:
               'recipe locked-state view': 'CREATE VIEW IF NOT EXISTS recipe_catalog_state' in master_schema and 'COALESCE(r.unlocked,0)' in master_schema,
               'canonical ingredients retained': 'const INGREDIENTS' in shared,
               'canonical berry/type authority retained': 'export const PUBLIC_BERRY_TYPES' in shared and 'type_name' in shared and 'berry_name' in shared,
-              'canonical recipe authority retained': 'export const PUBLIC_RECIPE_MASTER_VERSION=' in recipe_master and 'export const PUBLIC_RECIPE_MASTER=' in recipe_master and 'applyPublicRecipeMaster' in recipe_master,
+              'canonical recipe facts retained': 'export const PUBLIC_RECIPE_MASTER_VERSION=' in recipe_master and 'export const PUBLIC_RECIPE_MASTER=' in recipe_master and 'export const PUBLIC_RECIPE_ALIASES=' in recipe_master,
+              'controlled recipe sync retained': 'export function syncPublicRecipeMaster' in recipe_sync and 'preserved_unrecognized_master_rows' in recipe_sync,
+              'runtime uses controlled recipe sync': "import {syncPublicRecipeMaster} from './public-recipe-master-sync.js'" in migrations and 'syncPublicRecipeMaster(db)' in migrations,
               'shared master does not duplicate recipe authority': 'const RECIPES' not in shared,
               'canonical item master exists': 'CREATE TABLE IF NOT EXISTS item_master' in master_schema,
           }
@@ -59,9 +63,16 @@ jobs:
               'DELETE FROM recipes', 'UPDATE recipes SET', 'INSERT INTO recipes(',
               'INSERT OR REPLACE INTO recipes',
           ]
-          recipe_writes = [value for value in public_recipe_forbidden if value in recipe_master]
+          recipe_writes = [
+              f'{name}:{value}'
+              for name, source in [('authority', recipe_master), ('sync', recipe_sync)]
+              for value in public_recipe_forbidden if value in source
+          ]
           if recipe_writes:
-              raise SystemExit('Public recipe authority mutates player recipe rows: ' + ', '.join(recipe_writes))
+              raise SystemExit('Public recipe runtime mutates player recipe rows: ' + ', '.join(recipe_writes))
+
+          if "DELETE FROM recipe_master'" in recipe_sync or 'DELETE FROM recipe_master"' in recipe_sync:
+              raise SystemExit('Controlled recipe sync contains unqualified recipe_master delete')
 
           print('PASS: public Pages exposes canonical masters through zero-state views and leaves player tables empty')
           PY
