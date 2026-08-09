@@ -1,20 +1,20 @@
-export const POKEMON_SCORING_RULE_REGISTRY_VERSION='pokemon-scoring-rules-2026-08-09-a';
+export const POKEMON_SCORING_RULE_REGISTRY_VERSION='pokemon-scoring-rules-2026-08-09-b';
 
-const rule=(dimension,status,featureInputs,reason)=>Object.freeze({
+const rule=(dimension,status,featureInputs,reason,{formula=null,sourceRefs=[],ruleVersion=null}={})=>Object.freeze({
   dimension,
   status,
   feature_inputs:Object.freeze([...featureInputs]),
-  formula:null,
+  formula,
   score_range:Object.freeze([0,100]),
-  source_refs:Object.freeze([]),
+  source_refs:Object.freeze([...sourceRefs]),
   reason,
-  rule_version:POKEMON_SCORING_RULE_REGISTRY_VERSION,
+  rule_version:ruleVersion||POKEMON_SCORING_RULE_REGISTRY_VERSION,
 });
 
 /**
- * Numeric scores are deliberately disabled until a rule has an explicit
- * strategy meaning, evidence/source notes and deterministic fixtures.
- * Feature projection may be available before a numeric score is activated.
+ * A numeric score is activated only when the project has an explicit semantic
+ * meaning, exact formula, evidence/governance source and deterministic fixture.
+ * Feature projection itself remains fact-only; scoring is a separate layer.
  */
 export const POKEMON_SCORING_RULES=Object.freeze({
   intrinsic_score:rule(
@@ -23,9 +23,14 @@ export const POKEMON_SCORING_RULES=Object.freeze({
     '個體長期價值需要 specialty-aware 權重與遊戲機制證據；目前只投影 facts，不猜總分。',
   ),
   current_readiness_score:rule(
-    'current_readiness_score','FEATURE_ONLY',
-    ['level','unlocked_subskills','unlocked_ingredients','main_skill_level','profile_completeness'],
-    '目前可用能力可被 deterministic 投影，但尚未定義跨專長可比較的數值權重。',
+    'current_readiness_score','ACTIVE_VERIFIED',
+    ['known_ingredient_slot_count','known_subskill_slot_count','unlocked_ingredient_slot_count','unlocked_subskill_slot_count'],
+    '目前僅量測已記錄能力槽位的解鎖成熟度；不是產能、總體強度或長期價值。',
+    {
+      formula:'100 * unlocked_known_slots / known_unlock_slots',
+      sourceRefs:['docs/WAR_ROOM_SCORING_RULES_V1.md'],
+      ruleVersion:'current-unlock-readiness-2026-08-09-a',
+    },
   ),
   weekly_fit_score:rule(
     'weekly_fit_score','FEATURE_ONLY',
