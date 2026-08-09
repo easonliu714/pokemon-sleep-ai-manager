@@ -20,10 +20,7 @@ on:
       - 'assets/js/strategy-context-package.js'
       - 'assets/js/strategy-gemini-contract.js'
       - 'scripts/v042-release-integration-contract.mjs'
-      - 'scripts/v043-r24-controlled-selector-contract.mjs'
-      - 'scripts/v043-r25-team-optimizer-contract.mjs'
-      - 'scripts/v043-r26-team-ux-contract.mjs'
-      - 'scripts/v043-release-integration-contract.mjs'
+      - 'scripts/v043-*.mjs'
       - '.github/workflows/v043-release-integration.yml'
   push:
     branches:
@@ -46,10 +43,7 @@ on:
       - 'assets/js/strategy-context-package.js'
       - 'assets/js/strategy-gemini-contract.js'
       - 'scripts/v042-release-integration-contract.mjs'
-      - 'scripts/v043-r24-controlled-selector-contract.mjs'
-      - 'scripts/v043-r25-team-optimizer-contract.mjs'
-      - 'scripts/v043-r26-team-ux-contract.mjs'
-      - 'scripts/v043-release-integration-contract.mjs'
+      - 'scripts/v043-*.mjs'
       - '.github/workflows/v043-release-integration.yml'
 
 jobs:
