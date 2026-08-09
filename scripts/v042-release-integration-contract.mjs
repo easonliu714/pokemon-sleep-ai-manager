@@ -13,14 +13,19 @@ assert(authority?.app_version==='v0.4.2','central_version_not_v042');
 assert(authority?.app_build==='20260809-v042-recipe-war-room-strategy-readiness','unexpected_v042_build');
 assert(authority?.cache_name==='pokemon-sleep-ai-v0.4.2-v042-recipe-war-room-strategy-readiness','unexpected_v042_cache');
 
-const localRecipe=read('assets/js/recipe-strategy-local.js');
-for(const module of [
+const bootstrapModules=[
   'war-room-goal-profile-bootstrap.js',
   'war-room-candidate-feature-bootstrap.js',
   'war-room-strategy-context-bootstrap.js',
-]){
+];
+const localRecipe=read('assets/js/recipe-strategy-local.js');
+for(const module of bootstrapModules){
   assert(localRecipe.includes(`import('./${module}')`),`war_room_runtime_not_wired:${module}`);
   assert(fs.existsSync(`assets/js/${module}`),`war_room_bootstrap_missing:${module}`);
+  const source=read(`assets/js/${module}`);
+  assert(source.includes("import {isDatabaseReady} from './database.js'"),`bootstrap_missing_database_ready_import:${module}`);
+  assert(source.includes('if(!isDatabaseReady())return;'),`bootstrap_mount_before_database_ready:${module}`);
+  assert(source.includes('pokemon-sleep:database-ready'),`bootstrap_missing_database_ready_event:${module}`);
 }
 
 const goalUi=read('assets/js/war-room-goal-profile-ui.js');
@@ -68,13 +73,14 @@ for(const forbidden of ['ai-project-pool-runtime.js','applyPayload(','INSERT INT
 
 console.log(JSON.stringify({
   status:'PASS',
-  schema:'pokemon-sleep-v042-release-integration-contract/1.1',
+  schema:'pokemon-sleep-v042-release-integration-contract/1.2',
   app_version:authority.app_version,
   build:authority.app_build,
   cache:authority.cache_name,
   active_recipe_count:PUBLIC_RECIPE_MASTER.length,
   upcoming_recipe_count:PUBLIC_RECIPE_UPCOMING_EVIDENCE.length,
   war_room_runtime_bootstraps:3,
+  war_room_mount_requires_database_ready:true,
   migration_version:8,
   rescue_war_room_db_safe:true,
   strategy_context_scoring_adapter:true,
