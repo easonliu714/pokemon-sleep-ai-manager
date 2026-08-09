@@ -70,3 +70,15 @@ export function buildLocalRecipeStrategyProjection({
     weekly_context_updated_at:week.updated_at||null,
   };
 }
+
+// War Room UI modules are loaded only in a browser after this local deterministic
+// adapter finishes evaluating. Dynamic imports avoid a static circular dependency
+// through pokemon-candidate-local -> recipe-strategy-local while keeping Node/CI
+// contract imports DOM-free.
+if(typeof window!=='undefined'){
+  queueMicrotask(()=>Promise.all([
+    import('./war-room-goal-profile-bootstrap.js'),
+    import('./war-room-candidate-feature-bootstrap.js'),
+    import('./war-room-strategy-context-bootstrap.js'),
+  ]).catch(error=>console.warn('War Room strategy UI bootstrap deferred',error)));
+}
