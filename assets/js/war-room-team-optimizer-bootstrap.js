@@ -16,7 +16,7 @@ function mount(){
 function install(){
   if(installed)return;installed=true;
   document.addEventListener('click',event=>{if(event.target.closest?.('[data-view="warroom"]'))queueMicrotask(mount);});
-  for(const event of ['pokemon-sleep:database-ready','pokemon-sleep:strategy-goal-profile-changed','pokemon-sleep:evaluation-snapshots-changed','pokemon-sleep:data-changed']){
+  for(const event of ['pokemon-sleep:database-ready','pokemon-sleep:strategy-goal-profile-changed','pokemon-sleep:strategy-goal-profile-draft-changed','pokemon-sleep:evaluation-snapshots-changed','pokemon-sleep:data-changed']){
     window.addEventListener(event,()=>queueMicrotask(mount));
   }
   document.addEventListener('pokemon-sleep-data-refreshed',()=>queueMicrotask(mount));
