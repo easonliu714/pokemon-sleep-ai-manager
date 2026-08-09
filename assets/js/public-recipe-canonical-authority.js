@@ -55,7 +55,7 @@ export const PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES=Object.freeze([
   evidence_class:'GAME_SCREENSHOT_DERIVED_ZH_TW',
   match_basis:'CATEGORY_INGREDIENT_SIGNATURE',
   name_contract_version:PUBLIC_RECIPE_CANONICAL_NAME_VERSION,
-}))));
+})));
 
 export const PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS=Object.freeze([
   Object.freeze({
