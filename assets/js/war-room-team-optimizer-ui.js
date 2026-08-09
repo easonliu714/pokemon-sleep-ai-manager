@@ -73,13 +73,18 @@ export function renderWarRoomTeamOptimizer(root=document.getElementById('warroom
     if(result.projection_status!=='READY'){
       root.innerHTML='<div class="panel"><h3>自動組隊建議（本機 deterministic）</h3><p class="notice">玩家資料尚未載入，暫時無法建立隊伍草稿。</p></div>';return;
     }
+    const draftState=document.getElementById('warroomGoalProfile')?.dataset?.goalDraftState||'clean';
+    const draftBlocked=draftState!=='clean';
+    const draftMessage=draftState==='invalid'?'目前 Goal Profile 草稿有 Hard Constraint 衝突；下方結果只代表最後一次成功儲存的 Active Profile。':draftState==='dirty'?'目前 Goal Profile 有尚未儲存的變更；下方結果只代表最後一次成功儲存的 Active Profile。':draftState==='saving'?'Goal Profile 正在儲存；完成後會自動重新計算。':'';
     root.innerHTML=`<div class="panel war-team-optimizer-panel">
-      <div class="war-team-toolbar"><div><h3>自動組隊建議（本機 deterministic）</h3><p class="notice">依目前 Goal Profile、Hard Constraints、本週條件與可驗證候選特徵建立完整 5 人草稿。Leader 目前只是第 1 槽呈現，不套用未驗證加成。</p></div><button type="button" data-war-team-refresh>重新計算隊伍</button></div>
+      <div class="war-team-toolbar"><div><h3>自動組隊建議（本機 deterministic）</h3><p class="notice">依目前已儲存的 Active Goal Profile、Hard Constraints、本週條件與可驗證候選特徵建立完整 5 人草稿。Leader 目前只是第 1 槽呈現，不套用未驗證加成。</p></div><button type="button" data-war-team-refresh ${draftBlocked?'disabled':''}>重新計算隊伍</button></div>
+      ${draftMessage?`<div class="notice warning" data-war-team-stale-profile><b>尚未套用畫面上的草稿。</b> ${esc(draftMessage)} 請先成功儲存 Goal Profile。</div>`:''}
+      <p class="notice" data-war-team-goal-source>Active Goal Profile：<code>${esc(result.goal_profile_id||'尚未建立')}</code>　必帶成員：<b>${Number(result.mandatory_satisfied_count||0)} / ${Number(result.mandatory_member_count||0)}</b></p>
       ${teamCard(result.primary,{title:'主要建議'})}
       ${result.alternatives?.length?`<details class="war-team-alternatives"><summary>查看替代隊伍（${result.alternatives.length}）</summary>${result.alternatives.map((team,index)=>teamCard(team,{title:`替代方案 ${index+1}`,alternative:true})).join('')}</details>`:'<p class="notice">目前沒有可保持全部 Hard Constraints 的替代 5 人隊伍。</p>'}
       <p class="notice">此區只建立本機草稿，不會自動覆蓋或寫入正式隊伍；Gemini 不參與成員挑選或數值排序。</p>
     </div>`;
-    root.querySelector('[data-war-team-refresh]')?.addEventListener('click',()=>renderWarRoomTeamOptimizer(root));
+    root.querySelector('[data-war-team-refresh]')?.addEventListener('click',()=>{if(!draftBlocked)renderWarRoomTeamOptimizer(root);});
   }catch(error){
     root.innerHTML=`<div class="panel"><h3>自動組隊建議（本機 deterministic）</h3><p class="notice">Team Optimizer 尚未就緒：${esc(error?.message||String(error))}</p></div>`;
   }
