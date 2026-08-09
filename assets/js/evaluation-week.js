@@ -1,4 +1,4 @@
-export const EVALUATION_WEEK_VERSION='evaluation-week-2026-08-09-a';
+export const EVALUATION_WEEK_VERSION='evaluation-week-2026-08-09-b';
 
 const pad=value=>String(value).padStart(2,'0');
 
@@ -11,6 +11,14 @@ export function localWeekStart(date=new Date()){
   const mondayOffset=(local.getDay()+6)%7;
   local.setDate(local.getDate()-mondayOffset);
   return localDateKey(local);
+}
+
+export function nextLocalWeekBoundary(date=new Date()){
+  const local=new Date(date.getFullYear(),date.getMonth(),date.getDate());
+  const daysUntilMonday=(8-local.getDay())%7||7;
+  local.setDate(local.getDate()+daysUntilMonday);
+  local.setHours(0,0,0,0);
+  return local;
 }
 
 export function weeklyContextMatchesEpoch(weeklyContext,epoch){
