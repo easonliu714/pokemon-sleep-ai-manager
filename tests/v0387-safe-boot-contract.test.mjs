@@ -33,7 +33,8 @@ assert.match(releaseAuthority,/(?:嘗試載入本機資料|載入玩家資料庫
 assert.match(releaseAuthority,/下載啟動紀錄/);
 assert.match(releaseAuthority,/service-worker(?:-v0387)?\.js/);
 assert.match(releaseAuthority,/detail\.rescue\|\|detail\.readonly/);
-assert.match(current.app_version,/^v0\.3\.\d+(?:\.\d+)?$/);
+// Historical v0.3.87 safety behavior must remain valid across later v0.x releases.
+assert.match(current.app_version,/^v0\.\d+\.\d+(?:\.\d+)?$/);
 assert.ok(current.app_build);
 assert.match(bootstrap,/version-authority\.js/);
 assert.match(bootstrap,/authority\.app_version/);
