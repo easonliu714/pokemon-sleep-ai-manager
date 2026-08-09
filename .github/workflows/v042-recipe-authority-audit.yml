@@ -4,11 +4,13 @@ on:
   pull_request:
     paths:
       - 'assets/js/public-recipe-master.js'
+      - 'assets/js/public-recipe-master-sync.js'
       - 'assets/js/shared-master-data.js'
       - 'assets/js/v0383-catalog-ocr-review-contract.js'
       - 'assets/js/public-catalog-workbench.js'
       - 'assets/js/migrations.js'
       - 'assets/js/canonical-registry.js'
+      - 'service-worker.js'
       - 'scripts/v042-public-recipe-authority-contract.mjs'
       - '.github/workflows/v042-recipe-authority-audit.yml'
   workflow_dispatch:
