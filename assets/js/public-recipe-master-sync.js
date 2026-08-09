@@ -2,7 +2,7 @@ import {
   PUBLIC_RECIPE_MASTER,
   PUBLIC_RECIPE_ALIASES,
   PUBLIC_RECIPE_MASTER_VERSION,
-} from './public-recipe-master.js';
+} from './public-recipe-canonical-authority.js';
 
 function queryRows(db,sql,params=[]){
   const statement=db.prepare(sql);
@@ -15,9 +15,6 @@ function queryRows(db,sql,params=[]){
 
 function recreateRecipeCatalogView(db){
   db.run('DROP VIEW IF EXISTS recipe_catalog_state');
-  // Keep player/master identity compatibility explicit instead of relying on
-  // nested correlated subqueries. SQLite/SQL.js can then resolve the view
-  // consistently in fresh, upgraded and restored databases.
   db.run(`CREATE VIEW recipe_catalog_state AS
     WITH candidate_matches AS (
       SELECT m.recipe_id AS master_recipe_id,r.recipe_id AS player_recipe_id,
