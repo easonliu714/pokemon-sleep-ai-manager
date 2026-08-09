@@ -37,12 +37,14 @@ jobs:
 
       - name: Verify single public recipe authority
         run: |
+          set -o pipefail
           mkdir -p artifacts
           node scripts/v042-public-recipe-authority-contract.mjs \
             | tee artifacts/v042-public-recipe-authority-contract.json
 
       - name: Verify recipe provenance and active/upcoming boundary
         run: |
+          set -o pipefail
           node scripts/v042-recipe-provenance-audit.mjs \
             | tee artifacts/v042-recipe-provenance-audit.json
 
@@ -51,6 +53,7 @@ jobs:
 
       - name: Verify existing DB player-state preservation and idempotency
         run: |
+          set -o pipefail
           node scripts/v042-recipe-sync-preservation-contract.mjs \
             | tee artifacts/v042-recipe-sync-preservation-contract.json
 
