@@ -19,6 +19,7 @@ on:
       - 'assets/js/strategy-context-local.js'
       - 'assets/js/strategy-context-package.js'
       - 'assets/js/strategy-gemini-contract.js'
+      - 'scripts/v042-release-integration-contract.mjs'
       - 'scripts/v043-r24-controlled-selector-contract.mjs'
       - 'scripts/v043-r25-team-optimizer-contract.mjs'
       - 'scripts/v043-r26-team-ux-contract.mjs'
@@ -44,6 +45,7 @@ on:
       - 'assets/js/strategy-context-local.js'
       - 'assets/js/strategy-context-package.js'
       - 'assets/js/strategy-gemini-contract.js'
+      - 'scripts/v042-release-integration-contract.mjs'
       - 'scripts/v043-r24-controlled-selector-contract.mjs'
       - 'scripts/v043-r25-team-optimizer-contract.mjs'
       - 'scripts/v043-r26-team-ux-contract.mjs'
@@ -81,6 +83,12 @@ jobs:
         run: |
           set -o errexit -o nounset -o pipefail
           node scripts/v043-r26-team-ux-contract.mjs | tee /tmp/v043-r26.json
+
+      - name: Verify v0.4.2 historical release compatibility
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/v042-release-integration-contract.mjs | tee /tmp/v042-historical-release.json
 
       - name: Verify v0.4.3 release integration
         shell: bash
