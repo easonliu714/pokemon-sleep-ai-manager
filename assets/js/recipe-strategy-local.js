@@ -5,6 +5,7 @@ import {
   PUBLIC_RECIPE_PROVENANCE_VERSION,
 } from './public-recipe-provenance.js';
 import {projectRecipeStrategy} from './recipe-strategy-projection.js';
+import {getActiveStrategyGoalProfile} from './strategy-goal-store.js';
 
 function latestWeeklyContext(){
   return rows('SELECT * FROM weekly_context ORDER BY updated_at DESC LIMIT 1')[0]||{};
@@ -13,8 +14,8 @@ function latestWeeklyContext(){
 export function buildLocalRecipeStrategyProjection({
   potSize=undefined,
   dishCategory=undefined,
-  ingredientSafeReserve={},
-  requireVerifiedMaster=false,
+  ingredientSafeReserve=undefined,
+  requireVerifiedMaster=undefined,
   sortMode='unlock_recipes',
   nearShortageMax=10,
   nearMissingKindsMax=2,
@@ -37,6 +38,10 @@ export function buildLocalRecipeStrategyProjection({
   }
 
   const week=latestWeeklyContext();
+  const goalProfile=getActiveStrategyGoalProfile();
+  const hardConstraints=goalProfile?.hard_constraints||{};
+  const effectiveReserve=ingredientSafeReserve===undefined?(hardConstraints.ingredient_safe_reserve||{}):ingredientSafeReserve;
+  const effectiveVerified=requireVerifiedMaster===undefined?Boolean(hardConstraints.require_verified_master):Boolean(requireVerifiedMaster);
   const effectivePot=potSize===undefined?week.pot_size:potSize;
   const effectiveDish=dishCategory===undefined?week.dish_category:dishCategory;
   const activeIds=new Set(PUBLIC_RECIPE_PROVENANCE.filter(row=>row.lifecycle==='ACTIVE').map(row=>row.recipe_id));
@@ -55,10 +60,10 @@ export function buildLocalRecipeStrategyProjection({
       recipeStates,
       inventory,
       provenance:PUBLIC_RECIPE_PROVENANCE,
-      ingredientSafeReserve,
+      ingredientSafeReserve:effectiveReserve,
       potSize:effectivePot,
       dishCategory:effectiveDish,
-      requireVerifiedMaster,
+      requireVerifiedMaster:effectiveVerified,
       sortMode,
       nearShortageMax,
       nearMissingKindsMax,
@@ -66,6 +71,7 @@ export function buildLocalRecipeStrategyProjection({
       provenanceVersion:PUBLIC_RECIPE_PROVENANCE_VERSION,
     }),
     projection_status:'READY',
+    goal_profile_id:goalProfile?.goal_profile_id||null,
     weekly_context_id:week.context_id||null,
     weekly_context_updated_at:week.updated_at||null,
   };
