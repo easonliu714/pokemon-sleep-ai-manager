@@ -1,10 +1,12 @@
 import { rows, run, persist, snapshot } from './database.js';
 import { localIso } from './time-utils.js';
+import { buildLocalRecipeStrategyProjection } from './recipe-strategy-local.js';
 
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[char]);
 const now = () => localIso();
+let strategyListenersInstalled = false;
 
 const CAMP_OPTIONS = [
   '萌綠之島', '天青沙灘', '灰褐洞窟', '白花雪原',
@@ -14,6 +16,17 @@ const DISH_OPTIONS = ['咖哩／濃湯', '沙拉', '點心／飲料'];
 const PRIORITY_OPTIONS = ['S+', 'S', 'A', 'B', 'C'];
 const TARGET_TYPE_OPTIONS = ['立即培養', '進化目標', '食材補強', '樹果補強', '技能支援', '圖鑑收集', '保留觀察'];
 const EVENT_OPTIONS = ['無活動', '待依遊戲公告確認', '自訂活動'];
+const RECIPE_STATUS_LABELS = Object.freeze({
+  COOK_NOW_UNLOCKED: '已解鎖／可立即製作',
+  UNLOCK_CANDIDATE_READY: '可立即嘗試解鎖',
+  NEAR_COOK_UNLOCKED: '已解鎖／接近可製作',
+  UNLOCK_CANDIDATE_NEAR: '接近可解鎖',
+  BLOCKED_SAFE_RESERVE: '安全庫存限制',
+  BLOCKED_INGREDIENT_SHORTAGE: '食材不足',
+  BLOCKED_POT_CAPACITY: '鍋子容量不足',
+  REVIEW_MISSING_INPUT: '資料待補',
+  REVIEW_PROVENANCE: '來源待核對',
+});
 
 const field = (name, label, value = '', type = 'text') =>
   `<label class="edit-field"><span>${label}</span><input name="${name}" type="${type}" value="${esc(value ?? '')}"></label>`;
@@ -72,6 +85,7 @@ function ensureUi() {
     button.onclick = () => {
       document.querySelectorAll('.view').forEach((view) => view.classList.toggle('active', view.id === button.dataset.view));
       document.querySelectorAll('nav button').forEach((item) => item.classList.toggle('active', item === button));
+      if (button.dataset.view === 'warroom') queueMicrotask(renderRecipeStrategyProjection);
     };
   });
 }
@@ -107,14 +121,61 @@ function weeklyForm() {
     ]);
     await persist();
     document.dispatchEvent(new CustomEvent('pokemon-sleep-data-refreshed'));
+    renderRecipeStrategyProjection();
     alert('本週環境已儲存');
   };
+}
+
+function recipeShortageText(row) {
+  const missing = row.requirements.filter((item) => Number(item.strategy_shortage || 0) > 0);
+  if (!missing.length) return '無';
+  return missing.map((item) => {
+    const reserveOnly = Number(item.raw_shortage || 0) === 0 && Number(item.reserve_blocked || 0) > 0;
+    return `${esc(item.ingredient_name)} 缺 ${item.strategy_shortage}${reserveOnly ? '（保留限制）' : ''}`;
+  }).join('、');
+}
+function potText(row) {
+  if (row.pot_fit === null) return `未設定（需求 ${row.pot_required}）`;
+  return row.pot_fit ? `可（${row.pot_required}/${row.pot_capacity}）` : `不足（${row.pot_required}/${row.pot_capacity}）`;
+}
+function renderRecipeStrategyProjection() {
+  const target = document.getElementById('warroomRecipeProjection');
+  if (!target) return;
+  try {
+    const result = buildLocalRecipeStrategyProjection({
+      requireVerifiedMaster: true,
+      sortMode: 'unlock_recipes',
+    });
+    if (result.projection_status !== 'READY') {
+      target.innerHTML = '<p class="notice">目前為救援／唯讀狀態，沒有玩家資料可進行本機料理策略計算。</p>';
+      return;
+    }
+    const candidates = result.candidates.slice(0, 10);
+    const counts = result.summary.status_counts || {};
+    target.innerHTML = `
+      <h3>料理策略候選（本機 deterministic）</h3>
+      <p class="notice">只使用目前 ACTIVE 公版料理、您的本機食材／解鎖狀態與本週鍋子。此區不呼叫 Gemini，也不修改任何庫存或料理狀態。</p>
+      <p class="notice">本週料理：<b>${esc(result.context.dish_category || '未設定')}</b>　鍋子：<b>${esc(result.context.pot_size ?? '未設定')}</b>　可立即解鎖：<b>${Number(counts.UNLOCK_CANDIDATE_READY || 0)}</b>　接近可解鎖：<b>${Number(counts.UNLOCK_CANDIDATE_NEAR || 0)}</b></p>
+      <div class="table-wrap"><table><thead><tr><th>狀態</th><th>料理</th><th>解鎖</th><th>鍋子</th><th>策略缺料</th><th>證據</th></tr></thead><tbody>
+        ${candidates.length ? candidates.map((row) => `<tr>
+          <td>${esc(RECIPE_STATUS_LABELS[row.candidate_status] || row.candidate_status)}</td>
+          <td>${esc(row.recipe_name)}</td>
+          <td>${row.unlocked ? '已解鎖' : '未解鎖'}</td>
+          <td>${esc(potText(row))}</td>
+          <td>${recipeShortageText(row)}</td>
+          <td>${esc(row.formula_evidence || '—')}</td>
+        </tr>`).join('') : '<tr><td colspan="6">本週料理類型目前沒有可分析的 ACTIVE recipe。</td></tr>'}
+      </tbody></table></div>
+      <p class="notice">Projection Fingerprint：<code>${esc(result.input_fingerprint || '—')}</code></p>`;
+  } catch (error) {
+    target.innerHTML = `<p class="notice">料理策略投影尚未就緒：${esc(error?.message || String(error))}</p>`;
+  }
 }
 
 function warroomForm() {
   const row = rows('SELECT * FROM weekly_strategy ORDER BY updated_at DESC LIMIT 1')[0] || {};
   const panel = document.getElementById('warroomPanel');
-  panel.innerHTML = `<form id="warroomForm"><div class="edit-grid">
+  panel.innerHTML = `<div id="warroomRecipeProjection"></div><h3>人工策略備註</h3><form id="warroomForm"><div class="edit-grid">
     ${field('week_start', '週起始日', row.week_start, 'date')}
     ${area('team_summary', '主隊與替補', row.team_summary)}${area('substitution_rules', '替換條件', row.substitution_rules)}
     ${area('time_schedule', '時段攻略', row.time_schedule)}${area('meal_strategy', '料理節奏', row.meal_strategy)}
@@ -124,6 +185,7 @@ function warroomForm() {
     ${field('snorlax_energy_estimate', '預估卡比獸能量', row.snorlax_energy_estimate, 'number')}
     ${area('assumptions', '估算假設', row.assumptions)}
   </div><button type="submit">儲存戰情室策略</button></form>`;
+  renderRecipeStrategyProjection();
   document.getElementById('warroomForm').onsubmit = async (event) => {
     event.preventDefault();
     const form = new FormData(event.target);
@@ -149,8 +211,16 @@ function renderCollection() {
     <td>${esc(row.desired_traits)}</td><td>${esc(row.capture_strategy)}</td></tr>`).join('')}</tbody>`;
 }
 
+function installStrategyRefreshListeners() {
+  if (strategyListenersInstalled) return;
+  strategyListenersInstalled = true;
+  document.addEventListener('pokemon-sleep-data-refreshed', renderRecipeStrategyProjection);
+  window.addEventListener('pokemon-sleep:data-changed', renderRecipeStrategyProjection);
+  window.addEventListener('pokemon-sleep:database-ready', renderRecipeStrategyProjection);
+}
+
 export function setupG3Pages() {
-  ensureUi(); weeklyForm(); warroomForm(); renderCollection();
+  ensureUi(); weeklyForm(); warroomForm(); renderCollection(); installStrategyRefreshListeners();
   document.getElementById('collectionAddForm').onsubmit = async (event) => {
     event.preventDefault();
     const form = new FormData(event.target);
