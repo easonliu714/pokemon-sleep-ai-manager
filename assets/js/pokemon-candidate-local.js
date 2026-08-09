@@ -3,6 +3,7 @@ import {getActiveStrategyGoalProfile} from './strategy-goal-store.js';
 import {buildLocalRecipeStrategyProjection} from './recipe-strategy-local.js';
 import {currentEvaluationMasterVersions} from './pokemon-evaluation-store.js';
 import {projectPokemonCandidateFeatures} from './pokemon-candidate-feature-projection.js';
+import {scorePokemonCandidateFeatures} from './pokemon-scoring-engine.js';
 
 function latestWeeklyContext(){return rows('SELECT * FROM weekly_context ORDER BY updated_at DESC LIMIT 1')[0]||{};}
 function detailsForPokemon(pokemonRows){
@@ -29,4 +30,20 @@ export function buildLocalPokemonCandidateFeatures(){
     }),
     projection_status:'READY',
   };
+}
+
+export function buildLocalPokemonCandidateScoring(){
+  const featureProjection=buildLocalPokemonCandidateFeatures();
+  if(featureProjection.projection_status!=='READY')return {
+    schema:'pokemon-sleep-evidence-gated-scoring/1.0',
+    projection_status:'PLAYER_DATA_UNAVAILABLE',
+    feature_fingerprint:null,
+    active_numeric_dimensions:[],
+    candidates:[],
+    ranked_candidates:[],
+    summary:{candidate_count:0,rank_eligible_count:0,scored_candidate_count:0},
+    missing_inputs:['player_database'],
+    player_data_write:false,
+  };
+  return {...scorePokemonCandidateFeatures(featureProjection),projection_status:'READY'};
 }
