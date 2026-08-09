@@ -79,7 +79,9 @@ export function buildLocalRecipeStrategyProjection({
 
 if(typeof window!=='undefined'){
   queueMicrotask(()=>Promise.all([
+    import('./evaluation-lifecycle-bootstrap.js'),
     import('./war-room-goal-profile-bootstrap.js'),
+    import('./war-room-evaluation-lifecycle-bootstrap.js'),
     import('./war-room-team-optimizer-bootstrap.js'),
     import('./war-room-candidate-feature-bootstrap.js'),
     import('./war-room-strategy-context-bootstrap.js'),
