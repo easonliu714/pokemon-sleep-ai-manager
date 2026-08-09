@@ -24,32 +24,39 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Run read-only baseline audit
+      - name: Run read-only baseline audit and seed export
         run: |
           mkdir -p artifacts
-          node scripts/v042-recipe-authority-audit.mjs | tee artifacts/v042-recipe-authority-baseline.json
+          node scripts/v042-recipe-authority-audit.mjs \
+            --seed-output=artifacts/v042-recipe-migration-seed.json \
+            | tee artifacts/v042-recipe-authority-baseline.json
 
       - name: Assert audit safety contract
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const report = JSON.parse(fs.readFileSync('artifacts/v042-recipe-authority-baseline.json', 'utf8'));
-          if (report.read_only !== true) throw new Error('audit_not_read_only');
-          if (report.database_opened !== false) throw new Error('database_opened');
-          if (report.database_write_performed !== false) throw new Error('database_write_performed');
+          const seed = JSON.parse(fs.readFileSync('artifacts/v042-recipe-migration-seed.json', 'utf8'));
+          if (report.read_only !== true || seed.read_only !== true) throw new Error('audit_not_read_only');
+          if (report.database_opened !== false || seed.database_opened !== false) throw new Error('database_opened');
+          if (report.database_write_performed !== false || seed.database_write_performed !== false) throw new Error('database_write_performed');
           if (!Number.isInteger(report.counts?.historical_registry)) throw new Error('missing_historical_count');
-          if (!Number.isInteger(report.counts?.shared_master)) throw new Error('missing_shared_count');
+          if (seed.historical_recipe_count !== report.counts.historical_registry) throw new Error('historical_seed_count_mismatch');
+          if (seed.shared_recipe_count !== report.counts.shared_master) throw new Error('shared_seed_count_mismatch');
           console.log(JSON.stringify({
             status: 'PASS',
             parity: report.parity,
             counts: report.counts,
             categories: report.categories,
+            migration_seed_rows: seed.historical_recipes.length,
           }, null, 2));
           NODE
 
-      - name: Upload baseline report
+      - name: Upload baseline report and migration seed
         uses: actions/upload-artifact@v4
         with:
           name: v042-recipe-authority-baseline
-          path: artifacts/v042-recipe-authority-baseline.json
+          path: |
+            artifacts/v042-recipe-authority-baseline.json
+            artifacts/v042-recipe-migration-seed.json
           if-no-files-found: error
