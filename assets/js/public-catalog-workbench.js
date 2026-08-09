@@ -1,7 +1,7 @@
-// v0.4.2 public catalog renderer: SQLite and rescue recipe views share one authority.
+// v0.4.3 recipe naming projection: SQLite and rescue recipe views share one canonical authority.
 import './version-authority.js';
 import {rows,run,persist,snapshot,begin,commit,rollback,isRescueReadonly} from './database.js';
-import {PUBLIC_RECIPE_MASTER,PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-master.js';
+import {PUBLIC_RECIPE_MASTER,PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-canonical-authority.js';
 import {saveIngredient,saveItem} from './manual-editor.js';
 import {localIso} from './time-utils.js';
 
