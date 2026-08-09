@@ -1,4 +1,4 @@
-name: V0.4.3 Recipe zh-TW Authority Contracts
+name: V0.4.3 Recipe and War Room Authority Contracts
 
 on:
   pull_request:
@@ -10,6 +10,10 @@ on:
       - 'assets/js/public-catalog-workbench.js'
       - 'assets/js/recipe-strategy-local.js'
       - 'assets/js/migrations.js'
+      - 'assets/js/controlled-selector.js'
+      - 'assets/js/war-room-controlled-options.js'
+      - 'assets/js/war-room-goal-profile-ui.js'
+      - 'assets/css/editor.css'
       - 'assets/data/public-recipe-zh-tw-screenshot-evidence-2026-08-09.json'
       - 'scripts/v042-recipe-provenance-audit.mjs'
       - 'scripts/v042-recipe-sync-preservation-contract.mjs'
@@ -17,6 +21,7 @@ on:
       - 'scripts/v043-recipe-zh-tw-evidence-audit-contract.mjs'
       - 'scripts/v043-full50-recipe-evidence-contract.mjs'
       - 'scripts/v043-r22-recipe-canonical-name-contract.mjs'
+      - 'scripts/v043-r24-controlled-selector-contract.mjs'
       - 'tests/test_g14_public_catalog_renderer_authority.py'
       - 'tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json'
       - '.github/workflows/v043-r21-recipe-zh-tw-evidence-audit.yml'
@@ -31,6 +36,10 @@ on:
       - 'assets/js/public-catalog-workbench.js'
       - 'assets/js/recipe-strategy-local.js'
       - 'assets/js/migrations.js'
+      - 'assets/js/controlled-selector.js'
+      - 'assets/js/war-room-controlled-options.js'
+      - 'assets/js/war-room-goal-profile-ui.js'
+      - 'assets/css/editor.css'
       - 'assets/data/public-recipe-zh-tw-screenshot-evidence-2026-08-09.json'
       - 'scripts/v042-recipe-provenance-audit.mjs'
       - 'scripts/v042-recipe-sync-preservation-contract.mjs'
@@ -38,12 +47,13 @@ on:
       - 'scripts/v043-recipe-zh-tw-evidence-audit-contract.mjs'
       - 'scripts/v043-full50-recipe-evidence-contract.mjs'
       - 'scripts/v043-r22-recipe-canonical-name-contract.mjs'
+      - 'scripts/v043-r24-controlled-selector-contract.mjs'
       - 'tests/test_g14_public_catalog_renderer_authority.py'
       - 'tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json'
       - '.github/workflows/v043-r21-recipe-zh-tw-evidence-audit.yml'
 
 jobs:
-  recipe-zh-tw-authority-contracts:
+  recipe-war-room-authority-contracts:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -107,6 +117,12 @@ jobs:
         run: |
           set -o errexit -o nounset -o pipefail
           node scripts/v042-recipe-provenance-audit.mjs | tee /tmp/v043-r22-provenance.json
+
+      - name: Run R2.4 controlled selector contract
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/v043-r24-controlled-selector-contract.mjs | tee /tmp/v043-r24-selector.json
 
       - name: Install SQL.js fixture runtime
         shell: bash
