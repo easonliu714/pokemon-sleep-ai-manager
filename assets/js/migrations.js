@@ -1,6 +1,7 @@
 import {applySharedMasterSchema} from './shared-master-schema.js';
 import {applySharedMasterData,MASTER_DATA_VERSION} from './shared-master-data.js';
-import {applyPublicRecipeMaster,PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-master.js';
+import {PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-master.js';
+import {syncPublicRecipeMaster} from './public-recipe-master-sync.js';
 import {applyPublicEmptyProfileMaster} from './public-empty-profile-master.js';
 import {PUBLIC_ITEM_MASTER_VERSION} from './public-item-master.js';
 import {applyCanonicalRegistry,CANONICAL_REGISTRY_VERSION} from './canonical-registry.js';
@@ -19,7 +20,7 @@ export function applyIdentityMigration(db){
   db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_pokemon_instance_id ON pokemon(pokemon_instance_id) WHERE pokemon_instance_id IS NOT NULL AND pokemon_instance_id<>''`);db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_pokemon_game_id ON pokemon(game_pokemon_id) WHERE game_pokemon_id IS NOT NULL AND game_pokemon_id<>''`);db.run(`CREATE INDEX IF NOT EXISTS idx_pokemon_identity_fingerprint ON pokemon(identity_fingerprint,registered_at)`);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(2,datetime('now'))`);
 }
 export function applyGameDataMigration(db){const hasSubskills=scalar(db,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='pokemon_subskills'");if(hasSubskills){db.run(`INSERT OR REPLACE INTO pokemon_subskills(pokemon_id,unlock_level,subskill_name,is_unlocked) SELECT pokemon_id,70,subskill_name,is_unlocked FROM pokemon_subskills WHERE unlock_level=75`);db.run(`DELETE FROM pokemon_subskills WHERE unlock_level=75`);db.run(`INSERT OR REPLACE INTO pokemon_subskills(pokemon_id,unlock_level,subskill_name,is_unlocked) SELECT pokemon_id,80,subskill_name,is_unlocked FROM pokemon_subskills WHERE unlock_level=100`);db.run(`DELETE FROM pokemon_subskills WHERE unlock_level=100`);}db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(3,datetime('now'))`);}
-export function applySharedKnowledgeBase(db){applySharedMasterSchema(db);applySharedMasterData(db);applyPublicRecipeMaster(db);applyPublicPokemonKnowledgeSchema(db);applyPublicPokemonKnowledgeData(db);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(4,datetime('now'))`);}
+export function applySharedKnowledgeBase(db){applySharedMasterSchema(db);applySharedMasterData(db);syncPublicRecipeMaster(db);applyPublicPokemonKnowledgeSchema(db);applyPublicPokemonKnowledgeData(db);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(4,datetime('now'))`);}
 export function applyPersonalRecipeMigration(db){addColumnIfMissing(db,'recipes','recipe_level','INTEGER');addColumnIfMissing(db,'recipes','current_energy','INTEGER');addColumnIfMissing(db,'recipes','updated_at','TEXT');addColumnIfMissing(db,'recipes','notes','TEXT');db.run(`UPDATE recipes SET updated_at=datetime('now') WHERE updated_at IS NULL OR updated_at=''`);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(5,datetime('now'))`);}
 export function applyPublicProfileContract(db){applyPublicEmptyProfileMaster(db);}
 export function applyCanonicalTerminologyMigration(db){applyCanonicalRegistry(db);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(6,datetime('now'))`);}
@@ -51,12 +52,13 @@ export function auditAndSyncPublicMasters(db,{force=false}={}){
     pokemon_knowledge:PUBLIC_POKEMON_KNOWLEDGE_VERSION,
   };
   const updated=[];
+  const details={};
   if(force||applied.shared!==expected.shared){applySharedMasterData(db);updated.push('shared');}
-  if(force||applied.recipes!==expected.recipes){applyPublicRecipeMaster(db);updated.push('recipes');}
+  if(force||applied.recipes!==expected.recipes){details.recipes=syncPublicRecipeMaster(db);updated.push('recipes');}
   if(force||applied.items!==expected.items){applyPublicEmptyProfileMaster(db);updated.push('items');}
   if(force||applied.pokemon_knowledge!==expected.pokemon_knowledge){applyPublicPokemonKnowledgeData(db);updated.push('pokemon_knowledge');}
   if(force||updated.length>0||applied.canonical!==expected.canonical){applyCanonicalRegistry(db);updated.push('canonical');}
-  return {updated:updated.length>0,updated_authorities:updated,applied,expected};
+  return {updated:updated.length>0,updated_authorities:updated,applied,expected,details};
 }
 
 export function applyFreshDatabaseBootstrap(db){
