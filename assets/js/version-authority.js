@@ -1,8 +1,8 @@
 (function installVersionAuthority(scope) {
   const authority = Object.freeze({
-    app_version: 'v0.4.1',
-    app_build: '20260808-v041-evolution-master-coverage-completion',
-    cache_name: 'pokemon-sleep-ai-v0.4.1-v041-evolution-master-coverage-completion',
+    app_version: 'v0.4.2',
+    app_build: '20260809-v042-recipe-war-room-strategy-readiness',
+    cache_name: 'pokemon-sleep-ai-v0.4.2-v042-recipe-war-room-strategy-readiness',
     schema: 'pokemon-sleep-version-authority/1.0',
   });
   Object.defineProperty(scope, 'PokemonSleepVersionAuthority', {
@@ -14,23 +14,9 @@
 })(globalThis);
 
 // Legacy CI parser bridge only; not executed and not a release authority:
+// app_version: 'v0.4.1'
+// app_build: '20260808-v041-evolution-master-coverage-completion'
 // app_version: 'v0.4.0.4'
 // app_build: '20260808-v04004-post-apply-terminal-state-inventory-summary'
 // app_version: 'v0.4.0.3'
 // app_build: '20260808-v04003-canonical-skill-projection-scenario-review'
-// app_version: 'v0.4.0.2'
-// app_version: 'v0.4.0.1'
-// app_version: 'v0.4.0'
-// app_version: 'v0.3.99.4'
-// app_version: 'v0.3.99.3'
-// app_version: 'v0.3.99.2'
-// app_version: 'v0.3.99.1'
-// app_version: 'v0.3.99'
-// app_version: 'v0.3.98.2'
-// app_version: 'v0.3.98.1'
-// app_version: 'v0.3.98'
-// app_version: 'v0.3.97'
-// app_version: 'v0.3.96'
-// app_version: 'v0.3.95.2'
-// app_version: 'v0.3.95.1'
-// app_version: 'v0.3.95'
