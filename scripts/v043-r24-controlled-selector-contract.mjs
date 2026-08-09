@@ -17,6 +17,7 @@ import {
   getWarRoomMainSkillOptions,
   warRoomControlledOptionCoverage,
 } from '../assets/js/war-room-controlled-options.js';
+import {projectPokemonCandidateFeatures,POKEMON_CANDIDATE_FEATURE_VERSION} from '../assets/js/pokemon-candidate-feature-projection.js';
 
 const __filename=fileURLToPath(import.meta.url);
 const root=path.resolve(path.dirname(__filename),'..');
@@ -24,6 +25,7 @@ const read=relative=>fs.readFileSync(path.join(root,relative),'utf8');
 
 assert.equal(CONTROLLED_SELECTOR_VERSION,'controlled-selector-2026-08-09-a');
 assert.equal(WAR_ROOM_CONTROLLED_OPTIONS_VERSION,'war-room-controlled-options-2026-08-09-a');
+assert.equal(POKEMON_CANDIDATE_FEATURE_VERSION,'pokemon-candidate-features-2026-08-09-b');
 
 const duplicateSpecies=normalizeControlledOptions([
   {value:'poke_001',label:'六尾 · Lv11 · 樹果 · 個體 01',aliases:['六尾','instance_a'],group:'樹果'},
@@ -55,6 +57,27 @@ const aliasFiltered=filterControlledOptions(duplicateSpecies,'instance_b',[]);
 assert.deepEqual(aliasFiltered.map(row=>row.value),['poke_002']);
 const selectedFiltered=filterControlledOptions(duplicateSpecies,'六尾',['poke_001']);
 assert.deepEqual(selectedFiltered.map(row=>row.value),['poke_002']);
+
+// Candidate projection must agree with selector semantics: an old species text that
+// now maps to multiple local individuals is REVIEW, never "all are mandatory".
+const pokemonFixture=[
+  {pokemon_id:'poke_001',pokemon_instance_id:'instance_a',species:'六尾',current_species:'六尾',level:11,specialty:'樹果',type:'火',nature:'勤奮',main_skill:'活力填充S',main_skill_level:1,helper_seconds:5000,carry_limit:10,favorite_berry:'莓莓果'},
+  {pokemon_id:'poke_002',pokemon_instance_id:'instance_b',species:'六尾',current_species:'六尾',level:7,specialty:'樹果',type:'火',nature:'勤奮',main_skill:'活力填充S',main_skill_level:1,helper_seconds:5200,carry_limit:9,favorite_berry:'莓莓果'},
+];
+const ambiguousProjection=projectPokemonCandidateFeatures({
+  pokemon:pokemonFixture,
+  goalProfile:{goal_profile_id:'legacy-ambiguous',hard_constraints:{must_include_pokemon:['六尾'],exclude_pokemon:[],must_include_role:[],sleep_evolution_member_at_night:[],current_unlocks_only:true}},
+});
+assert.equal(ambiguousProjection.candidates.length,2);
+assert.ok(ambiguousProjection.candidates.every(row=>row.mandatory_candidate===false));
+assert.ok(ambiguousProjection.candidates.every(row=>row.hard_constraint_status==='REVIEW'));
+assert.ok(ambiguousProjection.candidates.every(row=>row.review_constraints.includes('ambiguous_legacy_must_include_species')));
+const stableProjection=projectPokemonCandidateFeatures({
+  pokemon:pokemonFixture,
+  goalProfile:{goal_profile_id:'stable-id',hard_constraints:{must_include_pokemon:['poke_001'],exclude_pokemon:[],must_include_role:[],sleep_evolution_member_at_night:[],current_unlocks_only:true}},
+});
+assert.equal(stableProjection.candidates.find(row=>row.pokemon_id==='poke_001')?.mandatory_candidate,true);
+assert.equal(stableProjection.candidates.find(row=>row.pokemon_id==='poke_002')?.mandatory_candidate,false);
 
 assert.deepEqual(WAR_ROOM_ROLE_OPTIONS.map(row=>row.value),['樹果','食材','技能']);
 const recipes=getWarRoomRecipeOptions();
@@ -109,8 +132,10 @@ process.stdout.write(`${JSON.stringify({
   gate:'R2.4_CONTROLLED_SEARCHABLE_SELECTOR_CONTRACT',
   component_version:CONTROLLED_SELECTOR_VERSION,
   option_registry_version:WAR_ROOM_CONTROLLED_OPTIONS_VERSION,
+  candidate_feature_version:POKEMON_CANDIDATE_FEATURE_VERSION,
   duplicate_species_individual_identity:true,
   ambiguous_legacy_species_preserved_as_review:true,
+  ambiguous_legacy_species_not_marked_mandatory:true,
   canonical_recipe_options:recipes.length,
   legacy_recipe_name_searchable:true,
   main_skill_options:skills.length,
