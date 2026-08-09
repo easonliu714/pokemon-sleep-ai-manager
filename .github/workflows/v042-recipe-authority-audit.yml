@@ -6,6 +6,8 @@ on:
       - 'assets/js/public-recipe-master.js'
       - 'assets/js/public-recipe-master-sync.js'
       - 'assets/js/public-recipe-provenance.js'
+      - 'assets/js/recipe-strategy-projection.js'
+      - 'assets/js/recipe-strategy-local.js'
       - 'assets/js/shared-master-data.js'
       - 'assets/js/v0383-catalog-ocr-review-contract.js'
       - 'assets/js/public-catalog-workbench.js'
@@ -17,6 +19,7 @@ on:
       - 'scripts/v042-public-recipe-authority-contract.mjs'
       - 'scripts/v042-recipe-sync-preservation-contract.mjs'
       - 'scripts/v042-recipe-provenance-audit.mjs'
+      - 'scripts/v042-recipe-strategy-projection-contract.mjs'
       - '.github/workflows/v042-recipe-authority-audit.yml'
   workflow_dispatch:
 
@@ -48,6 +51,12 @@ jobs:
           node scripts/v042-recipe-provenance-audit.mjs \
             | tee artifacts/v042-recipe-provenance-audit.json
 
+      - name: Verify deterministic recipe strategy projection
+        run: |
+          set -o pipefail
+          node scripts/v042-recipe-strategy-projection-contract.mjs \
+            | tee artifacts/v042-recipe-strategy-projection-contract.json
+
       - name: Install SQL.js fixture runtime
         run: npm install --no-save --ignore-scripts sql.js@1.13.0
 
@@ -64,5 +73,6 @@ jobs:
           path: |
             artifacts/v042-public-recipe-authority-contract.json
             artifacts/v042-recipe-provenance-audit.json
+            artifacts/v042-recipe-strategy-projection-contract.json
             artifacts/v042-recipe-sync-preservation-contract.json
           if-no-files-found: error
