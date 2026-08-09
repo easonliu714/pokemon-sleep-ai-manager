@@ -52,18 +52,22 @@ assert(reversed.input_fingerprint===result.input_fingerprint,'feature_fingerprin
 assert(JSON.stringify(reversed.candidates)===JSON.stringify(result.candidates),'candidate_features_order_dependent');
 
 const coverage=scoringRuleCoverage();
-assert(POKEMON_SCORING_RULE_REGISTRY_VERSION==='pokemon-scoring-rules-2026-08-09-a','scoring_registry_version');
+assert(POKEMON_SCORING_RULE_REGISTRY_VERSION==='pokemon-scoring-rules-2026-08-09-b','scoring_registry_version');
 assert(coverage.dimension_count===5,'scoring_dimension_count');
-assert(coverage.active_numeric_count===0,'numeric_score_activated_without_evidence');
-for(const [dimension,rule] of Object.entries(POKEMON_SCORING_RULES)){
+assert(coverage.active_numeric_count===1,'verified_readiness_rule_not_activated');
+assert(POKEMON_SCORING_RULES.current_readiness_score.status==='ACTIVE_VERIFIED','readiness_rule_status');
+assert(POKEMON_SCORING_RULES.current_readiness_score.formula==='100 * unlocked_known_slots / known_unlock_slots','readiness_formula_missing');
+assert(POKEMON_SCORING_RULES.current_readiness_score.source_refs.includes('docs/WAR_ROOM_SCORING_RULES_V1.md'),'readiness_governance_source_missing');
+for(const dimension of ['intrinsic_score','weekly_fit_score','roster_marginal_value_score','training_roi_score']){
+  const rule=POKEMON_SCORING_RULES[dimension];
   assert(['FEATURE_ONLY','DISABLED_NO_EVIDENCE'].includes(rule.status),`unexpected_rule_status:${dimension}`);
   assert(rule.formula===null,`unverified_formula_present:${dimension}`);
   assert(rule.source_refs.length===0,`unverified_source_claim:${dimension}`);
 }
 
 console.log(JSON.stringify({
-  status:'PASS',schema:'pokemon-sleep-candidate-feature-contract/1.0',feature_version:POKEMON_CANDIDATE_FEATURE_VERSION,
+  status:'PASS',schema:'pokemon-sleep-candidate-feature-contract/1.1',feature_version:POKEMON_CANDIDATE_FEATURE_VERSION,
   candidate_count:3,rank_eligible_count:result.summary.rank_eligible_count,feature_order_invariant:true,numeric_scores_generated:false,
-  active_numeric_scoring_rules:0,team_level_constraints_not_misapplied:true,current_unlock_thresholds_respected:true,
+  active_numeric_scoring_rules:1,team_level_constraints_not_misapplied:true,current_unlock_thresholds_respected:true,
   favorite_berry_and_recipe_demand_features:true,player_data_write:false,
 },null,2));
