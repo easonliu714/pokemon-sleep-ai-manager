@@ -94,7 +94,8 @@ jobs:
         shell: bash
         run: |
           set -o errexit -o nounset -o pipefail
-          if grep -R --line-number --fixed-strings 'Pokemon_Sleep_PRIVATE_RECIPES_FROM_ZIP_20260731.json' \
+          private_source='Pokemon_Sleep_PRIVATE_''RECIPES_FROM_ZIP_20260731.json'
+          if grep -R --line-number --fixed-strings "$private_source" \
             assets/data scripts/v043-*.mjs assets/js/public-recipe-canonical-authority.js; then
             echo 'Private recipe source filename leaked into release files.' >&2
             exit 1
