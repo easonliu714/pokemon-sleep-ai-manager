@@ -1,0 +1,55 @@
+name: V0.4.2 Recipe Authority Baseline Audit
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/shared-master-data.js'
+      - 'assets/js/v0383-catalog-ocr-review-contract.js'
+      - 'scripts/v042-recipe-authority-audit.mjs'
+      - '.github/workflows/v042-recipe-authority-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  baseline-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run read-only baseline audit
+        run: |
+          mkdir -p artifacts
+          node scripts/v042-recipe-authority-audit.mjs | tee artifacts/v042-recipe-authority-baseline.json
+
+      - name: Assert audit safety contract
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const report = JSON.parse(fs.readFileSync('artifacts/v042-recipe-authority-baseline.json', 'utf8'));
+          if (report.read_only !== true) throw new Error('audit_not_read_only');
+          if (report.database_opened !== false) throw new Error('database_opened');
+          if (report.database_write_performed !== false) throw new Error('database_write_performed');
+          if (!Number.isInteger(report.counts?.historical_registry)) throw new Error('missing_historical_count');
+          if (!Number.isInteger(report.counts?.shared_master)) throw new Error('missing_shared_count');
+          console.log(JSON.stringify({
+            status: 'PASS',
+            parity: report.parity,
+            counts: report.counts,
+            categories: report.categories,
+          }, null, 2));
+          NODE
+
+      - name: Upload baseline report
+        uses: actions/upload-artifact@v4
+        with:
+          name: v042-recipe-authority-baseline
+          path: artifacts/v042-recipe-authority-baseline.json
+          if-no-files-found: error
