@@ -19,7 +19,7 @@ on:
       - 'assets/js/strategy-context-local.js'
       - 'assets/js/strategy-context-package.js'
       - 'assets/js/strategy-gemini-contract.js'
-      - 'scripts/v042-release-integration-contract.mjs'
+      - 'scripts/v042-*.mjs'
       - 'scripts/v043-*.mjs'
       - '.github/workflows/v043-release-integration.yml'
   push:
@@ -42,7 +42,7 @@ on:
       - 'assets/js/strategy-context-local.js'
       - 'assets/js/strategy-context-package.js'
       - 'assets/js/strategy-gemini-contract.js'
-      - 'scripts/v042-release-integration-contract.mjs'
+      - 'scripts/v042-*.mjs'
       - 'scripts/v043-*.mjs'
       - '.github/workflows/v043-release-integration.yml'
 
