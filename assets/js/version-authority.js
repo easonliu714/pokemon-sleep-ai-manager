@@ -20,3 +20,5 @@
 // app_build: '20260808-v04004-post-apply-terminal-state-inventory-summary'
 // app_version: 'v0.4.0.3'
 // app_build: '20260808-v04003-canonical-skill-projection-scenario-review'
+// app_version: 'v0.3.97'
+// app_version: 'v0.3.96'
