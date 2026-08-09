@@ -15,51 +15,60 @@ function queryRows(db,sql,params=[]){
 
 function recreateRecipeCatalogView(db){
   db.run('DROP VIEW IF EXISTS recipe_catalog_state');
-  const match=`(
-    r.recipe_id=m.recipe_id
-    OR r.recipe_name=m.recipe_name
-    OR EXISTS(
-      SELECT 1 FROM recipe_master_alias a
-       WHERE a.recipe_id=m.recipe_id
-         AND (
-           (a.alias_type='legacy_recipe_id' AND r.recipe_id=a.alias_value)
-           OR (a.alias_type='legacy_recipe_name' AND r.recipe_name=a.alias_value)
-         )
-    )
-  )`;
-  const priority=`CASE
-    WHEN r.recipe_id=m.recipe_id THEN 0
-    WHEN r.recipe_name=m.recipe_name THEN 1
-    WHEN EXISTS(SELECT 1 FROM recipe_master_alias a WHERE a.recipe_id=m.recipe_id AND a.alias_type='legacy_recipe_id' AND r.recipe_id=a.alias_value) THEN 2
-    ELSE 3 END`;
+  // Keep player/master identity compatibility explicit instead of relying on
+  // nested correlated subqueries. SQLite/SQL.js can then resolve the view
+  // consistently in fresh, upgraded and restored databases.
   db.run(`CREATE VIEW recipe_catalog_state AS
+    WITH candidate_matches AS (
+      SELECT m.recipe_id AS master_recipe_id,r.recipe_id AS player_recipe_id,
+             r.unlocked,r.recipe_level,r.current_energy,r.updated_at,r.notes,0 AS match_priority
+        FROM recipe_master m JOIN recipes r ON r.recipe_id=m.recipe_id
+      UNION ALL
+      SELECT m.recipe_id,r.recipe_id,r.unlocked,r.recipe_level,r.current_energy,r.updated_at,r.notes,1
+        FROM recipe_master m JOIN recipes r ON r.recipe_name=m.recipe_name
+       WHERE r.recipe_id<>m.recipe_id
+      UNION ALL
+      SELECT m.recipe_id,r.recipe_id,r.unlocked,r.recipe_level,r.current_energy,r.updated_at,r.notes,2
+        FROM recipe_master m
+        JOIN recipe_master_alias a ON a.recipe_id=m.recipe_id AND a.alias_type='legacy_recipe_id'
+        JOIN recipes r ON r.recipe_id=a.alias_value
+       WHERE r.recipe_id<>m.recipe_id
+      UNION ALL
+      SELECT m.recipe_id,r.recipe_id,r.unlocked,r.recipe_level,r.current_energy,r.updated_at,r.notes,3
+        FROM recipe_master m
+        JOIN recipe_master_alias a ON a.recipe_id=m.recipe_id AND a.alias_type='legacy_recipe_name'
+        JOIN recipes r ON r.recipe_name=a.alias_value
+       WHERE r.recipe_id<>m.recipe_id AND r.recipe_name<>m.recipe_name
+    ),
+    ranked_matches AS (
+      SELECT candidate_matches.*,
+             ROW_NUMBER() OVER(
+               PARTITION BY master_recipe_id
+               ORDER BY match_priority,player_recipe_id
+             ) AS match_rank
+        FROM candidate_matches
+    ),
+    chosen_matches AS (
+      SELECT * FROM ranked_matches WHERE match_rank=1
+    ),
+    matched_player_ids AS (
+      SELECT DISTINCT player_recipe_id FROM candidate_matches
+    )
     SELECT m.recipe_id,m.category,m.recipe_name,m.base_energy,m.total_ingredients,
-           COALESCE((SELECT r.unlocked FROM recipes r WHERE ${match} ORDER BY ${priority} LIMIT 1),0) AS unlocked,
-           COALESCE((SELECT r.recipe_level FROM recipes r WHERE ${match} ORDER BY ${priority} LIMIT 1),1) AS recipe_level,
-           (SELECT r.current_energy FROM recipes r WHERE ${match} ORDER BY ${priority} LIMIT 1) AS current_energy,
-           (SELECT r.updated_at FROM recipes r WHERE ${match} ORDER BY ${priority} LIMIT 1) AS updated_at,
-           (SELECT r.notes FROM recipes r WHERE ${match} ORDER BY ${priority} LIMIT 1) AS notes,
-           (SELECT r.recipe_id FROM recipes r WHERE ${match} ORDER BY ${priority} LIMIT 1) AS player_recipe_id,
-           CASE WHEN EXISTS(SELECT 1 FROM recipes r WHERE ${match}) THEN 1 ELSE 0 END AS player_record_exists,
+           COALESCE(c.unlocked,0) AS unlocked,
+           COALESCE(c.recipe_level,1) AS recipe_level,
+           c.current_energy,c.updated_at,c.notes,c.player_recipe_id,
+           CASE WHEN c.player_recipe_id IS NULL THEN 0 ELSE 1 END AS player_record_exists,
            m.data_version
       FROM recipe_master m
+      LEFT JOIN chosen_matches c ON c.master_recipe_id=m.recipe_id
     UNION ALL
     SELECT r.recipe_id,r.category,r.recipe_name,NULL,COALESCE(r.total_ingredients,0),
            COALESCE(r.unlocked,0),COALESCE(r.recipe_level,1),r.current_energy,r.updated_at,r.notes,
            r.recipe_id,1,'PLAYER_ONLY'
       FROM recipes r
      WHERE NOT EXISTS(
-       SELECT 1 FROM recipe_master m
-        WHERE r.recipe_id=m.recipe_id
-           OR r.recipe_name=m.recipe_name
-           OR EXISTS(
-             SELECT 1 FROM recipe_master_alias a
-              WHERE a.recipe_id=m.recipe_id
-                AND (
-                  (a.alias_type='legacy_recipe_id' AND r.recipe_id=a.alias_value)
-                  OR (a.alias_type='legacy_recipe_name' AND r.recipe_name=a.alias_value)
-                )
-           )
+       SELECT 1 FROM matched_player_ids p WHERE p.player_recipe_id=r.recipe_id
      )`);
 }
 
