@@ -163,6 +163,30 @@ const report = {
     && ingredientMismatches.length === 0,
 };
 
+const seedArgument = process.argv.find((value) => value.startsWith('--seed-output='));
+if (seedArgument) {
+  const outputValue = seedArgument.slice('--seed-output='.length);
+  if (!outputValue) throw new Error('seed_output_path_missing');
+  const outputPath = path.resolve(process.cwd(), outputValue);
+  const seed = {
+    schema: 'pokemon-sleep-recipe-authority-migration-seed/1.0',
+    generated_at: report.generated_at,
+    read_only: true,
+    database_opened: false,
+    database_write_performed: false,
+    historical_recipe_count: historical.length,
+    shared_recipe_count: shared.length,
+    historical_recipes: historical,
+    shared_recipes: shared,
+    exact_common_names: commonNames,
+    shared_only_name_candidates: onlyInShared,
+    historical_only_name_candidates: onlyInHistorical,
+    ingredient_conflicts: ingredientMismatches,
+  };
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, `${JSON.stringify(seed, null, 2)}\n`, 'utf8');
+}
+
 process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 
 if (process.argv.includes('--strict') && !report.parity) {
