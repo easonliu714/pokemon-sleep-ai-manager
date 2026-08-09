@@ -45,9 +45,22 @@ function deserialize(row){
   };
 }
 function snapshotId(pokemonId,fingerprint){return `eval_${String(pokemonId).replace(/[^a-zA-Z0-9_-]/g,'_')}_${fingerprint.split(':').pop()}`;}
+function requestedPokemonIds(pokemonIds=null){return [...new Set((pokemonIds||[]).map(id=>String(id||'')).filter(Boolean))];}
 function activePokemonIds(pokemonIds=null){
-  const source=(pokemonIds?.length?pokemonIds.map(id=>({pokemon_id:id})):rows("SELECT pokemon_id FROM pokemon WHERE status='active' ORDER BY pokemon_id"));
-  return [...new Set(source.map(row=>String(row.pokemon_id||'')).filter(Boolean))];
+  const requested=requestedPokemonIds(pokemonIds);
+  if(requested.length)return requested.filter(id=>rows("SELECT 1 FROM pokemon WHERE pokemon_id=? AND status='active' LIMIT 1",[id]).length>0);
+  return rows("SELECT pokemon_id FROM pokemon WHERE status='active' ORDER BY pokemon_id").map(row=>String(row.pokemon_id||'')).filter(Boolean);
+}
+function currentSnapshotHeaders(pokemonIds=null){
+  const requested=requestedPokemonIds(pokemonIds);
+  if(requested.length){
+    const output=[];
+    for(const pokemonId of requested)output.push(...rows(`SELECT evaluation_id,pokemon_id,input_fingerprint FROM pokemon_evaluation_snapshot
+      WHERE pokemon_id=? AND stale_at IS NULL ORDER BY evaluated_at DESC`,[pokemonId]));
+    return output;
+  }
+  return rows(`SELECT evaluation_id,pokemon_id,input_fingerprint FROM pokemon_evaluation_snapshot
+    WHERE stale_at IS NULL ORDER BY pokemon_id,evaluated_at DESC`);
 }
 function evaluationEnvironment(){
   return {profile:getActiveStrategyGoalProfile(),weeklyContext:latestWeeklyContext(),masterVersions:currentEvaluationMasterVersions()};
@@ -77,8 +90,7 @@ export function planFactEvaluationSnapshotRefresh({pokemonIds=null,force=false}=
   });
   const environment=evaluationEnvironment(),targets=[],ids=activePokemonIds(pokemonIds);let skipped=0;
   for(const pokemonId of ids){const target=targetFingerprint(pokemonId,environment);if(target)targets.push(target);else skipped+=1;}
-  const current=rows(`SELECT evaluation_id,pokemon_id,input_fingerprint FROM pokemon_evaluation_snapshot
-    WHERE stale_at IS NULL ORDER BY pokemon_id,evaluated_at DESC`);
+  const current=currentSnapshotHeaders(pokemonIds);
   const plan=planSnapshotLifecycle({targets,currentSnapshots:current,force});
   const status=!targets.length&&!current.length?'NO_ACTIVE_POKEMON':'READY';
   return Object.freeze({...plan,status,skipped,goal_profile_id:environment.profile?.goal_profile_id||null,context_id:environment.weeklyContext.context_id||null,rule_version:POKEMON_EVALUATION_RULE_VERSION});
