@@ -10,8 +10,11 @@ on:
       - 'assets/js/public-catalog-workbench.js'
       - 'assets/js/migrations.js'
       - 'assets/js/canonical-registry.js'
+      - 'assets/js/schema.js'
+      - 'assets/js/shared-master-schema.js'
       - 'service-worker.js'
       - 'scripts/v042-public-recipe-authority-contract.mjs'
+      - 'scripts/v042-recipe-sync-preservation-contract.mjs'
       - '.github/workflows/v042-recipe-authority-audit.yml'
   workflow_dispatch:
 
@@ -36,9 +39,19 @@ jobs:
           node scripts/v042-public-recipe-authority-contract.mjs \
             | tee artifacts/v042-public-recipe-authority-contract.json
 
-      - name: Upload contract report
+      - name: Install SQL.js fixture runtime
+        run: npm install --no-save --ignore-scripts sql.js@1.13.0
+
+      - name: Verify existing DB player-state preservation and idempotency
+        run: |
+          node scripts/v042-recipe-sync-preservation-contract.mjs \
+            | tee artifacts/v042-recipe-sync-preservation-contract.json
+
+      - name: Upload contract reports
         uses: actions/upload-artifact@v4
         with:
           name: v042-public-recipe-authority-contract
-          path: artifacts/v042-public-recipe-authority-contract.json
+          path: |
+            artifacts/v042-public-recipe-authority-contract.json
+            artifacts/v042-recipe-sync-preservation-contract.json
           if-no-files-found: error
