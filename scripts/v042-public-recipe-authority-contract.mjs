@@ -92,7 +92,7 @@ for(const [label,source] of [['authority',authoritySource],['sync',syncSource]])
 assert(syncSource.includes("DELETE FROM recipe_master WHERE recipe_id=? AND recipe_name=?"),'controlled_master_retirement_missing_identity_guard');
 assert(!syncSource.includes("db.run('DELETE FROM recipe_master')"),'unqualified_master_delete');
 assert(syncSource.includes('preserved_unrecognized_master_rows'),'unrecognized_master_preservation_missing');
-assert(syncSource.includes("alias.alias_type==='legacy_recipe_name'"),'legacy_name_retirement_not_explicit');
+assert(syncSource.includes("row=>row.alias_type==='legacy_recipe_name'"),'legacy_name_retirement_not_explicit');
 assert(syncSource.includes("alias.alias_type==='legacy_recipe_id'"),'legacy_id_retirement_not_explicit');
 
 const coverage=recipeModule.recipeMasterCoverage();
