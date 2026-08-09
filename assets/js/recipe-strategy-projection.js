@@ -14,7 +14,10 @@ function integer(value,fallback=0){
   const parsed=number(value,fallback);
   return Number.isInteger(parsed)?parsed:Math.trunc(parsed);
 }
-function normalizeCategory(value){return String(value??'').normalize('NFKC').trim().replaceAll('/','／');}
+function normalizeCategory(value){
+  const normalized=String(value??'').normalize('NFKC').trim().replaceAll('/','／');
+  return normalized==='點心／飲料'?'甜點／飲料':normalized;
+}
 function stableEntries(value={}){return Object.entries(value).sort(([a],[b])=>a.localeCompare(b,'zh-Hant'));}
 function fnv1a(value){
   let hash=2166136261;
