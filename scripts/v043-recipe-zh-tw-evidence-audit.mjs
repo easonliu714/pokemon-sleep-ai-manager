@@ -9,17 +9,9 @@ const ROOT = path.resolve(__dirname, '..');
 const DEFAULT_PUBLIC_MASTER = path.join(ROOT, 'assets/js/public-recipe-master.js');
 
 const FORBIDDEN_OUTPUT_KEYS = Object.freeze([
-  'recipe_level',
-  'current_energy',
-  'private_recipe_id',
-  'source_image_ref',
-  'source_image_sha256',
-  'source_zip_sha256',
-  'notes',
-  'update_id',
-  'operation_id',
-  'updated_at',
-  'generated_at',
+  'recipe_level', 'current_energy', 'private_recipe_id', 'source_image_ref',
+  'source_image_sha256', 'source_zip_sha256', 'notes', 'update_id',
+  'operation_id', 'updated_at', 'generated_at',
 ]);
 
 const CATEGORY_ALIASES = Object.freeze(new Map([
@@ -30,11 +22,7 @@ const CATEGORY_ALIASES = Object.freeze(new Map([
 ]));
 
 function normalizeText(value) {
-  return String(value ?? '')
-    .normalize('NFKC')
-    .replaceAll('/', '／')
-    .replace(/[\s　]+/g, '')
-    .trim();
+  return String(value ?? '').normalize('NFKC').replaceAll('/', '／').replace(/[\s　]+/g, '').trim();
 }
 
 export function normalizeCategory(value) {
@@ -52,28 +40,23 @@ function normalizeIngredientRows(rows) {
   }
   return [...combined.entries()]
     .map(([ingredient_name, quantity]) => Object.freeze({ ingredient_name, quantity }))
-    .sort((left, right) => left.ingredient_name.localeCompare(right.ingredient_name, 'zh-Hant'));
+    .sort((a, b) => a.ingredient_name.localeCompare(b.ingredient_name, 'zh-Hant'));
 }
 
 export function ingredientSignature(category, rows) {
-  const canonicalCategory = normalizeCategory(category);
   const ingredients = normalizeIngredientRows(rows);
-  return `${canonicalCategory}::${ingredients.map((row) => `${row.ingredient_name}=${row.quantity}`).join('|')}`;
+  return `${normalizeCategory(category)}::${ingredients.map((row) => `${row.ingredient_name}=${row.quantity}`).join('|')}`;
 }
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
-function extractBalancedCallArgument(source, marker) {
-  const markerIndex = source.indexOf(marker);
-  if (markerIndex < 0) throw new Error(`marker_not_found:${marker}`);
-  const equalsIndex = source.indexOf('=', markerIndex + marker.length);
-  const callNameIndex = source.indexOf('Object.freeze', equalsIndex + 1);
-  const start = source.indexOf('(', callNameIndex + 'Object.freeze'.length);
-  if (equalsIndex < 0 || callNameIndex < 0 || start < 0) {
-    throw new Error(`freeze_call_not_found:${marker}`);
-  }
+function extractExactFreezeArgument(source, declarationName) {
+  const pattern = new RegExp(`export\\s+const\\s+${declarationName}\\s*=\\s*Object\\.freeze\\s*\\(`);
+  const match = pattern.exec(source);
+  if (!match) throw new Error(`exact_freeze_declaration_not_found:${declarationName}`);
+  const start = match.index + match[0].lastIndexOf('(');
 
   let depth = 0;
   let quote = null;
@@ -96,13 +79,19 @@ function extractBalancedCallArgument(source, marker) {
       if (depth === 0) return source.slice(start + 1, index);
     }
   }
-  throw new Error(`freeze_call_end_not_found:${marker}`);
+  throw new Error(`freeze_call_end_not_found:${declarationName}`);
 }
 
 export function loadPublicRecipeMaster(filePath = DEFAULT_PUBLIC_MASTER) {
   const source = fs.readFileSync(filePath, 'utf8');
-  const argument = extractBalancedCallArgument(source, 'export const PUBLIC_RECIPE_MASTER');
-  const value = vm.runInNewContext(`(${argument})`, Object.create(null), { timeout: 1500 });
+  const versionMatch = source.match(/export\s+const\s+PUBLIC_RECIPE_MASTER_VERSION\s*=\s*['"]([^'"]+)['"]/);
+  const publicVersion = versionMatch?.[1] ?? 'UNKNOWN_PUBLIC_RECIPE_MASTER_VERSION';
+  const argument = extractExactFreezeArgument(source, 'PUBLIC_RECIPE_MASTER');
+  const context = {
+    PUBLIC_RECIPE_MASTER_VERSION: publicVersion,
+    PUBLIC_RECIPE_SOURCE: Object.freeze({ data_version: publicVersion }),
+  };
+  const value = vm.runInNewContext(`(${argument})`, context, { timeout: 1500 });
   if (!Array.isArray(value)) throw new Error('public_recipe_master_not_array');
   return value.map((row) => Object.freeze({
     recipe_id: String(row?.recipe_id ?? ''),
@@ -115,34 +104,28 @@ export function loadPublicRecipeMaster(filePath = DEFAULT_PUBLIC_MASTER) {
 function assertPrivateInputContract(payload) {
   if (!payload || typeof payload !== 'object') throw new Error('private_payload_missing');
   if (!Array.isArray(payload.operations)) throw new Error('private_payload_operations_missing');
-  if (payload.privacy?.github_commit_allowed !== false) {
-    throw new Error('private_payload_privacy_marker_required');
-  }
+  if (payload.privacy?.github_commit_allowed !== false) throw new Error('private_payload_privacy_marker_required');
 }
 
 function buildObservedRecipes(payload) {
   const byPrivateId = new Map();
   const ensure = (privateId) => {
     if (!privateId) throw new Error('private_recipe_link_key_missing');
-    if (!byPrivateId.has(privateId)) {
-      byPrivateId.set(privateId, { recipe: null, ingredients: [] });
-    }
+    if (!byPrivateId.has(privateId)) byPrivateId.set(privateId, { recipe: null, ingredients: [] });
     return byPrivateId.get(privateId);
   };
 
   for (const operation of payload.operations) {
     if (operation?.action !== 'upsert') continue;
     if (operation?.entity === 'recipes') {
-      const privateId = String(operation?.key?.recipe_id ?? '');
-      const bucket = ensure(privateId);
+      const bucket = ensure(String(operation?.key?.recipe_id ?? ''));
       if (bucket.recipe) throw new Error('duplicate_private_recipe_operation');
       bucket.recipe = {
         recipe_name: normalizeText(operation?.data?.recipe_name),
         category: normalizeCategory(operation?.data?.category),
       };
     } else if (operation?.entity === 'recipe_ingredients') {
-      const privateId = String(operation?.key?.recipe_id ?? '');
-      const bucket = ensure(privateId);
+      const bucket = ensure(String(operation?.key?.recipe_id ?? ''));
       bucket.ingredients.push({
         ingredient_name: normalizeText(operation?.key?.ingredient_name),
         quantity: Number(operation?.data?.quantity),
@@ -162,18 +145,14 @@ function buildObservedRecipes(payload) {
       ingredients,
     }));
   }
-
-  return observed.sort((left, right) => {
-    const categoryCompare = left.category.localeCompare(right.category, 'zh-Hant');
-    return categoryCompare || left.observed_name.localeCompare(right.observed_name, 'zh-Hant');
-  });
+  return observed.sort((a, b) => a.category.localeCompare(b.category, 'zh-Hant') || a.observed_name.localeCompare(b.observed_name, 'zh-Hant'));
 }
 
 function bigrams(value) {
   const text = normalizeText(value);
   if (text.length < 2) return new Set(text ? [text] : []);
   const result = new Set();
-  for (let index = 0; index < text.length - 1; index += 1) result.add(text.slice(index, index + 2));
+  for (let i = 0; i < text.length - 1; i += 1) result.add(text.slice(i, i + 2));
   return result;
 }
 
@@ -211,12 +190,11 @@ function chooseConflictCandidate(observed, publicRows) {
 
   const ranked = sameCategory
     .map((row) => ({ row, score: nameSimilarity(observed.observed_name, row.recipe_name) }))
-    .sort((left, right) => right.score - left.score || left.row.recipe_id.localeCompare(right.row.recipe_id));
+    .sort((a, b) => b.score - a.score || a.row.recipe_id.localeCompare(b.row.recipe_id));
   const best = ranked[0];
   const second = ranked[1];
   if (!best || best.score < 0.6) return null;
   if (second && best.score - second.score < 0.15) return null;
-
   const observedTotal = observed.ingredients.reduce((sum, row) => sum + row.quantity, 0);
   const publicTotal = best.row.ingredients.reduce((sum, row) => sum + row.quantity, 0);
   if (observedTotal !== publicTotal) return null;
@@ -237,21 +215,10 @@ function classifyObservedRecipe(observed, publicRows) {
   if (formulaMatches.length > 1) {
     const exactName = formulaMatches.filter((row) => row.recipe_name === observed.observed_name);
     if (exactName.length === 1) {
-      return {
-        classification: 'EXACT_NAME',
-        matched: exactName[0],
-        match_basis: 'CATEGORY_INGREDIENT_SIGNATURE_PLUS_EXACT_NAME',
-        name_similarity: 1,
-      };
+      return { classification: 'EXACT_NAME', matched: exactName[0], match_basis: 'CATEGORY_INGREDIENT_SIGNATURE_PLUS_EXACT_NAME', name_similarity: 1 };
     }
-    return {
-      classification: 'UNRESOLVED',
-      matched: null,
-      match_basis: 'AMBIGUOUS_FORMULA_SIGNATURE',
-      name_similarity: null,
-    };
+    return { classification: 'UNRESOLVED', matched: null, match_basis: 'AMBIGUOUS_FORMULA_SIGNATURE', name_similarity: null };
   }
-
   const conflict = chooseConflictCandidate(observed, publicRows);
   if (conflict) {
     return {
@@ -261,12 +228,7 @@ function classifyObservedRecipe(observed, publicRows) {
       name_similarity: Number(conflict.score.toFixed(4)),
     };
   }
-  return {
-    classification: 'UNRESOLVED',
-    matched: null,
-    match_basis: 'NO_UNIQUE_PUBLIC_IDENTITY',
-    name_similarity: null,
-  };
+  return { classification: 'UNRESOLVED', matched: null, match_basis: 'NO_UNIQUE_PUBLIC_IDENTITY', name_similarity: null };
 }
 
 function classificationCounts(records) {
@@ -278,7 +240,7 @@ function classificationCounts(records) {
 function categoryCounts(records) {
   const counts = {};
   for (const row of records) counts[row.category] = (counts[row.category] ?? 0) + 1;
-  return Object.fromEntries(Object.entries(counts).sort(([left], [right]) => left.localeCompare(right, 'zh-Hant')));
+  return Object.fromEntries(Object.entries(counts).sort(([a], [b]) => a.localeCompare(b, 'zh-Hant')));
 }
 
 function collectForbiddenRawValues(payload) {
@@ -323,7 +285,6 @@ export function auditPrivateRecipePayload(payload, publicRows) {
       evidence_class: 'GAME_SCREENSHOT_DERIVED_ZH_TW',
     });
   });
-
   const report = Object.freeze({
     schema: 'pokemon-sleep-recipe-zh-tw-evidence-audit/1.0',
     read_only: true,
