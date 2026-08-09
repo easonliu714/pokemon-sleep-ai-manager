@@ -3,6 +3,14 @@ import fs from 'node:fs';
 import {strategyGoalProfileDraftState,strategyGoalProfileValidation} from '../assets/js/strategy-goal-contract.js';
 import {optimizeTeam} from '../assets/js/team-optimizer.js';
 
+const versionSource=fs.readFileSync('assets/js/version-authority.js','utf8');
+const appVersion=versionSource.match(/app_version:\s*'([^']+)'/)?.[1];
+const appBuild=versionSource.match(/app_build:\s*'([^']+)'/)?.[1];
+const cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1];
+assert.equal(appVersion,'v0.4.3.2');
+assert.equal(appBuild,'20260809-v0432-goal-profile-team-consistency');
+assert.equal(cacheName,'pokemon-sleep-ai-v0.4.3.2-v0432-goal-profile-team-consistency');
+
 const activeProfile={
   goal_profile_id:'goal_fixture',profile_name:'fixture',primary_goal:'balanced',secondary_goals:[],
   hard_constraints:{must_include_pokemon:['p1'],exclude_pokemon:[],must_include_role:[],max_same_species:5,sleep_evolution_member_at_night:[]},
@@ -76,6 +84,7 @@ assert.ok(goalStore.includes('if(!validation.valid)throw new Error'),'invalid pr
 
 process.stdout.write(`${JSON.stringify({
   status:'PASS',gate:'V0.4.3.2_GOAL_PROFILE_TEAM_CONSTRAINT_CONSISTENCY',
+  app_version:appVersion,build:appBuild,cache:cacheName,
   include_exclude_conflict_blocked:true,live_draft_state:true,invalid_save_disabled:true,
   dirty_team_recalculation_blocked:true,active_profile_source_visible:true,
   simultaneous_must_include_count:2,simultaneous_must_include_preserved:true,
