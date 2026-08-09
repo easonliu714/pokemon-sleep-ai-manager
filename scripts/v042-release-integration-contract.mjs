@@ -6,9 +6,12 @@ import {PUBLIC_RECIPE_PROVENANCE,PUBLIC_RECIPE_UPCOMING_EVIDENCE} from '../asset
 const assert=(condition,message)=>{if(!condition)throw new Error(message);};
 const read=path=>fs.readFileSync(path,'utf8');
 function versionAtLeast(actual,minimum){
-  const parse=value=>{const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)$/);return match?match.slice(1).map(Number):null;};
+  const parse=value=>{
+    const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$/);
+    return match?[Number(match[1]),Number(match[2]),Number(match[3]),Number(match[4]||0)]:null;
+  };
   const a=parse(actual),b=parse(minimum);if(!a||!b)return false;
-  for(let i=0;i<3;i+=1){if(a[i]>b[i])return true;if(a[i]<b[i])return false;}
+  for(let i=0;i<4;i+=1){if(a[i]>b[i])return true;if(a[i]<b[i])return false;}
   return true;
 }
 
@@ -83,7 +86,7 @@ for(const forbidden of ['ai-project-pool-runtime.js','applyPayload(','INSERT INT
 
 console.log(JSON.stringify({
   status:'PASS',
-  schema:'pokemon-sleep-v042-release-integration-contract/1.3',
+  schema:'pokemon-sleep-v042-release-integration-contract/1.4',
   historical_contract_version:'v0.4.2',
   current_app_version:authority.app_version,
   build:authority.app_build,
@@ -97,5 +100,6 @@ console.log(JSON.stringify({
   strategy_context_scoring_adapter:true,
   offline_after_online_js_cache:true,
   direct_provider_apply:false,
+  four_part_patch_version_supported:true,
   forward_compatible_release_authority:true,
 },null,2));

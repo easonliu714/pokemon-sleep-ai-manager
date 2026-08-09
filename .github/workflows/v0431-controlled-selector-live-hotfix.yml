@@ -1,0 +1,68 @@
+name: V0.4.3.1 Controlled Selector LIVE Hotfix
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/controlled-selector.js'
+      - 'assets/js/war-room-goal-profile-ui.js'
+      - 'scripts/v043-r24-controlled-selector-contract.mjs'
+      - 'scripts/v0431-controlled-selector-dom-contract.mjs'
+      - 'scripts/v0431-release-contract.mjs'
+      - 'scripts/v043-release-integration-contract.mjs'
+      - 'assets/js/version-authority.js'
+      - 'service-worker.js'
+      - '.github/workflows/v0431-controlled-selector-live-hotfix.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  controlled-selector-live-hotfix:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Verify controlled selector static contract
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/v043-r24-controlled-selector-contract.mjs | tee /tmp/v0431-static.json
+
+      - name: Install isolated DOM test dependency
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          npm install --no-save --no-package-lock jsdom@26.1.0
+
+      - name: Verify search commit and Android IME DOM behavior
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/v0431-controlled-selector-dom-contract.mjs | tee /tmp/v0431-dom.json
+
+      - name: Verify v0.4.3.1 release authority
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/v0431-release-contract.mjs | tee /tmp/v0431-release.json
+
+      - name: Verify selector syntax and no legacy index commit
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node --check assets/js/controlled-selector.js
+          ! grep -F 'normalized.indexOf(option)' assets/js/controlled-selector.js
+          ! grep -F 'query=event.target.value;render();' assets/js/controlled-selector.js
+
+      - name: Verify tests do not mutate tracked repository files
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          test -z "$(git status --porcelain --untracked-files=no)"
