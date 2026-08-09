@@ -1,4 +1,4 @@
-export const CONTROLLED_SELECTOR_VERSION='controlled-selector-2026-08-09-a';
+export const CONTROLLED_SELECTOR_VERSION='controlled-selector-2026-08-09-b';
 
 const text=value=>String(value??'').normalize('NFKC').trim();
 const searchText=value=>text(value).toLocaleLowerCase('zh-Hant').replace(/[\s　]+/g,'');
@@ -50,6 +50,7 @@ export function createControlledSelector(root,{
 }={}){
   if(!root)throw new Error('controlled_selector_root_required');
   const normalized=normalizeControlledOptions(options);
+  const optionByValue=new Map(normalized.map(option=>[option.value,option]));
   let selected=[...reconcileControlledValues(values,normalized).selected],query='';
   const limit=multiple?(Number.isInteger(Number(maxSelections))&&Number(maxSelections)>0?Number(maxSelections):null):1;
 
@@ -57,7 +58,7 @@ export function createControlledSelector(root,{
   function unresolvedValues(){return selected.filter(row=>row.unresolved).map(row=>({value:row.value,reason:row.reason}));}
   function notify(){if(typeof onChange==='function')onChange(publicValues(),{unresolved:unresolvedValues()});}
   function selectOption(option){
-    if(disabled||option.disabled)return;
+    if(!option||disabled||option.disabled)return;
     if(selected.some(row=>!row.unresolved&&row.value===option.value))return;
     if(!multiple)selected=[];
     if(limit&&selected.length>=limit)return;
@@ -81,13 +82,13 @@ export function createControlledSelector(root,{
         <div class="controlled-selector-popover">
           <div class="controlled-selector-search-row"><input type="search" data-cs-search value="${esc(query)}" placeholder="${esc(placeholder)}" autocomplete="off" ${disabled?'disabled':''}><button type="button" data-cs-clear ${disabled||!selected.length?'disabled':''}>清除</button></div>
           <div class="controlled-selector-options" role="listbox" aria-multiselectable="${multiple?'true':'false'}">
-            ${atLimit?`<p class="notice">已達選擇上限 ${limit}。</p>`:available.map((option,index)=>`<button type="button" class="controlled-option" data-cs-option="${normalized.indexOf(option)}" role="option" ${option.disabled?'disabled':''}><span><b>${esc(option.label)}</b>${option.description?`<small>${esc(option.description)}</small>`:''}</span>${option.group?`<em>${esc(option.group)}</em>`:''}</button>`).join('')||`<p class="notice">${esc(emptyText)}</p>`}
+            ${atLimit?`<p class="notice">已達選擇上限 ${limit}。</p>`:available.map(option=>`<button type="button" class="controlled-option" data-cs-option-value="${esc(option.value)}" role="option" ${option.disabled?'disabled':''}><span><b>${esc(option.label)}</b>${option.description?`<small>${esc(option.description)}</small>`:''}</span>${option.group?`<em>${esc(option.group)}</em>`:''}</button>`).join('')||`<p class="notice">${esc(emptyText)}</p>`}
           </div>
         </div>
       </details>`;
     const search=root.querySelector('[data-cs-search]');
     if(search)search.addEventListener('input',event=>{query=event.target.value;render();const next=root.querySelector('[data-cs-search]');next?.focus();if(next){next.selectionStart=next.selectionEnd=next.value.length;root.querySelector('details')?.setAttribute('open','');}});
-    root.querySelectorAll('[data-cs-option]').forEach(button=>button.addEventListener('click',()=>selectOption(normalized[Number(button.dataset.csOption)])));
+    root.querySelectorAll('[data-cs-option-value]').forEach(button=>button.addEventListener('click',()=>selectOption(optionByValue.get(text(button.dataset.csOptionValue)))));
     root.querySelectorAll('[data-cs-remove]').forEach(button=>button.addEventListener('click',()=>removeAt(Number(button.dataset.csRemove))));
     root.querySelector('[data-cs-clear]')?.addEventListener('click',clear);
     if(disabled)root.querySelector('details')?.removeAttribute('open');
