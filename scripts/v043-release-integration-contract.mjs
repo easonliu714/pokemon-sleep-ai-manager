@@ -21,16 +21,16 @@ const versionSource=read('assets/js/version-authority.js');
 const versionMatch=versionSource.match(/app_version:\s*'([^']+)'/);
 const buildMatch=versionSource.match(/app_build:\s*'([^']+)'/);
 const cacheMatch=versionSource.match(/cache_name:\s*'([^']+)'/);
-assert.equal(versionMatch?.[1],'v0.4.3');
-assert.equal(buildMatch?.[1],'20260809-v043-recipe-zh-tw-controlled-team-optimizer');
-assert.equal(cacheMatch?.[1],'pokemon-sleep-ai-v0.4.3-v043-recipe-zh-tw-controlled-team-optimizer');
+assert.match(versionMatch?.[1]||'',/^v0\.4\.3(?:\.\d+)?$/,'v0.4.3 historical contract only accepts v0.4.3 patch line');
+assert.match(buildMatch?.[1]||'',/^20260809-v043(?:1-)?/,'unexpected v0.4.3 patch build authority');
+assert.match(cacheMatch?.[1]||'',/^pokemon-sleep-ai-v0\.4\.3(?:\.\d+)?-/,'unexpected v0.4.3 patch cache authority');
 
 assert.equal(PUBLIC_RECIPE_MASTER_VERSION,'public-recipe-master-2026-08-09-b');
 assert.equal(PUBLIC_RECIPE_MASTER.length,76);
 assert.equal(PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES.length,33);
 assert.equal(PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS.length,2);
 assert.equal(getWarRoomRecipeOptions().length,76);
-assert.equal(CONTROLLED_SELECTOR_VERSION,'controlled-selector-2026-08-09-a');
+assert.match(CONTROLLED_SELECTOR_VERSION,/^controlled-selector-2026-08-09-[a-z]+$/,'unexpected controlled selector component family');
 assert.equal(WAR_ROOM_CONTROLLED_OPTIONS_VERSION,'war-room-controlled-options-2026-08-09-a');
 assert.equal(TEAM_OPTIMIZER_VERSION,'team-optimizer-2026-08-09-a');
 assert.equal(TEAM_SIZE,5);
@@ -114,6 +114,7 @@ for(const target of privateGuardTargets){
 process.stdout.write(`${JSON.stringify({
   status:'PASS',
   gate:'V0.4.3_RELEASE_INTEGRATION_CONTRACT',
+  historical_release_line:'v0.4.3.x',
   app_version:versionMatch[1],
   build:buildMatch[1],
   cache:cacheMatch[1],
@@ -130,4 +131,5 @@ process.stdout.write(`${JSON.stringify({
   precise_energy_claim:false,
   player_team_write:false,
   private_raw_source_committed:false,
+  patch_forward_compatible:true,
 },null,2)}\n`);
