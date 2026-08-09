@@ -15,6 +15,10 @@ on:
       - 'assets/js/war-room-goal-profile-ui.js'
       - 'assets/js/team-optimizer.js'
       - 'assets/js/team-optimizer-local.js'
+      - 'assets/js/war-room-team-optimizer-ui.js'
+      - 'assets/js/war-room-team-optimizer-bootstrap.js'
+      - 'assets/js/war-room-candidate-feature-ui.js'
+      - 'assets/js/war-room-candidate-feature-bootstrap.js'
       - 'assets/css/editor.css'
       - 'assets/data/public-recipe-zh-tw-screenshot-evidence-2026-08-09.json'
       - 'scripts/v042-recipe-provenance-audit.mjs'
@@ -25,6 +29,7 @@ on:
       - 'scripts/v043-r22-recipe-canonical-name-contract.mjs'
       - 'scripts/v043-r24-controlled-selector-contract.mjs'
       - 'scripts/v043-r25-team-optimizer-contract.mjs'
+      - 'scripts/v043-r26-team-ux-contract.mjs'
       - 'tests/test_g14_public_catalog_renderer_authority.py'
       - 'tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json'
       - '.github/workflows/v043-r21-recipe-zh-tw-evidence-audit.yml'
@@ -44,6 +49,10 @@ on:
       - 'assets/js/war-room-goal-profile-ui.js'
       - 'assets/js/team-optimizer.js'
       - 'assets/js/team-optimizer-local.js'
+      - 'assets/js/war-room-team-optimizer-ui.js'
+      - 'assets/js/war-room-team-optimizer-bootstrap.js'
+      - 'assets/js/war-room-candidate-feature-ui.js'
+      - 'assets/js/war-room-candidate-feature-bootstrap.js'
       - 'assets/css/editor.css'
       - 'assets/data/public-recipe-zh-tw-screenshot-evidence-2026-08-09.json'
       - 'scripts/v042-recipe-provenance-audit.mjs'
@@ -54,6 +63,7 @@ on:
       - 'scripts/v043-r22-recipe-canonical-name-contract.mjs'
       - 'scripts/v043-r24-controlled-selector-contract.mjs'
       - 'scripts/v043-r25-team-optimizer-contract.mjs'
+      - 'scripts/v043-r26-team-ux-contract.mjs'
       - 'tests/test_g14_public_catalog_renderer_authority.py'
       - 'tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json'
       - '.github/workflows/v043-r21-recipe-zh-tw-evidence-audit.yml'
@@ -135,6 +145,12 @@ jobs:
         run: |
           set -o errexit -o nounset -o pipefail
           node scripts/v043-r25-team-optimizer-contract.mjs | tee /tmp/v043-r25-team.json
+
+      - name: Run R2.6 five-member Team Card UX contract
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/v043-r26-team-ux-contract.mjs | tee /tmp/v043-r26-team-ux.json
 
       - name: Install SQL.js fixture runtime
         shell: bash
