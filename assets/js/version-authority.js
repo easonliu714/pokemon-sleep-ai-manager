@@ -1,8 +1,8 @@
 (function installVersionAuthority(scope) {
   const authority = Object.freeze({
-    app_version: 'v0.4.2',
-    app_build: '20260809-v042-recipe-war-room-strategy-readiness',
-    cache_name: 'pokemon-sleep-ai-v0.4.2-v042-recipe-war-room-strategy-readiness',
+    app_version: 'v0.4.3',
+    app_build: '20260809-v043-recipe-zh-tw-controlled-team-optimizer',
+    cache_name: 'pokemon-sleep-ai-v0.4.3-v043-recipe-zh-tw-controlled-team-optimizer',
     schema: 'pokemon-sleep-version-authority/1.0',
   });
   Object.defineProperty(scope, 'PokemonSleepVersionAuthority', {
@@ -14,6 +14,8 @@
 })(globalThis);
 
 // Legacy CI parser bridge only; not executed and not a release authority:
+// app_version: 'v0.4.2'
+// app_build: '20260809-v042-recipe-war-room-strategy-readiness'
 // app_version: 'v0.4.1'
 // app_build: '20260808-v041-evolution-master-coverage-completion'
 // app_version: 'v0.4.0.4'
