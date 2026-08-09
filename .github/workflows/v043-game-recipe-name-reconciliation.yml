@@ -1,0 +1,29 @@
+name: V0.4.3 Game Recipe Name Reconciliation
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/v043-game-recipe-name-reconcile.mjs'
+      - 'scripts/v043-game-recipe-name-reconcile-contract.mjs'
+      - 'assets/js/public-recipe-master.js'
+      - 'assets/js/public-recipe-master-sync.js'
+      - '.github/workflows/v043-game-recipe-name-reconciliation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/v043-game-recipe-name-reconcile.mjs'
+      - 'scripts/v043-game-recipe-name-reconcile-contract.mjs'
+      - 'assets/js/public-recipe-master.js'
+      - 'assets/js/public-recipe-master-sync.js'
+      - '.github/workflows/v043-game-recipe-name-reconciliation.yml'
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Run sanitized reconciliation contract
+        run: node scripts/v043-game-recipe-name-reconcile-contract.mjs
