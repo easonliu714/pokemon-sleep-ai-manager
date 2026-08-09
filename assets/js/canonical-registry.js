@@ -1,4 +1,4 @@
-export const CANONICAL_REGISTRY_VERSION='canonical-registry-2026-08-04-b';
+export const CANONICAL_REGISTRY_VERSION='canonical-registry-2026-08-09-c';
 export const CANONICAL_RESOLUTION_STATUSES=Object.freeze({
   EXACT:'CANONICAL_EXACT',
   ALIAS_SAFE:'CANONICAL_ALIAS_SAFE',
@@ -8,11 +8,11 @@ export const CANONICAL_RESOLUTION_STATUSES=Object.freeze({
 });
 
 const RELEASE={
-  release_id:'game-data-2026-08-04',
-  game_version:'current-as-observed-2026-08-04',
+  release_id:'game-data-2026-08-09',
+  game_version:'current-as-observed-2026-08-09',
   locale:'zh-Hant',
-  effective_from:'2026-08-04',
-  source_type:'game_screenshot_verified+official_announcement+raenonx_structured',
+  effective_from:'2026-08-09',
+  source_type:'game_screenshot_verified+official_announcement+reference_structured',
 };
 
 const INGREDIENT_ALIASES={
@@ -47,6 +47,13 @@ function makeResolutionId({entityType,rawValue,sourceRef=''}){
     hash=Math.imul(hash,16777619);
   }
   return `resolution:${entityType}:${(hash>>>0).toString(16).padStart(8,'0')}`;
+}
+
+function masterVerificationStatus(row){
+  if(row.source_type==='game_screenshot_verified')return 'GAME_SCREENSHOT_VERIFIED';
+  if(row.source_type==='migration_baseline')return 'REVIEW_REQUIRED';
+  if(row.source_type==='current_reference_crosscheck')return 'REFERENCE_VERIFIED';
+  return 'REFERENCE_VERIFIED';
 }
 
 export function applyCanonicalRegistry(db){
@@ -129,6 +136,10 @@ export function applyCanonicalRegistry(db){
   db.run(`INSERT OR REPLACE INTO game_data_release(release_id,game_version,locale,effective_from,source_type,data_version,status)
     VALUES(?,?,?,?,?,?,?)`,[RELEASE.release_id,RELEASE.game_version,RELEASE.locale,RELEASE.effective_from,RELEASE.source_type,CANONICAL_REGISTRY_VERSION,'active']);
 
+  // A master refresh must retire terms that disappeared from the current authority.
+  // Historical resolution logs remain immutable; only active projection changes.
+  db.run(`UPDATE canonical_term SET is_active=0 WHERE entity_type IN ('ingredient','item','recipe','berry')`);
+
   const masters=[
     ['ingredient','ingredient_master','ingredient_name'],
     ['item','item_master','item_name'],
@@ -145,13 +156,14 @@ export function applyCanonicalRegistry(db){
       db.run(`INSERT INTO canonical_term(term_id,entity_type,canonical_name_zh_tw,game_release_id,is_active,verification_status,data_version)
         VALUES(?,?,?,?,1,?,?) ON CONFLICT(term_id) DO UPDATE SET canonical_name_zh_tw=excluded.canonical_name_zh_tw,
         game_release_id=excluded.game_release_id,is_active=1,verification_status=excluded.verification_status,data_version=excluded.data_version`,
-        [termId,entity,row.name,RELEASE.release_id,row.source_type==='game_screenshot_verified'?'GAME_SCREENSHOT_VERIFIED':'REFERENCE_VERIFIED',CANONICAL_REGISTRY_VERSION]);
+        [termId,entity,row.name,RELEASE.release_id,masterVerificationStatus(row),CANONICAL_REGISTRY_VERSION]);
       db.run(`INSERT OR REPLACE INTO canonical_term_source(source_id,term_id,source_type,source_ref,observed_name,observed_at,confidence)
         VALUES(?,?,?,?,?,?,?)`,[`source:${termId}`,termId,row.source_type||'shared_master',row.source_ref||'',row.name,row.verified_at||RELEASE.effective_from,1]);
     }
   }
+
   for(const [alias,canonical] of Object.entries(INGREDIENT_ALIASES)){
-    const term=db.prepare(`SELECT term_id FROM canonical_term WHERE entity_type='ingredient' AND canonical_name_zh_tw=?`);
+    const term=db.prepare(`SELECT term_id FROM canonical_term WHERE entity_type='ingredient' AND canonical_name_zh_tw=? AND is_active=1`);
     term.bind([canonical]);
     const termId=term.step()?term.getAsObject().term_id:null;
     term.free();
@@ -160,6 +172,28 @@ export function applyCanonicalRegistry(db){
     db.run(`INSERT OR REPLACE INTO canonical_term_alias(alias_id,term_id,alias_text,alias_type,locale,confidence,is_auto_replace_safe,source_type)
       VALUES(?,?,?,?,?,?,?,?)`,[`alias:ingredient:${alias}`,termId,alias,'ocr_ai_confusion','zh-Hant',safe?1:0.9,safe,'manual_verified_from_game_screenshot']);
   }
+
+  // Recipe display-name compatibility is owned by the public recipe master.
+  // ID aliases are for player-row joins only and therefore are not terminology aliases.
+  const recipeAliases=[];
+  try{
+    const statement=db.prepare(`SELECT a.alias_value,a.confidence,a.is_auto_replace_safe,a.source_type,m.recipe_name
+      FROM recipe_master_alias a JOIN recipe_master m ON m.recipe_id=a.recipe_id
+      WHERE a.alias_type='legacy_recipe_name'`);
+    while(statement.step())recipeAliases.push(statement.getAsObject());
+    statement.free();
+  }catch{
+    // Pre-v0.4.2 databases have no recipe_master_alias until recipe sync runs.
+  }
+  for(const alias of recipeAliases){
+    const termId=`recipe:${idPart(alias.recipe_name)}`;
+    db.run(`INSERT OR REPLACE INTO canonical_term_alias(alias_id,term_id,alias_text,alias_type,locale,confidence,is_auto_replace_safe,source_type)
+      VALUES(?,?,?,?,?,?,?,?)`,[
+      `alias:recipe:${idPart(alias.alias_value)}`,termId,alias.alias_value,'legacy_recipe_name','zh-Hant',
+      Number(alias.confidence||0),Number(alias.is_auto_replace_safe||0),alias.source_type||'public_recipe_master',
+    ]);
+  }
+
   db.run(`INSERT OR REPLACE INTO settings(key,value_json,updated_at) VALUES('canonical_registry_version',?,datetime('now'))`,[JSON.stringify(CANONICAL_REGISTRY_VERSION)]);
   db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(6,datetime('now'))`);
 }

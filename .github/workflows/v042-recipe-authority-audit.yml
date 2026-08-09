@@ -1,0 +1,126 @@
+name: V0.4.2 Release Integration Contract
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/version-authority.js'
+      - 'assets/js/public-recipe-master.js'
+      - 'assets/js/public-recipe-master-sync.js'
+      - 'assets/js/public-recipe-provenance.js'
+      - 'assets/js/recipe-strategy-projection.js'
+      - 'assets/js/recipe-strategy-local.js'
+      - 'assets/js/strategy-goal-contract.js'
+      - 'assets/js/strategy-goal-store.js'
+      - 'assets/js/pokemon-evaluation-contract.js'
+      - 'assets/js/pokemon-evaluation-store.js'
+      - 'assets/js/pokemon-candidate-feature-projection.js'
+      - 'assets/js/pokemon-candidate-local.js'
+      - 'assets/js/pokemon-scoring-rule-registry.js'
+      - 'assets/js/pokemon-scoring-engine.js'
+      - 'assets/js/strategy-context-package.js'
+      - 'assets/js/strategy-context-local.js'
+      - 'assets/js/strategy-gemini-contract.js'
+      - 'assets/js/war-room-goal-profile-bootstrap.js'
+      - 'assets/js/war-room-goal-profile-ui.js'
+      - 'assets/js/war-room-candidate-feature-bootstrap.js'
+      - 'assets/js/war-room-candidate-feature-ui.js'
+      - 'assets/js/war-room-strategy-context-bootstrap.js'
+      - 'assets/js/war-room-strategy-context-ui.js'
+      - 'assets/js/g3-planning.js'
+      - 'assets/js/shared-master-data.js'
+      - 'assets/js/v0383-catalog-ocr-review-contract.js'
+      - 'assets/js/public-catalog-workbench.js'
+      - 'assets/js/migrations.js'
+      - 'assets/js/canonical-registry.js'
+      - 'assets/js/schema.js'
+      - 'assets/js/shared-master-schema.js'
+      - 'service-worker.js'
+      - 'scripts/v042-*.mjs'
+      - '.github/workflows/v042-recipe-authority-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  v042-release-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Verify v0.4.2 release integration
+        run: |
+          set -o pipefail
+          mkdir -p artifacts
+          node scripts/v042-release-integration-contract.mjs \
+            | tee artifacts/v042-release-integration-contract.json
+
+      - name: Verify single public recipe authority
+        run: |
+          set -o pipefail
+          node scripts/v042-public-recipe-authority-contract.mjs \
+            | tee artifacts/v042-public-recipe-authority-contract.json
+
+      - name: Verify recipe provenance and active/upcoming boundary
+        run: |
+          set -o pipefail
+          node scripts/v042-recipe-provenance-audit.mjs \
+            | tee artifacts/v042-recipe-provenance-audit.json
+
+      - name: Verify deterministic recipe strategy projection
+        run: |
+          set -o pipefail
+          node scripts/v042-recipe-strategy-projection-contract.mjs \
+            | tee artifacts/v042-recipe-strategy-projection-contract.json
+
+      - name: Verify War Room recipe UI and weekly category compatibility
+        run: |
+          set -o pipefail
+          node scripts/v042-war-room-recipe-ui-contract.mjs \
+            | tee artifacts/v042-war-room-recipe-ui-contract.json
+
+      - name: Verify candidate feature projection
+        run: |
+          set -o pipefail
+          node scripts/v042-pokemon-candidate-feature-contract.mjs \
+            | tee artifacts/v042-pokemon-candidate-feature-contract.json
+
+      - name: Verify evidence-gated Pokémon scoring
+        run: |
+          set -o pipefail
+          node scripts/v042-pokemon-scoring-engine-contract.mjs \
+            | tee artifacts/v042-pokemon-scoring-engine-contract.json
+
+      - name: Verify Strategy Context privacy contract
+        run: |
+          set -o pipefail
+          node scripts/v042-strategy-context-package-contract.mjs \
+            | tee artifacts/v042-strategy-context-package-contract.json
+
+      - name: Install SQL.js fixture runtime
+        run: npm install --no-save --ignore-scripts sql.js@1.13.0
+
+      - name: Verify Goal Profile and Evaluation Snapshot contract
+        run: |
+          set -o pipefail
+          node scripts/v042-war-room-goal-evaluation-contract.mjs \
+            | tee artifacts/v042-war-room-goal-evaluation-contract.json
+
+      - name: Verify existing DB player-state preservation and idempotency
+        run: |
+          set -o pipefail
+          node scripts/v042-recipe-sync-preservation-contract.mjs \
+            | tee artifacts/v042-recipe-sync-preservation-contract.json
+
+      - name: Upload contract reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: v042-release-integration-contracts
+          path: artifacts/*.json
+          if-no-files-found: error

@@ -8,6 +8,8 @@ on:
       - 'assets/js/unified-import-analysis-workbench.js'
       - 'assets/js/migrations.js'
       - 'assets/js/shared-master-data.js'
+      - 'assets/js/public-recipe-master.js'
+      - 'assets/js/public-recipe-master-sync.js'
       - 'assets/js/version-authority.js'
       - '.github/workflows/v0382-branch-patch.yml'
   pull_request:
@@ -16,6 +18,8 @@ on:
       - 'assets/js/unified-import-analysis-workbench.js'
       - 'assets/js/migrations.js'
       - 'assets/js/shared-master-data.js'
+      - 'assets/js/public-recipe-master.js'
+      - 'assets/js/public-recipe-master-sync.js'
       - 'assets/js/version-authority.js'
       - '.github/workflows/v0382-branch-patch.yml'
   workflow_dispatch:
@@ -30,7 +34,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
       - name: Validate snapshot, migration, public master, and authority contracts
         run: |
           node --input-type=module <<'NODE'
@@ -43,6 +47,8 @@ jobs:
             'assets/js/unified-import-analysis-workbench.js',
             'assets/js/migrations.js',
             'assets/js/shared-master-data.js',
+            'assets/js/public-recipe-master.js',
+            'assets/js/public-recipe-master-sync.js',
             'assets/js/version-authority.js',
           ];
           for (const file of required) assert.ok(fs.existsSync(file), `${file} missing`);
@@ -58,12 +64,19 @@ jobs:
           const workbench = fs.readFileSync('assets/js/unified-import-analysis-workbench.js', 'utf8');
           const migrations = fs.readFileSync('assets/js/migrations.js', 'utf8');
           const sharedMaster = fs.readFileSync('assets/js/shared-master-data.js', 'utf8');
+          const recipeMaster = fs.readFileSync('assets/js/public-recipe-master.js', 'utf8');
+          const recipeSync = fs.readFileSync('assets/js/public-recipe-master-sync.js', 'utf8');
           assert.match(workbench, /image_byte_snapshot|sourceBlob|readImage/);
           assert.match(migrations, /schema_migrations|apply.*Migration/i);
           assert.match(sharedMaster, /MASTER_DATA_VERSION/);
           assert.match(sharedMaster, /applySharedMasterData/);
           assert.match(sharedMaster, /ingredient_master/);
-          assert.match(sharedMaster, /recipe_master/);
+          assert.doesNotMatch(sharedMaster, /const\s+RECIPES/);
+          assert.match(recipeMaster, /PUBLIC_RECIPE_MASTER_VERSION/);
+          assert.match(recipeMaster, /PUBLIC_RECIPE_MASTER/);
+          assert.match(recipeSync, /syncPublicRecipeMaster/);
+          assert.match(recipeSync, /recipe_master/);
+          assert.match(migrations, /public_recipe_master_version/);
 
           for (const file of required.filter((path) => path !== 'assets/js/version-authority.js')) {
             const source = fs.readFileSync(file, 'utf8');

@@ -22,6 +22,10 @@ requireText(migrations,'hasMigration','migration idempotence');
 requireText(migrations,'export function applyFreshDatabaseBootstrap','fresh database migration path');
 requireText(migrations,'if(!hasMigration(db,4))','shared master migration guard');
 requireText(migrations,'if(!hasMigration(db,6))','canonical migration guard');
+requireText(migrations,'if(!hasMigration(db,8))','War Room strategy migration guard');
+requireText(migrations,'applyWarRoomStrategySnapshotMigration','War Room strategy schema migration');
+requireText(migrations,'CREATE TABLE IF NOT EXISTS strategy_goal_profile','goal profile table contract');
+requireText(migrations,'CREATE TABLE IF NOT EXISTS pokemon_evaluation_snapshot','evaluation snapshot table contract');
 requireText(migrations,'applyStandardCatalogCompatibilityMigration','standard catalog compatibility repair');
 requireText(migrations,'addColumnIfMissing','standard catalog repair idempotence');
 requireText(migrations,'auditAndSyncPublicMasters','public master version audit');
@@ -42,8 +46,7 @@ if(newStart<0||existingStart<0){failures.push('unable to isolate fresh database 
   if(!freshBlock.includes('applyFreshDatabaseBootstrap(db)'))failures.push('fresh database does not use dedicated bootstrap');
 }
 const migrationCalls=[...migrations.matchAll(/if\(!hasMigration\(db,(\d+)\)\)/g)].map(match=>Number(match[1]));
-for(const version of [2,3,4,5,6,7])if(!migrationCalls.includes(version))failures.push(`missing migration guard v${version}`);
-if(migrationCalls.includes(8))failures.push('catalog compatibility repair must not expand public migration versions');
+for(const version of [2,3,4,5,6,7,8])if(!migrationCalls.includes(version))failures.push(`missing migration guard v${version}`);
 try{new vm.Script(migrations.replace(/^import .*$/gm,'').replace(/export /g,''));}catch(error){failures.push(`migrations syntax: ${error.message}`);}
 if(failures.length){console.error(JSON.stringify({ok:false,failures},null,2));process.exit(1);}
-console.log(JSON.stringify({ok:true,version:authority.app_version,build:authority.app_build,scenarios:['cleared_browser_history','empty_indexeddb','database_cleared'],contracts:['fresh_bootstrap_loads_all_public_masters','existing_migrations_are_idempotent','unchanged_public_versions_skip_persist','changed_public_versions_upsert_master_only','central_version_authority','conditional_standard_catalog_schema_repair']},null,2));
+console.log(JSON.stringify({ok:true,version:authority.app_version,build:authority.app_build,scenarios:['cleared_browser_history','empty_indexeddb','database_cleared'],contracts:['fresh_bootstrap_loads_all_public_masters','existing_migrations_are_idempotent','unchanged_public_versions_skip_persist','changed_public_versions_upsert_master_only','central_version_authority','conditional_standard_catalog_schema_repair','strategy_snapshot_migration_v8_no_player_seed']},null,2));

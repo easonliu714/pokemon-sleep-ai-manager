@@ -7,6 +7,9 @@ migrations = (root / 'assets/js/migrations.js').read_text(encoding='utf-8')
 database = (root / 'assets/js/database.js').read_text(encoding='utf-8')
 item_master = (root / 'assets/js/public-item-master.js').read_text(encoding='utf-8')
 item_seed = (root / 'assets/js/public-empty-profile-master.js').read_text(encoding='utf-8')
+recipe_master = (root / 'assets/js/public-recipe-master.js').read_text(encoding='utf-8')
+legacy_recipe = (root / 'assets/js/v0383-catalog-ocr-review-contract.js').read_text(encoding='utf-8')
+shared_master = (root / 'assets/js/shared-master-data.js').read_text(encoding='utf-8')
 rescue = (root / 'assets/js/v0389-rescue-catalog-import.js').read_text(encoding='utf-8')
 shared_ui = (root / 'assets/js/shared-knowledge-ui.js').read_text(encoding='utf-8')
 contract = root / 'docs/PUBLIC_MASTER_DATABASE_VERSION_CONTRACT.md'
@@ -55,11 +58,30 @@ assert "import {PUBLIC_ITEM_MASTER,PUBLIC_ITEM_MASTER_VERSION} from './public-it
 assert 'effect_description_zh_tw=excluded.effect_description_zh_tw' in item_seed
 assert "VALUES('public_item_master_version'" in item_seed
 
+# v0.4.2 recipe facts must also have exactly one runtime authority.
+assert 'export const PUBLIC_RECIPE_MASTER_VERSION=' in recipe_master
+assert 'export const PUBLIC_RECIPE_MASTER=' in recipe_master
+assert 'export const PUBLIC_RECIPE_ALIASES=' in recipe_master
+assert 'export function applyPublicRecipeMaster' in recipe_master
+assert "import {PUBLIC_RECIPE_MASTER,PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-master.js'" in module
+assert 'PokemonSleepPublicRecipeRegistry' not in module
+assert 'const RECIPES' not in shared_master
+assert 'const RECIPES' not in legacy_recipe
+assert "authority:'public-recipe-master.js'" in legacy_recipe
+assert 'database_write_performed:false' in legacy_recipe
+assert 'player_state_write:false' in legacy_recipe
+for forbidden in [
+    'DELETE FROM recipes', 'UPDATE recipes SET', 'INSERT INTO recipes(',
+    'INSERT OR REPLACE INTO recipes',
+]:
+    assert forbidden not in recipe_master, f'public recipe updater mutates player data: {forbidden}'
+
 # Version audit must be local-first and only persist when schema/master changed.
 for token in [
     'auditAndSyncPublicMasters', 'shared_master_version',
-    'public_item_master_version', 'canonical_registry_version',
-    'applied.shared!==expected.shared', 'applied.items!==expected.items',
+    'public_recipe_master_version', 'public_item_master_version',
+    'canonical_registry_version', 'applied.shared!==expected.shared',
+    'applied.recipes!==expected.recipes', 'applied.items!==expected.items',
     'applied.canonical!==expected.canonical',
 ]:
     assert token in migrations, f'missing public master version audit token: {token}'
@@ -91,6 +113,7 @@ print({
     'catalog_views': ['ingredient_catalog_state', 'item_catalog_state', 'recipe_catalog_state'],
     'renderer': 'cause_aware_generation_queue',
     'single_item_authority': True,
+    'single_recipe_authority': True,
     'version_audit': True,
     'unchanged_version_persist': False,
     'mutation_observer': False,
