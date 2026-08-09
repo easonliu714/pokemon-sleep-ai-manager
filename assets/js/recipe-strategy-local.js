@@ -80,6 +80,7 @@ export function buildLocalRecipeStrategyProjection({
 if(typeof window!=='undefined'){
   queueMicrotask(()=>Promise.all([
     import('./war-room-goal-profile-bootstrap.js'),
+    import('./war-room-team-optimizer-bootstrap.js'),
     import('./war-room-candidate-feature-bootstrap.js'),
     import('./war-room-strategy-context-bootstrap.js'),
   ]).catch(error=>console.warn('War Room strategy UI bootstrap deferred',error)));
