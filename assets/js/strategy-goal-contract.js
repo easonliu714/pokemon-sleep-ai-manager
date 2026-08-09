@@ -64,3 +64,16 @@ export function strategyGoalProfileValidation(profile){
   if(normalized.hard_constraints.no_untrained_candidates&&normalized.hard_constraints.minimum_candidate_level===null)errors.push('minimum_candidate_level_required');
   return {valid:errors.length===0,errors,normalized,fingerprint:strategyGoalProfileFingerprint(normalized)};
 }
+
+export function strategyGoalProfileDraftState(profile,activeProfile=null){
+  const validation=strategyGoalProfileValidation(profile);
+  const activeFingerprint=activeProfile?strategyGoalProfileFingerprint(activeProfile):null;
+  return Object.freeze({
+    valid:validation.valid,
+    errors:Object.freeze([...validation.errors]),
+    normalized:validation.normalized,
+    fingerprint:validation.fingerprint,
+    active_fingerprint:activeFingerprint,
+    dirty:activeFingerprint===null||validation.fingerprint!==activeFingerprint,
+  });
+}
