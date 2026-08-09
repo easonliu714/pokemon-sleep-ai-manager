@@ -7,6 +7,8 @@ const SOURCE_POLICY = Object.freeze({
   verified_at: '2026-07-31',
 });
 
+// Public type→berry knowledge is projection-only. It is public game knowledge
+// and must never be written back into player-owned Pokémon rows.
 export const PUBLIC_BERRY_TYPES = Object.freeze([
   ['一般','柿仔果'],['火','蘋野果'],['水','橙橙果'],['電','葡萄果'],['草','金枕果'],['冰','莓莓果'],
   ['格鬥','櫻子果'],['毒','零餘果'],['地面','勿花果'],['飛行','椰木果'],['超能力','芒芒果'],['蟲','木子果'],
