@@ -9,11 +9,15 @@ on:
       - 'assets/js/public-recipe-provenance.js'
       - 'assets/js/public-catalog-workbench.js'
       - 'assets/js/recipe-strategy-local.js'
+      - 'assets/js/migrations.js'
       - 'assets/data/public-recipe-zh-tw-screenshot-evidence-2026-08-09.json'
+      - 'scripts/v042-recipe-provenance-audit.mjs'
+      - 'scripts/v042-recipe-sync-preservation-contract.mjs'
       - 'scripts/v043-recipe-zh-tw-evidence-audit.mjs'
       - 'scripts/v043-recipe-zh-tw-evidence-audit-contract.mjs'
       - 'scripts/v043-full50-recipe-evidence-contract.mjs'
       - 'scripts/v043-r22-recipe-canonical-name-contract.mjs'
+      - 'tests/test_g14_public_catalog_renderer_authority.py'
       - 'tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json'
       - '.github/workflows/v043-r21-recipe-zh-tw-evidence-audit.yml'
   push:
@@ -26,11 +30,15 @@ on:
       - 'assets/js/public-recipe-provenance.js'
       - 'assets/js/public-catalog-workbench.js'
       - 'assets/js/recipe-strategy-local.js'
+      - 'assets/js/migrations.js'
       - 'assets/data/public-recipe-zh-tw-screenshot-evidence-2026-08-09.json'
+      - 'scripts/v042-recipe-provenance-audit.mjs'
+      - 'scripts/v042-recipe-sync-preservation-contract.mjs'
       - 'scripts/v043-recipe-zh-tw-evidence-audit.mjs'
       - 'scripts/v043-recipe-zh-tw-evidence-audit-contract.mjs'
       - 'scripts/v043-full50-recipe-evidence-contract.mjs'
       - 'scripts/v043-r22-recipe-canonical-name-contract.mjs'
+      - 'tests/test_g14_public_catalog_renderer_authority.py'
       - 'tests/fixtures/v043_recipe_zh_tw_evidence_sanitized_fixture.json'
       - '.github/workflows/v043-r21-recipe-zh-tw-evidence-audit.yml'
 
@@ -94,6 +102,36 @@ jobs:
           set -o errexit -o nounset -o pipefail
           node scripts/v043-r22-recipe-canonical-name-contract.mjs | tee /tmp/v043-r22-contract.json
 
+      - name: Verify projected provenance coverage
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/v042-recipe-provenance-audit.mjs | tee /tmp/v043-r22-provenance.json
+
+      - name: Install SQL.js fixture runtime
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          npm install --no-save --ignore-scripts sql.js@1.13.0
+
+      - name: Run R2.3 existing-player preservation and idempotency
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/v042-recipe-sync-preservation-contract.mjs | tee /tmp/v043-r23-preservation.json
+
+      - name: Verify migration authority and G14 renderer authority
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          grep -q "PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-canonical-authority.js'" assets/js/migrations.js
+          grep -q "PUBLIC_RECIPE_MASTER,PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-canonical-authority.js'" assets/js/public-catalog-workbench.js
+          if grep -q "from './public-recipe-master.js'" assets/js/public-catalog-workbench.js; then
+            echo 'Renderer bypassed canonical recipe authority.' >&2
+            exit 1
+          fi
+          python tests/test_g14_public_catalog_renderer_authority.py
+
       - name: Verify fixture is synthetic and private source is absent
         shell: bash
         run: |
@@ -113,4 +151,4 @@ jobs:
         shell: bash
         run: |
           set -o errexit -o nounset -o pipefail
-          git diff --exit-code
+          git diff --exit-code -- . ':!package-lock.json'
