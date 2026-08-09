@@ -1,3 +1,4 @@
+import {isRescueReadonly} from './database.js';
 import {getActiveStrategyGoalProfile,saveStrategyGoalProfile} from './strategy-goal-store.js';
 import {defaultHardConstraints,STRATEGY_GOALS} from './strategy-goal-contract.js';
 import {refreshFactEvaluationSnapshots,listCurrentPokemonEvaluationSnapshots} from './pokemon-evaluation-store.js';
@@ -19,6 +20,10 @@ function reserveText(map){return Object.entries(map||{}).map(([name,value])=>`${
 function checked(value){return value?'checked':'';}
 
 function render(root){
+  if(isRescueReadonly()){
+    root.innerHTML='<div class="panel"><h3>戰情室目標與 Hard Constraints</h3><p class="notice">玩家資料尚未載入，目前為救援／唯讀模式。Goal Profile 與 Evaluation Snapshot 不會讀取或寫入玩家資料；完成本機資料庫載入後再使用此區。</p></div>';
+    return;
+  }
   const saved=getActiveStrategyGoalProfile();
   const constraints={...defaultHardConstraints(),...(saved?.hard_constraints||{})};
   const primary=saved?.primary_goal||'balanced';
