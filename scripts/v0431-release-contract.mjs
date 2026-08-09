@@ -7,14 +7,25 @@ import {CONTROLLED_SELECTOR_VERSION} from '../assets/js/controlled-selector.js';
 const __filename=fileURLToPath(import.meta.url);
 const root=path.resolve(path.dirname(__filename),'..');
 const read=relative=>fs.readFileSync(path.join(root,relative),'utf8');
+const parseVersion=value=>{
+  const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$/);
+  return match?match.slice(1).map(part=>Number(part||0)):null;
+};
+const versionAtLeast=(actual,minimum)=>{
+  const a=parseVersion(actual),b=parseVersion(minimum);if(!a||!b)return false;
+  for(let index=0;index<4;index+=1){if(a[index]!==b[index])return a[index]>b[index];}
+  return true;
+};
 
 const version=read('assets/js/version-authority.js');
 const app=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const build=version.match(/app_build:\s*'([^']+)'/)?.[1];
 const cache=version.match(/cache_name:\s*'([^']+)'/)?.[1];
-assert.equal(app,'v0.4.3.1');
-assert.equal(build,'20260809-v0431-controlled-selector-live-hotfix');
-assert.equal(cache,'pokemon-sleep-ai-v0.4.3.1-v0431-controlled-selector-live-hotfix');
+assert.equal(versionAtLeast(app,'v0.4.3.1'),true,'central release must not regress below v0.4.3.1');
+if(app==='v0.4.3.1'){
+  assert.equal(build,'20260809-v0431-controlled-selector-live-hotfix');
+  assert.equal(cache,'pokemon-sleep-ai-v0.4.3.1-v0431-controlled-selector-live-hotfix');
+}
 assert.equal(CONTROLLED_SELECTOR_VERSION,'controlled-selector-2026-08-09-c');
 
 const component=read('assets/js/controlled-selector.js');
@@ -40,6 +51,7 @@ process.stdout.write(`${JSON.stringify({
   status:'PASS',
   gate:'V0.4.3.1_CONTROLLED_SELECTOR_RELEASE_CONTRACT',
   app_version:app,
+  minimum_release:'v0.4.3.1',
   build,
   cache,
   controlled_selector_version:CONTROLLED_SELECTOR_VERSION,

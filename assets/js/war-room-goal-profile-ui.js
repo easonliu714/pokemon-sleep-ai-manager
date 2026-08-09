@@ -1,6 +1,6 @@
 import {isRescueReadonly} from './database.js';
 import {getActiveStrategyGoalProfile,saveStrategyGoalProfile} from './strategy-goal-store.js';
-import {defaultHardConstraints,STRATEGY_GOALS} from './strategy-goal-contract.js';
+import {defaultHardConstraints,STRATEGY_GOALS,strategyGoalProfileDraftState} from './strategy-goal-contract.js';
 import {refreshFactEvaluationSnapshots,listCurrentPokemonEvaluationSnapshots} from './pokemon-evaluation-store.js';
 import {createControlledSelector,createControlledNumberMapEditor} from './controlled-selector.js';
 import {getWarRoomPokemonOptions,getWarRoomIngredientOptions,WAR_ROOM_ROLE_OPTIONS} from './war-room-controlled-options.js';
@@ -52,45 +52,94 @@ function render(root){
         <label class="edit-field"><span>夢之碎片預算</span><input name="budget_dream_shard" type="number" min="0" value="${esc(constraints.training_budget?.dream_shard??'')}"></label>
         <label class="edit-field"><span>種子預算</span><input name="budget_seed" type="number" min="0" value="${esc(constraints.training_budget?.seed??'')}"></label>
         <label class="edit-field"><span>進化道具預算</span><input name="budget_evolution_item" type="number" min="0" value="${esc(constraints.training_budget?.evolution_item??'')}"></label>
-        <div class="full"><button type="submit">儲存目標與限制</button> <button type="button" id="warRoomRefreshEvaluationSnapshots">建立／更新評估快照</button></div>
+        <div class="full"><button type="submit" id="warRoomSaveGoalProfile">儲存目標與限制</button> <button type="button" id="warRoomRefreshEvaluationSnapshots">建立／更新評估快照</button></div>
       </form>
+      <p id="warRoomGoalDraftStatus" class="notice"></p>
       <p id="warRoomGoalStatus" class="notice">${saved?`Active Profile：${esc(saved.goal_profile_id)} / ${esc(saved.profile_version)}`:'尚未儲存 Goal Profile；目前使用 UI 預設值，不會自動建立玩家資料。'}<br>目前有效 Evaluation Snapshot：${snapshots.length}；FACT-only：${factOnly}</p>
     </div>`;
 
   const pokemonOptions=getWarRoomPokemonOptions();
   const ingredientOptions=getWarRoomIngredientOptions();
+  const pokemonOptionByValue=new Map(pokemonOptions.map(option=>[String(option.value),option]));
+  let syncDraftState=()=>null;
   const mustIncludeSelector=createControlledSelector(root.querySelector('#warRoomMustIncludePokemon'),{
-    options:pokemonOptions,values:constraints.must_include_pokemon||[],multiple:true,maxSelections:5,selectionLabel:'選擇必帶寶可夢',placeholder:'搜尋名稱、Lv、專長或個體…',
+    options:pokemonOptions,values:constraints.must_include_pokemon||[],multiple:true,maxSelections:5,selectionLabel:'選擇必帶寶可夢',placeholder:'搜尋名稱、Lv、專長或個體…',onChange:()=>syncDraftState(),
   });
   const excludeSelector=createControlledSelector(root.querySelector('#warRoomExcludePokemon'),{
-    options:pokemonOptions,values:constraints.exclude_pokemon||[],multiple:true,selectionLabel:'選擇排除寶可夢',placeholder:'搜尋名稱、Lv、專長或個體…',
+    options:pokemonOptions,values:constraints.exclude_pokemon||[],multiple:true,selectionLabel:'選擇排除寶可夢',placeholder:'搜尋名稱、Lv、專長或個體…',onChange:()=>syncDraftState(),
   });
   const roleSelector=createControlledSelector(root.querySelector('#warRoomMustIncludeRole'),{
-    options:WAR_ROOM_ROLE_OPTIONS,values:constraints.must_include_role||[],multiple:true,maxSelections:3,selectionLabel:'選擇必要角色',placeholder:'搜尋樹果、食材、技能…',
+    options:WAR_ROOM_ROLE_OPTIONS,values:constraints.must_include_role||[],multiple:true,maxSelections:3,selectionLabel:'選擇必要角色',placeholder:'搜尋樹果、食材、技能…',onChange:()=>syncDraftState(),
   });
   const nightSelector=createControlledSelector(root.querySelector('#warRoomNightPokemon'),{
-    options:pokemonOptions,values:constraints.sleep_evolution_member_at_night||[],multiple:true,maxSelections:5,selectionLabel:'選擇夜間／進化目標成員',placeholder:'搜尋寶可夢個體…',
+    options:pokemonOptions,values:constraints.sleep_evolution_member_at_night||[],multiple:true,maxSelections:5,selectionLabel:'選擇夜間／進化目標成員',placeholder:'搜尋寶可夢個體…',onChange:()=>syncDraftState(),
   });
   const reserveEditor=createControlledNumberMapEditor(root.querySelector('#warRoomIngredientSafeReserve'),{
-    options:ingredientOptions,value:constraints.ingredient_safe_reserve||{},selectionLabel:'新增安全庫存食材',placeholder:'搜尋食材…',minimum:0,
+    options:ingredientOptions,value:constraints.ingredient_safe_reserve||{},selectionLabel:'新增安全庫存食材',placeholder:'搜尋食材…',minimum:0,onChange:()=>syncDraftState(),
   });
 
-  const form=root.querySelector('#warRoomGoalProfileForm'),status=root.querySelector('#warRoomGoalStatus');
+  const form=root.querySelector('#warRoomGoalProfileForm'),status=root.querySelector('#warRoomGoalStatus'),draftStatus=root.querySelector('#warRoomGoalDraftStatus');
+  const saveButton=root.querySelector('#warRoomSaveGoalProfile'),snapshotButton=root.querySelector('#warRoomRefreshEvaluationSnapshots');
   const unresolvedCount=()=>mustIncludeSelector.unresolved().length+excludeSelector.unresolved().length+roleSelector.unresolved().length+nightSelector.unresolved().length+reserveEditor.unresolved().length;
   if(unresolvedCount())status.innerHTML+=`<br><b>受控清單 REVIEW：${unresolvedCount()}</b> 個舊值無法唯一解析；未手動移除前會保留原值。`;
 
-  form.onsubmit=async event=>{
-    event.preventDefault();const data=new FormData(form),secondaryGoals=data.getAll('secondary_goal');
-    const profile={profile_name:data.get('profile_name'),primary_goal:data.get('primary_goal'),secondary_goals:secondaryGoals,hard_constraints:{
+  function buildDraftProfile(){
+    const data=new FormData(form),secondaryGoals=data.getAll('secondary_goal');
+    return {profile_name:data.get('profile_name'),primary_goal:data.get('primary_goal'),secondary_goals:secondaryGoals,hard_constraints:{
       require_verified_master:data.has('require_verified_master'),current_unlocks_only:data.has('current_unlocks_only'),pot_capacity_limit:data.has('pot_capacity_limit'),item_safe_reserve:data.has('item_safe_reserve'),require_complete_profile_fields:data.has('require_complete_profile_fields'),
       recipe_unlock_policy:data.get('recipe_unlock_policy'),max_same_species:data.get('max_same_species'),no_untrained_candidates:data.has('no_untrained_candidates'),minimum_candidate_level:data.get('minimum_candidate_level'),
       must_include_pokemon:[...mustIncludeSelector.values()],exclude_pokemon:[...excludeSelector.values()],must_include_role:[...roleSelector.values()],sleep_evolution_member_at_night:[...nightSelector.values()],
       preserve_current_team_slots:parseSlotList(data.get('preserve_current_team_slots')),ingredient_safe_reserve:{...reserveEditor.value()},
       training_budget:{candy:data.get('budget_candy'),dream_shard:data.get('budget_dream_shard'),seed:data.get('budget_seed'),evolution_item:data.get('budget_evolution_item')},
     }};
-    try{status.textContent='正在儲存策略目標…';await saveStrategyGoalProfile(profile,{goalProfileId:saved?.goal_profile_id||null,activate:true});render(root);}catch(error){status.textContent=error?.message||String(error);}
+  }
+  function humanError(error){
+    if(String(error).startsWith('include_exclude_conflict:')){
+      const value=String(error).slice('include_exclude_conflict:'.length),option=pokemonOptionByValue.get(value);
+      return `同一個體不能同時設為「一定要包含」與「排除」：${option?.label||'目前選取的寶可夢個體'}`;
+    }
+    if(error==='minimum_candidate_level_required')return '勾選「排除未培養候選」時，必須設定最低等級。';
+    return String(error);
+  }
+  function emitDraftState(state){
+    window.dispatchEvent?.(new CustomEvent('pokemon-sleep:strategy-goal-profile-draft-changed',{detail:{state}}));
+  }
+  syncDraftState=({emit=true}={})=>{
+    const draft=strategyGoalProfileDraftState(buildDraftProfile(),saved);
+    const state=!draft.valid?'invalid':draft.dirty?'dirty':'clean';
+    root.dataset.goalDraftState=state;
+    saveButton.disabled=!draft.valid;
+    snapshotButton.disabled=!draft.valid||draft.dirty;
+    if(!draft.valid){
+      draftStatus.className='notice warning';
+      draftStatus.innerHTML=`<b>草稿無法儲存。</b> ${draft.errors.map(humanError).map(esc).join(' ') }<br>下方自動組隊仍使用最後一次成功儲存的 Active Profile。`;
+    }else if(draft.dirty){
+      draftStatus.className='notice warning';
+      draftStatus.innerHTML=`<b>${saved?'尚未儲存變更':'尚未建立 Active Profile'}。</b> 請先按「儲存目標與限制」；完成前自動組隊不會使用這份草稿。`;
+    }else{
+      draftStatus.className='notice';
+      draftStatus.textContent='草稿已與 Active Profile 同步；可依目前已儲存條件重新計算隊伍。';
+    }
+    if(emit)emitDraftState(state);
+    return draft;
   };
-  root.querySelector('#warRoomRefreshEvaluationSnapshots').onclick=async()=>{
+
+  form.addEventListener('input',event=>{if(!event.target?.matches?.('[data-cs-search]'))syncDraftState();});
+  form.addEventListener('change',()=>syncDraftState());
+  syncDraftState();
+
+  form.onsubmit=async event=>{
+    event.preventDefault();
+    const draft=syncDraftState({emit:true});
+    if(!draft.valid){status.textContent='無法儲存：請先修正上方 Hard Constraint 衝突。';return;}
+    try{
+      root.dataset.goalDraftState='saving';saveButton.disabled=true;snapshotButton.disabled=true;emitDraftState('saving');status.textContent='正在儲存策略目標…';
+      await saveStrategyGoalProfile(buildDraftProfile(),{goalProfileId:saved?.goal_profile_id||null,activate:true});render(root);
+    }catch(error){status.textContent=error?.message||String(error);syncDraftState();}
+  };
+  snapshotButton.onclick=async()=>{
+    const draft=syncDraftState({emit:false});
+    if(!draft.valid||draft.dirty){status.textContent='請先成功儲存目前 Goal Profile，再建立／更新 Evaluation Snapshot。';return;}
     try{status.textContent='正在建立／重用本機 Evaluation Snapshot…';const result=await refreshFactEvaluationSnapshots();status.textContent=`Snapshot：created=${result.created||0} reused=${result.reused||0} staled=${result.staled||0} skipped=${result.skipped||0}；player_rows_modified=${result.player_rows_modified}`;}
     catch(error){status.textContent=error?.message||String(error);}
   };
