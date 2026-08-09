@@ -23,6 +23,20 @@ for(const module of [
   assert(fs.existsSync(`assets/js/${module}`),`war_room_bootstrap_missing:${module}`);
 }
 
+const goalUi=read('assets/js/war-room-goal-profile-ui.js');
+assert(goalUi.includes("import {isRescueReadonly} from './database.js'"),'goal_profile_ui_missing_rescue_guard_import');
+const rescueGuardIndex=goalUi.indexOf('if(isRescueReadonly())');
+const firstGoalReadIndex=goalUi.indexOf('getActiveStrategyGoalProfile()');
+assert(rescueGuardIndex>=0&&firstGoalReadIndex>rescueGuardIndex,'goal_profile_reads_player_db_before_rescue_guard');
+
+const candidateLocal=read('assets/js/pokemon-candidate-local.js');
+assert(candidateLocal.includes('export function buildLocalPokemonCandidateScoring'),'candidate_scoring_adapter_not_exported');
+assert(candidateLocal.includes('if(isRescueReadonly())return'),'candidate_local_missing_rescue_guard');
+
+const strategyContextLocal=read('assets/js/strategy-context-local.js');
+assert(strategyContextLocal.includes('buildLocalPokemonCandidateScoring'),'strategy_context_missing_candidate_scoring_adapter');
+assert(strategyContextLocal.includes('if(isRescueReadonly())return'),'strategy_context_missing_rescue_guard');
+
 const serviceWorker=read('service-worker.js');
 assert(serviceWorker.includes("importScripts('./assets/js/version-authority.js')"),'service_worker_not_using_version_authority');
 assert(serviceWorker.includes("url.pathname.endsWith('.js')"),'js_network_first_cache_path_missing');
@@ -54,7 +68,7 @@ for(const forbidden of ['ai-project-pool-runtime.js','applyPayload(','INSERT INT
 
 console.log(JSON.stringify({
   status:'PASS',
-  schema:'pokemon-sleep-v042-release-integration-contract/1.0',
+  schema:'pokemon-sleep-v042-release-integration-contract/1.1',
   app_version:authority.app_version,
   build:authority.app_build,
   cache:authority.cache_name,
@@ -62,6 +76,8 @@ console.log(JSON.stringify({
   upcoming_recipe_count:PUBLIC_RECIPE_UPCOMING_EVIDENCE.length,
   war_room_runtime_bootstraps:3,
   migration_version:8,
+  rescue_war_room_db_safe:true,
+  strategy_context_scoring_adapter:true,
   offline_after_online_js_cache:true,
   direct_provider_apply:false,
 },null,2));
