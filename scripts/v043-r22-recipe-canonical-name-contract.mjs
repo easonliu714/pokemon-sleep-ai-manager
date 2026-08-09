@@ -114,7 +114,7 @@ const screenshotAliasRows=PUBLIC_RECIPE_ALIASES.filter(row=>row.source_type==='p
 assert.equal(screenshotAliasRows.length,33,'exactly 33 pre-v0.4.3 legacy public-name aliases required');
 
 const versionAuthority=fs.readFileSync(path.join(root,'assets/js/version-authority.js'),'utf8');
-assert.match(versionAuthority,/app_version:\s*'v0\.4\.2'/,'R2.2 must not bump central app version before R2.3 closure');
+assert.match(versionAuthority,/app_version:\s*'v0\.4\.3'/,'R2.2/R2.3 closed recipe authority must ship under v0.4.3 release authority');
 
 function collectJsFiles(directory){
   const out=[];
@@ -147,5 +147,6 @@ process.stdout.write(`${JSON.stringify({
   formula_conflict_review_count:PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS.length,
   ingredient_formula_changes:0,
   direct_runtime_raw_master_imports:directRawImports,
-  central_app_version_unchanged:'v0.4.2',
+  release_app_version:'v0.4.3',
+  development_version_guard_closed:true,
 },null,2)}\n`);
