@@ -70,7 +70,10 @@ const store=fs.readFileSync('assets/js/pokemon-evaluation-store.js','utf8');
 const goalStore=fs.readFileSync('assets/js/strategy-goal-store.js','utf8');
 const localRecipe=fs.readFileSync('assets/js/recipe-strategy-local.js','utf8');
 for(const forbidden of ['UPDATE pokemon SET','INSERT INTO pokemon(','DELETE FROM pokemon','ai_score','rating='])assert(!store.includes(forbidden),`evaluation_store_mutates_pokemon:${forbidden}`);
-assert(store.includes('input_fingerprint=? AND stale_at IS NULL'),'snapshot_reuse_query_missing');
+const legacyReuseQuery=store.includes('input_fingerprint=? AND stale_at IS NULL');
+const plannerReuseContract=store.includes('planFactEvaluationSnapshotRefresh')&&store.includes('planSnapshotLifecycle')&&store.includes('if(!plan.write_required&&!force)')&&store.includes('write_performed:false');
+assert(legacyReuseQuery||plannerReuseContract,'snapshot_reuse_contract_missing');
+if(plannerReuseContract)assert(store.indexOf('if(!plan.write_required&&!force)')<store.indexOf("await snapshot('war-room:evaluation-snapshots')"),'snapshot_reuse_zero_write_must_precede_snapshot');
 assert(store.includes('SET stale_at=?'),'stale_lifecycle_missing');
 assert(store.includes('player_rows_modified:false'),'snapshot_player_write_contract_missing');
 assert(goalStore.includes('UPDATE strategy_goal_profile SET is_active=0'),'single_active_goal_contract_missing');
@@ -80,9 +83,9 @@ assert(localRecipe.includes('require_verified_master'),'verified_master_goal_con
 for(const module of ['war-room-goal-profile-bootstrap.js','war-room-candidate-feature-bootstrap.js','war-room-strategy-context-bootstrap.js'])assert(localRecipe.includes(module),`war_room_bootstrap_not_wired:${module}`);
 
 console.log(JSON.stringify({
-  status:'PASS',schema:'pokemon-sleep-war-room-goal-evaluation-contract/1.1',goal_profile_version:STRATEGY_GOAL_PROFILE_VERSION,evaluation_rule_version:POKEMON_EVALUATION_RULE_VERSION,
+  status:'PASS',schema:'pokemon-sleep-war-room-goal-evaluation-contract/1.2',goal_profile_version:STRATEGY_GOAL_PROFILE_VERSION,evaluation_rule_version:POKEMON_EVALUATION_RULE_VERSION,
   goal_profile_order_invariant:true,include_exclude_conflict_blocked:true,no_untrained_minimum_level_required:true,fresh_db_player_strategy_rows:0,
   evaluation_fingerprint_order_invariant:true,weekly_goal_master_changes_invalidate_fingerprint:true,fact_only_scores_null:true,legacy_ai_score_not_reused:true,
-  snapshot_reuse_contract:true,stale_lifecycle_contract:true,pokemon_master_rows_modified:false,recipe_projection_uses_active_goal_constraints:true,
-  war_room_runtime_bootstraps:3,
+  snapshot_reuse_contract:true,snapshot_reuse_implementation:plannerReuseContract?'planner_zero_write':'legacy_query',stale_lifecycle_contract:true,pokemon_master_rows_modified:false,recipe_projection_uses_active_goal_constraints:true,
+  historical_war_room_bootstraps_preserved:3,
 },null,2));

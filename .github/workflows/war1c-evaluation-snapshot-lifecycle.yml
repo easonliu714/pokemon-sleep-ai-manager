@@ -1,0 +1,53 @@
+name: WAR.1C Evaluation Snapshot Lifecycle
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/version-authority.js'
+      - 'service-worker.js'
+      - 'assets/js/evaluation-week.js'
+      - 'assets/js/evaluation-refresh-plan.js'
+      - 'assets/js/evaluation-lifecycle.js'
+      - 'assets/js/evaluation-lifecycle-bootstrap.js'
+      - 'assets/js/pokemon-evaluation-store.js'
+      - 'assets/js/manual-editor.js'
+      - 'assets/js/recipe-strategy-local.js'
+      - 'assets/js/war-room-evaluation-lifecycle-ui.js'
+      - 'assets/js/war-room-evaluation-lifecycle-bootstrap.js'
+      - 'scripts/war1c-evaluation-snapshot-lifecycle-contract.mjs'
+      - 'scripts/v044-evaluation-snapshot-lifecycle-release-contract.mjs'
+      - '.github/workflows/war1c-evaluation-snapshot-lifecycle.yml'
+  workflow_dispatch:
+
+jobs:
+  lifecycle-contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify deterministic lifecycle contract
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/war1c-evaluation-snapshot-lifecycle-contract.mjs
+      - name: Verify exact v0.4.4 release contract
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node scripts/v044-evaluation-snapshot-lifecycle-release-contract.mjs
+      - name: Verify lifecycle JavaScript syntax
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node --check assets/js/evaluation-week.js
+          node --check assets/js/evaluation-refresh-plan.js
+          node --check assets/js/evaluation-lifecycle.js
+          node --check assets/js/evaluation-lifecycle-bootstrap.js
+          node --check assets/js/pokemon-evaluation-store.js
+          node --check assets/js/war-room-evaluation-lifecycle-ui.js
+          node --check assets/js/war-room-evaluation-lifecycle-bootstrap.js
+      - name: Verify no tracked test mutation
+        shell: bash
+        run: test -z "$(git status --porcelain --untracked-files=no)"

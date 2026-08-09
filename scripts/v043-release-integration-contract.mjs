@@ -16,14 +16,24 @@ import {TEAM_OPTIMIZER_VERSION,TEAM_SIZE} from '../assets/js/team-optimizer.js';
 const __filename=fileURLToPath(import.meta.url);
 const root=path.resolve(path.dirname(__filename),'..');
 const read=relative=>fs.readFileSync(path.join(root,relative),'utf8');
+const versionParts=value=>String(value||'').replace(/^v/,'').split('.').map(part=>Number(part)||0);
+const versionAtLeast=(current,minimum)=>{
+  const a=versionParts(current),b=versionParts(minimum),length=Math.max(a.length,b.length);
+  for(let index=0;index<length;index+=1){const left=a[index]||0,right=b[index]||0;if(left!==right)return left>right;}
+  return true;
+};
 
 const versionSource=read('assets/js/version-authority.js');
 const versionMatch=versionSource.match(/app_version:\s*'([^']+)'/);
 const buildMatch=versionSource.match(/app_build:\s*'([^']+)'/);
 const cacheMatch=versionSource.match(/cache_name:\s*'([^']+)'/);
-assert.match(versionMatch?.[1]||'',/^v0\.4\.3(?:\.\d+)?$/,'v0.4.3 historical contract only accepts v0.4.3 patch line');
-assert.match(buildMatch?.[1]||'',/^20260809-v043(?:1-)?/,'unexpected v0.4.3 patch build authority');
-assert.match(cacheMatch?.[1]||'',/^pokemon-sleep-ai-v0\.4\.3(?:\.\d+)?-/,'unexpected v0.4.3 patch cache authority');
+const currentVersion=versionMatch?.[1]||'';
+assert.equal(versionAtLeast(currentVersion,'v0.4.3'),true,'current release must preserve v0.4.3 behavior or later');
+assert.ok(buildMatch?.[1]&&cacheMatch?.[1],'central build/cache authority missing');
+if(/^v0\.4\.3(?:\.\d+)?$/.test(currentVersion)){
+  assert.match(buildMatch[1],/^20260809-v043(?:1-)?/,'unexpected v0.4.3 patch build authority');
+  assert.match(cacheMatch[1],/^pokemon-sleep-ai-v0\.4\.3(?:\.\d+)?-/,'unexpected v0.4.3 patch cache authority');
+}
 
 assert.equal(PUBLIC_RECIPE_MASTER_VERSION,'public-recipe-master-2026-08-09-b');
 assert.equal(PUBLIC_RECIPE_MASTER.length,76);
@@ -115,7 +125,7 @@ process.stdout.write(`${JSON.stringify({
   status:'PASS',
   gate:'V0.4.3_RELEASE_INTEGRATION_CONTRACT',
   historical_release_line:'v0.4.3.x',
-  app_version:versionMatch[1],
+  current_app_version:currentVersion,
   build:buildMatch[1],
   cache:cacheMatch[1],
   active_recipe_count:PUBLIC_RECIPE_MASTER.length,
@@ -131,5 +141,5 @@ process.stdout.write(`${JSON.stringify({
   precise_energy_claim:false,
   player_team_write:false,
   private_raw_source_committed:false,
-  patch_forward_compatible:true,
+  forward_compatible_release_authority:true,
 },null,2)}\n`);

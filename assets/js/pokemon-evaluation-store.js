@@ -1,6 +1,7 @@
 import {rows,run,persist,snapshot,isRescueReadonly} from './database.js';
 import {localIso} from './time-utils.js';
 import {getActiveStrategyGoalProfile} from './strategy-goal-store.js';
+import {planSnapshotLifecycle,EVALUATION_REFRESH_PLAN_VERSION} from './evaluation-refresh-plan.js';
 import {
   POKEMON_EVALUATION_RULE_VERSION,
   pokemonEvaluationFingerprint,
@@ -44,6 +45,31 @@ function deserialize(row){
   };
 }
 function snapshotId(pokemonId,fingerprint){return `eval_${String(pokemonId).replace(/[^a-zA-Z0-9_-]/g,'_')}_${fingerprint.split(':').pop()}`;}
+function requestedPokemonIds(pokemonIds=null){return [...new Set((pokemonIds||[]).map(id=>String(id||'')).filter(Boolean))];}
+function activePokemonIds(pokemonIds=null){
+  const requested=requestedPokemonIds(pokemonIds);
+  if(requested.length)return requested.filter(id=>rows("SELECT 1 FROM pokemon WHERE pokemon_id=? AND status='active' LIMIT 1",[id]).length>0);
+  return rows("SELECT pokemon_id FROM pokemon WHERE status='active' ORDER BY pokemon_id").map(row=>String(row.pokemon_id||'')).filter(Boolean);
+}
+function currentSnapshotHeaders(pokemonIds=null){
+  const requested=requestedPokemonIds(pokemonIds);
+  if(requested.length){
+    const output=[];
+    for(const pokemonId of requested)output.push(...rows(`SELECT evaluation_id,pokemon_id,input_fingerprint FROM pokemon_evaluation_snapshot
+      WHERE pokemon_id=? AND stale_at IS NULL ORDER BY evaluated_at DESC`,[pokemonId]));
+    return output;
+  }
+  return rows(`SELECT evaluation_id,pokemon_id,input_fingerprint FROM pokemon_evaluation_snapshot
+    WHERE stale_at IS NULL ORDER BY pokemon_id,evaluated_at DESC`);
+}
+function evaluationEnvironment(){
+  return {profile:getActiveStrategyGoalProfile(),weeklyContext:latestWeeklyContext(),masterVersions:currentEvaluationMasterVersions()};
+}
+function targetFingerprint(pokemonId,environment){
+  const detail=pokemonDetail(pokemonId);if(!detail)return null;
+  const input={...detail,weeklyContext:environment.weeklyContext,goalProfile:environment.profile,masterVersions:environment.masterVersions,ruleVersion:POKEMON_EVALUATION_RULE_VERSION};
+  return {pokemon_id:pokemonId,input_fingerprint:pokemonEvaluationFingerprint(input)};
+}
 
 export function getCurrentPokemonEvaluationSnapshot(pokemonId){
   if(isRescueReadonly())return null;
@@ -56,27 +82,51 @@ export function listCurrentPokemonEvaluationSnapshots(){
   return rows(`SELECT * FROM pokemon_evaluation_snapshot WHERE stale_at IS NULL ORDER BY evaluated_at DESC,pokemon_id`).map(deserialize);
 }
 
+export function planFactEvaluationSnapshotRefresh({pokemonIds=null,force=false}={}){
+  if(isRescueReadonly())return Object.freeze({
+    status:'PLAYER_DATA_UNAVAILABLE',plan_version:EVALUATION_REFRESH_PLAN_VERSION,target_count:0,current_snapshot_count:0,
+    refresh_count:0,reused_count:0,stale_count:0,refresh_required:false,write_required:false,force:Boolean(force),
+    refresh_targets:Object.freeze([]),reused_targets:Object.freeze([]),stale_snapshot_ids:Object.freeze([]),skipped:0,
+  });
+  const environment=evaluationEnvironment(),targets=[],ids=activePokemonIds(pokemonIds);let skipped=0;
+  for(const pokemonId of ids){const target=targetFingerprint(pokemonId,environment);if(target)targets.push(target);else skipped+=1;}
+  const current=currentSnapshotHeaders(pokemonIds);
+  const plan=planSnapshotLifecycle({targets,currentSnapshots:current,force});
+  const status=!targets.length&&!current.length?'NO_ACTIVE_POKEMON':'READY';
+  return Object.freeze({...plan,status,skipped,goal_profile_id:environment.profile?.goal_profile_id||null,context_id:environment.weeklyContext.context_id||null,rule_version:POKEMON_EVALUATION_RULE_VERSION});
+}
+
 export async function refreshFactEvaluationSnapshots({pokemonIds=null,force=false}={}){
-  if(isRescueReadonly())return {status:'PLAYER_DATA_UNAVAILABLE',created:0,reused:0,staled:0,player_rows_modified:false};
-  const profile=getActiveStrategyGoalProfile();
-  const weeklyContext=latestWeeklyContext();
-  const masterVersions=currentEvaluationMasterVersions();
-  const source=(pokemonIds?.length?pokemonIds.map(id=>({pokemon_id:id})):rows("SELECT pokemon_id FROM pokemon WHERE status='active' ORDER BY pokemon_id"));
-  const targets=[...new Set(source.map(row=>String(row.pokemon_id||'')).filter(Boolean))];
-  if(!targets.length)return {status:'NO_ACTIVE_POKEMON',created:0,reused:0,staled:0,player_rows_modified:false};
-  await snapshot('war-room:evaluation-snapshots');
+  if(isRescueReadonly())return {status:'PLAYER_DATA_UNAVAILABLE',created:0,reused:0,staled:0,skipped:0,write_performed:false,snapshot_created:false,player_rows_modified:false};
+  const plan=planFactEvaluationSnapshotRefresh({pokemonIds,force});
+  if(plan.status==='NO_ACTIVE_POKEMON')return {status:'NO_ACTIVE_POKEMON',created:0,reused:0,staled:0,skipped:plan.skipped||0,write_performed:false,snapshot_created:false,player_rows_modified:false};
+  if(!plan.write_required&&!force)return {
+    status:'READY',created:0,reused:plan.reused_count,staled:0,skipped:plan.skipped||0,rule_version:POKEMON_EVALUATION_RULE_VERSION,
+    goal_profile_id:plan.goal_profile_id||null,context_id:plan.context_id||null,write_performed:false,snapshot_created:false,player_rows_modified:false,
+  };
+
+  const profile=getActiveStrategyGoalProfile(),weeklyContext=latestWeeklyContext(),masterVersions=currentEvaluationMasterVersions();
+  const refreshIds=force?activePokemonIds(pokemonIds):plan.refresh_targets.map(row=>row.pokemon_id);
+  const refreshSet=new Set(refreshIds);
   const evaluatedAt=localIso();
-  let created=0,reused=0,staled=0,skipped=0;
-  for(const pokemonId of targets){
+  await snapshot('war-room:evaluation-snapshots');
+  let created=0,reused=force?0:plan.reused_count,staled=0,skipped=plan.skipped||0;
+
+  for(const evaluationId of plan.stale_snapshot_ids){
+    run('UPDATE pokemon_evaluation_snapshot SET stale_at=? WHERE evaluation_id=? AND stale_at IS NULL',[evaluatedAt,evaluationId]);
+    staled+=1;
+  }
+
+  for(const pokemonId of refreshIds){
     const detail=pokemonDetail(pokemonId);if(!detail){skipped+=1;continue;}
     const input={...detail,weeklyContext,goalProfile:profile,masterVersions,ruleVersion:POKEMON_EVALUATION_RULE_VERSION};
     const fingerprint=pokemonEvaluationFingerprint(input);
-    const existing=rows(`SELECT * FROM pokemon_evaluation_snapshot
-      WHERE pokemon_id=? AND input_fingerprint=? AND stale_at IS NULL LIMIT 1`,[pokemonId,fingerprint])[0];
-    if(existing&&!force){reused+=1;continue;}
-    const staleRows=rows(`SELECT evaluation_id FROM pokemon_evaluation_snapshot
-      WHERE pokemon_id=? AND stale_at IS NULL AND input_fingerprint<>?`,[pokemonId,fingerprint]);
-    if(staleRows.length){run(`UPDATE pokemon_evaluation_snapshot SET stale_at=? WHERE pokemon_id=? AND stale_at IS NULL AND input_fingerprint<>?`,[evaluatedAt,pokemonId,fingerprint]);staled+=staleRows.length;}
+    if(!force&&!refreshSet.has(pokemonId)){reused+=1;continue;}
+    if(force){
+      const staleRows=rows(`SELECT evaluation_id FROM pokemon_evaluation_snapshot
+        WHERE pokemon_id=? AND stale_at IS NULL AND input_fingerprint<>?`,[pokemonId,fingerprint]);
+      for(const row of staleRows){run('UPDATE pokemon_evaluation_snapshot SET stale_at=? WHERE evaluation_id=? AND stale_at IS NULL',[evaluatedAt,row.evaluation_id]);staled+=1;}
+    }
     const result=buildFactOnlyPokemonEvaluation(input),evaluationId=snapshotId(pokemonId,fingerprint);
     run(`INSERT INTO pokemon_evaluation_snapshot(
       evaluation_id,pokemon_id,input_fingerprint,context_id,goal_profile_id,master_versions_json,rule_version,
@@ -101,5 +151,5 @@ export async function refreshFactEvaluationSnapshots({pokemonIds=null,force=fals
   }
   await persist();
   window.dispatchEvent?.(new CustomEvent('pokemon-sleep:evaluation-snapshots-changed',{detail:{created,reused,staled,skipped,rule_version:POKEMON_EVALUATION_RULE_VERSION}}));
-  return {status:'READY',created,reused,staled,skipped,rule_version:POKEMON_EVALUATION_RULE_VERSION,goal_profile_id:profile?.goal_profile_id||null,context_id:weeklyContext.context_id||null,player_rows_modified:false};
+  return {status:'READY',created,reused,staled,skipped,rule_version:POKEMON_EVALUATION_RULE_VERSION,goal_profile_id:profile?.goal_profile_id||null,context_id:weeklyContext.context_id||null,write_performed:true,snapshot_created:true,player_rows_modified:false};
 }

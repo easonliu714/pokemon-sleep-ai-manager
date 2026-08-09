@@ -7,9 +7,18 @@ const versionSource=fs.readFileSync('assets/js/version-authority.js','utf8');
 const appVersion=versionSource.match(/app_version:\s*'([^']+)'/)?.[1];
 const appBuild=versionSource.match(/app_build:\s*'([^']+)'/)?.[1];
 const cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1];
-assert.equal(appVersion,'v0.4.3.2');
-assert.equal(appBuild,'20260809-v0432-goal-profile-team-consistency');
-assert.equal(cacheName,'pokemon-sleep-ai-v0.4.3.2-v0432-goal-profile-team-consistency');
+const versionParts=value=>String(value||'').replace(/^v/,'').split('.').map(part=>Number(part)||0);
+const versionAtLeast=(current,minimum)=>{
+  const a=versionParts(current),b=versionParts(minimum),length=Math.max(a.length,b.length);
+  for(let index=0;index<length;index+=1){const left=a[index]||0,right=b[index]||0;if(left!==right)return left>right;}
+  return true;
+};
+assert.equal(versionAtLeast(appVersion,'v0.4.3.2'),true,'current release must preserve v0.4.3.2 behavior or later');
+assert.ok(appBuild&&cacheName,'central release build/cache authority missing');
+if(appVersion==='v0.4.3.2'){
+  assert.equal(appBuild,'20260809-v0432-goal-profile-team-consistency');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.3.2-v0432-goal-profile-team-consistency');
+}
 
 const activeProfile={
   goal_profile_id:'goal_fixture',profile_name:'fixture',primary_goal:'balanced',secondary_goals:[],
@@ -84,7 +93,7 @@ assert.ok(goalStore.includes('if(!validation.valid)throw new Error'),'invalid pr
 
 process.stdout.write(`${JSON.stringify({
   status:'PASS',gate:'V0.4.3.2_GOAL_PROFILE_TEAM_CONSTRAINT_CONSISTENCY',
-  app_version:appVersion,build:appBuild,cache:cacheName,
+  historical_contract_version:'v0.4.3.2',current_app_version:appVersion,build:appBuild,cache:cacheName,forward_compatible_release_authority:true,
   include_exclude_conflict_blocked:true,live_draft_state:true,invalid_save_disabled:true,
   dirty_team_recalculation_blocked:true,active_profile_source_visible:true,
   simultaneous_must_include_count:2,simultaneous_must_include_preserved:true,
