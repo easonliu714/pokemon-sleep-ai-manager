@@ -100,6 +100,7 @@ for(const forbidden of ['ai-project-pool-runtime','fetch(','persist(','snapshot(
 assert.ok(optimizer.includes('estimated_energy:null'));
 assert.ok(optimizer.includes('PRESENTATION_SLOT_ONLY_NO_VERIFIED_BONUS'));
 
+const privateSourceSentinel=['Pokemon_Sleep_PRIVATE_','RECIPES_FROM_ZIP_20260731.json'].join('');
 const privateGuardTargets=[
   'assets/data/public-recipe-zh-tw-screenshot-evidence-2026-08-09.json',
   'scripts/v043-recipe-zh-tw-evidence-audit.mjs',
@@ -107,7 +108,7 @@ const privateGuardTargets=[
 ];
 for(const target of privateGuardTargets){
   const source=read(target);
-  assert.equal(source.includes('Pokemon_Sleep_PRIVATE_RECIPES_FROM_ZIP_20260731.json'),false,`private source filename leaked into ${target}`);
+  assert.equal(source.includes(privateSourceSentinel),false,`private source filename leaked into ${target}`);
 }
 
 process.stdout.write(`${JSON.stringify({
