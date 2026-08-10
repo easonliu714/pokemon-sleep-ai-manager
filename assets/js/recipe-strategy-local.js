@@ -83,6 +83,7 @@ if(typeof window!=='undefined'){
     import('./war-room-goal-profile-bootstrap.js'),
     import('./war-room-evaluation-lifecycle-bootstrap.js'),
     import('./war-room-team-optimizer-bootstrap.js'),
+    import('./war-room-recipe-discovery-bootstrap.js'),
     import('./war-room-candidate-feature-bootstrap.js'),
     import('./war-room-strategy-context-bootstrap.js'),
   ]).catch(error=>console.warn('War Room strategy UI bootstrap deferred',error)));
