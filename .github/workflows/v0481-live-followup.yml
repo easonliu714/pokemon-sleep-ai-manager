@@ -1,0 +1,45 @@
+name: V0.4.8.1 LIVE Follow-up
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/version-authority.js'
+      - 'assets/js/weekly-context-manual-override.js'
+      - 'assets/js/weekly-context-store.js'
+      - 'assets/js/weekly-context-ui-bridge.js'
+      - 'assets/js/camp-berry-knowledge-ui.js'
+      - 'assets/js/public-pokemon-knowledge-master.js'
+      - 'assets/js/public-pokemon-knowledge-coverage.js'
+      - 'scripts/v0481-live-followup-contract.mjs'
+      - 'scripts/v0481-release-contract.mjs'
+      - '.github/workflows/v0481-live-followup.yml'
+  workflow_dispatch:
+
+jobs:
+  live-followup:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify v0.4.8.1 LIVE follow-up behavior
+        run: node scripts/v0481-live-followup-contract.mjs
+      - name: Verify v0.4.8 typed event registry remains green
+        run: node scripts/war3b-typed-event-effect-registry-contract.mjs
+      - name: Verify v0.4.7 Candy resource context remains green
+        run: node scripts/war3a-candy-inventory-contract.mjs
+      - name: Verify historical Weekly import/type repair remains green
+        run: |
+          node scripts/v0463-weekly-ai-type-repair-contract.mjs
+          node scripts/v0461-weekly-context-integration-contract.mjs
+      - name: Verify JavaScript syntax
+        run: |
+          node --check assets/js/weekly-context-manual-override.js
+          node --check assets/js/weekly-context-store.js
+          node --check assets/js/weekly-context-ui-bridge.js
+          node --check assets/js/camp-berry-knowledge-ui.js
+          node --check scripts/v0481-live-followup-contract.mjs
+      - name: Verify no tracked test mutation
+        shell: bash
+        run: test -z "$(git status --porcelain --untracked-files=no)"
