@@ -1,5 +1,5 @@
 import {rows,isRescueReadonly} from './database.js';
-import {auditPublicPokemonKnowledgeBundle,buildObservedProjectionCoverage} from './public-pokemon-knowledge-coverage.js';
+import {auditPublicPokemonKnowledgeBundle,buildObservedProjectionCoverage,buildEvolutionCoverageDiagnostic} from './public-pokemon-knowledge-coverage.js';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 let scheduled=false,lastSignature='';
@@ -8,7 +8,7 @@ function ensureStyle(){
   if(document.getElementById('v03993CoverageStyle'))return;
   const style=document.createElement('style');
   style.id='v03993CoverageStyle';
-  style.textContent=`.public-coverage-block{margin:16px 0;padding:14px;border:1px solid #d8e4df;border-radius:14px;background:#fff}.public-coverage-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.public-coverage-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0}.public-coverage-card{padding:12px;border:1px solid #e0e8e4;border-radius:12px;background:#f7faf8}.public-coverage-card b{display:block;font-size:1.2rem}.public-coverage-card small{display:block;line-height:1.45;margin-top:4px}.public-coverage-ok{color:#176b50}.public-coverage-warn{color:#8a6500}.public-coverage-lists{display:grid;grid-template-columns:1fr 1fr;gap:10px}.public-coverage-list{padding:10px;border-radius:10px;background:#f6f8f7}.public-coverage-list ul{margin:6px 0 0;padding-left:20px}.public-coverage-list li{margin:3px 0}@media(max-width:720px){.public-coverage-grid{grid-template-columns:1fr 1fr}.public-coverage-lists{grid-template-columns:1fr}}`;
+  style.textContent=`.public-coverage-block{margin:16px 0;padding:14px;border:1px solid #d8e4df;border-radius:14px;background:#fff}.public-coverage-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.public-coverage-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0}.public-coverage-card{padding:12px;border:1px solid #e0e8e4;border-radius:12px;background:#f7faf8}.public-coverage-card b{display:block;font-size:1.2rem}.public-coverage-card small{display:block;line-height:1.45;margin-top:4px}.public-coverage-ok{color:#176b50}.public-coverage-warn{color:#8a6500}.public-coverage-lists{display:grid;grid-template-columns:1fr 1fr;gap:10px}.public-coverage-list{padding:10px;border-radius:10px;background:#f6f8f7}.public-coverage-list ul{margin:6px 0 0;padding-left:20px}.public-coverage-list li{margin:3px 0}.evolution-diagnostic-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0}.evolution-diagnostic-actions small{overflow-wrap:anywhere}@media(max-width:720px){.public-coverage-grid{grid-template-columns:1fr 1fr}.public-coverage-lists{grid-template-columns:1fr}}`;
   document.head.appendChild(style);
 }
 
@@ -41,16 +41,41 @@ function playerRows(){
   try{return rows('SELECT nature,main_skill,type,current_species,species FROM pokemon');}catch{return [];}
 }
 
+async function copyText(text){
+  if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(text);return true;}
+  const area=document.createElement('textarea');area.value=text;area.setAttribute('readonly','');area.style.position='fixed';area.style.opacity='0';document.body.appendChild(area);area.select();
+  let ok=false;try{ok=document.execCommand('copy');}finally{area.remove();}
+  if(!ok)throw new Error('目前瀏覽器不允許自動複製');
+  return true;
+}
+
+function wireEvolutionDiagnostic(host,diagnostic){
+  const button=host.querySelector('[data-evolution-coverage-copy]');
+  const status=host.querySelector('[data-evolution-coverage-copy-status]');
+  if(!button)return;
+  button.addEventListener('click',async()=>{
+    button.disabled=true;
+    try{
+      await copyText(JSON.stringify(diagnostic,null,2));
+      if(status)status.textContent=`已複製：UNKNOWN ${diagnostic.unknown_count} 項；count/list parity=${diagnostic.count_list_parity?'PASS':'FAIL'}。`;
+    }catch(error){
+      if(status)status.textContent=`複製失敗：${error?.message||error}`;
+    }finally{button.disabled=false;}
+  });
+}
+
 export function renderPublicKnowledgeCoverage(){
   ensureStyle();
   const host=ensureHost();
   if(!host)return false;
   const bundle=auditPublicPokemonKnowledgeBundle();
   const rescue=isRescueReadonly();
-  const observed=buildObservedProjectionCoverage(rescue?[]:playerRows());
+  const localRows=rescue?[]:playerRows();
+  const observed=buildObservedProjectionCoverage(localRows);
+  const evolutionDiagnostic=rescue?null:buildEvolutionCoverageDiagnostic(localRows);
   const integrityClass=bundle.ok?'public-coverage-ok':'public-coverage-warn';
   const manifest=bundle.manifest;
-  const signature=JSON.stringify({version:bundle.version,ok:bundle.ok,errors:bundle.errors,manifest,rescue,observed});
+  const signature=JSON.stringify({version:bundle.version,ok:bundle.ok,errors:bundle.errors,manifest,rescue,observed,evolutionDiagnostic});
   if(signature===lastSignature&&host.childElementCount)return true;
   lastSignature=signature;
 
@@ -70,6 +95,10 @@ export function renderPublicKnowledgeCoverage(){
         <div class="public-coverage-card"><b>${ratio(observed.berry_type)}</b><span>屬性→樹果</span><small>未解析 ${observed.berry_type.unresolved}</small></div>
         <div class="public-coverage-card"><b>${observed.evolution.verified_outgoing_route_species}/${observed.evolution.observed_species||'—'}</b><span>進化三態 Coverage</span><small>outgoing ${observed.evolution.verified_outgoing_route_species} · 終階 ${observed.evolution.verified_terminal_species} · 未核對 ${observed.evolution.unknown_evolution_status_species}</small></div>
       </div>
+      <div class="evolution-diagnostic-actions">
+        <button type="button" class="secondary" data-evolution-coverage-copy>複製 Evolution Coverage 診斷 JSON</button>
+        <small data-evolution-coverage-copy-status>UNKNOWN count/list parity：<b>${evolutionDiagnostic.count_list_parity?'PASS':'FAIL'}</b>（${evolutionDiagnostic.unknown_count}/${evolutionDiagnostic.unknown_values_count}）；三態 partition parity：<b>${evolutionDiagnostic.partition_parity?'PASS':'FAIL'}</b>（${evolutionDiagnostic.partition_count}/${evolutionDiagnostic.observed_species_count}）。診斷只含物種名稱與統計，不含玩家 Pokémon ID、數量或備註。</small>
+      </div>
       <div class="public-coverage-lists">
         ${list('尚未解析的性格名稱',observed.nature.unresolved_values,'目前觀察到的性格名稱皆可解析。')}
         ${list('尚未解析的主技能名稱',observed.main_skill.unresolved_values,'目前觀察到的主技能名稱皆可解析。')}
@@ -80,6 +109,7 @@ export function renderPublicKnowledgeCoverage(){
       <p class="notice">進化三態語意：<b>${esc(observed.evolution.triage_semantics)}</b>。只有有來源的終階物種才會標記為 <b>${esc(observed.evolution.terminal_semantics)}</b>；其餘缺口保持 <b>${esc(observed.evolution.unknown_semantics)}</b>，不得自行判斷「不能進化」。</p>`}
     ${bundle.errors.length?`<details><summary>Bundle Integrity 錯誤 ${bundle.errors.length} 項</summary><ul>${bundle.errors.map(item=>`<li>${esc(item)}</li>`).join('')}</ul></details>`:''}
     <p class="notice">Public Pokémon Knowledge Version：<b>${esc(bundle.version)}</b> · projection_only=true · player_rows_may_be_mutated=false</p>`;
+  if(evolutionDiagnostic)wireEvolutionDiagnostic(host,evolutionDiagnostic);
   return true;
 }
 
