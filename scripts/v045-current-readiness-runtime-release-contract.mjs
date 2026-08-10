@@ -35,8 +35,8 @@ for(const token of ['currentUnlockSlotCounts','known_ingredient_slot_count','kno
 const local=read('assets/js/pokemon-candidate-local.js');
 assert.ok(local.includes('scorePokemonCandidateFeatures'),'local candidate adapter must invoke evidence-gated scoring');
 const candidateUi=read('assets/js/war-room-candidate-feature-ui.js');
-for(const token of ['current_readiness_score','分數明細','known','unlocked','rule_version','formula','missing_inputs'])assert.ok(candidateUi.includes(token),`War Room score breakdown UI missing: ${token}`);
-assert.ok(candidateUi.includes('不是產能／總強度'),'War Room must explain readiness score semantics');
+for(const token of ['current_readiness_score','分數明細','known','unlocked','rule_version','formula','missing_score_inputs'])assert.ok(candidateUi.includes(token),`War Room score breakdown UI missing: ${token}`);
+assert.ok(candidateUi.includes('不代表產能、總體強度、七日能量或長期價值'),'War Room must explain readiness score semantics');
 const teamUi=read('assets/js/war-room-team-optimizer-ui.js');
 assert.ok(teamUi.includes('current_readiness_score'),'Team card must expose readiness score');
 const sw=read('service-worker.js');
