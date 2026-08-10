@@ -4,7 +4,7 @@ import {
   validateWeeklyEventEffectsByRegistry,
 } from './weekly-event-effect-registry.js';
 
-export const WEEKLY_CONTEXT_EVENT_SCHEMA='pokemon-sleep-weekly-event-context/1.2';
+export const WEEKLY_CONTEXT_EVENT_SCHEMA='pokemon-sleep-weekly-event-context/1.1';
 
 const numberOrNull=value=>{const n=Number(value);return value===null||value===undefined||value===''||!Number.isFinite(n)?null:n;};
 const text=value=>String(value??'').normalize('NFKC').trim();
