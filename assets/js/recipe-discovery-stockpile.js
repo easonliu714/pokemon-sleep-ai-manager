@@ -1,5 +1,5 @@
 import {PUBLIC_RECIPE_DISCOVERY,PUBLIC_RECIPE_DISCOVERY_VERSION} from './public-recipe-discovery-master.js';
-import {normalizeWeeklyContext} from './weekly-context-normalization.js';
+import {normalizeWeeklyContext,weeklyContextStrategyFingerprintInput} from './weekly-context-normalization.js';
 import {optimizeTeam} from './team-optimizer.js';
 
 export const RECIPE_DISCOVERY_STOCKPILE_VERSION='recipe-discovery-stockpile-2026-08-10-b';
@@ -89,13 +89,13 @@ export function projectRecipeDiscoveryStockpile({
   const team=optimizeTeam({scoringProjection:discoveryProjection,goalProfile,maxAlternatives});
   const fingerprintPayload=stable({
     version:RECIPE_DISCOVERY_STOCKPILE_VERSION,discovery_version:PUBLIC_RECIPE_DISCOVERY_VERSION,
-    weekly_context:{context_id:week.context_id,week_start:week.week_start,camp:week.camp,dish_category:week.dish_category,pot_size:week.pot_size,event_name:week.event_name,event_effects:week.event_effects_parsed},
+    weekly_context:weeklyContextStrategyFingerprintInput(week),
     discoveries:recipePlans,stockpile,goal_profile_id:goalProfile?.goal_profile_id||null,team_input:team.input_fingerprint,
   });
   return Object.freeze({
     schema:'pokemon-sleep-recipe-discovery-stockpile/1.1',planner_version:RECIPE_DISCOVERY_STOCKPILE_VERSION,discovery_version:PUBLIC_RECIPE_DISCOVERY_VERSION,
     projection_status:'READY',input_fingerprint:`recipe_discovery:${hash(JSON.stringify(fingerprintPayload))}`,
-    weekly_context:Object.freeze({context_id:week.context_id,week_start:week.week_start,camp:week.camp,dish_category:week.dish_category,event_name:week.event_name,pot_size:week.pot_size,recipe_final_energy_multiplier:week.recipe_final_energy_multiplier,sunday_pot_multiplier:week.sunday_pot_multiplier}),
+    weekly_context:Object.freeze({context_id:week.context_id,week_start:week.week_start,camp:week.camp,dish_category:week.dish_category,event_name:week.event_name,pot_size:week.pot_size,recipe_final_energy_multiplier:week.recipe_final_energy_multiplier,sunday_pot_multiplier:week.sunday_pot_multiplier,event_effect_registry_version:week.event_effect_registry_version,event_effect_strategy_fingerprint:week.event_effect_strategy_fingerprint}),
     discovery_candidates:Object.freeze(recipePlans),
     stockpile:Object.freeze(stockpile),
     summary:Object.freeze({recipe_candidate_count:recipePlans.length,ingredient_kind_count:stockpile.length,total_target:totalTarget,total_current_capped:totalCurrent,total_deficit:totalDeficit,fully_stockpiled:totalDeficit===0,target_semantics:'CONSERVATIVE_DISCOVERY_UPPER_BOUND'}),
