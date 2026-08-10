@@ -8,7 +8,9 @@ on:
       - 'assets/js/v03993-public-knowledge-coverage-ui.js'
       - 'assets/js/public-candy-master.js'
       - 'assets/js/version-authority.js'
+      - 'assets/js/migrations.js'
       - 'scripts/data-evo1-observed-evolution-coverage-contract.mjs'
+      - 'scripts/v0482-release-contract.mjs'
       - 'scripts/war3a-candy-inventory-contract.mjs'
       - '.github/workflows/data-evo1-observed-evolution-coverage.yml'
   workflow_dispatch:
@@ -21,15 +23,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Verify DATA.EVO.1 observed evolution diagnostic
+      - name: Verify DATA.EVO.1 evidence closure
         run: node scripts/data-evo1-observed-evolution-coverage-contract.mjs
+      - name: Verify exact v0.4.8.2 release authority
+        run: node scripts/v0482-release-contract.mjs
       - name: Verify Candy resource context remains green
         run: node scripts/war3a-candy-inventory-contract.mjs
       - name: Verify JavaScript syntax
         run: |
+          node --check assets/js/public-pokemon-knowledge-master.js
           node --check assets/js/public-pokemon-knowledge-coverage.js
+          node --check assets/js/public-candy-master.js
           node --check assets/js/v03993-public-knowledge-coverage-ui.js
           node --check scripts/data-evo1-observed-evolution-coverage-contract.mjs
+          node --check scripts/v0482-release-contract.mjs
       - name: Verify no tracked test mutation
         shell: bash
         run: test -z "$(git status --porcelain --untracked-files=no)"
