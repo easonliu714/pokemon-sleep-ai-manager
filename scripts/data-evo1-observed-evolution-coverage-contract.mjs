@@ -45,10 +45,10 @@ for(const token of [
   'count/list parity',
   'partition parity',
   'buildEvolutionCoverageDiagnostic',
-  'player_ids_exported:false',
+  '不含玩家 Pokémon ID',
 ])assert.ok(ui.includes(token),`coverage UI missing diagnostic contract token: ${token}`);
 const coverage=read('assets/js/public-pokemon-knowledge-coverage.js');
-for(const token of ['unknown_values_count','count_list_parity','partition_count','partition_parity','species_names_only:true'])assert.ok(coverage.includes(token),`coverage diagnostic missing: ${token}`);
+for(const token of ['unknown_values_count','count_list_parity','partition_count','partition_parity','species_names_only:true','player_ids_exported:false'])assert.ok(coverage.includes(token),`coverage diagnostic missing: ${token}`);
 assert.equal(read('assets/js/migrations.js').includes('VALUES(10,'),false,'DATA.EVO.1A must not add SQLite migration 10');
 
 console.log(JSON.stringify({
