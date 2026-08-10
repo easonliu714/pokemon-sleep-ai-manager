@@ -1,4 +1,4 @@
-export const PUBLIC_POKEMON_KNOWLEDGE_VERSION='pokemon-knowledge-2026-08-10-d';
+export const PUBLIC_POKEMON_KNOWLEDGE_VERSION='pokemon-knowledge-2026-08-10-e';
 
 const BASE_SOURCE=Object.freeze({
   source_type:'official_first_reference_verified',
@@ -145,6 +145,7 @@ export const PUBLIC_EVOLUTION_MASTER=Object.freeze([
   EVO_LIVE('猛火猴','烈焰猴',27,null,80,null,null,'https://www.serebii.net/pokemonsleep/pokemon/infernape.shtml'),
   EVO_LIVE('毒電嬰','顫弦蠑螈（高調的樣子）',23,null,80,null,'依性格決定進化型態','https://www.serebii.net/pokemonsleep/pokemon/toxel.shtml'),
   EVO_LIVE('毒電嬰','顫弦蠑螈（低調的樣子）',23,null,80,null,'依性格決定進化型態','https://www.serebii.net/pokemonsleep/pokemon/toxel.shtml'),
+  EVO_LIVE('戴魯比','黑魯加',18,null,40,null,null,'https://www.serebii.net/pokemonsleep/pokemon/houndour.shtml'),
 ]);
 
 // A terminal row is source-verified for the current Pokémon Sleep public
@@ -218,6 +219,7 @@ export const PUBLIC_EVOLUTION_STATUS_MASTER=Object.freeze([
   EVO_STATUS_LIVE('顫弦蠑螈（低調的樣子）','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/toxtricitylowkeyform.shtml'),
   EVO_STATUS_LIVE('達克萊伊','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/darkrai.shtml'),
   EVO_STATUS_LIVE('夢幻','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/mew.shtml'),
+  EVO_STATUS_LIVE('黑魯加','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/houndoom.shtml'),
 ]);
 
 export function applyPublicPokemonKnowledgeSchema(db){
