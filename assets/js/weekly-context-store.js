@@ -3,7 +3,7 @@ import {localWeekStart} from './evaluation-week.js';
 import {normalizeWeeklyContext,parseWeeklyEventEffects} from './weekly-context-normalization.js';
 import {resolveCampFavoriteBerries} from './public-camp-berry-master.js';
 
-export const WEEKLY_CONTEXT_STORE_VERSION='weekly-context-store-2026-08-10-b';
+export const WEEKLY_CONTEXT_STORE_VERSION='weekly-context-store-2026-08-10-c';
 
 const meaningful=value=>value!==null&&value!==undefined&&value!=='';
 const CORE_FIELDS=['camp','dish_category','event_name','pot_size','base_notes'];
@@ -38,6 +38,8 @@ function classifyRows(epoch){
 }
 function mergedEffects(primary,manual,fieldSources){
   const fallback=parseWeeklyEventEffects(manual?.event_effects),incoming=parseWeeklyEventEffects(primary?.event_effects),merged={...fallback};
+  if(meaningful(primary?.event_effects))fieldSources.event_effects='UPDATE_CENTER_JSON';
+  else if(meaningful(manual?.event_effects))fieldSources.event_effects='MANUAL_FALLBACK';
   for(const [key,value] of Object.entries(incoming))if(meaningful(value)||value===0||value===false)merged[key]=value;
   for(const key of new Set([...Object.keys(fallback),...Object.keys(incoming)])){
     if(meaningful(incoming[key])||incoming[key]===0||incoming[key]===false)fieldSources[`event_effects.${key}`]='UPDATE_CENTER_JSON';
