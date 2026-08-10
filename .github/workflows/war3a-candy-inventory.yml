@@ -3,6 +3,7 @@ name: WAR.3A Candy Inventory Resource Context
 on:
   pull_request:
     paths:
+      - 'assets/js/version-authority.js'
       - 'assets/js/schema.js'
       - 'assets/js/migrations.js'
       - 'assets/js/public-candy-master.js'
@@ -17,6 +18,8 @@ on:
       - 'index.html'
       - 'docs/PUBLIC_MASTER_DATABASE_VERSION_CONTRACT.md'
       - 'scripts/war3a-candy-inventory-contract.mjs'
+      - 'scripts/v047-release-contract.mjs'
+      - 'scripts/v0463-release-contract.mjs'
       - '.github/workflows/war3a-candy-inventory.yml'
   workflow_dispatch:
 
@@ -28,9 +31,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Verify exact v0.4.7 release contract
+        run: node scripts/v047-release-contract.mjs
       - name: Verify WAR.3A candy inventory contract
         run: node scripts/war3a-candy-inventory-contract.mjs
-      - name: Verify v0.4.6.3 release baseline remains green
+      - name: Verify historical v0.4.6.3 release behavior remains green
         run: node scripts/v0463-release-contract.mjs
       - name: Verify v0.4.6.3 Weekly compatibility remains green
         run: node scripts/v0463-weekly-ai-type-repair-contract.mjs
@@ -40,6 +45,7 @@ jobs:
         shell: bash
         run: |
           set -o errexit -o nounset -o pipefail
+          node --check assets/js/version-authority.js
           node --check assets/js/schema.js
           node --check assets/js/migrations.js
           node --check assets/js/public-candy-master.js
@@ -52,6 +58,8 @@ jobs:
           node --check assets/js/app.js
           node --check assets/js/backup-truth-restore.js
           node --check scripts/war3a-candy-inventory-contract.mjs
+          node --check scripts/v047-release-contract.mjs
+          node --check scripts/v0463-release-contract.mjs
       - name: Verify no tracked test mutation
         shell: bash
         run: test -z "$(git status --porcelain --untracked-files=no)"
