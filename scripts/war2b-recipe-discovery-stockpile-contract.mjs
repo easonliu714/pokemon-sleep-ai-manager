@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import {PUBLIC_RECIPE_DISCOVERY,activeCanonicalDiscoveryRows} from '../assets/js/public-recipe-discovery-master.js';
 import {projectRecipeDiscoveryStockpile} from '../assets/js/recipe-discovery-stockpile.js';
 import {normalizeWeeklyContext} from '../assets/js/weekly-context-normalization.js';
+import {buildScenarioTemplate} from '../assets/js/prompt-catalog.js';
 
 assert.equal(PUBLIC_RECIPE_DISCOVERY.length,2);
 assert.equal(activeCanonicalDiscoveryRows().length,0,'Discovery rows must not leak into ACTIVE canonical recipes');
@@ -60,6 +61,11 @@ assert.equal(result.player_data_write,false);
 assert.equal(result.gemini_used,false);
 assert.equal(result.canonical_recipe_state_write,false);
 
+const weeklyTemplate=buildScenarioTemplate('weekly');
+assert.equal(weeklyTemplate.scenario,'weekly_context_update');
+assert.equal(weeklyTemplate.operations[0].entity,'weekly_context');
+assert.ok(weeklyTemplate.operations[0].data.updated_at,'weekly_context template must include insert-ready updated_at');
+assert.doesNotThrow(()=>new Date(weeklyTemplate.operations[0].data.updated_at).toISOString());
 const prompt=fs.readFileSync('assets/js/prompt-catalog.js','utf8');
 for(const token of ['weekly_context_update','weekly_context','recipe_final_energy_multiplier','玩家當週狀態，不是公版 Master'])assert.ok(prompt.includes(token),`weekly player JSON prompt missing: ${token}`);
 const local=fs.readFileSync('assets/js/recipe-discovery-stockpile-local.js','utf8');
@@ -69,6 +75,6 @@ assert.ok(bootstrap.includes("war-room-recipe-discovery-bootstrap.js"));
 
 console.log(JSON.stringify({
   status:'PASS',gate:'WAR.2B_RECIPE_DISCOVERY_STOCKPILE',discovery_candidates:2,canonical_active_discovery_rows:0,total_stockpile_target:175,
-  ingredient_targets:target,sunday_pot_capacity:114,recipe_energy_multiplier:1.5,team_size:result.team.primary.slots.length,
+  ingredient_targets:target,sunday_pot_capacity:114,recipe_energy_multiplier:1.5,team_size:result.team.primary.slots.length,weekly_template_insert_ready:true,
   production_rate_model:result.production_rate_model,player_data_write:false,gemini_used:false,
 },null,2));
