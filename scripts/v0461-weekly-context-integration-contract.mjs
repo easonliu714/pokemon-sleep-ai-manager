@@ -93,7 +93,17 @@ assert.deepEqual(Object.fromEntries(projected.stockpile.map(row=>[row.ingredient
 });
 
 const weeklyUi=read('assets/js/weekly-context-ui-bridge.js');
-for(const token of ['Authority：更新中心 JSON 優先','weekly_context_${weekStart}_manual','JSON 已提供的欄位仍保持優先','公版 Camp Berry Master 自動帶入並鎖定','系統不會沿用上週資料'])assert.ok(weeklyUi.includes(token),`weekly UI authority missing ${token}`);
+assert.ok(weeklyUi.includes('更新中心 JSON'),'Weekly UI must retain imported JSON authority visibility');
+assert.ok(weeklyUi.includes('weekly_context_${weekStart}_manual'),'manual fallback path must remain available without an import');
+assert.ok(weeklyUi.includes('公版 Camp Berry Master 自動帶入並鎖定'),'fixed Camp Berry authority must remain hard locked');
+assert.ok(weeklyUi.includes('系統不會沿用上週資料'),'random weekly berry state must never inherit the previous week');
+const successorManualOverride=store.includes('MANUAL_OVERRIDE')||weeklyUi.includes('MANUAL_OVERRIDE');
+if(successorManualOverride){
+  for(const token of ['authority_revision','manual_override_fields'])assert.ok(store.includes(token),`successor explicit override missing revision contract: ${token}`);
+  for(const token of ['更新中心 JSON 為初始權威來源','清除本週人工覆寫'])assert.ok(weeklyUi.includes(token),`successor Weekly UI missing explicit override UX: ${token}`);
+}else{
+  assert.ok(weeklyUi.includes('JSON 已提供的欄位仍保持優先'),'v0.4.6.1-era UI must retain JSON-over-fallback precedence');
+}
 const importContract=read('assets/js/weekly-context-import-contract.js');
 for(const token of ['context_authority 必須為','不可使用上週／未來週 JSON','event_effects 不支援欄位','favorite_berry_1~3 必須全部三欄一起提供'])assert.ok(importContract.includes(token),`weekly import contract missing ${token}`);
 const updateBridge=read('assets/js/weekly-context-update-center-bridge.js');
@@ -116,6 +126,7 @@ for(const moduleName of ['weekly-context-ui-bridge.js','weekly-context-update-ce
 console.log(JSON.stringify({
   status:'PASS',gate:'V0461_WEEKLY_CONTEXT_HISTORICAL_INTEGRATION',weekly_import_contract_version:WEEKLY_CONTEXT_IMPORT_CONTRACT_VERSION,
   camp_authority_rows:PUBLIC_CAMP_BERRY_MASTER.length,greengrass_policy:byCamp('萌綠之島').berry_policy,cyan_policy:byCamp('天青沙灘').berry_policy,discovery_target:projected.summary.total_target,
-  quantity_assignment:'UNKNOWN_UNORDERED_SIGNATURE',current_week_scoped:true,authority_chain:'UPDATE_CENTER_JSON -> WEEKLY_ENVIRONMENT -> WAR_ROOM/RECIPES',
-  manual_fallback_secondary:true,legacy_string_event_effects_compatible:true,stale_week_rejected:true,malformed_weekly_payloads_rejected:true,team_objectives_distinguished:true,
+  quantity_assignment:'UNKNOWN_UNORDERED_SIGNATURE',current_week_scoped:true,
+  authority_chain:successorManualOverride?'UPDATE_CENTER_JSON(initial) -> EXPLICIT_MANUAL_OVERRIDE -> WEEKLY_ENVIRONMENT -> WAR_ROOM/RECIPES':'UPDATE_CENTER_JSON -> WEEKLY_ENVIRONMENT -> WAR_ROOM/RECIPES',
+  manual_fallback_secondary:true,successor_manual_override_supported:successorManualOverride,legacy_string_event_effects_compatible:true,stale_week_rejected:true,malformed_weekly_payloads_rejected:true,team_objectives_distinguished:true,
 },null,2));
