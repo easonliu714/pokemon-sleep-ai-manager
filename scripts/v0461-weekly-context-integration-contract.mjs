@@ -111,7 +111,10 @@ for(const token of ['Authority Chain','Weekly Context JSON Contract','validateWe
 const consumerBanner=read('assets/js/weekly-context-consumer-banner.js');
 for(const token of ['本頁 Weekly Context 唯一來源：［本週環境］','recipeWeeklyContextAuthority','warroomWeeklyContextAuthority','更新中心 JSON'])assert.ok(consumerBanner.includes(token),`weekly consumer banner missing ${token}`);
 const knowledge=read('assets/js/camp-berry-knowledge-ui.js');
-for(const token of ['營地與喜好樹果','campBerryMasterTable','每週隨機 3 種','EX 動態主／副樹果'])assert.ok(knowledge.includes(token),`camp knowledge UI missing ${token}`);
+for(const token of ['營地與喜好樹果','campBerryMasterTable','每週隨機 3 種'])assert.ok(knowledge.includes(token),`camp knowledge UI missing ${token}`);
+const exDisplayPreserved=knowledge.includes('EX 動態主／副樹果')||knowledge.includes("if(row.berry_policy==='EX_DYNAMIC')return 'EX 動態'");
+assert.ok(exDisplayPreserved,'camp knowledge UI must retain an EX dynamic presentation label without pinning verbose wording');
+assert.equal(byCamp('天青沙灘EX').berry_policy,'EX_DYNAMIC','historical EX main/sub-berry semantics must remain authoritative in Public Camp Master');
 const generalTeam=read('assets/js/war-room-team-optimizer-ui.js');
 assert.ok(generalTeam.includes('一般戰略自動組隊（Goal Profile）'));
 assert.ok(generalTeam.includes('新料理解鎖備貨專用隊伍'));
@@ -129,4 +132,5 @@ console.log(JSON.stringify({
   quantity_assignment:'UNKNOWN_UNORDERED_SIGNATURE',current_week_scoped:true,
   authority_chain:successorManualOverride?'UPDATE_CENTER_JSON(initial) -> EXPLICIT_MANUAL_OVERRIDE -> WEEKLY_ENVIRONMENT -> WAR_ROOM/RECIPES':'UPDATE_CENTER_JSON -> WEEKLY_ENVIRONMENT -> WAR_ROOM/RECIPES',
   manual_fallback_secondary:true,successor_manual_override_supported:successorManualOverride,legacy_string_event_effects_compatible:true,stale_week_rejected:true,malformed_weekly_payloads_rejected:true,team_objectives_distinguished:true,
+  ex_dynamic_semantics_preserved:true,presentation_label_contract:'COMPACT_OR_LEGACY',
 },null,2));

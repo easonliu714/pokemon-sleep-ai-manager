@@ -59,6 +59,7 @@ assert.ok(candyNames.has('黑魯加的糖果'));
 
 const camp=read('assets/js/camp-berry-knowledge-ui.js');
 assert.ok(camp.includes('#campBerryMasterBlock{min-width:0;max-width:100%;overflow:hidden;}'));
+let mobileContainment='UNKNOWN';
 if(app==='v0.4.8.3'){
   for(const token of [
     "CAMP_BERRY_KNOWLEDGE_UI_VERSION='camp-berry-knowledge-ui-2026-08-10-c'",
@@ -66,9 +67,20 @@ if(app==='v0.4.8.3'){
     '#campBerryMasterTable{display:block;width:100%!important;min-width:0!important;max-width:100%!important',
     '#campBerryMasterTable td::before{content:attr(data-label)',
   ])assert.ok(camp.includes(token),`exact v0.4.8.3 row-card token missing: ${token}`);
+  mobileContainment='ROW_CARD_CONTAINED';
+}else if(atLeast(app,'v0.4.8.5')){
+  for(const token of [
+    "CAMP_BERRY_MOBILE_CONTAINMENT='COMPACT_CONTAINED_TABLE'",
+    'overflow-x:auto!important',
+    '#campBerryMasterTable{width:100%;min-width:640px;max-width:100%;table-layout:fixed',
+    'margin-left:0!important;margin-right:0!important',
+  ])assert.ok(camp.includes(token),`v0.4.8.5+ compact containment missing: ${token}`);
+  assert.equal(camp.includes('camp-berry-contained-cards'),false,'compact successor must not use five-line row cards');
+  mobileContainment='COMPACT_CONTAINED_TABLE';
 }else{
-  for(const token of ['camp-berry-contained-cards','prefersContainedCards','applyLayoutMode'])assert.ok(camp.includes(token),`successor touch-first containment missing: ${token}`);
+  for(const token of ['camp-berry-contained-cards','prefersContainedCards','applyLayoutMode'])assert.ok(camp.includes(token),`v0.4.8.4 touch-first containment missing: ${token}`);
+  mobileContainment='TOUCH_FIRST_ROW_CARD';
 }
 assert.equal(read('assets/js/migrations.js').includes('VALUES(10,'),false,'v0.4.8.3+ must remain migration-10 free');
 
-console.log(JSON.stringify({status:'PASS',gate:'V0.4.8.3_RELEASE_HISTORICAL_CONTRACT',current_app_version:app,houndour_evidence_closed:true,target_live_unknown_expected:0,mobile_containment_preserved:true,sqlite_migration_added:false},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V0.4.8.3_RELEASE_HISTORICAL_CONTRACT',current_app_version:app,houndour_evidence_closed:true,target_live_unknown_expected:0,mobile_containment_preserved:true,mobile_containment_strategy:mobileContainment,sqlite_migration_added:false},null,2));

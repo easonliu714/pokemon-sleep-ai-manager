@@ -1,8 +1,8 @@
 (function installVersionAuthority(scope) {
   const authority = Object.freeze({
-    app_version: 'v0.4.8.4',
-    app_build: '20260810-v0484-touch-first-camp-containment',
-    cache_name: 'pokemon-sleep-ai-v0.4.8.4-v0484-touch-first-camp-containment',
+    app_version: 'v0.4.8.5',
+    app_build: '20260810-v0485-compact-camp-table-density',
+    cache_name: 'pokemon-sleep-ai-v0.4.8.5-v0485-compact-camp-table-density',
     schema: 'pokemon-sleep-version-authority/1.0',
   });
   Object.defineProperty(scope, 'PokemonSleepVersionAuthority', {
@@ -14,6 +14,8 @@
 })(globalThis);
 
 // Legacy CI parser bridge only; not executed and not a release authority:
+// app_version: 'v0.4.8.4'
+// app_build: '20260810-v0484-touch-first-camp-containment'
 // app_version: 'v0.4.8.3'
 // app_build: '20260810-v0483-houndour-camp-mobile-containment'
 // app_version: 'v0.4.8.2'
