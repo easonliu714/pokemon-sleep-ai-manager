@@ -2,7 +2,7 @@ import {localWeekStart} from './evaluation-week.js';
 import {normalizeDishCategory,parseWeeklyEventEffects,serializeWeeklyEventEffects,validateWeeklyEventEffects} from './weekly-context-normalization.js';
 import {WEEKLY_EVENT_EFFECT_KEYS,normalizeUnknownWeeklyEffects} from './weekly-event-effect-registry.js';
 
-export const WEEKLY_CONTEXT_IMPORT_CONTRACT_VERSION='weekly-context-import-contract-2026-08-10-c';
+export const WEEKLY_CONTEXT_IMPORT_CONTRACT_VERSION='weekly-context-import-contract-2026-08-10-b';
 export const WEEKLY_CONTEXT_AUTHORITY='UPDATE_CENTER_JSON';
 export const WEEKLY_EVENT_ALLOWED_KEYS=Object.freeze([...WEEKLY_EVENT_EFFECT_KEYS]);
 const EVENT_KEYS=new Set(WEEKLY_EVENT_ALLOWED_KEYS);
