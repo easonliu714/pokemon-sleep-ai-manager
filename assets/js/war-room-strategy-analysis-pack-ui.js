@@ -67,4 +67,6 @@ function install(){
   document.addEventListener('pokemon-sleep-data-refreshed',invalidate);
   render();
 }
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
+if(typeof document!=='undefined'){
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
+}
