@@ -1,8 +1,12 @@
 import {AI_OBSERVATION_PROMPT,buildObservationTemplate} from './ai-observation.js';
+import {localWeekStart} from './evaluation-week.js';
 
 const auditRules=`共通更新規則：\n1. 只輸出符合 Update Package v1.1 的單一 JSON，不輸出 Markdown 或解釋。\n2. 無法確認、未顯示或圖片未涵蓋的欄位填 null 或省略，不可猜測。\n3. null、空字串與省略欄位代表「不更新」，不得用來清空既有資料。只有使用者明確要求清除時，才將欄位名稱加入 operation.clear_fields。\n4. 數字 0 與布林 false 是有效觀測值，必須原樣輸出，不得當成空值。\n5. 每筆 operation 使用唯一 operation_id、evidence.source_image_ref、evidence.confidence。\n6. 需要人工確認時 review_required=true；不得自行解除。\n7. 禁止 delete。\n8. 不得使用公版物種候選值補成玩家個體實際食材或副技能。\n9. 若畫面只顯示部分食材槽／副技能槽，建立 profile_audit_confirmations，status=user_confirmed_not_visible、confirmed_by_user=false，等待用戶在更新中心確認。`;
 const base=`你是 Pokémon Sleep AI Manager 的資料轉換器。${auditRules}`;
 const wrap=(title,rules,entities,exampleData={},scenario=null)=>({title,prompt:`${base}\n\n情境：${title}\n${rules}\n允許 entity：${entities.join('、')}。`,entities,contract:'update-package-v1.1',exampleData,scenario});
+const weeklyRules=`使用 scenario=weekly_context_update。這是「玩家本週環境」的唯一匯入來源，套用後由本週環境頁統一解析，再供戰情室、食譜與策略引擎使用；不要直接輸出戰情室或食譜建議。\n
+Weekly Context JSON 規則：\n1. operations 必須只有 1 筆，entity=weekly_context、action=upsert。\n2. week_start 使用當週星期一 YYYY-MM-DD；key.context_id 固定為 weekly_context_<week_start>_import，例如 weekly_context_2026-08-10_import。data.week_start 必須與 key 中日期一致。\n3. payload 頂層 scenario=weekly_context_update，context_authority=UPDATE_CENTER_JSON。generated_at 與 data.updated_at 使用產生此更新包時的 ISO 日期時間。\n4. 只整理本週可觀測事實：實際營地 camp、料理類型 dish_category、活動名稱 event_name、鍋子容量 pot_size，以及活動效果 event_effects。不得從上週資料推測。\n5. event_effects 必須是 JSON 字串，不是巢狀 object。只寫已確認欄位；可使用 recipe_final_energy_multiplier、extra_tasty_multiplier、sunday_extra_tasty_multiplier、sunday_pot_multiplier、new_recipe_count、event_start、event_end。未確認欄位省略，不可自行補 1、0 或預設值。\n6. 固定三樹果營地可省略 favorite_berry_1~3，由平台公版 Camp Berry Master 自動投影。萌綠之島一般模式與 EX 動態營地：只有本週畫面實際看見全部三種喜好樹果時才一次填滿 favorite_berry_1~3；若只看見 0~2 種，三欄全部省略／null，不得部分填寫、不得沿用上週、不得猜測。\n7. base_notes 只記錄使用者明確提供且會影響本週策略的假設；遊戲公告事實應放在對應正式欄位或 event_effects，不要把未證實內容塞入 base_notes。\n8. evidence.source_image_ref 必須指向本次判讀的主要截圖；若多張圖共同支持，可另外輸出 evidence.source_image_refs 陣列。confidence 只反映本次辨識信心。\n9. 不得寫入任何公版 Master、料理解鎖、寶可夢個體、庫存或隊伍資料。`;
+
 export const PROMPT_CATALOG={
   pokemon:{
     title:'寶可夢盒／個體能力觀察',
@@ -16,14 +20,14 @@ export const PROMPT_CATALOG={
   discard:wrap('送博士紀錄','只有使用者明確確認送博士時才輸出；entity=discarded_pokemon、action=discarded，不可同時新增 pokemon。若畫面不能確認送博士，不得輸出操作。',['discarded_pokemon']),
   weekly:wrap(
     '本週營地／料理／活動 Context',
-    '使用 scenario=weekly_context_update。這是玩家當週狀態，不是公版 Master。整理週起始日、實際選擇營地、料理類型、活動名稱、鍋子容量與活動加成。event_effects 必須存為 JSON 字串；已確認的活動加成可包含 recipe_final_energy_multiplier、extra_tasty_multiplier、sunday_extra_tasty_multiplier、sunday_pot_multiplier、new_recipe_count、event_start、event_end。營地喜好樹果規則：固定三樹果營地可省略 favorite_berry_1~3，由平台公版 Camp Berry Master 自動投影；萌綠之島一般模式與 EX 動態營地只有在本週遊戲畫面實際看見三種樹果時才填入，未看見就填 null／省略，不得沿用上週或猜測。updated_at 必須填產生此更新包時的 ISO 日期時間。未知欄位填 null 或省略；不得把活動或玩家本週營地寫成公版固定值。',
+    weeklyRules,
     ['weekly_context'],
     {week_start:null,camp:null,dish_category:null,favorite_berry_1:null,favorite_berry_2:null,favorite_berry_3:null,event_name:null,event_effects:'{}',pot_size:null,base_notes:null,updated_at:null},
     'weekly_context_update',
   ),
 };
 
-function templateKey(entity){
+function templateKey(entity,weekStart=null){
   return {
     discarded_pokemon:{discard_id:'discard_example_001'},
     ingredient_inventory:{ingredient_name:'好眠番茄'},
@@ -32,7 +36,7 @@ function templateKey(entity){
     recipe_ingredients:{recipe_id:'recipe_example_001',ingredient_name:'好眠番茄'},
     account_capacity:{capacity_key:'ingredient_bag'},
     weekly_plan:{plan_id:'week_example_current'},
-    weekly_context:{context_id:'week_example_current'},
+    weekly_context:{context_id:`weekly_context_${weekStart||'YYYY-MM-DD'}_import`},
   }[entity];
 }
 
@@ -41,14 +45,16 @@ export function buildScenarioTemplate(key){
   const c=PROMPT_CATALOG[key];
   const entity=c.entities[0];
   const generatedAt=new Date().toISOString();
+  const weekStart=entity==='weekly_context'?localWeekStart(new Date()):null;
   const data={...c.exampleData};
-  if(entity==='weekly_context')data.updated_at=generatedAt;
+  if(entity==='weekly_context'){data.week_start=weekStart;data.updated_at=generatedAt;}
   return {
     schema_version:'1.1',
     update_id:`UPD-${generatedAt.replace(/[-:TZ.]/g,'').slice(0,14)}-EXAMPLE`,
     generated_at:generatedAt,
     source:'ai_screenshot_analysis',
     scenario:c.scenario||key,
+    ...(entity==='weekly_context'?{context_authority:'UPDATE_CENTER_JSON'}:{}),
     update_policy:{
       blank_values:'preserve_existing',
       explicit_clear_only_via:'operation.clear_fields',
@@ -61,10 +67,10 @@ export function buildScenarioTemplate(key){
       operation_id:'OP-001',
       entity,
       action:entity==='discarded_pokemon'?'discarded':'upsert',
-      key:templateKey(entity),
+      key:templateKey(entity,weekStart),
       data,
       clear_fields:[],
-      evidence:{source_type:'screenshot',source_image_ref:'image-001',confidence:0.95},
+      evidence:{source_type:'screenshot',source_image_ref:'image-001',source_image_refs:['image-001'],confidence:0.95},
       review_required:true,
       user_audit:{accepted_current_observation:false},
     }],
