@@ -35,7 +35,8 @@ for(const token of ['currentUnlockSlotCounts','known_ingredient_slot_count','kno
 const local=read('assets/js/pokemon-candidate-local.js');
 assert.ok(local.includes('scorePokemonCandidateFeatures'),'local candidate adapter must invoke evidence-gated scoring');
 const candidateUi=read('assets/js/war-room-candidate-feature-ui.js');
-assert.ok(candidateUi.includes('current_readiness_score'),'War Room candidate UI must expose readiness score');
+for(const token of ['current_readiness_score','分數明細','known','unlocked','rule_version','formula','missing_inputs'])assert.ok(candidateUi.includes(token),`War Room score breakdown UI missing: ${token}`);
+assert.ok(candidateUi.includes('不是產能／總強度'),'War Room must explain readiness score semantics');
 const teamUi=read('assets/js/war-room-team-optimizer-ui.js');
 assert.ok(teamUi.includes('current_readiness_score'),'Team card must expose readiness score');
 const sw=read('service-worker.js');
@@ -49,5 +50,5 @@ for(const deterministic of [source,read('assets/js/pokemon-scoring-engine.js')])
 console.log(JSON.stringify({
   status:'PASS',gate:'V0.4.5_CURRENT_READINESS_RUNTIME_RELEASE',app_version:app,build,cache,
   bridge_version:CURRENT_READINESS_SLOT_BRIDGE_VERSION,known_unlock_slots:4,unlocked_known_slots:2,current_readiness_score:50,
-  current_readiness_semantics:'UNLOCK_MATURITY_ONLY',inactive_dimensions_remain_null:true,schema_migration_added:false,player_data_write:false,gemini_used:false,
+  score_breakdown_ui:true,current_readiness_semantics:'UNLOCK_MATURITY_ONLY',inactive_dimensions_remain_null:true,schema_migration_added:false,player_data_write:false,gemini_used:false,
 },null,2));
