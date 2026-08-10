@@ -5,10 +5,15 @@ import {projectRecipeDiscoveryStockpile} from '../assets/js/recipe-discovery-sto
 import {buildScenarioTemplate} from '../assets/js/prompt-catalog.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
+const semver=value=>String(value||'').replace(/^v/,'').split('.').map(part=>Number(part)||0);
+const atLeast=(value,floor)=>{const a=semver(value),b=semver(floor);for(let i=0;i<Math.max(a.length,b.length);i++){if((a[i]||0)>(b[i]||0))return true;if((a[i]||0)<(b[i]||0))return false;}return true;};
 const version=read('assets/js/version-authority.js');
-assert.equal(version.match(/app_version:\s*'([^']+)'/)?.[1],'v0.4.6');
-assert.equal(version.match(/app_build:\s*'([^']+)'/)?.[1],'20260810-v046-recipe-discovery-stockpile-team-planner');
-assert.equal(version.match(/cache_name:\s*'([^']+)'/)?.[1],'pokemon-sleep-ai-v0.4.6-v046-recipe-discovery-stockpile-team-planner');
+const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
+assert.ok(atLeast(appVersion,'v0.4.6'),'v0.4.6 behavior must remain available in later releases');
+if(appVersion==='v0.4.6'){
+  assert.equal(version.match(/app_build:\s*'([^']+)'/)?.[1],'20260810-v046-recipe-discovery-stockpile-team-planner');
+  assert.equal(version.match(/cache_name:\s*'([^']+)'/)?.[1],'pokemon-sleep-ai-v0.4.6-v046-recipe-discovery-stockpile-team-planner');
+}
 
 assert.equal(PUBLIC_RECIPE_DISCOVERY.length,2);
 assert.equal(activeCanonicalDiscoveryRows().length,0);
@@ -16,6 +21,8 @@ for(const row of PUBLIC_RECIPE_DISCOVERY){
   assert.equal(row.active_canonical,false);
   assert.equal(row.canonical_name_zh_tw,null);
   assert.equal(row.canonical_formula,null);
+  assert.equal(row.quantity_assignment_status,'UNKNOWN_UNORDERED_SIGNATURE');
+  assert.equal('planning_formula' in row,false,'later evidence correction must not restore unverified quantity-to-ingredient mapping');
 }
 
 const weekly=buildScenarioTemplate('weekly');
@@ -37,7 +44,8 @@ const result=projectRecipeDiscoveryStockpile({
     {pokemon_id:'p5',species:'戊',level:30,specialty:'食材',hard_constraint_status:'PASS',favorite_berry_match:false,current_readiness_score:50,profile_completeness:{ratio:1},unlocked_ingredients:[{ingredient_name:'萌綠大豆'},{ingredient_name:'純粹油'}],failed_constraints:[],review_constraints:[]},
   ]},
 });
-assert.equal(result.summary.total_target,175);
+assert.equal(result.summary.total_target,236);
+assert.equal(result.summary.target_semantics,'CONSERVATIVE_DISCOVERY_UPPER_BOUND');
 assert.equal(result.weekly_context.recipe_final_energy_multiplier,1.5);
 assert.equal(result.team.primary.team_status,'READY');
 assert.equal(result.team.primary.slots.length,5);
@@ -49,7 +57,7 @@ assert.equal(result.canonical_recipe_state_write,false);
 const canonical=read('assets/js/public-recipe-canonical-authority.js');
 assert.equal(canonical.includes('public-recipe-discovery-master'),false,'Discovery authority must not be imported into canonical ACTIVE authority');
 const local=read('assets/js/recipe-discovery-stockpile-local.js');
-for(const token of ['weekly_context','ingredient_inventory','buildLocalPokemonCandidateScoring'])assert.ok(local.includes(token));
+for(const token of ['currentWeeklyContext','ingredient_inventory','buildLocalPokemonCandidateScoring'])assert.ok(local.includes(token));
 const recipeLocal=read('assets/js/recipe-strategy-local.js');
 assert.ok(recipeLocal.includes("war-room-recipe-discovery-bootstrap.js"));
 const sw=read('service-worker.js');
@@ -57,7 +65,7 @@ assert.ok(sw.includes("importScripts('./assets/js/version-authority.js')"));
 assert.ok(sw.includes("url.pathname.endsWith('.js')"));
 assert.ok(sw.includes('caches.match(event.request)'));
 const migrations=read('assets/js/migrations.js');
-assert.equal(migrations.includes('recipe-discovery-stockpile'),false,'v0.4.6 must not add SQLite migration');
+assert.equal(migrations.includes('recipe-discovery-stockpile'),false,'v0.4.6 behavior must remain migration-free');
 for(const deterministic of [read('assets/js/recipe-discovery-stockpile.js'),read('assets/js/weekly-context-normalization.js')])for(const forbidden of ['Gemini','fetch(','persist(','run('])assert.equal(deterministic.includes(forbidden),false,`deterministic v0.4.6 layer contains forbidden token: ${forbidden}`);
 
-console.log(JSON.stringify({status:'PASS',gate:'V0.4.6_RECIPE_DISCOVERY_RELEASE',app_version:'v0.4.6',discovery_candidates:2,canonical_active_discovery_rows:0,total_stockpile_target:175,weekly_context_player_json:true,recipe_energy_multiplier_supported:true,team_size:5,schema_migration_added:false,player_data_write:false,gemini_used:false},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V0.4.6_RECIPE_DISCOVERY_RELEASE',app_version:appVersion,discovery_candidates:2,canonical_active_discovery_rows:0,total_stockpile_target:236,target_semantics:result.summary.target_semantics,weekly_context_player_json:true,recipe_energy_multiplier_supported:true,team_size:5,schema_migration_added:false,player_data_write:false,gemini_used:false},null,2));
