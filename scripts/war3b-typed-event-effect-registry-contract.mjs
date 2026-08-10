@@ -15,6 +15,8 @@ import {
 import {validateWeeklyContextImportPayload} from '../assets/js/weekly-context-import-contract.js';
 import {validateWorkflow,approveReviewed} from '../assets/js/ai-workflow.js';
 import {pokemonEvaluationFingerprint} from '../assets/js/pokemon-evaluation-contract.js';
+import {projectPokemonCandidateFeatures} from '../assets/js/pokemon-candidate-feature-projection.js';
+import {projectRecipeDiscoveryStockpile} from '../assets/js/recipe-discovery-stockpile.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
 const NOW=new Date('2026-08-10T16:00:00+08:00');
@@ -101,6 +103,20 @@ const fpActive=pokemonEvaluationFingerprint({...evalBase,weeklyContext:contextAc
 assert.equal(fpA,fpFeature,'Evaluation Snapshot fingerprint must ignore FEATURE_ONLY / REVIEW_REQUIRED Weekly effect drift');
 assert.notEqual(fpA,fpActive,'Evaluation Snapshot fingerprint must react to ACTIVE_VERIFIED Weekly effect changes');
 
+const candidateBase={pokemon:[pokemon],pokemonDetails:[],weeklyContext:contextA,goalProfile:null,recipeStrategyProjection:null,collectionTargets:[],masterVersions:{public_pokemon_knowledge_version:'p1'}};
+const candidateA=projectPokemonCandidateFeatures(candidateBase);
+const candidateFeature=projectPokemonCandidateFeatures({...candidateBase,weeklyContext:contextFeatureChanged});
+const candidateActive=projectPokemonCandidateFeatures({...candidateBase,weeklyContext:contextActiveChanged});
+assert.equal(candidateA.input_fingerprint,candidateFeature.input_fingerprint,'Candidate Feature fingerprint must ignore FEATURE_ONLY / REVIEW_REQUIRED Weekly effect drift');
+assert.notEqual(candidateA.input_fingerprint,candidateActive.input_fingerprint,'Candidate Feature fingerprint must react to ACTIVE_VERIFIED Weekly effect changes');
+
+const discoveryBase={discoveryRows:[],inventory:[],scoringProjection:{candidates:[]},goalProfile:null,weeklyContext:contextA,maxAlternatives:0};
+const discoveryA=projectRecipeDiscoveryStockpile(discoveryBase);
+const discoveryFeature=projectRecipeDiscoveryStockpile({...discoveryBase,weeklyContext:contextFeatureChanged});
+const discoveryActive=projectRecipeDiscoveryStockpile({...discoveryBase,weeklyContext:contextActiveChanged});
+assert.equal(discoveryA.input_fingerprint,discoveryFeature.input_fingerprint,'Recipe Discovery fingerprint must ignore FEATURE_ONLY / REVIEW_REQUIRED Weekly effect drift');
+assert.notEqual(discoveryA.input_fingerprint,discoveryActive.input_fingerprint,'Recipe Discovery fingerprint must react to ACTIVE_VERIFIED Weekly effect changes');
+
 const prompt=read('assets/js/prompt-catalog.js');
 for(const token of ['unknown_effects','不要自行創造新的 root key','operation.review_required 必須為 true','不要輸出 rule_status','逐字保留活動原文'])assert.ok(prompt.includes(token),`Weekly prompt missing typed/unknown rule: ${token}`);
 const weeklyUi=read('assets/js/weekly-context-ui-bridge.js');
@@ -114,11 +130,15 @@ const normalizer=read('assets/js/weekly-context-normalization.js');
 assert.ok(normalizer.includes('strategy_event_effects'));
 assert.ok(normalizer.includes('event_effect_strategy_fingerprint'));
 assert.ok(normalizer.includes('weeklyContextStrategyFingerprintInput'));
+const candidateSource=read('assets/js/pokemon-candidate-feature-projection.js');
+const discoverySource=read('assets/js/recipe-discovery-stockpile.js');
+assert.ok(candidateSource.includes('weeklyContextStrategyFingerprintInput(weeklyContext)'));
+assert.ok(discoverySource.includes('weeklyContextStrategyFingerprintInput(week)'));
 
 console.log(JSON.stringify({
   status:'PASS',gate:'WAR3B_TYPED_EVENT_EFFECT_REGISTRY_CONTRACT',registry_version:WEEKLY_EVENT_EFFECT_REGISTRY_VERSION,
   registry_rows:WEEKLY_EVENT_EFFECT_REGISTRY.length,active_verified:projection.states.filter(row=>row.rule_status==='ACTIVE_VERIFIED').length,
   feature_only_preserved:true,unknown_effects_preserved:true,unknown_effects_require_review:true,unknown_effects_deterministic_consumption:false,
   wrong_types_fail_closed:true,manual_fallback_typed_validation:true,strategy_fingerprint_ignores_non_deterministic_effects:true,
-  active_effect_changes_invalidate_evaluation:true,sqlite_migration_added:false,
+  active_effect_changes_invalidate_evaluation:true,candidate_feature_fingerprint_aligned:true,recipe_discovery_fingerprint_aligned:true,sqlite_migration_added:false,
 },null,2));
