@@ -6,9 +6,20 @@ const version=read('assets/js/version-authority.js');
 const app=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const build=version.match(/app_build:\s*'([^']+)'/)?.[1];
 const cache=version.match(/cache_name:\s*'([^']+)'/)?.[1];
-assert.equal(app,'v0.4.4');
-assert.equal(build,'20260809-v044-evaluation-snapshot-lifecycle');
-assert.equal(cache,'pokemon-sleep-ai-v0.4.4-v044-evaluation-snapshot-lifecycle');
+const parts=value=>String(value||'').replace(/^v/,'').split('.').map(part=>Number(part)||0);
+const versionAtLeast=(actual,minimum)=>{
+  const a=parts(actual),b=parts(minimum),length=Math.max(a.length,b.length);
+  for(let i=0;i<length;i++){const av=a[i]||0,bv=b[i]||0;if(av!==bv)return av>bv;}
+  return true;
+};
+assert.ok(versionAtLeast(app,'v0.4.4'),`current release ${app} must preserve v0.4.4 lifecycle behavior`);
+if(app==='v0.4.4'){
+  assert.equal(build,'20260809-v044-evaluation-snapshot-lifecycle');
+  assert.equal(cache,'pokemon-sleep-ai-v0.4.4-v044-evaluation-snapshot-lifecycle');
+}else{
+  assert.ok(version.includes("// app_version: 'v0.4.4'"),'v0.4.4 legacy release marker missing');
+  assert.ok(version.includes("// app_build: '20260809-v044-evaluation-snapshot-lifecycle'"),'v0.4.4 legacy build marker missing');
+}
 
 const week=read('assets/js/evaluation-week.js');
 const planner=read('assets/js/evaluation-refresh-plan.js');
@@ -47,7 +58,7 @@ for(const source of [planner,lifecycle,bootstrap,lifecycleUi])for(const forbidde
 
 process.stdout.write(`${JSON.stringify({
   status:'PASS',gate:'V0.4.4_EVALUATION_SNAPSHOT_LIFECYCLE_RELEASE',app_version:app,build,cache,
-  monday_local_epoch:true,weekly_epoch_guard:true,zero_write_preflight:true,scoped_pokemon_refresh:true,archived_snapshot_stale:true,
+  forward_compatible_release:true,monday_local_epoch:true,weekly_epoch_guard:true,zero_write_preflight:true,scoped_pokemon_refresh:true,archived_snapshot_stale:true,
   goal_profile_trigger:true,weekly_context_trigger:true,pokemon_input_trigger:true,pwa_reopen_preflight:true,
   war_room_lifecycle_status:true,offline_after_online_js_cache:true,schema_migration_added:false,player_rows_modified:false,gemini_used:false,
 },null,2)}\n`);
