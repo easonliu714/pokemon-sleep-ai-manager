@@ -1,34 +1,58 @@
 import {currentWeeklyContext} from './weekly-context-store.js';
-import {normalizeWeeklyContext,parseWeeklyEventEffects} from './weekly-context-normalization.js';
+import {normalizeWeeklyContext,parseWeeklyEventEffects,validateWeeklyEventEffects} from './weekly-context-normalization.js';
 import {resolveCampFavoriteBerries,campBerryAuthority} from './public-camp-berry-master.js';
 import {isDatabaseReady,isRescueReadonly} from './database.js';
+import {localWeekStart} from './evaluation-week.js';
 
-export const WEEKLY_CONTEXT_UPDATE_BRIDGE_VERSION='weekly-context-update-bridge-2026-08-10-b';
+export const WEEKLY_CONTEXT_UPDATE_BRIDGE_VERSION='weekly-context-update-bridge-2026-08-10-c';
 
 let weeklyPayload=null;
+const EVENT_KEYS=new Set(['recipe_final_energy_multiplier','extra_tasty_multiplier','sunday_extra_tasty_multiplier','sunday_pot_multiplier','new_recipe_count','event_start','event_end']);
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const iso=value=>{try{return Boolean(value)&&Number.isFinite(new Date(value).getTime());}catch{return false;}};
-function weeklyOperation(payload){
-  if(payload?.scenario==='weekly_context_update')return (payload.operations||[]).find(op=>op.entity==='weekly_context')||null;
+const dateKey=value=>/^\d{4}-\d{2}-\d{2}$/.test(String(value||''));
+function isWeeklyPayload(payload){
+  if(payload?.scenario==='weekly_context_update')return true;
   const operations=Array.isArray(payload?.operations)?payload.operations:[];
-  return operations.length>0&&operations.every(op=>op.entity==='weekly_context')?operations[0]:null;
+  return operations.length>0&&operations.some(op=>op?.entity==='weekly_context');
+}
+function weeklyOperation(payload){
+  const operations=Array.isArray(payload?.operations)?payload.operations:[];
+  return operations.find(op=>op?.entity==='weekly_context')||operations[0]||null;
 }
 function weeklyContractIssues(payload,op){
-  if(!op)return [];
-  const issues=[],data=op.data||{},weekStart=String(data.week_start||'').trim(),berries=['favorite_berry_1','favorite_berry_2','favorite_berry_3'].map(key=>data[key]).filter(value=>value!==null&&value!==undefined&&String(value).trim()!=='').map(String);
+  const issues=[];
   if(payload?.scenario!=='weekly_context_update')issues.push('scenario 必須為 weekly_context_update');
   if(payload?.context_authority!=='UPDATE_CENTER_JSON')issues.push('context_authority 必須為 UPDATE_CENTER_JSON');
   if(!Array.isArray(payload?.operations)||payload.operations.length!==1)issues.push('operations 必須只有 1 筆 weekly_context upsert');
+  if(!op){issues.push('缺少 weekly_context operation');return issues;}
+  const data=op.data||{},weekStart=String(data.week_start||'').trim(),berries=['favorite_berry_1','favorite_berry_2','favorite_berry_3'].map(key=>data[key]).filter(value=>value!==null&&value!==undefined&&String(value).trim()!=='').map(String);
   if(op.entity!=='weekly_context'||op.action!=='upsert')issues.push('operation 必須為 entity=weekly_context、action=upsert');
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(weekStart))issues.push('data.week_start 必須為當週星期一 YYYY-MM-DD');
+  if(!dateKey(weekStart))issues.push('data.week_start 必須為當週星期一 YYYY-MM-DD');
+  else{
+    const parsed=new Date(`${weekStart}T12:00:00`);
+    if(localWeekStart(parsed)!==weekStart)issues.push('data.week_start 必須是星期一');
+    const currentEpoch=localWeekStart(new Date());
+    if(weekStart!==currentEpoch)issues.push(`此匯入只接受目前週期 ${currentEpoch}；不可使用上週／未來週 JSON`);
+  }
   if(weekStart&&String(op.key?.context_id||'')!==`weekly_context_${weekStart}_import`)issues.push(`key.context_id 必須為 weekly_context_${weekStart}_import`);
   if(!iso(payload?.generated_at))issues.push('generated_at 必須為有效 ISO 日期時間');
   if(!iso(data.updated_at))issues.push('data.updated_at 必須為有效 ISO 日期時間');
   if(data.event_effects!==null&&data.event_effects!==undefined&&typeof data.event_effects!=='string')issues.push('event_effects 必須是 JSON 字串，不可直接放 object');
-  if(typeof data.event_effects==='string'){try{const parsed=JSON.parse(data.event_effects||'{}');if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))issues.push('event_effects JSON 字串內容必須是 object');}catch{issues.push('event_effects 不是有效 JSON 字串');}}
+  if(typeof data.event_effects==='string'){
+    try{
+      const parsed=JSON.parse(data.event_effects||'{}');
+      if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))issues.push('event_effects JSON 字串內容必須是 object');
+      else{
+        for(const key of Object.keys(parsed))if(!EVENT_KEYS.has(key))issues.push(`event_effects 不支援欄位：${key}`);
+        for(const error of validateWeeklyEventEffects(data.event_effects))issues.push(`event_effects：${error}`);
+        for(const key of ['event_start','event_end'])if(parsed[key]!=null&&parsed[key]!==''&&!dateKey(parsed[key]))issues.push(`event_effects.${key} 必須為 YYYY-MM-DD`);
+      }
+    }catch{issues.push('event_effects 不是有效 JSON 字串');}
+  }
   if(berries.length!==0&&berries.length!==3)issues.push('動態／隨機營地的 favorite_berry_1~3 必須全部三欄一起提供，或全部省略');
   if(new Set(berries).size!==berries.length)issues.push('favorite_berry_1~3 不可重複');
-  return issues;
+  return [...new Set(issues)];
 }
 function ensureRoot(){
   const updates=document.getElementById('updates');if(!updates)return null;
@@ -60,17 +84,16 @@ function hidePokemonSpecificConfirmation(active){
 }
 function render(){
   const root=ensureRoot();if(!root)return;
-  const op=weeklyOperation(weeklyPayload);
-  if(!op){root.classList.add('hidden');hidePokemonSpecificConfirmation(false);return;}
+  if(!isWeeklyPayload(weeklyPayload)){root.classList.add('hidden');hidePokemonSpecificConfirmation(false);return;}
+  const op=weeklyOperation(weeklyPayload),issues=weeklyContractIssues(weeklyPayload,op);
   hidePokemonSpecificConfirmation(true);root.classList.remove('hidden');
-  const issues=weeklyContractIssues(weeklyPayload,op);
-  const incoming=normalizeWeeklyContext({...op.data,context_id:op.key?.context_id||op.data?.context_id||null});
+  const incoming=normalizeWeeklyContext({...op?.data,context_id:op?.key?.context_id||op?.data?.context_id||null});
   const current=isDatabaseReady()&&!isRescueReadonly()?currentWeeklyContext():{};
-  const effects=parseWeeklyEventEffects(op.data?.event_effects);
+  const effects=parseWeeklyEventEffects(op?.data?.event_effects);
   root.dataset.weeklyContractValid=issues.length?'0':'1';
   root.innerHTML=`<h3>本週營地／活動匯入內容確認</h3>
     <p class="notice success"><b>Authority Chain：</b>更新中心 JSON → ［本週環境］Current Weekly Context → ［戰情室］／［食譜］／策略引擎。套用成功後，JSON 的非空欄位會成為本週 Primary Authority；只有 JSON 未提供的欄位才允許本週環境人工 fallback。</p>
-    ${issues.length?`<div class="notice warning"><b>Weekly Context JSON Contract 尚未通過，Dry Run／Apply 將被阻擋：</b><ul>${issues.map(issue=>`<li>${esc(issue)}</li>`).join('')}</ul></div>`:`<div class="notice success"><b>Weekly Context JSON Contract：PASS</b><br>context_id：<code>${esc(op.key?.context_id||'—')}</code> · authority：<code>UPDATE_CENTER_JSON</code></div>`}
+    ${issues.length?`<div class="notice warning"><b>Weekly Context JSON Contract 尚未通過，Dry Run／Apply 將被阻擋：</b><ul>${issues.map(issue=>`<li>${esc(issue)}</li>`).join('')}</ul></div>`:`<div class="notice success"><b>Weekly Context JSON Contract：PASS</b><br>context_id：<code>${esc(op?.key?.context_id||'—')}</code> · authority：<code>UPDATE_CENTER_JSON</code></div>`}
     <div class="table-wrap"><table><thead><tr><th>欄位</th><th>目前［本週環境］</th><th>JSON</th><th>套用後 Authority</th></tr></thead><tbody>
       ${valueRow('週起始日',current.week_start,incoming.week_start)}
       ${valueRow('營地',current.camp,incoming.camp)}
@@ -84,7 +107,7 @@ function render(){
     <p class="notice"><b>活動結構：</b>漂亮成功倍率 ${esc(effects.extra_tasty_multiplier??'—')}；週日漂亮成功倍率 ${esc(effects.sunday_extra_tasty_multiplier??'—')}；新料理數 ${esc(effects.new_recipe_count??'—')}；活動期間 ${esc(effects.event_start??'—')} ～ ${esc(effects.event_end??'—')}。</p>`;
 }
 function blockInvalidWeeklyAction(event){
-  const button=event.target.closest?.('#dryRunBtn,#applyBtn');if(!button||!weeklyOperation(weeklyPayload))return;
+  const button=event.target.closest?.('#dryRunBtn,#applyBtn');if(!button||!isWeeklyPayload(weeklyPayload))return;
   const issues=weeklyContractIssues(weeklyPayload,weeklyOperation(weeklyPayload));
   if(!issues.length)return;
   event.preventDefault();event.stopImmediatePropagation();
