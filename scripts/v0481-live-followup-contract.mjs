@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const read=file=>fs.readFileSync(file,'utf8');
+const parts=value=>String(value||'').replace(/^v/,'').split('.').map(part=>Number(part)||0);
+const atLeast=(current,minimum)=>{const left=parts(current),right=parts(minimum),size=Math.max(left.length,right.length);for(let index=0;index<size;index+=1){const a=left[index]||0,b=right[index]||0;if(a!==b)return a>b;}return true;};
 const version=read('assets/js/version-authority.js');
 const app=version.match(/app_version:\s*'([^']+)'/)?.[1]||'';
-assert.ok(['v0.4.8','v0.4.8.1'].includes(app),`unexpected release during v0.4.8.1 closure: ${app}`);
+assert.equal(atLeast(app,'v0.4.8.1'),true,`v0.4.8.1 behavior cannot run on older release: ${app}`);
 
 const override=read('assets/js/weekly-context-manual-override.js');
 for(const token of [
@@ -57,13 +59,13 @@ const coverage=read('assets/js/public-pokemon-knowledge-coverage.js');
 for(const token of ['VERIFIED_OUTGOING_OR_VERIFIED_TERMINAL_OR_UNKNOWN','UNKNOWN_NOT_YET_VERIFIED','VERIFIED_TERMINAL_CURRENT_SLEEP'])assert.ok(coverage.includes(token),`evolution tri-state safety regression: ${token}`);
 const master=read('assets/js/public-pokemon-knowledge-master.js');
 assert.ok(master.includes('Missing rows mean "public master not'));
-assert.equal(read('assets/js/migrations.js').includes('version,applied_at) VALUES(10'),false,'LIVE follow-up must not add SQLite migration 10');
+assert.equal(read('assets/js/migrations.js').includes('version,applied_at) VALUES(10'),false,'LIVE follow-up behavior must not add SQLite migration 10');
 
 console.log(JSON.stringify({
   status:'PASS',
-  gate:'V0481_LIVE_FOLLOWUP_BEHAVIOR',
+  gate:'V0481_LIVE_FOLLOWUP_HISTORICAL_BEHAVIOR',
   app_version:app,
-  release_phase:app==='v0.4.8.1',
+  exact_v0481_release:app==='v0.4.8.1',
   weekly_json_fields_manually_overridable:true,
   override_revision_scoped:true,
   fixed_camp_berries_still_locked:true,

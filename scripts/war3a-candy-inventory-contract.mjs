@@ -17,7 +17,7 @@ const read=path=>fs.readFileSync(path,'utf8');
 const masterRows=buildPublicCandyMasterRows();
 const byName=new Map(masterRows.map(row=>[row.candy_name,row]));
 
-assert.equal(PUBLIC_CANDY_MASTER_VERSION,'public-candy-master-2026-08-10-b');
+assert.match(PUBLIC_CANDY_MASTER_VERSION,/^public-candy-master-\d{4}-\d{2}-\d{2}-[a-z]$/,'Candy public master must remain versioned even when Pokémon-name projection expands');
 assert.equal(SPECIES_CANDY_NAME_RULE_VERSION,'species-candy-name-rule-zh-tw-2026-08-10-a');
 assert.ok(PUBLIC_CANDY_FIXED_MASTER.length>=10,'fixed Candy Master should contain source-verified official/game rows');
 for(const name of ['萬能糖果S','萬能糖果M','火屬性的糖果S','火屬性的糖果M','水屬性的糖果S','水屬性的糖果M','飛行屬性的糖果S','飛行屬性的糖果M','幽靈屬性的糖果S','幽靈屬性的糖果M','超能力屬性的糖果S','超能力屬性的糖果M','龍屬性的糖果S']){

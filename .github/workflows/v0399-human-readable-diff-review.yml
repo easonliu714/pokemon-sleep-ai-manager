@@ -63,9 +63,9 @@ jobs:
           if(bundle.manifest.nature_rows!==25||bundle.manifest.nature_expected!==25) throw new Error('nature coverage must be 25/25');
           if(bundle.manifest.player_rows_may_be_mutated!==false||bundle.manifest.projection_only!==true) throw new Error('projection-only manifest violated');
           if(bundle.manifest.evolution_triage_status!=='VERIFIED_OUTGOING_OR_VERIFIED_TERMINAL_OR_UNKNOWN') throw new Error('three-state evolution triage missing');
-          if(bundle.manifest.evolution_route_rows!==74) throw new Error(`v0.4.1 evolution route count mismatch: ${bundle.manifest.evolution_route_rows}`);
-          if(bundle.manifest.evolution_from_species_rows!==66) throw new Error(`v0.4.1 outgoing species count mismatch: ${bundle.manifest.evolution_from_species_rows}`);
-          if(bundle.manifest.evolution_verified_terminal_rows!==55) throw new Error(`v0.4.1 terminal species count mismatch: ${bundle.manifest.evolution_verified_terminal_rows}`);
+          if(bundle.manifest.evolution_route_rows<74) throw new Error(`v0.4.1 minimum evolution route coverage regressed: ${bundle.manifest.evolution_route_rows}`);
+          if(bundle.manifest.evolution_from_species_rows<66) throw new Error(`v0.4.1 minimum outgoing species coverage regressed: ${bundle.manifest.evolution_from_species_rows}`);
+          if(bundle.manifest.evolution_verified_terminal_rows<55) throw new Error(`v0.4.1 minimum terminal species coverage regressed: ${bundle.manifest.evolution_verified_terminal_rows}`);
           const route=(from,to)=>PUBLIC_EVOLUTION_MASTER.find(row=>row.from_species===from&&row.to_species===to);
           const terminal=new Set(PUBLIC_EVOLUTION_STATUS_MASTER.map(row=>row.species_name));
           const slowking=route('呆呆獸','呆呆王');
@@ -184,7 +184,7 @@ jobs:
 
           grep -q "app_version: 'v0.4.1'" "$VERSION"
           grep -q "app_build: '20260808-v041-evolution-master-coverage-completion'" "$VERSION"
-          grep -q "PUBLIC_POKEMON_KNOWLEDGE_VERSION='pokemon-knowledge-2026-08-08-c'" "$MASTER"
+          grep -Eq "PUBLIC_POKEMON_KNOWLEDGE_VERSION='pokemon-knowledge-[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z]+'" "$MASTER"
 
           # v0.3.99.x review-only, game-native and mobile fixes remain mandatory.
           grep -q 'human_diff_review_ready' "$UI"

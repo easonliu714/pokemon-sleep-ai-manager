@@ -1,4 +1,4 @@
-export const PUBLIC_POKEMON_KNOWLEDGE_VERSION='pokemon-knowledge-2026-08-08-c';
+export const PUBLIC_POKEMON_KNOWLEDGE_VERSION='pokemon-knowledge-2026-08-10-d';
 
 const BASE_SOURCE=Object.freeze({
   source_type:'official_first_reference_verified',
@@ -61,6 +61,8 @@ const EVO=(from_species,to_species,required_level,required_sleep_hours,required_
 const EVO_STATUS=(species_name,evolution_status,source_ref,verification_status='REFERENCE_VERIFIED')=>Object.freeze({
   species_name,evolution_status,source_ref,verification_status,...BASE_SOURCE,
 });
+const EVO_LIVE=(...args)=>Object.freeze({...EVO(...args),verified_at:'2026-08-10'});
+const EVO_STATUS_LIVE=(...args)=>Object.freeze({...EVO_STATUS(...args),verified_at:'2026-08-10'});
 
 // Only source-verified routes are seeded. Missing rows mean "public master not
 // yet verified", never "this Pokémon cannot evolve".
@@ -139,6 +141,10 @@ export const PUBLIC_EVOLUTION_MASTER=Object.freeze([
   EVO('伊布','葉伊布',null,null,80,'葉之石',null,'https://www.serebii.net/pokemonsleep/pokemon/leafeon.shtml'),
   EVO('伊布','冰伊布',null,null,80,'冰之石',null,'https://www.serebii.net/pokemonsleep/pokemon/glaceon.shtml'),
   EVO('伊布','仙子伊布',null,150,80,null,null,'https://www.serebii.net/pokemonsleep/pokemon/sylveon.shtml'),
+  EVO_LIVE('可達鴨','哥達鴨',25,null,40,null,null,'https://www.serebii.net/pokemonsleep/pokemon/psyduck.shtml'),
+  EVO_LIVE('猛火猴','烈焰猴',27,null,80,null,null,'https://www.serebii.net/pokemonsleep/pokemon/infernape.shtml'),
+  EVO_LIVE('毒電嬰','顫弦蠑螈（高調的樣子）',23,null,80,null,'依性格決定進化型態','https://www.serebii.net/pokemonsleep/pokemon/toxel.shtml'),
+  EVO_LIVE('毒電嬰','顫弦蠑螈（低調的樣子）',23,null,80,null,'依性格決定進化型態','https://www.serebii.net/pokemonsleep/pokemon/toxel.shtml'),
 ]);
 
 // A terminal row is source-verified for the current Pokémon Sleep public
@@ -200,6 +206,18 @@ export const PUBLIC_EVOLUTION_STATUS_MASTER=Object.freeze([
   EVO_STATUS('土王','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/clodsire.shtml'),
   EVO_STATUS('七夕青鳥','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/altaria.shtml'),
   EVO_STATUS('火暴獸','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/typhlosion.shtml'),
+  EVO_STATUS_LIVE('哥達鴨','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/golduck.shtml'),
+  EVO_STATUS_LIVE('老翁龍','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/drampa.shtml'),
+  EVO_STATUS_LIVE('拉帝亞斯','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/latias.shtml'),
+  EVO_STATUS_LIVE('拉帝歐斯','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/latios.shtml'),
+  EVO_STATUS_LIVE('花療環環','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/comfey.shtml'),
+  EVO_STATUS_LIVE('信使鳥','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/delibird.shtml'),
+  EVO_STATUS_LIVE('穿山王','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/sandslash.shtml'),
+  EVO_STATUS_LIVE('烈焰猴','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/infernape.shtml'),
+  EVO_STATUS_LIVE('顫弦蠑螈（高調的樣子）','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/toxtricityampedform.shtml'),
+  EVO_STATUS_LIVE('顫弦蠑螈（低調的樣子）','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/toxtricitylowkeyform.shtml'),
+  EVO_STATUS_LIVE('達克萊伊','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/darkrai.shtml'),
+  EVO_STATUS_LIVE('夢幻','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/mew.shtml'),
 ]);
 
 export function applyPublicPokemonKnowledgeSchema(db){
