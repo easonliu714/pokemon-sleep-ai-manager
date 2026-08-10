@@ -1,4 +1,5 @@
 import {AI_OBSERVATION_PROMPT,buildObservationTemplate,normalizeObservationPayload,validateObservationPayload} from './ai-observation.js';
+import {isWeeklyContextPayload,prepareWeeklyContextPayloadForImporter,validateWeeklyContextImportPayload} from './weekly-context-import-contract.js';
 
 const REQUIRED_ROOT=['schema_version','update_id','generated_at','source','operations'];
 const ALLOWED_ENTITIES=new Set(['pokemon','pokemon_ingredients','pokemon_subskills','pokemon_identity_evidence','pokemon_evolution_history','ingredient_inventory','item_inventory','account_capacity','discarded_pokemon','recipes','recipe_ingredients','weekly_plan','weekly_context','weekly_strategy','settings']);
@@ -9,12 +10,19 @@ const SCENARIO_ENTITIES=Object.freeze({
   ingredient_inventory_update:new Set(['ingredient_inventory','account_capacity']),
   item_inventory_update:new Set(['item_inventory','account_capacity']),
   recipe_status_update:new Set(['recipes']),
+  weekly_context_update:new Set(['weekly_context']),
   recipes:new Set(['recipes','recipe_ingredients']),
   ingredients:new Set(['ingredient_inventory','account_capacity']),
   items:new Set(['item_inventory','account_capacity']),
 });
 const isEmpty=value=>value===null||value===undefined||value==='';
 const hasOwn=(object,key)=>Object.prototype.hasOwnProperty.call(object||{},key);
+const WEEKLY_REPAIR_LABELS=Object.freeze({
+  LEGACY_CONTEXT_AUTHORITY_DEFAULTED:'舊版 Weekly JSON：已補上 context_authority=UPDATE_CENTER_JSON。',
+  LEGACY_CONTEXT_ID_CANONICALIZED:'舊版 Weekly JSON：context_id 已轉成目前週期 canonical import ID。',
+  DISH_CATEGORY_CANONICALIZED:'料理類型已轉成平台 canonical 名稱（例如 咖哩、濃湯 → 咖哩／濃湯）。',
+  EVENT_EFFECTS_OBJECT_SERIALIZED_FOR_SQLITE:'event_effects object 已在匯入層安全序列化；SQLite 仍維持 TEXT，不需 migration。',
+});
 
 export const AI_PROMPT=AI_OBSERVATION_PROMPT;
 export const buildTemplate=buildObservationTemplate;
@@ -111,7 +119,21 @@ function validateUpdatePackage(payload){
 
 export function validateWorkflow(payload){
   if(typeof payload==='string'||payload?.schema_version==='2.0-observation'||Array.isArray(payload?.observations))return validateObservationPayload(payload);
-  return validateUpdatePackage(payload);
+  let weeklyPreparation=null;
+  if(isWeeklyContextPayload(payload))weeklyPreparation=prepareWeeklyContextPayloadForImporter(payload);
+  const result=validateUpdatePackage(payload);
+  if(isWeeklyContextPayload(payload)){
+    const weekly=validateWeeklyContextImportPayload(payload,{repairLegacy:false});
+    result.errors.push(...weekly.issues);
+    for(const repair of weeklyPreparation?.repairs||[])result.warnings.push(WEEKLY_REPAIR_LABELS[repair]||`Weekly JSON 相容正規化：${repair}`);
+    result.summary.weekly_context_contract=weekly.ok?'PASS':'FAIL';
+    result.summary.weekly_context_authority=weekly.authority||null;
+    result.summary.weekly_context_week_start=weekly.week_start||null;
+    result.summary.weekly_context_repairs=[...(weeklyPreparation?.repairs||[])];
+    result.errors=[...new Set(result.errors)];
+    result.warnings=[...new Set(result.warnings)];
+  }
+  return result;
 }
 
 export function approveReviewed(payload){

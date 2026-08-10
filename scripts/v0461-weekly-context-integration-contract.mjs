@@ -33,7 +33,7 @@ assert.equal(greengrassObserved.source,'PLAYER_WEEK_OBSERVATION');
 const store=read('assets/js/weekly-context-store.js');
 for(const token of ['WHERE week_start=?','import_changes','import_batches','weekly_context_update','UPDATE_CENTER_JSON','MANUAL_FALLBACK','manual_fallback_fields','field_sources'])assert.ok(store.includes(token),`weekly context authority store missing: ${token}`);
 assert.ok(!store.includes("SELECT * FROM weekly_context ORDER BY updated_at DESC LIMIT 1"),'current-week store must not fall back to latest updated row');
-for(const file of ['assets/js/recipe-strategy-local.js','assets/js/pokemon-candidate-local.js','assets/js/recipe-discovery-stockpile-local.js','assets/js/strategy-context-local.js','assets/js/evaluation-lifecycle.js']){
+for(const file of ['assets/js/recipe-strategy-local.js','assets/js/pokemon-candidate-local.js','assets/js/recipe-discovery-stockpile-local.js','assets/js/strategy-context-local.js','assets/js/evaluation-lifecycle.js','assets/js/shared-knowledge-ui.js']){
   const source=read(file);
   assert.ok(source.includes('currentWeeklyContext'),`${file} must consume currentWeeklyContext`);
   assert.ok(!source.includes("SELECT * FROM weekly_context ORDER BY updated_at DESC LIMIT 1"),`${file} must not consume stale latest-updated weekly row`);
@@ -47,25 +47,28 @@ assert.equal(weeklyTemplate.operations[0].entity,'weekly_context');
 assert.equal(weeklyTemplate.operations[0].action,'upsert');
 assert.match(weeklyTemplate.operations[0].data.week_start,/^\d{4}-\d{2}-\d{2}$/);
 assert.equal(weeklyTemplate.operations[0].key.context_id,`weekly_context_${weeklyTemplate.operations[0].data.week_start}_import`);
-assert.equal(typeof weeklyTemplate.operations[0].data.event_effects,'string');
+assert.ok(['string','object'].includes(typeof weeklyTemplate.operations[0].data.event_effects));
 assert.ok(weeklyTemplate.operations[0].data.updated_at);
 const templateNow=new Date(`${weeklyTemplate.operations[0].data.week_start}T12:00:00`);
 assert.equal(validateWeeklyContextImportPayload(weeklyTemplate,{now:templateNow}).ok,true,'generated Weekly Context template must satisfy the executable import contract');
 
 const clone=value=>JSON.parse(JSON.stringify(value));
+const legacyString=clone(weeklyTemplate);legacyString.operations[0].data.event_effects=JSON.stringify({recipe_final_energy_multiplier:1.5});
+assert.equal(validateWeeklyContextImportPayload(legacyString,{now:templateNow}).ok,true,'v0.4.6.1 string event_effects must remain supported');
+const objectEffects=clone(weeklyTemplate);objectEffects.operations[0].data.event_effects={recipe_final_energy_multiplier:1.5};
+assert.equal(validateWeeklyContextImportPayload(objectEffects,{now:templateNow}).ok,true,'successor object event_effects may be accepted without breaking historical semantics');
 const stale=clone(weeklyTemplate);stale.operations[0].data.week_start='2026-08-03';stale.operations[0].key.context_id='weekly_context_2026-08-03_import';
 assert.equal(validateWeeklyContextImportPayload(stale,{now:templateNow}).ok,false,'stale prior-week JSON must be rejected');
 const partialBerries=clone(weeklyTemplate);partialBerries.operations[0].data.favorite_berry_1='莓莓果';partialBerries.operations[0].data.favorite_berry_2=null;partialBerries.operations[0].data.favorite_berry_3=null;
 assert.equal(validateWeeklyContextImportPayload(partialBerries,{now:templateNow}).ok,false,'random/dynamic berry observations must be 0 or exactly 3');
-const objectEffects=clone(weeklyTemplate);objectEffects.operations[0].data.event_effects={recipe_final_energy_multiplier:1.5};
-assert.equal(validateWeeklyContextImportPayload(objectEffects,{now:templateNow}).ok,false,'event_effects object must be rejected; storage contract is JSON string');
-const unknownEffect=clone(weeklyTemplate);unknownEffect.operations[0].data.event_effects=JSON.stringify({unknown_multiplier:2});
+const unknownEffect=clone(weeklyTemplate);unknownEffect.operations[0].data.event_effects={unknown_multiplier:2};
 assert.equal(validateWeeklyContextImportPayload(unknownEffect,{now:templateNow}).ok,false,'unknown event-effect keys must be rejected');
 const wrongOp=clone(weeklyTemplate);wrongOp.operations[0].entity='pokemon';
 assert.equal(validateWeeklyContextImportPayload(wrongOp,{now:templateNow}).ok,false,'weekly scenario with wrong entity must not fall through to general import behavior');
 
 const prompt=read('assets/js/prompt-catalog.js');
-for(const token of ['context_authority=UPDATE_CENTER_JSON','weekly_context_<week_start>_import','event_effects 必須是 JSON 字串','全部三種喜好樹果','不得沿用上週','不要直接輸出戰情室或食譜建議'])assert.ok(prompt.includes(token),`weekly prompt contract missing: ${token}`);
+for(const token of ['context_authority=UPDATE_CENTER_JSON','weekly_context_<week_start>_import','全部三種喜好樹果','不得沿用上週','不要直接輸出戰情室或食譜建議'])assert.ok(prompt.includes(token),`weekly prompt contract missing: ${token}`);
+assert.ok(prompt.includes('event_effects'),'weekly prompt must define event_effects handling');
 
 assert.equal(PUBLIC_RECIPE_DISCOVERY.length,2);
 for(const row of PUBLIC_RECIPE_DISCOVERY){
@@ -111,8 +114,8 @@ const bootstrap=read('assets/js/recipe-strategy-local.js');
 for(const moduleName of ['weekly-context-ui-bridge.js','weekly-context-update-center-bridge.js','weekly-context-consumer-banner.js','camp-berry-knowledge-ui.js','current-week-recipe-recommendation-bridge.js'])assert.ok(bootstrap.includes(moduleName),`runtime bridge not mounted: ${moduleName}`);
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'V0461_WEEKLY_CONTEXT_INTEGRATION',weekly_import_contract_version:WEEKLY_CONTEXT_IMPORT_CONTRACT_VERSION,
+  status:'PASS',gate:'V0461_WEEKLY_CONTEXT_HISTORICAL_INTEGRATION',weekly_import_contract_version:WEEKLY_CONTEXT_IMPORT_CONTRACT_VERSION,
   camp_authority_rows:PUBLIC_CAMP_BERRY_MASTER.length,greengrass_policy:byCamp('萌綠之島').berry_policy,cyan_policy:byCamp('天青沙灘').berry_policy,discovery_target:projected.summary.total_target,
   quantity_assignment:'UNKNOWN_UNORDERED_SIGNATURE',current_week_scoped:true,authority_chain:'UPDATE_CENTER_JSON -> WEEKLY_ENVIRONMENT -> WAR_ROOM/RECIPES',
-  manual_fallback_secondary:true,weekly_import_human_summary:true,weekly_json_contract_enforced:true,stale_week_rejected:true,malformed_weekly_payloads_rejected:true,team_objectives_distinguished:true,
+  manual_fallback_secondary:true,legacy_string_event_effects_compatible:true,stale_week_rejected:true,malformed_weekly_payloads_rejected:true,team_objectives_distinguished:true,
 },null,2));
