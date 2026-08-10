@@ -57,16 +57,25 @@ if(app==='v0.4.8.1'){
     '可左右捲動',
   ])assert.ok(camp.includes(token),`exact v0.4.8.1 horizontal-scroll containment missing: ${token}`);
   mobileCampStrategy='HORIZONTAL_SCROLL';
+}else if(atLeast(app,'v0.4.8.5')){
+  for(const token of [
+    '#campBerryMasterBlock{min-width:0;max-width:100%;overflow:hidden;}',
+    "CAMP_BERRY_MOBILE_CONTAINMENT='COMPACT_CONTAINED_TABLE'",
+    'overflow-x:auto!important',
+    '#campBerryMasterTable{width:100%;min-width:640px;max-width:100%;table-layout:fixed',
+    'margin-left:0!important;margin-right:0!important',
+    '採與進化條件及糖果公版 Master 一致的緊湊表格',
+  ])assert.ok(camp.includes(token),`successor compact Camp Berry containment missing: ${token}`);
+  assert.equal(camp.includes('camp-berry-contained-cards'),false,'compact successor must not retain touch-first row cards');
+  mobileCampStrategy='COMPACT_CONTAINED_TABLE';
 }else{
   for(const token of [
     '#campBerryMasterBlock{min-width:0;max-width:100%;overflow:hidden;}',
     '#campBerryMasterTable{display:block;width:100%!important;min-width:0!important;max-width:100%!important',
     '#campBerryMasterTable thead{display:none;}',
     '#campBerryMasterTable td::before{content:attr(data-label)',
-    'data-label="營地"',
-    'data-label="樹果／規則"',
     '手機版改用框內卡片避免超出外框',
-  ])assert.ok(camp.includes(token),`successor Camp Berry contained row-card contract missing: ${token}`);
+  ])assert.ok(camp.includes(token),`v0.4.8.3/4 row-card containment missing: ${token}`);
   mobileCampStrategy='ROW_CARD_CONTAINED';
 }
 
