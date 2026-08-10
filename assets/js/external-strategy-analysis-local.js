@@ -19,7 +19,7 @@ import {CANONICAL_REGISTRY_VERSION} from './canonical-registry.js';
 import {POKEMON_SCORING_RULE_REGISTRY_VERSION,POKEMON_SCORING_RULES} from './pokemon-scoring-rule-registry.js';
 import {TEAM_OPTIMIZER_VERSION} from './team-optimizer.js';
 import {RECIPE_DISCOVERY_STOCKPILE_VERSION} from './recipe-discovery-stockpile.js';
-import {RECIPE_STRATEGY_PROJECTION_VERSION} from './recipe-strategy-projection.js';
+import {RECIPE_STRATEGY_ENGINE_VERSION} from './recipe-strategy-projection.js';
 
 export const STRATEGY_ANALYSIS_LOCAL_VERSION='strategy-analysis-local-2026-08-10-b';
 
@@ -40,7 +40,7 @@ function ruleVersions(){return Object.freeze({
   current_readiness_rule_version:POKEMON_SCORING_RULES.current_readiness_score?.rule_version||null,
   pokemon_scoring_rule_registry_version:POKEMON_SCORING_RULE_REGISTRY_VERSION,
   team_optimizer_version:TEAM_OPTIMIZER_VERSION,
-  recipe_strategy_projection_version:RECIPE_STRATEGY_PROJECTION_VERSION,
+  recipe_strategy_engine_version:RECIPE_STRATEGY_ENGINE_VERSION,
   recipe_discovery_stockpile_version:RECIPE_DISCOVERY_STOCKPILE_VERSION,
   strategy_analysis_pack_version:STRATEGY_ANALYSIS_PACK_VERSION,
   strategy_analysis_prompt_version:STRATEGY_ANALYSIS_PROMPT_VERSION,
