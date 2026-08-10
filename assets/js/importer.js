@@ -214,7 +214,7 @@ function resolvePokemonIdentity(operation) {
 function publicMasterExists(entity, key) {
   if (entity === 'ingredient_inventory') return Number(scalar('SELECT COUNT(*) FROM ingredient_master WHERE ingredient_name=?', [key.ingredient_name]) || 0) > 0;
   if (entity === 'item_inventory') return Number(scalar('SELECT COUNT(*) FROM item_master WHERE item_name=?', [key.item_name]) || 0) > 0;
-  if (entity === 'candy_inventory') return Number(scalar('SELECT COUNT(*) FROM candy_master WHERE candy_id=?', [key.candy_id]) || 0) > 0;
+  if (entity === 'candy_inventory') return isMeaningful(key.candy_id) && Number(scalar('SELECT COUNT(*) FROM candy_master WHERE candy_id=?', [key.candy_id]) || 0) > 0;
   if (entity === 'recipes') return Number(scalar('SELECT COUNT(*) FROM recipe_master WHERE recipe_id=?', [key.recipe_id]) || 0) > 0;
   return true;
 }
@@ -234,8 +234,8 @@ export function dryRun(payload) {
     let conflict = false;
     const missingPolicy = operation.missing_policy || 'conflict';
     if (operation.entity === 'recipes' && !isMeaningful(key.recipe_id)) { conflict = true; message = `找不到公版料理：${operation.key?.recipe_name || 'unknown'}`; }
-    if (operation.entity === 'candy_inventory' && !isMeaningful(key.candy_id)) { conflict = true; message = `找不到公版糖果：${operation.key?.candy_name || 'unknown'}；若為「寶可夢的糖果」，請先確認寶可夢公版名稱` ; }
-    if (!before && ['ingredient_inventory','item_inventory','candy_inventory','recipes'].includes(operation.entity) && !publicMasterExists(operation.entity, key)) {
+    if (operation.entity === 'candy_inventory' && !isMeaningful(key.candy_id)) { conflict = true; message = `找不到公版糖果：${operation.key?.candy_name || 'unknown'}；若為「寶可夢的糖果」，請先確認寶可夢公版名稱`; }
+    if (!conflict && !before && ['ingredient_inventory','item_inventory','candy_inventory','recipes'].includes(operation.entity) && !publicMasterExists(operation.entity, key)) {
       conflict = true;
       message = `${operation.entity} 對應公版主檔不存在，請先核對名稱／stable id`;
     }
