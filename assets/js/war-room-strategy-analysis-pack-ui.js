@@ -7,6 +7,20 @@ let stale=false;
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const el=id=>document.getElementById(id);
 function download(content,name,type){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1200);}
+
+export async function shareStrategyPromptText(prompt,{shareFn=null,writeTextFn=null}={}){
+  const value=String(prompt??'');
+  if(typeof shareFn==='function'){
+    try{await shareFn({title:'Pokémon Sleep Strategy Analysis Prompt',text:value});return Object.freeze({status:'SHARED'});}
+    catch(error){if(error?.name==='AbortError')return Object.freeze({status:'ABORTED'});}
+  }
+  if(typeof writeTextFn==='function'){
+    await writeTextFn(value);
+    return Object.freeze({status:'COPIED_FALLBACK'});
+  }
+  return Object.freeze({status:'UNAVAILABLE'});
+}
+
 function ensurePanel(){
   const host=el('warroomPanel');if(!host)return null;
   let panel=el('strategyAnalysisPackPanel');if(panel)return panel;
@@ -44,16 +58,14 @@ function build(){
 async function copyPrompt(){if(!currentResult||stale)return;try{await navigator.clipboard.writeText(currentResult.prompt);alert('Strategy Analysis Prompt 已複製');}catch(error){alert(`複製失敗：${error.message}`);}}
 async function sharePrompt(){
   if(!currentResult||stale)return;
-  if(typeof navigator.share==='function'){
-    try{await navigator.share({title:'Pokémon Sleep Strategy Analysis Prompt',text:currentResult.prompt});return;}
-    catch(error){if(error?.name==='AbortError')return;}
-  }
   try{
-    await navigator.clipboard.writeText(currentResult.prompt);
-    alert('此瀏覽器無法直接開啟分享面板，已改為複製 Strategy Analysis Prompt。請貼到你信賴的 AI 模型／服務進行分析。');
-  }catch(error){
-    alert(`分享與複製皆未完成：${error?.message||error}。請改用「複製 AI 提示詞」或下載 JSON / Markdown。`);
-  }
+    const result=await shareStrategyPromptText(currentResult.prompt,{
+      shareFn:typeof navigator.share==='function'?payload=>navigator.share(payload):null,
+      writeTextFn:typeof navigator.clipboard?.writeText==='function'?value=>navigator.clipboard.writeText(value):null,
+    });
+    if(result.status==='COPIED_FALLBACK')alert('此瀏覽器無法直接開啟分享面板，已改為複製 Strategy Analysis Prompt。請貼到你信賴的 AI 模型／服務進行分析。');
+    else if(result.status==='UNAVAILABLE')alert('此瀏覽器無法直接分享或自動複製。請改用「複製 AI 提示詞」或下載 JSON / Markdown。');
+  }catch(error){alert(`分享與複製皆未完成：${error?.message||error}。請改用「複製 AI 提示詞」或下載 JSON / Markdown。`);}
 }
 function bind(panel){
   if(panel.dataset.bound==='1')return;panel.dataset.bound='1';
