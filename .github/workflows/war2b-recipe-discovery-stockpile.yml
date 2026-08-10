@@ -1,0 +1,43 @@
+name: WAR.2B Recipe Discovery Stockpile
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/public-recipe-discovery-master.js'
+      - 'assets/js/weekly-context-normalization.js'
+      - 'assets/js/recipe-discovery-stockpile.js'
+      - 'assets/js/recipe-discovery-stockpile-local.js'
+      - 'assets/js/war-room-recipe-discovery-ui.js'
+      - 'assets/js/war-room-recipe-discovery-bootstrap.js'
+      - 'assets/js/recipe-strategy-local.js'
+      - 'assets/js/prompt-catalog.js'
+      - 'scripts/war2b-recipe-discovery-stockpile-contract.mjs'
+      - '.github/workflows/war2b-recipe-discovery-stockpile.yml'
+  workflow_dispatch:
+
+jobs:
+  recipe-discovery-stockpile:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify WAR.2B discovery stockpile contract
+        run: node scripts/war2b-recipe-discovery-stockpile-contract.mjs
+      - name: Verify JavaScript syntax
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node --check assets/js/public-recipe-discovery-master.js
+          node --check assets/js/weekly-context-normalization.js
+          node --check assets/js/recipe-discovery-stockpile.js
+          node --check assets/js/recipe-discovery-stockpile-local.js
+          node --check assets/js/war-room-recipe-discovery-ui.js
+          node --check assets/js/war-room-recipe-discovery-bootstrap.js
+          node --check assets/js/recipe-strategy-local.js
+          node --check assets/js/prompt-catalog.js
+          node --check scripts/war2b-recipe-discovery-stockpile-contract.mjs
+      - name: Verify no tracked test mutation
+        shell: bash
+        run: test -z "$(git status --porcelain --untracked-files=no)"
