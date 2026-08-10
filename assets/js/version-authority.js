@@ -1,8 +1,8 @@
 (function installVersionAuthority(scope) {
   const authority = Object.freeze({
-    app_version: 'v0.4.7',
-    app_build: '20260810-v047-candy-inventory-resource-context',
-    cache_name: 'pokemon-sleep-ai-v0.4.7-v047-candy-inventory-resource-context',
+    app_version: 'v0.4.8',
+    app_build: '20260810-v048-typed-event-effect-registry',
+    cache_name: 'pokemon-sleep-ai-v0.4.8-v048-typed-event-effect-registry',
     schema: 'pokemon-sleep-version-authority/1.0',
   });
   Object.defineProperty(scope, 'PokemonSleepVersionAuthority', {
@@ -14,6 +14,8 @@
 })(globalThis);
 
 // Legacy CI parser bridge only; not executed and not a release authority:
+// app_version: 'v0.4.7'
+// app_build: '20260810-v047-candy-inventory-resource-context'
 // app_version: 'v0.4.6.3'
 // app_build: '20260810-v0463-weekly-ai-type-repair'
 // app_version: 'v0.4.6.2'
