@@ -1,0 +1,37 @@
+name: V0.4.8.4 Touch-first Camp Containment
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/version-authority.js'
+      - 'assets/js/camp-berry-knowledge-ui.js'
+      - 'scripts/v0484-release-contract.mjs'
+      - 'scripts/v0483-release-contract.mjs'
+      - 'scripts/v0481-live-followup-contract.mjs'
+      - '.github/workflows/v0484-touch-first-camp-containment.yml'
+  workflow_dispatch:
+
+jobs:
+  touch-first-containment:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify exact v0.4.8.4 release authority
+        run: node scripts/v0484-release-contract.mjs
+      - name: Verify historical v0.4.8.3 behavior remains green
+        run: node scripts/v0483-release-contract.mjs
+      - name: Verify historical v0.4.8.1 LIVE behavior remains green
+        run: node scripts/v0481-live-followup-contract.mjs
+      - name: Verify JavaScript syntax
+        run: |
+          node --check assets/js/version-authority.js
+          node --check assets/js/camp-berry-knowledge-ui.js
+          node --check scripts/v0484-release-contract.mjs
+          node --check scripts/v0483-release-contract.mjs
+          node --check scripts/v0481-live-followup-contract.mjs
+      - name: Verify no tracked test mutation
+        shell: bash
+        run: test -z "$(git status --porcelain --untracked-files=no)"
