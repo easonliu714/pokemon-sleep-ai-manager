@@ -22,19 +22,25 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Verify exact v0.4.6.3 release contract
+        run: node scripts/v0463-release-contract.mjs
       - name: Verify v0.4.6.3 weekly AI type-repair behavior
         run: node scripts/v0463-weekly-ai-type-repair-contract.mjs
       - name: Verify v0.4.6.2 weekly JSON and recipe behavior remains green
         run: node scripts/v0462-weekly-json-recipe-recommendation-contract.mjs
+      - name: Verify historical v0.4.6.2 release behavior remains green
+        run: node scripts/v0462-release-contract.mjs
       - name: Verify JavaScript syntax
         shell: bash
         run: |
           set -o errexit -o nounset -o pipefail
+          node --check assets/js/version-authority.js
           node --check assets/js/prompt-catalog.js
           node --check assets/js/weekly-context-import-contract.js
           node --check assets/js/weekly-context-update-center-bridge.js
           node --check scripts/v0463-weekly-ai-type-repair-contract.mjs
-          if [ -f scripts/v0463-release-contract.mjs ]; then node --check scripts/v0463-release-contract.mjs; fi
+          node --check scripts/v0463-release-contract.mjs
+          node --check scripts/v0462-release-contract.mjs
       - name: Verify no tracked test mutation
         shell: bash
         run: test -z "$(git status --porcelain --untracked-files=no)"
