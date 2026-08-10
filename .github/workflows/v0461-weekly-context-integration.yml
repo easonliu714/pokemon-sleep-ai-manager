@@ -6,6 +6,7 @@ on:
       - 'assets/js/version-authority.js'
       - 'assets/js/public-camp-berry-master.js'
       - 'assets/js/weekly-context-store.js'
+      - 'assets/js/weekly-context-import-contract.js'
       - 'assets/js/weekly-context-ui-bridge.js'
       - 'assets/js/weekly-context-update-center-bridge.js'
       - 'assets/js/weekly-context-consumer-banner.js'
@@ -51,6 +52,7 @@ jobs:
           node --check assets/js/version-authority.js
           node --check assets/js/public-camp-berry-master.js
           node --check assets/js/weekly-context-store.js
+          node --check assets/js/weekly-context-import-contract.js
           node --check assets/js/weekly-context-ui-bridge.js
           node --check assets/js/weekly-context-update-center-bridge.js
           node --check assets/js/weekly-context-consumer-banner.js
