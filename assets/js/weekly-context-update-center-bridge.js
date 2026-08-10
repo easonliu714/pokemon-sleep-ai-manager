@@ -4,7 +4,7 @@ import {resolveCampFavoriteBerries,campBerryAuthority} from './public-camp-berry
 import {isDatabaseReady,isRescueReadonly} from './database.js';
 import {localWeekStart} from './evaluation-week.js';
 
-export const WEEKLY_CONTEXT_UPDATE_BRIDGE_VERSION='weekly-context-update-bridge-2026-08-10-c';
+export const WEEKLY_CONTEXT_UPDATE_BRIDGE_VERSION='weekly-context-update-bridge-2026-08-10-d';
 
 let weeklyPayload=null;
 const EVENT_KEYS=new Set(['recipe_final_energy_multiplier','extra_tasty_multiplier','sunday_extra_tasty_multiplier','sunday_pot_multiplier','new_recipe_count','event_start','event_end']);
@@ -40,15 +40,16 @@ function weeklyContractIssues(payload,op){
   if(!iso(data.updated_at))issues.push('data.updated_at 必須為有效 ISO 日期時間');
   if(data.event_effects!==null&&data.event_effects!==undefined&&typeof data.event_effects!=='string')issues.push('event_effects 必須是 JSON 字串，不可直接放 object');
   if(typeof data.event_effects==='string'){
-    try{
-      const parsed=JSON.parse(data.event_effects||'{}');
+    let parsed=null;
+    try{parsed=JSON.parse(data.event_effects||'{}');}catch{issues.push('event_effects 不是有效 JSON 字串');}
+    if(parsed!==null){
       if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))issues.push('event_effects JSON 字串內容必須是 object');
       else{
         for(const key of Object.keys(parsed))if(!EVENT_KEYS.has(key))issues.push(`event_effects 不支援欄位：${key}`);
-        for(const error of validateWeeklyEventEffects(data.event_effects))issues.push(`event_effects：${error}`);
+        try{validateWeeklyEventEffects(data.event_effects);}catch(error){issues.push(error?.message||String(error));}
         for(const key of ['event_start','event_end'])if(parsed[key]!=null&&parsed[key]!==''&&!dateKey(parsed[key]))issues.push(`event_effects.${key} 必須為 YYYY-MM-DD`);
       }
-    }catch{issues.push('event_effects 不是有效 JSON 字串');}
+    }
   }
   if(berries.length!==0&&berries.length!==3)issues.push('動態／隨機營地的 favorite_berry_1~3 必須全部三欄一起提供，或全部省略');
   if(new Set(berries).size!==berries.length)issues.push('favorite_berry_1~3 不可重複');
