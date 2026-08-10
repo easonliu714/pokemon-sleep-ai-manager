@@ -12,8 +12,16 @@ Public master data describes game-wide entities and may be distributed in the pu
 - types and berries
 - ingredients
 - items and Traditional Chinese effect descriptions
+- candy names, candy categories and verified target relationships
 - recipes and recipe ingredients
 - main skills, subskills, natures, camps/fields and other shared selectable game terms when implemented
+
+Candy master ownership is split deliberately:
+
+- fixed candy names such as universal/type candies require direct public/game evidence;
+- species candy names may be projected from the current canonical Pokémon name using the versioned `SPECIES_CANDY_NAME_RULE_VERSION`;
+- a player screenshot may provide evidence that a candy name exists, but it does not make the screenshot's quantity public data;
+- a previously unknown `○○的糖果` must not silently create a new Pokémon species. It remains REVIEW evidence until the Pokémon terminology authority is resolved.
 
 ### Player-owned data
 Player-owned data must remain local and must never be seeded from the public repository:
@@ -21,6 +29,7 @@ Player-owned data must remain local and must never be seeded from the public rep
 - owned Pokémon instances and their personal fields
 - ingredient quantities
 - item quantities, safe reserve and player notes/recommendations
+- candy quantities and candy safe reserve
 - recipe unlock state, recipe level and current energy
 - account capacity, weekly plans, collection targets and AI observations
 
@@ -38,7 +47,7 @@ When no local SQLite database exists, startup must:
 4. persist the completed database once;
 5. record every applied public master version in `settings`.
 
-Fresh bootstrap must not create fake player inventory rows merely to display zero. Neutral values are produced by master-to-player LEFT JOIN views.
+Fresh bootstrap must not create fake player inventory rows merely to display zero. Neutral values are produced by master-to-player LEFT JOIN views. This applies to `candy_catalog_state`: public candy rows may exist while `candy_inventory` remains empty for a fresh player profile.
 
 ## 3. Existing database startup contract
 
@@ -61,9 +70,12 @@ Required preservation rules:
 
 - `ingredient_inventory.quantity` is unchanged;
 - `item_inventory.quantity`, `safe_reserve`, `recommendation` are unchanged;
+- `candy_inventory.quantity`, `safe_reserve`, `updated_at`, `source_update_id` are unchanged;
 - `recipes.unlocked`, `recipe_level`, `current_energy`, `notes` are unchanged;
 - `pokemon` instance rows are unchanged, except deterministic derived references explicitly governed by a separate migration;
 - account, plan, target, evidence and history tables are unchanged.
+
+Candy conversion is a strategy projection, not an inventory mutation. A universal/type candy conversion result must not be written as an additional physical candy balance unless an explicit player operation later records the post-conversion game state. This prevents double counting physical and derived resources.
 
 Removal or renaming of a public entity requires an explicit deprecation, alias, or retirement rule. A master updater must not infer deletion solely because a row is absent from a newer authority. When a legacy public-master row is replaced during a canonical migration, the old row may be retired only when it is explicitly identified by a versioned alias/deprecation contract and player-owned rows remain preserved.
 
@@ -86,7 +98,7 @@ PUBLIC_*_MASTER authority
 └─ SQLite master synchronization (standard mode)
 ```
 
-No public description, name, category, recipe or selectable term may be independently duplicated in a rescue-only renderer or historical compatibility controller.
+No public description, name, category, recipe, candy or selectable term may be independently duplicated in a rescue-only renderer or historical compatibility controller.
 
 For recipes specifically:
 
@@ -97,6 +109,17 @@ PUBLIC_RECIPE_MASTER
 ├─ recipe_master_alias
 ├─ canonical recipe terminology projection
 └─ deterministic Ingredient Gap / Strategy projection
+```
+
+For candy specifically:
+
+```text
+PUBLIC_CANDY_MASTER
+├─ fixed Evidence-backed candy rows
+├─ versioned species-name projection
+├─ candy_master / candy_catalog_state
+├─ canonical candy terminology projection
+└─ player candy_inventory LEFT JOIN
 ```
 
 Historical recipe registries may remain only as compatibility/audit evidence; they must not contain an executable second recipe fact list or self-starting recipe writer.
@@ -110,6 +133,7 @@ Current required keys:
 | shared type/berry/ingredient authority | `MASTER_DATA_VERSION` | `shared_master_version` | `berry_master`, `ingredient_master` |
 | recipe authority | `PUBLIC_RECIPE_MASTER_VERSION` | `public_recipe_master_version` | `recipe_master`, `recipe_master_ingredients`, `recipe_master_alias` |
 | item authority | `PUBLIC_ITEM_MASTER_VERSION` | `public_item_master_version` | `item_master` |
+| candy authority | `PUBLIC_CANDY_MASTER_VERSION` | `public_candy_master_version` | `candy_master` |
 | canonical terminology registry | `CANONICAL_REGISTRY_VERSION` | `canonical_registry_version` | canonical registry tables |
 | Pokémon knowledge authority | `PUBLIC_POKEMON_KNOWLEDGE_VERSION` | `public_pokemon_knowledge_version` | public Pokémon knowledge tables |
 
@@ -140,6 +164,8 @@ Public-master code must not execute before the database-ready boundary through l
 - Standard mode must never depend on rescue-only constants.
 - Recipe display name/ingredient requirements in rescue and standard mode must derive from `PUBLIC_RECIPE_MASTER`.
 - Legacy player recipe IDs/names may be resolved through `recipe_master_alias`; merely viewing or refreshing public master data must not rewrite player recipe identity.
+- Candy public names in rescue and standard mode must derive from `PUBLIC_CANDY_MASTER` / `buildPublicCandyMasterRows()`; viewing Candy Master must never create `candy_inventory` player rows.
+- Player candy quantities are updated through the guarded JSON Update Center authority. The candy inventory surface is read-only with respect to quantity/reserve editing.
 
 ## 9. CI enforcement
 
@@ -147,16 +173,19 @@ The repository must contain blocking gates that verify:
 
 - this document exists;
 - every declared authority has an exported version and a SQLite settings key;
-- rescue and standard rendering consume the same item and recipe authorities;
+- rescue and standard rendering consume the same item, recipe and candy authorities;
 - public master updaters do not write player tables;
 - existing database startup invokes version audit;
 - unchanged versions skip synchronization/persist;
 - changed versions update master tables while preserving player rows;
 - public views use neutral LEFT JOIN defaults;
-- no rescue-only duplicated item effect list exists;
+- no rescue-only duplicated item effect or candy fact list exists;
 - no `shared-master-data.js` or historical compatibility module owns a second executable recipe fact list;
 - recipe IDs/names are unique and all recipe ingredient references resolve to `ingredient_master` authority terms;
-- canonical recipe aliases are explicit and versioned.
+- canonical recipe aliases are explicit and versioned;
+- Candy Master rows contain no player quantity/safe-reserve fields;
+- species candy naming resolves from canonical Pokémon names and unknown names fail closed / REVIEW;
+- candy conversion projections are not included in physical inventory totals unless a separately verified rule is explicitly activated.
 
 A PR that changes public master data, master tables, rescue renderers or startup migrations must update the authority version and pass these gates.
 
@@ -164,8 +193,10 @@ A PR that changes public master data, master tables, rescue renderers or startup
 
 - [ ] fresh empty database contains all public master rows;
 - [ ] player quantities are zero and recipe unlocks are false;
+- [ ] fresh `candy_inventory` contains zero player rows while Candy Master remains browsable;
 - [ ] second startup with unchanged versions performs no public synchronization;
 - [ ] changed item version updates descriptions without changing inventory;
+- [ ] changed candy/Pokémon terminology refreshes Candy Master without changing player candy quantities/reserve;
 - [ ] changed recipe version updates master recipes without changing player unlock/level/energy/notes or silently changing player recipe identity;
 - [ ] explicit legacy recipe aliases resolve without duplicate player rows;
 - [ ] rescue and standard displays resolve from the same authority;
