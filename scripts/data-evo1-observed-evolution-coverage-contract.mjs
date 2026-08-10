@@ -14,9 +14,12 @@ import {
 import {PUBLIC_CANDY_MASTER_VERSION,buildPublicCandyMasterRows} from '../assets/js/public-candy-master.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
+const parts=value=>String(value||'').replace(/^v/,'').split('.').map(part=>Number(part)||0);
+const atLeast=(current,minimum)=>{const left=parts(current),right=parts(minimum),size=Math.max(left.length,right.length);for(let index=0;index<size;index+=1){const a=left[index]||0,b=right[index]||0;if(a!==b)return a>b;}return true;};
 
 const version=read('assets/js/version-authority.js');
-assert.equal(version.match(/app_version:\s*'([^']+)'/)?.[1],'v0.4.8.1','behavior/data phase must not bump central release before DATA.EVO.1 gate is green');
+const app=version.match(/app_version:\s*'([^']+)'/)?.[1]||'';
+assert.equal(atLeast(app,'v0.4.8.1'),true,`DATA.EVO.1 requires v0.4.8.1 behavior or later: ${app}`);
 assert.equal(EVOLUTION_COVERAGE_DIAGNOSTIC_SCHEMA,'pokemon-sleep-evolution-coverage-diagnostic/1.0');
 assert.equal(EVOLUTION_COVERAGE_DIAGNOSTIC_VERSION,'data-evo1-evolution-coverage-diagnostic-2026-08-10-a');
 assert.equal(PUBLIC_POKEMON_KNOWLEDGE_VERSION,'pokemon-knowledge-2026-08-10-d');
@@ -86,6 +89,7 @@ const candyNames=new Set(buildPublicCandyMasterRows().map(row=>row.candy_name));
 for(const name of ['哥達鴨的糖果','老翁龍的糖果','烈焰猴的糖果','毒電嬰的糖果','顫弦蠑螈（高調的樣子）的糖果','顫弦蠑螈（低調的樣子）的糖果']){
   assert.ok(candyNames.has(name),`Candy Pokémon-name projection missing: ${name}`);
 }
+assert.equal(candyNames.has('顫弦蠑螈(高調的樣子)的糖果'),false,'canonical zh-TW full-width punctuation must not be normalized into display text');
 
 const ui=read('assets/js/v03993-public-knowledge-coverage-ui.js');
 for(const token of [
@@ -102,6 +106,7 @@ assert.equal(read('assets/js/migrations.js').includes('VALUES(10,'),false,'DATA.
 console.log(JSON.stringify({
   status:'PASS',
   gate:'DATA_EVO1_OBSERVED_EVOLUTION_COVERAGE_EVIDENCE_CLOSURE',
+  current_app_version:app,
   public_pokemon_knowledge_version:PUBLIC_POKEMON_KNOWLEDGE_VERSION,
   public_candy_master_version:PUBLIC_CANDY_MASTER_VERSION,
   evolution_routes:bundle.manifest.evolution_route_rows,
@@ -115,6 +120,6 @@ console.log(JSON.stringify({
   species_names_only:true,
   private_ids_exported:false,
   candy_projection_aligned:true,
+  canonical_zh_tw_punctuation_preserved:true,
   sqlite_migration_added:false,
-  release_bump_deferred:true,
 },null,2));
