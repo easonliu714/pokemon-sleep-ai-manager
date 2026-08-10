@@ -4,7 +4,7 @@ import {resolveCampFavoriteBerries,campBerryAuthority} from './public-camp-berry
 import {rows,isDatabaseReady,isRescueReadonly} from './database.js';
 import {isWeeklyContextPayload,validateWeeklyContextImportPayload} from './weekly-context-import-contract.js';
 
-export const WEEKLY_CONTEXT_UPDATE_BRIDGE_VERSION='weekly-context-update-bridge-2026-08-10-f';
+export const WEEKLY_CONTEXT_UPDATE_BRIDGE_VERSION='weekly-context-update-bridge-2026-08-10-g';
 
 let weeklyPayload=null;
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -98,7 +98,7 @@ async function fileChanged(event){
 }
 function ensurePasteUi(){
   const input=document.getElementById('jsonFile'),panel=input?.closest?.('.panel');if(!input||!panel||document.getElementById('weeklyJsonPasteTools'))return;
-  const tools=document.createElement('details');tools.id='weeklyJsonPasteTools';tools.className='notice';tools.innerHTML=`<summary><b>沒有 .json 附件？直接貼上 AI 回覆</b></summary><p>適用於 ChatGPT／Gemini 只回傳 raw JSON 文字的情況。平台會先用瀏覽器原生 JSON parser 驗證，再轉成暫存 .json 交給既有更新流程；不會繞過 Dry Run。</p><textarea id="weeklyJsonPasteText" rows="10" placeholder="在此貼上完整 JSON；不要包含 Markdown code fence"></textarea><div class="buttons"><button id="weeklyJsonLoadPasteBtn" type="button">載入貼上 JSON</button><button id="weeklyJsonDownloadPasteBtn" type="button">下載成 .json</button></div>`;
+  const tools=document.createElement('details');tools.id='weeklyJsonPasteTools';tools.className='notice';tools.innerHTML=`<summary><b>AI 回覆 raw JSON（正式支援；沒有 .json 附件？直接貼上 AI 回覆）</b></summary><p>外部 AI 是否建立附件由該介面決定；只回傳 raw JSON 文字是正常結果。檔案匯入與貼上 raw JSON 都會先用瀏覽器原生 JSON parser 驗證，再進同一套結構檢查、必要覆核、Dry Run 與 Apply；不會繞過任何安全流程。</p><textarea id="weeklyJsonPasteText" rows="10" placeholder="在此貼上完整 JSON；不要包含 Markdown code fence"></textarea><div class="buttons"><button id="weeklyJsonLoadPasteBtn" type="button">載入貼上 JSON</button><button id="weeklyJsonDownloadPasteBtn" type="button">下載成 .json</button></div>`;
   panel.appendChild(tools);
   const textarea=tools.querySelector('#weeklyJsonPasteText');
   function parsedText(){const raw=textarea.value.trim();if(!raw)throw new Error('尚未貼上 JSON');return {raw,payload:JSON.parse(raw)};}
