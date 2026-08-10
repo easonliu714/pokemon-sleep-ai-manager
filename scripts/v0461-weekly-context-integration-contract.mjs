@@ -4,6 +4,7 @@ import {PUBLIC_CAMP_BERRY_MASTER,campBerryAuthority,resolveCampFavoriteBerries} 
 import {PUBLIC_RECIPE_DISCOVERY} from '../assets/js/public-recipe-discovery-master.js';
 import {projectRecipeDiscoveryStockpile} from '../assets/js/recipe-discovery-stockpile.js';
 import {buildScenarioTemplate} from '../assets/js/prompt-catalog.js';
+import {validateWeeklyContextImportPayload,WEEKLY_CONTEXT_IMPORT_CONTRACT_VERSION} from '../assets/js/weekly-context-import-contract.js';
 
 const read=file=>fs.readFileSync(file,'utf8');
 const byCamp=name=>campBerryAuthority(name);
@@ -48,6 +49,21 @@ assert.match(weeklyTemplate.operations[0].data.week_start,/^\d{4}-\d{2}-\d{2}$/)
 assert.equal(weeklyTemplate.operations[0].key.context_id,`weekly_context_${weeklyTemplate.operations[0].data.week_start}_import`);
 assert.equal(typeof weeklyTemplate.operations[0].data.event_effects,'string');
 assert.ok(weeklyTemplate.operations[0].data.updated_at);
+const templateNow=new Date(`${weeklyTemplate.operations[0].data.week_start}T12:00:00`);
+assert.equal(validateWeeklyContextImportPayload(weeklyTemplate,{now:templateNow}).ok,true,'generated Weekly Context template must satisfy the executable import contract');
+
+const clone=value=>JSON.parse(JSON.stringify(value));
+const stale=clone(weeklyTemplate);stale.operations[0].data.week_start='2026-08-03';stale.operations[0].key.context_id='weekly_context_2026-08-03_import';
+assert.equal(validateWeeklyContextImportPayload(stale,{now:templateNow}).ok,false,'stale prior-week JSON must be rejected');
+const partialBerries=clone(weeklyTemplate);partialBerries.operations[0].data.favorite_berry_1='莓莓果';partialBerries.operations[0].data.favorite_berry_2=null;partialBerries.operations[0].data.favorite_berry_3=null;
+assert.equal(validateWeeklyContextImportPayload(partialBerries,{now:templateNow}).ok,false,'random/dynamic berry observations must be 0 or exactly 3');
+const objectEffects=clone(weeklyTemplate);objectEffects.operations[0].data.event_effects={recipe_final_energy_multiplier:1.5};
+assert.equal(validateWeeklyContextImportPayload(objectEffects,{now:templateNow}).ok,false,'event_effects object must be rejected; storage contract is JSON string');
+const unknownEffect=clone(weeklyTemplate);unknownEffect.operations[0].data.event_effects=JSON.stringify({unknown_multiplier:2});
+assert.equal(validateWeeklyContextImportPayload(unknownEffect,{now:templateNow}).ok,false,'unknown event-effect keys must be rejected');
+const wrongOp=clone(weeklyTemplate);wrongOp.operations[0].entity='pokemon';
+assert.equal(validateWeeklyContextImportPayload(wrongOp,{now:templateNow}).ok,false,'weekly scenario with wrong entity must not fall through to general import behavior');
+
 const prompt=read('assets/js/prompt-catalog.js');
 for(const token of ['context_authority=UPDATE_CENTER_JSON','weekly_context_<week_start>_import','event_effects 必須是 JSON 字串','全部三種喜好樹果','不得沿用上週','不要直接輸出戰情室或食譜建議'])assert.ok(prompt.includes(token),`weekly prompt contract missing: ${token}`);
 
@@ -75,8 +91,10 @@ assert.deepEqual(Object.fromEntries(projected.stockpile.map(row=>[row.ingredient
 
 const weeklyUi=read('assets/js/weekly-context-ui-bridge.js');
 for(const token of ['Authority：更新中心 JSON 優先','weekly_context_${weekStart}_manual','JSON 已提供的欄位仍保持優先','公版 Camp Berry Master 自動帶入並鎖定','系統不會沿用上週資料'])assert.ok(weeklyUi.includes(token),`weekly UI authority missing ${token}`);
+const importContract=read('assets/js/weekly-context-import-contract.js');
+for(const token of ['context_authority 必須為','不可使用上週／未來週 JSON','event_effects 不支援欄位','favorite_berry_1~3 必須全部三欄一起提供'])assert.ok(importContract.includes(token),`weekly import contract missing ${token}`);
 const updateBridge=read('assets/js/weekly-context-update-center-bridge.js');
-for(const token of ['Authority Chain','Weekly Context JSON Contract','UPDATE_CENTER_JSON','key.context_id 必須為 weekly_context_','event_effects 必須是 JSON 字串','hiddenForWeeklyContext','隻玩家資料'])assert.ok(updateBridge.includes(token),`weekly import inspection missing ${token}`);
+for(const token of ['Authority Chain','Weekly Context JSON Contract','validateWeeklyContextImportPayload','hiddenForWeeklyContext','隻玩家資料'])assert.ok(updateBridge.includes(token),`weekly import inspection missing ${token}`);
 const consumerBanner=read('assets/js/weekly-context-consumer-banner.js');
 for(const token of ['本頁 Weekly Context 唯一來源：［本週環境］','recipeWeeklyContextAuthority','warroomWeeklyContextAuthority','更新中心 JSON'])assert.ok(consumerBanner.includes(token),`weekly consumer banner missing ${token}`);
 const knowledge=read('assets/js/camp-berry-knowledge-ui.js');
@@ -93,8 +111,8 @@ const bootstrap=read('assets/js/recipe-strategy-local.js');
 for(const moduleName of ['weekly-context-ui-bridge.js','weekly-context-update-center-bridge.js','weekly-context-consumer-banner.js','camp-berry-knowledge-ui.js','current-week-recipe-recommendation-bridge.js'])assert.ok(bootstrap.includes(moduleName),`runtime bridge not mounted: ${moduleName}`);
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'V0461_WEEKLY_CONTEXT_INTEGRATION',camp_authority_rows:PUBLIC_CAMP_BERRY_MASTER.length,
-  greengrass_policy:byCamp('萌綠之島').berry_policy,cyan_policy:byCamp('天青沙灘').berry_policy,discovery_target:projected.summary.total_target,
+  status:'PASS',gate:'V0461_WEEKLY_CONTEXT_INTEGRATION',weekly_import_contract_version:WEEKLY_CONTEXT_IMPORT_CONTRACT_VERSION,
+  camp_authority_rows:PUBLIC_CAMP_BERRY_MASTER.length,greengrass_policy:byCamp('萌綠之島').berry_policy,cyan_policy:byCamp('天青沙灘').berry_policy,discovery_target:projected.summary.total_target,
   quantity_assignment:'UNKNOWN_UNORDERED_SIGNATURE',current_week_scoped:true,authority_chain:'UPDATE_CENTER_JSON -> WEEKLY_ENVIRONMENT -> WAR_ROOM/RECIPES',
-  manual_fallback_secondary:true,weekly_import_human_summary:true,weekly_json_contract_enforced:true,team_objectives_distinguished:true,
+  manual_fallback_secondary:true,weekly_import_human_summary:true,weekly_json_contract_enforced:true,stale_week_rejected:true,malformed_weekly_payloads_rejected:true,team_objectives_distinguished:true,
 },null,2));
