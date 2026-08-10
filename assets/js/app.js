@@ -424,6 +424,7 @@ function setupEventHandlers() {
       'discarded_pokemon',
       'ingredient_inventory',
       'item_inventory',
+      'candy_inventory',
       'recipes',
       'recipe_ingredients',
       'weekly_plan',
