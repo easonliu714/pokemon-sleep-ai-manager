@@ -3,6 +3,7 @@ name: WAR.3B Typed Event Effect Registry
 on:
   pull_request:
     paths:
+      - 'assets/js/version-authority.js'
       - 'assets/js/weekly-event-effect-registry.js'
       - 'assets/js/weekly-context-normalization.js'
       - 'assets/js/weekly-context-import-contract.js'
@@ -12,6 +13,7 @@ on:
       - 'assets/js/pokemon-candidate-feature-projection.js'
       - 'assets/js/recipe-discovery-stockpile.js'
       - 'scripts/war3b-typed-event-effect-registry-contract.mjs'
+      - 'scripts/v048-release-contract.mjs'
       - 'scripts/v047-release-contract.mjs'
       - 'scripts/v0463-release-contract.mjs'
       - '.github/workflows/war3b-typed-event-effect-registry.yml'
@@ -25,9 +27,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Verify exact v0.4.8 release contract
+        run: node scripts/v048-release-contract.mjs
       - name: Verify WAR.3B typed event registry behavior
         run: node scripts/war3b-typed-event-effect-registry-contract.mjs
-      - name: Verify v0.4.7 Candy release baseline remains green
+      - name: Verify historical v0.4.7 Candy behavior remains green
         run: node scripts/v047-release-contract.mjs
       - name: Verify historical v0.4.6.3 Weekly behavior remains green
         run: node scripts/v0463-release-contract.mjs
@@ -39,6 +43,7 @@ jobs:
         shell: bash
         run: |
           set -o errexit -o nounset -o pipefail
+          node --check assets/js/version-authority.js
           node --check assets/js/weekly-event-effect-registry.js
           node --check assets/js/weekly-context-normalization.js
           node --check assets/js/weekly-context-import-contract.js
@@ -48,6 +53,9 @@ jobs:
           node --check assets/js/pokemon-candidate-feature-projection.js
           node --check assets/js/recipe-discovery-stockpile.js
           node --check scripts/war3b-typed-event-effect-registry-contract.mjs
+          node --check scripts/v048-release-contract.mjs
+          node --check scripts/v047-release-contract.mjs
+          node --check scripts/v0463-release-contract.mjs
       - name: Verify no tracked test mutation
         shell: bash
         run: test -z "$(git status --porcelain --untracked-files=no)"
