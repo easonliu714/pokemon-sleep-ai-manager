@@ -1,29 +1,34 @@
 import {PUBLIC_BERRY_TYPES} from './shared-master-data.js';
-import {PUBLIC_EVOLUTION_MASTER,PUBLIC_EVOLUTION_STATUS_MASTER} from './public-pokemon-knowledge-master.js';
+import {PUBLIC_EVOLUTION_MASTER,PUBLIC_EVOLUTION_STATUS_MASTER,PUBLIC_POKEMON_KNOWLEDGE_VERSION} from './public-pokemon-knowledge-master.js';
 
-export const PUBLIC_CANDY_MASTER_VERSION='public-candy-master-2026-08-10-a';
+export const PUBLIC_CANDY_MASTER_VERSION='public-candy-master-2026-08-10-b';
 export const SPECIES_CANDY_NAME_RULE_VERSION='species-candy-name-rule-zh-tw-2026-08-10-a';
 
-const BASE_SOURCE=Object.freeze({
-  source_type:'game_screenshot_verified+pokemon_master_projection',
-  source_name:'Pokémon Sleep in-game evidence + Public Pokémon Knowledge',
-  verified_at:'2026-08-10',
-  data_version:PUBLIC_CANDY_MASTER_VERSION,
+const OFFICIAL='Pokémon Sleep official zh-TW';
+const fixed=(candy_id,candy_name,candy_type,target_type_name,source_ref,verification_status='OFFICIAL_ZH_TW_VERIFIED')=>Object.freeze({
+  candy_id,candy_name,candy_type,target_species_name:null,target_type_name:target_type_name||null,
+  name_rule:'FIXED_VERIFIED_NAME',verification_status,source_type:verification_status==='GAME_SCREENSHOT_VERIFIED'?'game_screenshot_verified':'official_zh_tw',
+  source_name:verification_status==='GAME_SCREENSHOT_VERIFIED'?'In-game screenshot evidence':OFFICIAL,source_ref,verified_at:'2026-08-10',data_version:PUBLIC_CANDY_MASTER_VERSION,
 });
 
 // Fixed candy entities are only added when the item name itself has direct
-// evidence. Player quantities never belong here.
+// evidence. Player quantities never belong here. Multiple sizes are separate
+// physical inventory entities; no conversion-equivalence is implied.
 export const PUBLIC_CANDY_FIXED_MASTER=Object.freeze([
-  Object.freeze({
-    candy_id:'universal_candy_s',candy_name:'萬能糖果S',candy_type:'universal',
-    target_species_name:null,target_type_name:null,name_rule:'FIXED_VERIFIED_NAME',verification_status:'GAME_SCREENSHOT_VERIFIED',
-    source_ref:'project-evidence:2026-07-30-item-inventory',...BASE_SOURCE,
-  }),
-  Object.freeze({
-    candy_id:'type_dragon_candy_s',candy_name:'龍屬性的糖果S',candy_type:'type',
-    target_species_name:null,target_type_name:'龍',name_rule:'FIXED_VERIFIED_NAME',verification_status:'GAME_SCREENSHOT_VERIFIED',
-    source_ref:'project-evidence:2026-07-30-item-inventory',...BASE_SOURCE,
-  }),
+  fixed('universal_candy_s','萬能糖果S','universal',null,'https://www.pokemonsleep.net/zh/news/333731373231333131353638373839353130/'),
+  fixed('universal_candy_m','萬能糖果M','universal',null,'https://www.pokemonsleep.net/zh/news/333731373231333131353638373839353130/'),
+  fixed('type_fire_candy_s','火屬性的糖果S','type','火','https://www.pokemonsleep.net/zh/news/313239393831303938313333323931303039/'),
+  fixed('type_fire_candy_m','火屬性的糖果M','type','火','https://www.pokemonsleep.net/zh/news/333032323433323833303539333433333631/'),
+  fixed('type_water_candy_s','水屬性的糖果S','type','水','https://www.pokemonsleep.net/zh/news/313635353333363032363631303037333631/'),
+  fixed('type_water_candy_m','水屬性的糖果M','type','水','https://www.pokemonsleep.net/zh/news/333032323433323833303539333433333631/'),
+  fixed('type_flying_candy_s','飛行屬性的糖果S','type','飛行','https://www.pokemonsleep.net/zh/news/323234353838333334383535333536343137/'),
+  fixed('type_flying_candy_m','飛行屬性的糖果M','type','飛行','https://www.pokemonsleep.net/zh/news/313434353136333830313935303238393933/'),
+  fixed('type_bug_candy_m','蟲屬性的糖果M','type','蟲','https://www.pokemonsleep.net/zh/news/313434353136333830313935303238393933/'),
+  fixed('type_psychic_candy_s','超能力屬性的糖果S','type','超能力','https://www.pokemonsleep.net/zh/news/323430393535333330323537373437393639/'),
+  fixed('type_psychic_candy_m','超能力屬性的糖果M','type','超能力','https://www.pokemonsleep.net/zh/news/323430393535333330323537373437393639/'),
+  fixed('type_ghost_candy_s','幽靈屬性的糖果S','type','幽靈','https://www.pokemonsleep.net/zh/news/313933343137303934393235313233353835/'),
+  fixed('type_ghost_candy_m','幽靈屬性的糖果M','type','幽靈','https://www.pokemonsleep.net/zh/news/313933343137303934393235313233353835/'),
+  fixed('type_dragon_candy_s','龍屬性的糖果S','type','龍','project-evidence:2026-07-30-item-inventory','GAME_SCREENSHOT_VERIFIED'),
 ]);
 
 const normalize=value=>String(value??'').normalize('NFKC').trim();
@@ -60,7 +65,7 @@ export function buildPublicCandyMasterRows(){
       verification_status:'DERIVED_FROM_PUBLIC_POKEMON_CANONICAL_NAME',
       source_type:'public_pokemon_name_projection',
       source_name:'Public Pokémon Knowledge',
-      source_ref:'PUBLIC_POKEMON_KNOWLEDGE_VERSION',
+      source_ref:PUBLIC_POKEMON_KNOWLEDGE_VERSION,
       verified_at:'2026-08-10',
       data_version:PUBLIC_CANDY_MASTER_VERSION,
     }));
@@ -114,6 +119,7 @@ export function syncPublicCandyMaster(db){
     player_tables_untouched:true,
     fixed_verified_count:PUBLIC_CANDY_FIXED_MASTER.length,
     species_name_rule:SPECIES_CANDY_NAME_RULE_VERSION,
+    pokemon_name_authority:PUBLIC_POKEMON_KNOWLEDGE_VERSION,
     species_projection_count:publicPokemonNamesForCandy().length,
     physical_inventory_only:true,
     conversion_projection_status:'NOT_YET_VERIFIED',
