@@ -32,4 +32,4 @@ jobs:
           node scripts/v0491-release-contract.mjs
           node scripts/war3c-external-strategy-analysis-pack-contract.mjs
       - name: Preserve v0.4.8.5 Android E3 compact table
-        run: node scripts/v0485-compact-camp-table-contract.mjs
+        run: node scripts/v0485-release-contract.mjs
