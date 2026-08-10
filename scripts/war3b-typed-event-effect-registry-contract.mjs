@@ -121,7 +121,7 @@ const prompt=read('assets/js/prompt-catalog.js');
 for(const token of ['unknown_effects','不要自行創造新的 root key','operation.review_required 必須為 true','不要輸出 rule_status','逐字保留活動原文'])assert.ok(prompt.includes(token),`Weekly prompt missing typed/unknown rule: ${token}`);
 const weeklyUi=read('assets/js/weekly-context-ui-bridge.js');
 for(const token of ['活動效果 Typed Registry','Rule Status','ACTIVE_VERIFIED','FEATURE_ONLY','REVIEW_REQUIRED','Strategy effect fingerprint'])assert.ok(weeklyUi.includes(token),`Weekly UI missing typed registry status: ${token}`);
-assert.ok(weeklyUi.includes('validateWeeklyEventEffects(manualEffects)'),'manual Weekly fallback must not bypass typed validation');
+assert.ok(weeklyUi.includes('validateWeeklyEventEffects('),'every manual Weekly edit path must retain the typed event validator in successor releases');
 
 const migrations=read('assets/js/migrations.js');
 assert.equal(migrations.includes('war3b'),false,'WAR.3B must not add a release-specific SQLite migration');
@@ -139,6 +139,6 @@ console.log(JSON.stringify({
   status:'PASS',gate:'WAR3B_TYPED_EVENT_EFFECT_REGISTRY_CONTRACT',registry_version:WEEKLY_EVENT_EFFECT_REGISTRY_VERSION,
   registry_rows:WEEKLY_EVENT_EFFECT_REGISTRY.length,active_verified:projection.states.filter(row=>row.rule_status==='ACTIVE_VERIFIED').length,
   feature_only_preserved:true,unknown_effects_preserved:true,unknown_effects_require_review:true,unknown_effects_deterministic_consumption:false,
-  wrong_types_fail_closed:true,manual_fallback_typed_validation:true,strategy_fingerprint_ignores_non_deterministic_effects:true,
+  wrong_types_fail_closed:true,manual_weekly_typed_validation:true,strategy_fingerprint_ignores_non_deterministic_effects:true,
   active_effect_changes_invalidate_evaluation:true,candidate_feature_fingerprint_aligned:true,recipe_discovery_fingerprint_aligned:true,sqlite_migration_added:false,
 },null,2));

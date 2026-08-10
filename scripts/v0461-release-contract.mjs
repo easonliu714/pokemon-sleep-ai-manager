@@ -44,7 +44,17 @@ const store=read('assets/js/weekly-context-store.js');
 for(const token of ['UPDATE_CENTER_JSON','MANUAL_FALLBACK','import_changes','import_batches','WHERE week_start=?','manual_fallback_fields','field_sources'])assert.ok(store.includes(token),`weekly authority contract missing ${token}`);
 assert.equal(store.includes("SELECT * FROM weekly_context ORDER BY updated_at DESC LIMIT 1"),false);
 const weeklyUi=read('assets/js/weekly-context-ui-bridge.js');
-for(const token of ['更新中心 JSON 優先','weekly_context_${weekStart}_manual','JSON 已提供的欄位仍保持優先'])assert.ok(weeklyUi.includes(token),`weekly UI authority missing ${token}`);
+assert.ok(weeklyUi.includes('更新中心 JSON'),'successor Weekly UI must still expose Update Center JSON authority');
+assert.ok(weeklyUi.includes('weekly_context_${weekStart}_manual'),'manual fallback row contract must remain available when no imported Weekly JSON exists');
+assert.ok(weeklyUi.includes('公版 Camp Berry Master 自動帶入並鎖定'),'fixed-camp Public Master lock must remain visible');
+assert.ok(weeklyUi.includes('系統不會沿用上週資料'),'random weekly berries must never inherit the prior week');
+const successorManualOverride=store.includes('MANUAL_OVERRIDE')||weeklyUi.includes('MANUAL_OVERRIDE');
+if(successorManualOverride){
+  assert.ok(store.includes('authority_revision'),'successor manual override must be revision-scoped rather than silently replacing imported authority');
+  assert.ok(weeklyUi.includes('更新中心 JSON 為初始權威來源'),'successor UI must preserve imported JSON as the initial authority before explicit user override');
+}else{
+  assert.ok(weeklyUi.includes('JSON 已提供的欄位仍保持優先'),'v0.4.6.1-era UI must retain JSON-over-fallback precedence');
+}
 const importContract=read('assets/js/weekly-context-import-contract.js');
 for(const token of ['context_authority 必須為','不可使用上週／未來週 JSON','favorite_berry_1~3 必須全部三欄一起提供'])assert.ok(importContract.includes(token),`weekly import contract missing ${token}`);
 assert.ok(importContract.includes('event_effects'));
@@ -91,7 +101,8 @@ for(const moduleName of ['weekly-context-ui-bridge.js','weekly-context-update-ce
 
 console.log(JSON.stringify({
   status:'PASS',gate:'V0.4.6.1_RELEASE_HISTORICAL_CONTRACT',historical_minimum:'v0.4.6.1',current_app_version:app,build,cache,
-  authority_chain:'UPDATE_CENTER_JSON -> WEEKLY_ENVIRONMENT -> WAR_ROOM/RECIPES',manual_fallback_secondary:true,executable_weekly_json_contract:true,legacy_string_event_effects_compatible:true,
+  authority_chain:successorManualOverride?'UPDATE_CENTER_JSON(initial) -> EXPLICIT_MANUAL_OVERRIDE -> WEEKLY_ENVIRONMENT -> WAR_ROOM/RECIPES':'UPDATE_CENTER_JSON -> WEEKLY_ENVIRONMENT -> WAR_ROOM/RECIPES',
+  manual_fallback_secondary:true,successor_manual_override_supported:successorManualOverride,executable_weekly_json_contract:true,legacy_string_event_effects_compatible:true,
   camp_master_rows:PUBLIC_CAMP_BERRY_MASTER.length,discovery_candidates:PUBLIC_RECIPE_DISCOVERY.length,canonical_active_discovery_rows:0,
   discovery_quantity_assignment:'UNKNOWN_UNORDERED_SIGNATURE',stockpile_semantics:'CONSERVATIVE_DISCOVERY_UPPER_BOUND',
   schema_migration_added:false,gemini_dependency:false,player_data_write_from_deterministic_layer:false,forward_compatible_release_authority:true,

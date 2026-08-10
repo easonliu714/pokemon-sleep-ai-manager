@@ -2,10 +2,12 @@ import {rows} from './database.js';
 import {localWeekStart} from './evaluation-week.js';
 import {normalizeWeeklyContext,parseWeeklyEventEffects} from './weekly-context-normalization.js';
 import {resolveCampFavoriteBerries} from './public-camp-berry-master.js';
+import {resolveWeeklyManualOverride} from './weekly-context-manual-override.js';
 
-export const WEEKLY_CONTEXT_STORE_VERSION='weekly-context-store-2026-08-10-c';
+export const WEEKLY_CONTEXT_STORE_VERSION='weekly-context-store-2026-08-10-d';
 
 const meaningful=value=>value!==null&&value!==undefined&&value!=='';
+const own=(object,key)=>Object.prototype.hasOwnProperty.call(object||{},key);
 const CORE_FIELDS=['camp','dish_category','event_name','pot_size','base_notes'];
 const BERRY_FIELDS=['favorite_berry_1','favorite_berry_2','favorite_berry_3'];
 function importAuthorityByContextId(){
@@ -36,7 +38,17 @@ function classifyRows(epoch){
   imported.sort((a,b)=>String(b.__authority?.imported_at||b.updated_at||'').localeCompare(String(a.__authority?.imported_at||a.updated_at||''))||String(b.context_id||'').localeCompare(String(a.context_id||'')));
   return {imported:imported[0]||null,manual:manual[0]||null,all:data};
 }
-function mergedEffects(primary,manual,fieldSources){
+function importRevision(imported){
+  if(!imported)return '';
+  return String(imported.__authority?.update_id||imported.__authority?.imported_at||imported.updated_at||'').trim();
+}
+function mergedEffects(primary,manual,manualOverride,fieldSources){
+  if(manualOverride.active&&own(manualOverride.fields,'event_effects')){
+    const overridden=parseWeeklyEventEffects(manualOverride.fields.event_effects);
+    fieldSources.event_effects='MANUAL_OVERRIDE';
+    for(const key of Object.keys(overridden))fieldSources[`event_effects.${key}`]='MANUAL_OVERRIDE';
+    return Object.keys(overridden).length?JSON.stringify(overridden):null;
+  }
   const fallback=parseWeeklyEventEffects(manual?.event_effects),incoming=parseWeeklyEventEffects(primary?.event_effects),merged={...fallback};
   if(meaningful(primary?.event_effects))fieldSources.event_effects='UPDATE_CENTER_JSON';
   else if(meaningful(manual?.event_effects))fieldSources.event_effects='MANUAL_FALLBACK';
@@ -49,20 +61,35 @@ function mergedEffects(primary,manual,fieldSources){
 }
 function compose(epoch,{imported,manual}){
   if(!imported&&!manual)return null;
+  const revision=importRevision(imported);
+  const manualOverride=resolveWeeklyManualOverride(epoch,revision);
+  const overrideFields=manualOverride.fields||{};
   const fieldSources={},row={week_start:epoch};
   for(const field of [...CORE_FIELDS,...BERRY_FIELDS]){
-    if(imported&&(meaningful(imported[field])||imported[field]===0||imported[field]===false)){row[field]=imported[field];fieldSources[field]='UPDATE_CENTER_JSON';}
-    else if(manual&&(meaningful(manual[field])||manual[field]===0||manual[field]===false)){row[field]=manual[field];fieldSources[field]='MANUAL_FALLBACK';}
-    else row[field]=null;
+    if(manualOverride.active&&own(overrideFields,field)){
+      row[field]=overrideFields[field];fieldSources[field]='MANUAL_OVERRIDE';
+    }else if(imported&&(meaningful(imported[field])||imported[field]===0||imported[field]===false)){
+      row[field]=imported[field];fieldSources[field]='UPDATE_CENTER_JSON';
+    }else if(manual&&(meaningful(manual[field])||manual[field]===0||manual[field]===false)){
+      row[field]=manual[field];fieldSources[field]='MANUAL_FALLBACK';
+    }else row[field]=null;
   }
-  row.event_effects=mergedEffects(imported,manual,fieldSources);
+  // A user changing camp must never inherit a previous camp's dynamic berry trio.
+  // Fixed camps are re-projected below by Public Camp Master; random/EX camps
+  // require a fresh explicit trio in the same manual override when desired.
+  if(manualOverride.active&&own(overrideFields,'camp')){
+    for(const field of BERRY_FIELDS)if(!own(overrideFields,field)){row[field]=null;fieldSources[field]='MANUAL_OVERRIDE';}
+  }
+  row.event_effects=mergedEffects(imported,manual,manualOverride,fieldSources);
   row.context_id=imported?.context_id||manual?.context_id||null;
-  row.updated_at=imported?.updated_at||manual?.updated_at||null;
+  row.updated_at=manualOverride.active?(manualOverride.record?.updated_at||imported?.updated_at||manual?.updated_at||null):(imported?.updated_at||manual?.updated_at||null);
   const normalized=normalizeWeeklyContext(row);
   const berry=resolveCampFavoriteBerries(normalized.camp,[normalized.favorite_berry_1,normalized.favorite_berry_2,normalized.favorite_berry_3]);
   const berries=[...berry.berries];
   if(berry.policy==='FIXED_3')for(const field of BERRY_FIELDS)fieldSources[field]='PUBLIC_CAMP_MASTER';
   const manualFallbackFields=Object.entries(fieldSources).filter(([,source])=>source==='MANUAL_FALLBACK').map(([field])=>field).sort();
+  const manualOverrideFields=Object.entries(fieldSources).filter(([,source])=>source==='MANUAL_OVERRIDE').map(([field])=>field).filter(field=>!field.startsWith('event_effects.')).sort();
+  const authoritySource=manualOverrideFields.length?'MANUAL_OVERRIDE':imported?'UPDATE_CENTER_JSON':'MANUAL_FALLBACK';
   return Object.freeze({
     ...normalized,
     favorite_berry_1:berries[0]||null,
@@ -73,12 +100,18 @@ function compose(epoch,{imported,manual}){
     berry_locked:berry.locked,
     berry_source:berry.source,
     context_status:'CURRENT_WEEK_READY',
-    authority_source:imported?'UPDATE_CENTER_JSON':'MANUAL_FALLBACK',
+    authority_source:authoritySource,
     authority_context_id:imported?.context_id||manual?.context_id||null,
     authority_update_id:imported?.__authority?.update_id||null,
     authority_imported_at:imported?.__authority?.imported_at||null,
+    authority_revision:revision||null,
     manual_context_id:manual?.context_id||null,
     manual_fallback_fields:Object.freeze(manualFallbackFields),
+    manual_override_active:manualOverride.active,
+    manual_override_stale:manualOverride.stale,
+    manual_override_fields:Object.freeze(manualOverrideFields),
+    manual_override_setting_key:manualOverride.record?`weekly_context_manual_override:${epoch}`:null,
+    manual_override_based_on_revision:manualOverride.record?.based_on_import_revision||null,
     field_sources:Object.freeze({...fieldSources}),
   });
 }
@@ -89,8 +122,10 @@ export function currentWeeklyContext({date=new Date()}={}){
   return Object.freeze({
     context_id:null,week_start:epoch,camp:null,dish_category:null,event_name:null,pot_size:null,
     favorite_berry_1:null,favorite_berry_2:null,favorite_berry_3:null,event_effects:null,base_notes:null,updated_at:null,
-    context_status:'CURRENT_WEEK_MISSING',authority_source:'MISSING',authority_context_id:null,authority_update_id:null,authority_imported_at:null,
-    berry_policy:'UNKNOWN',berry_source:'MISSING_PLAYER_WEEK_OBSERVATION',favorite_berries:Object.freeze([]),manual_fallback_fields:Object.freeze([]),field_sources:Object.freeze({}),
+    context_status:'CURRENT_WEEK_MISSING',authority_source:'MISSING',authority_context_id:null,authority_update_id:null,authority_imported_at:null,authority_revision:null,
+    berry_policy:'UNKNOWN',berry_source:'MISSING_PLAYER_WEEK_OBSERVATION',favorite_berries:Object.freeze([]),manual_fallback_fields:Object.freeze([]),
+    manual_override_active:false,manual_override_stale:false,manual_override_fields:Object.freeze([]),manual_override_setting_key:null,manual_override_based_on_revision:null,
+    field_sources:Object.freeze({}),
   });
 }
 
