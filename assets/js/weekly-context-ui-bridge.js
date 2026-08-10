@@ -4,7 +4,7 @@ import {campBerryAuthority,resolveCampFavoriteBerries} from './public-camp-berry
 import {localWeekStart} from './evaluation-week.js';
 import {localIso} from './time-utils.js';
 
-export const WEEKLY_CONTEXT_UI_BRIDGE_VERSION='weekly-context-ui-bridge-2026-08-10-b';
+export const WEEKLY_CONTEXT_UI_BRIDGE_VERSION='weekly-context-ui-bridge-2026-08-10-c';
 
 let syncing=false;
 const names=['favorite_berry_1','favorite_berry_2','favorite_berry_3'];
@@ -15,7 +15,12 @@ function ensureNotice(form){
   return node;
 }
 function removeFixedHidden(form){form.querySelectorAll('[data-fixed-berry-hidden]').forEach(node=>node.remove());}
-function setField(form,name,value){const node=q(form,name);if(node)node.value=value??'';}
+function setField(form,name,value){
+  const node=q(form,name);if(!node)return;
+  const normalized=value??'';
+  if(node.tagName==='SELECT'&&normalized!==''&&![...node.options].some(option=>option.value===String(normalized))){const option=document.createElement('option');option.value=String(normalized);option.textContent=String(normalized);node.prepend(option);}
+  node.value=normalized;
+}
 function applyBerryPolicy(form,camp,observed=[]){
   const resolved=resolveCampFavoriteBerries(camp,observed);
   const authority=campBerryAuthority(camp);
