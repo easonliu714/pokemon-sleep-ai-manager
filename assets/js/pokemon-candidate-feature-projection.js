@@ -1,4 +1,4 @@
-export const POKEMON_CANDIDATE_FEATURE_VERSION='pokemon-candidate-features-2026-08-09-b';
+export const POKEMON_CANDIDATE_FEATURE_VERSION='pokemon-candidate-features-2026-08-10-c';
 
 const text=value=>String(value??'').normalize('NFKC').trim();
 const num=value=>{const n=Number(value);return value===null||value===undefined||value===''||!Number.isFinite(n)?null:n;};
@@ -47,6 +47,30 @@ function unlockedSubskills(detail,level,currentUnlocksOnly){
     const threshold=num(row.unlock_level);return threshold!==null&&level!==null&&threshold<=level;
   }).map(row=>({unlock_level:num(row.unlock_level),subskill_name:text(row.subskill_name)}));
 }
+function currentUnlockSlotCounts(detail,level){
+  // Readiness is deliberately independent from the strategy's current_unlocks_only
+  // switch. It measures only the slots that are confirmed in the player's local
+  // observation and are actually unlocked at the Pokémon's current level.
+  // When the current level is unknown, the scoring bridge exposes zero known
+  // unlock slots so the evidence-gated scoring engine returns NULL rather than
+  // guessing a readiness percentage.
+  if(level===null)return {
+    known_ingredient_slot_count:0,known_subskill_slot_count:0,
+    unlocked_ingredient_slot_count:0,unlocked_subskill_slot_count:0,
+    known_unlock_slot_count:0,unlocked_known_slot_count:0,
+  };
+  const ingredientSlots=(detail?.ingredients||[]).filter(row=>text(row.ingredient_name)&&num(row.unlock_level)!==null);
+  const subskillSlots=(detail?.subskills||[]).filter(row=>text(row.subskill_name)&&(num(row.unlock_level)!==null||bool(row.is_unlocked)));
+  const unlockedIngredientSlots=ingredientSlots.filter(row=>num(row.unlock_level)<=level);
+  const unlockedSubskillSlots=subskillSlots.filter(row=>bool(row.is_unlocked)||(num(row.unlock_level)!==null&&num(row.unlock_level)<=level));
+  const knownIngredient=ingredientSlots.length,knownSubskill=subskillSlots.length;
+  const unlockedIngredient=unlockedIngredientSlots.length,unlockedSubskill=unlockedSubskillSlots.length;
+  return {
+    known_ingredient_slot_count:knownIngredient,known_subskill_slot_count:knownSubskill,
+    unlocked_ingredient_slot_count:unlockedIngredient,unlocked_subskill_slot_count:unlockedSubskill,
+    known_unlock_slot_count:knownIngredient+knownSubskill,unlocked_known_slot_count:unlockedIngredient+unlockedSubskill,
+  };
+}
 function profileCompleteness(pokemon){
   const fields=['species','level','specialty','type','nature','main_skill','main_skill_level','helper_seconds','carry_limit','favorite_berry'];
   const present=fields.filter(field=>pokemon[field]!==null&&pokemon[field]!==undefined&&text(pokemon[field])!=='');
@@ -78,7 +102,7 @@ export function projectPokemonCandidateFeatures({
   for(const raw of [...pokemon].sort((a,b)=>text(a.pokemon_id).localeCompare(text(b.pokemon_id)))){
     const pokemonId=text(raw.pokemon_id);if(!pokemonId)continue;
     const species=text(raw.current_species||raw.species),level=num(raw.level),detail=details.get(pokemonId)||{};
-    const ingredients=unlockedIngredients(detail,level,currentUnlocksOnly),subskills=unlockedSubskills(detail,level,currentUnlocksOnly);
+    const ingredients=unlockedIngredients(detail,level,currentUnlocksOnly),subskills=unlockedSubskills(detail,level,currentUnlocksOnly),slotCounts=currentUnlockSlotCounts(detail,level);
     const ingredientNames=[...new Set(ingredients.map(row=>row.ingredient_name).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
     const overlap=ingredientNames.filter(name=>Number(demand[name]||0)>0),coveredDemand=overlap.reduce((sum,name)=>sum+Number(demand[name]||0),0);
     const completeness=profileCompleteness(raw),hard=hardConstraintResult({pokemon:raw,constraints,completeness});
@@ -93,7 +117,7 @@ export function projectPokemonCandidateFeatures({
       nature:text(raw.nature)||null,nature_bonus:text(raw.nature_bonus)||null,nature_penalty:text(raw.nature_penalty)||null,main_skill:text(raw.main_skill)||null,main_skill_level:num(raw.main_skill_level),
       helper_seconds:num(raw.helper_seconds),carry_limit:num(raw.carry_limit),favorite_berry:text(raw.favorite_berry)||null,
       favorite_berry_match:raw.favorite_berry?favoriteBerries.has(text(raw.favorite_berry)):null,
-      unlocked_ingredients:ingredients,unlocked_subskills:subskills,weekly_ingredient_overlap:overlap,
+      unlocked_ingredients:ingredients,unlocked_subskills:subskills,...slotCounts,weekly_ingredient_overlap:overlap,
       weekly_ingredient_demand_covered:coveredDemand,weekly_ingredient_demand_total:totalDemand,weekly_ingredient_demand_coverage:totalDemand?coveredDemand/totalDemand:null,
       profile_completeness:completeness,identity_confidence:num(raw.identity_confidence),identity_review_required:Number(raw.identity_review_required||0)===1,
       mandatory_candidate:mustMatch.matched,must_include_match_source:mustMatch.source,matches_required_role:requiredRoles.size?requiredRoles.has(text(raw.specialty)):null,
