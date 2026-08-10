@@ -14,7 +14,7 @@ const REASON_LABELS=Object.freeze({
 function reasonLabel(reason){
   if(REASON_LABELS[reason])return REASON_LABELS[reason];
   if(reason.startsWith('TEAM_ROLE:'))return `補足必要角色：${reason.slice('TEAM_ROLE:'.length)}`;
-  if(reason.startsWith('WEEKLY_INGREDIENT_DEMAND_COVERAGE:'))return `本週食材缺口覆蓋指標：${reason.slice('WEEKLY_INGREDIENT_DEMAND_COVERAGE:'.length)}`;
+  if(reason.startsWith('WEEKLY_INGREDIENT_DEMAND_COVERAGE:'))return `一般本週料理食材缺口覆蓋指標：${reason.slice('WEEKLY_INGREDIENT_DEMAND_COVERAGE:'.length)}`;
   if(reason.startsWith('CURRENT_UNLOCK_READINESS:'))return `解鎖成熟度：${reason.slice('CURRENT_UNLOCK_READINESS:'.length)}`;
   return reason;
 }
@@ -43,7 +43,7 @@ function memberCard(slot){
   return `<article class="war-team-member${slot.is_leader?' leader':''}">
     <header><span class="war-team-slot">${esc(position)}</span><strong>${esc(slot.species||'未命名')}</strong><span>Lv${esc(slot.level??'—')}</span></header>
     <div class="war-team-member-meta"><span>專長：<b>${esc(slot.specialty||'—')}</b></span><span>解鎖成熟度：<b>${readiness(slot.current_readiness_score)}</b></span><span>喜好樹果：<b>${yesNo(slot.favorite_berry_match)}</b></span></div>
-    <p>本週食材能力：${esc(overlap)}</p>
+    <p>一般本週料理食材能力：${esc(overlap)}</p>
     <ul>${(slot.reasons||[]).map(reason=>`<li>${esc(reasonLabel(reason))}</li>`).join('')}</ul>
   </article>`;
 }
@@ -57,10 +57,10 @@ function teamCard(team,{title='主要建議',alternative=false}={}){
     <div class="war-team-summary">
       <span>成員 <b>${team.slots?.length||0}/5</b></span>
       <span>喜好樹果成員 <b>${Number(coverage.favorite_berry_match_member_count||0)}</b></span>
-      <span>有本週食材覆蓋 <b>${Number(coverage.members_with_weekly_ingredient_overlap||0)}</b></span>
+      <span>有一般料理食材覆蓋 <b>${Number(coverage.members_with_weekly_ingredient_overlap||0)}</b></span>
       <span>精準能量 <b>尚未啟用</b></span>
     </div>
-    ${coverage.covered_ingredient_names?.length?`<p class="notice"><b>隊伍可覆蓋的本週缺口食材：</b>${esc(coverage.covered_ingredient_names.join('、'))}</p>`:''}
+    ${coverage.covered_ingredient_names?.length?`<p class="notice"><b>隊伍可覆蓋的一般本週料理缺口食材：</b>${esc(coverage.covered_ingredient_names.join('、'))}</p>`:''}
     ${warnings.length?`<details class="war-team-warnings"><summary>限制與模型警告 ${warnings.length}</summary><ul>${warnings.map(item=>`<li>${esc(warningLabel(item))}</li>`).join('')}</ul></details>`:''}
     <p class="notice">Optimizer：<code>${esc(team.optimizer_version)}</code>　Fingerprint：<code>${esc(team.input_fingerprint)}</code></p>
   </section>`;
@@ -71,21 +71,21 @@ export function renderWarRoomTeamOptimizer(root=document.getElementById('warroom
   try{
     const result=buildLocalTeamOptimization({maxAlternatives:2});
     if(result.projection_status!=='READY'){
-      root.innerHTML='<div class="panel"><h3>自動組隊建議（本機 deterministic）</h3><p class="notice">玩家資料尚未載入，暫時無法建立隊伍草稿。</p></div>';return;
+      root.innerHTML='<div class="panel"><h3>一般戰略自動組隊（Goal Profile）</h3><p class="notice">玩家資料尚未載入，暫時無法建立隊伍草稿。</p></div>';return;
     }
     const draftState=document.getElementById('warroomGoalProfile')?.dataset?.goalDraftState||'clean';
     const draftBlocked=draftState!=='clean';
     const draftMessage=draftState==='invalid'?'目前 Goal Profile 草稿有 Hard Constraint 衝突；下方結果只代表最後一次成功儲存的 Active Profile。':draftState==='dirty'?'目前 Goal Profile 有尚未儲存的變更；下方結果只代表最後一次成功儲存的 Active Profile。':draftState==='saving'?'Goal Profile 正在儲存；完成後會自動重新計算。':'';
     root.innerHTML=`<div class="panel war-team-optimizer-panel">
-      <div class="war-team-toolbar"><div><h3>自動組隊建議（本機 deterministic）</h3><p class="notice">依目前已儲存的 Active Goal Profile、Hard Constraints、本週條件與可驗證候選特徵建立完整 5 人草稿。Leader 目前只是第 1 槽呈現，不套用未驗證加成。</p></div><button type="button" data-war-team-refresh ${draftBlocked?'disabled':''}>重新計算隊伍</button></div>
+      <div class="war-team-toolbar"><div><h3>一般戰略自動組隊（Goal Profile）</h3><p class="notice"><b>本區目標：</b>依已儲存的 Active Goal Profile、Hard Constraints、目前週期的營地喜好樹果與 ACTIVE 料理需求，建立一般用途完整 5 人草稿。這與下方「新料理解鎖備貨專用隊伍」不同；後者會把 Discovery 保守備貨缺口提高為主要食材目標，因此兩隊成員不必相同。Leader 目前只是第 1 槽呈現，不套用未驗證加成。</p></div><button type="button" data-war-team-refresh ${draftBlocked?'disabled':''}>重新計算隊伍</button></div>
       ${draftMessage?`<div class="notice warning" data-war-team-stale-profile><b>尚未套用畫面上的草稿。</b> ${esc(draftMessage)} 請先成功儲存 Goal Profile。</div>`:''}
       <p class="notice" data-war-team-goal-source>Active Goal Profile：<code>${esc(result.goal_profile_id||'尚未建立')}</code>　必帶成員：<b>${Number(result.mandatory_satisfied_count||0)} / ${Number(result.mandatory_member_count||0)}</b></p>
-      ${teamCard(result.primary,{title:'主要建議'})}
-      ${result.alternatives?.length?`<details class="war-team-alternatives"><summary>查看替代隊伍（${result.alternatives.length}）</summary>${result.alternatives.map((team,index)=>teamCard(team,{title:`替代方案 ${index+1}`,alternative:true})).join('')}</details>`:'<p class="notice">目前沒有可保持全部 Hard Constraints 的替代 5 人隊伍。</p>'}
+      ${teamCard(result.primary,{title:'一般戰略主要建議'})}
+      ${result.alternatives?.length?`<details class="war-team-alternatives"><summary>查看一般戰略替代隊伍（${result.alternatives.length}）</summary>${result.alternatives.map((team,index)=>teamCard(team,{title:`一般替代方案 ${index+1}`,alternative:true})).join('')}</details>`:'<p class="notice">目前沒有可保持全部 Hard Constraints 的替代 5 人隊伍。</p>'}
       <p class="notice">此區只建立本機草稿，不會自動覆蓋或寫入正式隊伍；Gemini 不參與成員挑選或數值排序。</p>
     </div>`;
     root.querySelector('[data-war-team-refresh]')?.addEventListener('click',()=>{if(!draftBlocked)renderWarRoomTeamOptimizer(root);});
   }catch(error){
-    root.innerHTML=`<div class="panel"><h3>自動組隊建議（本機 deterministic）</h3><p class="notice">Team Optimizer 尚未就緒：${esc(error?.message||String(error))}</p></div>`;
+    root.innerHTML=`<div class="panel"><h3>一般戰略自動組隊（Goal Profile）</h3><p class="notice">Team Optimizer 尚未就緒：${esc(error?.message||String(error))}</p></div>`;
   }
 }
