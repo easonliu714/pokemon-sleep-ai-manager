@@ -92,5 +92,6 @@ if(typeof window!=='undefined'){
     import('./war-room-recipe-discovery-bootstrap.js'),
     import('./war-room-candidate-feature-bootstrap.js'),
     import('./war-room-strategy-context-bootstrap.js'),
+    import('./war-room-strategy-analysis-pack-ui.js'),
   ]).catch(error=>console.warn('War Room / weekly integration UI bootstrap deferred',error)));
 }
