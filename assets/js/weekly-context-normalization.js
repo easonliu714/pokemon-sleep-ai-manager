@@ -1,7 +1,14 @@
-export const WEEKLY_CONTEXT_EVENT_SCHEMA='pokemon-sleep-weekly-event-context/1.1';
+import {
+  WEEKLY_EVENT_EFFECT_REGISTRY_VERSION,
+  projectWeeklyEventEffects,
+  validateWeeklyEventEffectsByRegistry,
+} from './weekly-event-effect-registry.js';
+
+export const WEEKLY_CONTEXT_EVENT_SCHEMA='pokemon-sleep-weekly-event-context/1.2';
 
 const numberOrNull=value=>{const n=Number(value);return value===null||value===undefined||value===''||!Number.isFinite(n)?null:n;};
 const text=value=>String(value??'').normalize('NFKC').trim();
+const stable=value=>Array.isArray(value)?value.map(stable):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,stable(value[key])])):value;
 
 export function normalizeDishCategory(value){
   let normalized=text(value);
@@ -41,10 +48,18 @@ export function serializeWeeklyEventEffects(value){
 
 export function normalizeWeeklyContext(row={}){
   const effects=parseWeeklyEventEffects(row.event_effects);
-  const multiplier=numberOrNull(effects.recipe_final_energy_multiplier);
+  let projection;
+  try{projection=projectWeeklyEventEffects(effects);}catch{
+    projection=Object.freeze({
+      registry_version:WEEKLY_EVENT_EFFECT_REGISTRY_VERSION,states:Object.freeze([]),deterministic_effects:Object.freeze({}),feature_only_effects:Object.freeze({}),review_effects:Object.freeze([]),
+      strategy_effect_fingerprint:null,has_review_required:false,
+    });
+  }
+  const deterministic=projection.deterministic_effects||{};
+  const multiplier=numberOrNull(deterministic.recipe_final_energy_multiplier);
   const tasty=numberOrNull(effects.extra_tasty_multiplier);
   const sundayTasty=numberOrNull(effects.sunday_extra_tasty_multiplier);
-  const sundayPot=numberOrNull(effects.sunday_pot_multiplier);
+  const sundayPot=numberOrNull(deterministic.sunday_pot_multiplier);
   return Object.freeze({
     ...row,
     context_id:text(row.context_id)||null,
@@ -54,6 +69,13 @@ export function normalizeWeeklyContext(row={}){
     event_name:text(row.event_name)||null,
     pot_size:numberOrNull(row.pot_size),
     event_effects_parsed:Object.freeze(effects),
+    event_effect_registry_version:projection.registry_version,
+    event_effect_states:projection.states,
+    strategy_event_effects:projection.deterministic_effects,
+    feature_only_event_effects:projection.feature_only_effects,
+    review_event_effects:projection.review_effects,
+    event_effect_strategy_fingerprint:projection.strategy_effect_fingerprint,
+    event_effect_review_required:Boolean(projection.has_review_required),
     recipe_final_energy_multiplier:multiplier,
     extra_tasty_multiplier:tasty,
     sunday_extra_tasty_multiplier:sundayTasty,
@@ -61,22 +83,24 @@ export function normalizeWeeklyContext(row={}){
   });
 }
 
+export function weeklyContextStrategyFingerprintInput(row={}){
+  const normalized=row?.strategy_event_effects&&row?.event_effect_registry_version?row:normalizeWeeklyContext(row);
+  return stable({
+    week_start:text(normalized.week_start)||null,
+    camp:text(normalized.camp)||null,
+    dish_category:normalizeDishCategory(normalized.dish_category),
+    favorite_berry_1:text(normalized.favorite_berry_1)||null,
+    favorite_berry_2:text(normalized.favorite_berry_2)||null,
+    favorite_berry_3:text(normalized.favorite_berry_3)||null,
+    pot_size:numberOrNull(normalized.pot_size),
+    strategy_event_effects:normalized.strategy_event_effects||{},
+    event_effect_registry_version:normalized.event_effect_registry_version||WEEKLY_EVENT_EFFECT_REGISTRY_VERSION,
+  });
+}
+
 export function validateWeeklyEventEffects(value){
   const effects=parseWeeklyEventEffects(value);
-  for(const key of ['recipe_final_energy_multiplier','extra_tasty_multiplier','sunday_extra_tasty_multiplier','sunday_pot_multiplier']){
-    if(!(key in effects)||effects[key]===null||effects[key]==='')continue;
-    const numeric=Number(effects[key]);
-    if(!Number.isFinite(numeric)||numeric<=0)throw new Error(`weekly_context event_effects.${key} 必須為大於 0 的數字`);
-  }
-  if('new_recipe_count' in effects&&effects.new_recipe_count!==null&&effects.new_recipe_count!==''){
-    const count=Number(effects.new_recipe_count);
-    if(!Number.isInteger(count)||count<0)throw new Error('weekly_context event_effects.new_recipe_count 必須為 0 以上整數');
-  }
-  for(const key of ['meal_category_forced','cross_sleep_type_encounters','shiny_encounter_possible']){
-    if(key in effects&&effects[key]!==null&&effects[key]!==''&&typeof effects[key]!=='boolean')throw new Error(`weekly_context event_effects.${key} 必須為 true/false`);
-  }
-  for(const key of ['encounter_type_boosts','boosted_pokemon_types']){
-    if(key in effects&&effects[key]!==null&&!Array.isArray(effects[key]))throw new Error(`weekly_context event_effects.${key} 必須為陣列`);
-  }
+  const issues=validateWeeklyEventEffectsByRegistry(effects);
+  if(issues.length)throw new Error(issues[0]);
   return effects;
 }
