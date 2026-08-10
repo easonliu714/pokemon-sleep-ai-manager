@@ -1,5 +1,6 @@
-export const STRATEGY_ANALYSIS_PACK_VERSION='strategy-analysis-pack-2026-08-10-b';
-export const STRATEGY_ANALYSIS_PROMPT_VERSION='strategy-analysis-prompt-2026-08-10-b';
+export const STRATEGY_ANALYSIS_PACK_VERSION='strategy-analysis-pack-2026-08-10-c';
+export const STRATEGY_ANALYSIS_PROMPT_VERSION='strategy-analysis-prompt-2026-08-10-c';
+export const STRATEGY_ANALYSIS_SHARING_NOTICE_VERSION='strategy-analysis-sharing-notice-2026-08-10-a';
 
 const text=value=>String(value??'').normalize('NFKC').trim();
 const number=value=>{const n=Number(value);return value===null||value===undefined||value===''||!Number.isFinite(n)?null:n;};
@@ -32,6 +33,21 @@ function replaceStableIds(value,resolver){
   return value;
 }
 function safeStrings(values,resolver){return unique((Array.isArray(values)?values:[]).map(value=>replaceStableIds(text(value),resolver)));}
+function collectStablePokemonIds(value,out=new Set()){
+  if(Array.isArray(value)){for(const item of value)collectStablePokemonIds(item,out);return out;}
+  if(!value||typeof value!=='object')return out;
+  for(const [key,item] of Object.entries(value)){
+    if((key==='pokemon_id'||key==='pokemon_instance_id')&&text(item))out.add(text(item));
+    collectStablePokemonIds(item,out);
+  }
+  return out;
+}
+function collectCandidateRefs(value,out=new Set()){
+  if(typeof value==='string'){for(const ref of value.match(/cand_\d+/g)||[])out.add(ref);return out;}
+  if(Array.isArray(value)){for(const item of value)collectCandidateRefs(item,out);return out;}
+  if(value&&typeof value==='object')for(const item of Object.values(value))collectCandidateRefs(item,out);
+  return out;
+}
 
 function sanitizeCandidate(row,ref,resolver){
   return Object.freeze({
@@ -134,14 +150,36 @@ function sanitizeGoalProfile(goalProfile){
   });
 }
 
-function sanitizeRecipeStrategy(recipeStrategy){
+function recipeRequirementParity(req,resource){
+  const projectionOwned=number(req?.owned),projectionUsable=number(req?.usable);
+  const physicalQuantity=resource?number(resource.quantity):projectionOwned;
+  const physicalAvailable=resource?number(resource.available):projectionUsable;
+  const checks=[];
+  if(resource&&projectionOwned!==null)checks.push(physicalQuantity===projectionOwned);
+  if(resource&&projectionUsable!==null)checks.push(physicalAvailable===projectionUsable);
+  if(checks.includes(false))return 'MISMATCH';
+  if(checks.length&&checks.every(Boolean))return 'MATCH';
+  return resource?'PARTIAL':'MISSING_RESOURCE';
+}
+function sanitizeRecipeStrategy(recipeStrategy,resources){
+  const resourceMap=new Map((resources?.ingredients||[]).map(row=>[text(row.ingredient_name),row]));
   return Object.freeze({
     projection_status:text(recipeStrategy?.projection_status)||null,
     candidates:Object.freeze((recipeStrategy?.candidates||[]).slice(0,10).map(row=>Object.freeze({
       recipe_id:text(row.recipe_id)||null,recipe_name:text(row.recipe_name)||null,category:text(row.category)||null,unlocked:Boolean(row.unlocked),
-      total_ingredients:number(row.total_ingredients),requirements:Object.freeze((row.requirements||[]).map(req=>Object.freeze({
-        ingredient_name:text(req.ingredient_name),required:Number(req.required??req.required_quantity??req.quantity??0),current:Number(req.current??req.available??0),strategy_shortage:Number(req.strategy_shortage??req.shortage??0),
-      }))),
+      total_ingredients:number(row.total_ingredients),candidate_status:text(row.candidate_status)||null,hard_constraint_status:text(row.hard_constraint_status)||null,
+      pot_fit:row.pot_fit===true?true:row.pot_fit===false?false:null,total_raw_shortage:number(row.total_raw_shortage),total_strategy_shortage:number(row.total_strategy_shortage),
+      requirements:Object.freeze((row.requirements||[]).map(req=>{
+        const name=text(req.ingredient_name),resource=resourceMap.get(name)||null;
+        return Object.freeze({
+          ingredient_name:name,required:number(req.required??req.required_quantity??req.quantity),
+          physical_quantity:resource?number(resource.quantity):number(req.owned),
+          safe_reserve:number(req.safe_reserve),
+          physical_available:resource?number(resource.available):number(req.usable),
+          raw_shortage:number(req.raw_shortage),strategy_shortage:number(req.strategy_shortage??req.shortage),
+          inventory_parity_status:recipeRequirementParity(req,resource),
+        });
+      })),
     }))),
   });
 }
@@ -174,36 +212,67 @@ function deriveMissingRules({candidateScoring,teamOptimization,recipeDiscovery,r
   return Object.freeze([...missing].sort());
 }
 
+function recipeParityStatus(recipeStrategy){
+  const statuses=(recipeStrategy?.candidates||[]).flatMap(row=>(row.requirements||[]).map(req=>req.inventory_parity_status));
+  if(statuses.includes('MISMATCH'))return 'MISMATCH';
+  if(statuses.includes('MISSING_RESOURCE'))return 'MISSING_RESOURCE';
+  if(statuses.includes('PARTIAL'))return 'PARTIAL';
+  return statuses.length?'MATCH':'NOT_APPLICABLE';
+}
+function sharingNotice(){return Object.freeze({
+  notice_version:STRATEGY_ANALYSIS_SHARING_NOTICE_VERSION,
+  data_classification:'PRIVATE_GAME_RECORDS',
+  technical_sensitive_data_excluded:true,
+  contains_game_records:true,
+  recommendation:'TRUSTED_AI_ONLY_NOT_PUBLIC',
+  message:'此 Prompt／JSON／Markdown 不包含 API Key、raw SQLite、stable Pokémon local ID、原始截圖、完整 OCR、source image ref 或 identity fingerprint，但包含你的 Pokémon roster 摘要、庫存、策略目標與本週環境等遊戲記錄。請只提供給你信賴的 AI 模型／服務分析，不建議公開張貼或分享給不必要的第三方。',
+});}
+
 function promptForPack(pack){
-  return `你是 Pokémon Sleep 策略分析模型。請只根據下方 Strategy Analysis Pack 提供建議。\n\n不可違反的資料規則：\n1. resource_snapshot 中的實際持有量、保留量與 available 是平台本機觀測；不得自行改寫、補猜或用外部知識替換。\n2. null、missing_rules、REVIEW_REQUIRED、NOT_YET_VERIFIED 代表平台目前沒有可信 deterministic 規則；不得為了完成回答而捏造精確數值。\n3. 必須清楚區分 FACT（平台觀測事實）/ DETERMINISTIC（平台規則結果）/ AI_INFERENCE（你的策略推論）。\n4. 不得自造不存在的寶可夢個體；只能引用 candidate_ref。\n5. 不得把萬能／屬性糖果的推算轉換量當成已持有的寶可夢糖果；physical 與 convertible 明確分離。\n6. 若缺少 ingredient/hour、weekly energy、糖果轉換、活動倍率、進化成本或其他規則，請以缺值／定性 trade-off 表達，不得輸出虛假的精確值。\n7. 本回答只作建議，不代表可直接修改玩家 SQLite，也不要輸出任何 Apply operation。\n\n分析要求：\n${pack.analysis_request||'請依目前目標、資源、本週環境與 deterministic 結果，提出優先順序、理由、風險、缺少資料與下一步。'}\n\n輸出格式：\n- 建議優先順序\n- 每項建議引用的 candidate_ref / recipe_id / resource evidence\n- 主要 trade-off\n- 目前無法可靠計算的項目\n- 建議補充的資料或 Evidence\n- 每個重要推論標示 FACT / DETERMINISTIC / AI_INFERENCE\n\nStrategy Analysis Pack JSON：\n${JSON.stringify(pack,null,2)}`;
+  return `你是 Pokémon Sleep 策略分析模型。請只根據下方 Strategy Analysis Pack 提供建議。\n\n【Evidence Authority】\n1. FACT：resource_snapshot、weekly_context 中明確提供的玩家觀測／公版資料為 FACT；其中 resource_snapshot.quantity / available 是 physical resource 的最高權威，不得自行改寫、補猜或用外部知識替換。\n2. DETERMINISTIC：只有 Pack 已明確輸出的 deterministic projection / rule result 才能標示 DETERMINISTIC。你自行做的加減乘除、跨區塊 join、排序、使用後餘量、機會成本比較，即使輸入都來自 FACT，也必須標示 AI_INFERENCE。\n3. AI_INFERENCE：所有策略優先順序、option value、跨目標 trade-off 與資源競爭判斷都必須標示 AI_INFERENCE。\n\n【Missing Rule Safety】\n4. null、missing_rules、REVIEW_REQUIRED、FEATURE_ONLY、NOT_YET_VERIFIED、UNKNOWN 代表平台沒有足夠 verified deterministic rule；不得將未知視為 0、不得把沒有 Evidence 當成負面 Evidence、不得捏造精確數值。應使用 NOT COMPUTABLE / INSUFFICIENT EVIDENCE / QUALITATIVE TRADE-OFF。\n\n【Recipe / Resource Consistency】\n5. recipe requirement 的 physical_quantity / physical_available 與 resource_snapshot 是 physical inventory evidence；strategy_shortage 是平台 recipe strategy projection。不得僅因 strategy_shortage=0 就自行宣稱「目前確定可立即製作」。\n6. 必須檢查 inventory_parity_status。若為 MISMATCH / MISSING_RESOURCE / PARTIAL，標示 DATA_CONSISTENCY_GAP，指出衝突，不得自行挑一個值冒充 DETERMINISTIC。\n7. 若你使用 resource_snapshot 與 recipe requirement 自行比對可製作性、使用後剩餘量或解鎖順序，結果必須標示 AI_INFERENCE。\n8. 不得逐道料理孤立判斷；同一食材若同時被多個 recipe、Discovery stockpile 或其他目標需求，必須分析 resource contention、歸零風險、其他目標被阻斷的可能與 option value。缺少 production-rate model 時不得假設食材容易補回。\n\n【Candidate Reference Integrity】\n9. 只能引用 candidate_pokemon[] 中存在的 candidate_ref。若任何 deterministic result 引用了不存在的 candidate_ref，標示 REFERENCE_INTEGRITY_GAP，不得自行補猜個體資料，也不得把該 ref 作為正式推薦依據。\n\n【Discovery / Candy / Evolution Safety】\n10. canonical_active=false、canonical_name_zh_tw=null 或 CONSERVATIVE_DISCOVERY_UPPER_BOUND 只能作保守囤料方向，不得描述成已確認正式料理或確定需求量。\n11. physical candy 與 convertible candy 必須完全分離；candy_conversion.rule_status != ACTIVE_VERIFIED 或 derived_options 為空時，不得輸出任何換算數量。\n12. 持有進化道具不代表某 candidate 值得進化。缺 evolution target/cost/post-evolution benefit/training ROI 時只能作定性 trade-off。\n13. 只有 strategy_event_effects / ACTIVE_VERIFIED effect 能作 deterministic strategy evidence；feature_only_event_effects 不得自行轉成 numeric bonus。\n\n【Privacy / Action Boundary】\n14. 不得要求或推導 API Key、raw SQLite、stable Pokémon local ID、raw screenshots、完整 OCR、source image ref、identity fingerprint 或 private notes。\n15. 本回答只作建議，不代表可直接修改玩家 SQLite，也不要輸出任何 Apply operation。\n\n【Pack QA】\n16. 回答中必須新增「資料完整性／一致性問題」段落，檢查 missing candidate_ref、resource/recipe parity、contradictory deterministic results、unknown canonical identity、physical/convertible double counting。若沒有問題也要明確寫「未發現」。\n\n分析要求：\n${pack.analysis_request||'請依目前目標、資源、本週環境與 deterministic 結果，提出優先順序、理由、風險、缺少資料與下一步。'}\n\n輸出格式：\n1. 重點摘要\n2. 建議優先順序（每項標示 FACT / DETERMINISTIC / AI_INFERENCE）\n3. Resource opportunity-cost analysis\n4. Candidate / Recipe Evidence（只引用可解析 candidate_ref / recipe_id）\n5. 主要 trade-off\n6. 目前無法可靠計算的項目（對應 missing_rules）\n7. 資料完整性／一致性問題\n8. 建議補充的 Data / Evidence（依最能改善下一次決策品質排序）\n9. 最終策略（區分平台 FACT、平台 DETERMINISTIC、AI_INFERENCE）\n\nStrategy Analysis Pack JSON：\n${JSON.stringify(pack,null,2)}`;
 }
 
 export function buildStrategyAnalysisPack({
   analysisRequest='',weeklyContext={},goalProfile=null,resourceSnapshot={},candidateScoring={},teamOptimization={},recipeStrategy={},recipeDiscovery={},masterVersions={},ruleVersions={},currentTeamPokemonIds=[],candidateLimit=30,privacyManifest=null,
 }={}){
   const allCandidates=sortCandidates(candidateScoring?.candidates||[]),resolver=buildEphemeralCandidateResolver(allCandidates);
-  const requiredIds=new Set([...(currentTeamPokemonIds||[]).map(text),...(teamOptimization?.primary?.slots||[]).map(slot=>text(slot.pokemon_id||slot.pokemon_instance_id))].filter(Boolean));
+  const requiredIds=new Set((currentTeamPokemonIds||[]).map(text).filter(Boolean));
+  for(const id of collectStablePokemonIds(teamOptimization))requiredIds.add(id);
+  for(const id of collectStablePokemonIds(recipeDiscovery))requiredIds.add(id);
+  for(const id of collectStablePokemonIds(goalProfile))requiredIds.add(id);
+  for(const ref of collectCandidateRefs(goalProfile)){
+    const stableId=resolver.ref_to_stable.get(ref);if(stableId)requiredIds.add(stableId);
+  }
+  const unresolvedRequired=[...requiredIds].filter(id=>!resolver.stable_to_ref.has(id));
+  if(unresolvedRequired.length)throw new Error(`Strategy Analysis Pack candidate closure failed: ${unresolvedRequired.length} deterministic reference(s) missing from candidate scoring`);
   const selected=[];
   for(const row of allCandidates)if(requiredIds.has(candidateStableId(row)))selected.push(row);
   for(const row of allCandidates)if(selected.length<Math.max(5,Number(candidateLimit)||30)&&!selected.includes(row))selected.push(row);
   const candidateRows=selected.map(row=>sanitizeCandidate(row,resolver.stable_to_ref.get(candidateStableId(row)),resolver));
   const currentTeamRefs=(currentTeamPokemonIds||[]).map(id=>resolver.stable_to_ref.get(text(id))).filter(Boolean);
   const weekly=sanitizeWeeklyContext(weeklyContext),goal=sanitizeGoalProfile(goalProfile),resources=sanitizeResources(resourceSnapshot,{recipeStrategy,recipeDiscovery,teamOptimization});
+  const recipeStrategySafe=sanitizeRecipeStrategy(recipeStrategy,resources);
   const deterministicResults=Object.freeze({
     team_optimization:Object.freeze({
       projection_status:text(teamOptimization?.projection_status)||null,
       primary:sanitizeTeam(teamOptimization?.primary,resolver),alternatives:Object.freeze((teamOptimization?.alternatives||[]).map(team=>sanitizeTeam(team,resolver))),estimated_energy:null,
     }),
-    recipe_strategy:sanitizeRecipeStrategy(recipeStrategy),
+    recipe_strategy:recipeStrategySafe,
     recipe_discovery:sanitizeRecipeDiscovery(recipeDiscovery,resolver),
   });
+  const candidateRefSet=new Set(candidateRows.map(row=>row.candidate_ref));
+  const deterministicRefs=collectCandidateRefs(deterministicResults);
+  const unresolvedRefs=[...deterministicRefs].filter(ref=>!candidateRefSet.has(ref));
+  if(unresolvedRefs.length)throw new Error(`Strategy Analysis Pack candidate reference integrity failed: ${unresolvedRefs.length} unresolved reference(s)`);
   const missingRules=deriveMissingRules({candidateScoring,teamOptimization,recipeDiscovery,resourceSnapshot,weeklyContext});
   const base={
     schema:'pokemon-sleep-strategy-analysis-pack/1.0',pack_version:STRATEGY_ANALYSIS_PACK_VERSION,prompt_version:STRATEGY_ANALYSIS_PROMPT_VERSION,
     analysis_request:text(analysisRequest)||'請依目前目標、資源、本週環境與 deterministic 結果，提出本週最值得執行的策略優先順序。',
+    sharing_notice:sharingNotice(),
     weekly_context:weekly,goal_profile:goal,resource_snapshot:resources,
     current_team:Object.freeze({candidate_refs:Object.freeze(currentTeamRefs)}),candidate_pokemon:Object.freeze(candidateRows),deterministic_results:deterministicResults,
     missing_rules:missingRules,public_master_versions:stable(masterVersions||{}),rule_versions:stable(ruleVersions||{}),
+    integrity_manifest:Object.freeze({candidate_reference_closure:true,unresolved_candidate_reference_count:0,recipe_resource_parity_status:recipeParityStatus(recipeStrategySafe)}),
     privacy_manifest:Object.freeze(privacyManifest||{api_key_in_pack:false,raw_sqlite_in_pack:false,raw_screenshot_in_pack:false,raw_ocr_in_pack:false,stable_pokemon_ids_in_pack:false,identity_fingerprint_in_pack:false,private_notes_in_pack:false,source_image_refs_in_pack:false,ephemeral_candidate_refs:true}),
     safety_manifest:Object.freeze({direct_apply_allowed:false,ai_numeric_source_of_truth:false,physical_candy_only:true,convertible_candy_in_physical_totals:false}),
   };
@@ -215,7 +284,10 @@ export function buildStrategyAnalysisPack({
 export function strategyAnalysisPackMarkdown(pack){
   const lines=[
     '# Pokémon Sleep Strategy Analysis Pack','',
+    `> **分享提醒**：${pack.sharing_notice?.message||'此檔案包含玩家遊戲紀錄，請只提供給信賴的 AI 模型／服務分析，不建議公開散布。'}`,'',
     `- Pack version: \`${pack.pack_version}\``,`- Input fingerprint: \`${pack.input_fingerprint}\``,`- Week: ${pack.weekly_context?.week_start||'—'}`,`- Camp: ${pack.weekly_context?.camp||'—'}`,`- Goal: ${pack.goal_profile?.primary_goal||'—'}`,
+    `- Candidate reference closure: ${pack.integrity_manifest?.candidate_reference_closure?'PASS':'FAIL'}`,
+    `- Recipe / resource parity: ${pack.integrity_manifest?.recipe_resource_parity_status||'—'}`,
     '','## Resource snapshot','',
     '| 類型 | 名稱 | 持有 | 保留 | 可動用 |','|---|---|---:|---:|---:|',
     ...(pack.resource_snapshot?.ingredients||[]).map(row=>`| 食材 | ${row.ingredient_name} | ${row.quantity} | — | ${row.available} |`),
@@ -226,7 +298,7 @@ export function strategyAnalysisPackMarkdown(pack){
     ...(pack.candidate_pokemon||[]).map(row=>`| ${row.candidate_ref} | ${row.species||'—'} | ${row.level??'—'} | ${row.specialty||'—'} | ${row.current_readiness_score??'—'} | ${row.hard_constraint_status||'—'} |`),
     '','## Missing deterministic rules','',...(pack.missing_rules?.length?pack.missing_rules.map(item=>`- ${item}`):['- 無']),
     '','## Analysis request','',pack.analysis_request||'',
-    '','> 此檔案不包含 API Key、raw SQLite、原始截圖、完整 OCR、stable Pokémon local ID 或 identity fingerprint。AI 回覆只作建議，不可直接 Apply。','',
+    '','> 此檔案不包含 API Key、raw SQLite、原始截圖、完整 OCR、stable Pokémon local ID 或 identity fingerprint；但包含玩家 Pokémon、庫存、策略目標與本週環境等遊戲紀錄。請只交付給信賴的 AI 模型／服務。AI 回覆只作建議，不可直接 Apply。','',
   ];
   return lines.join('\n');
 }
