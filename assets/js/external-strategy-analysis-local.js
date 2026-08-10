@@ -21,7 +21,7 @@ import {TEAM_OPTIMIZER_VERSION} from './team-optimizer.js';
 import {RECIPE_DISCOVERY_STOCKPILE_VERSION} from './recipe-discovery-stockpile.js';
 import {RECIPE_STRATEGY_ENGINE_VERSION} from './recipe-strategy-projection.js';
 
-export const STRATEGY_ANALYSIS_LOCAL_VERSION='strategy-analysis-local-2026-08-10-b';
+export const STRATEGY_ANALYSIS_LOCAL_VERSION='strategy-analysis-local-2026-08-10-c';
 
 const text=value=>String(value??'').normalize('NFKC').trim();
 function currentTeamPokemonIds(){
