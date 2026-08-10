@@ -98,7 +98,10 @@ for(const legacy of ['textarea name="must_include_pokemon"','textarea name="excl
 const teamUi=read('assets/js/war-room-team-optimizer-ui.js');
 const teamBootstrap=read('assets/js/war-room-team-optimizer-bootstrap.js');
 const candidateUi=read('assets/js/war-room-candidate-feature-ui.js');
-for(const required of ['隊長（呈現槽位）','主要建議','查看替代隊伍','精準能量模型尚未啟用'])assert.ok(teamUi.includes(required));
+for(const required of ['隊長（呈現槽位）','精準能量模型尚未啟用'])assert.ok(teamUi.includes(required));
+assert.ok(teamUi.includes('主要建議')||teamUi.includes('一般戰略主要建議'),'general team primary recommendation label missing');
+assert.ok(teamUi.includes('查看替代隊伍')||teamUi.includes('查看一般戰略替代隊伍'),'general team alternative label missing');
+assert.ok(teamUi.includes('自動組隊建議（本機 deterministic）')||teamUi.includes('一般戰略自動組隊（Goal Profile）'),'general team title semantics missing');
 assert.ok(teamBootstrap.includes('if(!isDatabaseReady())return'));
 assert.ok(candidateUi.includes('候選／替補池'));
 assert.ok(candidateUi.includes('<details class="war-candidate-pool">'));
@@ -138,6 +141,7 @@ process.stdout.write(`${JSON.stringify({
   missing_precache_assets:missing,
   core_war_room_precache_complete:true,
   strategy_context_response_contract_fixed:true,
+  general_team_label_forward_compatible:true,
   precise_energy_claim:false,
   player_team_write:false,
   private_raw_source_committed:false,

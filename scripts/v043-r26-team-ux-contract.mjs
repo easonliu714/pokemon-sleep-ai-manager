@@ -15,9 +15,12 @@ const recipeLocal=read('assets/js/recipe-strategy-local.js');
 const css=read('assets/css/editor.css');
 const optimizer=read('assets/js/team-optimizer.js');
 const local=read('assets/js/team-optimizer-local.js');
+const includesAny=(source,tokens)=>tokens.some(token=>source.includes(token));
 
+assert.equal(includesAny(ui,['自動組隊建議（本機 deterministic）','一般戰略自動組隊（Goal Profile）']),true,'Team Card UI title semantics missing');
+assert.equal(includesAny(ui,['查看替代隊伍','查看一般戰略替代隊伍']),true,'Team Card alternative-team UX missing');
 for(const required of [
-  '自動組隊建議（本機 deterministic）','主要建議','隊長（呈現槽位）','重新計算隊伍','查看替代隊伍',
+  '主要建議','隊長（呈現槽位）','重新計算隊伍',
   '精準能量模型尚未啟用','Gemini 不參與成員挑選或數值排序','本機草稿',
   'weekly_ingredient_overlap','current_readiness_score','favorite_berry_match','specialty','reasons',
 ]) assert.equal(ui.includes(required),true,`Team Card UI token missing: ${required}`);
@@ -52,7 +55,6 @@ for(const required of [
   'min-height:44px','@media(max-width:700px)',
 ]) assert.equal(css.includes(required),true,`Team Card mobile CSS missing: ${required}`);
 
-// The engine must remain pure and provider-free; the UI is presentation-only and does not create formal team rows.
 for(const source of [optimizer,local,ui,bootstrap]){
   assert.equal(source.includes('ai-project-pool-runtime'),false,'Team optimizer path imported provider runtime');
   assert.equal(source.includes('INSERT INTO teams'),false,'Team optimizer path directly wrote teams');
@@ -63,5 +65,5 @@ process.stdout.write(`${JSON.stringify({
   status:'PASS',gate:'R2.6_FIVE_MEMBER_WAR_ROOM_TEAM_CARD_UX',
   team_result_before_candidate_pool:true,leader_text_visible:true,member_text_visible:true,alternatives_collapsible:true,
   candidate_pool_collapsed:true,precise_energy_claim:false,leader_bonus_claim:false,direct_team_write:false,gemini_dependency:false,
-  db_ready_lifecycle_guard:true,mobile_touch_target_contract:true,
+  db_ready_lifecycle_guard:true,mobile_touch_target_contract:true,objective_label_forward_compatible:true,
 },null,2)}\n`);

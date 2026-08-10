@@ -2,6 +2,7 @@ import {rows,isDatabaseReady,isRescueReadonly} from './database.js';
 import {getActiveStrategyGoalProfile} from './strategy-goal-store.js';
 import {buildLocalPokemonCandidateScoring} from './pokemon-candidate-local.js';
 import {projectRecipeDiscoveryStockpile,RECIPE_DISCOVERY_STOCKPILE_VERSION} from './recipe-discovery-stockpile.js';
+import {currentWeeklyContext} from './weekly-context-store.js';
 
 export function buildLocalRecipeDiscoveryStockpile({maxAlternatives=2}={}){
   if(!isDatabaseReady()||isRescueReadonly())return Object.freeze({
@@ -10,7 +11,7 @@ export function buildLocalRecipeDiscoveryStockpile({maxAlternatives=2}={}){
     missing_inputs:Object.freeze(['player_database']),production_rate_model:'NOT_YET_VERIFIED',estimated_ingredient_per_hour:null,estimated_weekly_energy:null,
     player_data_write:false,gemini_used:false,canonical_recipe_state_write:false,
   });
-  const weeklyContext=rows('SELECT * FROM weekly_context ORDER BY updated_at DESC LIMIT 1')[0]||{};
+  const weeklyContext=currentWeeklyContext();
   const inventory=rows('SELECT ingredient_name,quantity FROM ingredient_inventory ORDER BY ingredient_name');
   const goalProfile=getActiveStrategyGoalProfile();
   const scoringProjection=buildLocalPokemonCandidateScoring();

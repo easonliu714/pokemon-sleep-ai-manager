@@ -6,10 +6,7 @@ import {
 } from './public-recipe-provenance.js';
 import {projectRecipeStrategy} from './recipe-strategy-projection.js';
 import {getActiveStrategyGoalProfile} from './strategy-goal-store.js';
-
-function latestWeeklyContext(){
-  return rows('SELECT * FROM weekly_context ORDER BY updated_at DESC LIMIT 1')[0]||{};
-}
+import {currentWeeklyContext} from './weekly-context-store.js';
 
 export function buildLocalRecipeStrategyProjection({
   potSize=undefined,
@@ -37,7 +34,7 @@ export function buildLocalRecipeStrategyProjection({
     };
   }
 
-  const week=latestWeeklyContext();
+  const week=currentWeeklyContext();
   const goalProfile=getActiveStrategyGoalProfile();
   const hardConstraints=goalProfile?.hard_constraints||{};
   const effectiveReserve=ingredientSafeReserve===undefined?(hardConstraints.ingredient_safe_reserve||{}):ingredientSafeReserve;
@@ -73,12 +70,21 @@ export function buildLocalRecipeStrategyProjection({
     projection_status:'READY',
     goal_profile_id:goalProfile?.goal_profile_id||null,
     weekly_context_id:week.context_id||null,
+    weekly_context_week_start:week.week_start||null,
+    weekly_context_status:week.context_status||null,
+    weekly_context_authority:week.authority_source||'MISSING',
+    weekly_context_update_id:week.authority_update_id||null,
     weekly_context_updated_at:week.updated_at||null,
   };
 }
 
 if(typeof window!=='undefined'){
   queueMicrotask(()=>Promise.all([
+    import('./weekly-context-ui-bridge.js'),
+    import('./weekly-context-update-center-bridge.js'),
+    import('./weekly-context-consumer-banner.js'),
+    import('./camp-berry-knowledge-ui.js'),
+    import('./current-week-recipe-recommendation-bridge.js'),
     import('./evaluation-lifecycle-bootstrap.js'),
     import('./war-room-goal-profile-bootstrap.js'),
     import('./war-room-evaluation-lifecycle-bootstrap.js'),
@@ -86,5 +92,5 @@ if(typeof window!=='undefined'){
     import('./war-room-recipe-discovery-bootstrap.js'),
     import('./war-room-candidate-feature-bootstrap.js'),
     import('./war-room-strategy-context-bootstrap.js'),
-  ]).catch(error=>console.warn('War Room strategy UI bootstrap deferred',error)));
+  ]).catch(error=>console.warn('War Room / weekly integration UI bootstrap deferred',error)));
 }

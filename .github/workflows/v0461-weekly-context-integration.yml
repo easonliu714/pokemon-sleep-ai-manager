@@ -1,0 +1,77 @@
+name: V0.4.6.1 Weekly Context Integration
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/version-authority.js'
+      - 'assets/js/public-camp-berry-master.js'
+      - 'assets/js/weekly-context-store.js'
+      - 'assets/js/weekly-context-import-contract.js'
+      - 'assets/js/weekly-context-ui-bridge.js'
+      - 'assets/js/weekly-context-update-center-bridge.js'
+      - 'assets/js/weekly-context-consumer-banner.js'
+      - 'assets/js/camp-berry-knowledge-ui.js'
+      - 'assets/js/current-week-recipe-recommendation-bridge.js'
+      - 'assets/js/public-recipe-discovery-master.js'
+      - 'assets/js/recipe-discovery-stockpile.js'
+      - 'assets/js/recipe-discovery-stockpile-local.js'
+      - 'assets/js/recipe-strategy-local.js'
+      - 'assets/js/pokemon-candidate-local.js'
+      - 'assets/js/strategy-context-local.js'
+      - 'assets/js/evaluation-lifecycle.js'
+      - 'assets/js/war-room-team-optimizer-ui.js'
+      - 'assets/js/war-room-recipe-discovery-ui.js'
+      - 'assets/js/prompt-catalog.js'
+      - 'scripts/v0461-weekly-context-integration-contract.mjs'
+      - 'scripts/v0461-release-contract.mjs'
+      - 'scripts/v046-recipe-discovery-release-contract.mjs'
+      - 'scripts/war2b-recipe-discovery-stockpile-contract.mjs'
+      - '.github/workflows/v0461-weekly-context-integration.yml'
+  workflow_dispatch:
+
+jobs:
+  weekly-context-integration:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify exact v0.4.6.1 release contract
+        run: node scripts/v0461-release-contract.mjs
+      - name: Verify v0.4.6.1 weekly context integration contract
+        run: node scripts/v0461-weekly-context-integration-contract.mjs
+      - name: Verify WAR.2B discovery contract remains green
+        run: node scripts/war2b-recipe-discovery-stockpile-contract.mjs
+      - name: Verify historical v0.4.6 release compatibility
+        run: node scripts/v046-recipe-discovery-release-contract.mjs
+      - name: Verify JavaScript syntax
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node --check assets/js/version-authority.js
+          node --check assets/js/public-camp-berry-master.js
+          node --check assets/js/weekly-context-store.js
+          node --check assets/js/weekly-context-import-contract.js
+          node --check assets/js/weekly-context-ui-bridge.js
+          node --check assets/js/weekly-context-update-center-bridge.js
+          node --check assets/js/weekly-context-consumer-banner.js
+          node --check assets/js/camp-berry-knowledge-ui.js
+          node --check assets/js/current-week-recipe-recommendation-bridge.js
+          node --check assets/js/public-recipe-discovery-master.js
+          node --check assets/js/recipe-discovery-stockpile.js
+          node --check assets/js/recipe-discovery-stockpile-local.js
+          node --check assets/js/recipe-strategy-local.js
+          node --check assets/js/pokemon-candidate-local.js
+          node --check assets/js/strategy-context-local.js
+          node --check assets/js/evaluation-lifecycle.js
+          node --check assets/js/war-room-team-optimizer-ui.js
+          node --check assets/js/war-room-recipe-discovery-ui.js
+          node --check assets/js/prompt-catalog.js
+          node --check scripts/v0461-weekly-context-integration-contract.mjs
+          node --check scripts/v0461-release-contract.mjs
+          node --check scripts/v046-recipe-discovery-release-contract.mjs
+          node --check scripts/war2b-recipe-discovery-stockpile-contract.mjs
+      - name: Verify no tracked test mutation
+        shell: bash
+        run: test -z "$(git status --porcelain --untracked-files=no)"
