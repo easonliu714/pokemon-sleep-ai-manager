@@ -31,8 +31,8 @@ function templateKey(entity){
     recipes:{recipe_name:'忍者咖哩'},
     recipe_ingredients:{recipe_id:'recipe_example_001',ingredient_name:'好眠番茄'},
     account_capacity:{capacity_key:'ingredient_bag'},
-    weekly_plan:{plan_id:'week_2026-07-27'},
-    weekly_context:{context_id:'week_2026-08-10'},
+    weekly_plan:{plan_id:'week_example_current'},
+    weekly_context:{context_id:'week_example_current'},
   }[entity];
 }
 
