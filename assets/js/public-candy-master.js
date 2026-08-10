@@ -31,25 +31,34 @@ export const PUBLIC_CANDY_FIXED_MASTER=Object.freeze([
   fixed('type_dragon_candy_s','龍屬性的糖果S','type','龍','project-evidence:2026-07-30-item-inventory','GAME_SCREENSHOT_VERIFIED'),
 ]);
 
-const normalize=value=>String(value??'').normalize('NFKC').trim();
-const candyIdPart=value=>encodeURIComponent(normalize(value)).replace(/%/g,'_').toLowerCase();
+// Keep authoritative zh-TW display strings byte-for-byte apart from outer
+// whitespace. NFKC is safe for comparison/stable-id keys, but must never be
+// used as the projected display name because it turns canonical full-width
+// punctuation such as 「（高調的樣子）」 into ASCII parentheses.
+const displayText=value=>String(value??'').trim();
+const normalizeKey=value=>displayText(value).normalize('NFKC');
+const candyIdPart=value=>encodeURIComponent(normalizeKey(value)).replace(/%/g,'_').toLowerCase();
 
 export function speciesCandyName(speciesName){
-  const species=normalize(speciesName);
+  const species=displayText(speciesName);
   return species?`${species}的糖果`:'';
 }
 
 export function parseSpeciesCandyName(candyName){
-  const value=normalize(candyName);
+  const value=displayText(candyName);
   const match=value.match(/^(.+)的糖果$/u);
-  return match?normalize(match[1]):null;
+  return match?displayText(match[1]):null;
 }
 
 export function publicPokemonNamesForCandy(){
-  const names=new Set();
-  for(const row of PUBLIC_EVOLUTION_MASTER){if(row.from_species)names.add(normalize(row.from_species));if(row.to_species)names.add(normalize(row.to_species));}
-  for(const row of PUBLIC_EVOLUTION_STATUS_MASTER){if(row.species_name)names.add(normalize(row.species_name));}
-  return [...names].filter(Boolean).sort((a,b)=>a.localeCompare(b,'zh-Hant'));
+  const names=new Map();
+  const add=value=>{
+    const display=displayText(value),key=normalizeKey(value);
+    if(display&&key&&!names.has(key))names.set(key,display);
+  };
+  for(const row of PUBLIC_EVOLUTION_MASTER){add(row.from_species);add(row.to_species);}
+  for(const row of PUBLIC_EVOLUTION_STATUS_MASTER)add(row.species_name);
+  return [...names.values()].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
 }
 
 export function buildPublicCandyMasterRows(){
@@ -128,12 +137,12 @@ export function syncPublicCandyMaster(db){
 }
 
 export function candyNameCandidatesFromPokemonName(speciesName){
-  const species=normalize(speciesName);
+  const species=displayText(speciesName);
   if(!species)return [];
   return [speciesCandyName(species)];
 }
 
 export function typeCandyTargetIsKnown(typeName){
-  const value=normalize(typeName);
-  return PUBLIC_BERRY_TYPES.some(row=>normalize(row.type_name)===value);
+  const value=normalizeKey(typeName);
+  return PUBLIC_BERRY_TYPES.some(row=>normalizeKey(row.type_name)===value);
 }
