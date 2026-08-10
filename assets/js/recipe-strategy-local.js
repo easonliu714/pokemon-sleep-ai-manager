@@ -72,6 +72,8 @@ export function buildLocalRecipeStrategyProjection({
     weekly_context_id:week.context_id||null,
     weekly_context_week_start:week.week_start||null,
     weekly_context_status:week.context_status||null,
+    weekly_context_authority:week.authority_source||'MISSING',
+    weekly_context_update_id:week.authority_update_id||null,
     weekly_context_updated_at:week.updated_at||null,
   };
 }
@@ -80,6 +82,7 @@ if(typeof window!=='undefined'){
   queueMicrotask(()=>Promise.all([
     import('./weekly-context-ui-bridge.js'),
     import('./weekly-context-update-center-bridge.js'),
+    import('./weekly-context-consumer-banner.js'),
     import('./camp-berry-knowledge-ui.js'),
     import('./current-week-recipe-recommendation-bridge.js'),
     import('./evaluation-lifecycle-bootstrap.js'),
