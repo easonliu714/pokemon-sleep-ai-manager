@@ -1,6 +1,6 @@
 import {buildLocalStrategyAnalysisPack,strategyAnalysisPackSummary} from './external-strategy-analysis-local.js';
 
-export const STRATEGY_ANALYSIS_PACK_UI_VERSION='strategy-analysis-pack-ui-2026-08-10-b';
+export const STRATEGY_ANALYSIS_PACK_UI_VERSION='strategy-analysis-pack-ui-2026-08-10-c';
 
 let currentResult=null;
 let stale=false;
@@ -13,25 +13,26 @@ function ensurePanel(){
   panel=document.createElement('section');panel.id='strategyAnalysisPackPanel';panel.className='panel';
   panel.innerHTML=`<h3>外部 AI Strategy Analysis Pack</h3>
     <p class="notice">由本機 deterministic 資料產生 provider-neutral 分析包。資源數量以目前 SQLite 為準；Pokémon stable local ID 會轉成 <code>cand_XXX</code>；不包含 API Key、raw SQLite、原始截圖、完整 OCR、source image ref 或 identity fingerprint。外部 AI 回覆只作策略建議，沒有直接 Apply 路徑。</p>
+    <p class="notice warning"><b>分享提醒：</b>匯出的 Prompt／JSON／Markdown 不包含上述技術敏感資料，但會包含你的 Pokémon roster 摘要、食材／道具／糖果庫存、策略目標與本週環境等遊戲記錄。請只提供給你信賴的 AI 模型／服務分析，不建議公開張貼或分享給不必要的第三方。</p>
+    <p class="notice"><b>離線使用：</b>首次使用或版本更新後，請先保持連線完成 SQLite/WASM 與戰情室動態模組載入；確認頁首顯示「SQLite 已就緒」且本區可正常產生分析包後，再切換飛航／離線模式。</p>
     <label class="edit-field full"><span>這次想讓外部 AI 分析什麼？</span><textarea id="strategyAnalysisRequest" rows="4" placeholder="例如：本週應優先解鎖新料理、培養進化目標，還是保留糖果？請比較資源機會成本。"></textarea></label>
-    <div class="buttons"><button id="strategyAnalysisBuildBtn" type="button">產生可信分析包</button><button id="strategyAnalysisCopyBtn" type="button" disabled>複製 AI 提示詞</button><button id="strategyAnalysisJsonBtn" type="button" disabled>下載 JSON</button><button id="strategyAnalysisMdBtn" type="button" disabled>下載 Markdown</button><button id="strategyAnalysisShareBtn" type="button" disabled>分享</button></div>
+    <div class="buttons"><button id="strategyAnalysisBuildBtn" type="button">產生可信分析包</button><button id="strategyAnalysisCopyBtn" type="button" disabled>複製 AI 提示詞</button><button id="strategyAnalysisJsonBtn" type="button" disabled>下載 JSON</button><button id="strategyAnalysisMdBtn" type="button" disabled>下載 Markdown</button><button id="strategyAnalysisShareBtn" type="button" disabled>分享 Prompt</button></div>
     <div id="strategyAnalysisStatus" class="notice">尚未產生。產生時不會呼叫任何 AI Provider。</div>
     <details id="strategyAnalysisMissing" class="notice"><summary><b>Missing deterministic rules</b></summary><div id="strategyAnalysisMissingBody">尚未產生。</div></details>
     <details><summary>可分享資料摘要</summary><pre id="strategyAnalysisPreview" style="white-space:pre-wrap;max-height:22rem;overflow:auto"></pre></details>`;
   host.appendChild(panel);bind(panel);return panel;
 }
 function setButtons(enabled){
-  for(const id of ['strategyAnalysisCopyBtn','strategyAnalysisJsonBtn','strategyAnalysisMdBtn'])if(el(id))el(id).disabled=!enabled;
-  const share=el('strategyAnalysisShareBtn');if(share)share.disabled=!enabled||typeof navigator.share!=='function';
+  for(const id of ['strategyAnalysisCopyBtn','strategyAnalysisJsonBtn','strategyAnalysisMdBtn','strategyAnalysisShareBtn'])if(el(id))el(id).disabled=!enabled;
 }
 function render(){
   const status=el('strategyAnalysisStatus'),preview=el('strategyAnalysisPreview'),missing=el('strategyAnalysisMissingBody');if(!status)return;
   if(!currentResult){status.className='notice';status.textContent='尚未產生。產生時不會呼叫任何 AI Provider。';if(preview)preview.textContent='';if(missing)missing.textContent='尚未產生。';setButtons(false);return;}
   const summary=strategyAnalysisPackSummary(currentResult),pack=currentResult.pack;
   status.className=stale?'notice warning':'notice success';
-  status.innerHTML=`<b>${stale?'資料或分析要求已變更，請重新產生':'可分享分析包已就緒'}</b><br>Fingerprint：<code>${esc(summary.input_fingerprint||'—')}</code> · Week：${esc(summary.week_start||'—')} · Camp：${esc(summary.camp||'—')} · Goal：${esc(summary.primary_goal||'—')}<br>Candidates=${summary.candidate_count} · Ingredients=${summary.ingredient_count} · Items=${summary.item_count} · Candies=${summary.candy_count} · Missing rules=${summary.missing_rule_count}`;
+  status.innerHTML=`<b>${stale?'資料或分析要求已變更，請重新產生':'可分享分析包已就緒'}</b><br>Fingerprint：<code>${esc(summary.input_fingerprint||'—')}</code> · Week：${esc(summary.week_start||'—')} · Camp：${esc(summary.camp||'—')} · Goal：${esc(summary.primary_goal||'—')}<br>Candidates=${summary.candidate_count} · Ingredients=${summary.ingredient_count} · Items=${summary.item_count} · Candies=${summary.candy_count} · Missing rules=${summary.missing_rule_count}<br>Candidate refs：${pack.integrity_manifest?.candidate_reference_closure?'PASS':'FAIL'} · Recipe/resource parity：${esc(pack.integrity_manifest?.recipe_resource_parity_status||'—')}`;
   if(missing)missing.innerHTML=pack.missing_rules?.length?`<ul>${pack.missing_rules.map(item=>`<li><code>${esc(item)}</code></li>`).join('')}</ul>`:'沒有列出的 missing deterministic rule。';
-  if(preview)preview.textContent=JSON.stringify({schema:pack.schema,input_fingerprint:pack.input_fingerprint,weekly_context:pack.weekly_context,goal_profile:pack.goal_profile,resource_snapshot:pack.resource_snapshot,current_team:pack.current_team,candidate_count:pack.candidate_pokemon?.length||0,missing_rules:pack.missing_rules,privacy_manifest:pack.privacy_manifest,safety_manifest:pack.safety_manifest},null,2);
+  if(preview)preview.textContent=JSON.stringify({schema:pack.schema,input_fingerprint:pack.input_fingerprint,sharing_notice:pack.sharing_notice,weekly_context:pack.weekly_context,goal_profile:pack.goal_profile,resource_snapshot:pack.resource_snapshot,current_team:pack.current_team,candidate_count:pack.candidate_pokemon?.length||0,integrity_manifest:pack.integrity_manifest,missing_rules:pack.missing_rules,privacy_manifest:pack.privacy_manifest,safety_manifest:pack.safety_manifest},null,2);
   setButtons(!stale&&Boolean(currentResult.export_safe));
 }
 function build(){
@@ -41,14 +42,18 @@ function build(){
   }catch(error){currentResult=null;stale=false;render();if(status){status.className='notice warning';status.textContent=`無法產生分析包：${error?.message||error}`;}}
 }
 async function copyPrompt(){if(!currentResult||stale)return;try{await navigator.clipboard.writeText(currentResult.prompt);alert('Strategy Analysis Prompt 已複製');}catch(error){alert(`複製失敗：${error.message}`);}}
-async function share(){
-  if(!currentResult||stale||typeof navigator.share!=='function')return;
+async function sharePrompt(){
+  if(!currentResult||stale)return;
+  if(typeof navigator.share==='function'){
+    try{await navigator.share({title:'Pokémon Sleep Strategy Analysis Prompt',text:currentResult.prompt});return;}
+    catch(error){if(error?.name==='AbortError')return;}
+  }
   try{
-    const json=JSON.stringify(currentResult.pack,null,2);
-    const files=typeof File==='function'?[new File([json],'pokemon_sleep_strategy_analysis_pack.json',{type:'application/json'}),new File([currentResult.markdown],'pokemon_sleep_strategy_analysis_pack.md',{type:'text/markdown'})]:[];
-    if(files.length&&navigator.canShare?.({files}))await navigator.share({title:'Pokémon Sleep Strategy Analysis Pack',text:'可供外部 AI 分析的本機可信資源包',files});
-    else await navigator.share({title:'Pokémon Sleep Strategy Analysis Prompt',text:currentResult.prompt});
-  }catch(error){if(error?.name!=='AbortError')alert(`分享失敗：${error.message}`);}
+    await navigator.clipboard.writeText(currentResult.prompt);
+    alert('此瀏覽器無法直接開啟分享面板，已改為複製 Strategy Analysis Prompt。請貼到你信賴的 AI 模型／服務進行分析。');
+  }catch(error){
+    alert(`分享與複製皆未完成：${error?.message||error}。請改用「複製 AI 提示詞」或下載 JSON / Markdown。`);
+  }
 }
 function bind(panel){
   if(panel.dataset.bound==='1')return;panel.dataset.bound='1';
@@ -56,7 +61,7 @@ function bind(panel){
   el('strategyAnalysisCopyBtn').onclick=copyPrompt;
   el('strategyAnalysisJsonBtn').onclick=()=>{if(currentResult&&!stale)download(JSON.stringify(currentResult.pack,null,2),'pokemon_sleep_strategy_analysis_pack.json','application/json');};
   el('strategyAnalysisMdBtn').onclick=()=>{if(currentResult&&!stale)download(currentResult.markdown,'pokemon_sleep_strategy_analysis_pack.md','text/markdown');};
-  el('strategyAnalysisShareBtn').onclick=share;
+  el('strategyAnalysisShareBtn').onclick=sharePrompt;
   el('strategyAnalysisRequest')?.addEventListener('input',()=>invalidate());
 }
 function invalidate(){if(!currentResult||stale)return;stale=true;render();}
