@@ -32,7 +32,7 @@ jobs:
         run: node scripts/v042-pokemon-scoring-engine-contract.mjs
       - name: Verify runtime readiness bridge
         run: node scripts/war2a-current-readiness-runtime-bridge-contract.mjs
-      - name: Verify exact v0.4.5 release contract
+      - name: Verify v0.4.5+ readiness baseline
         run: node scripts/v045-current-readiness-runtime-release-contract.mjs
       - name: Verify JavaScript syntax
         shell: bash

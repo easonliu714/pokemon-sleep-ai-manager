@@ -14,7 +14,13 @@ export const PROMPT_CATALOG={
   recipes:wrap('食譜解鎖／等級／能量更新','使用 scenario=recipe_status_update。逐道料理只更新玩家狀態：unlocked、recipe_level、current_energy。unlocked=false、recipe_level=0、current_energy=0 都是有效值；未出現料理不改狀態。key 優先使用 recipe_id，不知道時可使用公版 recipe_name 由平台解析。',['recipes'],{unlocked:null,recipe_level:null,current_energy:null},'recipe_status_update'),
   capacity:wrap('帳號容量更新','辨識鍋子、食材包、道具包與寶可夢盒容量；capacity_key 僅用 pot、ingredient_bag、item_bag、pokemon_box。無法確認的容量填 null。',['account_capacity'],{total_capacity:null,used_count:null}),
   discard:wrap('送博士紀錄','只有使用者明確確認送博士時才輸出；entity=discarded_pokemon、action=discarded，不可同時新增 pokemon。若畫面不能確認送博士，不得輸出操作。',['discarded_pokemon']),
-  weekly:wrap('每週營地／料理／活動規劃','整理週起始日、營地、料理類型、三種喜好樹果、活動摘要與目標。未知欄位填 null，不得清除既有週計畫。',['weekly_plan'],{camp:null,meal_type:null,event_summary:null})
+  weekly:wrap(
+    '本週營地／料理／活動 Context',
+    '使用 scenario=weekly_context_update。這是玩家當週狀態，不是公版 Master。整理週起始日、實際選擇營地、料理類型、三種喜好樹果、活動名稱、鍋子容量與活動加成。event_effects 必須存為 JSON 字串；已確認的活動加成可包含 recipe_final_energy_multiplier、extra_tasty_multiplier、sunday_extra_tasty_multiplier、sunday_pot_multiplier、new_recipe_count、event_start、event_end。updated_at 必須填產生此更新包時的 ISO 日期時間。未知欄位填 null 或省略；不得把活動或營地寫成公版固定值。',
+    ['weekly_context'],
+    {week_start:null,camp:null,dish_category:null,favorite_berry_1:null,favorite_berry_2:null,favorite_berry_3:null,event_name:null,event_effects:'{}',pot_size:null,base_notes:null,updated_at:null},
+    'weekly_context_update',
+  ),
 };
 
 function templateKey(entity){
@@ -25,7 +31,8 @@ function templateKey(entity){
     recipes:{recipe_name:'忍者咖哩'},
     recipe_ingredients:{recipe_id:'recipe_example_001',ingredient_name:'好眠番茄'},
     account_capacity:{capacity_key:'ingredient_bag'},
-    weekly_plan:{plan_id:'week_2026-07-27'},
+    weekly_plan:{plan_id:'week_example_current'},
+    weekly_context:{context_id:'week_example_current'},
   }[entity];
 }
 
@@ -33,10 +40,13 @@ export function buildScenarioTemplate(key){
   if(key==='pokemon')return buildObservationTemplate();
   const c=PROMPT_CATALOG[key];
   const entity=c.entities[0];
+  const generatedAt=new Date().toISOString();
+  const data={...c.exampleData};
+  if(entity==='weekly_context')data.updated_at=generatedAt;
   return {
     schema_version:'1.1',
-    update_id:`UPD-${new Date().toISOString().replace(/[-:TZ.]/g,'').slice(0,14)}-EXAMPLE`,
-    generated_at:new Date().toISOString(),
+    update_id:`UPD-${generatedAt.replace(/[-:TZ.]/g,'').slice(0,14)}-EXAMPLE`,
+    generated_at:generatedAt,
     source:'ai_screenshot_analysis',
     scenario:c.scenario||key,
     update_policy:{
@@ -52,7 +62,7 @@ export function buildScenarioTemplate(key){
       entity,
       action:entity==='discarded_pokemon'?'discarded':'upsert',
       key:templateKey(entity),
-      data:{...c.exampleData},
+      data,
       clear_fields:[],
       evidence:{source_type:'screenshot',source_image_ref:'image-001',confidence:0.95},
       review_required:true,
