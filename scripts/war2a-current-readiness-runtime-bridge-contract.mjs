@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {projectPokemonCandidateFeatures,POKEMON_CANDIDATE_FEATURE_VERSION} from '../assets/js/pokemon-candidate-feature-projection.js';
+import {projectPokemonCandidateFeatures,POKEMON_CANDIDATE_FEATURE_VERSION,CURRENT_READINESS_SLOT_BRIDGE_VERSION} from '../assets/js/pokemon-candidate-feature-projection.js';
 import {scorePokemonCandidateFeatures} from '../assets/js/pokemon-scoring-engine.js';
 import {POKEMON_SCORING_RULES} from '../assets/js/pokemon-scoring-rule-registry.js';
 
@@ -26,7 +26,9 @@ const goalProfile={goal_profile_id:'fixture_goal',hard_constraints:{
 const features=projectPokemonCandidateFeatures({pokemon,pokemonDetails:details,goalProfile,weeklyContext:{context_id:'fixture_week'}});
 const feature=features.candidates[0];
 
-assert.equal(POKEMON_CANDIDATE_FEATURE_VERSION,'pokemon-candidate-features-2026-08-10-c');
+assert.equal(POKEMON_CANDIDATE_FEATURE_VERSION,'pokemon-candidate-features-2026-08-09-b');
+assert.equal(CURRENT_READINESS_SLOT_BRIDGE_VERSION,'current-readiness-slot-bridge-2026-08-10-a');
+assert.equal(features.current_readiness_slot_bridge_version,CURRENT_READINESS_SLOT_BRIDGE_VERSION);
 assert.equal(feature.unlocked_ingredients.length,2,'strategy projection may include future ingredients when current_unlocks_only=false');
 assert.equal(feature.unlocked_subskills.length,2,'strategy projection may include future subskills when current_unlocks_only=false');
 assert.equal(feature.known_ingredient_slot_count,2);
@@ -54,7 +56,7 @@ assert.equal(unknownScore.current_readiness_score,null,'unknown current level mu
 
 console.log(JSON.stringify({
   status:'PASS',gate:'WAR.2A_CURRENT_READINESS_RUNTIME_BRIDGE',feature_version:POKEMON_CANDIDATE_FEATURE_VERSION,
-  current_level:25,known_unlock_slots:4,unlocked_known_slots:2,current_readiness_score:50,
+  bridge_version:CURRENT_READINESS_SLOT_BRIDGE_VERSION,current_level:25,known_unlock_slots:4,unlocked_known_slots:2,current_readiness_score:50,
   strategy_future_slots_do_not_fake_current_readiness:true,unknown_level_score:null,
   inactive_dimensions_remain_null:true,player_data_write:false,
 },null,2));
