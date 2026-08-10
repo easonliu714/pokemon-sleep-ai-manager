@@ -1,4 +1,5 @@
-export const POKEMON_CANDIDATE_FEATURE_VERSION='pokemon-candidate-features-2026-08-10-c';
+export const POKEMON_CANDIDATE_FEATURE_VERSION='pokemon-candidate-features-2026-08-09-b';
+export const CURRENT_READINESS_SLOT_BRIDGE_VERSION='current-readiness-slot-bridge-2026-08-10-a';
 
 const text=value=>String(value??'').normalize('NFKC').trim();
 const num=value=>{const n=Number(value);return value===null||value===undefined||value===''||!Number.isFinite(n)?null:n;};
@@ -128,12 +129,12 @@ export function projectPokemonCandidateFeatures({
     rows.push(feature);
   }
   const fingerprintPayload=stable({
-    feature_version:POKEMON_CANDIDATE_FEATURE_VERSION,weekly_context:weeklyContext,goal_profile:goalProfile,master_versions:masterVersions,
+    feature_version:POKEMON_CANDIDATE_FEATURE_VERSION,current_readiness_slot_bridge_version:CURRENT_READINESS_SLOT_BRIDGE_VERSION,weekly_context:weeklyContext,goal_profile:goalProfile,master_versions:masterVersions,
     recipe_fingerprint:recipeStrategyProjection?.input_fingerprint||null,pokemon:rows,
   });
   const counts={PASS:0,FAIL:0,REVIEW:0};for(const row of rows)counts[row.hard_constraint_status]=(counts[row.hard_constraint_status]||0)+1;
   return {
-    schema:'pokemon-sleep-candidate-feature-projection/1.0',feature_version:POKEMON_CANDIDATE_FEATURE_VERSION,
+    schema:'pokemon-sleep-candidate-feature-projection/1.0',feature_version:POKEMON_CANDIDATE_FEATURE_VERSION,current_readiness_slot_bridge_version:CURRENT_READINESS_SLOT_BRIDGE_VERSION,
     input_fingerprint:`pokemon_features:${hash(JSON.stringify(fingerprintPayload))}`,goal_profile_id:goalProfile?.goal_profile_id||null,
     weekly_context_id:weeklyContext.context_id||null,recipe_strategy_fingerprint:recipeStrategyProjection?.input_fingerprint||null,
     summary:{candidate_count:rows.length,rank_eligible_count:rows.filter(row=>row.rank_eligible).length,hard_constraint_counts:counts,weekly_ingredient_demand_total:totalDemand},
