@@ -6,6 +6,7 @@ import {
   validateWeeklyContextImportPayload,
 } from '../assets/js/weekly-context-import-contract.js';
 import {parseWeeklyEventEffects} from '../assets/js/weekly-context-normalization.js';
+import {weeklyEventEffectDefinition} from '../assets/js/weekly-event-effect-registry.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
 const clone=value=>JSON.parse(JSON.stringify(value));
@@ -79,9 +80,11 @@ assert.equal(typeof stringNormalized.payload.operations[0].data.event_effects,'s
 assert.equal(parseWeeklyEventEffects(stringNormalized.payload.operations[0].data.event_effects).meal_category_forced,true);
 assert.equal(validateWeeklyContextImportPayload(stringEffects,{now:NOW}).ok,true);
 
+// Historical prompt wording may evolve, but the boolean contract itself must not.
+assert.equal(weeklyEventEffectDefinition('meal_category_forced')?.value_type,'boolean');
 const prompt=read('assets/js/prompt-catalog.js');
 for(const token of [
-  'meal_category_forced 只能是 boolean true/false',
+  'meal_category_forced',
   '「meal_category_forced": true',
   '「meal_category_forced": "咖哩／濃湯"',
   '料理名稱只能放在 data.dish_category',
@@ -109,6 +112,7 @@ console.log(JSON.stringify({
   repair_warning_visible:true,
   ambiguous_strings_fail_closed:true,
   legacy_string_event_effects_preserved:true,
+  meal_category_forced_boolean_semantics:true,
   raw_json_paste_first_class:true,
   direct_apply_bypass:false,
   sqlite_migration_added:false,

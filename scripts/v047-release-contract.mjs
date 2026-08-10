@@ -9,10 +9,21 @@ import {PROMPT_CATALOG,buildScenarioTemplate} from '../assets/js/prompt-catalog.
 import {validateWorkflow} from '../assets/js/ai-workflow.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
+const numericVersion=value=>String(value||'').replace(/^v/,'').split('.').map(part=>Number(part));
+const versionAtLeast=(value,floor)=>{
+  const left=numericVersion(value),right=numericVersion(floor),size=Math.max(left.length,right.length);
+  for(let index=0;index<size;index+=1){const a=left[index]||0,b=right[index]||0;if(a!==b)return a>b;}
+  return true;
+};
 const version=read('assets/js/version-authority.js');
-assert.equal(version.match(/app_version:\s*'([^']+)'/)?.[1],'v0.4.7');
-assert.equal(version.match(/app_build:\s*'([^']+)'/)?.[1],'20260810-v047-candy-inventory-resource-context');
-assert.equal(version.match(/cache_name:\s*'([^']+)'/)?.[1],'pokemon-sleep-ai-v0.4.7-v047-candy-inventory-resource-context');
+const currentVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
+const currentBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
+const currentCache=version.match(/cache_name:\s*'([^']+)'/)?.[1];
+assert.ok(versionAtLeast(currentVersion,'v0.4.7'),`historical v0.4.7 contract cannot run on older release: ${currentVersion}`);
+if(currentVersion==='v0.4.7'){
+  assert.equal(currentBuild,'20260810-v047-candy-inventory-resource-context');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.7-v047-candy-inventory-resource-context');
+}
 
 assert.equal(PUBLIC_CANDY_MASTER_VERSION,'public-candy-master-2026-08-10-b');
 assert.ok(PUBLIC_CANDY_FIXED_MASTER.length>=10);
@@ -25,7 +36,7 @@ assert.equal(template.scenario,'candy_inventory_update');
 template.operations[0].data.quantity=0;
 template.operations[0].review_required=false;
 template.operations[0].user_audit.accepted_current_observation=true;
-assert.deepEqual(validateWorkflow(template).errors,[],'v0.4.7 candy JSON template must validate with explicit zero');
+assert.deepEqual(validateWorkflow(template).errors,[],'v0.4.7 Candy behavior must remain compatible with explicit zero');
 
 const schema=read('assets/js/schema.js');
 const migrations=read('assets/js/migrations.js');
@@ -62,8 +73,9 @@ assert.ok(sw.includes("url.pathname.endsWith('.js')"),'runtime JS must remain ne
 console.log(JSON.stringify({
   status:'PASS',
   gate:'V0.4.7_RELEASE_CONTRACT',
-  app_version:'v0.4.7',
-  build:'20260810-v047-candy-inventory-resource-context',
+  current_app_version:currentVersion,
+  historical_behavior_compatible:true,
+  exact_release_authority_enforced:currentVersion==='v0.4.7',
   sqlite_migration:9,
   public_candy_master:PUBLIC_CANDY_MASTER_VERSION,
   player_candy_write_authority:'UPDATE_CENTER_JSON',

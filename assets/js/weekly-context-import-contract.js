@@ -1,18 +1,15 @@
 import {localWeekStart} from './evaluation-week.js';
 import {normalizeDishCategory,parseWeeklyEventEffects,serializeWeeklyEventEffects,validateWeeklyEventEffects} from './weekly-context-normalization.js';
+import {WEEKLY_EVENT_EFFECT_KEYS,normalizeUnknownWeeklyEffects} from './weekly-event-effect-registry.js';
 
 export const WEEKLY_CONTEXT_IMPORT_CONTRACT_VERSION='weekly-context-import-contract-2026-08-10-b';
 export const WEEKLY_CONTEXT_AUTHORITY='UPDATE_CENTER_JSON';
-export const WEEKLY_EVENT_ALLOWED_KEYS=Object.freeze([
-  'event_schema','event_start','event_end','mission_start','mission_end','event_camp_scope',
-  'meal_category_forced','recipe_final_energy_multiplier','extra_tasty_multiplier','sunday_extra_tasty_multiplier','sunday_pot_multiplier','new_recipe_count',
-  'cross_sleep_type_encounters','encounter_type_boosts','boosted_pokemon_types','shiny_encounter_possible','limited_feature','sunday_pot_multiplier_source',
-]);
+export const WEEKLY_EVENT_ALLOWED_KEYS=Object.freeze([...WEEKLY_EVENT_EFFECT_KEYS]);
 const EVENT_KEYS=new Set(WEEKLY_EVENT_ALLOWED_KEYS);
 const dateKey=value=>/^\d{4}-\d{2}-\d{2}$/.test(String(value||''));
 const iso=value=>{try{return Boolean(value)&&Number.isFinite(new Date(value).getTime());}catch{return false;}};
-const dateOrIso=value=>dateKey(value)||iso(value);
 const clone=value=>JSON.parse(JSON.stringify(value));
+const reviewAccepted=operation=>operation?.user_audit?.accepted_current_observation===true||operation?.review_resolution==='accepted_current_observation';
 
 export function isWeeklyContextPayload(payload){
   if(payload?.scenario==='weekly_context_update')return true;
@@ -105,15 +102,14 @@ export function validateWeeklyContextImportPayload(payload,{now=new Date(),requi
   }
   if(data.event_effects!==null&&data.event_effects!==undefined&&data.event_effects!==''&&typeof data.event_effects!=='string'&&(typeof data.event_effects!=='object'||Array.isArray(data.event_effects)))issues.push('event_effects 必須是 JSON object 或可解析的 JSON 字串');
   const effects=parseWeeklyEventEffects(data.event_effects);
-  if(data.event_effects!==null&&data.event_effects!==undefined&&data.event_effects!==''&&!Object.keys(effects).length){
-    if(typeof data.event_effects==='string')issues.push('event_effects 不是有效 JSON 字串');
-  }
+  if(data.event_effects!==null&&data.event_effects!==undefined&&data.event_effects!==''&&!Object.keys(effects).length&&typeof data.event_effects==='string')issues.push('event_effects 不是有效 JSON 字串');
   if(Object.keys(effects).length){
     if('legacy_text' in effects)issues.push('event_effects 不是有效結構化 JSON');
-    for(const key of Object.keys(effects))if(!EVENT_KEYS.has(key))issues.push(`event_effects 不支援欄位：${key}`);
+    for(const key of Object.keys(effects))if(!EVENT_KEYS.has(key))issues.push(`event_effects 不支援欄位：${key}；未知活動效果請放入 unknown_effects[] 保留原文`);
     try{validateWeeklyEventEffects(effects);}catch(error){issues.push(error?.message||String(error));}
-    for(const key of ['event_start','event_end','mission_start','mission_end'])if(effects[key]!=null&&effects[key]!==''&&!dateOrIso(effects[key]))issues.push(`event_effects.${key} 必須為 YYYY-MM-DD 或有效 ISO 日期時間`);
-    for(const key of ['encounter_type_boosts','boosted_pokemon_types'])if(Array.isArray(effects[key])&&effects[key].some(value=>typeof value!=='string'||!value.trim()))issues.push(`event_effects.${key} 只能包含非空字串`);
+    let unknown=[];
+    try{unknown=normalizeUnknownWeeklyEffects(effects.unknown_effects);}catch(error){issues.push(error?.message||String(error));}
+    if(unknown.length&&operation.review_required!==true&&!reviewAccepted(operation))issues.push('event_effects.unknown_effects 含尚未建立規則的活動效果；必須 review_required=true 並由使用者確認後才能套用');
   }
   const berries=['favorite_berry_1','favorite_berry_2','favorite_berry_3'].map(key=>data[key]).filter(value=>value!==null&&value!==undefined&&String(value).trim()!=='').map(value=>String(value).trim());
   if(berries.length!==0&&berries.length!==3)issues.push('動態／隨機營地的 favorite_berry_1~3 必須全部三欄一起提供，或全部省略');

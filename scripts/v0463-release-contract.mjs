@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {normalizeWeeklyContextImportPayload,prepareWeeklyContextPayloadForImporter,validateWeeklyContextImportPayload} from '../assets/js/weekly-context-import-contract.js';
+import {weeklyEventEffectDefinition} from '../assets/js/weekly-event-effect-registry.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
 const numericVersion=value=>String(value||'').replace(/^v/,'').split('.').map(part=>Number(part));
@@ -46,8 +47,11 @@ for(const badValue of ['true','false','沙拉','FORCED']){
   assert.equal(validateWeeklyContextImportPayload(bad,{now}).ok,false,`ambiguous value must fail closed: ${badValue}`);
 }
 
+// Historical v0.4.6.3 behavior is semantic, not pinned to one exact prompt sentence.
+const forcedDefinition=weeklyEventEffectDefinition('meal_category_forced');
+assert.equal(forcedDefinition?.value_type,'boolean','meal_category_forced must remain boolean under later typed registries');
 const prompt=read('assets/js/prompt-catalog.js');
-for(const token of ['meal_category_forced 只能是 boolean true/false','料理名稱只能放在 data.dish_category','raw JSON'])assert.ok(prompt.includes(token),`prompt contract missing ${token}`);
+for(const token of ['meal_category_forced','料理名稱只能放在 data.dish_category','raw JSON'])assert.ok(prompt.includes(token),`prompt contract missing ${token}`);
 const bridge=read('assets/js/weekly-context-update-center-bridge.js');
 for(const token of ['正式支援','JSON.parse(raw)','同一套結構檢查、必要覆核、Dry Run 與 Apply'])assert.ok(bridge.includes(token),`paste UX contract missing ${token}`);
 assert.equal(bridge.includes('applyPayload('),false);
@@ -61,5 +65,5 @@ console.log(JSON.stringify({
   status:'PASS',gate:'V0.4.6.3_RELEASE_CONTRACT',current_app_version:currentVersion,
   historical_behavior_compatible:true,exact_release_authority_enforced:currentVersion==='v0.4.6.3',
   exact_category_string_repair:true,ambiguous_strings_fail_closed:true,repair_warning_visible:true,
-  raw_json_paste_first_class:true,direct_apply_bypass:false,
+  meal_category_forced_boolean_semantics:true,raw_json_paste_first_class:true,direct_apply_bypass:false,
 },null,2));

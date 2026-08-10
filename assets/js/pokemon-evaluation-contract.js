@@ -1,3 +1,5 @@
+import {weeklyContextStrategyFingerprintInput} from './weekly-context-normalization.js';
+
 export const POKEMON_EVALUATION_RULE_VERSION='pokemon-evaluation-snapshot-2026-08-09-a';
 export const EVALUATION_DIMENSIONS=Object.freeze([
   'intrinsic_score','current_readiness_score','weekly_fit_score','roster_marginal_value_score','training_roi_score',
@@ -22,11 +24,7 @@ export function canonicalPokemonEvaluationInput({pokemon={},ingredients=[],subsk
 
 export function canonicalEvaluationContext({weeklyContext={},goalProfile=null,masterVersions={},ruleVersion=POKEMON_EVALUATION_RULE_VERSION}={}){
   return stable({
-    weekly_context:{
-      context_id:text(weeklyContext.context_id),week_start:text(weeklyContext.week_start),camp:text(weeklyContext.camp),dish_category:text(weeklyContext.dish_category),
-      favorite_berry_1:text(weeklyContext.favorite_berry_1),favorite_berry_2:text(weeklyContext.favorite_berry_2),favorite_berry_3:text(weeklyContext.favorite_berry_3),
-      event_name:text(weeklyContext.event_name),event_effects:text(weeklyContext.event_effects),pot_size:numberOrNull(weeklyContext.pot_size),updated_at:text(weeklyContext.updated_at),
-    },
+    weekly_context:weeklyContextStrategyFingerprintInput(weeklyContext),
     goal_profile:goalProfile?stable({goal_profile_id:text(goalProfile.goal_profile_id),profile_version:text(goalProfile.profile_version),primary_goal:text(goalProfile.primary_goal),secondary_goals:goalProfile.secondary_goals||[],weights:goalProfile.weights||{},hard_constraints:goalProfile.hard_constraints||{}}):null,
     master_versions:stable(masterVersions||{}),rule_version:text(ruleVersion)||POKEMON_EVALUATION_RULE_VERSION,
   });

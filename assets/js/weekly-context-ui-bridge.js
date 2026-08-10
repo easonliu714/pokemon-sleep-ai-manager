@@ -3,13 +3,16 @@ import {currentWeeklyContext} from './weekly-context-store.js';
 import {campBerryAuthority,resolveCampFavoriteBerries} from './public-camp-berry-master.js';
 import {localWeekStart} from './evaluation-week.js';
 import {localIso} from './time-utils.js';
+import {validateWeeklyEventEffects} from './weekly-context-normalization.js';
+import {WEEKLY_EVENT_EFFECT_REGISTRY_VERSION} from './weekly-event-effect-registry.js';
 
-export const WEEKLY_CONTEXT_UI_BRIDGE_VERSION='weekly-context-ui-bridge-2026-08-10-d';
+export const WEEKLY_CONTEXT_UI_BRIDGE_VERSION='weekly-context-ui-bridge-2026-08-10-e';
 
 let syncing=false;
 const berryNames=['favorite_berry_1','favorite_berry_2','favorite_berry_3'];
 const managedFields=['camp','dish_category','pot_size','favorite_berry_1','favorite_berry_2','favorite_berry_3','event_name','event_effects','base_notes'];
 const q=(form,name)=>form?.querySelector(`[name="${CSS.escape(name)}"]`);
+const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 function ensureNotice(form){
   let node=form.querySelector('[data-weekly-berry-policy]');
   if(!node){node=document.createElement('div');node.className='notice';node.dataset.weeklyBerryPolicy='1';const first=q(form,'favorite_berry_1')?.closest('label');first?.parentElement?.insertBefore(node,first);}
@@ -20,6 +23,11 @@ function ensureAuthorityNotice(form){
   if(!node){node=document.createElement('div');node.className='notice';node.dataset.weeklyAuthority='1';form.prepend(node);}
   return node;
 }
+function ensureEffectPanel(form){
+  let node=form.querySelector('[data-weekly-effect-registry]');
+  if(!node){node=document.createElement('section');node.className='notice';node.dataset.weeklyEffectRegistry='1';const authority=ensureAuthorityNotice(form);authority.insertAdjacentElement('afterend',node);}
+  return node;
+}
 function removeFixedHidden(form){form.querySelectorAll('[data-fixed-berry-hidden]').forEach(node=>node.remove());}
 function setField(form,name,value){
   const node=q(form,name);if(!node)return;
@@ -28,6 +36,18 @@ function setField(form,name,value){
   node.value=normalized;
 }
 function sourceLabel(source){return source==='UPDATE_CENTER_JSON'?'更新中心 JSON':source==='PUBLIC_CAMP_MASTER'?'公版營地 Master':source==='MANUAL_FALLBACK'?'人工補充':'尚未提供';}
+function statusLabel(status){return status==='ACTIVE_VERIFIED'?'可供 deterministic 規則使用':status==='FEATURE_ONLY'?'已辨識／目前只供資訊':status==='REVIEW_REQUIRED'?'待覆核／禁止計算':status==='UNSUPPORTED'?'尚未支援':'—';}
+function valueText(value){if(value===null||value===undefined)return '—';if(typeof value==='object')return JSON.stringify(value);return String(value);}
+function renderEffectRegistry(form,week){
+  const node=ensureEffectPanel(form),states=Array.isArray(week.event_effect_states)?week.event_effect_states:[];
+  const rows=states.map(item=>`<tr><td><code>${esc(item.effect_key)}</code></td><td>${esc(valueText(item.value))}</td><td>${esc(item.value_type||'—')}</td><td>${esc(item.scope||'—')}</td><td><b>${esc(item.rule_status||'—')}</b><br><small>${esc(statusLabel(item.rule_status))}</small></td><td>${esc(item.consumer||'—')}</td></tr>`).join('');
+  const review=states.filter(item=>item.rule_status==='REVIEW_REQUIRED').length,active=states.filter(item=>item.rule_status==='ACTIVE_VERIFIED').length,feature=states.filter(item=>item.rule_status==='FEATURE_ONLY').length;
+  node.className=review?'notice warning':'notice';
+  node.innerHTML=`<b>活動效果 Typed Registry：</b><code>${esc(week.event_effect_registry_version||WEEKLY_EVENT_EFFECT_REGISTRY_VERSION)}</code> · ACTIVE_VERIFIED=${active} · FEATURE_ONLY=${feature} · REVIEW_REQUIRED=${review}<br>
+    <small>只有 ACTIVE_VERIFIED 效果可進 deterministic consumer；FEATURE_ONLY 只提供資訊；未知活動效果固定進 REVIEW_REQUIRED，不會被當成倍率或機率。</small>
+    ${rows?`<div class="table-wrap"><table><thead><tr><th>Effect</th><th>觀測值</th><th>型別</th><th>範圍</th><th>Rule Status</th><th>Consumer</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<p>本週尚未提供結構化活動效果。</p>'}
+    ${week.event_effect_strategy_fingerprint?`<small>Strategy effect fingerprint：<code>${esc(week.event_effect_strategy_fingerprint)}</code></small>`:''}`;
+}
 function lockAuthorityFields(form,week){
   for(const field of managedFields){
     const node=q(form,field);if(!node)continue;
@@ -90,6 +110,7 @@ function syncForm(){
     setField(form,'base_notes',week.base_notes||'');
     berryNames.forEach(name=>setField(form,name,week[name]||''));
     renderAuthorityNotice(form,week);
+    renderEffectRegistry(form,week);
     lockAuthorityFields(form,week);
     applyBerryPolicy(form,week.camp||q(form,'camp')?.value||'萌綠之島',week.favorite_berries||[],week);
     form.dataset.weeklyContextId=week.context_id||'';
@@ -112,12 +133,14 @@ function installSubmit(form){
     const observed=berryValues.filter(value=>value!==null&&value!=='');
     if(observed.length!==0&&observed.length!==3)return alert('人工補充動態／隨機營地樹果時，必須完整提供三種。');
     if(new Set(observed).size!==observed.length)return alert('三個喜好樹果不可重複');
+    const manualEffects=editableValue(form,'event_effects');
+    if(manualEffects){try{validateWeeklyEventEffects(manualEffects);}catch(error){return alert(`活動效果 Typed Registry 驗證失敗：${error.message}`);}}
     const manualId=`weekly_context_${weekStart}_manual`;
     const resolved=manualCamp?resolveCampFavoriteBerries(manualCamp,observed):{berries:observed};
     await snapshot('manual:weekly-context-fallback');
     run('INSERT OR REPLACE INTO weekly_context(context_id,week_start,camp,dish_category,favorite_berry_1,favorite_berry_2,favorite_berry_3,event_name,event_effects,pot_size,base_notes,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',[
       manualId,weekStart,manualCamp,editableValue(form,'dish_category'),resolved.berries?.[0]||null,resolved.berries?.[1]||null,resolved.berries?.[2]||null,
-      editableValue(form,'event_name'),editableValue(form,'event_effects'),(()=>{const value=editableValue(form,'pot_size');return value===null||value===''?null:Number(value)||null;})(),editableValue(form,'base_notes'),localIso(),
+      editableValue(form,'event_name'),manualEffects,(()=>{const value=editableValue(form,'pot_size');return value===null||value===''?null:Number(value)||null;})(),editableValue(form,'base_notes'),localIso(),
     ]);
     await persist();
     document.dispatchEvent(new CustomEvent('pokemon-sleep-data-refreshed',{detail:{entity:'weekly_context',context_id:manualId,week_start:weekStart,authority:'MANUAL_FALLBACK'}}));

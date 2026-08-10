@@ -1,3 +1,5 @@
+import {weeklyContextStrategyFingerprintInput} from './weekly-context-normalization.js';
+
 export const POKEMON_CANDIDATE_FEATURE_VERSION='pokemon-candidate-features-2026-08-09-b';
 export const CURRENT_READINESS_SLOT_BRIDGE_VERSION='current-readiness-slot-bridge-2026-08-10-a';
 
@@ -49,12 +51,6 @@ function unlockedSubskills(detail,level,currentUnlocksOnly){
   }).map(row=>({unlock_level:num(row.unlock_level),subskill_name:text(row.subskill_name)}));
 }
 function currentUnlockSlotCounts(detail,level){
-  // Readiness is deliberately independent from the strategy's current_unlocks_only
-  // switch. It measures only the slots that are confirmed in the player's local
-  // observation and are actually unlocked at the Pokémon's current level.
-  // When the current level is unknown, the scoring bridge exposes zero known
-  // unlock slots so the evidence-gated scoring engine returns NULL rather than
-  // guessing a readiness percentage.
   if(level===null)return {
     known_ingredient_slot_count:0,known_subskill_slot_count:0,
     unlocked_ingredient_slot_count:0,unlocked_subskill_slot_count:0,
@@ -129,7 +125,8 @@ export function projectPokemonCandidateFeatures({
     rows.push(feature);
   }
   const fingerprintPayload=stable({
-    feature_version:POKEMON_CANDIDATE_FEATURE_VERSION,current_readiness_slot_bridge_version:CURRENT_READINESS_SLOT_BRIDGE_VERSION,weekly_context:weeklyContext,goal_profile:goalProfile,master_versions:masterVersions,
+    feature_version:POKEMON_CANDIDATE_FEATURE_VERSION,current_readiness_slot_bridge_version:CURRENT_READINESS_SLOT_BRIDGE_VERSION,
+    weekly_context:weeklyContextStrategyFingerprintInput(weeklyContext),goal_profile:goalProfile,master_versions:masterVersions,
     recipe_fingerprint:recipeStrategyProjection?.input_fingerprint||null,pokemon:rows,
   });
   const counts={PASS:0,FAIL:0,REVIEW:0};for(const row of rows)counts[row.hard_constraint_status]=(counts[row.hard_constraint_status]||0)+1;
