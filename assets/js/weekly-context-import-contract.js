@@ -45,6 +45,19 @@ export function normalizeWeeklyContextImportPayload(payload,{forStorage=false,re
       if(canonical!==data.dish_category)repairs.push('DISH_CATEGORY_CANONICALIZED');
       data.dish_category=canonical;
     }
+    if(repairLegacy&&data.event_effects!==null&&data.event_effects!==undefined&&data.event_effects!==''){
+      const originalEffects=data.event_effects;
+      const effects=parseWeeklyEventEffects(originalEffects);
+      if(typeof effects.meal_category_forced==='string'){
+        const forcedCategory=normalizeDishCategory(effects.meal_category_forced);
+        const dishCategory=normalizeDishCategory(data.dish_category);
+        if(dishCategory&&forcedCategory===dishCategory){
+          effects.meal_category_forced=true;
+          data.event_effects=typeof originalEffects==='string'?JSON.stringify(effects):effects;
+          repairs.push('MEAL_CATEGORY_FORCED_CATEGORY_STRING_REPAIRED_TRUE');
+        }
+      }
+    }
     if(forStorage&&data.event_effects!==null&&data.event_effects!==undefined&&data.event_effects!==''){
       const serialized=serializeWeeklyEventEffects(data.event_effects);
       if(serialized!==null){

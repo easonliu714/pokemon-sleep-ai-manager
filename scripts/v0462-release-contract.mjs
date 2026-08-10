@@ -5,10 +5,21 @@ import {normalizeDishCategory,parseWeeklyEventEffects} from '../assets/js/weekly
 import {prepareWeeklyContextPayloadForImporter,validateWeeklyContextImportPayload} from '../assets/js/weekly-context-import-contract.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
+const numericVersion=value=>String(value||'').replace(/^v/,'').split('.').map(part=>Number(part));
+const versionAtLeast=(value,floor)=>{
+  const left=numericVersion(value),right=numericVersion(floor),size=Math.max(left.length,right.length);
+  for(let index=0;index<size;index+=1){const a=left[index]||0,b=right[index]||0;if(a!==b)return a>b;}
+  return true;
+};
 const version=read('assets/js/version-authority.js');
-assert.equal(version.match(/app_version:\s*'([^']+)'/)?.[1],'v0.4.6.2');
-assert.equal(version.match(/app_build:\s*'([^']+)'/)?.[1],'20260810-v0462-weekly-json-robustness-recipe-recommendation');
-assert.equal(version.match(/cache_name:\s*'([^']+)'/)?.[1],'pokemon-sleep-ai-v0.4.6.2-v0462-weekly-json-robustness-recipe-recommendation');
+const currentVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
+const currentBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
+const currentCache=version.match(/cache_name:\s*'([^']+)'/)?.[1];
+assert.ok(versionAtLeast(currentVersion,'v0.4.6.2'),`historical v0.4.6.2 contract cannot run on older release: ${currentVersion}`);
+if(currentVersion==='v0.4.6.2'){
+  assert.equal(currentBuild,'20260810-v0462-weekly-json-robustness-recipe-recommendation');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.6.2-v0462-weekly-json-robustness-recipe-recommendation');
+}
 
 const template=buildScenarioTemplate('weekly');
 assert.equal(template.context_authority,'UPDATE_CENTER_JSON');
@@ -58,8 +69,8 @@ for(const deterministic of [read('assets/js/weekly-context-normalization.js'),re
 }
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'V0.4.6.2_RELEASE_CONTRACT',app_version:'v0.4.6.2',
-  build:'20260810-v0462-weekly-json-robustness-recipe-recommendation',
+  status:'PASS',gate:'V0.4.6.2_RELEASE_CONTRACT',current_app_version:currentVersion,
+  historical_behavior_compatible:true,exact_release_authority_enforced:currentVersion==='v0.4.6.2',
   event_input_contract:'NESTED_OBJECT',event_storage_contract:'SQLITE_TEXT_AFTER_NORMALIZATION',legacy_string_compatible:true,
   canonical_dish_aliases:true,current_week_recipe_authority:true,raw_json_paste:true,berry_vocabulary_gate:true,
   sqlite_migration_added:false,gemini_dependency:false,direct_paste_apply:false,
