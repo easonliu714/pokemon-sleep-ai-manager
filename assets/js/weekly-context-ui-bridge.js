@@ -4,7 +4,7 @@ import {campBerryAuthority,resolveCampFavoriteBerries} from './public-camp-berry
 import {localWeekStart} from './evaluation-week.js';
 import {localIso} from './time-utils.js';
 
-export const WEEKLY_CONTEXT_UI_BRIDGE_VERSION='weekly-context-ui-bridge-2026-08-10-a';
+export const WEEKLY_CONTEXT_UI_BRIDGE_VERSION='weekly-context-ui-bridge-2026-08-10-b';
 
 let syncing=false;
 const names=['favorite_berry_1','favorite_berry_2','favorite_berry_3'];
@@ -89,15 +89,13 @@ function campChanged(event){
   const observed=authority?.berry_policy==='FIXED_3'?authority.favorite_berries:[];
   applyBerryPolicy(form,select.value,observed);
 }
-function schedule(){queueMicrotask(syncForm);}
+function schedule(){setTimeout(syncForm,0);}
 function install(){
   document.addEventListener('change',campChanged,true);
-  document.addEventListener('click',event=>{if(event.target.closest?.('[data-view="weekly"]'))setTimeout(syncForm,0);},true);
-  document.addEventListener('pokemon-sleep-data-refreshed',()=>setTimeout(syncForm,0));
-  globalThis.addEventListener?.('pokemon-sleep:database-ready',()=>setTimeout(syncForm,0));
-  globalThis.addEventListener?.('pokemon-sleep:data-changed',event=>{if(event.detail?.entity==='weekly_context')setTimeout(syncForm,0);});
-  const observer=new MutationObserver(()=>{if(document.getElementById('weeklyContextForm'))schedule();});
-  observer.observe(document.documentElement,{subtree:true,childList:true});
+  document.addEventListener('click',event=>{if(event.target.closest?.('[data-view="weekly"]'))schedule();},true);
+  document.addEventListener('pokemon-sleep-data-refreshed',schedule);
+  globalThis.addEventListener?.('pokemon-sleep:database-ready',schedule);
+  globalThis.addEventListener?.('pokemon-sleep:data-changed',event=>{if(event.detail?.entity==='weekly_context')schedule();});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});else schedule();
 }
 install();
