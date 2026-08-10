@@ -14,6 +14,7 @@ const KEYS = {
   account_capacity: ['capacity_key'],
   ingredient_inventory: ['ingredient_name'],
   item_inventory: ['item_name'],
+  candy_inventory: ['candy_id'],
   pokemon: ['pokemon_id'],
   pokemon_subskills: ['pokemon_id', 'unlock_level'],
   pokemon_ingredients: ['pokemon_id', 'unlock_level'],
@@ -63,7 +64,7 @@ function validateEntityValues(operation, index) {
   if (operation.entity === 'ingredient_inventory' && hasOwn(data, 'quantity') && isMeaningful(data.quantity) && !validNonNegativeInteger(data.quantity)) {
     throw new Error(`${label}：quantity 必須為 0 以上整數`);
   }
-  if (operation.entity === 'item_inventory') {
+  if (['item_inventory','candy_inventory'].includes(operation.entity)) {
     for (const field of ['quantity', 'safe_reserve']) {
       if (hasOwn(data, field) && isMeaningful(data[field]) && !validNonNegativeInteger(data[field])) throw new Error(`${label}：${field} 必須為 0 以上整數`);
     }
@@ -87,10 +88,13 @@ function validate(payload) {
   payload.operations.forEach((operation, index) => {
     if (!KEYS[operation.entity]) throw new Error(`操作 ${index}：不支援 entity`);
     if (!ACTIONS.has(operation.action)) throw new Error(`操作 ${index}：不支援 action`);
+    if (operation.entity === 'candy_inventory' && operation.action !== 'upsert') throw new Error(`操作 ${index}：糖果庫存只允許 upsert`);
     if (operation.missing_policy && !MISSING_POLICIES.has(operation.missing_policy)) throw new Error(`操作 ${index}：不支援 missing_policy`);
     if (operation.review_required === true && !acceptedReview(operation)) throw new Error(`操作 ${index} 尚需人工確認`);
     if (operation.entity === 'recipes') {
       if (!isMeaningful(operation.key?.recipe_id) && !isMeaningful(operation.key?.recipe_name)) throw new Error(`操作 ${index}：recipes key 至少需要 recipe_id 或 recipe_name`);
+    } else if (operation.entity === 'candy_inventory') {
+      if (!isMeaningful(operation.key?.candy_id) && !isMeaningful(operation.key?.candy_name)) throw new Error(`操作 ${index}：candy_inventory key 至少需要 candy_id 或 candy_name`);
     } else {
       for (const key of KEYS[operation.entity]) if (!(key in (operation.key || {}))) throw new Error(`操作 ${index}：key 缺少 ${key}`);
     }
@@ -113,6 +117,10 @@ function resolveOperationKey(operation) {
     const player = rows('SELECT recipe_id FROM recipes WHERE recipe_name=?', [key.recipe_name])[0];
     if (master?.recipe_id || player?.recipe_id) return { recipe_id: master?.recipe_id || player.recipe_id };
   }
+  if (operation.entity === 'candy_inventory' && !isMeaningful(key.candy_id) && isMeaningful(key.candy_name)) {
+    const master = rows('SELECT candy_id FROM candy_master WHERE candy_name=?', [key.candy_name])[0];
+    if (master?.candy_id) return { candy_id: master.candy_id };
+  }
   return key;
 }
 
@@ -131,7 +139,7 @@ function sparseData(operation) {
 function managedData(operation, key, before, inputData, payload) {
   const data = { ...inputData };
   const hasPlayerChange = Object.keys(inputData).some((field) => !['updated_at', 'source_update_id'].includes(field));
-  if (['ingredient_inventory', 'item_inventory'].includes(operation.entity) && hasPlayerChange) {
+  if (['ingredient_inventory', 'item_inventory','candy_inventory'].includes(operation.entity) && hasPlayerChange) {
     if (!hasOwn(data, 'updated_at')) data.updated_at = localIso();
     if (!hasOwn(data, 'source_update_id')) data.source_update_id = payload.update_id;
   }
@@ -206,6 +214,7 @@ function resolvePokemonIdentity(operation) {
 function publicMasterExists(entity, key) {
   if (entity === 'ingredient_inventory') return Number(scalar('SELECT COUNT(*) FROM ingredient_master WHERE ingredient_name=?', [key.ingredient_name]) || 0) > 0;
   if (entity === 'item_inventory') return Number(scalar('SELECT COUNT(*) FROM item_master WHERE item_name=?', [key.item_name]) || 0) > 0;
+  if (entity === 'candy_inventory') return isMeaningful(key.candy_id) && Number(scalar('SELECT COUNT(*) FROM candy_master WHERE candy_id=?', [key.candy_id]) || 0) > 0;
   if (entity === 'recipes') return Number(scalar('SELECT COUNT(*) FROM recipe_master WHERE recipe_id=?', [key.recipe_id]) || 0) > 0;
   return true;
 }
@@ -225,9 +234,10 @@ export function dryRun(payload) {
     let conflict = false;
     const missingPolicy = operation.missing_policy || 'conflict';
     if (operation.entity === 'recipes' && !isMeaningful(key.recipe_id)) { conflict = true; message = `找不到公版料理：${operation.key?.recipe_name || 'unknown'}`; }
-    if (!before && ['ingredient_inventory','item_inventory','recipes'].includes(operation.entity) && !publicMasterExists(operation.entity, key)) {
+    if (operation.entity === 'candy_inventory' && !isMeaningful(key.candy_id)) { conflict = true; message = `找不到公版糖果：${operation.key?.candy_name || 'unknown'}；若為「寶可夢的糖果」，請先確認寶可夢公版名稱`; }
+    if (!conflict && !before && ['ingredient_inventory','item_inventory','candy_inventory','recipes'].includes(operation.entity) && !publicMasterExists(operation.entity, key)) {
       conflict = true;
-      message = `${operation.entity} 對應公版主檔不存在，請先核對名稱／recipe_id`;
+      message = `${operation.entity} 對應公版主檔不存在，請先核對名稱／stable id`;
     }
     if (operation.entity === 'pokemon' && !before && ['insert', 'upsert'].includes(operation.action)) {
       const resolution = resolvePokemonIdentity(operation);

@@ -6,6 +6,7 @@ import {applyPublicEmptyProfileMaster} from './public-empty-profile-master.js';
 import {PUBLIC_ITEM_MASTER_VERSION} from './public-item-master.js';
 import {applyCanonicalRegistry,CANONICAL_REGISTRY_VERSION} from './canonical-registry.js';
 import {applyPublicPokemonKnowledgeSchema,applyPublicPokemonKnowledgeData,PUBLIC_POKEMON_KNOWLEDGE_VERSION} from './public-pokemon-knowledge-master.js';
+import {applyPublicCandyMasterSchema,syncPublicCandyMaster,PUBLIC_CANDY_MASTER_VERSION} from './public-candy-master.js';
 
 function rows(db,sql,params=[]){const statement=db.prepare(sql);statement.bind(params);const output=[];while(statement.step())output.push(statement.getAsObject());statement.free();return output;}
 function scalar(db,sql,params=[]){const result=rows(db,sql,params);return result.length?Object.values(result[0])[0]:null;}
@@ -23,7 +24,7 @@ export function applyGameDataMigration(db){const hasSubskills=scalar(db,"SELECT 
 export function applySharedKnowledgeBase(db){applySharedMasterSchema(db);applySharedMasterData(db);syncPublicRecipeMaster(db);applyPublicPokemonKnowledgeSchema(db);applyPublicPokemonKnowledgeData(db);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(4,datetime('now'))`);}
 export function applyPersonalRecipeMigration(db){addColumnIfMissing(db,'recipes','recipe_level','INTEGER');addColumnIfMissing(db,'recipes','current_energy','INTEGER');addColumnIfMissing(db,'recipes','updated_at','TEXT');addColumnIfMissing(db,'recipes','notes','TEXT');db.run(`UPDATE recipes SET updated_at=datetime('now') WHERE updated_at IS NULL OR updated_at=''`);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(5,datetime('now'))`);}
 export function applyPublicProfileContract(db){applyPublicEmptyProfileMaster(db);}
-export function applyCanonicalTerminologyMigration(db){applyCanonicalRegistry(db);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(6,datetime('now'))`);}
+export function applyCanonicalTerminologyMigration(db){applyPublicCandyMasterSchema(db);applyCanonicalRegistry(db);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(6,datetime('now'))`);}
 export function applyCompletePokemonDetailMigration(db){addColumnIfMissing(db,'pokemon','sleep_hours','REAL');addColumnIfMissing(db,'pokemon','sleep_time_text','TEXT');addColumnIfMissing(db,'pokemon','evolution_level_required','INTEGER');addColumnIfMissing(db,'pokemon','evolution_sleep_hours_required','REAL');addColumnIfMissing(db,'pokemon','evolution_candy_required','INTEGER');addColumnIfMissing(db,'pokemon','evolution_item_required','TEXT');addColumnIfMissing(db,'pokemon','evolution_other_requirement','TEXT');addColumnIfMissing(db,'pokemon','main_skill_description','TEXT');addColumnIfMissing(db,'pokemon','field_evidence_json','TEXT');addColumnIfMissing(db,'pokemon','source_image_refs_json','TEXT');db.run(`CREATE TABLE IF NOT EXISTS pokemon_analysis_observation(observation_id TEXT PRIMARY KEY,pokemon_id TEXT,identity_group_key TEXT,source_image_ref TEXT NOT NULL,analysis_id TEXT,revision_no INTEGER,observed_json TEXT NOT NULL,canonical_json TEXT,conflict_json TEXT,created_at TEXT NOT NULL,applied_at TEXT)`);db.run(`CREATE INDEX IF NOT EXISTS idx_pokemon_analysis_observation_group ON pokemon_analysis_observation(identity_group_key,created_at)`);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(7,datetime('now'))`);}
 export function applyWarRoomStrategySnapshotMigration(db){
   db.run(`CREATE TABLE IF NOT EXISTS strategy_goal_profile(
@@ -66,6 +67,17 @@ export function applyWarRoomStrategySnapshotMigration(db){
   db.run(`CREATE INDEX IF NOT EXISTS idx_pokemon_evaluation_snapshot_fingerprint ON pokemon_evaluation_snapshot(input_fingerprint)`);
   db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(8,datetime('now'))`);
 }
+export function applyCandyInventoryMigration(db){
+  db.run(`CREATE TABLE IF NOT EXISTS candy_inventory(
+    candy_id TEXT PRIMARY KEY,
+    quantity INTEGER NOT NULL DEFAULT 0,
+    safe_reserve INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL,
+    source_update_id TEXT
+  )`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_candy_inventory_updated ON candy_inventory(updated_at)`);
+  db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(9,datetime('now'))`);
+}
 export function applyStandardCatalogCompatibilityMigration(db){
   applySharedMasterSchema(db);
   const changed=addColumnIfMissing(db,'item_master','effect_description_zh_tw','TEXT');
@@ -78,10 +90,12 @@ export function applyStandardCatalogCompatibilityMigration(db){
 export function auditAndSyncPublicMasters(db,{force=false}={}){
   applySharedMasterSchema(db);
   applyPublicPokemonKnowledgeSchema(db);
+  applyPublicCandyMasterSchema(db);
   const applied={
     shared:settingValue(db,'shared_master_version'),
     recipes:settingValue(db,'public_recipe_master_version'),
     items:settingValue(db,'public_item_master_version'),
+    candy:settingValue(db,'public_candy_master_version'),
     canonical:settingValue(db,'canonical_registry_version'),
     pokemon_knowledge:settingValue(db,'public_pokemon_knowledge_version'),
   };
@@ -89,6 +103,7 @@ export function auditAndSyncPublicMasters(db,{force=false}={}){
     shared:MASTER_DATA_VERSION,
     recipes:PUBLIC_RECIPE_MASTER_VERSION,
     items:PUBLIC_ITEM_MASTER_VERSION,
+    candy:PUBLIC_CANDY_MASTER_VERSION,
     canonical:CANONICAL_REGISTRY_VERSION,
     pokemon_knowledge:PUBLIC_POKEMON_KNOWLEDGE_VERSION,
   };
@@ -98,12 +113,13 @@ export function auditAndSyncPublicMasters(db,{force=false}={}){
   if(force||applied.recipes!==expected.recipes){details.recipes=syncPublicRecipeMaster(db);updated.push('recipes');}
   if(force||applied.items!==expected.items){applyPublicEmptyProfileMaster(db);updated.push('items');}
   if(force||applied.pokemon_knowledge!==expected.pokemon_knowledge){applyPublicPokemonKnowledgeData(db);updated.push('pokemon_knowledge');}
+  if(force||applied.candy!==expected.candy||updated.includes('shared')||updated.includes('pokemon_knowledge')){details.candy=syncPublicCandyMaster(db);updated.push('candy');}
   if(force||updated.length>0||applied.canonical!==expected.canonical){applyCanonicalRegistry(db);updated.push('canonical');}
   return {updated:updated.length>0,updated_authorities:updated,applied,expected,details};
 }
 
 export function applyFreshDatabaseBootstrap(db){
-  applySharedMasterSchema(db);applyPublicPokemonKnowledgeSchema(db);
+  applySharedMasterSchema(db);applyPublicPokemonKnowledgeSchema(db);applyCandyInventoryMigration(db);applyPublicCandyMasterSchema(db);
   applyIdentityMigration(db);applyGameDataMigration(db);applyPersonalRecipeMigration(db);applyCompletePokemonDetailMigration(db);applyWarRoomStrategySnapshotMigration(db);applyStandardCatalogCompatibilityMigration(db);
   db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(4,datetime('now'))`);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(6,datetime('now'))`);
   const publicMaster=auditAndSyncPublicMasters(db,{force:true});
@@ -119,6 +135,7 @@ export function applyAllMigrations(db){
   if(!hasMigration(db,6)){applyPublicProfileContract(db);applyCanonicalTerminologyMigration(db);databaseChanged=true;}
   if(!hasMigration(db,7)){applyCompletePokemonDetailMigration(db);databaseChanged=true;}
   if(!hasMigration(db,8)){applyWarRoomStrategySnapshotMigration(db);databaseChanged=true;}
+  if(!hasMigration(db,9)){applyCandyInventoryMigration(db);databaseChanged=true;}
   if(applyStandardCatalogCompatibilityMigration(db))databaseChanged=true;
   const publicMaster=auditAndSyncPublicMasters(db);
   return {database_changed:databaseChanged||publicMaster.updated,public_master:publicMaster};

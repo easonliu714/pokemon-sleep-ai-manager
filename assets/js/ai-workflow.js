@@ -2,18 +2,20 @@ import {AI_OBSERVATION_PROMPT,buildObservationTemplate,normalizeObservationPaylo
 import {isWeeklyContextPayload,prepareWeeklyContextPayloadForImporter,validateWeeklyContextImportPayload} from './weekly-context-import-contract.js';
 
 const REQUIRED_ROOT=['schema_version','update_id','generated_at','source','operations'];
-const ALLOWED_ENTITIES=new Set(['pokemon','pokemon_ingredients','pokemon_subskills','pokemon_identity_evidence','pokemon_evolution_history','ingredient_inventory','item_inventory','account_capacity','discarded_pokemon','recipes','recipe_ingredients','weekly_plan','weekly_context','weekly_strategy','settings']);
+const ALLOWED_ENTITIES=new Set(['pokemon','pokemon_ingredients','pokemon_subskills','pokemon_identity_evidence','pokemon_evolution_history','ingredient_inventory','item_inventory','candy_inventory','account_capacity','discarded_pokemon','recipes','recipe_ingredients','weekly_plan','weekly_context','weekly_strategy','settings']);
 const ALLOWED_ACTIONS=new Set(['insert','update','upsert','archive','discarded','delete']);
 const LEVELS={pokemon_ingredients:new Set([1,30,60]),pokemon_subskills:new Set([10,25,50,70,80])};
 const LEGACY_SUBSKILL_LEVELS=new Map([[75,70],[100,80]]);
 const SCENARIO_ENTITIES=Object.freeze({
   ingredient_inventory_update:new Set(['ingredient_inventory','account_capacity']),
   item_inventory_update:new Set(['item_inventory','account_capacity']),
+  candy_inventory_update:new Set(['candy_inventory']),
   recipe_status_update:new Set(['recipes']),
   weekly_context_update:new Set(['weekly_context']),
   recipes:new Set(['recipes','recipe_ingredients']),
   ingredients:new Set(['ingredient_inventory','account_capacity']),
   items:new Set(['item_inventory','account_capacity']),
+  candies:new Set(['candy_inventory']),
 });
 const isEmpty=value=>value===null||value===undefined||value==='';
 const hasOwn=(object,key)=>Object.prototype.hasOwnProperty.call(object||{},key);
@@ -22,6 +24,7 @@ const WEEKLY_REPAIR_LABELS=Object.freeze({
   LEGACY_CONTEXT_ID_CANONICALIZED:'舊版 Weekly JSON：context_id 已轉成目前週期 canonical import ID。',
   DISH_CATEGORY_CANONICALIZED:'料理類型已轉成平台 canonical 名稱（例如 咖哩、濃湯 → 咖哩／濃湯）。',
   EVENT_EFFECTS_OBJECT_SERIALIZED_FOR_SQLITE:'event_effects object 已在匯入層安全序列化；SQLite 仍維持 TEXT，不需 migration。',
+  MEAL_CATEGORY_FORCED_CATEGORY_STRING_REPAIRED_TRUE:'活動強制料理類型欄位已由同一 operation 的料理名稱安全修復為 boolean true。',
 });
 
 export const AI_PROMPT=AI_OBSERVATION_PROMPT;
@@ -32,8 +35,8 @@ function validNonNegativeInteger(value){return Number.isInteger(value)&&value>=0
 function validateScenarioValue(operation,label,errors){
   const data=operation.data||{};
   if(operation.entity==='ingredient_inventory'&&hasOwn(data,'quantity')&&!isEmpty(data.quantity)&&!validNonNegativeInteger(data.quantity))errors.push(`${label} ingredient quantity 必須為 0 以上整數`);
-  if(operation.entity==='item_inventory'){
-    for(const field of ['quantity','safe_reserve'])if(hasOwn(data,field)&&!isEmpty(data[field])&&!validNonNegativeInteger(data[field]))errors.push(`${label} item ${field} 必須為 0 以上整數`);
+  if(['item_inventory','candy_inventory'].includes(operation.entity)){
+    for(const field of ['quantity','safe_reserve'])if(hasOwn(data,field)&&!isEmpty(data[field])&&!validNonNegativeInteger(data[field]))errors.push(`${label} ${operation.entity==='candy_inventory'?'candy':'item'} ${field} 必須為 0 以上整數`);
   }
   if(operation.entity==='recipes'){
     if(hasOwn(data,'unlocked')&&!isEmpty(data.unlocked)&&![true,false,0,1].includes(data.unlocked))errors.push(`${label} recipes unlocked 必須為 true/false 或 0/1`);
@@ -86,6 +89,7 @@ function validateUpdatePackage(payload){
     if(scenarioContract&&!scenarioContract.has(operation.entity))errors.push(`${label} entity ${operation.entity} 不屬於 scenario=${payload.scenario}`);
     if(!ALLOWED_ACTIONS.has(operation.action))errors.push(`${label} 不支援 action：${operation.action}`);
     if(operation.action==='delete')errors.push(`${label} 禁止 delete`);
+    if(operation.entity==='candy_inventory'&&operation.action!=='upsert')errors.push(`${label} candy_inventory 只允許 upsert`);
     if(!operation.key||typeof operation.key!=='object')errors.push(`${label} 缺少 key`);
     if(!operation.data||typeof operation.data!=='object')errors.push(`${label} 缺少 data`);
     if(operation.operation_id){if(ids.has(operation.operation_id))errors.push(`${label} operation_id 重複：${operation.operation_id}`);ids.add(operation.operation_id);}else warnings.push(`${label} 缺少 operation_id`);
@@ -97,6 +101,7 @@ function validateUpdatePackage(payload){
     if(operation.entity==='pokemon_evolution_history'&&!operation.key?.evolution_id)errors.push(`${label} evolution history 缺少 evolution_id`);
     if(['pokemon_identity_evidence','pokemon_evolution_history'].includes(operation.entity)&&!operation.data?.pokemon_instance_id)errors.push(`${label} ${operation.entity} 缺少 pokemon_instance_id`);
     if(operation.entity==='recipes'&&!operation.key?.recipe_id&&!operation.key?.recipe_name)errors.push(`${label} recipes key 至少需要 recipe_id 或 recipe_name`);
+    if(operation.entity==='candy_inventory'&&!operation.key?.candy_id&&!operation.key?.candy_name)errors.push(`${label} candy_inventory key 至少需要 candy_id 或 candy_name`);
     if(operation.review_required===true&&!operation.user_audit?.accepted_current_observation)review.push({index,operation_id:operation.operation_id||label,entity:operation.entity,key:operation.key,evidence:operation.evidence||null});
     for(const [field,value] of Object.entries(operation.data||{})){
       if(isEmpty(value)&&!(operation.clear_fields||[]).includes(field))emptyFieldCount+=1;

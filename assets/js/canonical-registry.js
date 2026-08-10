@@ -1,4 +1,4 @@
-export const CANONICAL_REGISTRY_VERSION='canonical-registry-2026-08-09-c';
+export const CANONICAL_REGISTRY_VERSION='canonical-registry-2026-08-10-a';
 export const CANONICAL_RESOLUTION_STATUSES=Object.freeze({
   EXACT:'CANONICAL_EXACT',
   ALIAS_SAFE:'CANONICAL_ALIAS_SAFE',
@@ -8,10 +8,10 @@ export const CANONICAL_RESOLUTION_STATUSES=Object.freeze({
 });
 
 const RELEASE={
-  release_id:'game-data-2026-08-09',
-  game_version:'current-as-observed-2026-08-09',
+  release_id:'game-data-2026-08-10',
+  game_version:'current-as-observed-2026-08-10',
   locale:'zh-Hant',
-  effective_from:'2026-08-09',
+  effective_from:'2026-08-10',
   source_type:'game_screenshot_verified+official_announcement+reference_structured',
 };
 
@@ -51,6 +51,7 @@ function makeResolutionId({entityType,rawValue,sourceRef=''}){
 
 function masterVerificationStatus(row){
   if(row.source_type==='game_screenshot_verified')return 'GAME_SCREENSHOT_VERIFIED';
+  if(row.source_type==='public_pokemon_name_projection')return 'PUBLIC_POKEMON_NAME_DERIVED';
   if(row.source_type==='migration_baseline')return 'REVIEW_REQUIRED';
   if(row.source_type==='current_reference_crosscheck')return 'REFERENCE_VERIFIED';
   return 'REFERENCE_VERIFIED';
@@ -138,13 +139,14 @@ export function applyCanonicalRegistry(db){
 
   // A master refresh must retire terms that disappeared from the current authority.
   // Historical resolution logs remain immutable; only active projection changes.
-  db.run(`UPDATE canonical_term SET is_active=0 WHERE entity_type IN ('ingredient','item','recipe','berry')`);
+  db.run(`UPDATE canonical_term SET is_active=0 WHERE entity_type IN ('ingredient','item','recipe','berry','candy')`);
 
   const masters=[
     ['ingredient','ingredient_master','ingredient_name'],
     ['item','item_master','item_name'],
     ['recipe','recipe_master','recipe_name'],
     ['berry','berry_master','berry_name'],
+    ['candy','candy_master','candy_name'],
   ];
   for(const [entity,table,column] of masters){
     const values=[];

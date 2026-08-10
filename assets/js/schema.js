@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS pokemon_identity_evidence(evidence_id TEXT PRIMARY KE
 CREATE TABLE IF NOT EXISTS discarded_pokemon(discard_id TEXT PRIMARY KEY,species TEXT NOT NULL,observed_json TEXT,reason TEXT NOT NULL,discarded_at TEXT NOT NULL,source_update_id TEXT);
 CREATE TABLE IF NOT EXISTS ingredient_inventory(ingredient_name TEXT PRIMARY KEY,quantity INTEGER NOT NULL DEFAULT 0,updated_at TEXT NOT NULL,source_update_id TEXT);
 CREATE TABLE IF NOT EXISTS item_inventory(item_name TEXT PRIMARY KEY,quantity INTEGER NOT NULL DEFAULT 0,safe_reserve INTEGER NOT NULL DEFAULT 0,recommendation TEXT,updated_at TEXT NOT NULL,source_update_id TEXT);
+CREATE TABLE IF NOT EXISTS candy_inventory(candy_id TEXT PRIMARY KEY,quantity INTEGER NOT NULL DEFAULT 0,safe_reserve INTEGER NOT NULL DEFAULT 0,updated_at TEXT NOT NULL,source_update_id TEXT);
 CREATE TABLE IF NOT EXISTS recipes(recipe_id TEXT PRIMARY KEY,category TEXT NOT NULL,recipe_name TEXT NOT NULL UNIQUE,unlocked INTEGER NOT NULL DEFAULT 0,total_ingredients INTEGER NOT NULL DEFAULT 0,source TEXT);
 CREATE TABLE IF NOT EXISTS recipe_ingredients(recipe_id TEXT NOT NULL,ingredient_name TEXT NOT NULL,quantity INTEGER NOT NULL,PRIMARY KEY(recipe_id,ingredient_name));
 CREATE TABLE IF NOT EXISTS weekly_plan(plan_id TEXT PRIMARY KEY,week_start TEXT NOT NULL,camp TEXT,dish_category TEXT,favorite_berry_1 TEXT,favorite_berry_2 TEXT,favorite_berry_3 TEXT,event_summary TEXT,target_summary TEXT,updated_at TEXT NOT NULL);

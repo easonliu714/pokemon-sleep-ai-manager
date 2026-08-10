@@ -6,7 +6,7 @@ const MANIFEST_SCHEMA = 'pokemon-sleep-backup-manifest/2.0';
 const CORE_TABLES = [
   'settings','account_capacity','pokemon','pokemon_subskills','pokemon_ingredients',
   'pokemon_identity_evidence','pokemon_history','discarded_pokemon','ingredient_inventory',
-  'item_inventory','recipes','recipe_ingredients','weekly_plan','weekly_context',
+  'item_inventory','candy_inventory','recipes','recipe_ingredients','weekly_plan','weekly_context',
   'weekly_strategy','collection_targets','import_batches','import_changes',
   'image_analysis_revision'
 ];
