@@ -1,7 +1,7 @@
 import {PUBLIC_BERRY_TYPES} from './shared-master-data.js';
 import {PUBLIC_EVOLUTION_MASTER,PUBLIC_EVOLUTION_STATUS_MASTER,PUBLIC_POKEMON_KNOWLEDGE_VERSION} from './public-pokemon-knowledge-master.js';
 
-export const PUBLIC_CANDY_MASTER_VERSION='public-candy-master-2026-08-10-c';
+export const PUBLIC_CANDY_MASTER_VERSION='public-candy-master-2026-08-10-d';
 export const SPECIES_CANDY_NAME_RULE_VERSION='species-candy-name-rule-zh-tw-2026-08-10-a';
 
 const OFFICIAL='Pokémon Sleep official zh-TW';
