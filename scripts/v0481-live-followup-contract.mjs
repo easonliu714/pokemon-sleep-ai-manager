@@ -45,15 +45,30 @@ assert.equal(ui.includes("node.disabled=primary"),false,'Update Center JSON fiel
 assert.equal(ui.includes("select.disabled=resolved.locked||source==='UPDATE_CENTER_JSON'"),false,'random/EX berries from JSON must remain manually correctable');
 
 const camp=read('assets/js/camp-berry-knowledge-ui.js');
-for(const token of [
-  'camp-berry-scroll',
-  'overflow-x:auto',
-  '-webkit-overflow-scrolling:touch',
-  'touch-action:pan-x pan-y',
-  '#campBerryMasterTable{min-width:760px',
-  'margin-left:0;margin-right:0',
-  '可左右捲動',
-])assert.ok(camp.includes(token),`mobile Camp Berry containment missing: ${token}`);
+assert.ok(camp.includes('camp-berry-scroll'),'Camp Berry mobile containment wrapper must remain explicit');
+let mobileCampStrategy='UNKNOWN';
+if(app==='v0.4.8.1'){
+  for(const token of [
+    'overflow-x:auto',
+    '-webkit-overflow-scrolling:touch',
+    'touch-action:pan-x pan-y',
+    '#campBerryMasterTable{min-width:760px',
+    'margin-left:0;margin-right:0',
+    '可左右捲動',
+  ])assert.ok(camp.includes(token),`exact v0.4.8.1 horizontal-scroll containment missing: ${token}`);
+  mobileCampStrategy='HORIZONTAL_SCROLL';
+}else{
+  for(const token of [
+    '#campBerryMasterBlock{min-width:0;max-width:100%;overflow:hidden;}',
+    '#campBerryMasterTable{display:block;width:100%!important;min-width:0!important;max-width:100%!important',
+    '#campBerryMasterTable thead{display:none;}',
+    '#campBerryMasterTable td::before{content:attr(data-label)',
+    'data-label="營地"',
+    'data-label="樹果／規則"',
+    '手機版改用框內卡片避免超出外框',
+  ])assert.ok(camp.includes(token),`successor Camp Berry contained row-card contract missing: ${token}`);
+  mobileCampStrategy='ROW_CARD_CONTAINED';
+}
 
 const coverage=read('assets/js/public-pokemon-knowledge-coverage.js');
 for(const token of ['VERIFIED_OUTGOING_OR_VERIFIED_TERMINAL_OR_UNKNOWN','UNKNOWN_NOT_YET_VERIFIED','VERIFIED_TERMINAL_CURRENT_SLEEP'])assert.ok(coverage.includes(token),`evolution tri-state safety regression: ${token}`);
@@ -70,7 +85,8 @@ console.log(JSON.stringify({
   override_revision_scoped:true,
   fixed_camp_berries_still_locked:true,
   typed_event_validation_preserved:true,
-  camp_table_mobile_horizontal_scroll:true,
+  camp_table_mobile_contained:true,
+  camp_table_mobile_strategy:mobileCampStrategy,
   evolution_three_state_semantics_preserved:true,
   sqlite_migration_added:false,
 },null,2));
