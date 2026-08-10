@@ -9,6 +9,7 @@ on:
       - 'assets/js/external-strategy-analysis-local.js'
       - 'assets/js/war-room-strategy-analysis-pack-ui.js'
       - 'assets/js/recipe-strategy-local.js'
+      - 'scripts/v0491-release-contract.mjs'
       - 'scripts/v049-release-contract.mjs'
       - 'scripts/war3c-external-strategy-analysis-pack-contract.mjs'
       - 'scripts/v0485-release-contract.mjs'
@@ -30,9 +31,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Verify exact v0.4.9 release authority and Runtime bridge
+      - name: Verify exact v0.4.9.1 WAR.3 LIVE closure release authority
+        run: node scripts/v0491-release-contract.mjs
+      - name: Verify v0.4.9 historical provider-neutral baseline
         run: node scripts/v049-release-contract.mjs
-      - name: Verify WAR.3C executable privacy and analysis-pack behavior
+      - name: Verify WAR.3C executable privacy and semantic-integrity behavior
         run: node scripts/war3c-external-strategy-analysis-pack-contract.mjs
       - name: Verify v0.4.8.5 Android E3 compact containment remains green
         run: node scripts/v0485-release-contract.mjs
@@ -60,6 +63,7 @@ jobs:
           node --check assets/js/external-strategy-analysis-local.js
           node --check assets/js/war-room-strategy-analysis-pack-ui.js
           node --check assets/js/recipe-strategy-local.js
+          node --check scripts/v0491-release-contract.mjs
           node --check scripts/v049-release-contract.mjs
           node --check scripts/war3c-external-strategy-analysis-pack-contract.mjs
           node --check scripts/v0485-release-contract.mjs
