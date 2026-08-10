@@ -1,0 +1,35 @@
+name: DATA.EVO.1 Observed Evolution Coverage
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/public-pokemon-knowledge-master.js'
+      - 'assets/js/public-pokemon-knowledge-coverage.js'
+      - 'assets/js/v03993-public-knowledge-coverage-ui.js'
+      - 'assets/js/public-candy-master.js'
+      - 'assets/js/version-authority.js'
+      - 'scripts/data-evo1-observed-evolution-coverage-contract.mjs'
+      - 'scripts/war3a-candy-inventory-contract.mjs'
+      - '.github/workflows/data-evo1-observed-evolution-coverage.yml'
+  workflow_dispatch:
+
+jobs:
+  evolution-coverage:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify DATA.EVO.1 observed evolution diagnostic
+        run: node scripts/data-evo1-observed-evolution-coverage-contract.mjs
+      - name: Verify Candy resource context remains green
+        run: node scripts/war3a-candy-inventory-contract.mjs
+      - name: Verify JavaScript syntax
+        run: |
+          node --check assets/js/public-pokemon-knowledge-coverage.js
+          node --check assets/js/v03993-public-knowledge-coverage-ui.js
+          node --check scripts/data-evo1-observed-evolution-coverage-contract.mjs
+      - name: Verify no tracked test mutation
+        shell: bash
+        run: test -z "$(git status --porcelain --untracked-files=no)"
