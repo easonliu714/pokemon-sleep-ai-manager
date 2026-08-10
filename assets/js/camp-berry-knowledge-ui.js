@@ -2,7 +2,7 @@ import {PUBLIC_CAMP_BERRY_MASTER,PUBLIC_CAMP_BERRY_VERSION} from './public-camp-
 
 export const CAMP_BERRY_KNOWLEDGE_UI_VERSION='camp-berry-knowledge-ui-2026-08-10-d';
 
-const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]));
+const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 function policyLabel(row){
   if(row.berry_policy==='FIXED_3')return '固定 3 種';
   if(row.berry_policy==='WEEKLY_RANDOM_3')return '每週隨機 3 種';
@@ -67,7 +67,7 @@ function mount(){
   const block=document.createElement('section');block.id='campBerryMasterBlock';
   block.innerHTML=`<h3>營地與喜好樹果</h3>
     <p class="notice">這是公版營地規則，不含玩家本週選擇。固定營地可自動帶入三種樹果；萌綠之島與 EX 的實際樹果屬玩家每週狀態，不會沿用上週資料。</p>
-    <div class="table-wrap camp-berry-scroll" role="region" aria-label="營地與喜好樹果表；觸控裝置強制使用框內卡片避免超出外框" tabindex="0"><table id="campBerryMasterTable"><thead><tr><th>營地</th><th>規則</th><th>喜好樹果／候選規則</th><th>來源</th><th>核對日</th></tr></thead><tbody>${PUBLIC_CAMP_BERRY_MASTER.map(row=>`<tr><td data-label="營地">${esc(row.camp_name)}</td><td data-label="規則">${esc(policyLabel(row))}</td><td data-label="樹果／規則">${esc(berryText(row))}</td><td data-label="來源">${esc(row.source_name)}</td><td data-label="核對日">${esc(row.verified_at)}</td></tr>`).join('')}</tbody></table></div>
+    <div class="table-wrap camp-berry-scroll" role="region" aria-label="營地與喜好樹果表；手機版改用框內卡片避免超出外框；觸控裝置強制套用" tabindex="0"><table id="campBerryMasterTable"><thead><tr><th>營地</th><th>規則</th><th>喜好樹果／候選規則</th><th>來源</th><th>核對日</th></tr></thead><tbody>${PUBLIC_CAMP_BERRY_MASTER.map(row=>`<tr><td data-label="營地">${esc(row.camp_name)}</td><td data-label="規則">${esc(policyLabel(row))}</td><td data-label="樹果／規則">${esc(berryText(row))}</td><td data-label="來源">${esc(row.source_name)}</td><td data-label="核對日">${esc(row.verified_at)}</td></tr>`).join('')}</tbody></table></div>
     <p class="notice">Camp Berry Master：<b>${esc(PUBLIC_CAMP_BERRY_VERSION)}</b></p>`;
   applyLayoutMode(block);
   const first=panel.querySelector('h3');if(first)first.insertAdjacentElement('beforebegin',block);else panel.prepend(block);
