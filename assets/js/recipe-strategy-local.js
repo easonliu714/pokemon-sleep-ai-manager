@@ -6,10 +6,7 @@ import {
 } from './public-recipe-provenance.js';
 import {projectRecipeStrategy} from './recipe-strategy-projection.js';
 import {getActiveStrategyGoalProfile} from './strategy-goal-store.js';
-
-function latestWeeklyContext(){
-  return rows('SELECT * FROM weekly_context ORDER BY updated_at DESC LIMIT 1')[0]||{};
-}
+import {currentWeeklyContext} from './weekly-context-store.js';
 
 export function buildLocalRecipeStrategyProjection({
   potSize=undefined,
@@ -37,7 +34,7 @@ export function buildLocalRecipeStrategyProjection({
     };
   }
 
-  const week=latestWeeklyContext();
+  const week=currentWeeklyContext();
   const goalProfile=getActiveStrategyGoalProfile();
   const hardConstraints=goalProfile?.hard_constraints||{};
   const effectiveReserve=ingredientSafeReserve===undefined?(hardConstraints.ingredient_safe_reserve||{}):ingredientSafeReserve;
@@ -73,6 +70,8 @@ export function buildLocalRecipeStrategyProjection({
     projection_status:'READY',
     goal_profile_id:goalProfile?.goal_profile_id||null,
     weekly_context_id:week.context_id||null,
+    weekly_context_week_start:week.week_start||null,
+    weekly_context_status:week.context_status||null,
     weekly_context_updated_at:week.updated_at||null,
   };
 }
