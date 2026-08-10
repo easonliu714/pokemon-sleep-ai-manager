@@ -1,10 +1,10 @@
 import {rows,isDatabaseReady,isRescueReadonly} from './database.js';
 import {currentWeeklyContext} from './weekly-context-store.js';
+import {normalizeDishCategory} from './weekly-context-normalization.js';
 import {analyzeIngredientGaps,sortGapResults} from './ingredient-gap-engine.js';
 
-export const CURRENT_WEEK_RECIPE_RECOMMENDATION_VERSION='current-week-recipe-recommendation-2026-08-10-a';
+export const CURRENT_WEEK_RECIPE_RECOMMENDATION_VERSION='current-week-recipe-recommendation-2026-08-10-b';
 let applying=false;
-const normalizeCategory=value=>String(value||'').trim().replaceAll('/','／');
 function inventory(){return rows('SELECT ingredient_name,quantity FROM ingredient_inventory');}
 function personalAnalysis(inv){
   const recipes=rows('SELECT * FROM recipes WHERE unlocked=1 ORDER BY category,recipe_name');
@@ -19,8 +19,8 @@ function referenceAnalysis(inv){
   return analyzeIngredientGaps({recipes,recipeIngredients:ingredients,inventory:inv}).filter(row=>row.status!=='unlocked');
 }
 function recommendedNames(analysis,category){
-  if(!category)return new Set();
-  const pool=analysis.filter(row=>normalizeCategory(row.category)===category);
+  const normalized=normalizeDishCategory(category);if(!normalized)return new Set();
+  const pool=analysis.filter(row=>normalizeDishCategory(row.category)===normalized);
   return new Set(sortGapResults(pool,'shortage').slice(0,3).map(row=>row.recipe_name));
 }
 function patchTable(table,names,nameCellIndex){
@@ -38,10 +38,10 @@ function apply(){
   if(!personalTable&&!referenceTable)return;
   applying=true;
   try{
-    const week=currentWeeklyContext(),category=normalizeCategory(week.dish_category),inv=inventory();
+    const week=currentWeeklyContext(),category=normalizeDishCategory(week.dish_category),inv=inventory();
     patchTable(personalTable,recommendedNames(personalAnalysis(inv),category),2);
     patchTable(referenceTable,recommendedNames(referenceAnalysis(inv),category),2);
-    for(const table of [personalTable,referenceTable])if(table){table.dataset.weeklyContextWeek=week.week_start||'';table.dataset.weeklyDishCategory=category;}
+    for(const table of [personalTable,referenceTable])if(table){table.dataset.weeklyContextWeek=week.week_start||'';table.dataset.weeklyDishCategory=category||'';table.dataset.weeklyContextAuthority=week.authority_source||'MISSING';}
   }finally{applying=false;}
 }
 function schedule(delay=20){setTimeout(apply,delay);}
