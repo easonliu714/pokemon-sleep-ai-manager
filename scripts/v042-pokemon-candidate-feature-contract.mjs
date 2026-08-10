@@ -25,12 +25,12 @@ const run=(p=pokemon,d=details,profile=goalProfile)=>projectPokemonCandidateFeat
 const result=run();
 const get=id=>result.candidates.find(row=>row.pokemon_id===id);
 
-assert(['pokemon-candidate-features-2026-08-09-a','pokemon-candidate-features-2026-08-09-b'].includes(POKEMON_CANDIDATE_FEATURE_VERSION),`feature_version:${POKEMON_CANDIDATE_FEATURE_VERSION}`);
+assert(['pokemon-candidate-features-2026-08-09-a','pokemon-candidate-features-2026-08-09-b','pokemon-candidate-features-2026-08-10-c'].includes(POKEMON_CANDIDATE_FEATURE_VERSION),`feature_version:${POKEMON_CANDIDATE_FEATURE_VERSION}`);
 assert(result.candidates.length===3,'candidate_count');
 assert(result.numeric_scores_generated===false&&result.score_activation_status==='FEATURE_ONLY','feature_projection_generated_scores');
 assert(get('p1').mandatory_candidate===true,'must_include_not_marked_mandatory');
 assert(get('p1').hard_constraint_status==='PASS','mandatory_candidate_wrong_hard_status');
-if(POKEMON_CANDIDATE_FEATURE_VERSION.endsWith('-b'))assert(get('p1').must_include_match_source==='UNIQUE_LEGACY_SPECIES','unique_legacy_species_match_source_missing');
+if(!POKEMON_CANDIDATE_FEATURE_VERSION.endsWith('-a'))assert(get('p1').must_include_match_source==='UNIQUE_LEGACY_SPECIES','unique_legacy_species_match_source_missing');
 assert(get('p2').hard_constraint_status==='FAIL','excluded_or_low_level_candidate_not_failed');
 assert(get('p2').failed_constraints.includes('exclude_pokemon'),'exclude_constraint_missing');
 assert(get('p2').failed_constraints.includes('minimum_candidate_level'),'minimum_level_constraint_missing');
@@ -44,6 +44,16 @@ assert(get('p3').unlocked_ingredients.length===2,'level30_ingredient_not_unlocke
 assert(get('p2').weekly_ingredient_overlap.includes('特選蘋果'),'ingredient_demand_overlap_missing');
 assert(get('p2').weekly_ingredient_demand_covered===10,'ingredient_demand_coverage_amount');
 assert(get('p1').collection_target_types.includes('進化目標'),'collection_target_feature_missing');
+// v0.4.5 bridge: scoring inputs come from confirmed slot observations rather than synthetic scoring fixtures.
+if(POKEMON_CANDIDATE_FEATURE_VERSION.endsWith('-c')){
+  assert(get('p1').known_ingredient_slot_count===2,'p1_known_ingredient_slots');
+  assert(get('p1').known_subskill_slot_count===2,'p1_known_subskill_slots');
+  assert(get('p1').unlocked_ingredient_slot_count===1,'p1_unlocked_ingredient_slots');
+  assert(get('p1').unlocked_subskill_slot_count===1,'p1_unlocked_subskill_slots');
+  assert(get('p1').known_unlock_slot_count===4&&get('p1').unlocked_known_slot_count===2,'p1_unlock_slot_totals');
+  assert(get('p2').known_unlock_slot_count===2&&get('p2').unlocked_known_slot_count===2,'p2_unlock_slot_totals');
+  assert(get('p3').known_unlock_slot_count===2&&get('p3').unlocked_known_slot_count===2,'p3_unlock_slot_totals');
+}
 // Team-level requirements are projected as features, not used to fail every non-matching individual.
 assert(!get('p2').failed_constraints.includes('must_include_role'),'team_level_role_wrongly_applied_as_individual_fail');
 assert(!get('p3').failed_constraints.includes('must_include_pokemon'),'team_level_must_include_wrongly_applied_as_individual_fail');
@@ -53,7 +63,7 @@ assert(reversed.input_fingerprint===result.input_fingerprint,'feature_fingerprin
 assert(JSON.stringify(reversed.candidates)===JSON.stringify(result.candidates),'candidate_features_order_dependent');
 
 let ambiguousLegacySpeciesSafe=true;
-if(POKEMON_CANDIDATE_FEATURE_VERSION.endsWith('-b')){
+if(!POKEMON_CANDIDATE_FEATURE_VERSION.endsWith('-a')){
   const duplicate={...pokemon[0],pokemon_id:'p4',pokemon_instance_id:'instance_p4',sp:990};
   const duplicateDetail={pokemon_id:'p4',ingredients:[{unlock_level:1,ingredient_name:'哞哞鮮奶',quantity:1}],subskills:[{unlock_level:10,subskill_name:'幫忙速度S',is_unlocked:1}]};
   const ambiguous=run([...pokemon,duplicate],[...details,duplicateDetail]);
@@ -81,9 +91,10 @@ for(const dimension of ['intrinsic_score','weekly_fit_score','roster_marginal_va
 }
 
 console.log(JSON.stringify({
-  status:'PASS',schema:'pokemon-sleep-candidate-feature-contract/1.2',feature_version:POKEMON_CANDIDATE_FEATURE_VERSION,
+  status:'PASS',schema:'pokemon-sleep-candidate-feature-contract/1.3',feature_version:POKEMON_CANDIDATE_FEATURE_VERSION,
   historical_minimum_feature_version:'pokemon-candidate-features-2026-08-09-a',candidate_count:3,
   rank_eligible_count:result.summary.rank_eligible_count,feature_order_invariant:true,numeric_scores_generated:false,
   active_numeric_scoring_rules:1,team_level_constraints_not_misapplied:true,current_unlock_thresholds_respected:true,
+  current_readiness_runtime_inputs_projected:POKEMON_CANDIDATE_FEATURE_VERSION.endsWith('-c'),
   favorite_berry_and_recipe_demand_features:true,ambiguous_legacy_species_safe:ambiguousLegacySpeciesSafe,player_data_write:false,
 },null,2));
