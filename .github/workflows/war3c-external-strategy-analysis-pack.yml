@@ -1,0 +1,45 @@
+name: WAR.3C External Strategy Analysis Pack
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/external-strategy-analysis-pack.js'
+      - 'assets/js/external-strategy-analysis-privacy.js'
+      - 'assets/js/external-strategy-analysis-local.js'
+      - 'assets/js/war-room-strategy-analysis-pack-ui.js'
+      - 'assets/js/recipe-strategy-local.js'
+      - 'scripts/war3c-external-strategy-analysis-pack-contract.mjs'
+      - 'scripts/v048-release-contract.mjs'
+      - 'scripts/v047-release-contract.mjs'
+      - '.github/workflows/war3c-external-strategy-analysis-pack.yml'
+  workflow_dispatch:
+
+jobs:
+  external-strategy-analysis-pack:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify WAR.3C external analysis pack behavior
+        run: node scripts/war3c-external-strategy-analysis-pack-contract.mjs
+      - name: Verify v0.4.8 typed event release baseline remains green
+        run: node scripts/v048-release-contract.mjs
+      - name: Verify historical v0.4.7 Candy behavior remains green
+        run: node scripts/v047-release-contract.mjs
+      - name: Verify WAR.3B typed event behavior remains green
+        run: node scripts/war3b-typed-event-effect-registry-contract.mjs
+      - name: Verify JavaScript syntax
+        shell: bash
+        run: |
+          set -o errexit -o nounset -o pipefail
+          node --check assets/js/external-strategy-analysis-pack.js
+          node --check assets/js/external-strategy-analysis-privacy.js
+          node --check assets/js/external-strategy-analysis-local.js
+          node --check assets/js/war-room-strategy-analysis-pack-ui.js
+          node --check assets/js/recipe-strategy-local.js
+          node --check scripts/war3c-external-strategy-analysis-pack-contract.mjs
+      - name: Verify no tracked test mutation
+        shell: bash
+        run: test -z "$(git status --porcelain --untracked-files=no)"
