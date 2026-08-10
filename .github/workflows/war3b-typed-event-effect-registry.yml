@@ -9,6 +9,8 @@ on:
       - 'assets/js/weekly-context-ui-bridge.js'
       - 'assets/js/prompt-catalog.js'
       - 'assets/js/pokemon-evaluation-contract.js'
+      - 'assets/js/pokemon-candidate-feature-projection.js'
+      - 'assets/js/recipe-discovery-stockpile.js'
       - 'scripts/war3b-typed-event-effect-registry-contract.mjs'
       - 'scripts/v047-release-contract.mjs'
       - 'scripts/v0463-release-contract.mjs'
@@ -43,6 +45,8 @@ jobs:
           node --check assets/js/weekly-context-ui-bridge.js
           node --check assets/js/prompt-catalog.js
           node --check assets/js/pokemon-evaluation-contract.js
+          node --check assets/js/pokemon-candidate-feature-projection.js
+          node --check assets/js/recipe-discovery-stockpile.js
           node --check scripts/war3b-typed-event-effect-registry-contract.mjs
       - name: Verify no tracked test mutation
         shell: bash
