@@ -9,9 +9,13 @@ const version=read('assets/js/version-authority.js');
 const app=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const build=version.match(/app_build:\s*'([^']+)'/)?.[1];
 const cache=version.match(/cache_name:\s*'([^']+)'/)?.[1];
-assert.equal(app,'v0.4.5');
-assert.equal(build,'20260810-v045-current-readiness-runtime-bridge');
-assert.equal(cache,'pokemon-sleep-ai-v0.4.5-v045-current-readiness-runtime-bridge');
+const releaseMatch=String(app||'').match(/^v0\.4\.(\d+)$/);
+assert.ok(releaseMatch,'current release must remain in v0.4.x family for this historical readiness baseline');
+assert.ok(Number(releaseMatch[1])>=5,'current release must be v0.4.5 or newer');
+if(app==='v0.4.5'){
+  assert.equal(build,'20260810-v045-current-readiness-runtime-bridge');
+  assert.equal(cache,'pokemon-sleep-ai-v0.4.5-v045-current-readiness-runtime-bridge');
+}
 assert.equal(CURRENT_READINESS_SLOT_BRIDGE_VERSION,'current-readiness-slot-bridge-2026-08-10-a');
 
 const pokemon=[{pokemon_id:'release_p1',species:'伊布',current_species:'伊布',level:25,specialty:'技能',type:'一般',nature:'勤奮',main_skill:'能量填充S',main_skill_level:3,helper_seconds:2500,carry_limit:15,favorite_berry:'柿仔果',status:'active'}];
@@ -26,7 +30,7 @@ assert.equal(scored.score_breakdown.current_readiness_score.rule_version,'curren
 assert.equal(scored.score_breakdown.current_readiness_score.formula,'100 * unlocked_known_slots / known_unlock_slots');
 assert.equal(POKEMON_SCORING_RULES.current_readiness_score.status,'ACTIVE_VERIFIED');
 for(const dimension of ['intrinsic_score','weekly_fit_score','roster_marginal_value_score','training_roi_score']){
-  assert.equal(scored[dimension],null,`${dimension} must remain NULL in v0.4.5`);
+  assert.equal(scored[dimension],null,`${dimension} must remain NULL until evidence activates it`);
   assert.notEqual(POKEMON_SCORING_RULES[dimension].status,'ACTIVE_VERIFIED',`${dimension} activated without release evidence`);
 }
 
@@ -44,11 +48,11 @@ assert.ok(sw.includes("importScripts('./assets/js/version-authority.js')"));
 assert.ok(sw.includes("url.pathname.endsWith('.js')"));
 assert.ok(sw.includes('caches.match(event.request)'));
 const migrations=read('assets/js/migrations.js');
-assert.equal(migrations.includes('current-readiness-slot-bridge'),false,'v0.4.5 must not add a SQLite migration');
+assert.equal(migrations.includes('current-readiness-slot-bridge'),false,'readiness bridge must remain migration-free');
 for(const deterministic of [source,read('assets/js/pokemon-scoring-engine.js')])for(const forbidden of ['Gemini','fetch(','run(','persist('])assert.equal(deterministic.includes(forbidden),false,`readiness runtime bridge must remain local/read-only: ${forbidden}`);
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'V0.4.5_CURRENT_READINESS_RUNTIME_RELEASE',app_version:app,build,cache,
+  status:'PASS',gate:'V0.4.5_CURRENT_READINESS_RUNTIME_BASELINE',minimum_release:'v0.4.5',app_version:app,build,cache,
   bridge_version:CURRENT_READINESS_SLOT_BRIDGE_VERSION,known_unlock_slots:4,unlocked_known_slots:2,current_readiness_score:50,
   score_breakdown_ui:true,current_readiness_semantics:'UNLOCK_MATURITY_ONLY',inactive_dimensions_remain_null:true,schema_migration_added:false,player_data_write:false,gemini_used:false,
 },null,2));
