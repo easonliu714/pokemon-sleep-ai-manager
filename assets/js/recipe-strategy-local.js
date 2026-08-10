@@ -78,6 +78,9 @@ export function buildLocalRecipeStrategyProjection({
 
 if(typeof window!=='undefined'){
   queueMicrotask(()=>Promise.all([
+    import('./weekly-context-ui-bridge.js'),
+    import('./weekly-context-update-center-bridge.js'),
+    import('./camp-berry-knowledge-ui.js'),
     import('./evaluation-lifecycle-bootstrap.js'),
     import('./war-room-goal-profile-bootstrap.js'),
     import('./war-room-evaluation-lifecycle-bootstrap.js'),
@@ -85,5 +88,5 @@ if(typeof window!=='undefined'){
     import('./war-room-recipe-discovery-bootstrap.js'),
     import('./war-room-candidate-feature-bootstrap.js'),
     import('./war-room-strategy-context-bootstrap.js'),
-  ]).catch(error=>console.warn('War Room strategy UI bootstrap deferred',error)));
+  ]).catch(error=>console.warn('War Room / weekly integration UI bootstrap deferred',error)));
 }
