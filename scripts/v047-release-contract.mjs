@@ -25,7 +25,7 @@ if(currentVersion==='v0.4.7'){
   assert.equal(currentCache,'pokemon-sleep-ai-v0.4.7-v047-candy-inventory-resource-context');
 }
 
-assert.equal(PUBLIC_CANDY_MASTER_VERSION,'public-candy-master-2026-08-10-b');
+assert.match(PUBLIC_CANDY_MASTER_VERSION,/^public-candy-master-\d{4}-\d{2}-\d{2}-[a-z]$/,'successor Candy catalog revisions must remain explicitly versioned');
 assert.ok(PUBLIC_CANDY_FIXED_MASTER.length>=10);
 assert.ok(buildPublicCandyMasterRows().length>PUBLIC_CANDY_FIXED_MASTER.length,'species candy projection must be active');
 assert.ok(PUBLIC_CANDY_FIXED_MASTER.every(row=>!Object.hasOwn(row,'quantity')&&!Object.hasOwn(row,'safe_reserve')),'Public Candy Master must not contain player quantities');
