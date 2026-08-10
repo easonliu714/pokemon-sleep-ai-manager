@@ -81,6 +81,7 @@ if(typeof window!=='undefined'){
     import('./weekly-context-ui-bridge.js'),
     import('./weekly-context-update-center-bridge.js'),
     import('./camp-berry-knowledge-ui.js'),
+    import('./current-week-recipe-recommendation-bridge.js'),
     import('./evaluation-lifecycle-bootstrap.js'),
     import('./war-room-goal-profile-bootstrap.js'),
     import('./war-room-evaluation-lifecycle-bootstrap.js'),
