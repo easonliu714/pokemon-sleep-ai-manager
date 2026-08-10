@@ -1,6 +1,6 @@
 import {PUBLIC_CAMP_BERRY_MASTER,PUBLIC_CAMP_BERRY_VERSION} from './public-camp-berry-master.js';
 
-export const CAMP_BERRY_KNOWLEDGE_UI_VERSION='camp-berry-knowledge-ui-2026-08-10-b';
+export const CAMP_BERRY_KNOWLEDGE_UI_VERSION='camp-berry-knowledge-ui-2026-08-10-c';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 function policyLabel(row){
@@ -19,13 +19,20 @@ function ensureStyle(){
   if(document.getElementById('campBerryKnowledgeMobileStyle'))return;
   const style=document.createElement('style');style.id='campBerryKnowledgeMobileStyle';
   style.textContent=`
-    #campBerryMasterBlock{min-width:0;max-width:100%;}
-    #campBerryMasterBlock .camp-berry-scroll{display:block;max-width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y;}
+    #campBerryMasterBlock{min-width:0;max-width:100%;overflow:hidden;}
+    #campBerryMasterBlock>*{max-width:100%;}
+    #campBerryMasterBlock .camp-berry-scroll{display:block;width:100%;min-width:0;max-width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;touch-action:pan-x pan-y;}
     #campBerryMasterTable{min-width:760px;width:max-content;max-width:none;}
     @media(max-width:700px){
-      #campBerryMasterBlock .camp-berry-scroll{margin-left:0;margin-right:0;border-left:1px solid var(--line);border-right:1px solid var(--line);border-radius:10px;}
-      #campBerryMasterTable th,#campBerryMasterTable td{overflow:visible;text-overflow:clip;white-space:nowrap;max-width:none;}
-      #campBerryMasterTable th:nth-child(3),#campBerryMasterTable td:nth-child(3),#campBerryMasterTable th:nth-child(4),#campBerryMasterTable td:nth-child(4){white-space:normal;min-width:220px;}
+      #campBerryMasterBlock .camp-berry-scroll{width:100%;min-width:0;max-width:100%;margin-left:0;margin-right:0;overflow:visible;border:0;border-radius:0;background:transparent;}
+      #campBerryMasterTable{display:block;width:100%!important;min-width:0!important;max-width:100%!important;border-collapse:separate;}
+      #campBerryMasterTable thead{display:none;}
+      #campBerryMasterTable tbody{display:grid;width:100%;min-width:0;max-width:100%;gap:10px;}
+      #campBerryMasterTable tr{display:block;width:100%;min-width:0;max-width:100%;overflow:hidden;border:1px solid var(--line,#dbe4df);border-radius:10px;background:#fff;}
+      #campBerryMasterTable th,#campBerryMasterTable td{max-width:100%;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;word-break:break-word;}
+      #campBerryMasterTable td{display:grid;grid-template-columns:minmax(78px,92px) minmax(0,1fr);gap:8px;width:100%;min-width:0;padding:9px 10px;border-bottom:1px solid #e7eeea;}
+      #campBerryMasterTable td:last-child{border-bottom:0;}
+      #campBerryMasterTable td::before{content:attr(data-label);min-width:0;color:#687d74;font-weight:750;}
     }
   `;
   document.head.appendChild(style);
@@ -36,7 +43,7 @@ function mount(){
   const block=document.createElement('section');block.id='campBerryMasterBlock';
   block.innerHTML=`<h3>營地與喜好樹果</h3>
     <p class="notice">這是公版營地規則，不含玩家本週選擇。固定營地可自動帶入三種樹果；萌綠之島與 EX 的實際樹果屬玩家每週狀態，不會沿用上週資料。</p>
-    <div class="table-wrap camp-berry-scroll" role="region" aria-label="營地與喜好樹果表，可左右捲動" tabindex="0"><table id="campBerryMasterTable"><thead><tr><th>營地</th><th>規則</th><th>喜好樹果／候選規則</th><th>來源</th><th>核對日</th></tr></thead><tbody>${PUBLIC_CAMP_BERRY_MASTER.map(row=>`<tr><td>${esc(row.camp_name)}</td><td>${esc(policyLabel(row))}</td><td>${esc(berryText(row))}</td><td>${esc(row.source_name)}</td><td>${esc(row.verified_at)}</td></tr>`).join('')}</tbody></table></div>
+    <div class="table-wrap camp-berry-scroll" role="region" aria-label="營地與喜好樹果表；手機版改用框內卡片避免超出外框" tabindex="0"><table id="campBerryMasterTable"><thead><tr><th>營地</th><th>規則</th><th>喜好樹果／候選規則</th><th>來源</th><th>核對日</th></tr></thead><tbody>${PUBLIC_CAMP_BERRY_MASTER.map(row=>`<tr><td data-label="營地">${esc(row.camp_name)}</td><td data-label="規則">${esc(policyLabel(row))}</td><td data-label="樹果／規則">${esc(berryText(row))}</td><td data-label="來源">${esc(row.source_name)}</td><td data-label="核對日">${esc(row.verified_at)}</td></tr>`).join('')}</tbody></table></div>
     <p class="notice">Camp Berry Master：<b>${esc(PUBLIC_CAMP_BERRY_VERSION)}</b></p>`;
   const first=panel.querySelector('h3');if(first)first.insertAdjacentElement('beforebegin',block);else panel.prepend(block);
 }
