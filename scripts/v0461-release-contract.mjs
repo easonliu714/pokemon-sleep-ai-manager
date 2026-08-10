@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import {PUBLIC_CAMP_BERRY_MASTER} from '../assets/js/public-camp-berry-master.js';
 import {PUBLIC_RECIPE_DISCOVERY,activeCanonicalDiscoveryRows} from '../assets/js/public-recipe-discovery-master.js';
 import {buildScenarioTemplate} from '../assets/js/prompt-catalog.js';
+import {validateWeeklyContextImportPayload} from '../assets/js/weekly-context-import-contract.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
@@ -26,14 +27,18 @@ assert.equal(weeklyTemplate.operations[0].entity,'weekly_context');
 assert.equal(weeklyTemplate.operations[0].action,'upsert');
 assert.equal(weeklyTemplate.operations[0].key.context_id,`weekly_context_${weeklyTemplate.operations[0].data.week_start}_import`);
 assert.equal(typeof weeklyTemplate.operations[0].data.event_effects,'string');
+const templateNow=new Date(`${weeklyTemplate.operations[0].data.week_start}T12:00:00`);
+assert.equal(validateWeeklyContextImportPayload(weeklyTemplate,{now:templateNow}).ok,true,'release weekly JSON template must satisfy executable import contract');
 
 const store=read('assets/js/weekly-context-store.js');
 for(const token of ['UPDATE_CENTER_JSON','MANUAL_FALLBACK','import_changes','import_batches','WHERE week_start=?','manual_fallback_fields','field_sources'])assert.ok(store.includes(token),`weekly authority contract missing ${token}`);
 assert.equal(store.includes("SELECT * FROM weekly_context ORDER BY updated_at DESC LIMIT 1"),false);
 const weeklyUi=read('assets/js/weekly-context-ui-bridge.js');
 for(const token of ['更新中心 JSON 優先','weekly_context_${weekStart}_manual','JSON 已提供的欄位仍保持優先'])assert.ok(weeklyUi.includes(token),`weekly UI authority missing ${token}`);
+const importContract=read('assets/js/weekly-context-import-contract.js');
+for(const token of ['context_authority 必須為','event_effects 必須是 JSON 字串','不可使用上週／未來週 JSON','favorite_berry_1~3 必須全部三欄一起提供'])assert.ok(importContract.includes(token),`weekly import contract missing ${token}`);
 const updateUi=read('assets/js/weekly-context-update-center-bridge.js');
-for(const token of ['Weekly Context JSON Contract','Authority Chain','UPDATE_CENTER_JSON','event_effects 必須是 JSON 字串','blockInvalidWeeklyAction'])assert.ok(updateUi.includes(token),`weekly Update Center guard missing ${token}`);
+for(const token of ['Weekly Context JSON Contract','Authority Chain','validateWeeklyContextImportPayload','blockInvalidWeeklyAction'])assert.ok(updateUi.includes(token),`weekly Update Center bridge missing ${token}`);
 const consumer=read('assets/js/weekly-context-consumer-banner.js');
 for(const token of ['本頁 Weekly Context 唯一來源：［本週環境］','recipeWeeklyContextAuthority','warroomWeeklyContextAuthority'])assert.ok(consumer.includes(token),`weekly consumer authority banner missing ${token}`);
 
@@ -63,7 +68,7 @@ const canonical=read('assets/js/public-recipe-canonical-authority.js');
 assert.equal(canonical.includes('public-recipe-discovery-master'),false,'Discovery rows must remain outside canonical ACTIVE recipe authority');
 const migrations=read('assets/js/migrations.js');
 assert.equal(migrations.includes('weekly-context-authority-camp-berry-discovery-semantics'),false,'v0.4.6.1 must not require a new SQLite migration');
-for(const deterministic of [store,discovery,read('assets/js/public-camp-berry-master.js')]){
+for(const deterministic of [store,discovery,read('assets/js/public-camp-berry-master.js'),importContract]){
   for(const forbidden of ['Gemini','fetch('])assert.equal(deterministic.includes(forbidden),false,`deterministic release layer contains provider/network token: ${forbidden}`);
 }
 const sw=read('service-worker.js');
@@ -75,7 +80,7 @@ for(const moduleName of ['weekly-context-ui-bridge.js','weekly-context-update-ce
 
 console.log(JSON.stringify({
   status:'PASS',gate:'V0.4.6.1_RELEASE_CONTRACT',app_version:'v0.4.6.1',
-  authority_chain:'UPDATE_CENTER_JSON -> WEEKLY_ENVIRONMENT -> WAR_ROOM/RECIPES',manual_fallback_secondary:true,
+  authority_chain:'UPDATE_CENTER_JSON -> WEEKLY_ENVIRONMENT -> WAR_ROOM/RECIPES',manual_fallback_secondary:true,executable_weekly_json_contract:true,
   camp_master_rows:PUBLIC_CAMP_BERRY_MASTER.length,discovery_candidates:PUBLIC_RECIPE_DISCOVERY.length,canonical_active_discovery_rows:0,
   discovery_quantity_assignment:'UNKNOWN_UNORDERED_SIGNATURE',stockpile_semantics:'CONSERVATIVE_DISCOVERY_UPPER_BOUND',
   schema_migration_added:false,gemini_dependency:false,player_data_write_from_deterministic_layer:false,
