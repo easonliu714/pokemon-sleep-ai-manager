@@ -3,7 +3,8 @@ import fs from 'node:fs';
 
 const read=file=>fs.readFileSync(file,'utf8');
 const version=read('assets/js/version-authority.js');
-assert.equal(version.match(/app_version:\s*'([^']+)'/)?.[1],'v0.4.8','behavior phase must not bump central release before Gate is green');
+const app=version.match(/app_version:\s*'([^']+)'/)?.[1]||'';
+assert.ok(['v0.4.8','v0.4.8.1'].includes(app),`unexpected release during v0.4.8.1 closure: ${app}`);
 
 const override=read('assets/js/weekly-context-manual-override.js');
 for(const token of [
@@ -61,7 +62,8 @@ assert.equal(read('assets/js/migrations.js').includes('version,applied_at) VALUE
 console.log(JSON.stringify({
   status:'PASS',
   gate:'V0481_LIVE_FOLLOWUP_BEHAVIOR',
-  release_bump_deferred:true,
+  app_version:app,
+  release_phase:app==='v0.4.8.1',
   weekly_json_fields_manually_overridable:true,
   override_revision_scoped:true,
   fixed_camp_berries_still_locked:true,
