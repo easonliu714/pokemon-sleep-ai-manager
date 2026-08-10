@@ -38,6 +38,9 @@ export const PUBLIC_POKEMON_KNOWLEDGE_COVERAGE_SEMANTICS=Object.freeze({
   no_verified_evolution_route:'UNKNOWN_OR_TERMINAL_NOT_CLASSIFIED',
 });
 
+export const EVOLUTION_COVERAGE_DIAGNOSTIC_SCHEMA='pokemon-sleep-evolution-coverage-diagnostic/1.0';
+export const EVOLUTION_COVERAGE_DIAGNOSTIC_VERSION='data-evo1-evolution-coverage-diagnostic-2026-08-10-a';
+
 export function auditPublicPokemonKnowledgeBundle(){
   const errors=[];
   const warnings=[];
@@ -176,6 +179,33 @@ export function buildObservedProjectionCoverage(pokemonRows=[]){
       terminal_semantics:PUBLIC_POKEMON_KNOWLEDGE_COVERAGE_SEMANTICS.verified_terminal,
       unknown_semantics:PUBLIC_POKEMON_KNOWLEDGE_COVERAGE_SEMANTICS.unknown_evolution_status,
     }),
+  });
+}
+
+export function buildEvolutionCoverageDiagnostic(pokemonRows=[]){
+  const observed=buildObservedProjectionCoverage(pokemonRows);
+  const evolution=observed.evolution;
+  const outgoing=[...evolution.verified_outgoing_values];
+  const terminal=[...evolution.verified_terminal_values];
+  const unknown=[...evolution.unknown_evolution_status_values];
+  const partitionCount=outgoing.length+terminal.length+unknown.length;
+  return Object.freeze({
+    schema:EVOLUTION_COVERAGE_DIAGNOSTIC_SCHEMA,
+    version:EVOLUTION_COVERAGE_DIAGNOSTIC_VERSION,
+    public_pokemon_knowledge_version:PUBLIC_POKEMON_KNOWLEDGE_VERSION,
+    semantics:evolution.triage_semantics,
+    observed_species_count:evolution.observed_species,
+    verified_outgoing_count:evolution.verified_outgoing_route_species,
+    verified_terminal_count:evolution.verified_terminal_species,
+    unknown_count:evolution.unknown_evolution_status_species,
+    unknown_values_count:unknown.length,
+    count_list_parity:evolution.unknown_evolution_status_species===unknown.length,
+    partition_count:partitionCount,
+    partition_parity:partitionCount===evolution.observed_species,
+    verified_outgoing_species:Object.freeze(outgoing),
+    verified_terminal_species:Object.freeze(terminal),
+    unknown_species:Object.freeze(unknown),
+    privacy:Object.freeze({species_names_only:true,player_ids_exported:false,quantities_exported:false,notes_exported:false}),
   });
 }
 
