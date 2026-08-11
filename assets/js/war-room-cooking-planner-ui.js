@@ -52,6 +52,7 @@ export function renderWarRoomCookingPlanner(root=document.getElementById('warroo
         <label><span>模擬餐數</span><select data-g7-meals>${[1,2,3,4,5,6,7].map(value=>`<option value="${value}" ${value===state.maxMeals?'selected':''}>${value} 餐</option>`).join('')}</select></label>
       </div>
       <p class="notice"><b>本週：</b>${esc(week.week_start||'未設定')} · ${esc(week.dish_category||'未設定料理類型')} · 鍋子 ${esc(week.pot_size??'未設定')} · Authority ${esc(week.authority_source||'MISSING')}</p>
+      <p class="notice"><b>序列數量語意：</b><code>before → consumed → remaining</code>；每一步都重新套用 Safe Reserve，再判斷下一餐仍可執行的料理。</p>
       <div class="war-team-summary"><span>單獨 READY<b>${result.summary?.individually_ready_count??0}</b></span><span>可安全模擬<b>${result.summary?.simulation_candidate_count??0}</b></span><span>競爭邊<b>${result.summary?.contention_edge_count??0}</b></span><span>全部可同時執行<b>${result.summary?.all_individually_ready_simultaneously_executable===true?'是':result.summary?.all_individually_ready_simultaneously_executable===false?'否':'—'}</b></span></div>
       ${result.missing_inventory_observations?.length?`<div class="notice warning"><b>未觀測必要食材：</b>${esc(result.missing_inventory_observations.map(row=>`${row.recipe_id}: ${row.ingredients.join('、')}`).join('；'))}<br>missing 不會在 G7 中自動轉成已確認 0。</div>`:''}
       <details class="g7-contention-details" open><summary>共享食材競爭</summary>${contentionRows(result.contention)}</details>
