@@ -9,7 +9,18 @@ import {
 
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
-assert.equal(version.match(/app_version:\s*'([^']+)'/)?.[1],'v0.4.12','G7.1 behavior-first stage must keep v0.4.12 Release Authority');
+const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
+const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
+const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1];
+assert.ok(['v0.4.12','v0.4.13'].includes(appVersion),`unexpected G7.1 release authority: ${appVersion}`);
+if(appVersion==='v0.4.12'){
+  assert.equal(appBuild,'20260811-v0412-recipe-unified-player-workbench','G7.1 behavior-first stage must keep v0.4.12 Release Authority');
+}else{
+  assert.equal(appBuild,'20260811-v0413-g7-recipe-portfolio-contention');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.13-v0413-g7-recipe-portfolio-contention');
+  assert.ok(version.includes("// app_version: 'v0.4.12'"),'v0.4.13 must retain v0.4.12 legacy bridge');
+  assert.ok(version.includes("// app_build: '20260811-v0412-recipe-unified-player-workbench'"));
+}
 assert.equal(RECIPE_PORTFOLIO_CONTENTION_VERSION,'recipe-portfolio-contention-2026-08-11-a');
 assert.deepEqual(RECIPE_PORTFOLIO_OBJECTIVES,['unlock_recipes','preserve_resources','continuous_meals']);
 
@@ -91,10 +102,10 @@ assert.ok(discovery.includes('REFERENCE_ONLY_NOT_CANONICAL_FORMULA'),'Discovery 
 const sw=read('service-worker.js');
 for(const asset of ['recipe-portfolio-contention.js','recipe-portfolio-contention-local.js','war-room-cooking-planner-ui.js','war-room-cooking-planner-bootstrap.js'])assert.ok(sw.includes(asset),`G7 offline precache missing ${asset}`);
 const migrations=read('assets/js/migrations.js');
-assert.equal(migrations.includes('VALUES(10,'),false,'G7.1 behavior stage must remain migration-free');
+assert.equal(migrations.includes('VALUES(10,'),false,'G7.1 must remain migration-free');
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'G7_1_RECIPE_PORTFOLIO_RESOURCE_CONTENTION',release_authority:'v0.4.12_behavior_first',
+  status:'PASS',gate:'G7_1_RECIPE_PORTFOLIO_RESOURCE_CONTENTION',app_version:appVersion,release_promoted:appVersion==='v0.4.13',
   planner_version:RECIPE_PORTFOLIO_CONTENTION_VERSION,objectives:RECIPE_PORTFOLIO_OBJECTIVES,
   fixture_a:{ready:unlockPlan.summary.individually_ready_count,contention_edges:graphA.contention_edge_count,oversubscribed:graphA.oversubscribed_ingredient_count,simultaneous:false,top_sequence:unlockPlan.alternatives[0].sequence_key},
   fixture_b:{safe_reserve_enforced:true,empty_collection_zero_assumed:false},
