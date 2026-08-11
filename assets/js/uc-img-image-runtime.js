@@ -10,7 +10,7 @@ export function isUcImgOwnedMemoryBlob(value){
 
 // v0.4.11.2: Android file-picker references may become unreadable after the picker returns.
 // Read bytes immediately and sever the dependency on the original File/content-provider handle.
-// The returned Blob is memory-only; callers must never persist it to localStorage/IndexedDB/SQLite.
+// The returned Blob is memory-only; callers must never persist it through any persistent-storage layer.
 export async function snapshotUcImgPickerFile(fileLike){
   const fileName=clean(fileLike?.name)||'unnamed-image';
   if(!fileLike||typeof fileLike.arrayBuffer!=='function')throw new Error(`${fileName} 沒有可讀取的圖片 bytes`);
