@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.1",
+  "update_id": "UPD-20250309120000-AI",
+  "generated_at": "2025-03-09T12:00:00Z",
+  "source": "ai_screenshot_analysis",
+  "scenario": "ingredient_inventory_update",
+  "operations": [
+    {
+      "operation_id": "op-1",
+      "entity": "ingredient_inventory",
+      "action": "upsert",
+      "key": {"ingredient_id": "fancy_pumpkin"},
+      "data": {"quantity": 12},
+      "evidence": {"source_image_ref": "image-004", "confidence": 0.99},
+      "review_required": false
+    }
+  ]
+}
