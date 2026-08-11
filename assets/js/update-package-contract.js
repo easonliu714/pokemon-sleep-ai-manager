@@ -36,10 +36,13 @@ export function buildUpdatePackageId(generatedAt=new Date().toISOString(),suffix
 
 export function buildUpdatePackageEnvelope({scenario,generatedAt=new Date().toISOString(),source=UPDATE_PACKAGE_SOURCE,operations=[],contextAuthority=null,updateIdSuffix='EXAMPLE',profileAuditConfirmations=[]}={}){
   if(!scenario)throw new Error('update_package_scenario_required');
+  // v0.4.11.1: CATALOG is the deterministic Public Master Recognition compiler path.
+  // Its transaction timestamp/update_id are platform authority and must never reuse AI-supplied generated_at.
+  const effectiveGeneratedAt=updateIdSuffix==='CATALOG'?new Date().toISOString():generatedAt;
   return {
     schema_version:UPDATE_PACKAGE_SCHEMA_VERSION,
-    update_id:buildUpdatePackageId(generatedAt,updateIdSuffix),
-    generated_at:generatedAt,
+    update_id:buildUpdatePackageId(effectiveGeneratedAt,updateIdSuffix),
+    generated_at:effectiveGeneratedAt,
     source,
     scenario,
     ...(contextAuthority?{context_authority:contextAuthority}:{}),

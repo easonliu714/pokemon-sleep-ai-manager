@@ -15,10 +15,20 @@ import {UC_IMG_GEMINI_ADAPTER_VERSION,buildUcImgGeminiSchema} from '../assets/js
 
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
-assert.equal(version.match(/app_version:\s*'([^']+)'/)?.[1],'v0.4.11');
-assert.equal(version.match(/app_build:\s*'([^']+)'/)?.[1],'20260811-v0411-public-master-constrained-recognition');
-assert.equal(version.match(/cache_name:\s*'([^']+)'/)?.[1],'pokemon-sleep-ai-v0.4.11-v0411-public-master-constrained-recognition');
-assert.ok(version.includes("// app_version: 'v0.4.10.3'"),'v0.4.11 must retain v0.4.10.3 legacy bridge');
+const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
+const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
+const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1];
+assert.ok(['v0.4.11','v0.4.11.1'].includes(appVersion),`unexpected v0.4.11 successor: ${appVersion}`);
+if(appVersion==='v0.4.11'){
+  assert.equal(appBuild,'20260811-v0411-public-master-constrained-recognition');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11-v0411-public-master-constrained-recognition');
+}else{
+  assert.equal(appBuild,'20260811-v04111-uc-img-session-timestamp');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11.1-v04111-uc-img-session-timestamp');
+  assert.ok(version.includes("// app_version: 'v0.4.11'"),'v0.4.11.1 must retain v0.4.11 legacy bridge');
+  assert.ok(version.includes("// app_build: '20260811-v0411-public-master-constrained-recognition'"));
+}
+assert.ok(version.includes("// app_version: 'v0.4.10.3'"),'v0.4.11 lineage must retain v0.4.10.3 legacy bridge');
 assert.ok(version.includes("// app_build: '20260811-v04103-ingredient-key-contract-hotfix'"));
 
 assert.equal(UC_IMG_A_VERSION,'uc-img-a-2026-08-11-d-public-master-recognition');
@@ -99,11 +109,12 @@ const adapter=read('assets/js/uc-img-gemini-adapter.js');
 for(const forbidden of ['applyPayload','dryRun','importer.js','localStorage','indexedDB'])assert.equal(adapter.includes(forbidden),false,`Gemini adapter must not own ${forbidden}`);
 
 const migrations=read('assets/js/migrations.js');
-assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.11 is schema-migration-free');
+assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.11 lineage is schema-migration-free');
 
 console.log(JSON.stringify({
   status:'PASS',gate:'V0.4.11_RELEASE_CONTRACT',
-  app_version:'v0.4.11',
+  app_version:appVersion,
+  successor_v04111:appVersion==='v0.4.11.1',
   recognition_version:PUBLIC_MASTER_RECOGNITION_VERSION,
   executable_scenarios:['ingredients','recipes'],
   registry_ready_scenarios:['items','candies'],
