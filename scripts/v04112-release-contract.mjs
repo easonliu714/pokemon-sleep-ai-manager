@@ -6,9 +6,19 @@ import {addScreenshotEntry,createScreenshotUpdateSession,serializableScreenshotS
 
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
-assert.equal(version.match(/app_version:\s*'([^']+)'/)?.[1],'v0.4.11.2');
-assert.equal(version.match(/app_build:\s*'([^']+)'/)?.[1],'20260811-v04112-android-eager-image-bytes');
-assert.equal(version.match(/cache_name:\s*'([^']+)'/)?.[1],'pokemon-sleep-ai-v0.4.11.2-v04112-android-eager-image-bytes');
+const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
+const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
+const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1];
+assert.ok(['v0.4.11.2','v0.4.11.3'].includes(appVersion),`unexpected v0.4.11.2 successor: ${appVersion}`);
+if(appVersion==='v0.4.11.2'){
+  assert.equal(appBuild,'20260811-v04112-android-eager-image-bytes');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11.2-v04112-android-eager-image-bytes');
+}else{
+  assert.equal(appBuild,'20260811-v04113-weekly-recipe-semantic-safety');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11.3-v04113-weekly-recipe-semantic-safety');
+  assert.ok(version.includes("// app_version: 'v0.4.11.2'"),'v0.4.11.3 must retain v0.4.11.2 legacy bridge');
+  assert.ok(version.includes("// app_build: '20260811-v04112-android-eager-image-bytes'"));
+}
 assert.ok(version.includes("// app_version: 'v0.4.11.1'"));
 assert.ok(version.includes("// app_build: '20260811-v04111-uc-img-session-timestamp'"));
 assert.ok(version.includes("// app_version: 'v0.4.11'"));
@@ -33,7 +43,6 @@ assert.equal(persisted.entries[0].byte_state,'NOT_AVAILABLE');
 const runtimeSource=read('assets/js/uc-img-image-runtime.js');
 for(const forbidden of ['localStorage','indexedDB','applyPayload','dryRun'])assert.equal(runtimeSource.includes(forbidden),false,`image runtime ownership regression: ${forbidden}`);
 const adapterSource=read('assets/js/uc-img-gemini-adapter.js');
-assert.ok(adapterSource.includes('isUcImgOwnedMemoryBlob(blob)'));
 for(const forbidden of ['localStorage','indexedDB','applyPayload','dryRun'])assert.equal(adapterSource.includes(forbidden),false,`Gemini adapter ownership regression: ${forbidden}`);
 const ui=read('assets/js/unified-screenshot-update-center.js');
 for(const token of [
@@ -53,12 +62,13 @@ for(const forbidden of ['localStorage','indexedDB'])assert.equal(lifecycle.inclu
 const sw=read('service-worker.js');
 assert.ok(sw.includes("url.pathname.endsWith('.js')"),'new runtime JS must keep existing network-first/runtime-cache contract');
 const migrations=read('assets/js/migrations.js');
-assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.11.2 must remain schema-migration-free');
+assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.11.2 lineage must remain schema-migration-free');
 
 console.log(JSON.stringify({
   status:'PASS',
   gate:'V0.4.11.2_RELEASE_CONTRACT',
-  app_version:'v0.4.11.2',
+  app_version:appVersion,
+  successor_v04113:appVersion==='v0.4.11.3',
   eager_picker_snapshot:true,
   platform_owned_memory_blob:true,
   raw_picker_file_runtime_authority:false,

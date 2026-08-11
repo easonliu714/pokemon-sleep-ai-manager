@@ -10,7 +10,9 @@ on:
       - 'assets/js/uc-img-gemini-adapter.js'
       - 'assets/js/uc-img-session-lifecycle.js'
       - 'assets/js/uc-img-image-runtime.js'
+      - 'assets/js/uc-img-weekly-platform-authority.js'
       - 'assets/js/public-master-recognition.js'
+      - 'assets/js/public-recipe-alias-master.js'
       - 'assets/js/shared-master-data.js'
       - 'assets/js/public-item-master.js'
       - 'assets/js/public-candy-master.js'
@@ -25,6 +27,8 @@ on:
       - 'scripts/public-master-recognition-contract.mjs'
       - 'scripts/v04111-uc-img-session-timestamp-contract.mjs'
       - 'scripts/v04112-android-eager-image-bytes-contract.mjs'
+      - 'scripts/v04113-weekly-recipe-semantic-safety-contract.mjs'
+      - 'scripts/v04113-release-contract.mjs'
       - 'scripts/v04112-release-contract.mjs'
       - 'scripts/v04111-release-contract.mjs'
       - 'scripts/v0411-release-contract.mjs'
@@ -66,9 +70,12 @@ jobs:
         run: node scripts/v04111-uc-img-session-timestamp-contract.mjs
       - name: Verify v0.4.11.2 Android eager image byte snapshot
         run: node scripts/v04112-android-eager-image-bytes-contract.mjs
+      - name: Verify v0.4.11.3 Weekly/Recipe semantic safety
+        run: node scripts/v04113-weekly-recipe-semantic-safety-contract.mjs
       - name: Verify current and historical release contracts
         run: |
-          if grep -q "app_version: 'v0.4.11.2'" assets/js/version-authority.js; then node scripts/v04112-release-contract.mjs; fi
+          if grep -q "app_version: 'v0.4.11.3'" assets/js/version-authority.js; then node scripts/v04113-release-contract.mjs; fi
+          node scripts/v04112-release-contract.mjs
           node scripts/v04111-release-contract.mjs
           node scripts/v0411-release-contract.mjs
           node scripts/v04103-release-contract.mjs
@@ -87,7 +94,9 @@ jobs:
           node --check assets/js/uc-img-gemini-adapter.js
           node --check assets/js/uc-img-session-lifecycle.js
           node --check assets/js/uc-img-image-runtime.js
+          node --check assets/js/uc-img-weekly-platform-authority.js
           node --check assets/js/public-master-recognition.js
+          node --check assets/js/public-recipe-alias-master.js
           node --check assets/js/shared-master-data.js
           node --check assets/js/ai-project-pool-runtime.js
           node --check assets/js/candy-inventory-ui.js
@@ -95,6 +104,8 @@ jobs:
           node --check scripts/public-master-recognition-contract.mjs
           node --check scripts/v04111-uc-img-session-timestamp-contract.mjs
           node --check scripts/v04112-android-eager-image-bytes-contract.mjs
+          node --check scripts/v04113-weekly-recipe-semantic-safety-contract.mjs
+          node --check scripts/v04113-release-contract.mjs
           node --check scripts/v04112-release-contract.mjs
           node --check scripts/v04111-release-contract.mjs
           node --check scripts/uc-img-ingredient-key-contract.mjs
