@@ -19,6 +19,7 @@ on:
       - 'service-worker.js'
       - 'assets/js/prompt-catalog.js'
       - 'scripts/g7-recipe-portfolio-contention-contract.mjs'
+      - 'scripts/v0413-release-contract.mjs'
       - 'scripts/war2b-recipe-discovery-stockpile-contract.mjs'
       - 'scripts/v046-recipe-discovery-release-contract.mjs'
       - '.github/workflows/war2b-recipe-discovery-stockpile.yml'
@@ -34,6 +35,11 @@ jobs:
           node-version: '24'
       - name: Verify G7.1 recipe portfolio resource contention
         run: node scripts/g7-recipe-portfolio-contention-contract.mjs
+      - name: Verify exact v0.4.13 release contract when promoted
+        shell: bash
+        run: |
+          CURRENT_VERSION="$(sed -n "s/^[[:space:]]*app_version: '\([^']*\)',/\1/p" assets/js/version-authority.js | head -n1)"
+          if [ "$CURRENT_VERSION" = "v0.4.13" ]; then node scripts/v0413-release-contract.mjs; fi
       - name: Verify WAR.2B discovery stockpile contract
         run: node scripts/war2b-recipe-discovery-stockpile-contract.mjs
       - name: Verify exact v0.4.6 release contract
@@ -55,6 +61,7 @@ jobs:
           node --check assets/js/war-room-cooking-planner-bootstrap.js
           node --check assets/js/prompt-catalog.js
           node --check scripts/g7-recipe-portfolio-contention-contract.mjs
+          node --check scripts/v0413-release-contract.mjs
           node --check scripts/war2b-recipe-discovery-stockpile-contract.mjs
           node --check scripts/v046-recipe-discovery-release-contract.mjs
       - name: Verify no tracked test mutation
