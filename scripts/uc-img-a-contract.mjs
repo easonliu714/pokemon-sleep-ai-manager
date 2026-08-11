@@ -2,10 +2,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   UC_IMG_A_VERSION,
+  UC_IMG_A_MODES,
   createScreenshotUpdateSession,
   addScreenshotEntry,
   assignScreenshotScenario,
   setScenarioCoverage,
+  setScenarioAiMode,
   serializableScreenshotSession,
   buildScreenshotScenarioPrompt,
   screenshotScenarioRevision,
@@ -23,8 +25,12 @@ const op=(entity,key,data,imageRef='image-001')=>({
   evidence:{source_type:'screenshot',source_image_ref:imageRef,confidence:0.99},review_required:false,user_audit:{accepted_current_observation:true},
 });
 
-assert.equal(UC_IMG_A_VERSION,'uc-img-a-2026-08-11-b');
+assert.match(UC_IMG_A_VERSION,/^uc-img-a-2026-08-11-/);
+assert.deepEqual(UC_IMG_A_MODES,['internal','external']);
 const session=createScreenshotUpdateSession();
+assert.equal(session.scenario_state.ingredients.ai_mode,'internal');
+setScenarioAiMode(session,'ingredients','external');assert.equal(session.scenario_state.ingredients.ai_mode,'external');
+setScenarioAiMode(session,'ingredients','internal');
 const weekly=addScreenshotEntry(session,{name:'weekly_event.png',size:100,type:'image/png'});
 const ingredient=addScreenshotEntry(session,{name:'ingredient_bag_01.png',size:200,type:'image/png'});
 const recipe=addScreenshotEntry(session,{name:'recipe_curry.png',size:300,type:'image/png'});
@@ -66,7 +72,7 @@ weekly.object_url='blob:private-screenshot';weekly.image_available=true;const pe
 
 const loader=fs.readFileSync(new URL('../assets/js/candy-inventory-ui.js',import.meta.url),'utf8');assert.match(loader,/import '\.\/unified-screenshot-update-center\.js';/);
 const source=fs.readFileSync(new URL('../assets/js/unified-screenshot-update-center.js',import.meta.url),'utf8');
-for(const token of ["from './ai-workflow.js'","from './importer.js'",'validateWorkflow','dryRun','applyPayload','multiple','USER_CONFIRMED_COMPLETE','PARTIAL','response_stale','screenshotScenarioRevision'])assert.ok(source.includes(token),`missing runtime contract token: ${token}`);
+for(const token of ["from './ai-workflow.js'","from './importer.js'",'validateWorkflow','dryRun','applyPayload','multiple','USER_CONFIRMED_COMPLETE','PARTIAL','response_stale','screenshotScenarioRevision','Gemini API 直接分析','外部 AI Prompt'])assert.ok(source.includes(token),`missing runtime contract token: ${token}`);
 assert.ok(!/indexedDB\.put\([^\n]*image|INSERT[^\n]*image_blob/i.test(source),'UC.IMG-A must not persist screenshot bytes');
 
-console.log(JSON.stringify({status:'PASS',gate:'UC.IMG-A',version:UC_IMG_A_VERSION,session_entries:session.entries.length,weekly_contract:'PASS',ingredient_partial_zero_guard:'PASS',recipe_absent_lock_guard:'PASS',image_ref_filename_mapping:'PASS',stale_response_guard:'PASS',evidence_ref_guard:'PASS',existing_importer_bridge:'PASS'},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'UC.IMG-A',version:UC_IMG_A_VERSION,session_entries:session.entries.length,weekly_contract:'PASS',ingredient_partial_zero_guard:'PASS',recipe_absent_lock_guard:'PASS',image_ref_filename_mapping:'PASS',stale_response_guard:'PASS',evidence_ref_guard:'PASS',existing_importer_bridge:'PASS',dual_mode:true},null,2));
