@@ -6,15 +6,22 @@ import {buildRecipeUnifiedWorkbenchProjection,RECIPE_UNIFIED_PLAYER_WORKBENCH_VE
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.11.4','v0.4.12'].includes(appVersion),`unexpected v0.4.12 behavior-stage authority: ${appVersion}`);
+const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
+const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1];
+assert.ok(['v0.4.11.4','v0.4.12','v0.4.13'].includes(appVersion),`unexpected v0.4.12 successor authority: ${appVersion}`);
 if(appVersion==='v0.4.11.4'){
-  assert.equal(version.match(/app_build:\s*'([^']+)'/)?.[1],'20260811-v04114-recipe-zh-tw-diagnostic-export','behavior-first stage must remain on v0.4.11.4 before release promotion');
-}else{
-  assert.equal(version.match(/app_build:\s*'([^']+)'/)?.[1],'20260811-v0412-recipe-unified-player-workbench');
-  assert.equal(version.match(/cache_name:\s*'([^']+)'/)?.[1],'pokemon-sleep-ai-v0.4.12-v0412-recipe-unified-player-workbench');
+  assert.equal(appBuild,'20260811-v04114-recipe-zh-tw-diagnostic-export','behavior-first stage must remain on v0.4.11.4 before v0.4.12 release promotion');
+}else if(appVersion==='v0.4.12'){
+  assert.equal(appBuild,'20260811-v0412-recipe-unified-player-workbench');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.12-v0412-recipe-unified-player-workbench');
   assert.ok(version.includes("// app_version: 'v0.4.11.4'"),'v0.4.12 must retain v0.4.11.4 legacy bridge');
-  assert.ok(version.includes("// app_build: '20260811-v04114-recipe-zh-tw-diagnostic-export'"));
+}else{
+  assert.equal(appBuild,'20260811-v0413-g7-recipe-portfolio-contention');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.13-v0413-g7-recipe-portfolio-contention');
+  assert.ok(version.includes("// app_version: 'v0.4.12'"),'v0.4.13 must retain v0.4.12 legacy bridge');
+  assert.ok(version.includes("// app_build: '20260811-v0412-recipe-unified-player-workbench'"));
 }
+assert.ok(version.includes("// app_build: '20260811-v04114-recipe-zh-tw-diagnostic-export'"));
 assert.equal(PUBLIC_RECIPE_MASTER_VERSION,'public-recipe-master-2026-08-11-c');
 assert.equal(PUBLIC_RECIPE_MASTER.length,76);
 assert.equal(RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION,'recipe-unified-player-workbench-2026-08-11-a');
@@ -78,12 +85,12 @@ assert.ok(sw.includes("'./assets/js/recipe-unified-player-workbench.js'"),'unifi
 const ucImg=read('assets/js/unified-screenshot-update-center.js');
 assert.equal((ucImg.match(/applyPayload\(/g)||[]).length,1,'UC.IMG must retain exactly one Apply bridge');
 const migrations=read('assets/js/migrations.js');
-assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.12 Recipe Workbench must remain schema-migration-free');
+assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.12 Recipe Workbench lineage must remain schema-migration-free');
 
 console.log(JSON.stringify({
   status:'PASS',gate:'V0412_RECIPE_UNIFIED_PLAYER_WORKBENCH_BEHAVIOR',
   app_version:appVersion,
-  release_promoted:appVersion==='v0.4.12',
+  v0412_or_successor:['v0.4.12','v0.4.13'].includes(appVersion),
   workbench_version:RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION,
   canonical_recipe_count:PUBLIC_RECIPE_MASTER.length,
   synthetic_unlocked_count:projection.unlocked_count,

@@ -1,20 +1,20 @@
 import {isDatabaseReady} from './database.js';
-import {renderWarRoomRecipeDiscovery} from './war-room-recipe-discovery-ui.js';
+import {renderWarRoomCookingPlanner} from './war-room-cooking-planner-ui.js';
 
 let installed=false;
 function mount(){
   if(!isDatabaseReady())return;
   const panel=document.getElementById('warroomPanel');if(!panel)return;
-  let root=document.getElementById('warroomRecipeDiscovery');
+  let root=document.getElementById('warroomCookingPlanner');
   if(!root){
-    root=document.createElement('div');root.id='warroomRecipeDiscovery';
-    const cooking=document.getElementById('warroomCookingPlanner');
+    root=document.createElement('div');root.id='warroomCookingPlanner';
+    const discovery=document.getElementById('warroomRecipeDiscovery');
     const team=document.getElementById('warroomTeamOptimizer');
-    if(cooking)cooking.insertAdjacentElement('afterend',root);
+    if(discovery)discovery.insertAdjacentElement('beforebegin',root);
     else if(team)team.insertAdjacentElement('afterend',root);
     else panel.prepend(root);
   }
-  renderWarRoomRecipeDiscovery(root);
+  renderWarRoomCookingPlanner(root);
 }
 function install(){
   if(installed)return;installed=true;
