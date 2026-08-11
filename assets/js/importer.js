@@ -9,6 +9,8 @@ import {
   snapshot,
 } from './database.js';
 import { localIso } from './time-utils.js';
+import {buildSparseObservedPatch,isObservedWriteValue} from './data-preservation-policy.js';
+import {rebaseWeeklyManualOverrideForImport} from './weekly-context-manual-override.js';
 
 const KEYS = {
   account_capacity: ['capacity_key'],
@@ -35,7 +37,7 @@ const AUDIT_STATUSES = new Set([
   'observed','derived','user_confirmed_not_visible','not_observed_yet','missing','not_applicable','conflicting',
 ]);
 const quote = (value) => `"${String(value).replaceAll('"', '""')}"`;
-const isMeaningful = (value) => value !== null && value !== undefined && value !== '';
+const isMeaningful = isObservedWriteValue;
 const hasOwn = (object, key) => Object.prototype.hasOwnProperty.call(object || {}, key);
 const validNonNegativeInteger = (value) => Number.isInteger(value) && value >= 0;
 
@@ -125,13 +127,7 @@ function resolveOperationKey(operation) {
 }
 
 function sparseData(operation) {
-  const source = operation.data || {};
-  const clearFields = new Set(operation.clear_fields || []);
-  const result = {};
-  for (const [key, value] of Object.entries(source)) {
-    if (isMeaningful(value) || value === 0 || value === false) result[key] = value;
-    else if (clearFields.has(key)) result[key] = null;
-  }
+  const result = buildSparseObservedPatch(operation.data || {}, operation.clear_fields || []);
   if (operation.entity === 'recipes' && hasOwn(result, 'unlocked')) result.unlocked = result.unlocked === true || result.unlocked === 1 ? 1 : 0;
   return result;
 }
@@ -168,8 +164,8 @@ function fieldAudit(operation, before, data) {
     if (clearFields.has(field) && !isMeaningful(incoming)) {
       decision = 'explicit_clear';
       effective = null;
-    } else if (!isMeaningful(incoming) && incoming !== 0 && incoming !== false) {
-      decision = isMeaningful(previous) || previous === 0 || previous === false ? 'preserve_existing_empty_incoming' : 'ignore_empty_incoming';
+    } else if (!isMeaningful(incoming)) {
+      decision = isMeaningful(previous) ? 'preserve_existing_empty_incoming' : 'ignore_empty_incoming';
     } else if (before && (Object.is(previous, incoming) || (typeof previous === 'number' && typeof incoming === 'boolean' && previous === Number(incoming)))) {
       decision = 'same_value';
       effective = previous;
@@ -308,6 +304,21 @@ export async function applyPayload(payload) {
   await snapshot(`before:${payload.update_id}`);
   begin();
   try {
+    let weeklyManualOverrideRebase=null;
+    if(payload.scenario==='weekly_context_update'){
+      const weeklyIndex=payload.operations.findIndex(operation=>operation?.entity==='weekly_context');
+      if(weeklyIndex>=0){
+        const operation=payload.operations[weeklyIndex];
+        const change=preview.changes[weeklyIndex];
+        weeklyManualOverrideRebase=rebaseWeeklyManualOverrideForImport({
+          weekStart:operation.data?.week_start??change?.after?.week_start??change?.before?.week_start??null,
+          newImportRevision:payload.update_id,
+          incomingData:operation.data||{},
+          clearFields:operation.clear_fields||[],
+          previousCamp:change?.before?.camp??null,
+        });
+      }
+    }
     payload.operations.forEach((operation,index)=>{
       const change=preview.changes[index];
       if(change.effective_action==='insert')write(operation.entity,change.key,change.data,'insert');
@@ -327,10 +338,11 @@ export async function applyPayload(payload) {
       profile_audit_confirmations:payload.profile_audit_confirmations||[],
       null_overwrite_policy:'preserve_existing_unless_clear_fields',
       explicit_zero_and_false_are_values:true,
+      ...(weeklyManualOverrideRebase?{weekly_manual_override_rebase:weeklyManualOverrideRebase}:{}),
     };
     run('INSERT INTO import_batches(update_id,schema_version,generated_at,imported_at,source,operation_count,result_json) VALUES(?,?,?,?,?,?,?)',[payload.update_id,String(payload.schema_version),payload.generated_at,localIso(),payload.source||'',payload.operations.length,JSON.stringify(resultJson)]);
     commit();
     await persist();
-    return {operation_count:payload.operations.length,scenario:payload.scenario||'general',audit_summary:preview.audit_summary};
+    return {operation_count:payload.operations.length,scenario:payload.scenario||'general',audit_summary:preview.audit_summary,weekly_manual_override_rebase:weeklyManualOverrideRebase};
   } catch(error){rollback();throw error;}
 }
