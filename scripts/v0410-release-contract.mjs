@@ -44,8 +44,18 @@ const source=read('assets/js/unified-screenshot-update-center.js');
 for(const token of [
   "from './ai-workflow.js'","from './importer.js'",'validateWorkflow','approveReviewed','dryRun','applyPayload',
   'PARTIAL','USER_CONFIRMED_COMPLETE','response_stale','screenshotScenarioRevision','source_image_ref','source_image_refs',
-  'type="file" accept="image/*" multiple','圖片 bytes 未保留','截圖不會寫入 SQLite 或 GitHub',
+  'type="file" accept="image/*" multiple','截圖不會寫入 SQLite 或 GitHub',
 ])assert.ok(source.includes(token),`v0.4.10+ UC.IMG-A missing ${token}`);
+// v0.4.11.2 replaced the original static "圖片 bytes 未保留" label with explicit byte lifecycle states.
+// Historical privacy compatibility remains satisfied only if the successor also serializes bytes as NOT_AVAILABLE
+// and replaces picker File authority with a memory-owned Blob snapshot.
+const legacyBytePrivacyMarker=source.includes('圖片 bytes 未保留');
+const successorBytePrivacyContract=
+  source.includes("byte_state:'NOT_AVAILABLE'")&&
+  source.includes('snapshotUcImgPickerFile(file)')&&
+  source.includes('runtime.files.set(entry.entry_id,result.snapshot.blob)')&&
+  !source.includes('runtime.files.set(entry.entry_id,file)');
+assert.ok(legacyBytePrivacyMarker||successorBytePrivacyContract,'v0.4.10+ UC.IMG-A screenshot-byte privacy contract missing');
 assert.equal(/indexedDB\.put\([^\n]*image|INSERT[^\n]*image_blob/i.test(source),false,'screenshot bytes must not be persisted');
 
 const loader=read('assets/js/candy-inventory-ui.js');
@@ -64,5 +74,6 @@ console.log(JSON.stringify({
   uc_img_a_version:UC_IMG_A_VERSION,
   scenarios:Object.values(UC_IMG_A_SCENARIOS).map(value=>value.scenario),multi_image:true,coverage_semantics:true,
   evidence_traceability:true,stale_response_guard:true,existing_dry_run_apply_bridge:true,screenshot_bytes_persisted:false,
+  screenshot_byte_privacy_contract:legacyBytePrivacyMarker?'legacy-label':'byte-lifecycle-successor',
   sqlite_migration_added:false,public_master_mutated:false,
 },null,2));
