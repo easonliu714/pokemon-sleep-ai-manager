@@ -24,6 +24,7 @@ on:
       - 'assets/js/strategy-context-package.js'
       - 'assets/js/strategy-gemini-contract.js'
       - 'scripts/v0412-recipe-unified-player-workbench-contract.mjs'
+      - 'scripts/v0412-release-contract.mjs'
       - 'scripts/personal-weekly-recommendation-regression.mjs'
       - 'scripts/v042-*.mjs'
       - 'scripts/v043-*.mjs'
@@ -53,6 +54,7 @@ on:
       - 'assets/js/strategy-context-package.js'
       - 'assets/js/strategy-gemini-contract.js'
       - 'scripts/v0412-recipe-unified-player-workbench-contract.mjs'
+      - 'scripts/v0412-release-contract.mjs'
       - 'scripts/personal-weekly-recommendation-regression.mjs'
       - 'scripts/v042-*.mjs'
       - 'scripts/v043-*.mjs'
@@ -72,15 +74,19 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Verify v0.4.12 unified recipe player workbench behavior
+      - name: Verify v0.4.12 unified recipe player workbench
         shell: bash
         run: |
           set -o errexit -o nounset -o pipefail
           node scripts/v0412-recipe-unified-player-workbench-contract.mjs | tee /tmp/v0412-recipe-workbench.json
+          CURRENT_VERSION="$(sed -n "s/^[[:space:]]*app_version: '\([^']*\)',/\1/p" assets/js/version-authority.js | head -n1)"
+          if [ "$CURRENT_VERSION" = "v0.4.12" ]; then node scripts/v0412-release-contract.mjs | tee /tmp/v0412-release.json; fi
           node scripts/personal-weekly-recommendation-regression.mjs
           node --check assets/js/recipe-unified-player-workbench.js
           node --check assets/js/public-catalog-workbench.js
           node --check assets/js/shared-knowledge-ui.js
+          node --check scripts/v0412-recipe-unified-player-workbench-contract.mjs
+          node --check scripts/v0412-release-contract.mjs
 
       - name: Verify R2.4 controlled selectors
         shell: bash
