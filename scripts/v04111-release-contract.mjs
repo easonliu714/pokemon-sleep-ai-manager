@@ -15,15 +15,21 @@ const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.11.1','v0.4.11.2'].includes(appVersion),`unexpected v0.4.11.1 successor: ${appVersion}`);
+assert.ok(['v0.4.11.1','v0.4.11.2','v0.4.11.3'].includes(appVersion),`unexpected v0.4.11.1 successor: ${appVersion}`);
 if(appVersion==='v0.4.11.1'){
   assert.equal(appBuild,'20260811-v04111-uc-img-session-timestamp');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11.1-v04111-uc-img-session-timestamp');
-}else{
+}else if(appVersion==='v0.4.11.2'){
   assert.equal(appBuild,'20260811-v04112-android-eager-image-bytes');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11.2-v04112-android-eager-image-bytes');
   assert.ok(version.includes("// app_version: 'v0.4.11.1'"),'v0.4.11.2 must retain v0.4.11.1 legacy bridge');
   assert.ok(version.includes("// app_build: '20260811-v04111-uc-img-session-timestamp'"));
+}else{
+  assert.equal(appBuild,'20260811-v04113-weekly-recipe-semantic-safety');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11.3-v04113-weekly-recipe-semantic-safety');
+  assert.ok(version.includes("// app_version: 'v0.4.11.2'"),'v0.4.11.3 must retain v0.4.11.2 legacy bridge');
+  assert.ok(version.includes("// app_build: '20260811-v04112-android-eager-image-bytes'"));
+  assert.ok(version.includes("// app_version: 'v0.4.11.1'"));
 }
 assert.ok(version.includes("// app_version: 'v0.4.11'"),'release must retain v0.4.11 legacy bridge');
 assert.ok(version.includes("// app_build: '20260811-v0411-public-master-constrained-recognition'"));
@@ -80,7 +86,7 @@ assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.11.1 lineage must rem
 
 console.log(JSON.stringify({
   status:'PASS',gate:'V0.4.11.1_RELEASE_CONTRACT',app_version:appVersion,
-  successor_v04112:appVersion==='v0.4.11.2',
+  successor_v04112:appVersion==='v0.4.11.2',successor_v04113:appVersion==='v0.4.11.3',
   orphan_screenshot_metadata_cleanup:true,restore_owner:'unified-screenshot-update-center',next_image_number_monotonic:true,
   non_applied_response_fail_closed:true,applied_history_preserved:true,
   platform_owned_catalog_transaction_timestamp:true,ai_timestamp_transaction_authority:false,
