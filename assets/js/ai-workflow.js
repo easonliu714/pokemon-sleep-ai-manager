@@ -102,6 +102,7 @@ function validateUpdatePackage(payload){
     if(operation.entity==='pokemon_identity_evidence'&&!operation.key?.evidence_id)errors.push(`${label} identity evidence 缺少 evidence_id`);
     if(operation.entity==='pokemon_evolution_history'&&!operation.key?.evolution_id)errors.push(`${label} evolution history 缺少 evolution_id`);
     if(['pokemon_identity_evidence','pokemon_evolution_history'].includes(operation.entity)&&!operation.data?.pokemon_instance_id)errors.push(`${label} ${operation.entity} 缺少 pokemon_instance_id`);
+    if(operation.entity==='ingredient_inventory'&&(typeof operation.key?.ingredient_name!=='string'||!operation.key.ingredient_name.trim()))errors.push(`${label} ingredient_inventory key 缺少 ingredient_name；不得使用 AI 自造 ingredient_id／英文 slug`);
     if(operation.entity==='recipes'&&!operation.key?.recipe_id&&!operation.key?.recipe_name)errors.push(`${label} recipes key 至少需要 recipe_id 或 recipe_name`);
     if(operation.entity==='candy_inventory'&&!operation.key?.candy_id&&!operation.key?.candy_name)errors.push(`${label} candy_inventory key 至少需要 candy_id 或 candy_name`);
     if(operation.review_required===true&&!operation.user_audit?.accepted_current_observation)review.push({index,operation_id:operation.operation_id||label,entity:operation.entity,key:operation.key,evidence:operation.evidence||null});

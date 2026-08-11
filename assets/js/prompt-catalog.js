@@ -19,7 +19,7 @@ export const PROMPT_CATALOG={
     prompt:`${AI_OBSERVATION_PROMPT}\n\n更新中心補充規則：\n- Observation v2 只記錄畫面事實，空值不覆蓋既有資料。\n- 未顯示的食材槽或副技能槽不得補猜；在 observation.audit_candidates 中標記 status=user_confirmed_not_visible、confirmed_by_user=false。\n- AI 不得建立永久個體 ID；平台匯入時才判定既有成員、升級、更名、進化或新成員。`,
     entities:['pokemon_observation'],contract:'observation-v2',scenario:'pokemon_profile_update'
   },
-  ingredients:wrap('食材庫存更新','使用 scenario=ingredient_inventory_update。只更新截圖中可辨識的食材；未出現項目不得設為 0。畫面明確顯示數量 0 時 quantity=0 必須保留；空白或看不清楚填 null，平台保留既有值。',['ingredient_inventory','account_capacity'],{quantity:null},'ingredient_inventory_update'),
+  ingredients:wrap('食材庫存更新','使用 scenario=ingredient_inventory_update。只更新截圖中可辨識的食材；未出現項目不得設為 0。畫面明確顯示數量 0 時 quantity=0 必須保留；空白或看不清楚填 null，平台保留既有值。每筆 ingredient_inventory operation 的 key.ingredient_name 必須逐字使用畫面顯示的繁體中文食材名稱；不得自行建立 ingredient_id、英文 slug 或其他 stable ID。若畫面同時顯示食材包容量，account_capacity operation 使用 key.capacity_key=ingredient_bag。',['ingredient_inventory','account_capacity'],{quantity:null},'ingredient_inventory_update'),
   items:wrap('道具包更新','使用 scenario=item_inventory_update。只更新截圖中可辨識的道具；quantity=0 與 safe_reserve=0 都是有效值。可輸出 recommendation；空白欄位填 null，不得清除既有建議。',['item_inventory','account_capacity'],{quantity:null,safe_reserve:null,recommendation:null},'item_inventory_update'),
   candies:wrap('糖果庫存更新',candyRules,['candy_inventory'],{quantity:null,safe_reserve:null},'candy_inventory_update'),
   recipes:wrap('食譜解鎖／等級／能量更新','使用 scenario=recipe_status_update。逐道料理只更新玩家狀態：unlocked、recipe_level、current_energy。unlocked=false、recipe_level=0、current_energy=0 都是有效值；未出現料理不改狀態。key 優先使用 recipe_id，不知道時可使用公版 recipe_name 由平台解析。',['recipes'],{unlocked:null,recipe_level:null,current_energy:null},'recipe_status_update'),
