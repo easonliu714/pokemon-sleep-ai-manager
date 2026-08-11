@@ -56,11 +56,12 @@ def test_update_center_exposes_field_audit_and_confirmation_ui():
 
 def test_prompt_catalog_uses_non_destructive_update_contract():
     source = read("assets/js/prompt-catalog.js")
+    contract = read("assets/js/update-package-contract.js")
     assert "空字串與省略欄位代表「不更新」" in source
     assert "operation.clear_fields" in source
     assert "profile_audit_confirmations" in source
     assert "public_candidate_fill" not in source or "不得使用公版物種候選值" in source
-    assert "blank_values:'preserve_existing'" in source
+    assert "blank_values:'preserve_existing'" in contract
     assert "accepted_current_observation:false" in source
 
 
