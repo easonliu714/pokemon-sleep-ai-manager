@@ -4,6 +4,11 @@ on:
   pull_request:
     paths:
       - 'assets/js/update-package-contract.js'
+      - 'assets/js/data-preservation-policy.js'
+      - 'assets/js/importer.js'
+      - 'assets/js/identity-import-apply-operation.js'
+      - 'assets/js/weekly-context-manual-override.js'
+      - 'assets/js/weekly-context-override-rebase.js'
       - 'assets/js/ai-workflow.js'
       - 'assets/js/prompt-catalog.js'
       - 'assets/js/unified-screenshot-update-center.js'
@@ -26,6 +31,7 @@ on:
       - 'assets/js/candy-inventory-ui.js'
       - 'assets/js/version-authority.js'
       - 'service-worker.js'
+      - 'scripts/v04131-data-preservation-contract.mjs'
       - 'scripts/uc-img-root-contract.mjs'
       - 'scripts/uc-img-a-contract.mjs'
       - 'scripts/uc-img-internal-gemini-contract.mjs'
@@ -68,6 +74,8 @@ jobs:
           node-version: '22'
       - name: Verify shared Update Package root contract
         run: node scripts/uc-img-root-contract.mjs
+      - name: Verify v0.4.13.1 cross-path data preservation
+        run: node scripts/v04131-data-preservation-contract.mjs
       - name: Verify UC.IMG-A executable contract
         run: node scripts/uc-img-a-contract.mjs
       - name: Verify Internal Gemini dual-mode contract
@@ -104,6 +112,11 @@ jobs:
           node scripts/v0485-release-contract.mjs
       - name: Verify JavaScript syntax
         run: |
+          node --check assets/js/data-preservation-policy.js
+          node --check assets/js/weekly-context-override-rebase.js
+          node --check assets/js/weekly-context-manual-override.js
+          node --check assets/js/importer.js
+          node --check assets/js/identity-import-apply-operation.js
           node --check assets/js/update-package-contract.js
           node --check assets/js/ai-workflow.js
           node --check assets/js/prompt-catalog.js
@@ -123,6 +136,7 @@ jobs:
           node --check assets/js/ai-project-pool-runtime.js
           node --check assets/js/candy-inventory-ui.js
           node --check assets/js/version-authority.js
+          node --check scripts/v04131-data-preservation-contract.mjs
           node --check scripts/public-master-recognition-contract.mjs
           node --check scripts/v04111-uc-img-session-timestamp-contract.mjs
           node --check scripts/v04112-android-eager-image-bytes-contract.mjs
