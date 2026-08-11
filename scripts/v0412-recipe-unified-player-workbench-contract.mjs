@@ -5,7 +5,16 @@ import {buildRecipeUnifiedWorkbenchProjection,RECIPE_UNIFIED_PLAYER_WORKBENCH_VE
 
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
-assert.equal(version.match(/app_version:\s*'([^']+)'/)?.[1],'v0.4.11.4','behavior-first stage must not bump Release Authority before gates are green');
+const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
+assert.ok(['v0.4.11.4','v0.4.12'].includes(appVersion),`unexpected v0.4.12 behavior-stage authority: ${appVersion}`);
+if(appVersion==='v0.4.11.4'){
+  assert.equal(version.match(/app_build:\s*'([^']+)'/)?.[1],'20260811-v04114-recipe-zh-tw-diagnostic-export','behavior-first stage must remain on v0.4.11.4 before release promotion');
+}else{
+  assert.equal(version.match(/app_build:\s*'([^']+)'/)?.[1],'20260811-v0412-recipe-unified-player-workbench');
+  assert.equal(version.match(/cache_name:\s*'([^']+)'/)?.[1],'pokemon-sleep-ai-v0.4.12-v0412-recipe-unified-player-workbench');
+  assert.ok(version.includes("// app_version: 'v0.4.11.4'"),'v0.4.12 must retain v0.4.11.4 legacy bridge');
+  assert.ok(version.includes("// app_build: '20260811-v04114-recipe-zh-tw-diagnostic-export'"));
+}
 assert.equal(PUBLIC_RECIPE_MASTER_VERSION,'public-recipe-master-2026-08-11-c');
 assert.equal(PUBLIC_RECIPE_MASTER.length,76);
 assert.equal(RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION,'recipe-unified-player-workbench-2026-08-11-a');
@@ -41,13 +50,13 @@ for(const token of [
   'lockedRecipeTable',
   'weekly-recommended',
   "snapshot(`manual:recipe:${playerRecipeId}`)",
-  "INSERT INTO recipes",
-  "INSERT INTO import_batches",
-  "INSERT INTO import_changes",
+  'INSERT INTO recipes',
+  'INSERT INTO import_batches',
+  'INSERT INTO import_changes',
   "'manual_frontend_edit'",
   'draftById',
 ])assert.ok(workbench.includes(token),`unified recipe workbench missing behavior token: ${token}`);
-assert.ok(workbench.includes("INSERT INTO import_batches(update_id,schema_version,generated_at,imported_at,source,operation_count,result_json)"),'manual recipe audit must retain import_batches source column');
+assert.ok(workbench.includes('INSERT INTO import_batches(update_id,schema_version,generated_at,imported_at,source,operation_count,result_json)'),'manual recipe audit must retain import_batches source column');
 for(const forbidden of ['INSERT INTO recipe_master','UPDATE recipe_master','DELETE FROM recipe_master','applyPayload(','dryRun(','Gemini','fetch('])assert.equal(workbench.includes(forbidden),false,`recipe workbench owns forbidden authority/path: ${forbidden}`);
 
 const publicCatalog=read('assets/js/public-catalog-workbench.js');
@@ -63,6 +72,8 @@ assert.ok(shared.includes("document.getElementById('sharedKnowledgeBlock')?.remo
 
 const css=read('assets/css/editor.css');
 for(const token of ['.recipe-workbench-wrap','overflow-x:auto','min-width:900px','.recipe-formula-cell','.recipe-shortage-cell'])assert.ok(css.includes(token),`Android containment token missing: ${token}`);
+const sw=read('service-worker.js');
+assert.ok(sw.includes("'./assets/js/recipe-unified-player-workbench.js'"),'unified recipe workbench must be precached for first-offline Recipe access');
 
 const ucImg=read('assets/js/unified-screenshot-update-center.js');
 assert.equal((ucImg.match(/applyPayload\(/g)||[]).length,1,'UC.IMG must retain exactly one Apply bridge');
@@ -71,7 +82,8 @@ assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.12 Recipe Workbench m
 
 console.log(JSON.stringify({
   status:'PASS',gate:'V0412_RECIPE_UNIFIED_PLAYER_WORKBENCH_BEHAVIOR',
-  release_authority:'v0.4.11.4_behavior_first',
+  app_version:appVersion,
+  release_promoted:appVersion==='v0.4.12',
   workbench_version:RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION,
   canonical_recipe_count:PUBLIC_RECIPE_MASTER.length,
   synthetic_unlocked_count:projection.unlocked_count,
@@ -85,6 +97,7 @@ console.log(JSON.stringify({
   player_recipe_writer_single_owner:true,
   unrelated_draft_inputs_preserved:true,
   android_horizontal_containment:true,
+  first_offline_recipe_module_precached:true,
   sqlite_migration_added:false,
   uc_img_apply_bridge_count:1,
 },null,2));
