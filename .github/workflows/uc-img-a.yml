@@ -9,6 +9,7 @@ on:
       - 'assets/js/unified-screenshot-update-center.js'
       - 'assets/js/uc-img-gemini-adapter.js'
       - 'assets/js/uc-img-session-lifecycle.js'
+      - 'assets/js/uc-img-image-runtime.js'
       - 'assets/js/public-master-recognition.js'
       - 'assets/js/shared-master-data.js'
       - 'assets/js/public-item-master.js'
@@ -23,6 +24,7 @@ on:
       - 'scripts/uc-img-ingredient-key-contract.mjs'
       - 'scripts/public-master-recognition-contract.mjs'
       - 'scripts/v04111-uc-img-session-timestamp-contract.mjs'
+      - 'scripts/v04112-android-eager-image-bytes-contract.mjs'
       - 'scripts/v04111-release-contract.mjs'
       - 'scripts/v0411-release-contract.mjs'
       - 'scripts/v04103-release-contract.mjs'
@@ -61,6 +63,8 @@ jobs:
         run: node scripts/public-master-recognition-contract.mjs
       - name: Verify v0.4.11.1 session cleanup and platform timestamp
         run: node scripts/v04111-uc-img-session-timestamp-contract.mjs
+      - name: Verify v0.4.11.2 Android eager image byte snapshot
+        run: node scripts/v04112-android-eager-image-bytes-contract.mjs
       - name: Verify current and historical release contracts
         run: |
           if grep -q "app_version: 'v0.4.11.1'" assets/js/version-authority.js; then node scripts/v04111-release-contract.mjs; fi
@@ -80,6 +84,7 @@ jobs:
           node --check assets/js/unified-screenshot-update-center.js
           node --check assets/js/uc-img-gemini-adapter.js
           node --check assets/js/uc-img-session-lifecycle.js
+          node --check assets/js/uc-img-image-runtime.js
           node --check assets/js/public-master-recognition.js
           node --check assets/js/shared-master-data.js
           node --check assets/js/ai-project-pool-runtime.js
@@ -87,6 +92,7 @@ jobs:
           node --check assets/js/version-authority.js
           node --check scripts/public-master-recognition-contract.mjs
           node --check scripts/v04111-uc-img-session-timestamp-contract.mjs
+          node --check scripts/v04112-android-eager-image-bytes-contract.mjs
           node --check scripts/v04111-release-contract.mjs
           node --check scripts/uc-img-ingredient-key-contract.mjs
           node --check scripts/v0411-release-contract.mjs
