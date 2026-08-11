@@ -16,4 +16,6 @@ The missing key also caused UC.IMG duplicate-target signatures to collapse to `i
 - No schema migration, Public Master mutation, screenshot persistence, or AI-to-SQLite bypass.
 
 ## Target release
-`v0.4.10.2.1`
+`v0.4.10.3`
+
+Five-part `v0.4.10.2.1` was intentionally abandoned because repository-wide successor-aware historical contracts currently parse at most four numeric version components. The hotfix uses the existing compatible lineage instead of broadening historical version parsers.
