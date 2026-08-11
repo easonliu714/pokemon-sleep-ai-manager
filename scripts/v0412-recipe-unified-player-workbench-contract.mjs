@@ -44,9 +44,10 @@ for(const token of [
   "INSERT INTO recipes",
   "INSERT INTO import_batches",
   "INSERT INTO import_changes",
-  "source:'manual_frontend_edit'",
+  "'manual_frontend_edit'",
   'draftById',
 ])assert.ok(workbench.includes(token),`unified recipe workbench missing behavior token: ${token}`);
+assert.ok(workbench.includes("INSERT INTO import_batches(update_id,schema_version,generated_at,imported_at,source,operation_count,result_json)"),'manual recipe audit must retain import_batches source column');
 for(const forbidden of ['INSERT INTO recipe_master','UPDATE recipe_master','DELETE FROM recipe_master','applyPayload(','dryRun(','Gemini','fetch('])assert.equal(workbench.includes(forbidden),false,`recipe workbench owns forbidden authority/path: ${forbidden}`);
 
 const publicCatalog=read('assets/js/public-catalog-workbench.js');
