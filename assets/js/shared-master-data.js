@@ -15,11 +15,14 @@ export const PUBLIC_BERRY_TYPES = Object.freeze([
   ['岩石','文柚果'],['幽靈','墨莓果'],['龍','番荔果'],['惡','異奇果'],['鋼','靛莓果'],['妖精','桃桃果'],
 ].map(([type_name,berry_name])=>Object.freeze({type_name,berry_name,...SOURCE_POLICY,data_version:MASTER_DATA_VERSION})));
 
+// Historical authority marker is retained because older release/privacy contracts extract this exact array literal.
+// v0.4.11 exports a frozen copy for Public Master Recognition without creating a second ingredient authority.
 const INGREDIENTS = [
   '沉甸甸南瓜','醒腦咖啡豆','萌綠玉米','萌綠大豆','放鬆可可','好眠番茄','暖暖薑','純粹油',
   '甜甜蜜','哞哞鮮奶','豆製肉','火辣香草','特選蘋果','窩心洋芋','特選蛋','粗枝大蔥',
   '品鮮蘑菇','美味尾巴','特選酪梨',
 ];
+export const PUBLIC_INGREDIENT_NAMES = Object.freeze([...INGREDIENTS]);
 
 export function applySharedMasterData(db) {
   const meta = SOURCE_POLICY;

@@ -8,6 +8,11 @@ on:
       - 'assets/js/prompt-catalog.js'
       - 'assets/js/unified-screenshot-update-center.js'
       - 'assets/js/uc-img-gemini-adapter.js'
+      - 'assets/js/public-master-recognition.js'
+      - 'assets/js/shared-master-data.js'
+      - 'assets/js/public-item-master.js'
+      - 'assets/js/public-candy-master.js'
+      - 'assets/js/public-recipe-master.js'
       - 'assets/js/ai-project-pool-runtime.js'
       - 'assets/js/candy-inventory-ui.js'
       - 'assets/js/version-authority.js'
@@ -15,6 +20,8 @@ on:
       - 'scripts/uc-img-a-contract.mjs'
       - 'scripts/uc-img-internal-gemini-contract.mjs'
       - 'scripts/uc-img-ingredient-key-contract.mjs'
+      - 'scripts/public-master-recognition-contract.mjs'
+      - 'scripts/v0411-release-contract.mjs'
       - 'scripts/v04103-release-contract.mjs'
       - 'scripts/v04102-release-contract.mjs'
       - 'scripts/v04101-release-contract.mjs'
@@ -47,8 +54,11 @@ jobs:
         run: node scripts/uc-img-internal-gemini-contract.mjs
       - name: Verify ingredient key hotfix contract
         run: node scripts/uc-img-ingredient-key-contract.mjs
+      - name: Verify Public Master constrained recognition
+        run: node scripts/public-master-recognition-contract.mjs
       - name: Verify current and historical release contracts
         run: |
+          if [ -f scripts/v0411-release-contract.mjs ]; then node scripts/v0411-release-contract.mjs; fi
           node scripts/v04103-release-contract.mjs
           node scripts/v04102-release-contract.mjs
           node scripts/v04101-release-contract.mjs
@@ -63,9 +73,12 @@ jobs:
           node --check assets/js/prompt-catalog.js
           node --check assets/js/unified-screenshot-update-center.js
           node --check assets/js/uc-img-gemini-adapter.js
+          node --check assets/js/public-master-recognition.js
+          node --check assets/js/shared-master-data.js
           node --check assets/js/ai-project-pool-runtime.js
           node --check assets/js/candy-inventory-ui.js
           node --check assets/js/version-authority.js
+          node --check scripts/public-master-recognition-contract.mjs
           node --check scripts/uc-img-ingredient-key-contract.mjs
           node --check scripts/v04103-release-contract.mjs
           node --check scripts/uc-img-internal-gemini-contract.mjs
