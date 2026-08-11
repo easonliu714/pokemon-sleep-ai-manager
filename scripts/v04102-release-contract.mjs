@@ -22,13 +22,13 @@ const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.10.2','v0.4.10.2.1'].includes(appVersion),`unexpected v0.4.10.2 successor: ${appVersion}`);
+assert.ok(['v0.4.10.2','v0.4.10.3'].includes(appVersion),`unexpected v0.4.10.2 successor: ${appVersion}`);
 if(appVersion==='v0.4.10.2'){
   assert.equal(appBuild,'20260811-v04102-uc-img-internal-gemini-dual-mode');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.10.2-v04102-uc-img-internal-gemini-dual-mode');
 }else{
-  assert.equal(appBuild,'20260811-v041021-ingredient-key-contract-hotfix');
-  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.10.2.1-v041021-ingredient-key-contract-hotfix');
+  assert.equal(appBuild,'20260811-v04103-ingredient-key-contract-hotfix');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.10.3-v04103-ingredient-key-contract-hotfix');
   assert.ok(version.includes("// app_version: 'v0.4.10.2'"),'successor must retain v0.4.10.2 legacy bridge');
 }
 assert.ok(version.includes("// app_version: 'v0.4.10.1'"),'v0.4.10.2 lineage must retain v0.4.10.1 legacy bridge');
