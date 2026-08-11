@@ -4,16 +4,24 @@ import {
   PUBLIC_RECIPE_MASTER_VERSION as BASE_PUBLIC_RECIPE_MASTER_VERSION,
 } from './public-recipe-master.js';
 
-export const PUBLIC_RECIPE_CANONICAL_NAME_VERSION='public-recipe-zh-tw-names-2026-08-09-a';
-export const PUBLIC_RECIPE_MASTER_VERSION='public-recipe-master-2026-08-09-b';
+export const PUBLIC_RECIPE_CANONICAL_NAME_VERSION='public-recipe-zh-tw-names-2026-08-11-b';
+export const PUBLIC_RECIPE_MASTER_VERSION='public-recipe-master-2026-08-11-c';
 export const PUBLIC_RECIPE_BASE_MASTER_VERSION=BASE_PUBLIC_RECIPE_MASTER_VERSION;
 
 const NAME_SOURCE=Object.freeze({
   source_type:'game_screenshot_verified',
   source_name:'sanitized in-game zh-TW recipe screenshot evidence',
-  source_ref:'internal:public-recipe-zh-tw-screenshot-evidence-2026-08-09',
-  verified_at:'2026-08-09',
+  source_ref:'internal:public-recipe-zh-tw-screenshot-evidence-2026-08-09+android-live-2026-08-11',
+  verified_at:'2026-08-11',
   verification_status:'GAME_SCREENSHOT_VERIFIED_NAME_FORMULA_MATCH',
+});
+
+const FORMULA_SOURCE=Object.freeze({
+  source_type:'game_screenshot_verified_formula',
+  source_name:'current in-game zh-TW recipe screenshot ingredient evidence',
+  source_ref:'internal:v04114-android-live-current-recipe-formula-evidence',
+  verified_at:'2026-08-11',
+  verification_status:'GAME_SCREENSHOT_VERIFIED_FORMULA',
 });
 
 export const PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES=Object.freeze([
@@ -26,6 +34,7 @@ export const PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES=Object.freeze([
   ['recipe_curry_008','吃飽飽起司肉排咖哩','起司漢堡咖哩'],
   ['curry_dream_eater','絕對睡眠奶油咖哩','夢食奶油咖哩'],
   ['curry_solar_tomato','太陽之力番茄咖哩','日照番茄咖哩'],
+  ['curry_dizzy_punch','迷昏拳辣味咖哩','暈眩拳辣味咖哩'],
   ['recipe_salad_022','落英繽紛含羞草蛋沙拉','花瓣舞層層沙拉'],
   ['recipe_salad_020','十字切碎丁沙拉','十字劈沙拉'],
   ['recipe_salad_018','冥想香甜沙拉','冥想水果沙拉'],
@@ -57,6 +66,25 @@ export const PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES=Object.freeze([
   name_contract_version:PUBLIC_RECIPE_CANONICAL_NAME_VERSION,
 })));
 
+// v0.4.11.4: current Android LIVE screenshot resolves the remaining formula discrepancy for 親子愛咖哩.
+// Only the public formula is projected; player level/current-energy values are never retained here.
+export const PUBLIC_RECIPE_FORMULA_OVERRIDES=Object.freeze([
+  Object.freeze({
+    recipe_id:'curry_parent_child',
+    total_ingredients:35,
+    ingredients:Object.freeze([
+      Object.freeze({ingredient_name:'甜甜蜜',quantity:12}),
+      Object.freeze({ingredient_name:'好眠番茄',quantity:11}),
+      Object.freeze({ingredient_name:'特選蛋',quantity:8}),
+      Object.freeze({ingredient_name:'窩心洋芋',quantity:4}),
+    ]),
+    evidence_class:'CURRENT_GAME_SCREENSHOT_FORMULA',
+    formula_contract_version:'public-recipe-formula-2026-08-11-a',
+  }),
+]);
+
+// Historical R2.1 conflict evidence is retained for audit compatibility. Active authority below applies
+// the newer 2026-08-11 screenshot resolution; consumers must use PUBLIC_RECIPE_MASTER projection.
 export const PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS=Object.freeze([
   Object.freeze({
     recipe_id:'curry_dizzy_punch',
@@ -66,6 +94,8 @@ export const PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS=Object.freeze([
     auto_apply:false,
     observed_formula:Object.freeze([['萌綠大豆',11],['火辣香草',11],['甜甜蜜',11]]),
     current_formula:Object.freeze([['醒腦咖啡豆',11],['火辣香草',11],['甜甜蜜',11]]),
+    resolved_by:'CURRENT_GAME_SCREENSHOT_2026_08_11',
+    resolution:'CURRENT_PUBLIC_FORMULA_CONFIRMED_OLD_OCR_EVIDENCE_REJECTED',
   }),
   Object.freeze({
     recipe_id:'curry_parent_child',
@@ -75,21 +105,31 @@ export const PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS=Object.freeze([
     auto_apply:false,
     observed_formula:Object.freeze([['好眠番茄',11],['特選蛋',8],['甜甜蜜',12],['窩心洋芋',4]]),
     current_formula:Object.freeze([['特選蘋果',11],['特選蛋',8],['甜甜蜜',12],['窩心洋芋',4]]),
+    resolved_by:'CURRENT_GAME_SCREENSHOT_2026_08_11',
+    resolution:'OBSERVED_FORMULA_PROMOTED_TO_CURRENT_PUBLIC_AUTHORITY',
   }),
 ]);
 
 const overrideById=new Map(PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES.map(row=>[row.recipe_id,row]));
+const formulaOverrideById=new Map(PUBLIC_RECIPE_FORMULA_OVERRIDES.map(row=>[row.recipe_id,row]));
 
 export const PUBLIC_RECIPE_MASTER=Object.freeze(BASE_PUBLIC_RECIPE_MASTER.map(base=>{
-  const override=overrideById.get(base.recipe_id);
-  if(!override)return Object.freeze({...base,data_version:PUBLIC_RECIPE_MASTER_VERSION});
-  if(base.recipe_name!==override.legacy_public_name){
+  const override=overrideById.get(base.recipe_id),formulaOverride=formulaOverrideById.get(base.recipe_id);
+  if(override&&base.recipe_name!==override.legacy_public_name){
     throw new Error(`recipe_name_contract_base_mismatch:${base.recipe_id}:${base.recipe_name}:${override.legacy_public_name}`);
   }
   return Object.freeze({
     ...base,
-    recipe_name:override.canonical_name_zh_tw,
-    ...NAME_SOURCE,
+    ...(formulaOverride?{
+      ingredients:formulaOverride.ingredients,
+      total_ingredients:formulaOverride.total_ingredients,
+      ...FORMULA_SOURCE,
+      formula_contract_version:formulaOverride.formula_contract_version,
+    }:{}),
+    ...(override?{
+      recipe_name:override.canonical_name_zh_tw,
+      ...NAME_SOURCE,
+    }:{}),
     data_version:PUBLIC_RECIPE_MASTER_VERSION,
   });
 }));
