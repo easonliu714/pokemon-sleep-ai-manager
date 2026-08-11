@@ -40,15 +40,17 @@ assert.deepEqual([weekly.image_ref,ingredient.image_ref,recipe.image_ref],['imag
 assignScreenshotScenario(session,weekly.entry_id,'weekly');assignScreenshotScenario(session,ingredient.entry_id,'ingredients');assignScreenshotScenario(session,recipe.entry_id,'recipes');
 setScenarioCoverage(session,'ingredients','PARTIAL');
 let prompt=buildScreenshotScenarioPrompt(session,'ingredients');
-assert.match(prompt,/scenario=ingredient_inventory_update/);assert.match(prompt,/image-002 = ingredient_bag_01\.png/);assert.match(prompt,/coverage=PARTIAL/);assert.match(prompt,/沒有出現的食材／料理絕對不得補 0/);
+assert.match(prompt,/Public Master Constrained Recognition/);assert.match(prompt,/scenario=ingredient_inventory_update/);assert.match(prompt,/image-002 = ingredient_bag_01\.png/);assert.match(prompt,/coverage=PARTIAL/);assert.match(prompt,/visible_target_count/);assert.match(prompt,/UNMATCHED/);assert.match(prompt,/ingredient_master/);
 const partialRevision=screenshotScenarioRevision(session,'ingredients');
+assert.match(partialRevision,/ingredient_master@shared-master-/,'revision must include public catalog authority version');
 session.scenario_state.ingredients.raw_response='{"test":"old"}';session.scenario_state.ingredients.response_prompt_revision=partialRevision;session.scenario_state.ingredients.response_stale=false;
 setScenarioCoverage(session,'ingredients','USER_CONFIRMED_COMPLETE');
 assert.equal(session.scenario_state.ingredients.response_stale,true,'coverage change must stale an existing AI response');
 prompt=buildScreenshotScenarioPrompt(session,'ingredients');
-assert.match(prompt,/completeness evidence/);assert.match(prompt,/不授權你為未出現項目新增 0、false、delete 或 clear_fields/);assert.notEqual(screenshotScenarioRevision(session,'ingredients'),partialRevision);
+assert.match(prompt,/coverage=USER_CONFIRMED_COMPLETE/);assert.match(prompt,/未出現的公版項目仍不得補 0、false 或未解鎖/);assert.notEqual(screenshotScenarioRevision(session,'ingredients'),partialRevision);
 session.scenario_state.ingredients.raw_response='';session.scenario_state.ingredients.response_stale=false;
 
+// Backward compatibility: already-valid Update Package v1.1 payloads remain parseable even though new prompts use Recognition JSON.
 const ingredientPayload=basePayload('ingredient_inventory_update',[op('ingredient_inventory',{ingredient_name:'甜甜蜜'},{quantity:113},'image-002')]);
 let result=validateScreenshotScenarioPayload(session,'ingredients',ingredientPayload);
 assert.equal(result.errors.length,0,result.errors.join('\n'));assert.equal(result.review.length,0);assert.equal(result.summary.traceable_evidence,true);assert.equal(result.summary.coverage,'USER_CONFIRMED_COMPLETE');assert.equal(result.payload.operations.length,1,'parser must not synthesize absent inventory rows');
@@ -61,8 +63,9 @@ const wrongScenario=structuredClone(ingredientPayload);wrongScenario.update_id='
 const duplicate=basePayload('ingredient_inventory_update',[op('ingredient_inventory',{ingredient_name:'甜甜蜜'},{quantity:113},'image-002'),{...op('ingredient_inventory',{ingredient_name:'甜甜蜜'},{quantity:113},'image-002'),operation_id:'OP-DUP-2'}]);result=validateScreenshotScenarioPayload(session,'ingredients',duplicate);assert.ok(result.warnings.some(value=>value.includes('相同目標 key')));
 const wrongAction=structuredClone(ingredientPayload);wrongAction.update_id='TEST-wrong-action';wrongAction.operations[0].action='update';result=validateScreenshotScenarioPayload(session,'ingredients',wrongAction);assert.ok(result.errors.some(value=>value.includes('截圖更新只允許 action=upsert')));
 
-const recipePayload=basePayload('recipe_status_update',[op('recipes',{recipe_name:'寶寶甜蜜咖哩'},{unlocked:true,recipe_level:1,current_energy:100},'image-003')]);
+const recipePayload=basePayload('recipe_status_update',[op('recipes',{recipe_name:'忍者咖哩'},{unlocked:true,recipe_level:1,current_energy:100},'image-003')]);
 result=validateScreenshotScenarioPayload(session,'recipes',recipePayload);assert.equal(result.errors.length,0,result.errors.join('\n'));assert.equal(result.payload.operations.length,1,'unseen recipes must not be synthesized as locked');
+const recipePrompt=buildScreenshotScenarioPrompt(session,'recipes');assert.match(recipePrompt,/Public Master Constrained Recognition/);assert.match(recipePrompt,/recipe_master/);assert.match(recipePrompt,/observed_data 只可包含 unlocked、recipe_level、current_energy/);
 
 const weeklyPayload=basePayload('weekly_context_update',[op('weekly_context',{context_id:'weekly_context_2026-08-10_import'},{week_start:'2026-08-10',camp:'萌綠之島',dish_category:'咖哩／濃湯',pot_size:57,event_name:'測試活動',event_effects:{meal_category_forced:true,recipe_final_energy_multiplier:1.5},updated_at:iso},'image-001')],{context_authority:'UPDATE_CENTER_JSON'});
 result=validateScreenshotScenarioPayload(session,'weekly',weeklyPayload);assert.equal(result.errors.length,0,result.errors.join('\n'));assert.equal(result.summary.weekly_context_contract,'PASS');
@@ -72,7 +75,8 @@ weekly.object_url='blob:private-screenshot';weekly.image_available=true;const pe
 
 const loader=fs.readFileSync(new URL('../assets/js/candy-inventory-ui.js',import.meta.url),'utf8');assert.match(loader,/import '\.\/unified-screenshot-update-center\.js';/);
 const source=fs.readFileSync(new URL('../assets/js/unified-screenshot-update-center.js',import.meta.url),'utf8');
-for(const token of ["from './ai-workflow.js'","from './importer.js'",'validateWorkflow','dryRun','applyPayload','multiple','USER_CONFIRMED_COMPLETE','PARTIAL','response_stale','screenshotScenarioRevision','Gemini API 直接分析','外部 AI Prompt'])assert.ok(source.includes(token),`missing runtime contract token: ${token}`);
+for(const token of ["from './ai-workflow.js'","from './importer.js'",'validateWorkflow','dryRun','applyPayload','multiple','USER_CONFIRMED_COMPLETE','PARTIAL','response_stale','screenshotScenarioRevision','Gemini API 直接分析','外部 AI Prompt','compilePublicMasterRecognitionToUpdatePackage','Public Master 對應待確認'])assert.ok(source.includes(token),`missing runtime contract token: ${token}`);
 assert.ok(!/indexedDB\.put\([^\n]*image|INSERT[^\n]*image_blob/i.test(source),'UC.IMG-A must not persist screenshot bytes');
+assert.equal((source.match(/applyPayload\(/g)||[]).length,1,'UC.IMG must keep exactly one Apply bridge');
 
-console.log(JSON.stringify({status:'PASS',gate:'UC.IMG-A',version:UC_IMG_A_VERSION,session_entries:session.entries.length,weekly_contract:'PASS',ingredient_partial_zero_guard:'PASS',recipe_absent_lock_guard:'PASS',image_ref_filename_mapping:'PASS',stale_response_guard:'PASS',evidence_ref_guard:'PASS',existing_importer_bridge:'PASS',dual_mode:true},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'UC.IMG-A',version:UC_IMG_A_VERSION,session_entries:session.entries.length,weekly_contract:'PASS',ingredient_public_master_recognition:'PASS',recipe_public_master_recognition:'PASS',legacy_update_package_parse:'PASS',image_ref_filename_mapping:'PASS',stale_response_guard:'PASS',evidence_ref_guard:'PASS',existing_importer_bridge:'PASS',dual_mode:true},null,2));
