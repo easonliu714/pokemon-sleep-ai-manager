@@ -65,8 +65,8 @@ for(const row of PUBLIC_RECIPE_PROVENANCE){
 for(const recipe of PUBLIC_RECIPE_MASTER)assert(provenanceIds.has(recipe.recipe_id),`master_without_provenance:${recipe.recipe_id}`);
 
 assert(historicalScreenshotNameIds.length===33,`expected_original_33_screenshot_names:${historicalScreenshotNameIds.length}`);
-assert.deepEqual(currentScreenshotNameIds,['curry_dizzy_punch'],'only current-game dizzy-punch name may extend the historical 33-name baseline');
-assert.deepEqual(currentScreenshotFormulaIds,['curry_parent_child'],'only current-game parent-child formula may supersede reference formula in this release');
+assert(JSON.stringify(currentScreenshotNameIds)===JSON.stringify(['curry_dizzy_punch']),'only current-game dizzy-punch name may extend the historical 33-name baseline');
+assert(JSON.stringify(currentScreenshotFormulaIds)===JSON.stringify(['curry_parent_child']),'only current-game parent-child formula may supersede reference formula in this release');
 assert(activeNameEvidence.GAME_SCREENSHOT_VERIFIED===34,`expected_34_screenshot_verified_names:${JSON.stringify(activeNameEvidence)}`);
 assert(activeNameEvidence.SANITIZED_USER_REFERENCE===42,`expected_42_remaining_historical_names:${JSON.stringify(activeNameEvidence)}`);
 assert(activeFormulaEvidence.REFERENCE_VERIFIED===75,`expected_75_reference_verified_formulas:${JSON.stringify(activeFormulaEvidence)}`);
