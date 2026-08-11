@@ -12,11 +12,16 @@ import {
 
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
-assert.equal(version.match(/app_version:\s*'([^']+)'/)?.[1],'v0.4.10');
-assert.equal(version.match(/app_build:\s*'([^']+)'/)?.[1],'20260811-v0410-unified-screenshot-update-center-a');
-assert.equal(version.match(/cache_name:\s*'([^']+)'/)?.[1],'pokemon-sleep-ai-v0.4.10-v0410-unified-screenshot-update-center-a');
-assert.ok(version.includes("// app_version: 'v0.4.9.1'"),'v0.4.10 must retain v0.4.9.1 legacy bridge');
-assert.equal(UC_IMG_A_VERSION,'uc-img-a-2026-08-11-b');
+const current=version.match(/app_version:\s*'v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?'/);
+assert.ok(current,'current release version must remain parseable');
+const tuple=current.slice(1).map(value=>Number(value||0));
+assert.ok(tuple[0]===0&&tuple[1]===4&&(tuple[2]>10||(tuple[2]===10&&tuple[3]>=0)),'current release must not regress below v0.4.10');
+if(tuple[2]===10&&tuple[3]===0){
+  assert.equal(version.match(/app_build:\s*'([^']+)'/)?.[1],'20260811-v0410-unified-screenshot-update-center-a');
+  assert.equal(version.match(/cache_name:\s*'([^']+)'/)?.[1],'pokemon-sleep-ai-v0.4.10-v0410-unified-screenshot-update-center-a');
+}
+assert.ok(version.includes("// app_version: 'v0.4.9.1'"),'v0.4.10+ must retain v0.4.9.1 legacy bridge');
+assert.match(UC_IMG_A_VERSION,/^uc-img-a-2026-08-11-/);
 assert.deepEqual(Object.keys(UC_IMG_A_SCENARIOS),['weekly','ingredients','recipes']);
 assert.equal(UC_IMG_A_SCENARIOS.weekly.scenario,'weekly_context_update');
 assert.equal(UC_IMG_A_SCENARIOS.ingredients.scenario,'ingredient_inventory_update');
@@ -40,7 +45,7 @@ for(const token of [
   "from './ai-workflow.js'","from './importer.js'",'validateWorkflow','approveReviewed','dryRun','applyPayload',
   'PARTIAL','USER_CONFIRMED_COMPLETE','response_stale','screenshotScenarioRevision','source_image_ref','source_image_refs',
   'type="file" accept="image/*" multiple','圖片 bytes 未保留','截圖不會寫入 SQLite 或 GitHub',
-])assert.ok(source.includes(token),`v0.4.10 UC.IMG-A missing ${token}`);
+])assert.ok(source.includes(token),`v0.4.10+ UC.IMG-A missing ${token}`);
 assert.equal(/indexedDB\.put\([^\n]*image|INSERT[^\n]*image_blob/i.test(source),false,'screenshot bytes must not be persisted');
 
 const loader=read('assets/js/candy-inventory-ui.js');
@@ -48,13 +53,15 @@ assert.ok(loader.includes("import './unified-screenshot-update-center.js';"),'UC
 const promptCatalog=read('assets/js/prompt-catalog.js');
 for(const token of ['weekly_context_update','ingredient_inventory_update','recipe_status_update'])assert.ok(promptCatalog.includes(token),`existing prompt scenario missing ${token}`);
 const migrations=read('assets/js/migrations.js');
-assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.10 must not add SQLite migration 10');
+assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.10 successor must not add SQLite migration 10');
 const serviceWorker=read('service-worker.js');
 assert.ok(serviceWorker.includes("importScripts('./assets/js/version-authority.js')"));
 assert.ok(serviceWorker.includes("url.pathname.endsWith('.js')"),'UC.IMG-A relies on established online-load-once dynamic JS caching');
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'V0.4.10_RELEASE_CONTRACT',app_version:'v0.4.10',uc_img_a_version:UC_IMG_A_VERSION,
+  status:'PASS',gate:'V0.4.10_RELEASE_CONTRACT',current_app_version:`v${tuple.join('.')}`,
+  historical_behavior_compatible:true,exact_release_authority_enforced:tuple[2]===10&&tuple[3]===0,
+  uc_img_a_version:UC_IMG_A_VERSION,
   scenarios:Object.values(UC_IMG_A_SCENARIOS).map(value=>value.scenario),multi_image:true,coverage_semantics:true,
   evidence_traceability:true,stale_response_guard:true,existing_dry_run_apply_bridge:true,screenshot_bytes_persisted:false,
   sqlite_migration_added:false,public_master_mutated:false,

@@ -1,7 +1,7 @@
 import {AI_OBSERVATION_PROMPT,buildObservationTemplate,normalizeObservationPayload,validateObservationPayload} from './ai-observation.js';
 import {isWeeklyContextPayload,prepareWeeklyContextPayloadForImporter,validateWeeklyContextImportPayload} from './weekly-context-import-contract.js';
+import {UPDATE_PACKAGE_REQUIRED_ROOT,legacyUpdatePackageEnvelopeGuidance} from './update-package-contract.js';
 
-const REQUIRED_ROOT=['schema_version','update_id','generated_at','source','operations'];
 const ALLOWED_ENTITIES=new Set(['pokemon','pokemon_ingredients','pokemon_subskills','pokemon_identity_evidence','pokemon_evolution_history','ingredient_inventory','item_inventory','candy_inventory','account_capacity','discarded_pokemon','recipes','recipe_ingredients','weekly_plan','weekly_context','weekly_strategy','settings']);
 const ALLOWED_ACTIONS=new Set(['insert','update','upsert','archive','discarded','delete']);
 const LEVELS={pokemon_ingredients:new Set([1,30,60]),pokemon_subskills:new Set([10,25,50,70,80])};
@@ -30,6 +30,7 @@ const WEEKLY_REPAIR_LABELS=Object.freeze({
 export const AI_PROMPT=AI_OBSERVATION_PROMPT;
 export const buildTemplate=buildObservationTemplate;
 export {normalizeObservationPayload,validateObservationPayload};
+export {UPDATE_PACKAGE_REQUIRED_ROOT};
 
 function validNonNegativeInteger(value){return Number.isInteger(value)&&value>=0;}
 function validateScenarioValue(operation,label,errors){
@@ -77,7 +78,8 @@ function validateUpdatePackage(payload){
       },
     };
   }
-  for(const key of REQUIRED_ROOT)if(!(key in payload))errors.push(`缺少根欄位：${key}`);
+  for(const key of UPDATE_PACKAGE_REQUIRED_ROOT)if(!(key in payload))errors.push(`缺少根欄位：${key}`);
+  const legacyGuidance=legacyUpdatePackageEnvelopeGuidance(payload);if(legacyGuidance)errors.push(legacyGuidance);
   if(!Array.isArray(payload.operations)){errors.push('operations 必須是陣列');return {errors,warnings,review,summary:{}};}
   if(payload.profile_audit_confirmations!=null&&!Array.isArray(payload.profile_audit_confirmations))errors.push('profile_audit_confirmations 必須是陣列');
   const scenarioContract=SCENARIO_ENTITIES[payload.scenario]||null;
