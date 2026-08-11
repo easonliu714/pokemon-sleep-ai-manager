@@ -16,6 +16,8 @@ on:
       - 'assets/js/public-recipe-alias-master.js'
       - 'assets/js/public-recipe-canonical-authority.js'
       - 'assets/js/public-recipe-provenance.js'
+      - 'assets/js/recipe-unified-player-workbench.js'
+      - 'assets/js/public-catalog-workbench.js'
       - 'assets/js/shared-master-data.js'
       - 'assets/js/public-item-master.js'
       - 'assets/js/public-candy-master.js'
@@ -23,6 +25,7 @@ on:
       - 'assets/js/ai-project-pool-runtime.js'
       - 'assets/js/candy-inventory-ui.js'
       - 'assets/js/version-authority.js'
+      - 'service-worker.js'
       - 'scripts/uc-img-root-contract.mjs'
       - 'scripts/uc-img-a-contract.mjs'
       - 'scripts/uc-img-internal-gemini-contract.mjs'
@@ -32,6 +35,8 @@ on:
       - 'scripts/v04112-android-eager-image-bytes-contract.mjs'
       - 'scripts/v04113-weekly-recipe-semantic-safety-contract.mjs'
       - 'scripts/v04114-recipe-zh-tw-diagnostic-export-contract.mjs'
+      - 'scripts/v0412-recipe-unified-player-workbench-contract.mjs'
+      - 'scripts/v0412-release-contract.mjs'
       - 'scripts/v04114-release-contract.mjs'
       - 'scripts/v04113-release-contract.mjs'
       - 'scripts/v04112-release-contract.mjs'
@@ -79,9 +84,12 @@ jobs:
         run: node scripts/v04113-weekly-recipe-semantic-safety-contract.mjs
       - name: Verify v0.4.11.4 Recipe zh-TW authority and diagnostic export
         run: node scripts/v04114-recipe-zh-tw-diagnostic-export-contract.mjs
+      - name: Verify v0.4.12 Recipe Unified Player Workbench behavior
+        run: node scripts/v0412-recipe-unified-player-workbench-contract.mjs
       - name: Verify current and historical release contracts
         run: |
           CURRENT_VERSION="$(sed -n "s/^[[:space:]]*app_version: '\([^']*\)',/\1/p" assets/js/version-authority.js | head -n1)"
+          if [ "$CURRENT_VERSION" = "v0.4.12" ]; then node scripts/v0412-release-contract.mjs; fi
           if [ "$CURRENT_VERSION" = "v0.4.11.4" ]; then node scripts/v04114-release-contract.mjs; fi
           if [ "$CURRENT_VERSION" = "v0.4.11.3" ]; then node scripts/v04113-release-contract.mjs; fi
           node scripts/v04112-release-contract.mjs
@@ -109,6 +117,8 @@ jobs:
           node --check assets/js/public-recipe-alias-master.js
           node --check assets/js/public-recipe-canonical-authority.js
           node --check assets/js/public-recipe-provenance.js
+          node --check assets/js/recipe-unified-player-workbench.js
+          node --check assets/js/public-catalog-workbench.js
           node --check assets/js/shared-master-data.js
           node --check assets/js/ai-project-pool-runtime.js
           node --check assets/js/candy-inventory-ui.js
@@ -118,6 +128,8 @@ jobs:
           node --check scripts/v04112-android-eager-image-bytes-contract.mjs
           node --check scripts/v04113-weekly-recipe-semantic-safety-contract.mjs
           node --check scripts/v04114-recipe-zh-tw-diagnostic-export-contract.mjs
+          node --check scripts/v0412-recipe-unified-player-workbench-contract.mjs
+          node --check scripts/v0412-release-contract.mjs
           node --check scripts/v04114-release-contract.mjs
           node --check scripts/v04113-release-contract.mjs
           node --check scripts/v04112-release-contract.mjs

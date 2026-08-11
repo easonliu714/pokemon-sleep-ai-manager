@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
 const read=path=>fs.readFileSync(path,'utf8');
+const unifiedRecipePath='assets/js/recipe-unified-player-workbench.js';
 const sources={dedup:read('assets/js/identity-dedup.js'),quality:read('assets/js/identity-quality-guard.js'),evidence:read('assets/js/identity-evidence-builder.js'),recipeGuard:read('assets/js/recipe-render-guard.js'),shared:read('assets/js/shared-knowledge-ui.js'),master:read('assets/js/pokemon-master-options.js'),detail:read('assets/js/pokemon-detail.js'),bootstrap:read('assets/js/bootstrap.js'),sw:read('service-worker.js'),picker:read('assets/js/android-import-file-picker.js'),loader:read('assets/js/jszip-loader.js'),wizard:read('assets/js/identity-import-wizard-entry.js'),inventory:read('assets/js/data1-zip-inventory.js'),review:read('assets/js/data1-inventory-review.js'),reviewUi:read('assets/js/data1-inventory-review-ui.js'),fingerprint:read('assets/js/data1-image-fingerprint.js'),classifier:read('assets/js/data1d-ocr-first-classifier.js'),runtime:read('assets/js/data1d-local-ocr-runtime.js'),runtimeUi:read('assets/js/data1d1-ocr-runtime-ui.js'),reviewPackage:read('assets/js/data1d1-ocr-review-package.js'),regionConsent:read('assets/js/data1d1-ocr-region-ai-consent.js'),regionUi:read('assets/js/data1d1-ocr-region-ui.js'),thumbnail:read('assets/js/data1d1-ocr-thumbnail-region-confidence.js'),overlayBootstrap:read('assets/js/data1d1-ocr-overlay-update-center-bootstrap.js'),aiSettings:read('assets/js/ai-project-pool-settings.js')};
 const matchTokens=(source,tokens,label)=>{for(const token of tokens)assert.match(source,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')),`${label}:${token}`);};
 for(const pattern of [/snapshot\(`identity-merge-v4:/,/begin\(\)/,/commit\(\)/,/rollback\(\)/,/status='archived'/,/SYSTEM-IDENTITY-MERGE-v0\.3\.30/])assert.match(sources.dedup,pattern);
@@ -13,7 +14,19 @@ const complete=(id,name,level,overrides={})=>({pokemon_id:id,original_label:name
 const skeleton=(id,name,level,overrides={})=>({pokemon_id:id,original_label:name,species:name,level,specialty:'食材',type:'毒',identity_confidence:0.99,identity_review_required:0,registered_at:'legacy',identity_fingerprint:'legacy',sp:null,main_skill:null,main_skill_level:null,nature:null,helper_seconds:null,carry_limit:null,core_role:'咖啡／可可核心',recommendation:'目標Lv.50食材機率S',...overrides});
 const quagsire=complete('pkm-quagsire','土王',31),staleQuagsire=skeleton('pkm-private-quagsire','土王',30);
 assert.equal(isProfileComplete(quagsire),true);assert.equal(isWeakSkeleton(staleQuagsire),true);assert.equal(planSkeletonMerges([quagsire,staleQuagsire]).length,1);assert.equal(auditActivePokemon([quagsire,staleQuagsire]).ok,false);assert.equal(auditActivePokemon([quagsire]).ok,true);
-assert.match(sources.evidence,/buildAbilitySignature/);assert.match(sources.recipeGuard,/MutationObserver/);assert.match(sources.recipeGuard,/renderSharedKnowledge\(true\)/);assert.match(sources.shared,/renderSharedKnowledge\(force=false\)/);assert.match(sources.master,/BERRY_BY_TYPE/);assert.match(sources.detail,/pokemonTypeSelect/);
+assert.match(sources.evidence,/buildAbilitySignature/);assert.match(sources.recipeGuard,/MutationObserver/);assert.match(sources.recipeGuard,/renderSharedKnowledge\(true\)/);
+if(fs.existsSync(unifiedRecipePath)){
+  const unified=read(unifiedRecipePath),publicCatalog=read('assets/js/public-catalog-workbench.js');
+  assert.match(sources.shared,/renderSharedKnowledge\(/,'shared knowledge renderer must remain available for encyclopedia rendering');
+  assert.doesNotMatch(sources.shared,/personalRecipeAnalysisTable|referenceRecipeTable/,'v0.4.12 shared knowledge must not own duplicate recipe tables');
+  assert.match(unified,/recipeWeeklyAuthoritySummary/);
+  assert.match(unified,/lockedRecipeTable/);
+  assert.match(publicCatalog,/renderRecipeUnifiedWorkbench\(\)/,'recipeTable authority must delegate to unified workbench');
+  assert.equal((unified.match(/INSERT INTO recipes/g)||[]).length,1,'unified recipe player writer must remain single-owner');
+}else{
+  assert.match(sources.shared,/renderSharedKnowledge\(force=false\)/);
+}
+assert.match(sources.master,/BERRY_BY_TYPE/);assert.match(sources.detail,/pokemonTypeSelect/);
 const appVersion=sources.bootstrap.match(/APP_VERSION = '(v\d+\.\d+\.\d+)'/)?.[1];
 const cache=sources.sw.match(/const CACHE = '([^']+)'/)?.[1];
 assert.ok(appVersion,'app_version_missing');assert.ok(cache?.startsWith(`pokemon-sleep-ai-${appVersion}-`),'service_worker_version_mismatch');

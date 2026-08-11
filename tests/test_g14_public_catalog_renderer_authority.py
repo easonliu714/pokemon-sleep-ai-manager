@@ -2,6 +2,8 @@ from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 module = (root / 'assets/js/public-catalog-workbench.js').read_text(encoding='utf-8')
+recipe_workbench_path = root / 'assets/js/recipe-unified-player-workbench.js'
+recipe_workbench = recipe_workbench_path.read_text(encoding='utf-8') if recipe_workbench_path.exists() else ''
 app = (root / 'assets/js/app.js').read_text(encoding='utf-8')
 migrations = (root / 'assets/js/migrations.js').read_text(encoding='utf-8')
 database = (root / 'assets/js/database.js').read_text(encoding='utf-8')
@@ -16,14 +18,14 @@ shared_ui = (root / 'assets/js/shared-knowledge-ui.js').read_text(encoding='utf-
 contract = root / 'docs/PUBLIC_MASTER_DATABASE_VERSION_CONTRACT.md'
 
 required = [
-    'ingredient_catalog_state', 'item_catalog_state', 'recipe_catalog_state',
+    'ingredient_catalog_state', 'item_catalog_state',
     "document.readyState==='loading'", 'activeView', 'requestRender',
     'drainRenderQueue', 'requestedGeneration', 'completedGeneration',
     'pokemon-sleep:data-changed', 'pokemon-sleep:database-ready',
     'PUBLIC_CATALOG_LAZY_READY', 'lazy_renderer:true',
     'mutation_observer:false', 'first_entry_after_navigation:true',
     'cause_aware_generation_queue:true', 'schema_compatible_items:true',
-    'canonical-ingredient-qty', 'canonical-item-qty', 'canonical-recipe-unlocked',
+    'canonical-ingredient-qty', 'canonical-item-qty',
 ]
 for token in required:
     assert token in module, f'missing public catalog lazy-render contract: {token}'
@@ -38,7 +40,29 @@ assert 'requestAnimationFrame' in module
 assert "['ingredients','items','recipes'].includes(view)" in module
 assert "view==='ingredients'" in module
 assert "view==='items'" in module
-assert "else renderRecipeCatalog()" in module
+
+if recipe_workbench_path.exists():
+    # v0.4.12+: public-catalog-workbench remains the lazy render shell, while one
+    # dedicated Recipe Workbench owns recipe_catalog_state, recipeTable and player edits.
+    for token in [
+        "from './recipe-unified-player-workbench.js'",
+        'renderRecipeUnifiedWorkbench()',
+        'recipe_workbench_version',
+        'recipe_workbench_authority',
+    ]:
+        assert token in module, f'missing unified recipe delegation contract: {token}'
+    for token in [
+        'recipe_catalog_state', 'canonical-recipe-unlocked',
+        "from './public-recipe-canonical-authority.js'",
+        "document.getElementById('recipeTable')", 'lockedRecipeTable',
+    ]:
+        assert token in recipe_workbench, f'missing unified recipe owner contract: {token}'
+    assert 'INSERT INTO recipes' not in module, 'public catalog shell must not own a second recipe writer'
+    assert 'renderRecipeCatalog()' not in module, 'legacy recipe renderer must be retired after delegation'
+else:
+    for token in ['recipe_catalog_state', 'canonical-recipe-unlocked']:
+        assert token in module, f'missing historical recipe catalog contract: {token}'
+    assert 'else renderRecipeCatalog()' in module
 
 # Formal public-master database version contract is normative and CI-blocking.
 assert contract.exists(), 'missing formal public master database version contract'
@@ -68,9 +92,10 @@ assert 'export function applyPublicRecipeMaster' in recipe_master
 assert 'export const PUBLIC_RECIPE_CANONICAL_NAME_VERSION=' in recipe_canonical
 assert 'export const PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES=' in recipe_canonical
 assert "from './public-recipe-master.js'" in recipe_canonical
-assert "import {PUBLIC_RECIPE_MASTER,PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-canonical-authority.js'" in module
-assert "from './public-recipe-master.js'" not in module
-assert 'PokemonSleepPublicRecipeRegistry' not in module
+recipe_runtime_owner = recipe_workbench if recipe_workbench_path.exists() else module
+assert "from './public-recipe-canonical-authority.js'" in recipe_runtime_owner
+assert "from './public-recipe-master.js'" not in recipe_runtime_owner
+assert 'PokemonSleepPublicRecipeRegistry' not in recipe_runtime_owner
 assert 'const RECIPES' not in shared_master
 assert 'const RECIPES' not in legacy_recipe
 assert "authority:'public-recipe-master.js'" in legacy_recipe
@@ -104,10 +129,18 @@ for forbidden in [
 ]:
     assert forbidden not in item_seed, f'public item updater mutates player data: {forbidden}'
 
-# recipeTable has one authority; analysis uses separate tables.
-assert "document.getElementById('personalRecipeAnalysisTable')" in shared_ui
-assert "document.getElementById('referenceRecipeTable')" in shared_ui
-assert "document.getElementById('recipeTable')" not in shared_ui
+# recipeTable has one owner. v0.4.12 folds unlocked analysis into that owner and keeps
+# locked recipes in one separate table; older releases used two shared-knowledge tables.
+if recipe_workbench_path.exists():
+    assert "document.getElementById('recipeTable')" in recipe_workbench
+    assert 'personalRecipeAnalysisTable' not in shared_ui
+    assert 'referenceRecipeTable' not in shared_ui
+    assert "document.getElementById('recipeTable')" not in shared_ui
+    assert recipe_workbench.count('INSERT INTO recipes') == 1
+else:
+    assert "document.getElementById('personalRecipeAnalysisTable')" in shared_ui
+    assert "document.getElementById('referenceRecipeTable')" in shared_ui
+    assert "document.getElementById('recipeTable')" not in shared_ui
 
 # Legacy application rendering remains for compatibility before canonical controller takeover.
 assert 'SELECT * FROM ingredient_inventory' in app
@@ -121,6 +154,7 @@ print({
     'renderer': 'cause_aware_generation_queue',
     'single_item_authority': True,
     'single_recipe_authority': True,
+    'recipe_workbench_successor': recipe_workbench_path.exists(),
     'recipe_runtime_authority': 'public-recipe-canonical-authority.js',
     'recipe_base_fact_authority': 'public-recipe-master.js',
     'version_audit': True,

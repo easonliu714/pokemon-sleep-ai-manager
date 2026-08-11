@@ -6,15 +6,8 @@ import {
   UPDATE_PACKAGE_SOURCE,
   buildUpdatePackageJsonSchema,
 } from '../assets/js/update-package-contract.js';
-import {
-  UC_IMG_A_VERSION,
-  UC_IMG_A_MODES,
-  UC_IMG_A_SCENARIOS,
-} from '../assets/js/unified-screenshot-update-center.js';
-import {
-  UC_IMG_GEMINI_ADAPTER_VERSION,
-  buildUcImgGeminiSchema,
-} from '../assets/js/uc-img-gemini-adapter.js';
+import {UC_IMG_A_VERSION,UC_IMG_A_MODES,UC_IMG_A_SCENARIOS} from '../assets/js/unified-screenshot-update-center.js';
+import {UC_IMG_GEMINI_ADAPTER_VERSION,buildUcImgGeminiSchema} from '../assets/js/uc-img-gemini-adapter.js';
 import {buildGeminiGenerateBody} from '../assets/js/ai-project-pool-runtime.js';
 import {PUBLIC_MASTER_RECOGNITION_SCHEMA} from '../assets/js/public-master-recognition.js';
 
@@ -23,38 +16,20 @@ const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.10.2','v0.4.10.3','v0.4.11','v0.4.11.1','v0.4.11.2','v0.4.11.3','v0.4.11.4'].includes(appVersion),`unexpected v0.4.10.2 successor: ${appVersion}`);
-if(appVersion==='v0.4.10.2'){
-  assert.equal(appBuild,'20260811-v04102-uc-img-internal-gemini-dual-mode');
-  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.10.2-v04102-uc-img-internal-gemini-dual-mode');
-}else if(appVersion==='v0.4.10.3'){
-  assert.equal(appBuild,'20260811-v04103-ingredient-key-contract-hotfix');
-  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.10.3-v04103-ingredient-key-contract-hotfix');
-  assert.ok(version.includes("// app_version: 'v0.4.10.2'"),'successor must retain v0.4.10.2 legacy bridge');
-}else if(appVersion==='v0.4.11'){
-  assert.equal(appBuild,'20260811-v0411-public-master-constrained-recognition');
-  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11-v0411-public-master-constrained-recognition');
-  assert.ok(version.includes("// app_version: 'v0.4.10.3'"),'v0.4.11 must retain v0.4.10.3 legacy bridge');
-  assert.ok(version.includes("// app_version: 'v0.4.10.2'"),'v0.4.11 must retain v0.4.10.2 legacy bridge');
-}else if(appVersion==='v0.4.11.1'){
-  assert.equal(appBuild,'20260811-v04111-uc-img-session-timestamp');
-  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11.1-v04111-uc-img-session-timestamp');
-  assert.ok(version.includes("// app_version: 'v0.4.11'"),'v0.4.11.1 must retain v0.4.11 legacy bridge');
-  assert.ok(version.includes("// app_version: 'v0.4.10.3'"),'v0.4.11.1 must retain v0.4.10.3 legacy bridge');
-  assert.ok(version.includes("// app_version: 'v0.4.10.2'"),'v0.4.11.1 must retain v0.4.10.2 legacy bridge');
-}else if(appVersion==='v0.4.11.2'){
-  assert.equal(appBuild,'20260811-v04112-android-eager-image-bytes');
-  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11.2-v04112-android-eager-image-bytes');
-  for(const predecessor of ['v0.4.11.1','v0.4.11','v0.4.10.3','v0.4.10.2'])assert.ok(version.includes(`// app_version: '${predecessor}'`),`v0.4.11.2 must retain ${predecessor} legacy bridge`);
-}else if(appVersion==='v0.4.11.3'){
-  assert.equal(appBuild,'20260811-v04113-weekly-recipe-semantic-safety');
-  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11.3-v04113-weekly-recipe-semantic-safety');
-  for(const predecessor of ['v0.4.11.2','v0.4.11.1','v0.4.11','v0.4.10.3','v0.4.10.2'])assert.ok(version.includes(`// app_version: '${predecessor}'`),`v0.4.11.3 must retain ${predecessor} legacy bridge`);
-}else{
-  assert.equal(appBuild,'20260811-v04114-recipe-zh-tw-diagnostic-export');
-  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11.4-v04114-recipe-zh-tw-diagnostic-export');
-  for(const predecessor of ['v0.4.11.3','v0.4.11.2','v0.4.11.1','v0.4.11','v0.4.10.3','v0.4.10.2'])assert.ok(version.includes(`// app_version: '${predecessor}'`),`v0.4.11.4 must retain ${predecessor} legacy bridge`);
-}
+const exactReleases={
+  'v0.4.10.2':['20260811-v04102-uc-img-internal-gemini-dual-mode','pokemon-sleep-ai-v0.4.10.2-v04102-uc-img-internal-gemini-dual-mode'],
+  'v0.4.10.3':['20260811-v04103-ingredient-key-contract-hotfix','pokemon-sleep-ai-v0.4.10.3-v04103-ingredient-key-contract-hotfix'],
+  'v0.4.11':['20260811-v0411-public-master-constrained-recognition','pokemon-sleep-ai-v0.4.11-v0411-public-master-constrained-recognition'],
+  'v0.4.11.1':['20260811-v04111-uc-img-session-timestamp','pokemon-sleep-ai-v0.4.11.1-v04111-uc-img-session-timestamp'],
+  'v0.4.11.2':['20260811-v04112-android-eager-image-bytes','pokemon-sleep-ai-v0.4.11.2-v04112-android-eager-image-bytes'],
+  'v0.4.11.3':['20260811-v04113-weekly-recipe-semantic-safety','pokemon-sleep-ai-v0.4.11.3-v04113-weekly-recipe-semantic-safety'],
+  'v0.4.11.4':['20260811-v04114-recipe-zh-tw-diagnostic-export','pokemon-sleep-ai-v0.4.11.4-v04114-recipe-zh-tw-diagnostic-export'],
+  'v0.4.12':['20260811-v0412-recipe-unified-player-workbench','pokemon-sleep-ai-v0.4.12-v0412-recipe-unified-player-workbench'],
+};
+assert.ok(exactReleases[appVersion],`unexpected v0.4.10.2 successor: ${appVersion}`);
+assert.deepEqual([appBuild,cacheName],exactReleases[appVersion]);
+if(appVersion!=='v0.4.10.2')assert.ok(version.includes("// app_version: 'v0.4.10.2'"),'successor must retain v0.4.10.2 legacy bridge');
+if(appVersion==='v0.4.12')for(const predecessor of ['v0.4.11.4','v0.4.11.3','v0.4.11.2','v0.4.11.1','v0.4.11','v0.4.10.3'])assert.ok(version.includes(`// app_version: '${predecessor}'`),`v0.4.12 must retain ${predecessor} legacy bridge`);
 assert.ok(version.includes("// app_version: 'v0.4.10.1'"),'v0.4.10.2 lineage must retain v0.4.10.1 legacy bridge');
 assert.ok(version.includes("// app_build: '20260811-v04101-update-package-root-contract'"));
 
@@ -112,11 +87,12 @@ assert.ok(ucImg.includes('截圖不會寫入 SQLite 或 GitHub'));
 assert.ok(ucImg.includes('Key Vault / Project Pool'));
 
 const migrations=read('assets/js/migrations.js');
-assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.10.2 lineage must remain schema-migration-free through v0.4.11.4');
+assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.10.2 lineage must remain schema-migration-free through v0.4.12');
 
 console.log(JSON.stringify({
   status:'PASS',gate:'V0.4.10.2_RELEASE_CONTRACT',
   app_version:appVersion,
+  successor_v0412:appVersion==='v0.4.12',
   uc_img_version:UC_IMG_A_VERSION,
   gemini_adapter_version:UC_IMG_GEMINI_ADAPTER_VERSION,
   modes:UC_IMG_A_MODES,
