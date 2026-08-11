@@ -32,6 +32,7 @@ on:
       - 'assets/js/version-authority.js'
       - 'service-worker.js'
       - 'scripts/v04131-data-preservation-contract.mjs'
+      - 'scripts/v04131-release-contract.mjs'
       - 'scripts/uc-img-root-contract.mjs'
       - 'scripts/uc-img-a-contract.mjs'
       - 'scripts/uc-img-internal-gemini-contract.mjs'
@@ -97,6 +98,7 @@ jobs:
       - name: Verify current and historical release contracts
         run: |
           CURRENT_VERSION="$(sed -n "s/^[[:space:]]*app_version: '\([^']*\)',/\1/p" assets/js/version-authority.js | head -n1)"
+          if [ "$CURRENT_VERSION" = "v0.4.13.1" ]; then node scripts/v04131-release-contract.mjs; fi
           if [ "$CURRENT_VERSION" = "v0.4.12" ]; then node scripts/v0412-release-contract.mjs; fi
           if [ "$CURRENT_VERSION" = "v0.4.11.4" ]; then node scripts/v04114-release-contract.mjs; fi
           if [ "$CURRENT_VERSION" = "v0.4.11.3" ]; then node scripts/v04113-release-contract.mjs; fi
@@ -137,6 +139,7 @@ jobs:
           node --check assets/js/candy-inventory-ui.js
           node --check assets/js/version-authority.js
           node --check scripts/v04131-data-preservation-contract.mjs
+          node --check scripts/v04131-release-contract.mjs
           node --check scripts/public-master-recognition-contract.mjs
           node --check scripts/v04111-uc-img-session-timestamp-contract.mjs
           node --check scripts/v04112-android-eager-image-bytes-contract.mjs
