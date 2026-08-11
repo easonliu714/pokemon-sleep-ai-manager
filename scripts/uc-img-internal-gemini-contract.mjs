@@ -48,18 +48,26 @@ assert.deepEqual(schema.properties.scenario.enum,['ingredient_inventory_update']
 assert.deepEqual(schema.properties.operations.items.properties.entity.enum,['ingredient_inventory','account_capacity']);
 assert.deepEqual(schema.properties.operations.items.properties.action.enum,['upsert']);
 
-const multiBody=buildGeminiGenerateBody({prompt:'multi',images:[{data:'AQ==',mimeType:'image/png'},{data:'Ag==',mimeType:'image/jpeg'}],responseJsonSchema:schema});
-assert.equal(multiBody.contents[0].parts.length,3,'prompt + two images');
-assert.equal(multiBody.contents[0].parts[1].inlineData.mimeType,'image/png');
-assert.equal(multiBody.contents[0].parts[2].inlineData.mimeType,'image/jpeg');
+const multiBody=buildGeminiGenerateBody({prompt:'multi',images:[
+  {imageRef:'image-001',fileName:'ingredient-1.png',data:'AQ==',mimeType:'image/png'},
+  {imageRef:'image-002',fileName:'ingredient-2.jpg',data:'Ag==',mimeType:'image/jpeg'},
+],responseJsonSchema:schema});
+assert.equal(multiBody.contents[0].parts.length,5,'prompt + two image-ref labels + two images');
+assert.match(multiBody.contents[0].parts[1].text,/image_ref=image-001/);
+assert.match(multiBody.contents[0].parts[1].text,/file=ingredient-1\.png/);
+assert.equal(multiBody.contents[0].parts[2].inlineData.mimeType,'image/png');
+assert.match(multiBody.contents[0].parts[3].text,/image_ref=image-002/);
+assert.match(multiBody.contents[0].parts[3].text,/file=ingredient-2\.jpg/);
+assert.equal(multiBody.contents[0].parts[4].inlineData.mimeType,'image/jpeg');
 assert.equal(multiBody.generationConfig.responseMimeType,'application/json');
 assert.deepEqual(multiBody.generationConfig.responseJsonSchema,schema);
 
 const legacyBody=buildGeminiGenerateBody({prompt:'legacy',imageBase64:'AQ==',mimeType:'image/png'});
-assert.equal(legacyBody.contents[0].parts.length,2,'legacy single-image caller remains supported');
+assert.equal(legacyBody.contents[0].parts.length,2,'legacy single-image caller remains unchanged');
 assert.equal(legacyBody.contents[0].parts[1].inlineData.data,'AQ==');
 assert.equal('responseJsonSchema' in legacyBody.generationConfig,false);
-assert.equal(normalizeGeminiImages({imageBase64:'AQ=='}).length,1);
+const legacyNormalized=normalizeGeminiImages({imageBase64:'AQ=='});
+assert.equal(legacyNormalized.length,1);assert.equal(legacyNormalized[0].imageRef,null);
 assert.equal(extractGeminiJsonText(providerPayload),JSON.stringify(payload));
 
 const session=createScreenshotUpdateSession();
@@ -85,7 +93,9 @@ const analysis=await analyzeUcImgScenarioWithGemini({
 });
 assert.equal(captured.images.length,2);
 assert.equal(captured.images[0].imageRef,'image-001');
+assert.equal(captured.images[0].fileName,'ingredient-1.png');
 assert.equal(captured.images[1].imageRef,'image-002');
+assert.equal(captured.images[1].fileName,'ingredient-2.jpg');
 assert.deepEqual(captured.responseJsonSchema,schema);
 assert.equal(analysis.model,'gemini-test-flash');
 assert.equal(analysis.project_alias,'Project A');
@@ -121,6 +131,7 @@ console.log(JSON.stringify({
   status:'PASS',gate:'UC.IMG_INTERNAL_GEMINI_DUAL_MODE',
   adapter_version:UC_IMG_GEMINI_ADAPTER_VERSION,
   multi_image_structured_output:true,
+  multi_image_ref_labels:true,
   legacy_single_image_compatible:true,
   existing_validator_bridge:true,
   direct_ai_apply_bypass:false,
