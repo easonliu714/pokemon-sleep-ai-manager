@@ -8,11 +8,14 @@ on:
       - 'assets/js/prompt-catalog.js'
       - 'assets/js/unified-screenshot-update-center.js'
       - 'assets/js/uc-img-gemini-adapter.js'
+      - 'assets/js/uc-img-diagnostic-export.js'
       - 'assets/js/uc-img-session-lifecycle.js'
       - 'assets/js/uc-img-image-runtime.js'
       - 'assets/js/uc-img-weekly-platform-authority.js'
       - 'assets/js/public-master-recognition.js'
       - 'assets/js/public-recipe-alias-master.js'
+      - 'assets/js/public-recipe-canonical-authority.js'
+      - 'assets/js/public-recipe-provenance.js'
       - 'assets/js/shared-master-data.js'
       - 'assets/js/public-item-master.js'
       - 'assets/js/public-candy-master.js'
@@ -28,6 +31,8 @@ on:
       - 'scripts/v04111-uc-img-session-timestamp-contract.mjs'
       - 'scripts/v04112-android-eager-image-bytes-contract.mjs'
       - 'scripts/v04113-weekly-recipe-semantic-safety-contract.mjs'
+      - 'scripts/v04114-recipe-zh-tw-diagnostic-export-contract.mjs'
+      - 'scripts/v04114-release-contract.mjs'
       - 'scripts/v04113-release-contract.mjs'
       - 'scripts/v04112-release-contract.mjs'
       - 'scripts/v04111-release-contract.mjs'
@@ -72,9 +77,13 @@ jobs:
         run: node scripts/v04112-android-eager-image-bytes-contract.mjs
       - name: Verify v0.4.11.3 Weekly/Recipe semantic safety
         run: node scripts/v04113-weekly-recipe-semantic-safety-contract.mjs
+      - name: Verify v0.4.11.4 Recipe zh-TW authority and diagnostic export
+        run: node scripts/v04114-recipe-zh-tw-diagnostic-export-contract.mjs
       - name: Verify current and historical release contracts
         run: |
-          if grep -q "app_version: 'v0.4.11.3'" assets/js/version-authority.js; then node scripts/v04113-release-contract.mjs; fi
+          CURRENT_VERSION="$(sed -n "s/^[[:space:]]*app_version: '\([^']*\)',/\1/p" assets/js/version-authority.js | head -n1)"
+          if [ "$CURRENT_VERSION" = "v0.4.11.4" ]; then node scripts/v04114-release-contract.mjs; fi
+          if [ "$CURRENT_VERSION" = "v0.4.11.3" ]; then node scripts/v04113-release-contract.mjs; fi
           node scripts/v04112-release-contract.mjs
           node scripts/v04111-release-contract.mjs
           node scripts/v0411-release-contract.mjs
@@ -92,11 +101,14 @@ jobs:
           node --check assets/js/prompt-catalog.js
           node --check assets/js/unified-screenshot-update-center.js
           node --check assets/js/uc-img-gemini-adapter.js
+          node --check assets/js/uc-img-diagnostic-export.js
           node --check assets/js/uc-img-session-lifecycle.js
           node --check assets/js/uc-img-image-runtime.js
           node --check assets/js/uc-img-weekly-platform-authority.js
           node --check assets/js/public-master-recognition.js
           node --check assets/js/public-recipe-alias-master.js
+          node --check assets/js/public-recipe-canonical-authority.js
+          node --check assets/js/public-recipe-provenance.js
           node --check assets/js/shared-master-data.js
           node --check assets/js/ai-project-pool-runtime.js
           node --check assets/js/candy-inventory-ui.js
@@ -105,6 +117,8 @@ jobs:
           node --check scripts/v04111-uc-img-session-timestamp-contract.mjs
           node --check scripts/v04112-android-eager-image-bytes-contract.mjs
           node --check scripts/v04113-weekly-recipe-semantic-safety-contract.mjs
+          node --check scripts/v04114-recipe-zh-tw-diagnostic-export-contract.mjs
+          node --check scripts/v04114-release-contract.mjs
           node --check scripts/v04113-release-contract.mjs
           node --check scripts/v04112-release-contract.mjs
           node --check scripts/v04111-release-contract.mjs

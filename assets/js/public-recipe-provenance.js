@@ -3,7 +3,7 @@ import {
   PUBLIC_RECIPE_MASTER_VERSION,
 } from './public-recipe-canonical-authority.js';
 
-export const PUBLIC_RECIPE_PROVENANCE_VERSION='public-recipe-provenance-2026-08-09-b';
+export const PUBLIC_RECIPE_PROVENANCE_VERSION='public-recipe-provenance-2026-08-11-c';
 export const REVIEWED_RECIPE_MASTER_VERSION=PUBLIC_RECIPE_MASTER_VERSION;
 
 const ACTIVE_FORMULA_REFERENCE=Object.freeze({
@@ -20,16 +20,33 @@ const HISTORICAL_NAME_REFERENCE=Object.freeze({
   observed_at:'2026-08-05',
 });
 
-const SCREENSHOT_NAME_REFERENCE=Object.freeze({
+const SCREENSHOT_NAME_REFERENCE_20260809=Object.freeze({
   source_type:'game_screenshot_verified',
   source_name:'sanitized in-game zh-TW recipe screenshot evidence',
   source_ref:'internal:public-recipe-zh-tw-screenshot-evidence-2026-08-09',
   observed_at:'2026-08-09',
 });
 
+const SCREENSHOT_NAME_REFERENCE_20260811=Object.freeze({
+  source_type:'game_screenshot_verified',
+  source_name:'current in-game zh-TW recipe screenshot evidence',
+  source_ref:'internal:v04114-android-live-current-recipe-name-evidence',
+  observed_at:'2026-08-11',
+});
+
+const SCREENSHOT_FORMULA_REFERENCE=Object.freeze({
+  source_type:'game_screenshot_verified_formula',
+  source_name:'current in-game zh-TW recipe screenshot ingredient evidence',
+  source_ref:'internal:v04114-android-live-current-recipe-formula-evidence',
+  observed_at:'2026-08-11',
+});
+
 export const PUBLIC_RECIPE_PROVENANCE=Object.freeze(PUBLIC_RECIPE_MASTER.map(recipe=>{
   const screenshotVerifiedName=recipe.source_type==='game_screenshot_verified';
-  const nameSource=screenshotVerifiedName?SCREENSHOT_NAME_REFERENCE:HISTORICAL_NAME_REFERENCE;
+  const currentScreenshotName=screenshotVerifiedName&&recipe.source_ref==='internal:v04114-android-live-current-recipe-name-evidence';
+  const screenshotVerifiedFormula=Boolean(recipe.formula_contract_version);
+  const nameSource=currentScreenshotName?SCREENSHOT_NAME_REFERENCE_20260811:screenshotVerifiedName?SCREENSHOT_NAME_REFERENCE_20260809:HISTORICAL_NAME_REFERENCE;
+  const formulaSource=screenshotVerifiedFormula?SCREENSHOT_FORMULA_REFERENCE:ACTIVE_FORMULA_REFERENCE;
   return Object.freeze({
     recipe_id:recipe.recipe_id,
     recipe_name_zh_tw:recipe.recipe_name,
@@ -40,13 +57,13 @@ export const PUBLIC_RECIPE_PROVENANCE=Object.freeze(PUBLIC_RECIPE_MASTER.map(rec
     name_source_name:nameSource.source_name,
     name_source_ref:nameSource.source_ref,
     name_observed_at:nameSource.observed_at,
-    formula_evidence:'REFERENCE_VERIFIED',
-    formula_source_type:ACTIVE_FORMULA_REFERENCE.source_type,
-    formula_source_name:ACTIVE_FORMULA_REFERENCE.source_name,
-    formula_source_ref:ACTIVE_FORMULA_REFERENCE.source_ref,
-    formula_verified_at:ACTIVE_FORMULA_REFERENCE.observed_at,
+    formula_evidence:screenshotVerifiedFormula?'GAME_SCREENSHOT_VERIFIED':'REFERENCE_VERIFIED',
+    formula_source_type:formulaSource.source_type,
+    formula_source_name:formulaSource.source_name,
+    formula_source_ref:formulaSource.source_ref,
+    formula_verified_at:formulaSource.observed_at,
     reference_match_basis:screenshotVerifiedName?'category+ingredient_signature+in_game_zh_tw_name':'category_order+ingredient_signature+historical_zh_tw_identity',
-    overall_status:screenshotVerifiedName?'ACTIVE_SCREENSHOT_NAME_REFERENCE_FORMULA':'ACTIVE_MIXED_EVIDENCE',
+    overall_status:screenshotVerifiedFormula?'ACTIVE_SCREENSHOT_FORMULA_VERIFIED':screenshotVerifiedName?'ACTIVE_SCREENSHOT_NAME_REFERENCE_FORMULA':'ACTIVE_MIXED_EVIDENCE',
     provenance_version:PUBLIC_RECIPE_PROVENANCE_VERSION,
     reviewed_recipe_master_version:REVIEWED_RECIPE_MASTER_VERSION,
   });

@@ -9,15 +9,21 @@ const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.11.2','v0.4.11.3'].includes(appVersion),`unexpected v0.4.11.2 successor: ${appVersion}`);
+assert.ok(['v0.4.11.2','v0.4.11.3','v0.4.11.4'].includes(appVersion),`unexpected v0.4.11.2 successor: ${appVersion}`);
 if(appVersion==='v0.4.11.2'){
   assert.equal(appBuild,'20260811-v04112-android-eager-image-bytes');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11.2-v04112-android-eager-image-bytes');
-}else{
+}else if(appVersion==='v0.4.11.3'){
   assert.equal(appBuild,'20260811-v04113-weekly-recipe-semantic-safety');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11.3-v04113-weekly-recipe-semantic-safety');
   assert.ok(version.includes("// app_version: 'v0.4.11.2'"),'v0.4.11.3 must retain v0.4.11.2 legacy bridge');
   assert.ok(version.includes("// app_build: '20260811-v04112-android-eager-image-bytes'"));
+}else{
+  assert.equal(appBuild,'20260811-v04114-recipe-zh-tw-diagnostic-export');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11.4-v04114-recipe-zh-tw-diagnostic-export');
+  assert.ok(version.includes("// app_version: 'v0.4.11.3'"),'v0.4.11.4 must retain v0.4.11.3 legacy bridge');
+  assert.ok(version.includes("// app_build: '20260811-v04113-weekly-recipe-semantic-safety'"));
+  assert.ok(version.includes("// app_version: 'v0.4.11.2'"));
 }
 assert.ok(version.includes("// app_version: 'v0.4.11.1'"));
 assert.ok(version.includes("// app_build: '20260811-v04111-uc-img-session-timestamp'"));
@@ -69,6 +75,7 @@ console.log(JSON.stringify({
   gate:'V0.4.11.2_RELEASE_CONTRACT',
   app_version:appVersion,
   successor_v04113:appVersion==='v0.4.11.3',
+  successor_v04114:appVersion==='v0.4.11.4',
   eager_picker_snapshot:true,
   platform_owned_memory_blob:true,
   raw_picker_file_runtime_authority:false,

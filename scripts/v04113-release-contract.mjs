@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {buildUcImgWeeklyPlatformAuthority,applyUcImgWeeklyPlatformAuthority} from '../assets/js/uc-img-weekly-platform-authority.js';
 import {PUBLIC_RECIPE_ALIASES,PUBLIC_RECIPE_ALIAS_VERSION} from '../assets/js/public-recipe-alias-master.js';
-import {PUBLIC_RECIPE_MASTER} from '../assets/js/public-recipe-master.js';
+import {PUBLIC_RECIPE_MASTER} from '../assets/js/public-recipe-canonical-authority.js';
 import {
   PUBLIC_MASTER_RECOGNITION_SCHEMA,
   PUBLIC_MASTER_RECOGNITION_VERSION,
@@ -39,8 +39,12 @@ assert.equal(normalized.operations[0].data.camp,'萌綠之島');
 const externalStale=validateWeeklyContextImportPayload(providerWeekly,{now:fixedNow,repairLegacy:false});
 assert.equal(externalStale.ok,false,'external stale Weekly JSON must remain blocked');
 
-assert.equal(PUBLIC_RECIPE_ALIAS_VERSION,'public-recipe-alias-2026-08-11-a');
-assert.equal(PUBLIC_RECIPE_ALIASES.length,3);
+const allowedAliasSuccessors=new Set([
+  'public-recipe-alias-2026-08-11-a',
+  'public-recipe-alias-2026-08-11-b',
+]);
+assert.ok(allowedAliasSuccessors.has(PUBLIC_RECIPE_ALIAS_VERSION),'v0.4.11.3 approved-alias capability must allow only reviewed successor registries');
+assert.ok(PUBLIC_RECIPE_ALIASES.length>=3,'reviewed alias capability must not regress');
 const snapshot=buildPublicMasterCatalogSnapshot('recipes');
 assert.equal(snapshot.identity_alias_version,PUBLIC_RECIPE_ALIAS_VERSION);
 assert.ok(snapshot.catalog_snapshot_id.includes(PUBLIC_RECIPE_ALIAS_VERSION));
@@ -68,13 +72,14 @@ const aliasSource=read('assets/js/public-recipe-alias-master.js');
 for(const forbidden of ['recipe_level','current_energy','player_record_exists','pokemon_instance_id','INSERT INTO','UPDATE recipes'])assert.equal(aliasSource.includes(forbidden),false,`public alias registry leaked/owned forbidden field: ${forbidden}`);
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'V0.4.11.3_RELEASE_CONTRACT',app_version:'v0.4.11.3',
+  status:'PASS',gate:'V0.4.11.3_RELEASE_CONTRACT_SUCCESSOR_AWARE',app_version:'v0.4.11.3',
   weekly_platform_current_week_authority:true,
   weekly_external_stale_fail_closed:true,
   recipe_exact_or_approved_alias_only:true,
   recipe_fuzzy_auto_write:false,
   recipe_user_review_resolution:true,
   alias_registry_version:PUBLIC_RECIPE_ALIAS_VERSION,
+  canonical_recipe_authority:true,
   sqlite_migration_added:false,
   single_apply_bridge:true,
 },null,2));

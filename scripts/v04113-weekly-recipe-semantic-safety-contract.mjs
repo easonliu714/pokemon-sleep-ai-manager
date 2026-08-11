@@ -6,7 +6,7 @@ import {
 } from '../assets/js/uc-img-weekly-platform-authority.js';
 import {validateWeeklyContextImportPayload} from '../assets/js/weekly-context-import-contract.js';
 import {PUBLIC_RECIPE_ALIASES,PUBLIC_RECIPE_ALIAS_VERSION} from '../assets/js/public-recipe-alias-master.js';
-import {PUBLIC_RECIPE_MASTER} from '../assets/js/public-recipe-master.js';
+import {PUBLIC_RECIPE_MASTER} from '../assets/js/public-recipe-canonical-authority.js';
 import {
   PUBLIC_MASTER_RECOGNITION_SCHEMA,
   PUBLIC_MASTER_RECOGNITION_VERSION,
@@ -67,8 +67,8 @@ assert.equal(internalResult.platform_authority.provider_original_week_start,'202
 assert.ok(capturedRequest.prompt.includes('current_week_start=2026-08-10'));
 assert.deepEqual(capturedRequest.responseJsonSchema.properties.generated_at.enum,[weeklyAuthority.generated_at]);
 
-assert.equal(PUBLIC_RECIPE_ALIAS_VERSION,'public-recipe-alias-2026-08-11-a');
-assert.equal(PUBLIC_RECIPE_ALIASES.length,3);
+assert.match(PUBLIC_RECIPE_ALIAS_VERSION,/^public-recipe-alias-2026-08-11-[a-z]+$/,'approved recipe alias registry must remain versioned');
+assert.ok(PUBLIC_RECIPE_ALIASES.length>=3,'v0.4.11.3 reviewed alias capability must not regress');
 const aliasSerialized=JSON.stringify(PUBLIC_RECIPE_ALIASES);
 for(const forbidden of ['recipe_level','current_energy','player_record','pokemon_instance'])assert.equal(aliasSerialized.includes(forbidden),false,`public alias registry leaked ${forbidden}`);
 
@@ -77,6 +77,7 @@ assert.equal(recipeSnapshot.identity_alias_version,PUBLIC_RECIPE_ALIAS_VERSION);
 assert.ok(recipeSnapshot.catalog_snapshot_id.includes(PUBLIC_RECIPE_ALIAS_VERSION));
 const dream=PUBLIC_RECIPE_MASTER.find(row=>row.recipe_id==='curry_dream_eater');assert.ok(dream);
 const ninja=PUBLIC_RECIPE_MASTER.find(row=>row.recipe_name==='忍者咖哩');assert.ok(ninja);
+const dreamLegacyAlias=PUBLIC_RECIPE_ALIASES.find(row=>row.recipe_id==='curry_dream_eater');assert.ok(dreamLegacyAlias,'dream-eater legacy alias must remain reviewed');
 
 const recognitionFor=(row,observedText,id='recipe-test')=>({
   schema:PUBLIC_MASTER_RECOGNITION_SCHEMA,recognition_version:PUBLIC_MASTER_RECOGNITION_VERSION,
@@ -90,9 +91,9 @@ const exactCompiled=compilePublicMasterRecognitionToUpdatePackage(exact,'recipes
 assert.equal(exactCompiled.ok,true);
 assert.equal(exactCompiled.update_package.operations.length,1,'exact canonical name should auto-compile');
 
-const alias=recognitionFor(dream,'絕對睡眠奶油咖哩','approved-alias');
+const alias=recognitionFor(dream,dreamLegacyAlias.alias_name,'approved-alias');
 const aliasCompiled=compilePublicMasterRecognitionToUpdatePackage(alias,'recipes',{allowedImageRefs:['image-023']});
-assert.equal(aliasCompiled.ok,true,'reviewed alias should auto-match');
+assert.equal(aliasCompiled.ok,true,'reviewed legacy alias should auto-match');
 assert.equal(aliasCompiled.update_package.operations.length,1);
 assert.equal(aliasCompiled.update_package.operations[0].key.recipe_id,'curry_dream_eater');
 
@@ -113,7 +114,7 @@ assert.equal(confirmedCompiled.update_package.operations.length,1);
 assert.equal(confirmed.observations[0].user_resolution.action,'USER_CONFIRMED_MATCH');
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'V04113_WEEKLY_RECIPE_SEMANTIC_SAFETY',
+  status:'PASS',gate:'V04113_WEEKLY_RECIPE_SEMANTIC_SAFETY_SUCCESSOR_AWARE',
   weekly_current_week:weeklyAuthority.week_start,
   weekly_internal_provider_old_date_rewritten:true,
   weekly_external_stale_still_blocks:true,

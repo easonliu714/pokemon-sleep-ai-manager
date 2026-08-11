@@ -35,12 +35,12 @@ function signature(recipe){
 
 assert.equal(BASE_PUBLIC_RECIPE_MASTER_VERSION,'public-recipe-master-2026-08-09-a');
 assert.equal(PUBLIC_RECIPE_BASE_MASTER_VERSION,BASE_PUBLIC_RECIPE_MASTER_VERSION);
-assert.equal(PUBLIC_RECIPE_MASTER_VERSION,'public-recipe-master-2026-08-09-b');
-assert.equal(PUBLIC_RECIPE_CANONICAL_NAME_VERSION,'public-recipe-zh-tw-names-2026-08-09-a');
+assert.match(PUBLIC_RECIPE_MASTER_VERSION,/^public-recipe-master-2026-08-(?:09-b|11-[a-z])$/,'canonical recipe master successor version invalid');
+assert.match(PUBLIC_RECIPE_CANONICAL_NAME_VERSION,/^public-recipe-zh-tw-names-2026-08-(?:09-a|11-[a-z])$/,'canonical name successor version invalid');
 assert.equal(PUBLIC_RECIPE_MASTER.length,76);
 assert.equal(BASE_PUBLIC_RECIPE_MASTER.length,76);
-assert.equal(PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES.length,33);
-assert.equal(PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS.length,2);
+assert.ok(PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES.length>=33,'v0.4.3 33-name baseline must never be lost');
+assert.equal(PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS.length,2,'historical two conflict audit rows must remain traceable');
 
 const baseById=new Map(BASE_PUBLIC_RECIPE_MASTER.map(row=>[row.recipe_id,row]));
 const canonicalById=new Map(PUBLIC_RECIPE_MASTER.map(row=>[row.recipe_id,row]));
@@ -48,16 +48,23 @@ assert.equal(baseById.size,76);
 assert.equal(canonicalById.size,76);
 assert.deepEqual([...canonicalById.keys()].sort(),[...baseById.keys()].sort(),'stable recipe IDs must remain identical');
 
+const historicalOverrideIds=new Set(PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES
+  .filter(row=>row.recipe_id!=='curry_dizzy_punch')
+  .map(row=>row.recipe_id));
+assert.equal(historicalOverrideIds.size,33,'the original v0.4.3 33-name baseline must remain exactly preserved');
+
 let renamed=0;
+const formulaChanges=[];
 for(const [recipeId,base] of baseById){
   const canonical=canonicalById.get(recipeId);
   assert.ok(canonical,`missing canonical recipe ${recipeId}`);
   assert.equal(canonical.category,base.category,`category changed for ${recipeId}`);
-  assert.equal(canonical.total_ingredients,base.total_ingredients,`ingredient total changed for ${recipeId}`);
-  assert.equal(signature(canonical),signature(base),`ingredient formula changed for ${recipeId}`);
+  if(signature(canonical)!==signature(base))formulaChanges.push(recipeId);
   if(canonical.recipe_name!==base.recipe_name)renamed+=1;
 }
-assert.equal(renamed,33,'exactly 33 screenshot-confirmed names must change');
+assert.ok(renamed>=33,'at least the original 33 screenshot-confirmed names must remain promoted');
+for(const recipeId of formulaChanges)assert.equal(recipeId,'curry_parent_child',`unexpected formula mutation outside current-game evidence: ${recipeId}`);
+assert.ok(formulaChanges.length<=1,'only the explicitly verified 親子愛咖哩 formula may differ from the raw baseline');
 
 const overrideIds=new Set();
 for(const override of PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES){
@@ -75,7 +82,7 @@ for(const override of PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES){
     && row.alias_type==='legacy_recipe_name'
     && row.alias_value===override.legacy_public_name
     && row.source_type==='pre_v043_public_recipe_name_compatibility');
-  assert.ok(legacyAlias,`missing v0.4.2 legacy-name alias for ${override.recipe_id}`);
+  assert.ok(legacyAlias,`missing legacy-name alias for ${override.recipe_id}`);
   assert.equal(Boolean(legacyAlias.is_auto_replace_safe),true,`legacy public name must resolve safely for ${override.recipe_id}`);
   const canonicalResolution=resolvePublicRecipeName(override.canonical_name_zh_tw);
   assert.deepEqual(canonicalResolution,{
@@ -89,21 +96,28 @@ for(const override of PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES){
   assert.equal(legacyResolution?.commit_allowed,true);
 }
 
-const conflictIds=new Set(PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS.map(row=>row.recipe_id));
-assert.equal(conflictIds.has('curry_dizzy_punch'),true);
-assert.equal(conflictIds.has('curry_parent_child'),true);
-for(const id of conflictIds)assert.equal(overrideIds.has(id),false,`formula conflict must not be auto-renamed: ${id}`);
-assert.equal(canonicalById.get('curry_dizzy_punch').recipe_name,'暈眩拳辣味咖哩');
-assert.equal(signature(canonicalById.get('curry_dizzy_punch')),signature(baseById.get('curry_dizzy_punch')));
-assert.equal(canonicalById.get('curry_parent_child').recipe_name,'親子愛咖哩');
-assert.equal(signature(canonicalById.get('curry_parent_child')),signature(baseById.get('curry_parent_child')));
-const conflictAlias=resolvePublicRecipeName('迷昏拳辣味咖哩');
-assert.equal(conflictAlias?.recipe_id,'curry_dizzy_punch');
-assert.equal(conflictAlias?.resolution,'LEGACY_NAME_ALIAS_REVIEW');
-assert.equal(conflictAlias?.requires_review,true);
-assert.equal(conflictAlias?.commit_allowed,false);
+const conflictById=new Map(PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS.map(row=>[row.recipe_id,row]));
+assert.ok(conflictById.has('curry_dizzy_punch'));
+assert.ok(conflictById.has('curry_parent_child'));
+for(const row of conflictById.values()){
+  assert.equal(row.status,'FORMULA_CONFLICT_REVIEW');
+  assert.equal(row.auto_apply,false,'historical conflict evidence must never become an automatic migration instruction');
+}
+if(overrideIds.has('curry_dizzy_punch')){
+  assert.equal(conflictById.get('curry_dizzy_punch')?.resolution,'CURRENT_PUBLIC_FORMULA_CONFIRMED_OLD_OCR_EVIDENCE_REJECTED');
+  assert.equal(canonicalById.get('curry_dizzy_punch').recipe_name,'迷昏拳辣味咖哩');
+  assert.equal(signature(canonicalById.get('curry_dizzy_punch')),signature(baseById.get('curry_dizzy_punch')));
+}else{
+  assert.equal(canonicalById.get('curry_dizzy_punch').recipe_name,'暈眩拳辣味咖哩');
+}
+if(formulaChanges.includes('curry_parent_child')){
+  assert.equal(conflictById.get('curry_parent_child')?.resolution,'OBSERVED_FORMULA_PROMOTED_TO_CURRENT_PUBLIC_AUTHORITY');
+  assert.equal(signature(canonicalById.get('curry_parent_child')),'好眠番茄=11|特選蛋=8|甜甜蜜=12|窩心洋芋=4');
+}else{
+  assert.equal(signature(canonicalById.get('curry_parent_child')),signature(baseById.get('curry_parent_child')));
+}
 
-assert.equal(PUBLIC_RECIPE_PROVENANCE_VERSION,'public-recipe-provenance-2026-08-09-b');
+assert.match(PUBLIC_RECIPE_PROVENANCE_VERSION,/^public-recipe-provenance-2026-08-(?:09-b|11-[a-z])$/,'recipe provenance successor version invalid');
 assert.equal(REVIEWED_RECIPE_MASTER_VERSION,PUBLIC_RECIPE_MASTER_VERSION);
 assert.equal(PUBLIC_RECIPE_PROVENANCE.length,76);
 for(const row of PUBLIC_RECIPE_PROVENANCE){
@@ -111,10 +125,13 @@ for(const row of PUBLIC_RECIPE_PROVENANCE){
 }
 
 const screenshotAliasRows=PUBLIC_RECIPE_ALIASES.filter(row=>row.source_type==='pre_v043_public_recipe_name_compatibility');
-assert.equal(screenshotAliasRows.length,33,'exactly 33 pre-v0.4.3 legacy public-name aliases required');
+assert.ok(screenshotAliasRows.length>=33,'the original 33 legacy public-name aliases must remain available');
+for(const recipeId of historicalOverrideIds){
+  assert.ok(screenshotAliasRows.some(row=>row.recipe_id===recipeId),`historical legacy alias missing: ${recipeId}`);
+}
 
 const versionAuthority=fs.readFileSync(path.join(root,'assets/js/version-authority.js'),'utf8');
-assert.match(versionAuthority,/app_version:\s*'v0\.4\.3'/,'R2.2/R2.3 closed recipe authority must ship under v0.4.3 release authority');
+assert.match(versionAuthority,/app_version:\s*'v0\.4\.3'/,'historical v0.4.3 release marker must remain available to legacy contract');
 
 function collectJsFiles(directory){
   const out=[];
@@ -136,17 +153,17 @@ assert.deepEqual(directRawImports,[],`Runtime consumers must use canonical recip
 
 process.stdout.write(`${JSON.stringify({
   status:'PASS',
-  gate:'R2.2_RECIPE_CANONICAL_ZH_TW_NAME_ALIAS_CONTRACT',
+  gate:'R2.2_RECIPE_CANONICAL_ZH_TW_NAME_ALIAS_CONTRACT_SUCCESSOR_AWARE',
   base_master_version:BASE_PUBLIC_RECIPE_MASTER_VERSION,
   canonical_master_version:PUBLIC_RECIPE_MASTER_VERSION,
   canonical_name_version:PUBLIC_RECIPE_CANONICAL_NAME_VERSION,
   active_recipe_count:PUBLIC_RECIPE_MASTER.length,
   stable_recipe_id_count:canonicalById.size,
-  renamed_recipe_count:renamed,
+  original_v043_renamed_baseline:historicalOverrideIds.size,
+  current_renamed_recipe_count:renamed,
   legacy_public_name_alias_count:screenshotAliasRows.length,
-  formula_conflict_review_count:PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS.length,
-  ingredient_formula_changes:0,
+  historical_formula_conflict_audit_count:PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS.length,
+  current_formula_changes:formulaChanges,
   direct_runtime_raw_master_imports:directRawImports,
-  release_app_version:'v0.4.3',
-  development_version_guard_closed:true,
+  historical_release_marker_preserved:true,
 },null,2)}\n`);

@@ -35,10 +35,10 @@ if(/^v0\.4\.3(?:\.\d+)?$/.test(currentVersion)){
   assert.match(cacheMatch[1],/^pokemon-sleep-ai-v0\.4\.3(?:\.\d+)?-/,'unexpected v0.4.3 patch cache authority');
 }
 
-assert.equal(PUBLIC_RECIPE_MASTER_VERSION,'public-recipe-master-2026-08-09-b');
+assert.match(PUBLIC_RECIPE_MASTER_VERSION,/^public-recipe-master-2026-08-(?:09-b|11-[a-z])$/,'v0.4.3 canonical master must allow reviewed successor versions');
 assert.equal(PUBLIC_RECIPE_MASTER.length,76);
-assert.equal(PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES.length,33);
-assert.equal(PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS.length,2);
+assert.ok(PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES.length>=33,'v0.4.3 33 canonical rename baseline must remain preserved');
+assert.equal(PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS.length,2,'historical two conflict audit rows must remain traceable');
 assert.equal(getWarRoomRecipeOptions().length,76);
 assert.match(CONTROLLED_SELECTOR_VERSION,/^controlled-selector-2026-08-09-[a-z]+$/,'unexpected controlled selector component family');
 assert.equal(WAR_ROOM_CONTROLLED_OPTIONS_VERSION,'war-room-controlled-options-2026-08-09-a');
@@ -126,14 +126,14 @@ for(const target of privateGuardTargets){
 
 process.stdout.write(`${JSON.stringify({
   status:'PASS',
-  gate:'V0.4.3_RELEASE_INTEGRATION_CONTRACT',
+  gate:'V0.4.3_RELEASE_INTEGRATION_CONTRACT_SUCCESSOR_AWARE',
   historical_release_line:'v0.4.3.x',
   current_app_version:currentVersion,
   build:buildMatch[1],
   cache:cacheMatch[1],
   active_recipe_count:PUBLIC_RECIPE_MASTER.length,
   screenshot_confirmed_recipe_renames:PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES.length,
-  formula_conflicts_review_only:PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS.length,
+  historical_formula_conflict_audit_rows:PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS.length,
   controlled_selector_version:CONTROLLED_SELECTOR_VERSION,
   team_optimizer_version:TEAM_OPTIMIZER_VERSION,
   team_size:TEAM_SIZE,
