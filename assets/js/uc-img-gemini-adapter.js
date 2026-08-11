@@ -2,10 +2,42 @@ import {executeWithProjectPool} from './ai-project-pool-runtime.js';
 import {buildUpdatePackageJsonSchema} from './update-package-contract.js';
 import {buildPublicMasterRecognitionJsonSchema,supportsPublicMasterRecognition} from './public-master-recognition.js';
 
-export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-08-11-b-public-master-recognition';
+export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-08-11-c-session-cleanup';
+export const UC_IMG_SESSION_STORAGE_KEY='pokemon-sleep-uc-img-a-session-v1';
 
 const clean=value=>String(value??'').trim();
 const nowIso=()=>new Date().toISOString();
+const clone=value=>JSON.parse(JSON.stringify(value));
+
+// v0.4.11.1: screenshot bytes are intentionally memory-only. Any persisted entry is therefore
+// an orphan after a real page reload. Remove those rows before the UC.IMG session restore runs,
+// keep image numbering monotonic, and fail-close only non-applied responses that lost evidence.
+export function sanitizePersistedUcImgSessionStorage(storage=null,{cleanedAt=nowIso()}={}){
+  if(!storage||typeof storage.getItem!=='function'||typeof storage.setItem!=='function')return {changed:false,removed_entry_count:0,staled_scenarios:[],session:null};
+  try{
+    const raw=storage.getItem(UC_IMG_SESSION_STORAGE_KEY);if(!raw)return {changed:false,removed_entry_count:0,staled_scenarios:[],session:null};
+    const parsed=JSON.parse(raw);if(parsed?.schema!=='pokemon-sleep-uc-img-a-session/1.0')return {changed:false,removed_entry_count:0,staled_scenarios:[],session:parsed};
+    const entries=Array.isArray(parsed.entries)?parsed.entries:[];if(!entries.length)return {changed:false,removed_entry_count:0,staled_scenarios:[],session:parsed};
+    const copy=clone(parsed),affected=new Set(entries.map(entry=>clean(entry?.scenario_key)).filter(Boolean)),staled=[];
+    copy.entries=[];
+    copy.scenario_state=copy.scenario_state&&typeof copy.scenario_state==='object'?copy.scenario_state:{};
+    for(const scenarioKey of affected){
+      const state=copy.scenario_state?.[scenarioKey];
+      if(!state?.raw_response||state.last_apply_status==='APPLIED')continue;
+      state.response_stale=true;staled.push(scenarioKey);
+    }
+    copy.updated_at=cleanedAt;
+    copy.last_restore_cleanup={cleaned_at:cleanedAt,removed_entry_count:entries.length,staled_scenarios:[...staled]};
+    storage.setItem(UC_IMG_SESSION_STORAGE_KEY,JSON.stringify(copy));
+    return {changed:true,removed_entry_count:entries.length,staled_scenarios:[...staled],session:copy};
+  }catch{return {changed:false,removed_entry_count:0,staled_scenarios:[],session:null};}
+}
+
+// This module is imported by UC.IMG before restoreScreenshotSession() executes.
+// Do not use beforeunload: Android/PWA lifecycle delivery is not reliable enough for cleanup authority.
+if(typeof window!=='undefined'){
+  try{sanitizePersistedUcImgSessionStorage(window.localStorage);}catch{}
+}
 
 export async function blobToBase64(blob){
   if(!blob||typeof blob.arrayBuffer!=='function')throw new Error('UC.IMG 找不到可讀取的圖片 bytes；請重新選取圖片。');
