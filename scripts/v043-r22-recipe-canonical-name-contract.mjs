@@ -112,7 +112,7 @@ if(overrideIds.has('curry_dizzy_punch')){
 }
 if(formulaChanges.includes('curry_parent_child')){
   assert.equal(conflictById.get('curry_parent_child')?.resolution,'OBSERVED_FORMULA_PROMOTED_TO_CURRENT_PUBLIC_AUTHORITY');
-  assert.equal(signature(canonicalById.get('curry_parent_child')),'好眠番茄=11|甜甜蜜=12|特選蛋=8|窩心洋芋=4');
+  assert.equal(signature(canonicalById.get('curry_parent_child')),'好眠番茄=11|特選蛋=8|甜甜蜜=12|窩心洋芋=4');
 }else{
   assert.equal(signature(canonicalById.get('curry_parent_child')),signature(baseById.get('curry_parent_child')));
 }
