@@ -99,18 +99,35 @@ async function migrationFixtureGate(){
 async function knowledgeGate(){
   const master=await text('assets/js/shared-master-data.js');const ui=await text('assets/js/shared-knowledge-ui.js');const app=await text('assets/js/app.js');const catalog=await text('assets/js/public-catalog-workbench.js');const candy=await text('assets/js/public-candy-master.js');
   const expected={草:'金枕果',飛行:'椰木果',龍:'番荔果',毒:'零餘果'};for(const [type,berry] of Object.entries(expected))assert.ok(master.includes(`['${type}','${berry}']`),`berry mapping mismatch: ${type}→${berry}`);
-  assert.match(app,/\$\('recipeTable'\)/,'personal recipe renderer must keep recipeTable');
-  assert.match(ui,/id="referenceRecipeTable"/,'reference recipe table is missing');
-  assert.match(ui,/document\.getElementById\('referenceRecipeTable'\)/,'shared UI must render referenceRecipeTable');
-  assert.doesNotMatch(ui,/table\(recipeTable,recipes/u,'shared recipes must not overwrite personal recipeTable');
+  assert.match(app,/\$\('recipeTable'\)/,'legacy application compatibility must keep recipeTable');
   assert.match(catalog,/ingredient_catalog_state/u,'ingredient catalog view not used');
   assert.match(catalog,/item_catalog_state/u,'item public catalog view not used');
-  assert.match(catalog,/recipe_catalog_state/u,'recipe catalog view not used');
+  const unifiedUrl=new URL('assets/js/recipe-unified-player-workbench.js',root);
+  let unified=null;try{unified=await readFile(unifiedUrl,'utf8');}catch{}
+  if(unified){
+    assert.match(catalog,/renderRecipeUnifiedWorkbench\(\)/u,'public catalog shell must delegate Recipe rendering');
+    assert.match(unified,/recipe_catalog_state/u,'unified recipe owner must use recipe catalog view');
+    assert.match(unified,/document\.getElementById\('recipeTable'\)/u,'unified recipe owner must retain recipeTable');
+    assert.match(unified,/lockedRecipeTable/u,'unified recipe owner must keep locked recipes separate');
+    assert.doesNotMatch(ui,/personalRecipeAnalysisTable|referenceRecipeTable/u,'shared knowledge must retire duplicate recipe tables');
+    assert.doesNotMatch(ui,/document\.getElementById\('recipeTable'\)/u,'shared knowledge must not overwrite unified recipeTable');
+  }else{
+    assert.match(ui,/id="referenceRecipeTable"/,'reference recipe table is missing');
+    assert.match(ui,/document\.getElementById\('referenceRecipeTable'\)/,'shared UI must render referenceRecipeTable');
+    assert.doesNotMatch(ui,/table\(recipeTable,recipes/u,'shared recipes must not overwrite personal recipeTable');
+    assert.match(catalog,/recipe_catalog_state/u,'recipe catalog view not used');
+  }
   assert.match(candy,/PUBLIC_CANDY_MASTER_VERSION/u,'Candy Master authority missing');
   assert.doesNotMatch(candy,/\bquantity\s*:/u,'Public Candy Master must not contain player quantity fields');
-  console.log('PASS knowledge UI: public zero-state catalogs editable; personal/reference data separated; Candy Master contains no player quantity');
+  console.log(`PASS knowledge UI: ${unified?'unified unlocked + locked recipe workbench':'personal/reference recipe tables'}; Candy Master contains no player quantity`);
 }
 
-async function serviceWorkerGate(){const sw=await text('service-worker.js');for(const asset of ['shared-master-schema.js','shared-master-data.js','public-empty-profile-master.js','public-item-master.js','canonical-registry.js','public-catalog-workbench.js','shared-knowledge-ui.js'])assert.ok(sw.includes(asset),`service-worker cache missing ${asset}`);assert.match(sw,/skipWaiting\(\)/,'service worker must call skipWaiting');assert.match(sw,/clients\.claim\(\)/,'service worker must claim clients');assert.match(sw,/keys\.filter\(\(key\) => key !== CACHE\)/,'service worker must delete stale caches');console.log('PASS service worker: canonical/public catalog modules cached and stale caches removed');}
+async function serviceWorkerGate(){
+  const sw=await text('service-worker.js');
+  const assets=['shared-master-schema.js','shared-master-data.js','public-empty-profile-master.js','public-item-master.js','canonical-registry.js','public-catalog-workbench.js','shared-knowledge-ui.js'];
+  try{await readFile(new URL('assets/js/recipe-unified-player-workbench.js',root),'utf8');assets.push('recipe-unified-player-workbench.js');}catch{}
+  for(const asset of assets)assert.ok(sw.includes(asset),`service-worker cache missing ${asset}`);
+  assert.match(sw,/skipWaiting\(\)/,'service worker must call skipWaiting');assert.match(sw,/clients\.claim\(\)/,'service worker must claim clients');assert.match(sw,/keys\.filter\(\(key\) => key !== CACHE\)/,'service worker must delete stale caches');console.log('PASS service worker: canonical/public catalog modules cached and stale caches removed');
+}
 
 await syntaxGate();await migrationStaticGate();await migrationFixtureGate();await knowledgeGate();await serviceWorkerGate();console.log('REGRESSION GATE PASS');
