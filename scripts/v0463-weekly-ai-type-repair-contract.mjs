@@ -7,6 +7,7 @@ import {
 } from '../assets/js/weekly-context-import-contract.js';
 import {parseWeeklyEventEffects} from '../assets/js/weekly-context-normalization.js';
 import {weeklyEventEffectDefinition} from '../assets/js/weekly-event-effect-registry.js';
+import {PROMPT_CATALOG} from '../assets/js/prompt-catalog.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
 const clone=value=>JSON.parse(JSON.stringify(value));
@@ -80,9 +81,9 @@ assert.equal(typeof stringNormalized.payload.operations[0].data.event_effects,'s
 assert.equal(parseWeeklyEventEffects(stringNormalized.payload.operations[0].data.event_effects).meal_category_forced,true);
 assert.equal(validateWeeklyContextImportPayload(stringEffects,{now:NOW}).ok,true);
 
-// Historical prompt wording may evolve, but the boolean contract itself must not.
+// Historical prompt wording may evolve, but the executable boolean contract itself must not.
 assert.equal(weeklyEventEffectDefinition('meal_category_forced')?.value_type,'boolean');
-const prompt=read('assets/js/prompt-catalog.js');
+const prompt=PROMPT_CATALOG.weekly.prompt;
 for(const token of [
   'meal_category_forced',
   '「meal_category_forced": true',
