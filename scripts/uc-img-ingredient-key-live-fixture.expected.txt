@@ -1,0 +1,7 @@
+The v0.4.10.2 Android LIVE fixture with key.ingredient_id=fancy_pumpkin is intentionally invalid.
+Expected v0.4.10.2.1 behavior:
+- Parse / validateWorkflow: FAIL with ingredient_inventory key missing ingredient_name.
+- Dry Run: disabled / not reached.
+- Apply: disabled / not reached.
+- Internal Gemini Structured Output: must not be able to emit ingredient_id because key.additionalProperties=false and ingredient_id is not declared.
+- Newly generated ingredient operations use key.ingredient_name with visible zh-TW text.
