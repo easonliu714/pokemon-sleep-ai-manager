@@ -1,6 +1,7 @@
 import {executeWithProjectPool} from './ai-project-pool-runtime.js';
 import {buildUpdatePackageJsonSchema} from './update-package-contract.js';
 import {buildPublicMasterRecognitionJsonSchema,supportsPublicMasterRecognition} from './public-master-recognition.js';
+import {isUcImgOwnedMemoryBlob} from './uc-img-image-runtime.js';
 
 export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-08-11-b-public-master-recognition';
 
@@ -31,9 +32,10 @@ export function parseGeminiJsonPayload(payload){
 export async function prepareGeminiImages(entries=[],fileMap=new Map()){
   const images=[];
   for(const entry of entries){
-    const file=fileMap.get(entry.entry_id);
-    if(!file)throw new Error(`${entry.image_ref} 圖片 bytes 已不存在；重新整理後使用內部 Gemini 前，請重新選取該圖片。`);
-    images.push({imageRef:entry.image_ref,fileName:entry.file_name,mimeType:clean(file.type)||clean(entry.mime_type)||'image/png',data:await blobToBase64(file)});
+    const blob=fileMap.get(entry.entry_id);
+    if(!blob)throw new Error(`${entry.image_ref} 圖片 bytes 已不存在；重新整理後使用內部 Gemini 前，請重新選取該圖片。`);
+    if(!isUcImgOwnedMemoryBlob(blob))throw new Error(`${entry.image_ref} 尚未建立平台記憶體圖片快照；請重新選取該圖片。`);
+    images.push({imageRef:entry.image_ref,fileName:entry.file_name,mimeType:clean(blob.type)||clean(entry.mime_type)||'image/png',data:await blobToBase64(blob)});
   }
   if(!images.length)throw new Error('此情境沒有可送往 Gemini 的圖片。');
   return images;
