@@ -1,0 +1,54 @@
+name: Historical Release Regression
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/version-authority.js'
+      - 'assets/js/prompt-catalog.js'
+      - 'assets/js/weekly-context-*.js'
+      - 'assets/js/public-camp-berry-master.js'
+      - 'assets/js/camp-berry-knowledge-ui.js'
+      - 'assets/js/current-week-recipe-recommendation-bridge.js'
+      - 'assets/js/public-recipe-discovery-master.js'
+      - 'assets/js/recipe-discovery-stockpile*.js'
+      - 'assets/js/recipe-strategy-*.js'
+      - 'assets/js/pokemon-candidate-local.js'
+      - 'assets/js/strategy-context-local.js'
+      - 'assets/js/evaluation-lifecycle.js'
+      - 'assets/js/controlled-selector.js'
+      - 'assets/js/strategy-goal-contract.js'
+      - 'assets/js/war-room-goal-profile-ui.js'
+      - 'assets/js/team-optimizer*.js'
+      - 'assets/js/war-room-team-optimizer*.js'
+      - 'assets/js/war-room-recipe-discovery-ui.js'
+      - 'service-worker.js'
+      - 'scripts/v04*.mjs'
+      - 'scripts/war2b-*.mjs'
+      - 'scripts/ci-historical-release-regression.mjs'
+      - '.github/workflows/historical-release-regression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: historical-release-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  historical-release-regression:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install isolated DOM regression dependency
+        run: npm install --no-save --no-package-lock jsdom@26.1.0
+      - name: Run consolidated historical release contracts
+        run: node scripts/ci-historical-release-regression.mjs
+      - name: Verify consolidation runner syntax
+        run: node --check scripts/ci-historical-release-regression.mjs
+      - name: Verify no tracked test mutation
+        shell: bash
+        run: test -z "$(git status --porcelain --untracked-files=no)"
