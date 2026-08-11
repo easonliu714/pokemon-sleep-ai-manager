@@ -1,0 +1,35 @@
+name: UC.IMG-A Unified Screenshot Update Center
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/unified-screenshot-update-center.js'
+      - 'assets/js/candy-inventory-ui.js'
+      - 'scripts/uc-img-a-contract.mjs'
+      - '.github/workflows/uc-img-a.yml'
+      - 'assets/js/version-authority.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  uc-img-a:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify UC.IMG-A executable contract
+        run: node scripts/uc-img-a-contract.mjs
+      - name: Verify UC.IMG-A JavaScript syntax
+        run: |
+          node --check assets/js/unified-screenshot-update-center.js
+          node --check assets/js/candy-inventory-ui.js
+      - name: Preserve v0.4.9.1 WAR.3 baseline
+        run: |
+          node scripts/v0491-release-contract.mjs
+          node scripts/war3c-external-strategy-analysis-pack-contract.mjs
+      - name: Preserve v0.4.8.5 Android E3 compact table
+        run: node scripts/v0485-release-contract.mjs

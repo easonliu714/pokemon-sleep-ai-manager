@@ -7,9 +7,15 @@ import {STRATEGY_ANALYSIS_PACK_UI_VERSION} from '../assets/js/war-room-strategy-
 
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
-const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
-const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.9','v0.4.9.1'].includes(appVersion),`v0.4.9 historical contract received unsupported successor ${appVersion}`);
+const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1]||'';
+const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
+const parts=value=>String(value).replace(/^v/,'').split('.').map(Number);
+const compare=(left,right)=>{
+  const a=parts(left),b=parts(right),length=Math.max(a.length,b.length);
+  for(let index=0;index<length;index+=1){const diff=(a[index]||0)-(b[index]||0);if(diff)return Math.sign(diff);}
+  return 0;
+};
+assert.ok(compare(appVersion,'v0.4.9')>=0,`v0.4.9 historical contract received predecessor ${appVersion}`);
 if(appVersion==='v0.4.9'){
   assert.equal(appBuild,'20260810-v049-external-strategy-analysis-pack');
   assert.equal(STRATEGY_ANALYSIS_PACK_VERSION,'strategy-analysis-pack-2026-08-10-b');
@@ -46,7 +52,7 @@ assert.ok(sw.includes("importScripts('./assets/js/version-authority.js')"));
 assert.ok(sw.includes("url.pathname.endsWith('.js')"),'Analysis Pack dynamic modules require supported online-load-once network-first JS caching');
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'V0.4.9_HISTORICAL_RELEASE_CONTRACT',active_app_version:appVersion,
+  status:'PASS',gate:'V0.4.9_HISTORICAL_RELEASE_CONTRACT',active_app_version:appVersion,minimum_app_version:'v0.4.9',
   strategy_analysis_pack_version:STRATEGY_ANALYSIS_PACK_VERSION,prompt_version:STRATEGY_ANALYSIS_PROMPT_VERSION,privacy_version:STRATEGY_ANALYSIS_PRIVACY_VERSION,
   provider_neutral:true,offline_generation_after_online_load:true,ephemeral_candidate_refs:true,stable_pokemon_id_export:false,structural_privacy_guard:true,
   candy_double_count_guard:true,missing_rules_explicit:true,direct_apply_path:false,sqlite_migration_added:false,v0485_legacy_bridge_preserved:true,
