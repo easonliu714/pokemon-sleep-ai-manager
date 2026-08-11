@@ -15,7 +15,7 @@ on:
       - 'scripts/uc-img-a-contract.mjs'
       - 'scripts/uc-img-internal-gemini-contract.mjs'
       - 'scripts/uc-img-ingredient-key-contract.mjs'
-      - 'scripts/v041021-release-contract.mjs'
+      - 'scripts/v04103-release-contract.mjs'
       - 'scripts/v04102-release-contract.mjs'
       - 'scripts/v04101-release-contract.mjs'
       - 'scripts/v0410-release-contract.mjs'
@@ -49,7 +49,7 @@ jobs:
         run: node scripts/uc-img-ingredient-key-contract.mjs
       - name: Verify current and historical release contracts
         run: |
-          node scripts/v041021-release-contract.mjs
+          node scripts/v04103-release-contract.mjs
           node scripts/v04102-release-contract.mjs
           node scripts/v04101-release-contract.mjs
           node scripts/v0410-release-contract.mjs
@@ -67,7 +67,7 @@ jobs:
           node --check assets/js/candy-inventory-ui.js
           node --check assets/js/version-authority.js
           node --check scripts/uc-img-ingredient-key-contract.mjs
-          node --check scripts/v041021-release-contract.mjs
+          node --check scripts/v04103-release-contract.mjs
           node --check scripts/uc-img-internal-gemini-contract.mjs
           node --check scripts/v04102-release-contract.mjs
           node --check scripts/v04101-release-contract.mjs
