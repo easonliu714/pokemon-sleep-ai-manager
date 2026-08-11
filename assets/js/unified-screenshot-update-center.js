@@ -2,6 +2,7 @@ import {PROMPT_CATALOG} from './prompt-catalog.js';
 import {validateWorkflow,approveReviewed} from './ai-workflow.js';
 import {dryRun,applyPayload} from './importer.js';
 import {analyzeUcImgScenarioWithGemini,buildUcImgDiagnosticBundle} from './uc-img-gemini-adapter.js';
+import {cleanupRestoredUcImgSession} from './uc-img-session-lifecycle.js';
 import {
   applyPublicMasterRecognitionResolution,
   buildPublicMasterCatalogSnapshot,
@@ -120,7 +121,9 @@ export function restoreScreenshotSession(storage=hasWindow?window.localStorage:n
     parsed.coverage={...Object.fromEntries(scenarioKeys.map(key=>[key,'PARTIAL'])),...(parsed.coverage||{})};
     parsed.scenario_state={...Object.fromEntries(scenarioKeys.map(key=>[key,emptyScenarioState()])),...(parsed.scenario_state||{})};
     for(const key of scenarioKeys)parsed.scenario_state[key]={...emptyScenarioState(),...(parsed.scenario_state[key]||{})};
-    return parsed;
+    const cleanup=cleanupRestoredUcImgSession(parsed);
+    if(cleanup.changed)storage.setItem(UC_IMG_A_STORAGE_KEY,JSON.stringify(cleanup.session));
+    return cleanup.session;
   }catch{return createScreenshotUpdateSession();}
 }
 
