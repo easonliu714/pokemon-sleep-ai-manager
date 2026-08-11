@@ -88,12 +88,13 @@ def test_recipe_status_can_resolve_public_recipe_name_and_hydrate_insert():
 
 def test_prompt_catalog_exposes_inventory_and_recipe_status_contracts():
     source = read('assets/js/prompt-catalog.js')
+    contract = read('assets/js/update-package-contract.js')
     assert 'scenario=ingredient_inventory_update' in source
     assert 'scenario=item_inventory_update' in source
     assert 'scenario=recipe_status_update' in source
     assert 'quantity=0' in source
     assert 'unlocked=false' in source
-    assert "explicit_zero_and_false:'write_value'" in source
+    assert "explicit_zero_and_false:'write_value'" in contract
     assert "recipes:['recipes']" not in source
 
 
