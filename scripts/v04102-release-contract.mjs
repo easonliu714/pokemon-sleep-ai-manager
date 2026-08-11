@@ -26,12 +26,14 @@ const exactReleases={
   'v0.4.11.4':['20260811-v04114-recipe-zh-tw-diagnostic-export','pokemon-sleep-ai-v0.4.11.4-v04114-recipe-zh-tw-diagnostic-export'],
   'v0.4.12':['20260811-v0412-recipe-unified-player-workbench','pokemon-sleep-ai-v0.4.12-v0412-recipe-unified-player-workbench'],
   'v0.4.13':['20260811-v0413-g7-recipe-portfolio-contention','pokemon-sleep-ai-v0.4.13-v0413-g7-recipe-portfolio-contention'],
+  'v0.4.13.1':['20260811-v04131-data-preservation-hotfix','pokemon-sleep-ai-v0.4.13.1-v04131-data-preservation-hotfix'],
 };
 assert.ok(exactReleases[appVersion],`unexpected v0.4.10.2 successor: ${appVersion}`);
 assert.deepEqual([appBuild,cacheName],exactReleases[appVersion]);
 if(appVersion!=='v0.4.10.2')assert.ok(version.includes("// app_version: 'v0.4.10.2'"),'successor must retain v0.4.10.2 legacy bridge');
 if(appVersion==='v0.4.12')for(const predecessor of ['v0.4.11.4','v0.4.11.3','v0.4.11.2','v0.4.11.1','v0.4.11','v0.4.10.3'])assert.ok(version.includes(`// app_version: '${predecessor}'`),`v0.4.12 must retain ${predecessor} legacy bridge`);
 if(appVersion==='v0.4.13')for(const predecessor of ['v0.4.12','v0.4.11.4','v0.4.11.3','v0.4.11.2','v0.4.11.1','v0.4.11','v0.4.10.3'])assert.ok(version.includes(`// app_version: '${predecessor}'`),`v0.4.13 must retain ${predecessor} legacy bridge`);
+if(appVersion==='v0.4.13.1')for(const predecessor of ['v0.4.13','v0.4.12','v0.4.11.4','v0.4.11.3','v0.4.11.2','v0.4.11.1','v0.4.11','v0.4.10.3'])assert.ok(version.includes(`// app_version: '${predecessor}'`),`v0.4.13.1 must retain ${predecessor} legacy bridge`);
 assert.ok(version.includes("// app_version: 'v0.4.10.1'"),'v0.4.10.2 lineage must retain v0.4.10.1 legacy bridge');
 assert.ok(version.includes("// app_build: '20260811-v04101-update-package-root-contract'"));
 
@@ -89,12 +91,12 @@ assert.ok(ucImg.includes('截圖不會寫入 SQLite 或 GitHub'));
 assert.ok(ucImg.includes('Key Vault / Project Pool'));
 
 const migrations=read('assets/js/migrations.js');
-assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.10.2 lineage must remain schema-migration-free through v0.4.13');
+assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.10.2 lineage must remain schema-migration-free through v0.4.13.1');
 
 console.log(JSON.stringify({
   status:'PASS',gate:'V0.4.10.2_RELEASE_CONTRACT',
   app_version:appVersion,
-  successor_v0412:appVersion==='v0.4.12',successor_v0413:appVersion==='v0.4.13',
+  successor_v0412:appVersion==='v0.4.12',successor_v0413:appVersion==='v0.4.13',successor_v04131:appVersion==='v0.4.13.1',
   uc_img_version:UC_IMG_A_VERSION,
   gemini_adapter_version:UC_IMG_GEMINI_ADAPTER_VERSION,
   modes:UC_IMG_A_MODES,
