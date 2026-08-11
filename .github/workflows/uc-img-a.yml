@@ -23,6 +23,7 @@ on:
       - 'scripts/uc-img-ingredient-key-contract.mjs'
       - 'scripts/public-master-recognition-contract.mjs'
       - 'scripts/v04111-uc-img-session-timestamp-contract.mjs'
+      - 'scripts/v04111-release-contract.mjs'
       - 'scripts/v0411-release-contract.mjs'
       - 'scripts/v04103-release-contract.mjs'
       - 'scripts/v04102-release-contract.mjs'
@@ -62,7 +63,8 @@ jobs:
         run: node scripts/v04111-uc-img-session-timestamp-contract.mjs
       - name: Verify current and historical release contracts
         run: |
-          if [ -f scripts/v0411-release-contract.mjs ]; then node scripts/v0411-release-contract.mjs; fi
+          if grep -q "app_version: 'v0.4.11.1'" assets/js/version-authority.js; then node scripts/v04111-release-contract.mjs; fi
+          node scripts/v0411-release-contract.mjs
           node scripts/v04103-release-contract.mjs
           node scripts/v04102-release-contract.mjs
           node scripts/v04101-release-contract.mjs
@@ -85,7 +87,9 @@ jobs:
           node --check assets/js/version-authority.js
           node --check scripts/public-master-recognition-contract.mjs
           node --check scripts/v04111-uc-img-session-timestamp-contract.mjs
+          node --check scripts/v04111-release-contract.mjs
           node --check scripts/uc-img-ingredient-key-contract.mjs
+          node --check scripts/v0411-release-contract.mjs
           node --check scripts/v04103-release-contract.mjs
           node --check scripts/uc-img-internal-gemini-contract.mjs
           node --check scripts/v04102-release-contract.mjs
