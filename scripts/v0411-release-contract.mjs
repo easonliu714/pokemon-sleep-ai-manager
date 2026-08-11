@@ -9,7 +9,7 @@ import {
   compilePublicMasterRecognitionToUpdatePackage,
 } from '../assets/js/public-master-recognition.js';
 import {PUBLIC_INGREDIENT_NAMES} from '../assets/js/shared-master-data.js';
-import {PUBLIC_RECIPE_MASTER} from '../assets/js/public-recipe-master.js';
+import {PUBLIC_RECIPE_MASTER} from '../assets/js/public-recipe-canonical-authority.js';
 import {UC_IMG_A_VERSION,UC_IMG_A_SCENARIOS,buildScreenshotScenarioPrompt,createScreenshotUpdateSession,addScreenshotEntry,assignScreenshotScenario} from '../assets/js/unified-screenshot-update-center.js';
 import {UC_IMG_GEMINI_ADAPTER_VERSION,buildUcImgGeminiSchema} from '../assets/js/uc-img-gemini-adapter.js';
 
@@ -47,7 +47,7 @@ assert.ok(version.includes("// app_build: '20260811-v04103-ingredient-key-contra
 assert.equal(UC_IMG_A_VERSION,'uc-img-a-2026-08-11-d-public-master-recognition');
 assert.equal(UC_IMG_GEMINI_ADAPTER_VERSION,'uc-img-gemini-2026-08-11-b-public-master-recognition');
 assert.equal(PUBLIC_MASTER_RECOGNITION_SCHEMA,'pokemon-sleep-public-master-recognition/1.0');
-assert.equal(PUBLIC_MASTER_RECOGNITION_VERSION,'public-master-recognition-2026-08-11-a');
+assert.match(PUBLIC_MASTER_RECOGNITION_VERSION,/^public-master-recognition-2026-08-11-(?:a|b-recipe-canonical)$/,'Public Master recognition successor version invalid');
 assert.deepEqual(Object.keys(PUBLIC_MASTER_RECOGNITION_REGISTRY).sort(),['candies','ingredients','items','recipes']);
 assert.deepEqual(PUBLIC_MASTER_RECOGNITION_REGISTRY.ingredients.canonical_key_fields,['ingredient_name']);
 assert.deepEqual(PUBLIC_MASTER_RECOGNITION_REGISTRY.items.canonical_key_fields,['item_name']);
@@ -125,7 +125,7 @@ const migrations=read('assets/js/migrations.js');
 assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.11 lineage is schema-migration-free');
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'V0.4.11_RELEASE_CONTRACT',
+  status:'PASS',gate:'V0.4.11_RELEASE_CONTRACT_SUCCESSOR_AWARE',
   app_version:appVersion,
   successor_v04111:appVersion==='v0.4.11.1',
   successor_v04112:appVersion==='v0.4.11.2',
@@ -135,6 +135,7 @@ console.log(JSON.stringify({
   registry_ready_scenarios:['items','candies'],
   ingredient_catalog_count:ingredientSnapshot.row_count,
   recipe_catalog_count:recipeSnapshot.row_count,
+  canonical_recipe_authority:true,
   public_only_catalogs:true,
   ai_created_ids:false,
   unknown_silent_drop:false,
