@@ -20,10 +20,17 @@ const HISTORICAL_NAME_REFERENCE=Object.freeze({
   observed_at:'2026-08-05',
 });
 
-const SCREENSHOT_NAME_REFERENCE=Object.freeze({
+const SCREENSHOT_NAME_REFERENCE_20260809=Object.freeze({
   source_type:'game_screenshot_verified',
   source_name:'sanitized in-game zh-TW recipe screenshot evidence',
-  source_ref:'internal:public-recipe-zh-tw-screenshot-evidence-2026-08-09+android-live-2026-08-11',
+  source_ref:'internal:public-recipe-zh-tw-screenshot-evidence-2026-08-09',
+  observed_at:'2026-08-09',
+});
+
+const SCREENSHOT_NAME_REFERENCE_20260811=Object.freeze({
+  source_type:'game_screenshot_verified',
+  source_name:'current in-game zh-TW recipe screenshot evidence',
+  source_ref:'internal:v04114-android-live-current-recipe-name-evidence',
   observed_at:'2026-08-11',
 });
 
@@ -36,8 +43,9 @@ const SCREENSHOT_FORMULA_REFERENCE=Object.freeze({
 
 export const PUBLIC_RECIPE_PROVENANCE=Object.freeze(PUBLIC_RECIPE_MASTER.map(recipe=>{
   const screenshotVerifiedName=recipe.source_type==='game_screenshot_verified';
+  const currentScreenshotName=screenshotVerifiedName&&recipe.source_ref==='internal:v04114-android-live-current-recipe-name-evidence';
   const screenshotVerifiedFormula=Boolean(recipe.formula_contract_version);
-  const nameSource=screenshotVerifiedName?SCREENSHOT_NAME_REFERENCE:HISTORICAL_NAME_REFERENCE;
+  const nameSource=currentScreenshotName?SCREENSHOT_NAME_REFERENCE_20260811:screenshotVerifiedName?SCREENSHOT_NAME_REFERENCE_20260809:HISTORICAL_NAME_REFERENCE;
   const formulaSource=screenshotVerifiedFormula?SCREENSHOT_FORMULA_REFERENCE:ACTIVE_FORMULA_REFERENCE;
   return Object.freeze({
     recipe_id:recipe.recipe_id,
