@@ -2,6 +2,12 @@ import {executeWithProjectPool} from './ai-project-pool-runtime.js';
 import {buildUpdatePackageJsonSchema} from './update-package-contract.js';
 import {buildPublicMasterRecognitionJsonSchema,supportsPublicMasterRecognition} from './public-master-recognition.js';
 import {isUcImgOwnedMemoryBlob} from './uc-img-image-runtime.js';
+import {
+  applyUcImgWeeklyPlatformAuthority,
+  buildUcImgWeeklyPlatformAuthority,
+  buildUcImgWeeklyPlatformPromptInstruction,
+  constrainUcImgWeeklyJsonSchema,
+} from './uc-img-weekly-platform-authority.js';
 
 export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-08-11-b-public-master-recognition';
 
@@ -41,27 +47,40 @@ export async function prepareGeminiImages(entries=[],fileMap=new Map()){
   return images;
 }
 
-export function buildUcImgGeminiSchema(config,scenarioKey){
+export function buildUcImgGeminiSchema(config,scenarioKey,{platformAuthority=null}={}){
   if(!config?.scenario||!Array.isArray(config.entities))throw new Error('UC.IMG Gemini scenario contract 不完整');
   if(supportsPublicMasterRecognition(config.scenario))return buildPublicMasterRecognitionJsonSchema(config.scenario);
-  return buildUpdatePackageJsonSchema({scenario:config.scenario,entities:config.entities,weekly:scenarioKey==='weekly'});
+  const schema=buildUpdatePackageJsonSchema({scenario:config.scenario,entities:config.entities,weekly:scenarioKey==='weekly'});
+  return scenarioKey==='weekly'&&platformAuthority?constrainUcImgWeeklyJsonSchema(schema,platformAuthority):schema;
 }
 
-export async function analyzeUcImgScenarioWithGemini({scenarioKey,config,entries,fileMap,prompt,poolData,execute=executeWithProjectPool,onTrace=()=>{}}={}){
+export async function analyzeUcImgScenarioWithGemini({scenarioKey,config,entries,fileMap,prompt,poolData,execute=executeWithProjectPool,onTrace=()=>{},platformNow=null}={}){
   if(!poolData?.projects?.length)throw new Error('尚未設定 Gemini API Key。請先到「使用說明 → AI API Key 與備援 Project」設定並測試 Key。');
   const model=clean(poolData.model);if(!model)throw new Error('尚未選擇 Gemini 模型。');
+  const platformAuthority=scenarioKey==='weekly'?buildUcImgWeeklyPlatformAuthority(platformNow||new Date()):null;
   const images=await prepareGeminiImages(entries,fileMap);
-  const responseJsonSchema=buildUcImgGeminiSchema(config,scenarioKey);
-  const outcome=await execute({projects:poolData.projects,model,prompt,images,responseJsonSchema,onTrace});
+  const responseJsonSchema=buildUcImgGeminiSchema(config,scenarioKey,{platformAuthority});
+  const effectivePrompt=platformAuthority?`${prompt}${buildUcImgWeeklyPlatformPromptInstruction(platformAuthority)}`:prompt;
+  const outcome=await execute({projects:poolData.projects,model,prompt:effectivePrompt,images,responseJsonSchema,onTrace});
   if(!outcome?.ok){
     const classes=(outcome?.attempts||[]).map(item=>item.error_class).filter(Boolean);
     throw new Error(`Gemini 分析暫停：${classes.join(' → ')||outcome?.reason||'all_projects_unavailable'}`);
   }
   const parsed=parseGeminiJsonPayload(outcome.payload);
+  const payload=platformAuthority?applyUcImgWeeklyPlatformAuthority(parsed.payload,platformAuthority):parsed.payload;
+  const platformAuthorityAudit=platformAuthority?{
+    authority_version:platformAuthority.authority_version,
+    week_start:platformAuthority.week_start,
+    context_id:platformAuthority.context_id,
+    generated_at:platformAuthority.generated_at,
+    update_id:platformAuthority.update_id,
+    provider_original_generated_at:parsed.payload?.generated_at||null,
+    provider_original_week_start:parsed.payload?.operations?.find(item=>item?.entity==='weekly_context')?.data?.week_start||null,
+  }:null;
   return {
     adapter_version:UC_IMG_GEMINI_ADAPTER_VERSION,
-    payload:parsed.payload,
-    raw_json:JSON.stringify(parsed.payload,null,2),
+    payload,
+    raw_json:JSON.stringify(payload,null,2),
     raw_provider_text:parsed.text,
     response_contract:supportsPublicMasterRecognition(config.scenario)?'public-master-recognition':'update-package-v1.1',
     model,
@@ -69,6 +88,7 @@ export async function analyzeUcImgScenarioWithGemini({scenarioKey,config,entries
     projects:outcome.projects||poolData.projects,
     attempts:outcome.attempts||[],
     image_count:images.length,
+    platform_authority:platformAuthorityAudit,
     completed_at:nowIso(),
   };
 }
@@ -99,6 +119,7 @@ export function buildUcImgDiagnosticBundle({appVersion=null,session,scenarioKey,
       review_count:Number(validation.review?.length||0),
       summary:validation.summary||{},
     }:null,
+    platform_authority:providerMeta?.platform_authority||null,
     generated_at:nowIso(),
     safety:{api_key_included:false,screenshot_bytes_included:false,sqlite_export_included:false},
   };
