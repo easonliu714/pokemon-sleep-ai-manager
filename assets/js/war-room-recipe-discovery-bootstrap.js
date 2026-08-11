@@ -8,8 +8,11 @@ function mount(){
   let root=document.getElementById('warroomRecipeDiscovery');
   if(!root){
     root=document.createElement('div');root.id='warroomRecipeDiscovery';
+    const cooking=document.getElementById('warroomCookingPlanner');
     const team=document.getElementById('warroomTeamOptimizer');
-    if(team)team.insertAdjacentElement('afterend',root);else panel.prepend(root);
+    if(cooking)cooking.insertAdjacentElement('afterend',root);
+    else if(team)team.insertAdjacentElement('afterend',root);
+    else panel.prepend(root);
   }
   renderWarRoomRecipeDiscovery(root);
 }
