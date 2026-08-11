@@ -2,6 +2,11 @@ import {MASTER_DATA_VERSION,PUBLIC_INGREDIENT_NAMES} from './shared-master-data.
 import {PUBLIC_ITEM_MASTER_VERSION,PUBLIC_ITEM_MASTER} from './public-item-master.js';
 import {PUBLIC_CANDY_MASTER_VERSION,buildPublicCandyMasterRows} from './public-candy-master.js';
 import {PUBLIC_RECIPE_MASTER_VERSION,PUBLIC_RECIPE_MASTER} from './public-recipe-master.js';
+import {
+  PUBLIC_RECIPE_ALIAS_VERSION,
+  isRecipeAutomaticIdentityMatch,
+  recipeAliasesForCanonical,
+} from './public-recipe-alias-master.js';
 import {buildUpdatePackageEnvelope} from './update-package-contract.js';
 
 export const PUBLIC_MASTER_CATALOG_SCHEMA='pokemon-sleep-public-master-catalog/1.0';
@@ -45,8 +50,12 @@ const definitions=Object.freeze({
   }),
   recipes:Object.freeze({
     scenario_key:'recipes',scenario:'recipe_status_update',authority:'recipe_master',data_version:PUBLIC_RECIPE_MASTER_VERSION,
+    identity_alias_version:PUBLIC_RECIPE_ALIAS_VERSION,
     entity:'recipes',canonical_key_fields:Object.freeze(['recipe_id','recipe_name']),display_name_field:'recipe_name',data_schema:dataSchemas.recipes,
-    rows:()=>PUBLIC_RECIPE_MASTER.map(row=>({recipe_id:row.recipe_id,recipe_name:row.recipe_name,category:row.category||null})),
+    rows:()=>PUBLIC_RECIPE_MASTER.map(row=>({
+      recipe_id:row.recipe_id,recipe_name:row.recipe_name,category:row.category||null,
+      aliases:recipeAliasesForCanonical(row.recipe_id,row.recipe_name),
+    })),
   }),
 });
 
@@ -55,6 +64,7 @@ export const PUBLIC_MASTER_RECOGNITION_REGISTRY=Object.freeze(Object.fromEntries
   scenario:value.scenario,
   authority:value.authority,
   data_version:value.data_version,
+  identity_alias_version:value.identity_alias_version||null,
   entity:value.entity,
   canonical_key_fields:[...value.canonical_key_fields],
   display_name_field:value.display_name_field,
@@ -71,6 +81,7 @@ export function supportsPublicMasterRecognition(input){return Boolean(getPublicM
 export function buildPublicMasterCatalogSnapshot(input){
   const def=getPublicMasterRecognitionDefinition(input);if(!def)throw new Error(`public_master_recognition_unsupported:${input}`);
   const rows=def.rows().map(row=>clone(row));
+  const aliasVersion=def.identity_alias_version||null;
   return {
     schema:PUBLIC_MASTER_CATALOG_SCHEMA,
     recognition_version:PUBLIC_MASTER_RECOGNITION_VERSION,
@@ -78,7 +89,8 @@ export function buildPublicMasterCatalogSnapshot(input){
     scenario:def.scenario,
     authority:def.authority,
     data_version:def.data_version,
-    catalog_snapshot_id:`${def.authority}@${def.data_version}`,
+    identity_alias_version:aliasVersion,
+    catalog_snapshot_id:`${def.authority}@${def.data_version}${aliasVersion?`+${aliasVersion}`:''}`,
     canonical_key_fields:[...def.canonical_key_fields],
     display_name_field:def.display_name_field,
     row_count:rows.length,
@@ -138,7 +150,7 @@ export function buildPublicMasterRecognitionJsonSchema(input){
 }
 
 function dataRuleText(def){
-  if(def.scenario_key==='recipes')return 'observed_data 只可包含 unlocked、recipe_level、current_energy；只輸出畫面實際看見的欄位，未顯示欄位省略。';
+  if(def.scenario_key==='recipes')return 'observed_data 只可包含 unlocked、recipe_level、current_energy；只輸出畫面實際看見的欄位，未顯示欄位省略。料理只有 observed_text 與公版 recipe_name 完全一致，或逐字符合該公版列的 aliases，才可標 MATCHED；只是語意相近、同配方或你認為是同一道料理，都必須標 AMBIGUOUS。';
   return 'observed_data.quantity 只在畫面可辨識數量時輸出，必須是 0 以上整數；未顯示項目不可補 0。';
 }
 
@@ -146,7 +158,7 @@ export function buildPublicMasterRecognitionPrompt(input,{sessionId=null,coverag
   const def=getPublicMasterRecognitionDefinition(input);if(!def)throw new Error(`public_master_recognition_unsupported:${input}`);
   const snapshot=buildPublicMasterCatalogSnapshot(def.scenario_key);
   const mapping=Array.isArray(imageMap)&&imageMap.length?imageMap.map(item=>`- ${item.image_ref} = ${item.file_name}`).join('\n'):'- 由呼叫端提供 image_ref';
-  return `你是 Pokémon Sleep AI Manager 的 Public Master Constrained Recognition 模型。\n\n你的工作不是直接建立 Update Package，而是先把截圖中每一個目標項目與平台提供的公版 Master 做身份比對。平台會在你回傳後再次驗證 canonical key，只有 MATCHED 才可能編譯成 Update Package，再走 Review → Dry Run → Apply。\n\n本次契約：\n- schema=${PUBLIC_MASTER_RECOGNITION_SCHEMA}\n- recognition_version=${PUBLIC_MASTER_RECOGNITION_VERSION}\n- scenario=${snapshot.scenario}\n- authority=${snapshot.authority}\n- data_version=${snapshot.data_version}\n- catalog_snapshot_id=${snapshot.catalog_snapshot_id}\n- session_id=${sessionId||'not_provided'}\n- coverage=${coverage}\n\n圖片對應：\n${mapping}\n\n公版候選（這是唯一 canonical authority；不得自行創造 ID 或 canonical 名稱）：\n${JSON.stringify(snapshot.rows)}\n\n辨識規則：\n1. 先獨立計算截圖中可辨識的目標項目總數，填 visible_target_count；observations.length 必須與 visible_target_count 相同，不可因公版沒有對應而省略畫面項目。\n2. 每個畫面項目只能輸出一次 observation。\n3. status=MATCHED：只有能唯一對應上方公版候選時使用；canonical_key 必須逐字取自公版候選，canonical_name 必須等於該候選的顯示名稱。\n4. status=AMBIGUOUS：有兩個以上合理候選時使用；不得自行選一個寫成 MATCHED。可把建議候選名稱放 candidate_names。\n5. status=UNMATCHED：畫面確實有該項目，但目前公版候選沒有可靠對應時使用。不得丟棄或自行新增 Master。\n6. 相似字／模糊比對只能用於 candidate_names 建議，不能授權 MATCHED。\n7. observed_text 儘量逐字保留畫面文字；看不清楚時降低 confidence，不可一邊猜測一邊給高信心。\n8. ${dataRuleText(def)}\n9. source_image_ref 必須使用本次圖片對應中的 image_ref。\n10. coverage=USER_CONFIRMED_COMPLETE 只表示使用者確認本 session 涵蓋完整畫面範圍；未出現的公版項目仍不得補 0、false 或未解鎖。\n11. 只輸出單一 JSON，不輸出 Markdown、code fence 或解釋。`;
+  return `你是 Pokémon Sleep AI Manager 的 Public Master Constrained Recognition 模型。\n\n你的工作不是直接建立 Update Package，而是先把截圖中每一個目標項目與平台提供的公版 Master 做身份比對。平台會在你回傳後再次驗證 canonical key，只有 MATCHED 才可能編譯成 Update Package，再走 Review → Dry Run → Apply。\n\n本次契約：\n- schema=${PUBLIC_MASTER_RECOGNITION_SCHEMA}\n- recognition_version=${PUBLIC_MASTER_RECOGNITION_VERSION}\n- scenario=${snapshot.scenario}\n- authority=${snapshot.authority}\n- data_version=${snapshot.data_version}\n- identity_alias_version=${snapshot.identity_alias_version||'none'}\n- catalog_snapshot_id=${snapshot.catalog_snapshot_id}\n- session_id=${sessionId||'not_provided'}\n- coverage=${coverage}\n\n圖片對應：\n${mapping}\n\n公版候選（這是唯一 canonical authority；不得自行創造 ID 或 canonical 名稱）：\n${JSON.stringify(snapshot.rows)}\n\n辨識規則：\n1. 先獨立計算截圖中可辨識的目標項目總數，填 visible_target_count；observations.length 必須與 visible_target_count 相同，不可因公版沒有對應而省略畫面項目。\n2. 每個畫面項目只能輸出一次 observation。\n3. status=MATCHED：只有能唯一且符合本情境身份規則對應上方公版候選時使用；canonical_key 必須逐字取自公版候選，canonical_name 必須等於該候選的顯示名稱。\n4. status=AMBIGUOUS：有兩個以上合理候選，或名稱只有語意／模糊相似但不符合 exact/approved-alias 規則時使用；不得自行選一個寫成 MATCHED。可把建議候選名稱放 candidate_names。\n5. status=UNMATCHED：畫面確實有該項目，但目前公版候選沒有可靠對應時使用。不得丟棄或自行新增 Master。\n6. 相似字／模糊比對只能用於 candidate_names 建議，不能授權 MATCHED。\n7. observed_text 儘量逐字保留畫面文字；看不清楚時降低 confidence，不可一邊猜測一邊給高信心。\n8. ${dataRuleText(def)}\n9. source_image_ref 必須使用本次圖片對應中的 image_ref。\n10. coverage=USER_CONFIRMED_COMPLETE 只表示使用者確認本 session 涵蓋完整畫面範圍；未出現的公版項目仍不得補 0、false 或未解鎖。\n11. 只輸出單一 JSON，不輸出 Markdown、code fence 或解釋。`;
 }
 
 export function isPublicMasterRecognitionPayload(payload){return Boolean(payload&&typeof payload==='object'&&!Array.isArray(payload)&&payload.schema===PUBLIC_MASTER_RECOGNITION_SCHEMA);}
@@ -169,6 +181,21 @@ function validateObservedData(def,data,label,errors){
   }else{
     if(!hasOwn(data,'quantity')||!nonNegativeInteger(data.quantity))errors.push(`${label} MATCHED ${def.entity} 必須包含 0 以上整數 quantity`);
   }
+}
+
+function unresolvedRecipeIdentity(observation,row,index){
+  const canonicalName=row?.recipe_name||'';
+  return {
+    observation_id:observation.observation_id||`observation-${index+1}`,
+    status:'AMBIGUOUS',
+    observed_text:observation.observed_text||'',
+    observed_data:clone(observation.observed_data||{}),
+    source_image_ref:observation.source_image_ref||null,
+    confidence:observation.confidence,
+    candidate_names:[canonicalName],
+    user_resolution:clone(observation.user_resolution||null),
+    reason:'RECIPE_NAME_REQUIRES_EXACT_OR_APPROVED_ALIAS',
+  };
 }
 
 export function validatePublicMasterRecognitionPayload(payload,input,{allowedImageRefs=[]}={}){
@@ -196,9 +223,12 @@ export function validatePublicMasterRecognitionPayload(payload,input,{allowedIma
     if(Array.isArray(observation.candidate_names))for(const name of observation.candidate_names)if(!displayNames.has(name))errors.push(`${label} candidate_names 包含非公版候選：${name}`);
     if(observation.status==='MATCHED'){
       const row=catalogRowFromKey(snapshot,observation.canonical_key);
-      if(!row)errors.push(`${label} MATCHED canonical_key 不存在於目前 Public Master`);
-      else if(meaningful(observation.canonical_name)&&observation.canonical_name!==row[snapshot.display_name_field])errors.push(`${label} canonical_name 與 canonical_key 不一致`);
+      if(!row){errors.push(`${label} MATCHED canonical_key 不存在於目前 Public Master`);return;}
+      if(meaningful(observation.canonical_name)&&observation.canonical_name!==row[snapshot.display_name_field])errors.push(`${label} canonical_name 與 canonical_key 不一致`);
       validateObservedData(def,observation.observed_data,label,errors);
+      if(def.scenario_key==='recipes'&&!isRecipeAutomaticIdentityMatch(observation.observed_text,row,{userResolution:observation.user_resolution})){
+        unresolved.push(unresolvedRecipeIdentity(observation,row,index));
+      }
     }else if(observation.status==='IGNORE_CONFIRMED'){
       if(observation.user_resolution?.action!=='IGNORE_CONFIRMED')errors.push(`${label} IGNORE_CONFIRMED 必須有使用者確認紀錄`);
     }else{
@@ -222,8 +252,9 @@ export function compilePublicMasterRecognitionToUpdatePackage(payload,input,{all
   const def=getPublicMasterRecognitionDefinition(input);if(!def)throw new Error(`public_master_recognition_unsupported:${input}`);
   const validation=validatePublicMasterRecognitionPayload(payload,def.scenario_key,{allowedImageRefs});
   const snapshot=validation.snapshot||buildPublicMasterCatalogSnapshot(def.scenario_key),operations=[];
+  const unresolvedIds=new Set((validation.unresolved||[]).map(item=>item.observation_id));
   for(const [index,observation] of (Array.isArray(payload?.observations)?payload.observations:[]).entries()){
-    if(observation?.status!=='MATCHED')continue;
+    if(observation?.status!=='MATCHED'||unresolvedIds.has(observation.observation_id))continue;
     const row=catalogRowFromKey(snapshot,observation.canonical_key);if(!row)continue;
     const data={};for(const field of Object.keys(def.data_schema))if(hasOwn(observation.observed_data,field)&&meaningful(observation.observed_data[field]))data[field]=observation.observed_data[field];
     operations.push({
