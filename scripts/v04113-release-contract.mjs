@@ -39,7 +39,11 @@ assert.equal(normalized.operations[0].data.camp,'萌綠之島');
 const externalStale=validateWeeklyContextImportPayload(providerWeekly,{now:fixedNow,repairLegacy:false});
 assert.equal(externalStale.ok,false,'external stale Weekly JSON must remain blocked');
 
-assert.match(PUBLIC_RECIPE_ALIAS_VERSION,/^public-recipe-alias-2026-08-11-[ab]$/,'v0.4.11.3 approved-alias capability must allow reviewed successor registry');
+const allowedAliasSuccessors=new Set([
+  'public-recipe-alias-2026-08-11-a',
+  'public-recipe-alias-2026-08-11-b',
+]);
+assert.ok(allowedAliasSuccessors.has(PUBLIC_RECIPE_ALIAS_VERSION),'v0.4.11.3 approved-alias capability must allow only reviewed successor registries');
 assert.ok(PUBLIC_RECIPE_ALIASES.length>=3,'reviewed alias capability must not regress');
 const snapshot=buildPublicMasterCatalogSnapshot('recipes');
 assert.equal(snapshot.identity_alias_version,PUBLIC_RECIPE_ALIAS_VERSION);
