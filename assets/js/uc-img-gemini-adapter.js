@@ -1,7 +1,8 @@
 import {executeWithProjectPool} from './ai-project-pool-runtime.js';
 import {buildUpdatePackageJsonSchema} from './update-package-contract.js';
+import {buildPublicMasterRecognitionJsonSchema,supportsPublicMasterRecognition} from './public-master-recognition.js';
 
-export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-08-11-a';
+export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-08-11-b-public-master-recognition';
 
 const clean=value=>String(value??'').trim();
 const nowIso=()=>new Date().toISOString();
@@ -40,6 +41,7 @@ export async function prepareGeminiImages(entries=[],fileMap=new Map()){
 
 export function buildUcImgGeminiSchema(config,scenarioKey){
   if(!config?.scenario||!Array.isArray(config.entities))throw new Error('UC.IMG Gemini scenario contract 不完整');
+  if(supportsPublicMasterRecognition(config.scenario))return buildPublicMasterRecognitionJsonSchema(config.scenario);
   return buildUpdatePackageJsonSchema({scenario:config.scenario,entities:config.entities,weekly:scenarioKey==='weekly'});
 }
 
@@ -59,6 +61,7 @@ export async function analyzeUcImgScenarioWithGemini({scenarioKey,config,entries
     payload:parsed.payload,
     raw_json:JSON.stringify(parsed.payload,null,2),
     raw_provider_text:parsed.text,
+    response_contract:supportsPublicMasterRecognition(config.scenario)?'public-master-recognition':'update-package-v1.1',
     model,
     project_alias:outcome.used_alias||null,
     projects:outcome.projects||poolData.projects,
@@ -83,6 +86,7 @@ export function buildUcImgDiagnosticBundle({appVersion=null,session,scenarioKey,
     provider:providerMeta?.provider||null,
     model:providerMeta?.model||null,
     project_alias:providerMeta?.project_alias||null,
+    response_contract:providerMeta?.response_contract||null,
     coverage:coverage||null,
     image_count:Number(providerMeta?.image_count||0),
     response:diagnosticResponse(rawResponse),
