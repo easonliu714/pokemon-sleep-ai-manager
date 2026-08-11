@@ -70,8 +70,13 @@ def test_general_importer_supports_all_private_update_scenarios():
 
 def test_zero_and_false_are_values_not_empty():
     importer = read('assets/js/importer.js')
+    policy = read('assets/js/data-preservation-policy.js')
     workflow = read('assets/js/ai-workflow.js')
-    assert 'value === 0 || value === false' in importer
+    assert 'buildSparseObservedPatch' in importer
+    assert 'isObservedWriteValue' in importer
+    assert "if(value===null||value===undefined)return false" in policy
+    assert "if(typeof value==='string'&&value.trim()==='')return false" in policy
+    assert 'return true' in policy
     assert 'explicit_zero_and_false_are_values:true' in importer
     assert "[true,false,0,1]" in workflow
     assert 'validNonNegativeInteger' in workflow
