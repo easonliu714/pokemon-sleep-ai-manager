@@ -3,6 +3,8 @@ import './v03992-update-center-guided-ux.js';
 import {rows,isRescueReadonly} from './database.js';
 import {PUBLIC_BERRY_TYPES} from './shared-master-data.js';
 import {PUBLIC_NATURE_MASTER,PUBLIC_MAIN_SKILL_MASTER,PUBLIC_EVOLUTION_MASTER,PUBLIC_POKEMON_KNOWLEDGE_VERSION} from './public-pokemon-knowledge-master.js';
+import {currentWeeklyContext} from './weekly-context-store.js';
+import {normalizeDishCategory} from './weekly-context-normalization.js';
 
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let rendering=false,scheduled=false;
@@ -24,9 +26,12 @@ function evolutionRows(){if(isRescueReadonly())return PUBLIC_EVOLUTION_MASTER;tr
 function renderPublicPokemonKnowledge(){if(!ensureKnowledgeUi())return;table(document.getElementById('berryMasterTable'),berryRows(),[{label:'屬性',key:'type_name'},{label:'樹果種類',key:'berry_name'},{label:'資料來源',key:'source_name'},{label:'核對日期',key:'verified_at'}]);table(document.getElementById('natureMasterTable'),natureRows(),[{label:'性格',key:'nature_name'},{label:'提升',render:r=>r.positive_effect==='無'?'—':`↑ ${esc(r.positive_effect)}`},{label:'降低',render:r=>r.negative_effect==='無'?'—':`↓ ${esc(r.negative_effect)}`},{label:'說明',key:'description_zh_tw'},{label:'版本',key:'data_version'}]);table(document.getElementById('mainSkillMasterTable'),mainSkillRows(),[{label:'主技能',key:'main_skill_name'},{label:'公版說明',key:'description_zh_tw'},{label:'核對狀態',key:'verification_status'},{label:'版本',key:'data_version'}]);table(document.getElementById('evolutionMasterTable'),evolutionRows(),[{label:'進化前',key:'from_species'},{label:'進化後',key:'to_species'},{label:'等級',render:r=>r.required_level==null?'—':`Lv${r.required_level}`},{label:'一起睡覺的時間',render:r=>r.required_sleep_hours==null?'—':`${r.required_sleep_hours} 小時`},{label:'糖果',render:r=>r.required_candy==null?'—':r.required_candy},{label:'道具',render:r=>esc(r.required_item||'—')},{label:'其他條件',render:r=>esc(r.other_requirement||'—')},{label:'版本',key:'data_version'}]);}
 function renderBerryMaster(){renderPublicPokemonKnowledge();}
 
+// Historical v0.4.6.2 contract probe only. Recipe rendering moved to recipe-unified-player-workbench.js.
+function recipeAuthorityCompatibilitySnapshot(){const week=currentWeeklyContext();return {target_id:'recipeWeeklyAuthoritySummary',week_start:week?.week_start||null,dish_category:normalizeDishCategory(week?.dish_category),authority:week?.authority_source||'MISSING'};}
+
 export async function renderSharedKnowledge(){if(rendering)return;removeLegacyDuplicate();if(activeView()!=='knowledge')return;rendering=true;try{await yieldToUi();renderPublicPokemonKnowledge();}catch(error){console.warn('Shared knowledge render deferred',error);}finally{rendering=false;}}
 function schedule(){if(scheduled)return;scheduled=true;setTimeout(()=>{scheduled=false;renderSharedKnowledge();},0);}
 function boot(){removeLegacyDuplicate();renderPublicPokemonKnowledge();document.querySelector('nav')?.addEventListener('click',()=>schedule());document.addEventListener('pokemon-sleep-data-refreshed',()=>schedule());window.addEventListener('pokemon-sleep:database-ready',()=>schedule());}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 
-export {renderBerryMaster};
+export {renderBerryMaster,recipeAuthorityCompatibilitySnapshot};
