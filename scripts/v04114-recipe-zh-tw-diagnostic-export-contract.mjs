@@ -88,7 +88,7 @@ for(const [id,raw] of rawById){
   if(signature(raw)!==signature(current))formulaChanges.push(id);
 }
 assert.deepEqual(formulaChanges,['curry_parent_child'],'no formula outside explicit screenshot evidence may change');
-assert.equal(signature(canonicalById.get('curry_parent_child')),'好眠番茄=11|甜甜蜜=12|特選蛋=8|窩心洋芋=4');
+assert.equal(signature(canonicalById.get('curry_parent_child')),'好眠番茄=11|特選蛋=8|甜甜蜜=12|窩心洋芋=4');
 assert.equal(canonicalById.get('curry_parent_child').total_ingredients,35);
 assert.equal(signature(canonicalById.get('curry_dizzy_punch')),'火辣香草=11|甜甜蜜=11|醒腦咖啡豆=11');
 const dizzyReview=PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS.find(row=>row.recipe_id==='curry_dizzy_punch');
