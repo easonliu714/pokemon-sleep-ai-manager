@@ -8,6 +8,7 @@ on:
       - 'assets/js/prompt-catalog.js'
       - 'assets/js/unified-screenshot-update-center.js'
       - 'assets/js/uc-img-gemini-adapter.js'
+      - 'assets/js/uc-img-session-lifecycle.js'
       - 'assets/js/public-master-recognition.js'
       - 'assets/js/shared-master-data.js'
       - 'assets/js/public-item-master.js'
@@ -76,6 +77,7 @@ jobs:
           node --check assets/js/prompt-catalog.js
           node --check assets/js/unified-screenshot-update-center.js
           node --check assets/js/uc-img-gemini-adapter.js
+          node --check assets/js/uc-img-session-lifecycle.js
           node --check assets/js/public-master-recognition.js
           node --check assets/js/shared-master-data.js
           node --check assets/js/ai-project-pool-runtime.js
