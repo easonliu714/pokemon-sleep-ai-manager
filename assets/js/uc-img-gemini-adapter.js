@@ -68,6 +68,11 @@ export async function analyzeUcImgScenarioWithGemini({scenarioKey,config,entries
   };
 }
 
+function diagnosticResponse(rawResponse){
+  if(!rawResponse)return null;
+  try{return JSON.parse(rawResponse);}catch{return {raw_text:String(rawResponse),parse_failed:true};}
+}
+
 export function buildUcImgDiagnosticBundle({appVersion=null,session,scenarioKey,config,coverage,rawResponse='',validation=null,providerMeta=null}={}){
   return {
     schema:'pokemon-sleep-uc-img-ai-diagnostic/1.0',
@@ -80,7 +85,7 @@ export function buildUcImgDiagnosticBundle({appVersion=null,session,scenarioKey,
     project_alias:providerMeta?.project_alias||null,
     coverage:coverage||null,
     image_count:Number(providerMeta?.image_count||0),
-    response:rawResponse?JSON.parse(rawResponse):null,
+    response:diagnosticResponse(rawResponse),
     validation:validation?{
       ok:Boolean(validation.ok),
       errors:[...(validation.errors||[])],
