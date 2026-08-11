@@ -9,7 +9,7 @@ const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.11.2','v0.4.11.3','v0.4.11.4','v0.4.12','v0.4.13'].includes(appVersion),`unexpected v0.4.11.2 successor: ${appVersion}`);
+assert.ok(['v0.4.11.2','v0.4.11.3','v0.4.11.4','v0.4.12','v0.4.13','v0.4.13.1'].includes(appVersion),`unexpected v0.4.11.2 successor: ${appVersion}`);
 if(appVersion==='v0.4.11.2'){
   assert.equal(appBuild,'20260811-v04112-android-eager-image-bytes');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11.2-v04112-android-eager-image-bytes');
@@ -29,11 +29,16 @@ if(appVersion==='v0.4.11.2'){
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.12-v0412-recipe-unified-player-workbench');
   for(const predecessor of ['v0.4.11.4','v0.4.11.3','v0.4.11.2'])assert.ok(version.includes(`// app_version: '${predecessor}'`),`v0.4.12 must retain ${predecessor} legacy bridge`);
   assert.ok(version.includes("// app_build: '20260811-v04114-recipe-zh-tw-diagnostic-export'"));
-}else{
+}else if(appVersion==='v0.4.13'){
   assert.equal(appBuild,'20260811-v0413-g7-recipe-portfolio-contention');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.13-v0413-g7-recipe-portfolio-contention');
   for(const predecessor of ['v0.4.12','v0.4.11.4','v0.4.11.3','v0.4.11.2'])assert.ok(version.includes(`// app_version: '${predecessor}'`),`v0.4.13 must retain ${predecessor} legacy bridge`);
   assert.ok(version.includes("// app_build: '20260811-v0412-recipe-unified-player-workbench'"));
+}else{
+  assert.equal(appBuild,'20260811-v04131-data-preservation-hotfix');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.13.1-v04131-data-preservation-hotfix');
+  for(const predecessor of ['v0.4.13','v0.4.12','v0.4.11.4','v0.4.11.3','v0.4.11.2'])assert.ok(version.includes(`// app_version: '${predecessor}'`),`v0.4.13.1 must retain ${predecessor} legacy bridge`);
+  assert.ok(version.includes("// app_build: '20260811-v0413-g7-recipe-portfolio-contention'"));
 }
 assert.ok(version.includes("// app_version: 'v0.4.11.1'"));
 assert.ok(version.includes("// app_build: '20260811-v04111-uc-img-session-timestamp'"));
@@ -88,6 +93,7 @@ console.log(JSON.stringify({
   successor_v04114:appVersion==='v0.4.11.4',
   successor_v0412:appVersion==='v0.4.12',
   successor_v0413:appVersion==='v0.4.13',
+  successor_v04131:appVersion==='v0.4.13.1',
   eager_picker_snapshot:true,
   platform_owned_memory_blob:true,
   raw_picker_file_runtime_authority:false,
