@@ -1,0 +1,42 @@
+name: G13 OCR AI Regression
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: g13-ocr-ai-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  g13-ocr-ai-regression:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify G13 workflow consolidation parity
+        run: node scripts/ci-g13-workflow-consolidation-contract.mjs
+      - name: Run core G13 gates on main push
+        if: github.event_name == 'push'
+        run: node scripts/ci-g13-ocr-ai-regression.mjs --core
+      - name: Run full G13 OCR/AI regression on PR or manual dispatch
+        if: github.event_name != 'push'
+        run: node scripts/ci-g13-ocr-ai-regression.mjs
+      - name: Preserve G13.5 runtime syntax checks
+        run: |
+          node --check assets/js/android-import-file-picker.js
+          node --check assets/js/unified-import-analysis-workbench.js
+          node --check assets/js/two-stage-forced-ocr-entry.js
+          node --check scripts/ci-g13-ocr-ai-regression.mjs
+          node --check scripts/ci-g13-workflow-consolidation-contract.mjs
+      - name: Verify no tracked test mutation
+        shell: bash
+        run: test -z "$(git status --porcelain --untracked-files=no)"
