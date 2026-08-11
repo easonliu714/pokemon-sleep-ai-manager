@@ -67,20 +67,21 @@ export const PUBLIC_RECIPE_UPCOMING_EVIDENCE=Object.freeze([
     external_name:'Greengrass Curry Bun',
     canonical_name_zh_tw:null,
     category:'咖哩／濃湯',
-    lifecycle:'UPCOMING_REFERENCE_DISCOVERED',
-    availability_status:'UPCOMING_NOT_YET_CONFIRMED_IN_GAME',
-    formula_evidence:'REFERENCE_DISCOVERED',
-    source_type:'reference_structured_upcoming',
-    source_name:'Serebii Pokémon Sleep Dishes',
-    source_ref:'https://www.serebii.net/pokemonsleep/dishes.shtml',
-    observed_at:'2026-08-09',
     ingredients:Object.freeze([
       Object.freeze({ingredient_name:'暖暖薑',quantity:20}),
       Object.freeze({ingredient_name:'火辣香草',quantity:20}),
       Object.freeze({ingredient_name:'萌綠大豆',quantity:8}),
       Object.freeze({ingredient_name:'純粹油',quantity:15}),
     ]),
-    activation_gate:'VERIFY_ON_OR_AFTER_2026_08_10',
+    lifecycle:'UPCOMING_REFERENCE_DISCOVERED',
+    formula_evidence:'REFERENCE_VERIFIED_PRE_RELEASE',
+    formula_source_ref:'https://www.serebii.net/pokemonsleep/dishes.shtml',
+    discovered_at:'2026-08-09',
+    effective_from:null,
+    activation_check_not_before:'2026-08-10',
+    related_official_context_ref:'https://www.pokemonsleep.net/zh/news/343231343532353138373131363233363832/',
+    activation_status:'BLOCKED_PENDING_ZH_TW_NAME_AND_LIVE_EFFECTIVE_VERIFICATION',
+    tracking_issue:'#172',
     provenance_version:PUBLIC_RECIPE_PROVENANCE_VERSION,
   }),
   Object.freeze({
@@ -88,24 +89,46 @@ export const PUBLIC_RECIPE_UPCOMING_EVIDENCE=Object.freeze([
     external_name:'Bounce Curry Udon',
     canonical_name_zh_tw:null,
     category:'咖哩／濃湯',
-    lifecycle:'UPCOMING_REFERENCE_DISCOVERED',
-    availability_status:'UPCOMING_NOT_YET_CONFIRMED_IN_GAME',
-    formula_evidence:'REFERENCE_DISCOVERED',
-    source_type:'reference_structured_upcoming',
-    source_name:'Serebii Pokémon Sleep Dishes',
-    source_ref:'https://www.serebii.net/pokemonsleep/dishes.shtml',
-    observed_at:'2026-08-09',
     ingredients:Object.freeze([
       Object.freeze({ingredient_name:'暖暖薑',quantity:39}),
       Object.freeze({ingredient_name:'品鮮蘑菇',quantity:31}),
       Object.freeze({ingredient_name:'火辣香草',quantity:22}),
       Object.freeze({ingredient_name:'豆製肉',quantity:20}),
     ]),
-    activation_gate:'VERIFY_ON_OR_AFTER_2026_08_10',
+    lifecycle:'UPCOMING_REFERENCE_DISCOVERED',
+    formula_evidence:'REFERENCE_VERIFIED_PRE_RELEASE',
+    formula_source_ref:'https://www.serebii.net/pokemonsleep/dishes.shtml',
+    discovered_at:'2026-08-09',
+    effective_from:null,
+    activation_check_not_before:'2026-08-10',
+    related_official_context_ref:'https://www.pokemonsleep.net/zh/news/343231343532353138373131363233363832/',
+    activation_status:'BLOCKED_PENDING_ZH_TW_NAME_AND_LIVE_EFFECTIVE_VERIFICATION',
+    tracking_issue:'#172',
     provenance_version:PUBLIC_RECIPE_PROVENANCE_VERSION,
   }),
 ]);
 
-export function getActiveRecipeProvenance(recipeId){
-  return PUBLIC_RECIPE_PROVENANCE.find(row=>row.recipe_id===recipeId)||null;
+export function recipeProvenanceCoverage(){
+  const lifecycle={};
+  const nameEvidence={};
+  const formulaEvidence={};
+  for(const row of PUBLIC_RECIPE_PROVENANCE){
+    lifecycle[row.lifecycle]=(lifecycle[row.lifecycle]||0)+1;
+    nameEvidence[row.name_evidence]=(nameEvidence[row.name_evidence]||0)+1;
+    formulaEvidence[row.formula_evidence]=(formulaEvidence[row.formula_evidence]||0)+1;
+  }
+  for(const row of PUBLIC_RECIPE_UPCOMING_EVIDENCE){
+    lifecycle[row.lifecycle]=(lifecycle[row.lifecycle]||0)+1;
+    formulaEvidence[row.formula_evidence]=(formulaEvidence[row.formula_evidence]||0)+1;
+  }
+  return Object.freeze({
+    provenance_version:PUBLIC_RECIPE_PROVENANCE_VERSION,
+    reviewed_recipe_master_version:REVIEWED_RECIPE_MASTER_VERSION,
+    runtime_recipe_master_version:PUBLIC_RECIPE_MASTER_VERSION,
+    active_recipe_count:PUBLIC_RECIPE_PROVENANCE.length,
+    upcoming_evidence_count:PUBLIC_RECIPE_UPCOMING_EVIDENCE.length,
+    lifecycle:Object.freeze(lifecycle),
+    name_evidence:Object.freeze(nameEvidence),
+    formula_evidence:Object.freeze(formulaEvidence),
+  });
 }
