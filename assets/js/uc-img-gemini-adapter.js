@@ -2,7 +2,7 @@ import {executeWithProjectPool} from './ai-project-pool-runtime.js';
 import {buildUpdatePackageJsonSchema} from './update-package-contract.js';
 import {buildPublicMasterRecognitionJsonSchema,supportsPublicMasterRecognition} from './public-master-recognition.js';
 
-export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-08-11-c-session-cleanup';
+export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-08-11-b-public-master-recognition';
 export const UC_IMG_SESSION_STORAGE_KEY='pokemon-sleep-uc-img-a-session-v1';
 
 const clean=value=>String(value??'').trim();
