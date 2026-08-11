@@ -25,6 +25,7 @@ on:
       - 'scripts/v04*.mjs'
       - 'scripts/war2b-*.mjs'
       - 'scripts/ci-historical-release-regression.mjs'
+      - 'scripts/ci-workflow-consolidation-contract.mjs'
       - '.github/workflows/historical-release-regression.yml'
   workflow_dispatch:
 
@@ -43,12 +44,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Verify workflow consolidation parity
+        run: node scripts/ci-workflow-consolidation-contract.mjs
       - name: Install isolated DOM regression dependency
         run: npm install --no-save --no-package-lock jsdom@26.1.0
       - name: Run consolidated historical release contracts
         run: node scripts/ci-historical-release-regression.mjs
       - name: Verify consolidation runner syntax
-        run: node --check scripts/ci-historical-release-regression.mjs
+        run: |
+          node --check scripts/ci-historical-release-regression.mjs
+          node --check scripts/ci-workflow-consolidation-contract.mjs
       - name: Verify no tracked test mutation
         shell: bash
         run: test -z "$(git status --porcelain --untracked-files=no)"
