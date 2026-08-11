@@ -18,7 +18,7 @@ const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.11','v0.4.11.1','v0.4.11.2','v0.4.11.3'].includes(appVersion),`unexpected v0.4.11 successor: ${appVersion}`);
+assert.ok(['v0.4.11','v0.4.11.1','v0.4.11.2','v0.4.11.3','v0.4.11.4'].includes(appVersion),`unexpected v0.4.11 successor: ${appVersion}`);
 if(appVersion==='v0.4.11'){
   assert.equal(appBuild,'20260811-v0411-public-master-constrained-recognition');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11-v0411-public-master-constrained-recognition');
@@ -33,13 +33,17 @@ if(appVersion==='v0.4.11'){
   assert.ok(version.includes("// app_version: 'v0.4.11.1'"),'v0.4.11.2 must retain v0.4.11.1 legacy bridge');
   assert.ok(version.includes("// app_build: '20260811-v04111-uc-img-session-timestamp'"));
   assert.ok(version.includes("// app_version: 'v0.4.11'"),'v0.4.11.2 must retain v0.4.11 legacy bridge');
-}else{
+}else if(appVersion==='v0.4.11.3'){
   assert.equal(appBuild,'20260811-v04113-weekly-recipe-semantic-safety');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11.3-v04113-weekly-recipe-semantic-safety');
   assert.ok(version.includes("// app_version: 'v0.4.11.2'"),'v0.4.11.3 must retain v0.4.11.2 legacy bridge');
   assert.ok(version.includes("// app_build: '20260811-v04112-android-eager-image-bytes'"));
   assert.ok(version.includes("// app_version: 'v0.4.11.1'"));
   assert.ok(version.includes("// app_version: 'v0.4.11'"));
+}else{
+  assert.equal(appBuild,'20260811-v04114-recipe-zh-tw-diagnostic-export');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11.4-v04114-recipe-zh-tw-diagnostic-export');
+  for(const predecessor of ['v0.4.11.3','v0.4.11.2','v0.4.11.1','v0.4.11'])assert.ok(version.includes(`// app_version: '${predecessor}'`),`v0.4.11.4 must retain ${predecessor} legacy bridge`);
 }
 assert.ok(version.includes("// app_version: 'v0.4.10.3'"),'v0.4.11 lineage must retain v0.4.10.3 legacy bridge');
 assert.ok(version.includes("// app_build: '20260811-v04103-ingredient-key-contract-hotfix'"));
@@ -130,6 +134,7 @@ console.log(JSON.stringify({
   successor_v04111:appVersion==='v0.4.11.1',
   successor_v04112:appVersion==='v0.4.11.2',
   successor_v04113:appVersion==='v0.4.11.3',
+  successor_v04114:appVersion==='v0.4.11.4',
   recognition_version:PUBLIC_MASTER_RECOGNITION_VERSION,
   executable_scenarios:['ingredients','recipes'],
   registry_ready_scenarios:['items','candies'],
