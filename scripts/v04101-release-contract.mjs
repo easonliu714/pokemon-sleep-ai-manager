@@ -11,9 +11,13 @@ import {validateWorkflow} from '../assets/js/ai-workflow.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
-assert.equal(version.match(/app_version:\s*'([^']+)'/)?.[1],'v0.4.10.1');
-assert.equal(version.match(/app_build:\s*'([^']+)'/)?.[1],'20260811-v04101-update-package-root-contract');
-assert.equal(version.match(/cache_name:\s*'([^']+)'/)?.[1],'pokemon-sleep-ai-v0.4.10.1-v04101-update-package-root-contract');
+const current=version.match(/app_version:\s*'v0\.4\.10\.(\d+)'/);
+assert.ok(current,'v0.4.10.x successor version must remain parseable');
+const revision=Number(current[1]);assert.ok(revision>=1,'current release must not regress below v0.4.10.1');
+if(revision===1){
+  assert.equal(version.match(/app_build:\s*'([^']+)'/)?.[1],'20260811-v04101-update-package-root-contract');
+  assert.equal(version.match(/cache_name:\s*'([^']+)'/)?.[1],'pokemon-sleep-ai-v0.4.10.1-v04101-update-package-root-contract');
+}
 assert.ok(version.includes("// app_version: 'v0.4.10'"));
 assert.deepEqual(UPDATE_PACKAGE_REQUIRED_ROOT,['schema_version','update_id','generated_at','source','operations']);
 assert.equal(UPDATE_PACKAGE_SCHEMA_VERSION,'1.1');
@@ -51,11 +55,13 @@ assert.ok(invalid.errors.some(value=>value.includes('外層不是目前 Update P
 assert.ok(invalid.errors.some(value=>value.includes('不會自動猜測或補寫 root 後套用')));
 
 const migrations=read('assets/js/migrations.js');
-assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.10.1 must remain schema-migration-free');
+assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.10.x root-contract successors must remain schema-migration-free unless explicitly versioned');
 
 console.log(JSON.stringify({
   status:'PASS',gate:'V0.4.10.1_RELEASE_CONTRACT',
-  app_version:'v0.4.10.1',
+  current_revision:revision,
+  historical_behavior_compatible:true,
+  exact_release_authority_enforced:revision===1,
   shared_root_contract:true,
   prompt_catalog_checked:keys,
   observation_v2_isolated:true,

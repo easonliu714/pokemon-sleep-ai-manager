@@ -18,18 +18,45 @@ export function normalizeProjectPool(projects=[]){return projects.map((project,i
 export function selectAvailableProject(projects=[],now=Date.now()){return normalizeProjectPool(projects).find(project=>project.enabled&&(!project.cooldown_until||Date.parse(project.cooldown_until)<=now))||null;}
 export function markProjectFailure(project,failure){const cooldown=failure.cooldown_seconds?new Date(Date.now()+failure.cooldown_seconds*1000).toISOString():project.cooldown_until||null;return {...project,enabled:failure.disable_project?false:project.enabled,cooldown_until:cooldown,last_error_class:failure.class};}
 
-export async function requestGemini({project,model,prompt,imageBase64,mimeType='image/png',fetchImpl=fetch}){
-  const response=await fetchImpl(`${GENERATE_ENDPOINT(model)}?key=${encodeURIComponent(project.key)}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt},{inlineData:{mimeType,data:imageBase64}}]}],generationConfig:{responseMimeType:'application/json'}})});
+export function normalizeGeminiImages({images=null,imageBase64=null,mimeType='image/png'}={}){
+  const explicitImages=Array.isArray(images)&&images.length;
+  const source=explicitImages?images:(imageBase64?[{data:imageBase64,mimeType}]:[]);
+  return source.map(image=>({
+    data:clean(image?.data),
+    mimeType:clean(image?.mimeType)||mimeType,
+    imageRef:explicitImages?(clean(image?.imageRef)||null):null,
+    fileName:explicitImages?(clean(image?.fileName)||null):null,
+  })).filter(image=>image.data);
+}
+
+function imageParts(image){
+  const inline={inlineData:{mimeType:image.mimeType,data:image.data}};
+  if(!image.imageRef)return [inline];
+  const fileSuffix=image.fileName?` / file=${image.fileName}`:'';
+  return [{text:`UC.IMG attachment: image_ref=${image.imageRef}${fileSuffix}`},inline];
+}
+
+export function buildGeminiGenerateBody({prompt,images=null,imageBase64=null,mimeType='image/png',responseJsonSchema=null}={}){
+  const normalized=normalizeGeminiImages({images,imageBase64,mimeType});
+  const parts=[{text:String(prompt||'')},...normalized.flatMap(imageParts)];
+  const generationConfig={responseMimeType:'application/json'};
+  if(responseJsonSchema&&typeof responseJsonSchema==='object')generationConfig.responseJsonSchema=responseJsonSchema;
+  return {contents:[{role:'user',parts}],generationConfig};
+}
+
+export async function requestGemini({project,model,prompt,imageBase64,mimeType='image/png',images=null,responseJsonSchema=null,fetchImpl=fetch}){
+  const body=buildGeminiGenerateBody({prompt,imageBase64,mimeType,images,responseJsonSchema});
+  const response=await fetchImpl(`${GENERATE_ENDPOINT(model)}?key=${encodeURIComponent(project.key)}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
   const payload=await response.json().catch(()=>({}));
   if(!response.ok){const failure=classifyGeminiFailure({status:response.status,payload,retryAfter:response.headers?.get?.('retry-after')});const error=new Error(payload?.error?.message||`Gemini HTTP ${response.status}`);error.failure=failure;error.status=response.status;throw error;}
   return payload;
 }
 
-export async function executeWithProjectPool({projects,model,prompt,imageBase64,mimeType='image/png',fetchImpl=fetch,onTrace=()=>{}}){
+export async function executeWithProjectPool({projects,model,prompt,imageBase64,mimeType='image/png',images=null,responseJsonSchema=null,fetchImpl=fetch,onTrace=()=>{}}){
   let state=normalizeProjectPool(projects);const attempts=[];
   for(let guard=0;guard<state.length*3;guard++){
     const project=selectAvailableProject(state);if(!project)break;
-    try{onTrace('ai_request_started',{alias:project.alias,fingerprint:project.fingerprint,model});const payload=await requestGemini({project,model,prompt,imageBase64,mimeType,fetchImpl});const used={...project,last_used_at:nowIso(),last_error_class:null};state=state.map(item=>item.alias===project.alias?used:item);onTrace('ai_request_completed',{alias:project.alias,fingerprint:project.fingerprint,model});return {ok:true,payload,projects:state,used_alias:project.alias,attempts};}
+    try{onTrace('ai_request_started',{alias:project.alias,fingerprint:project.fingerprint,model,image_count:normalizeGeminiImages({images,imageBase64,mimeType}).length,structured_output:Boolean(responseJsonSchema)});const payload=await requestGemini({project,model,prompt,imageBase64,mimeType,images,responseJsonSchema,fetchImpl});const used={...project,last_used_at:nowIso(),last_error_class:null};state=state.map(item=>item.alias===project.alias?used:item);onTrace('ai_request_completed',{alias:project.alias,fingerprint:project.fingerprint,model,structured_output:Boolean(responseJsonSchema)});return {ok:true,payload,projects:state,used_alias:project.alias,attempts};}
     catch(error){const failure=error.failure||classifyGeminiFailure({status:error.status,message:error.message});attempts.push({alias:project.alias,fingerprint:project.fingerprint,error_class:failure.class});state=state.map(item=>item.alias===project.alias?markProjectFailure(item,failure):item);onTrace('ai_request_failed',{alias:project.alias,fingerprint:project.fingerprint,model,error_class:failure.class,failover:failure.failover});if(failure.retryable)break;if(!failure.failover)break;}
   }
   return {ok:false,paused:true,projects:state,attempts,reason:'all_projects_unavailable'};
