@@ -32,6 +32,7 @@ on:
       - 'scripts/v04112-android-eager-image-bytes-contract.mjs'
       - 'scripts/v04113-weekly-recipe-semantic-safety-contract.mjs'
       - 'scripts/v04114-recipe-zh-tw-diagnostic-export-contract.mjs'
+      - 'scripts/v04114-release-contract.mjs'
       - 'scripts/v04113-release-contract.mjs'
       - 'scripts/v04112-release-contract.mjs'
       - 'scripts/v04111-release-contract.mjs'
@@ -80,6 +81,7 @@ jobs:
         run: node scripts/v04114-recipe-zh-tw-diagnostic-export-contract.mjs
       - name: Verify current and historical release contracts
         run: |
+          if grep -q "app_version: 'v0.4.11.4'" assets/js/version-authority.js; then node scripts/v04114-release-contract.mjs; fi
           if grep -q "app_version: 'v0.4.11.3'" assets/js/version-authority.js; then node scripts/v04113-release-contract.mjs; fi
           node scripts/v04112-release-contract.mjs
           node scripts/v04111-release-contract.mjs
@@ -115,6 +117,7 @@ jobs:
           node --check scripts/v04112-android-eager-image-bytes-contract.mjs
           node --check scripts/v04113-weekly-recipe-semantic-safety-contract.mjs
           node --check scripts/v04114-recipe-zh-tw-diagnostic-export-contract.mjs
+          node --check scripts/v04114-release-contract.mjs
           node --check scripts/v04113-release-contract.mjs
           node --check scripts/v04112-release-contract.mjs
           node --check scripts/v04111-release-contract.mjs
