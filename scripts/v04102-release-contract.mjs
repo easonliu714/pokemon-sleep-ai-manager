@@ -19,10 +19,19 @@ import {buildGeminiGenerateBody} from '../assets/js/ai-project-pool-runtime.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
-assert.equal(version.match(/app_version:\s*'([^']+)'/)?.[1],'v0.4.10.2');
-assert.equal(version.match(/app_build:\s*'([^']+)'/)?.[1],'20260811-v04102-uc-img-internal-gemini-dual-mode');
-assert.equal(version.match(/cache_name:\s*'([^']+)'/)?.[1],'pokemon-sleep-ai-v0.4.10.2-v04102-uc-img-internal-gemini-dual-mode');
-assert.ok(version.includes("// app_version: 'v0.4.10.1'"),'v0.4.10.2 must retain v0.4.10.1 legacy bridge');
+const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
+const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
+const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1];
+assert.ok(['v0.4.10.2','v0.4.10.2.1'].includes(appVersion),`unexpected v0.4.10.2 successor: ${appVersion}`);
+if(appVersion==='v0.4.10.2'){
+  assert.equal(appBuild,'20260811-v04102-uc-img-internal-gemini-dual-mode');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.10.2-v04102-uc-img-internal-gemini-dual-mode');
+}else{
+  assert.equal(appBuild,'20260811-v041021-ingredient-key-contract-hotfix');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.10.2.1-v041021-ingredient-key-contract-hotfix');
+  assert.ok(version.includes("// app_version: 'v0.4.10.2'"),'successor must retain v0.4.10.2 legacy bridge');
+}
+assert.ok(version.includes("// app_version: 'v0.4.10.1'"),'v0.4.10.2 lineage must retain v0.4.10.1 legacy bridge');
 assert.ok(version.includes("// app_build: '20260811-v04101-update-package-root-contract'"));
 
 assert.equal(UC_IMG_A_VERSION,'uc-img-a-2026-08-11-c-dual-mode');
@@ -60,11 +69,11 @@ assert.ok(ucImg.includes('截圖不會寫入 SQLite 或 GitHub'));
 assert.ok(ucImg.includes('Key Vault / Project Pool'));
 
 const migrations=read('assets/js/migrations.js');
-assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.10.2 must remain schema-migration-free');
+assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.10.2 lineage must remain schema-migration-free');
 
 console.log(JSON.stringify({
   status:'PASS',gate:'V0.4.10.2_RELEASE_CONTRACT',
-  app_version:'v0.4.10.2',
+  app_version:appVersion,
   uc_img_version:UC_IMG_A_VERSION,
   gemini_adapter_version:UC_IMG_GEMINI_ADAPTER_VERSION,
   modes:UC_IMG_A_MODES,
