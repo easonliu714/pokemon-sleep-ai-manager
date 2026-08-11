@@ -1,34 +1,31 @@
-export const PUBLIC_RECIPE_ALIAS_VERSION='public-recipe-alias-2026-08-11-a';
+import {
+  PUBLIC_RECIPE_ALIASES as CANONICAL_COMPATIBILITY_ALIASES,
+  PUBLIC_RECIPE_MASTER,
+  PUBLIC_RECIPE_MASTER_VERSION,
+} from './public-recipe-canonical-authority.js';
 
-// Public-only current-game naming aliases verified from the 2026-08-11 Android LIVE screenshots
-// by exact visible recipe name plus matching visible ingredient composition. Player level/energy
-// values are intentionally not retained here.
-export const PUBLIC_RECIPE_ALIASES=Object.freeze([
-  Object.freeze({
-    alias_name:'絕對睡眠奶油咖哩',
-    recipe_id:'curry_dream_eater',
-    recipe_name:'夢食奶油咖哩',
-    verification_status:'CURRENT_GAME_SCREENSHOT_RECIPE_AND_INGREDIENTS_MATCH',
-    verified_at:'2026-08-11',
-    source_ref:'internal:v04112-android-live-recipe-name-evidence',
-  }),
-  Object.freeze({
-    alias_name:'迷昏拳辣味咖哩',
-    recipe_id:'curry_dizzy_punch',
-    recipe_name:'暈眩拳辣味咖哩',
-    verification_status:'CURRENT_GAME_SCREENSHOT_RECIPE_AND_INGREDIENTS_MATCH',
-    verified_at:'2026-08-11',
-    source_ref:'internal:v04112-android-live-recipe-name-evidence',
-  }),
-  Object.freeze({
-    alias_name:'柔軟玉米濃湯',
-    recipe_id:'curry_soft_corn',
-    recipe_name:'玉米濃湯',
-    verification_status:'CURRENT_GAME_SCREENSHOT_RECIPE_AND_INGREDIENTS_MATCH',
-    verified_at:'2026-08-11',
-    source_ref:'internal:v04112-android-live-recipe-name-evidence',
-  }),
-]);
+export const PUBLIC_RECIPE_ALIAS_VERSION='public-recipe-alias-2026-08-11-b';
+
+const canonicalById=new Map(PUBLIC_RECIPE_MASTER.map(row=>[String(row.recipe_id),row]));
+
+// Only reviewed safe legacy recipe-name aliases are exposed to automatic recognition.
+// Current in-game zh-TW names belong in PUBLIC_RECIPE_MASTER itself, not in a parallel AI-only alias list.
+export const PUBLIC_RECIPE_ALIASES=Object.freeze(CANONICAL_COMPATIBILITY_ALIASES
+  .filter(row=>row?.alias_type==='legacy_recipe_name'&&row?.is_auto_replace_safe===true)
+  .map(row=>{
+    const recipe=canonicalById.get(String(row.recipe_id));
+    if(!recipe)return null;
+    return Object.freeze({
+      alias_name:String(row.alias_value||''),
+      recipe_id:String(recipe.recipe_id),
+      recipe_name:String(recipe.recipe_name),
+      verification_status:'REVIEWED_LEGACY_RECIPE_NAME_COMPATIBILITY',
+      verified_at:recipe.verified_at||null,
+      source_ref:row.source_ref||'internal:public-recipe-canonical-authority',
+      data_version:PUBLIC_RECIPE_MASTER_VERSION,
+    });
+  })
+  .filter(Boolean));
 
 export function normalizeRecipeIdentityText(value){
   return String(value??'').normalize('NFKC').replace(/\s+/g,'').trim();
