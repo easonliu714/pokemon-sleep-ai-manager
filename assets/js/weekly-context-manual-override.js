@@ -1,8 +1,9 @@
 import {rows,run,persist,snapshot} from './database.js';
 import {localIso} from './time-utils.js';
+import {computeWeeklyOverrideRebase,WEEKLY_OVERRIDE_REBASE_VERSION} from './weekly-context-override-rebase.js';
 
 export const WEEKLY_MANUAL_OVERRIDE_SCHEMA='weekly-context-manual-override/1.0';
-export const WEEKLY_MANUAL_OVERRIDE_VERSION='weekly-manual-override-2026-08-10-a';
+export const WEEKLY_MANUAL_OVERRIDE_VERSION='weekly-manual-override-2026-08-11-b-data-preservation';
 export const WEEKLY_MANUAL_OVERRIDE_FIELDS=Object.freeze([
   'camp','dish_category','pot_size','favorite_berry_1','favorite_berry_2','favorite_berry_3','event_name','event_effects','base_notes',
 ]);
@@ -35,6 +36,45 @@ export function resolveWeeklyManualOverride(weekStart,importRevision=''){
   const based=String(record.based_on_import_revision||'');
   const active=expected!==''&&based===expected;
   return Object.freeze({record,active,stale:!active,fields:active?record.fields:Object.freeze({})});
+}
+
+// Transaction-bound helper for Weekly Update Package Apply.
+// It intentionally does not snapshot/persist by itself: importer.js already owns the
+// surrounding Snapshot + BEGIN/COMMIT/ROLLBACK boundary. A new Weekly revision only
+// supersedes manual fields that it actually observes; null/missing values carry the
+// prior user observation forward to the new revision. Explicit clear_fields and an
+// actual camp change remain authoritative invalidation signals.
+export function rebaseWeeklyManualOverrideForImport({
+  weekStart,
+  newImportRevision,
+  incomingData={},
+  clearFields=[],
+  previousCamp=null,
+}={}){
+  const epoch=String(weekStart||'').trim();
+  const revision=String(newImportRevision||'').trim();
+  if(!epoch||!revision)return Object.freeze({action:'none',reason:'missing_week_or_revision',rebase_version:WEEKLY_OVERRIDE_REBASE_VERSION,carried_fields:[]});
+  const record=readWeeklyManualOverride(epoch);
+  if(!record)return Object.freeze({action:'none',reason:'no_manual_override',rebase_version:WEEKLY_OVERRIDE_REBASE_VERSION,carried_fields:[]});
+  const now=localIso();
+  const result=computeWeeklyOverrideRebase({record,newImportRevision:revision,incomingData,clearFields,previousCamp,updatedAt:now});
+  if(result.action==='delete'){
+    run('DELETE FROM settings WHERE key=?',[settingKey(epoch)]);
+  }else if(result.action==='upsert'&&result.record){
+    const next={...result.record,version:WEEKLY_MANUAL_OVERRIDE_VERSION};
+    run(`INSERT OR REPLACE INTO settings(key,value_json,updated_at) VALUES(?,?,?)`,[settingKey(epoch),JSON.stringify(next),now]);
+  }
+  return Object.freeze({
+    action:result.action,
+    rebase_version:WEEKLY_OVERRIDE_REBASE_VERSION,
+    previous_revision:result.previous_revision||null,
+    new_revision:result.new_revision||revision,
+    carried_fields:Object.freeze([...(result.carried_fields||[])]),
+    superseded_fields:Object.freeze([...(result.superseded_fields||[])]),
+    explicit_clear_fields:Object.freeze([...(result.explicit_clear_fields||[])]),
+    domain_invalidated_fields:Object.freeze([...(result.domain_invalidated_fields||[])]),
+    camp_changed:Boolean(result.camp_changed),
+  });
 }
 
 export async function saveWeeklyManualOverride({weekStart,basedOnImportRevision,fields}={}){

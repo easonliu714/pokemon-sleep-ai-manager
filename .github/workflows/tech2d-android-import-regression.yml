@@ -28,10 +28,18 @@ jobs:
           node-version: '22'
       - name: Android file picker and ZIP inspection regression
         run: node scripts/tech2d-android-import-regression.mjs
+      - name: v0.4.13.1 null/missing data preservation regression
+        run: node scripts/v04131-data-preservation-contract.mjs
       - name: Existing frontend integration regression
         run: node scripts/identity-dedup-recipe-guard-regression.mjs
       - name: JavaScript syntax checks for TECH.2D modules
         run: |
+          node --check assets/js/data-preservation-policy.js
+          node --check assets/js/weekly-context-override-rebase.js
+          node --check assets/js/weekly-context-manual-override.js
+          node --check assets/js/importer.js
+          node --check assets/js/identity-import-apply-operation.js
           node --check assets/js/jszip-loader.js
           node --check assets/js/android-import-file-picker.js
           node --check assets/js/identity-import-wizard-entry.js
+          node --check scripts/v04131-data-preservation-contract.mjs
