@@ -1,3 +1,5 @@
+import {isObservedWriteValue} from './data-preservation-policy.js';
+
 const CREATE_FIELDS=new Set([
   'species','nickname','level','sp','specialty','type','nature','nature_bonus','nature_penalty',
   'main_skill','main_skill_level','helper_seconds','carry_limit','favorite_berry','registered_date',
@@ -14,7 +16,7 @@ const hasOwn=(object,key)=>Object.prototype.hasOwnProperty.call(object||{},key);
 function pickAllowed(source,allowed){
   const output={};
   for(const key of allowed){
-    if(hasOwn(source,key)&&source[key]!==undefined)output[key]=clone(source[key]);
+    if(hasOwn(source,key)&&isObservedWriteValue(source[key]))output[key]=clone(source[key]);
   }
   return output;
 }
