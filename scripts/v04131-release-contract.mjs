@@ -9,7 +9,6 @@ import {
   WEEKLY_OVERRIDE_REBASE_VERSION,
   computeWeeklyOverrideRebase,
 } from '../assets/js/weekly-context-override-rebase.js';
-import {WEEKLY_MANUAL_OVERRIDE_VERSION} from '../assets/js/weekly-context-manual-override.js';
 import {buildUpdatePayload} from '../assets/js/identity-import-apply-operation.js';
 import {RECIPE_PORTFOLIO_CONTENTION_VERSION} from '../assets/js/recipe-portfolio-contention.js';
 import {RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION} from '../assets/js/recipe-unified-player-workbench.js';
@@ -24,7 +23,9 @@ assert.ok(version.includes("// app_build: '20260811-v0413-g7-recipe-portfolio-co
 
 assert.equal(DATA_PRESERVATION_POLICY_VERSION,'data-preservation-policy-2026-08-11-a');
 assert.equal(WEEKLY_OVERRIDE_REBASE_VERSION,'weekly-override-rebase-2026-08-11-a');
-assert.equal(WEEKLY_MANUAL_OVERRIDE_VERSION,'weekly-manual-override-2026-08-11-b-data-preservation');
+const weeklyManual=read('assets/js/weekly-context-manual-override.js');
+assert.ok(weeklyManual.includes("WEEKLY_MANUAL_OVERRIDE_VERSION='weekly-manual-override-2026-08-11-b-data-preservation'"));
+assert.ok(weeklyManual.includes('rebaseWeeklyManualOverrideForImport'));
 assert.equal(RECIPE_PORTFOLIO_CONTENTION_VERSION,'recipe-portfolio-contention-2026-08-11-a');
 assert.equal(RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION,'recipe-unified-player-workbench-2026-08-11-a');
 
