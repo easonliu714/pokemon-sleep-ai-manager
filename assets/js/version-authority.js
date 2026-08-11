@@ -1,8 +1,8 @@
 (function installVersionAuthority(scope) {
   const authority = Object.freeze({
-    app_version: 'v0.4.10.2.1',
-    app_build: '20260811-v041021-ingredient-key-contract-hotfix',
-    cache_name: 'pokemon-sleep-ai-v0.4.10.2.1-v041021-ingredient-key-contract-hotfix',
+    app_version: 'v0.4.10.3',
+    app_build: '20260811-v04103-ingredient-key-contract-hotfix',
+    cache_name: 'pokemon-sleep-ai-v0.4.10.3-v04103-ingredient-key-contract-hotfix',
     schema: 'pokemon-sleep-version-authority/1.0',
   });
   Object.defineProperty(scope, 'PokemonSleepVersionAuthority', {
