@@ -56,6 +56,10 @@ function readyTemplate(key,imageRef){
   payload.update_id=`TEST-${key}`;
   payload.operations=payload.operations.map(operation=>({
     ...operation,
+    data:key==='weekly'?{
+      ...operation.data,
+      event_effects:{meal_category_forced:true},
+    }:operation.data,
     evidence:{...operation.evidence,source_image_ref:imageRef,source_image_refs:[imageRef]},
     review_required:false,
     user_audit:{accepted_current_observation:true},
