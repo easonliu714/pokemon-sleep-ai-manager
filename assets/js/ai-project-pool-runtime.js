@@ -19,17 +19,26 @@ export function selectAvailableProject(projects=[],now=Date.now()){return normal
 export function markProjectFailure(project,failure){const cooldown=failure.cooldown_seconds?new Date(Date.now()+failure.cooldown_seconds*1000).toISOString():project.cooldown_until||null;return {...project,enabled:failure.disable_project?false:project.enabled,cooldown_until:cooldown,last_error_class:failure.class};}
 
 export function normalizeGeminiImages({images=null,imageBase64=null,mimeType='image/png'}={}){
-  const source=Array.isArray(images)&&images.length?images:(imageBase64?[{data:imageBase64,mimeType}]:[]);
-  return source.map((image,index)=>({
+  const explicitImages=Array.isArray(images)&&images.length;
+  const source=explicitImages?images:(imageBase64?[{data:imageBase64,mimeType}]:[]);
+  return source.map(image=>({
     data:clean(image?.data),
     mimeType:clean(image?.mimeType)||mimeType,
-    imageRef:clean(image?.imageRef)||`image-${index+1}`,
+    imageRef:explicitImages?(clean(image?.imageRef)||null):null,
+    fileName:explicitImages?(clean(image?.fileName)||null):null,
   })).filter(image=>image.data);
+}
+
+function imageParts(image){
+  const inline={inlineData:{mimeType:image.mimeType,data:image.data}};
+  if(!image.imageRef)return [inline];
+  const fileSuffix=image.fileName?` / file=${image.fileName}`:'';
+  return [{text:`UC.IMG attachment: image_ref=${image.imageRef}${fileSuffix}`},inline];
 }
 
 export function buildGeminiGenerateBody({prompt,images=null,imageBase64=null,mimeType='image/png',responseJsonSchema=null}={}){
   const normalized=normalizeGeminiImages({images,imageBase64,mimeType});
-  const parts=[{text:String(prompt||'')},...normalized.map(image=>({inlineData:{mimeType:image.mimeType,data:image.data}}))];
+  const parts=[{text:String(prompt||'')},...normalized.flatMap(imageParts)];
   const generationConfig={responseMimeType:'application/json'};
   if(responseJsonSchema&&typeof responseJsonSchema==='object')generationConfig.responseJsonSchema=responseJsonSchema;
   return {contents:[{role:'user',parts}],generationConfig};
