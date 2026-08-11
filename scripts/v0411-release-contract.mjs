@@ -18,34 +18,19 @@ const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.11','v0.4.11.1','v0.4.11.2','v0.4.11.3','v0.4.11.4'].includes(appVersion),`unexpected v0.4.11 successor: ${appVersion}`);
-if(appVersion==='v0.4.11'){
-  assert.equal(appBuild,'20260811-v0411-public-master-constrained-recognition');
-  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11-v0411-public-master-constrained-recognition');
-}else if(appVersion==='v0.4.11.1'){
-  assert.equal(appBuild,'20260811-v04111-uc-img-session-timestamp');
-  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11.1-v04111-uc-img-session-timestamp');
-  assert.ok(version.includes("// app_version: 'v0.4.11'"),'v0.4.11.1 must retain v0.4.11 legacy bridge');
-  assert.ok(version.includes("// app_build: '20260811-v0411-public-master-constrained-recognition'"));
-}else if(appVersion==='v0.4.11.2'){
-  assert.equal(appBuild,'20260811-v04112-android-eager-image-bytes');
-  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11.2-v04112-android-eager-image-bytes');
-  assert.ok(version.includes("// app_version: 'v0.4.11.1'"),'v0.4.11.2 must retain v0.4.11.1 legacy bridge');
-  assert.ok(version.includes("// app_build: '20260811-v04111-uc-img-session-timestamp'"));
-  assert.ok(version.includes("// app_version: 'v0.4.11'"),'v0.4.11.2 must retain v0.4.11 legacy bridge');
-}else if(appVersion==='v0.4.11.3'){
-  assert.equal(appBuild,'20260811-v04113-weekly-recipe-semantic-safety');
-  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11.3-v04113-weekly-recipe-semantic-safety');
-  assert.ok(version.includes("// app_version: 'v0.4.11.2'"),'v0.4.11.3 must retain v0.4.11.2 legacy bridge');
-  assert.ok(version.includes("// app_build: '20260811-v04112-android-eager-image-bytes'"));
-  assert.ok(version.includes("// app_version: 'v0.4.11.1'"));
-  assert.ok(version.includes("// app_version: 'v0.4.11'"));
-}else{
-  assert.equal(appBuild,'20260811-v04114-recipe-zh-tw-diagnostic-export');
-  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11.4-v04114-recipe-zh-tw-diagnostic-export');
-  for(const predecessor of ['v0.4.11.3','v0.4.11.2','v0.4.11.1','v0.4.11'])assert.ok(version.includes(`// app_version: '${predecessor}'`),`v0.4.11.4 must retain ${predecessor} legacy bridge`);
-}
-assert.ok(version.includes("// app_version: 'v0.4.10.3'"),'v0.4.11 lineage must retain v0.4.10.3 legacy bridge');
+assert.ok(['v0.4.11','v0.4.11.1','v0.4.11.2','v0.4.11.3','v0.4.11.4','v0.4.12'].includes(appVersion),`unexpected v0.4.11 successor: ${appVersion}`);
+const exactReleases={
+  'v0.4.11':['20260811-v0411-public-master-constrained-recognition','pokemon-sleep-ai-v0.4.11-v0411-public-master-constrained-recognition'],
+  'v0.4.11.1':['20260811-v04111-uc-img-session-timestamp','pokemon-sleep-ai-v0.4.11.1-v04111-uc-img-session-timestamp'],
+  'v0.4.11.2':['20260811-v04112-android-eager-image-bytes','pokemon-sleep-ai-v0.4.11.2-v04112-android-eager-image-bytes'],
+  'v0.4.11.3':['20260811-v04113-weekly-recipe-semantic-safety','pokemon-sleep-ai-v0.4.11.3-v04113-weekly-recipe-semantic-safety'],
+  'v0.4.11.4':['20260811-v04114-recipe-zh-tw-diagnostic-export','pokemon-sleep-ai-v0.4.11.4-v04114-recipe-zh-tw-diagnostic-export'],
+  'v0.4.12':['20260811-v0412-recipe-unified-player-workbench','pokemon-sleep-ai-v0.4.12-v0412-recipe-unified-player-workbench'],
+};
+assert.deepEqual([appBuild,cacheName],exactReleases[appVersion]);
+const predecessors=['v0.4.11','v0.4.10.3'];
+if(appVersion!=='v0.4.11')for(const predecessor of predecessors)assert.ok(version.includes(`// app_version: '${predecessor}'`),`${appVersion} must retain ${predecessor} legacy bridge`);
+if(appVersion==='v0.4.12')for(const predecessor of ['v0.4.11.4','v0.4.11.3','v0.4.11.2','v0.4.11.1'])assert.ok(version.includes(`// app_version: '${predecessor}'`),`v0.4.12 must retain ${predecessor} legacy bridge`);
 assert.ok(version.includes("// app_build: '20260811-v04103-ingredient-key-contract-hotfix'"));
 
 assert.equal(UC_IMG_A_VERSION,'uc-img-a-2026-08-11-d-public-master-recognition');
@@ -135,6 +120,7 @@ console.log(JSON.stringify({
   successor_v04112:appVersion==='v0.4.11.2',
   successor_v04113:appVersion==='v0.4.11.3',
   successor_v04114:appVersion==='v0.4.11.4',
+  successor_v0412:appVersion==='v0.4.12',
   recognition_version:PUBLIC_MASTER_RECOGNITION_VERSION,
   executable_scenarios:['ingredients','recipes'],
   registry_ready_scenarios:['items','candies'],
