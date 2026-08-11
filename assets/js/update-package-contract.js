@@ -3,9 +3,32 @@ export const UPDATE_PACKAGE_SOURCE='ai_screenshot_analysis';
 export const UPDATE_PACKAGE_REQUIRED_ROOT=Object.freeze(['schema_version','update_id','generated_at','source','operations']);
 export const UPDATE_PACKAGE_PROMPT_ROOT=Object.freeze([...UPDATE_PACKAGE_REQUIRED_ROOT,'scenario']);
 export const UPDATE_PACKAGE_ACTIONS=Object.freeze(['upsert']);
+export const UPDATE_PACKAGE_KEY_CONTRACT_VERSION='update-package-key-contract-2026-08-11-a';
 
 const clone=value=>JSON.parse(JSON.stringify(value));
 const isoCompact=value=>String(value).replace(/[-:TZ.]/g,'').slice(0,14);
+
+// Platform-owned operation keys. Internal AI may only emit these declared key names;
+// it must not invent stable IDs (for example ingredient_id) that do not exist in SQLite/Public Master contracts.
+const ENTITY_KEY_JSON_PROPERTIES=Object.freeze({
+  ingredient_inventory:Object.freeze({ingredient_name:{type:'string',description:'Exact visible zh-TW ingredient name. Do not invent ingredient_id or English slug.'}}),
+  account_capacity:Object.freeze({capacity_key:{type:'string',enum:['pot','ingredient_bag','item_bag','pokemon_box']}}),
+  item_inventory:Object.freeze({item_name:{type:'string'}}),
+  candy_inventory:Object.freeze({candy_id:{type:'string'},candy_name:{type:'string'}}),
+  recipes:Object.freeze({recipe_id:{type:'string'},recipe_name:{type:'string'}}),
+  discarded_pokemon:Object.freeze({discard_id:{type:'string'}}),
+  weekly_context:Object.freeze({context_id:{type:'string'}}),
+});
+
+export function buildOperationKeyJsonSchema(entities=[]){
+  const properties={};
+  for(const entity of entities){
+    const entityProperties=ENTITY_KEY_JSON_PROPERTIES[entity];
+    if(entityProperties)Object.assign(properties,clone(entityProperties));
+  }
+  if(!Object.keys(properties).length)return {type:'object',additionalProperties:true};
+  return {type:'object',properties,additionalProperties:false};
+}
 
 export function buildUpdatePackageId(generatedAt=new Date().toISOString(),suffix='AI'){
   return `UPD-${isoCompact(generatedAt)}-${suffix}`;
@@ -78,7 +101,7 @@ export function buildUpdatePackageJsonSchema({scenario,entities,weekly=false}={}
           operation_id:{type:'string'},
           entity:{type:'string',enum:entities},
           action:{type:'string',enum:[...UPDATE_PACKAGE_ACTIONS]},
-          key:{type:'object',additionalProperties:true},
+          key:buildOperationKeyJsonSchema(entities),
           data:{type:'object',additionalProperties:true},
           clear_fields:{type:'array',items:{type:'string'}},
           evidence:{
