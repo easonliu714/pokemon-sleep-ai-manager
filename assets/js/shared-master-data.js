@@ -15,11 +15,13 @@ export const PUBLIC_BERRY_TYPES = Object.freeze([
   ['岩石','文柚果'],['幽靈','墨莓果'],['龍','番荔果'],['惡','異奇果'],['鋼','靛莓果'],['妖精','桃桃果'],
 ].map(([type_name,berry_name])=>Object.freeze({type_name,berry_name,...SOURCE_POLICY,data_version:MASTER_DATA_VERSION})));
 
-const INGREDIENTS = [
+// v0.4.11: expose the same canonical ingredient-name authority used to seed ingredient_master.
+// This is public-only knowledge and intentionally contains no player quantities or private state.
+export const PUBLIC_INGREDIENT_NAMES = Object.freeze([
   '沉甸甸南瓜','醒腦咖啡豆','萌綠玉米','萌綠大豆','放鬆可可','好眠番茄','暖暖薑','純粹油',
   '甜甜蜜','哞哞鮮奶','豆製肉','火辣香草','特選蘋果','窩心洋芋','特選蛋','粗枝大蔥',
   '品鮮蘑菇','美味尾巴','特選酪梨',
-];
+]);
 
 export function applySharedMasterData(db) {
   const meta = SOURCE_POLICY;
@@ -29,7 +31,7 @@ export function applySharedMasterData(db) {
       source_name=excluded.source_name,source_ref=excluded.source_ref,verified_at=excluded.verified_at,data_version=excluded.data_version`,
       [item.type_name,item.berry_name,meta.source_type,meta.source_name,meta.source_ref,meta.verified_at,MASTER_DATA_VERSION]);
   }
-  for (const name of INGREDIENTS) {
+  for (const name of PUBLIC_INGREDIENT_NAMES) {
     db.run(`INSERT INTO ingredient_master(ingredient_name,source_type,source_name,source_ref,verified_at,data_version)
       VALUES(?,?,?,?,?,?) ON CONFLICT(ingredient_name) DO UPDATE SET source_type=excluded.source_type,source_name=excluded.source_name,
       source_ref=excluded.source_ref,verified_at=excluded.verified_at,data_version=excluded.data_version`,
