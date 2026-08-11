@@ -8,10 +8,18 @@ export const PUBLIC_RECIPE_CANONICAL_NAME_VERSION='public-recipe-zh-tw-names-202
 export const PUBLIC_RECIPE_MASTER_VERSION='public-recipe-master-2026-08-11-c';
 export const PUBLIC_RECIPE_BASE_MASTER_VERSION=BASE_PUBLIC_RECIPE_MASTER_VERSION;
 
-const NAME_SOURCE=Object.freeze({
+const HISTORICAL_NAME_SOURCE=Object.freeze({
   source_type:'game_screenshot_verified',
   source_name:'sanitized in-game zh-TW recipe screenshot evidence',
-  source_ref:'internal:public-recipe-zh-tw-screenshot-evidence-2026-08-09+android-live-2026-08-11',
+  source_ref:'internal:public-recipe-zh-tw-screenshot-evidence-2026-08-09',
+  verified_at:'2026-08-09',
+  verification_status:'GAME_SCREENSHOT_VERIFIED_NAME_FORMULA_MATCH',
+});
+
+const CURRENT_NAME_SOURCE=Object.freeze({
+  source_type:'game_screenshot_verified',
+  source_name:'current in-game zh-TW recipe screenshot evidence',
+  source_ref:'internal:v04114-android-live-current-recipe-name-evidence',
   verified_at:'2026-08-11',
   verification_status:'GAME_SCREENSHOT_VERIFIED_NAME_FORMULA_MATCH',
 });
@@ -66,8 +74,6 @@ export const PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES=Object.freeze([
   name_contract_version:PUBLIC_RECIPE_CANONICAL_NAME_VERSION,
 })));
 
-// v0.4.11.4: current Android LIVE screenshot resolves the remaining formula discrepancy for 親子愛咖哩.
-// Only the public formula is projected; player level/current-energy values are never retained here.
 export const PUBLIC_RECIPE_FORMULA_OVERRIDES=Object.freeze([
   Object.freeze({
     recipe_id:'curry_parent_child',
@@ -83,8 +89,6 @@ export const PUBLIC_RECIPE_FORMULA_OVERRIDES=Object.freeze([
   }),
 ]);
 
-// Historical R2.1 conflict evidence is retained for audit compatibility. Active authority below applies
-// the newer 2026-08-11 screenshot resolution; consumers must use PUBLIC_RECIPE_MASTER projection.
 export const PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS=Object.freeze([
   Object.freeze({
     recipe_id:'curry_dizzy_punch',
@@ -118,6 +122,7 @@ export const PUBLIC_RECIPE_MASTER=Object.freeze(BASE_PUBLIC_RECIPE_MASTER.map(ba
   if(override&&base.recipe_name!==override.legacy_public_name){
     throw new Error(`recipe_name_contract_base_mismatch:${base.recipe_id}:${base.recipe_name}:${override.legacy_public_name}`);
   }
+  const nameSource=override?.recipe_id==='curry_dizzy_punch'?CURRENT_NAME_SOURCE:HISTORICAL_NAME_SOURCE;
   return Object.freeze({
     ...base,
     ...(formulaOverride?{
@@ -128,7 +133,7 @@ export const PUBLIC_RECIPE_MASTER=Object.freeze(BASE_PUBLIC_RECIPE_MASTER.map(ba
     }:{}),
     ...(override?{
       recipe_name:override.canonical_name_zh_tw,
-      ...NAME_SOURCE,
+      ...nameSource,
     }:{}),
     data_version:PUBLIC_RECIPE_MASTER_VERSION,
   });
