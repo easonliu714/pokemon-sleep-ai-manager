@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
-import {
-  UC_IMG_SESSION_STORAGE_KEY,
-  sanitizePersistedUcImgSessionStorage,
-} from '../assets/js/uc-img-gemini-adapter.js';
+import fs from 'node:fs';
+import {cleanupRestoredUcImgSession} from '../assets/js/uc-img-session-lifecycle.js';
+import {restoreScreenshotSession,UC_IMG_A_STORAGE_KEY} from '../assets/js/unified-screenshot-update-center.js';
 import {
   PUBLIC_MASTER_RECOGNITION_SCHEMA,
   PUBLIC_MASTER_RECOGNITION_VERSION,
@@ -48,30 +47,44 @@ function sessionFixture({applied=false}={}){
 }
 
 const cleanupAt='2026-08-11T05:12:00.000Z';
-const draftStorage=fakeStorage({[UC_IMG_SESSION_STORAGE_KEY]:JSON.stringify(sessionFixture())});
-const draftCleanup=sanitizePersistedUcImgSessionStorage(draftStorage,{cleanedAt:cleanupAt});
-assert.equal(draftCleanup.changed,true);
-assert.equal(draftCleanup.removed_entry_count,1);
-assert.deepEqual(draftCleanup.staled_scenarios,['ingredients']);
-const restoredDraft=JSON.parse(draftStorage.dump(UC_IMG_SESSION_STORAGE_KEY));
-assert.deepEqual(restoredDraft.entries,[],'orphan image metadata must be removed before restore');
-assert.equal(restoredDraft.next_image_number,6,'image refs must remain monotonic and never be reused after cleanup');
-assert.equal(restoredDraft.scenario_state.ingredients.response_stale,true,'non-applied response that lost image evidence must fail closed');
-assert.equal(restoredDraft.last_restore_cleanup.removed_entry_count,1);
+const pureDraft=cleanupRestoredUcImgSession(sessionFixture(),{cleanedAt:cleanupAt});
+assert.equal(pureDraft.changed,true);
+assert.equal(pureDraft.removed_entry_count,1);
+assert.deepEqual(pureDraft.staled_scenarios,['ingredients']);
+assert.deepEqual(pureDraft.session.entries,[]);
+assert.equal(pureDraft.session.next_image_number,6,'cleanup must not recycle image refs');
+assert.equal(pureDraft.session.scenario_state.ingredients.response_stale,true);
 
-const appliedStorage=fakeStorage({[UC_IMG_SESSION_STORAGE_KEY]:JSON.stringify(sessionFixture({applied:true}))});
-const appliedCleanup=sanitizePersistedUcImgSessionStorage(appliedStorage,{cleanedAt:cleanupAt});
-assert.equal(appliedCleanup.changed,true);
-const restoredApplied=JSON.parse(appliedStorage.dump(UC_IMG_SESSION_STORAGE_KEY));
+// Real UC.IMG restore remains the only localStorage owner and persists the cleaned session.
+const draftStorage=fakeStorage({[UC_IMG_A_STORAGE_KEY]:JSON.stringify(sessionFixture())});
+const restoredDraft=restoreScreenshotSession(draftStorage);
+assert.deepEqual(restoredDraft.entries,[],'orphan screenshot metadata must disappear at restore time');
+assert.equal(restoredDraft.next_image_number,6,'next image ref must remain image-006 after image-005 cleanup');
+assert.equal(restoredDraft.scenario_state.ingredients.response_stale,true,'non-applied response that lost image evidence must fail closed');
+const persistedDraft=JSON.parse(draftStorage.dump(UC_IMG_A_STORAGE_KEY));
+assert.deepEqual(persistedDraft.entries,[],'restore owner must persist the cleanup result');
+assert.equal(persistedDraft.last_restore_cleanup.removed_entry_count,1);
+
+const appliedStorage=fakeStorage({[UC_IMG_A_STORAGE_KEY]:JSON.stringify(sessionFixture({applied:true}))});
+const restoredApplied=restoreScreenshotSession(appliedStorage);
 assert.deepEqual(restoredApplied.entries,[]);
 assert.equal(restoredApplied.next_image_number,6);
-assert.equal(restoredApplied.scenario_state.ingredients.response_stale,false,'already-applied history must not be invalidated after image metadata cleanup');
+assert.equal(restoredApplied.scenario_state.ingredients.response_stale,false,'already-applied history must remain readable after orphan cleanup');
 assert.equal(restoredApplied.scenario_state.ingredients.last_apply_status,'APPLIED');
 assert.equal(restoredApplied.scenario_state.ingredients.last_update_id,'UPD-20260811034511-CATALOG');
 
-const emptyStorage=fakeStorage({[UC_IMG_SESSION_STORAGE_KEY]:JSON.stringify({...sessionFixture(),entries:[]})});
-const emptyCleanup=sanitizePersistedUcImgSessionStorage(emptyStorage,{cleanedAt:cleanupAt});
-assert.equal(emptyCleanup.changed,false,'cleanup must be idempotent once persisted image rows are gone');
+const emptyStorage=fakeStorage({[UC_IMG_A_STORAGE_KEY]:JSON.stringify({...sessionFixture(),entries:[]})});
+const emptyRestored=restoreScreenshotSession(emptyStorage);
+assert.deepEqual(emptyRestored.entries,[]);
+assert.equal(emptyRestored.next_image_number,6,'restore without orphan entries must be idempotent');
+
+// Gemini transport must remain storage-free; session ownership stays in UC.IMG.
+const adapterSource=fs.readFileSync('assets/js/uc-img-gemini-adapter.js','utf8');
+assert.equal(adapterSource.includes('localStorage'),false,'Gemini adapter must remain storage-free');
+const lifecycleSource=fs.readFileSync('assets/js/uc-img-session-lifecycle.js','utf8');
+assert.equal(lifecycleSource.includes('localStorage'),false,'lifecycle helper must be pure/storage-free');
+const ucImgSource=fs.readFileSync('assets/js/unified-screenshot-update-center.js','utf8');
+assert.ok(ucImgSource.includes('cleanupRestoredUcImgSession(parsed)'),'restore owner must invoke lifecycle cleanup');
 
 const snapshot=buildPublicMasterCatalogSnapshot('ingredients');
 const aiGeneratedAt='2025-03-09T12:00:00Z';
@@ -93,7 +106,7 @@ const before=Date.now();
 const compiled=compilePublicMasterRecognitionToUpdatePackage(recognition,'ingredients',{allowedImageRefs:['image-005']});
 const after=Date.now();
 assert.equal(compiled.ok,true);
-assert.notEqual(compiled.update_package.generated_at,aiGeneratedAt,'AI recognition timestamp must not become the transaction timestamp');
+assert.notEqual(compiled.update_package.generated_at,aiGeneratedAt,'AI recognition timestamp must remain metadata, not transaction authority');
 const transactionMs=Date.parse(compiled.update_package.generated_at);
 assert.ok(Number.isFinite(transactionMs));
 assert.ok(transactionMs>=before-1000&&transactionMs<=after+1000,'compiled transaction timestamp must be platform current time');
@@ -103,11 +116,14 @@ assert.equal(compiled.update_package.operations[0].evidence.source_image_ref,'im
 console.log(JSON.stringify({
   status:'PASS',
   gate:'V04111_UC_IMG_SESSION_CLEANUP_PLATFORM_TIMESTAMP',
+  restore_owner:'unified-screenshot-update-center',
   orphan_metadata_removed:true,
   non_applied_response_staled:true,
   applied_history_preserved:true,
   next_image_number_monotonic:true,
   cleanup_idempotent:true,
+  gemini_adapter_storage_free:true,
+  lifecycle_helper_storage_free:true,
   ai_timestamp_used_as_transaction:false,
   platform_timestamp_owned:true,
 },null,2));
