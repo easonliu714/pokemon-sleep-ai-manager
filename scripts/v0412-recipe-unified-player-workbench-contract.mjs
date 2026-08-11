@@ -1,0 +1,89 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {PUBLIC_RECIPE_MASTER,PUBLIC_RECIPE_MASTER_VERSION} from '../assets/js/public-recipe-canonical-authority.js';
+import {buildRecipeUnifiedWorkbenchProjection,RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION} from '../assets/js/recipe-unified-player-workbench.js';
+
+const read=path=>fs.readFileSync(path,'utf8');
+const version=read('assets/js/version-authority.js');
+assert.equal(version.match(/app_version:\s*'([^']+)'/)?.[1],'v0.4.11.4','behavior-first stage must not bump Release Authority before gates are green');
+assert.equal(PUBLIC_RECIPE_MASTER_VERSION,'public-recipe-master-2026-08-11-c');
+assert.equal(PUBLIC_RECIPE_MASTER.length,76);
+assert.equal(RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION,'recipe-unified-player-workbench-2026-08-11-a');
+
+const curryIds=PUBLIC_RECIPE_MASTER.filter(row=>row.category==='咖哩／濃湯').slice(0,13).map(row=>row.recipe_id);
+assert.equal(curryIds.length,13,'fixture needs 13 unlocked curry recipes');
+const unlockedSet=new Set(curryIds);
+const catalogRows=PUBLIC_RECIPE_MASTER.map(row=>({...row,unlocked:unlockedSet.has(row.recipe_id)?1:0,recipe_level:unlockedSet.has(row.recipe_id)?20:null,current_energy:unlockedSet.has(row.recipe_id)?1000:null}));
+const inventory=[];
+const week={week_start:'2026-08-10',dish_category:'咖哩／濃湯',authority_source:'UPDATE_CENTER_JSON',authority_update_id:'UPD-V0412-FIXTURE'};
+const projection=buildRecipeUnifiedWorkbenchProjection({catalogRows,inventory,week});
+assert.equal(projection.total_count,76);
+assert.equal(projection.unlocked_count,13);
+assert.equal(projection.locked_count,63);
+assert.equal(projection.partition_complete,true);
+assert.deepEqual(projection.duplicate_recipe_ids,[]);
+assert.equal(new Set([...projection.unlocked,...projection.locked].map(row=>row.recipe_id)).size,76,'each canonical recipe_id must appear in exactly one section');
+assert.ok(projection.unlocked.every(row=>Number(row.unlocked)===1));
+assert.ok(projection.locked.every(row=>Number(row.unlocked)!==1));
+assert.equal(projection.unlocked.filter(row=>row.weekly_recommended).length,3,'unlocked workbench keeps top-3 weekly recommendation semantics');
+assert.equal(projection.locked.filter(row=>row.weekly_recommended).length,3,'locked reference section keeps top-3 weekly recommendation semantics');
+assert.equal(projection.dish_category,'咖哩／濃湯');
+assert.equal(projection.authority_source,'UPDATE_CENTER_JSON');
+
+const workbench=read('assets/js/recipe-unified-player-workbench.js');
+for(const token of [
+  "from './public-recipe-canonical-authority.js'",
+  "from './ingredient-gap-engine.js'",
+  "from './weekly-context-store.js'",
+  'currentWeeklyContext()',
+  'analyzeIngredientGaps',
+  'recipeWeeklyAuthoritySummary',
+  'lockedRecipeTable',
+  'weekly-recommended',
+  "snapshot(`manual:recipe:${playerRecipeId}`)",
+  "INSERT INTO recipes",
+  "INSERT INTO import_batches",
+  "INSERT INTO import_changes",
+  "source:'manual_frontend_edit'",
+  'draftById',
+])assert.ok(workbench.includes(token),`unified recipe workbench missing behavior token: ${token}`);
+for(const forbidden of ['INSERT INTO recipe_master','UPDATE recipe_master','DELETE FROM recipe_master','applyPayload(','dryRun(','Gemini','fetch('])assert.equal(workbench.includes(forbidden),false,`recipe workbench owns forbidden authority/path: ${forbidden}`);
+
+const publicCatalog=read('assets/js/public-catalog-workbench.js');
+assert.ok(publicCatalog.includes("from './recipe-unified-player-workbench.js'"));
+assert.ok(publicCatalog.includes('renderRecipeUnifiedWorkbench()'));
+assert.equal(publicCatalog.includes('async function saveRecipeState'),false,'legacy parallel recipe writer must be retired');
+assert.equal(publicCatalog.includes('INSERT INTO recipes'),false,'public catalog shell must delegate recipe writes to the single recipe workbench owner');
+
+const shared=read('assets/js/shared-knowledge-ui.js');
+assert.equal(shared.includes('personalRecipeAnalysisTable'),false,'duplicate unlocked analysis table must be retired');
+assert.equal(shared.includes('referenceRecipeTable'),false,'locked recipe rendering must move to unified workbench');
+assert.ok(shared.includes("document.getElementById('sharedKnowledgeBlock')?.remove()"),'legacy duplicate block must be cleaned if restored from an old DOM');
+
+const css=read('assets/css/editor.css');
+for(const token of ['.recipe-workbench-wrap','overflow-x:auto','min-width:900px','.recipe-formula-cell','.recipe-shortage-cell'])assert.ok(css.includes(token),`Android containment token missing: ${token}`);
+
+const ucImg=read('assets/js/unified-screenshot-update-center.js');
+assert.equal((ucImg.match(/applyPayload\(/g)||[]).length,1,'UC.IMG must retain exactly one Apply bridge');
+const migrations=read('assets/js/migrations.js');
+assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.12 Recipe Workbench must remain schema-migration-free');
+
+console.log(JSON.stringify({
+  status:'PASS',gate:'V0412_RECIPE_UNIFIED_PLAYER_WORKBENCH_BEHAVIOR',
+  release_authority:'v0.4.11.4_behavior_first',
+  workbench_version:RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION,
+  canonical_recipe_count:PUBLIC_RECIPE_MASTER.length,
+  synthetic_unlocked_count:projection.unlocked_count,
+  synthetic_locked_count:projection.locked_count,
+  duplicate_recipe_ids:projection.duplicate_recipe_ids,
+  unified_unlocked_table:true,
+  separate_locked_table:true,
+  weekly_recommendation_in_unified_rows:true,
+  deterministic_shortage_analysis:true,
+  public_master_read_only:true,
+  player_recipe_writer_single_owner:true,
+  unrelated_draft_inputs_preserved:true,
+  android_horizontal_containment:true,
+  sqlite_migration_added:false,
+  uc_img_apply_bridge_count:1,
+},null,2));
