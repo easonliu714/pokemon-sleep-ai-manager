@@ -10,7 +10,8 @@ async function copyText(button,text,reset){
 }
 function objectiveText(proposal){
   const evaluation=proposal?.deterministic_evaluation||{},score=proposal?.objective_score;
-  if(Number.isFinite(Number(score)))return `Deterministic score ${Number(score).toLocaleString('zh-TW',{maximumFractionDigits:4})}`;
+  const hasNumericScore=score!==null&&score!==undefined&&score!==''&&Number.isFinite(Number(score));
+  if(hasNumericScore)return `Deterministic score ${Number(score).toLocaleString('zh-TW',{maximumFractionDigits:4})}`;
   return evaluation?.objective_status||proposal?.deterministic_re_evaluation_status||'HOLD';
 }
 function proposalCard(proposal,index){
@@ -49,7 +50,7 @@ export function renderWarRoomStrategyContext(root=document.getElementById('warro
     <div id="warRoomOptimizationResult" class="notice">尚未建立最佳化分析包。</div>
     <section class="g74-ai-intake">
       <h4>AI Proposal Intake</h4>
-      <p class="notice">貼上外部 AI 的原始 JSON。v0.4.17 同時接受新的 canonical response，以及本次實測 Gemini 的 <code>proposals[].team_slots</code> legacy shape；兩者都不會直接套用。</p>
+      <p class="notice">貼上外部 AI 的原始 JSON。v0.4.17.1 同時接受新的 canonical response，以及本次實測 Gemini 的 <code>proposals[].team_slots</code> legacy shape；兩者都不會直接套用。</p>
       <textarea id="warRoomOptimizationAiResponse" spellcheck="false" placeholder="先建立最佳化分析包，再貼上 Gemini / 外部 AI 回傳 JSON"></textarea>
       <div class="buttons"><button id="warRoomValidateOptimizationResponse" type="button">解析／驗證 AI 候選</button><button id="warRoomClearOptimizationResponse" type="button">清除</button></div>
       <div id="warRoomOptimizationIntakeResult" class="notice">尚未驗證 AI 回覆。</div>

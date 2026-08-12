@@ -10,8 +10,8 @@ import {
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
-assert.equal(appVersion,'v0.4.17');
-assert.ok(version.includes("// app_version: 'v0.4.16'"));
+assert.equal(appVersion,'v0.4.17.1');
+assert.ok(version.includes("// app_version: 'v0.4.17'"));
 
 const candidateRefs=['cand_001','cand_003','cand_004','cand_005','cand_006','cand_007','cand_008','cand_009','cand_010','cand_012','cand_014','cand_015','cand_016','cand_017','cand_019'];
 const candidates=candidateRefs.map((candidate_ref,index)=>({candidate_ref,species:`S${index+1}`,level:30,specialty:index%3===0?'樹果':index%3===1?'食材':'技能',helper_seconds:2500+index*50,unlocked_ingredients:[]}));
@@ -66,6 +66,12 @@ const canonicalIntake=intakeOptimizationAiResponse(canonical,{optimizationPrevie
 assert.equal(canonicalIntake.adapter,'CANONICAL');
 assert.equal(canonicalIntake.accepted_proposals.length,1);
 assert.equal(canonicalIntake.accepted_proposals[0].target_recipe_ids[0],'r1');
+assert.equal(canonicalIntake.accepted_proposals[0].objective_score,null);
+assert.equal(canonicalIntake.accepted_proposals[0].deterministic_re_evaluation_status,'HOLD');
+
+const zeroIntake=intakeOptimizationAiResponse(canonical,{optimizationPreview:preview,evaluateProposal:()=>({objective_status:'ACTIVE_VERIFIED',objective_score:0,input_fingerprint:'team_objective:zero'})});
+assert.equal(zeroIntake.accepted_proposals[0].objective_score,0,'genuine numeric zero must remain zero');
+assert.equal(zeroIntake.accepted_proposals[0].deterministic_re_evaluation_status,'READY','genuine numeric zero is a valid evaluated result');
 
 const stale=intakeOptimizationAiResponse({...canonical,context_fingerprint:'strategy_context:stale'},{optimizationPreview:preview,evaluateProposal:evaluationFixture});
 assert.equal(stale.intake_status,'BLOCKED_CONTEXT_MISMATCH');
@@ -95,14 +101,17 @@ assert.ok(STRATEGY_OPTIMIZATION_AI_RESPONSE_SCHEMA.required.includes('context_fi
 
 const ui=read('assets/js/war-room-strategy-context-ui.js');
 for(const token of ['AI Proposal Intake','warRoomOptimizationAiResponse','解析／驗證 AI 候選','Context Fingerprint','LEGACY_GEMINI_TEAM_SLOTS','不可直接 Apply'])assert.ok(ui.includes(token)||read('assets/js/strategy-optimization-ai-contract.js').includes(token),`v0.4.17 token missing: ${token}`);
-assert.equal(ui.includes('warRoomApplyOptimizationProposal'),false,'v0.4.17 intake must not expose direct apply button');
+assert.equal(ui.includes('warRoomApplyOptimizationProposal'),false,'AI intake must not expose direct apply button');
+assert.ok(ui.includes("score!==null&&score!==undefined&&score!==''&&Number.isFinite(Number(score))"),'UI must guard missing score before numeric coercion');
+assert.equal(ui.includes('if(Number.isFinite(Number(score)))'),false,'unguarded Number(null) score rendering must not return');
 const styles=read('assets/js/v0416-g73-ui.js');
 for(const token of ['.g74-ai-intake','overflow-wrap:anywhere','grid-template-columns:1fr'])assert.ok(styles.includes(token),`mobile intake containment missing: ${token}`);
 const sw=read('service-worker.js');
 for(const asset of ['./assets/js/strategy-optimization-ai-contract.js','./assets/js/strategy-context-local.js','./assets/js/war-room-strategy-context-ui.js','./assets/js/v0416-g73-ui.js'])assert.ok(sw.includes(`'${asset}'`),`first-offline precache missing ${asset}`);
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'V0417_G74_AI_PROPOSAL_INTAKE',app_version:appVersion,
+  status:'PASS',gate:'V04171_AI_PROPOSAL_NULL_SCORE_RENDERING',app_version:appVersion,
   prompt_embeds_response_schema:true,context_fingerprint_fail_closed:true,legacy_gemini_adapter:true,canonical_intake:true,
-  hard_constraints_revalidated:true,unknown_ref_rejected:true,duplicate_rejected:true,numeric_model_hold_preserved:true,direct_apply:false,player_write:false,gemini_numeric_authority:false,mobile_containment:true,
+  hard_constraints_revalidated:true,unknown_ref_rejected:true,duplicate_rejected:true,numeric_model_hold_preserved:true,ui_null_score_preserved:true,genuine_zero_preserved:true,
+  direct_apply:false,player_write:false,gemini_numeric_authority:false,mobile_containment:true,
 },null,2));
