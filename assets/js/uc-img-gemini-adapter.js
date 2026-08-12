@@ -3,13 +3,17 @@ import {buildUpdatePackageJsonSchema} from './update-package-contract.js';
 import {buildPublicMasterRecognitionJsonSchema,supportsPublicMasterRecognition} from './public-master-recognition.js';
 import {isUcImgOwnedMemoryBlob} from './uc-img-image-runtime.js';
 import {
+  augmentRecipeRecognitionJsonSchema,
+  buildRecipePotCapacityPromptInstruction,
+} from './pot-capacity-authority.js';
+import {
   applyUcImgWeeklyPlatformAuthority,
   buildUcImgWeeklyPlatformAuthority,
   buildUcImgWeeklyPlatformPromptInstruction,
   constrainUcImgWeeklyJsonSchema,
 } from './uc-img-weekly-platform-authority.js';
 
-export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-08-11-b-public-master-recognition';
+export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-08-12-a-pot-capacity-authority';
 
 const clean=value=>String(value??'').trim();
 const nowIso=()=>new Date().toISOString();
@@ -49,7 +53,10 @@ export async function prepareGeminiImages(entries=[],fileMap=new Map()){
 
 export function buildUcImgGeminiSchema(config,scenarioKey,{platformAuthority=null}={}){
   if(!config?.scenario||!Array.isArray(config.entities))throw new Error('UC.IMG Gemini scenario contract 不完整');
-  if(supportsPublicMasterRecognition(config.scenario))return buildPublicMasterRecognitionJsonSchema(config.scenario);
+  if(supportsPublicMasterRecognition(config.scenario)){
+    const schema=buildPublicMasterRecognitionJsonSchema(config.scenario);
+    return scenarioKey==='recipes'?augmentRecipeRecognitionJsonSchema(schema):schema;
+  }
   const schema=buildUpdatePackageJsonSchema({scenario:config.scenario,entities:config.entities,weekly:scenarioKey==='weekly'});
   return scenarioKey==='weekly'&&platformAuthority?constrainUcImgWeeklyJsonSchema(schema,platformAuthority):schema;
 }
@@ -60,7 +67,9 @@ export async function analyzeUcImgScenarioWithGemini({scenarioKey,config,entries
   const platformAuthority=scenarioKey==='weekly'?buildUcImgWeeklyPlatformAuthority(platformNow||new Date()):null;
   const images=await prepareGeminiImages(entries,fileMap);
   const responseJsonSchema=buildUcImgGeminiSchema(config,scenarioKey,{platformAuthority});
-  const effectivePrompt=platformAuthority?`${prompt}${buildUcImgWeeklyPlatformPromptInstruction(platformAuthority)}`:prompt;
+  const weeklyInstruction=platformAuthority?buildUcImgWeeklyPlatformPromptInstruction(platformAuthority):'';
+  const recipeCapacityInstruction=scenarioKey==='recipes'?buildRecipePotCapacityPromptInstruction():'';
+  const effectivePrompt=`${prompt}${weeklyInstruction}${recipeCapacityInstruction}`;
   const outcome=await execute({projects:poolData.projects,model,prompt:effectivePrompt,images,responseJsonSchema,onTrace});
   if(!outcome?.ok){
     const classes=(outcome?.attempts||[]).map(item=>item.error_class).filter(Boolean);
