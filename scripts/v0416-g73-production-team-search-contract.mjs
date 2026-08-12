@@ -9,8 +9,8 @@ import {buildExternalOptimizationPrompt,normalizeOptimizationAiResponse} from '.
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.15','v0.4.16','v0.4.17','v0.4.17.1'].includes(appVersion),`unexpected G7.3 staging/release/successor version ${appVersion}`);
-if(['v0.4.17','v0.4.17.1'].includes(appVersion))assert.ok(version.includes("// app_version: 'v0.4.16'"),`${appVersion} must retain v0.4.16 lineage bridge`);
+assert.ok(['v0.4.15','v0.4.16','v0.4.17','v0.4.17.1','v0.4.18'].includes(appVersion),`unexpected G7.3 staging/release/successor version ${appVersion}`);
+if(['v0.4.17','v0.4.17.1','v0.4.18'].includes(appVersion))assert.ok(version.includes("// app_version: 'v0.4.16'"),`${appVersion} must retain v0.4.16 lineage bridge`);
 
 const registry=currentProductionAuthorityRegistry();
 assert.equal(registry.numeric_rate_model_status,'NOT_YET_VERIFIED');
