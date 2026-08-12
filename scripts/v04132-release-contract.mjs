@@ -91,7 +91,7 @@ const recognitionSchema=buildPublicMasterRecognitionJsonSchema('recipes');assert
 assert.equal(UC_IMG_GEMINI_ADAPTER_VERSION,'uc-img-gemini-2026-08-12-a-pot-capacity-authority');
 assert.equal(PUBLIC_MASTER_RECOGNITION_VERSION,'public-master-recognition-2026-08-12-c-pot-capacity');
 
-const sync=read('assets/js/public-recipe-master-sync.js');assert.ok(sync.includes('PUBLIC_RECIPE_MASTER'));assert.ok(sync.includes('for(const recipe of PUBLIC_RECIPE_MASTER)'));assert.ok(sync.includes('canonical_count:PUBLIC_RECIPE_MASTER.length'));
+const sync=read('assets/js/public-recipe-master-sync.js');assert.ok(sync.includes('PUBLIC_RECIPE_MASTER'));assert.ok(sync.includes('for(const recipe of PUBLIC_RECIPE_MASTER)'));assert.ok(sync.includes('canonical_recipe_count:PUBLIC_RECIPE_MASTER.length'));
 const ucImg=read('assets/js/unified-screenshot-update-center.js');assert.equal((ucImg.match(/applyPayload\(/g)||[]).length,1,'UC.IMG must retain exactly one Apply bridge');
 const bootstrap=read('assets/js/uc-img-v04132-pot-capacity-bootstrap.js');assert.ok(bootstrap.includes("from './unified-screenshot-update-center.js'"));assert.ok(bootstrap.includes('account_capacity'));
 const sw=read('service-worker.js');for(const asset of ['pot-capacity-authority.js','uc-img-v04132-pot-capacity-bootstrap.js','public-master-recognition.js','public-recipe-canonical-authority.js','public-recipe-provenance.js'])assert.ok(sw.includes(`'./assets/js/${asset}'`),`offline precache missing ${asset}`);
