@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {PUBLIC_INGREDIENT_NAMES} from '../assets/js/shared-master-data.js';
 import {PUBLIC_ITEM_MASTER} from '../assets/js/public-item-master.js';
-import {PUBLIC_RECIPE_MASTER} from '../assets/js/public-recipe-master.js';
+import {PUBLIC_RECIPE_MASTER} from '../assets/js/public-recipe-canonical-authority.js';
+import {PUBLIC_RECIPE_MASTER as HISTORICAL_BASE_RECIPE_MASTER} from '../assets/js/public-recipe-master.js';
 import {
   PUBLIC_MASTER_RECOGNITION_REGISTRY,
   PUBLIC_MASTER_RECOGNITION_SCHEMA,
@@ -17,12 +18,18 @@ import {
 const scenarios=['ingredients','items','candies','recipes'];
 assert.deepEqual(Object.keys(PUBLIC_MASTER_RECOGNITION_REGISTRY).sort(),[...scenarios].sort());
 assert.equal(PUBLIC_INGREDIENT_NAMES.length,19,'ingredient public authority count changed');
-assert.equal(PUBLIC_RECIPE_MASTER.length,76,'recipe public authority count changed');
+assert.equal(HISTORICAL_BASE_RECIPE_MASTER.length,76,'historical recipe baseline must remain 76');
+assert.ok([76,78].includes(PUBLIC_RECIPE_MASTER.length),'current canonical recipe authority must be historical 76 or the verified 78 successor');
+const historicalIds=new Set(HISTORICAL_BASE_RECIPE_MASTER.map(row=>row.recipe_id));
+const currentIds=new Set(PUBLIC_RECIPE_MASTER.map(row=>row.recipe_id));
+for(const id of historicalIds)assert.ok(currentIds.has(id),`historical stable recipe id disappeared from Recognition authority: ${id}`);
+assert.equal(currentIds.size,PUBLIC_RECIPE_MASTER.length,'current canonical recipe IDs must be unique');
+if(PUBLIC_RECIPE_MASTER.length===78){assert.ok(currentIds.has('curry_greengrass_bun'));assert.ok(currentIds.has('curry_bounce_udon'));}
 
 const snapshots=Object.fromEntries(scenarios.map(key=>[key,buildPublicMasterCatalogSnapshot(key)]));
 assert.equal(snapshots.ingredients.row_count,19);
 assert.equal(snapshots.items.row_count,PUBLIC_ITEM_MASTER.length);
-assert.equal(snapshots.recipes.row_count,76);
+assert.equal(snapshots.recipes.row_count,PUBLIC_RECIPE_MASTER.length,'Recognition recipe catalog must track current canonical ACTIVE authority');
 assert.ok(snapshots.candies.row_count>0);
 for(const [key,snapshot] of Object.entries(snapshots)){
   assert.equal(snapshot.privacy.public_only,true,`${key} snapshot must be public-only`);
@@ -114,23 +121,34 @@ assert.equal(recipeCompiled.update_package.operations[0].key.recipe_id,recipeRow
 assert.equal(recipeCompiled.update_package.operations[0].key.recipe_name,recipeRow.recipe_name);
 assert.deepEqual(recipeCompiled.update_package.operations[0].data,{unlocked:true,recipe_level:23,current_energy:10000});
 
+if(PUBLIC_RECIPE_MASTER.length===78){
+  const newRow=PUBLIC_RECIPE_MASTER.find(row=>row.recipe_id==='curry_greengrass_bun');assert.ok(newRow);
+  const newRecognition={schema:PUBLIC_MASTER_RECOGNITION_SCHEMA,recognition_version:PUBLIC_MASTER_RECOGNITION_VERSION,scenario:'recipe_status_update',authority:'recipe_master',data_version:recipeSnapshot.data_version,catalog_snapshot_id:recipeSnapshot.catalog_snapshot_id,generated_at:'2026-08-12T03:11:00Z',visible_target_count:1,observations:[{observation_id:'recipe-new',status:'MATCHED',observed_text:newRow.recipe_name,observed_data:{unlocked:true},canonical_key:{recipe_id:newRow.recipe_id,recipe_name:newRow.recipe_name},canonical_name:newRow.recipe_name,candidate_names:[newRow.recipe_name],source_image_ref:'image-new',confidence:0.99,reason:'exact'}],capacity_observations:[{capacity_key:'pot',total_capacity:57,source_image_ref:'image-new',confidence:0.99,observation_context:'RECIPE_SCREEN_BASE_POT_CAPACITY'}]};
+  const compiledNew=compilePublicMasterRecognitionToUpdatePackage(newRecognition,'recipes',{allowedImageRefs:['image-new']});
+  assert.equal(compiledNew.ok,true);assert.equal(compiledNew.summary.pot_capacity_observed,57);assert.ok(compiledNew.update_package.operations.some(op=>op.entity==='recipes'&&op.key.recipe_id==='curry_greengrass_bun'));assert.ok(compiledNew.update_package.operations.some(op=>op.entity==='account_capacity'&&op.key.capacity_key==='pot'&&op.data.total_capacity===57));
+}
+
 const ucImg=fs.readFileSync('assets/js/unified-screenshot-update-center.js','utf8');
 for(const token of ['buildPublicMasterRecognitionPrompt','compilePublicMasterRecognitionToUpdatePackage','Public Master 對應待確認','PUBLIC_MASTER_GAP_CONFIRMED'])assert.ok(ucImg.includes(token),`UC.IMG missing recognition token ${token}`);
 assert.equal((ucImg.match(/applyPayload\(/g)||[]).length,1,'recognition must not create a second Apply engine');
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'PUBLIC_MASTER_CONSTRAINED_RECOGNITION',
+  status:'PASS',gate:'PUBLIC_MASTER_CONSTRAINED_RECOGNITION_SUCCESSOR_AWARE',
   recognition_version:PUBLIC_MASTER_RECOGNITION_VERSION,
   registry_scenarios:scenarios,
   ingredient_catalog_count:snapshots.ingredients.row_count,
   item_catalog_count:snapshots.items.row_count,
   candy_catalog_count:snapshots.candies.row_count,
+  historical_recipe_catalog_count:HISTORICAL_BASE_RECIPE_MASTER.length,
   recipe_catalog_count:snapshots.recipes.row_count,
+  historical_recipe_ids_preserved:true,
+  evidence_backed_recipe_additions:PUBLIC_RECIPE_MASTER.length-HISTORICAL_BASE_RECIPE_MASTER.length,
   unknown_silent_drop:false,
   fuzzy_auto_write:false,
   user_confirmed_match_compiles:true,
   public_master_gap_blocks:true,
   stale_catalog_blocks:true,
   visible_count_reconciliation:true,
+  recipe_pot_capacity_same_update_package:PUBLIC_RECIPE_MASTER.length===78,
   second_apply_engine:false,
 },null,2));
