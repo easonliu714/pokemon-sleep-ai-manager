@@ -7,14 +7,14 @@ import {localIso} from './time-utils.js';
 import {validateWeeklyEventEffects} from './weekly-context-normalization.js';
 import {WEEKLY_EVENT_EFFECT_REGISTRY_VERSION} from './weekly-event-effect-registry.js';
 
-export const WEEKLY_CONTEXT_UI_BRIDGE_VERSION='weekly-context-ui-bridge-2026-08-10-f';
+export const WEEKLY_CONTEXT_UI_BRIDGE_VERSION='weekly-context-ui-bridge-2026-08-12-g-pot-account-authority';
 
 let syncing=false;
 const berryNames=['favorite_berry_1','favorite_berry_2','favorite_berry_3'];
+const weeklyOverrideFields=['camp','dish_category','favorite_berry_1','favorite_berry_2','favorite_berry_3','event_name','event_effects','base_notes'];
 const managedFields=['camp','dish_category','pot_size','favorite_berry_1','favorite_berry_2','favorite_berry_3','event_name','event_effects','base_notes'];
 const q=(form,name)=>form?.querySelector(`[name="${CSS.escape(name)}"]`);
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-const own=(object,key)=>Object.prototype.hasOwnProperty.call(object||{},key);
 function ensureNotice(form){
   let node=form.querySelector('[data-weekly-berry-policy]');
   if(!node){node=document.createElement('div');node.className='notice';node.dataset.weeklyBerryPolicy='1';const first=q(form,'favorite_berry_1')?.closest('label');first?.parentElement?.insertBefore(node,first);}
@@ -37,7 +37,14 @@ function setField(form,name,value){
   if(node.tagName==='SELECT'&&normalized!==''&&![...node.options].some(option=>option.value===String(normalized))){const option=document.createElement('option');option.value=String(normalized);option.textContent=String(normalized);node.prepend(option);}
   node.value=normalized;
 }
-function sourceLabel(source){return source==='UPDATE_CENTER_JSON'?'更新中心 JSON':source==='PUBLIC_CAMP_MASTER'?'公版營地 Master':source==='MANUAL_OVERRIDE'?'人工覆寫':source==='MANUAL_FALLBACK'?'人工補充':'尚未提供';}
+function sourceLabel(source){
+  return source==='UPDATE_CENTER_JSON'?'更新中心 JSON':
+    source==='PUBLIC_CAMP_MASTER'?'公版營地 Master':
+    source==='ACCOUNT_CAPACITY'?'帳號鍋子容量':
+    source==='LEGACY_WEEKLY_POT_FALLBACK'?'舊版本週鍋子 fallback':
+    source==='MANUAL_OVERRIDE'?'人工覆寫':
+    source==='MANUAL_FALLBACK'?'人工補充':'尚未提供';
+}
 function statusLabel(status){return status==='ACTIVE_VERIFIED'?'可供 deterministic 規則使用':status==='FEATURE_ONLY'?'已辨識／目前只供資訊':status==='REVIEW_REQUIRED'?'待覆核／禁止計算':status==='UNSUPPORTED'?'尚未支援':'—';}
 function valueText(value){if(value===null||value===undefined)return '—';if(typeof value==='object')return JSON.stringify(value);return String(value);}
 function renderEffectRegistry(form,week){
@@ -54,8 +61,8 @@ function lockAuthorityFields(form,week){
   for(const field of managedFields){
     const node=q(form,field);if(!node)continue;
     const source=week.field_sources?.[field];
-    // Update Center JSON is the initial authority, but user-observed weekly facts
-    // remain explicitly editable. Only Public Camp Master fixed berries are hard locked.
+    // Update Center JSON and account_capacity are editable through explicit user actions.
+    // Only Public Camp Master fixed berries are hard locked.
     node.disabled=source==='PUBLIC_CAMP_MASTER';
     node.dataset.authoritySource=source||'MISSING';
     const label=node.closest('label')?.querySelector('span');
@@ -67,19 +74,20 @@ function renderAuthorityNotice(form,week){
   const node=ensureAuthorityNotice(form);
   const overrideFields=week.manual_override_fields||[];
   const clear=overrideFields.length?` <button type="button" class="secondary" data-weekly-clear-override>清除本週人工覆寫</button>`:'';
+  const potNotice='鍋子容量是帳號層級 account_capacity.pot；在此修改會直接更新帳號基礎容量，不建立 weekly pot_size 覆寫。';
   if(week.authority_source==='MANUAL_OVERRIDE'){
     const fallback=week.manual_fallback_fields?.length?`；fallback：${week.manual_fallback_fields.join('、')}`:'';
     node.className='notice success';
-    node.innerHTML=`<b>本週環境 Authority：人工覆寫 ＞ 更新中心 JSON ＞ 人工 fallback。</b> Update ID：<code>${esc(week.authority_update_id||'歷史匯入')}</code>；覆寫欄位：${esc(overrideFields.join('、')||'—')}${esc(fallback)}。覆寫只綁定目前這份 JSON；新的 Weekly JSON 套用後舊覆寫會自動失效。${clear}`;
+    node.innerHTML=`<b>本週環境 Authority：人工覆寫 ＞ 更新中心 JSON ＞ 人工 fallback。</b> Update ID：<code>${esc(week.authority_update_id||'歷史匯入')}</code>；覆寫欄位：${esc(overrideFields.join('、')||'—')}${esc(fallback)}。覆寫只綁定目前這份 JSON；新的 Weekly JSON 套用後舊覆寫會自動失效。${esc(potNotice)}${clear}`;
   }else if(week.authority_source==='UPDATE_CENTER_JSON'){
     const fallback=week.manual_fallback_fields?.length?`；人工 fallback：${week.manual_fallback_fields.join('、')}`:'；目前沒有使用人工 fallback 欄位';
     const stale=week.manual_override_stale?'；偵測到舊人工覆寫，但已因 Weekly JSON revision 改變而自動失效':'';
     node.className='notice success';
-    node.innerHTML=`<b>本週環境 Authority：更新中心 JSON 為初始權威來源。</b> Update ID：<code>${esc(week.authority_update_id||'歷史匯入')}</code>${esc(fallback)}${esc(stale)}。此頁可人工修正料理、鍋子、隨機／EX 樹果等本週事實；儲存後只建立明確 MANUAL_OVERRIDE，不修改原始匯入列。戰情室、食譜與策略統一讀取解析後的 Current Weekly Context。`;
+    node.innerHTML=`<b>本週環境 Authority：更新中心 JSON 為初始權威來源。</b> Update ID：<code>${esc(week.authority_update_id||'歷史匯入')}</code>${esc(fallback)}${esc(stale)}。料理、隨機／EX 樹果等本週事實可建立明確 MANUAL_OVERRIDE；${esc(potNotice)}戰情室、食譜與策略統一讀取解析後的 Current Weekly Context。`;
   }else if(week.authority_source==='MANUAL_FALLBACK'){
-    node.className='notice warning';node.innerHTML='<b>本週尚無已套用的 Weekly Context JSON。</b> 目前使用人工資料作 fallback；一旦更新中心成功套用本週營地／活動 JSON，JSON 非空欄位會成為初始 Authority，之後仍可在此建立明確人工覆寫。';
+    node.className='notice warning';node.innerHTML=`<b>本週尚無已套用的 Weekly Context JSON。</b> 目前使用人工資料作 fallback；一旦更新中心成功套用本週營地／活動 JSON，JSON 非空欄位會成為初始 Authority，之後仍可在此建立明確人工覆寫。${esc(potNotice)}`;
   }else{
-    node.className='notice warning';node.innerHTML='<b>本週環境尚未建立。</b> 建議優先從更新中心匯入「本週營地／料理／活動 Context」JSON；沒有 JSON 時也可以在此人工建立本週資料。';
+    node.className='notice warning';node.innerHTML=`<b>本週環境尚未建立。</b> 建議優先從更新中心匯入「本週營地／料理／活動 Context」JSON；沒有 JSON 時也可以在此人工建立本週資料。${esc(potNotice)}`;
   }
 }
 function applyBerryPolicy(form,camp,observed=[],week=null){
@@ -118,11 +126,27 @@ function typedValue(field,raw){
   }
   return value===''?null:value;
 }
-function resolvedValue(week,field){
-  if(field==='pot_size')return week[field]??null;
-  return week[field]??null;
-}
+function resolvedValue(week,field){return week[field]??null;}
 function installBaseline(form){form.dataset.weeklyBaseline=JSON.stringify(rawFormState(form));}
+function readBaseline(form){
+  try{return JSON.parse(form.dataset.weeklyBaseline||'{}');}catch{return {};}
+}
+function potCapacityEdit(form,current){
+  const baseline=readBaseline(form);
+  const raw=String(q(form,'pot_size')?.value??'');
+  const changed=raw!==String(baseline.pot_size??'');
+  const legacySource=['MANUAL_OVERRIDE','MANUAL_FALLBACK','LEGACY_WEEKLY_POT_FALLBACK','UPDATE_CENTER_JSON'].includes(current.field_sources?.pot_size);
+  const shouldPromoteLegacy=!changed&&legacySource&&current.pot_size!==null&&current.pot_size!==undefined;
+  if(!changed&&!shouldPromoteLegacy)return {changed:false,needsAccountWrite:false,value:null,source:null};
+  const value=typedValue('pot_size',changed?raw:current.pot_size);
+  if(value===null)throw new Error('鍋子基礎容量不可清空；若數值有誤，請輸入目前遊戲畫面顯示的大於 0 整數');
+  return {
+    changed,
+    needsAccountWrite:true,
+    value,
+    source:changed?'MANUAL_WEEKLY_CONTEXT_UI':'WEEKLY_CONTEXT_LEGACY_PROMOTION',
+  };
+}
 function syncForm(){
   if(syncing||!isDatabaseReady()||isRescueReadonly())return;
   const form=document.getElementById('weeklyContextForm');if(!form)return;
@@ -151,24 +175,24 @@ function syncForm(){
   }finally{syncing=false;}
 }
 function formBerryObservation(form){return berryNames.map(name=>String(q(form,name)?.value??'').trim()).filter(Boolean);}
-function validateManualForm(form){
+function validateManualForm(form,current){
   const observed=formBerryObservation(form);
   if(observed.length!==0&&observed.length!==3)throw new Error('動態／隨機營地樹果必須完整提供三種');
   if(new Set(observed).size!==observed.length)throw new Error('三個喜好樹果不可重複');
   const effects=String(q(form,'event_effects')?.value??'').trim();if(effects)validateWeeklyEventEffects(effects);
-  typedValue('pot_size',q(form,'pot_size')?.value??'');
+  potCapacityEdit(form,current);
 }
 function hasImportedAuthority(current){return Boolean(current.authority_revision)||String(current.authority_context_id||'').endsWith('_import');}
 function existingOverrideFields(current){
-  const output={};
-  for(const field of current.manual_override_fields||[])output[field]=resolvedValue(current,field);
+  const output={},active=new Set(current.manual_override_fields||[]);
+  for(const field of weeklyOverrideFields)if(active.has(field))output[field]=resolvedValue(current,field);
   return output;
 }
 function changedOverrideFields(form,current){
-  let baseline={};try{baseline=JSON.parse(form.dataset.weeklyBaseline||'{}');}catch{}
+  const baseline=readBaseline(form);
   const output=existingOverrideFields(current);
   let changed=0;
-  for(const field of managedFields){
+  for(const field of weeklyOverrideFields){
     const node=q(form,field);if(!node||node.disabled)continue;
     const raw=String(node.value??'');
     if(raw===String(baseline[field]??''))continue;
@@ -176,7 +200,24 @@ function changedOverrideFields(form,current){
   }
   return {fields:output,changed};
 }
-async function saveFallback(form,current){
+function writeAccountPotCapacity(capacity,source='MANUAL_WEEKLY_CONTEXT_UI'){
+  const value=typedValue('pot_size',capacity);
+  if(value===null)throw new Error('鍋子基礎容量不可為空');
+  run(`INSERT INTO account_capacity(capacity_key,total_capacity,used_count,updated_at,source)
+    VALUES('pot',?,NULL,?,?)
+    ON CONFLICT(capacity_key) DO UPDATE SET
+      total_capacity=excluded.total_capacity,
+      updated_at=excluded.updated_at,
+      source=excluded.source`,[value,localIso(),source]);
+  return value;
+}
+async function saveAccountPotCapacity(edit){
+  await snapshot(edit.changed?'manual:account-pot-capacity':'migration:weekly-pot-to-account-capacity');
+  const value=writeAccountPotCapacity(edit.value,edit.source);
+  await persist();
+  return value;
+}
+async function saveFallback(form,current,potEdit){
   const weekStart=current.week_start||localWeekStart();
   const camp=String(q(form,'camp')?.value??'').trim()||null;
   const observed=formBerryObservation(form);
@@ -186,31 +227,53 @@ async function saveFallback(form,current){
   await snapshot('manual:weekly-context-fallback');
   run('INSERT OR REPLACE INTO weekly_context(context_id,week_start,camp,dish_category,favorite_berry_1,favorite_berry_2,favorite_berry_3,event_name,event_effects,pot_size,base_notes,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',[
     manualId,weekStart,camp,typedValue('dish_category',q(form,'dish_category')?.value??''),resolved.berries?.[0]||null,resolved.berries?.[1]||null,resolved.berries?.[2]||null,
-    typedValue('event_name',q(form,'event_name')?.value??''),manualEffects,typedValue('pot_size',q(form,'pot_size')?.value??''),typedValue('base_notes',q(form,'base_notes')?.value??''),localIso(),
+    typedValue('event_name',q(form,'event_name')?.value??''),manualEffects,null,typedValue('base_notes',q(form,'base_notes')?.value??''),localIso(),
   ]);
+  if(potEdit.needsAccountWrite)writeAccountPotCapacity(potEdit.value,potEdit.source);
   await persist();
-  return {context_id:manualId,week_start:weekStart,authority:'MANUAL_FALLBACK'};
+  return {context_id:manualId,week_start:weekStart,authority:'MANUAL_FALLBACK',pot_capacity_updated:potEdit.needsAccountWrite,pot_capacity:potEdit.value};
 }
-function emitChanged(detail){
-  document.dispatchEvent(new CustomEvent('pokemon-sleep-data-refreshed',{detail:{entity:'weekly_context',...detail}}));
-  globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:data-changed',{detail:{entity:'weekly_context',...detail}}));
+function emitEntityChanged(entity,detail={}){
+  document.dispatchEvent(new CustomEvent('pokemon-sleep-data-refreshed',{detail:{entity,...detail}}));
+  globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:data-changed',{detail:{entity,...detail}}));
+}
+function emitWeeklyChanged(detail){emitEntityChanged('weekly_context',detail);}
+function emitPotChanged(value,source){
+  emitEntityChanged('account_capacity',{capacity_key:'pot',total_capacity:value,source});
+  emitWeeklyChanged({authority:'ACCOUNT_CAPACITY_PROJECTION',capacity_key:'pot',pot_size:value});
 }
 function installSubmit(form){
   if(form.dataset.currentWeekSubmitInstalled==='1')return;
   form.dataset.currentWeekSubmitInstalled='1';
   form.onsubmit=async event=>{
     event.preventDefault();
-    try{validateManualForm(form);}catch(error){return alert(`本週環境無法儲存：${error.message}`);}
-    const current=currentWeeklyContext(),weekStart=current.week_start||localWeekStart();
+    const current=currentWeeklyContext();
+    try{validateManualForm(form,current);}catch(error){return alert(`本週環境無法儲存：${error.message}`);}
+    const weekStart=current.week_start||localWeekStart();
     try{
+      const potEdit=potCapacityEdit(form,current);
       if(hasImportedAuthority(current)){
         const {fields,changed}=changedOverrideFields(form,current);
-        if(!changed)return alert('目前沒有新的人工修改；若要回到 JSON 原值，請使用「清除本週人工覆寫」。');
-        await saveWeeklyManualOverride({weekStart,basedOnImportRevision:current.authority_revision,fields});
-        emitChanged({context_id:current.authority_context_id,week_start:weekStart,authority:'MANUAL_OVERRIDE'});
-        syncForm();alert('本週人工覆寫已儲存；戰情室／食譜會使用覆寫後的 Current Weekly Context。新的 Weekly JSON 匯入後，此覆寫會自動失效。');
+        if(!changed&&!potEdit.needsAccountWrite)return alert('目前沒有新的人工修改；若要回到 JSON 原值，請使用「清除本週人工覆寫」。');
+        if(changed){
+          await saveWeeklyManualOverride({weekStart,basedOnImportRevision:current.authority_revision,fields});
+          emitWeeklyChanged({context_id:current.authority_context_id,week_start:weekStart,authority:'MANUAL_OVERRIDE'});
+        }
+        if(potEdit.needsAccountWrite){
+          const value=await saveAccountPotCapacity(potEdit);
+          emitPotChanged(value,potEdit.source);
+        }
+        syncForm();
+        if(potEdit.changed&&changed)alert(`本週環境已儲存；鍋子基礎容量已更新為 ${potEdit.value}，其餘修改已建立本週人工覆寫。`);
+        else if(potEdit.changed)alert(`鍋子基礎容量已更新為 ${potEdit.value}；本週環境、食譜與戰情室會共用 account_capacity.pot。`);
+        else if(potEdit.needsAccountWrite)alert(`舊版鍋子容量 ${potEdit.value} 已轉為帳號層級 account_capacity.pot。`);
+        else alert('本週人工覆寫已儲存；戰情室／食譜會使用覆寫後的 Current Weekly Context。新的 Weekly JSON 匯入後，此覆寫會自動失效。');
       }else{
-        const detail=await saveFallback(form,current);emitChanged(detail);syncForm();alert('本週人工 fallback 已儲存並同步至戰情室／食譜。');
+        const detail=await saveFallback(form,current,potEdit);
+        emitWeeklyChanged(detail);
+        if(potEdit.needsAccountWrite)emitPotChanged(potEdit.value,potEdit.source);
+        syncForm();
+        alert(potEdit.changed?`本週人工 fallback 已儲存；鍋子基礎容量已更新為 ${potEdit.value}。`:'本週人工 fallback 已儲存並同步至戰情室／食譜。');
       }
     }catch(error){alert(`本週環境儲存失敗：${error.message}`);}
   };
@@ -222,7 +285,7 @@ async function clearOverrideClick(event){
   if(!confirm('清除本週人工覆寫，回到目前 Weekly JSON／fallback 的解析值？'))return;
   try{
     const cleared=await clearWeeklyManualOverride(weekStart);
-    if(cleared)emitChanged({context_id:current.authority_context_id,week_start:weekStart,authority:'MANUAL_OVERRIDE_CLEARED'});
+    if(cleared)emitWeeklyChanged({context_id:current.authority_context_id,week_start:weekStart,authority:'MANUAL_OVERRIDE_CLEARED'});
     syncForm();alert(cleared?'本週人工覆寫已清除。':'目前沒有人工覆寫。');
   }catch(error){alert(`清除人工覆寫失敗：${error.message}`);}
 }
@@ -240,7 +303,7 @@ function install(){
   document.addEventListener('click',event=>{if(event.target.closest?.('[data-view="weekly"]'))schedule();},true);
   document.addEventListener('pokemon-sleep-data-refreshed',schedule);
   globalThis.addEventListener?.('pokemon-sleep:database-ready',schedule);
-  globalThis.addEventListener?.('pokemon-sleep:data-changed',event=>{if(event.detail?.entity==='weekly_context')schedule();});
+  globalThis.addEventListener?.('pokemon-sleep:data-changed',event=>{if(['weekly_context','account_capacity'].includes(event.detail?.entity))schedule();});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});else schedule();
 }
 install();
