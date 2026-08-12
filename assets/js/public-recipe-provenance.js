@@ -3,7 +3,7 @@ import {
   PUBLIC_RECIPE_MASTER_VERSION,
 } from './public-recipe-canonical-authority.js';
 
-export const PUBLIC_RECIPE_PROVENANCE_VERSION='public-recipe-provenance-2026-08-11-c';
+export const PUBLIC_RECIPE_PROVENANCE_VERSION='public-recipe-provenance-2026-08-12-d';
 export const REVIEWED_RECIPE_MASTER_VERSION=PUBLIC_RECIPE_MASTER_VERSION;
 
 const ACTIVE_FORMULA_REFERENCE=Object.freeze({
@@ -41,39 +41,49 @@ const SCREENSHOT_FORMULA_REFERENCE=Object.freeze({
   observed_at:'2026-08-11',
 });
 
+const AUG12_ACTIVATION_REFERENCE=Object.freeze({
+  source_type:'game_screenshot_reference_crosscheck',
+  source_name:'current in-game zh-TW activation screenshot + current structured reference',
+  source_ref:'internal:v04132-recipe-activation-evidence+#172',
+  observed_at:'2026-08-12',
+});
+
 export const PUBLIC_RECIPE_PROVENANCE=Object.freeze(PUBLIC_RECIPE_MASTER.map(recipe=>{
+  const activatedAug12=Boolean(recipe.activation_contract_version);
   const screenshotVerifiedName=recipe.source_type==='game_screenshot_verified';
   const currentScreenshotName=screenshotVerifiedName&&recipe.source_ref==='internal:v04114-android-live-current-recipe-name-evidence';
   const screenshotVerifiedFormula=Boolean(recipe.formula_contract_version);
-  const nameSource=currentScreenshotName?SCREENSHOT_NAME_REFERENCE_20260811:screenshotVerifiedName?SCREENSHOT_NAME_REFERENCE_20260809:HISTORICAL_NAME_REFERENCE;
-  const formulaSource=screenshotVerifiedFormula?SCREENSHOT_FORMULA_REFERENCE:ACTIVE_FORMULA_REFERENCE;
+  const nameSource=activatedAug12?AUG12_ACTIVATION_REFERENCE:currentScreenshotName?SCREENSHOT_NAME_REFERENCE_20260811:screenshotVerifiedName?SCREENSHOT_NAME_REFERENCE_20260809:HISTORICAL_NAME_REFERENCE;
+  const formulaSource=activatedAug12?AUG12_ACTIVATION_REFERENCE:screenshotVerifiedFormula?SCREENSHOT_FORMULA_REFERENCE:ACTIVE_FORMULA_REFERENCE;
   return Object.freeze({
     recipe_id:recipe.recipe_id,
     recipe_name_zh_tw:recipe.recipe_name,
     category:recipe.category,
     lifecycle:'ACTIVE',
-    name_evidence:screenshotVerifiedName?'GAME_SCREENSHOT_VERIFIED':'SANITIZED_USER_REFERENCE',
+    name_evidence:activatedAug12?'GAME_SCREENSHOT_VERIFIED':screenshotVerifiedName?'GAME_SCREENSHOT_VERIFIED':'SANITIZED_USER_REFERENCE',
     name_source_type:nameSource.source_type,
     name_source_name:nameSource.source_name,
     name_source_ref:nameSource.source_ref,
     name_observed_at:nameSource.observed_at,
-    formula_evidence:screenshotVerifiedFormula?'GAME_SCREENSHOT_VERIFIED':'REFERENCE_VERIFIED',
+    formula_evidence:activatedAug12?'GAME_SCREENSHOT_VERIFIED_REFERENCE_CROSSCHECK':screenshotVerifiedFormula?'GAME_SCREENSHOT_VERIFIED':'REFERENCE_VERIFIED',
     formula_source_type:formulaSource.source_type,
     formula_source_name:formulaSource.source_name,
     formula_source_ref:formulaSource.source_ref,
     formula_verified_at:formulaSource.observed_at,
-    reference_match_basis:screenshotVerifiedName?'category+ingredient_signature+in_game_zh_tw_name':'category_order+ingredient_signature+historical_zh_tw_identity',
-    overall_status:screenshotVerifiedFormula?'ACTIVE_SCREENSHOT_FORMULA_VERIFIED':screenshotVerifiedName?'ACTIVE_SCREENSHOT_NAME_REFERENCE_FORMULA':'ACTIVE_MIXED_EVIDENCE',
+    reference_match_basis:activatedAug12?'in_game_zh_tw_name+exact_ingredient_formula+reference_crosscheck':screenshotVerifiedName?'category+ingredient_signature+in_game_zh_tw_name':'category_order+ingredient_signature+historical_zh_tw_identity',
+    overall_status:activatedAug12?'ACTIVE_CURRENT_GAME_NAME_FORMULA_VERIFIED':screenshotVerifiedFormula?'ACTIVE_SCREENSHOT_FORMULA_VERIFIED':screenshotVerifiedName?'ACTIVE_SCREENSHOT_NAME_REFERENCE_FORMULA':'ACTIVE_MIXED_EVIDENCE',
     provenance_version:PUBLIC_RECIPE_PROVENANCE_VERSION,
     reviewed_recipe_master_version:REVIEWED_RECIPE_MASTER_VERSION,
   });
 }));
 
+// Historical activation evidence is retained for audit, but these rows are no longer pending.
 export const PUBLIC_RECIPE_UPCOMING_EVIDENCE=Object.freeze([
   Object.freeze({
     evidence_id:'upcoming_recipe_greengrass_curry_bun_20260809',
     external_name:'Greengrass Curry Bun',
-    canonical_name_zh_tw:null,
+    canonical_recipe_id:'curry_greengrass_bun',
+    canonical_name_zh_tw:'萌綠咖哩麵包',
     category:'咖哩／濃湯',
     ingredients:Object.freeze([
       Object.freeze({ingredient_name:'暖暖薑',quantity:20}),
@@ -81,21 +91,22 @@ export const PUBLIC_RECIPE_UPCOMING_EVIDENCE=Object.freeze([
       Object.freeze({ingredient_name:'萌綠大豆',quantity:8}),
       Object.freeze({ingredient_name:'純粹油',quantity:15}),
     ]),
-    lifecycle:'UPCOMING_REFERENCE_DISCOVERED',
-    formula_evidence:'REFERENCE_VERIFIED_PRE_RELEASE',
+    lifecycle:'PROMOTED_TO_CANONICAL',
+    formula_evidence:'GAME_SCREENSHOT_VERIFIED_REFERENCE_CROSSCHECK',
     formula_source_ref:'https://www.serebii.net/pokemonsleep/dishes.shtml',
     discovered_at:'2026-08-09',
-    effective_from:null,
+    effective_from:'2026-08-10',
     activation_check_not_before:'2026-08-10',
     related_official_context_ref:'https://www.pokemonsleep.net/zh/news/343231343532353138373131363233363832/',
-    activation_status:'BLOCKED_PENDING_ZH_TW_NAME_AND_LIVE_EFFECTIVE_VERIFICATION',
+    activation_status:'PROMOTED_ACTIVE_2026_08_12',
     tracking_issue:'#172',
     provenance_version:PUBLIC_RECIPE_PROVENANCE_VERSION,
   }),
   Object.freeze({
     evidence_id:'upcoming_recipe_bounce_curry_udon_20260809',
     external_name:'Bounce Curry Udon',
-    canonical_name_zh_tw:null,
+    canonical_recipe_id:'curry_bounce_udon',
+    canonical_name_zh_tw:'彈跳咖哩烏龍麵',
     category:'咖哩／濃湯',
     ingredients:Object.freeze([
       Object.freeze({ingredient_name:'暖暖薑',quantity:39}),
@@ -103,14 +114,14 @@ export const PUBLIC_RECIPE_UPCOMING_EVIDENCE=Object.freeze([
       Object.freeze({ingredient_name:'火辣香草',quantity:22}),
       Object.freeze({ingredient_name:'豆製肉',quantity:20}),
     ]),
-    lifecycle:'UPCOMING_REFERENCE_DISCOVERED',
-    formula_evidence:'REFERENCE_VERIFIED_PRE_RELEASE',
+    lifecycle:'PROMOTED_TO_CANONICAL',
+    formula_evidence:'GAME_SCREENSHOT_VERIFIED_REFERENCE_CROSSCHECK',
     formula_source_ref:'https://www.serebii.net/pokemonsleep/dishes.shtml',
     discovered_at:'2026-08-09',
-    effective_from:null,
+    effective_from:'2026-08-10',
     activation_check_not_before:'2026-08-10',
     related_official_context_ref:'https://www.pokemonsleep.net/zh/news/343231343532353138373131363233363832/',
-    activation_status:'BLOCKED_PENDING_ZH_TW_NAME_AND_LIVE_EFFECTIVE_VERIFICATION',
+    activation_status:'PROMOTED_ACTIVE_2026_08_12',
     tracking_issue:'#172',
     provenance_version:PUBLIC_RECIPE_PROVENANCE_VERSION,
   }),
@@ -134,7 +145,8 @@ export function recipeProvenanceCoverage(){
     reviewed_recipe_master_version:REVIEWED_RECIPE_MASTER_VERSION,
     runtime_recipe_master_version:PUBLIC_RECIPE_MASTER_VERSION,
     active_recipe_count:PUBLIC_RECIPE_PROVENANCE.length,
-    upcoming_evidence_count:PUBLIC_RECIPE_UPCOMING_EVIDENCE.length,
+    upcoming_evidence_count:PUBLIC_RECIPE_UPCOMING_EVIDENCE.filter(row=>row.lifecycle==='UPCOMING_REFERENCE_DISCOVERED').length,
+    promoted_historical_evidence_count:PUBLIC_RECIPE_UPCOMING_EVIDENCE.filter(row=>row.lifecycle==='PROMOTED_TO_CANONICAL').length,
     lifecycle:Object.freeze(lifecycle),
     name_evidence:Object.freeze(nameEvidence),
     formula_evidence:Object.freeze(formulaEvidence),
