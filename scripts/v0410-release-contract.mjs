@@ -46,9 +46,6 @@ for(const token of [
   'PARTIAL','USER_CONFIRMED_COMPLETE','response_stale','screenshotScenarioRevision','source_image_ref','source_image_refs',
   'type="file" accept="image/*" multiple','截圖不會寫入 SQLite 或 GitHub',
 ])assert.ok(source.includes(token),`v0.4.10+ UC.IMG-A missing ${token}`);
-// v0.4.11.2 replaced the original static "圖片 bytes 未保留" label with explicit byte lifecycle states.
-// Historical privacy compatibility remains satisfied only if the successor also serializes bytes as NOT_AVAILABLE
-// and replaces picker File authority with a memory-owned Blob snapshot.
 const legacyBytePrivacyMarker=source.includes('圖片 bytes 未保留');
 const successorBytePrivacyContract=
   source.includes("byte_state:'NOT_AVAILABLE'")&&
@@ -59,7 +56,15 @@ assert.ok(legacyBytePrivacyMarker||successorBytePrivacyContract,'v0.4.10+ UC.IMG
 assert.equal(/indexedDB\.put\([^\n]*image|INSERT[^\n]*image_blob/i.test(source),false,'screenshot bytes must not be persisted');
 
 const loader=read('assets/js/candy-inventory-ui.js');
-assert.ok(loader.includes("import './unified-screenshot-update-center.js';"),'UC.IMG-A runtime loader missing');
+const directLoader=loader.includes("import './unified-screenshot-update-center.js';");
+const successorBootstrap=loader.includes("import './uc-img-v04132-pot-capacity-bootstrap.js';");
+assert.ok(directLoader||successorBootstrap,'UC.IMG-A runtime loader missing');
+if(successorBootstrap){
+  const bootstrap=read('assets/js/uc-img-v04132-pot-capacity-bootstrap.js');
+  assert.ok(bootstrap.includes("from './unified-screenshot-update-center.js'"),'successor bootstrap must load the same UC.IMG implementation');
+  assert.ok(bootstrap.includes('account_capacity'),'successor bootstrap may only extend Recipe scenario authority explicitly');
+  assert.ok(bootstrap.includes('recipeScenarioAcceptsPotCapacity'));
+}
 const promptCatalog=read('assets/js/prompt-catalog.js');
 for(const token of ['weekly_context_update','ingredient_inventory_update','recipe_status_update'])assert.ok(promptCatalog.includes(token),`existing prompt scenario missing ${token}`);
 const migrations=read('assets/js/migrations.js');
@@ -69,11 +74,12 @@ assert.ok(serviceWorker.includes("importScripts('./assets/js/version-authority.j
 assert.ok(serviceWorker.includes("url.pathname.endsWith('.js')"),'UC.IMG-A relies on established online-load-once dynamic JS caching');
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'V0.4.10_RELEASE_CONTRACT',current_app_version:`v${tuple.join('.')}`,
+  status:'PASS',gate:'V0.4.10_RELEASE_CONTRACT_SUCCESSOR_AWARE',current_app_version:`v${tuple.join('.')}`,
   historical_behavior_compatible:true,exact_release_authority_enforced:tuple[2]===10&&tuple[3]===0,
   uc_img_a_version:UC_IMG_A_VERSION,
   scenarios:Object.values(UC_IMG_A_SCENARIOS).map(value=>value.scenario),multi_image:true,coverage_semantics:true,
   evidence_traceability:true,stale_response_guard:true,existing_dry_run_apply_bridge:true,screenshot_bytes_persisted:false,
   screenshot_byte_privacy_contract:legacyBytePrivacyMarker?'legacy-label':'byte-lifecycle-successor',
+  loader_mode:successorBootstrap?'successor_bootstrap':'direct',single_uc_img_implementation:true,
   sqlite_migration_added:false,public_master_mutated:false,
 },null,2));
