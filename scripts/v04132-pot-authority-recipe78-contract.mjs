@@ -31,15 +31,22 @@ import {recipeScenarioAcceptsPotCapacity} from '../assets/js/uc-img-v04132-pot-c
 const read=path=>fs.readFileSync(path,'utf8');
 const signature=recipe=>[...(recipe.ingredients||[])].map(row=>`${row.ingredient_name}=${Number(row.quantity)}`).sort((a,b)=>a.localeCompare(b,'zh-Hant')).join('|');
 const expectedSignature=rows=>rows.map(([name,qty])=>`${name}=${qty}`).sort((a,b)=>a.localeCompare(b,'zh-Hant')).join('|');
+const versionTuple=value=>{const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$/);return match?match.slice(1).map(part=>Number(part||0)):null;};
+const versionAtLeast=(value,minimum)=>{const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;for(let i=0;i<4;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return true;};
 
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.13.1','v0.4.13.2'].includes(appVersion),`unexpected v0.4.13.2 behavior/release authority: ${appVersion}`);
+assert.ok(appVersion==='v0.4.13.1'||versionAtLeast(appVersion,'v0.4.13.2'),`unexpected v0.4.13.2 behavior/release authority: ${appVersion}`);
 if(appVersion==='v0.4.13.1')assert.equal(version.match(/app_build:\s*'([^']+)'/)?.[1],'20260811-v04131-data-preservation-hotfix','behavior-first stage must keep predecessor Release Authority');
-else{
+else if(appVersion==='v0.4.13.2'){
   assert.equal(version.match(/app_build:\s*'([^']+)'/)?.[1],'20260812-v04132-pot-authority-recipe78');
   assert.equal(version.match(/cache_name:\s*'([^']+)'/)?.[1],'pokemon-sleep-ai-v0.4.13.2-v04132-pot-authority-recipe78');
   assert.ok(version.includes("// app_version: 'v0.4.13.1'"));
+}else{
+  // Historical behavior gate: successor releases may change their own build/cache authority,
+  // but must preserve the v0.4.13.2 lineage marker while this behavior remains active.
+  assert.ok(version.includes("// app_version: 'v0.4.13.2'"),'successor must retain v0.4.13.2 lineage bridge');
+  assert.ok(version.includes("// app_build: '20260812-v04132-pot-authority-recipe78'"));
 }
 
 assert.equal(POT_CAPACITY_AUTHORITY_VERSION,'pot-capacity-authority-2026-08-12-a');
@@ -87,4 +94,4 @@ const unified=read('assets/js/unified-screenshot-update-center.js');assert.equal
 const migrations=read('assets/js/migrations.js');assert.equal(migrations.includes('VALUES(10,'),false);
 for(const privateToken of ['1000109624.png','1000109625.png','1000109626.png','1000109627.png','1000109628.png','1000109629.png'])for(const path of ['assets/js/public-recipe-canonical-authority.js','assets/js/public-recipe-provenance.js','assets/js/public-recipe-discovery-master.js'])assert.equal(read(path).includes(privateToken),false);
 
-console.log(JSON.stringify({status:'PASS',gate:'V0.4.13.2_BEHAVIORAL_CONTRACT',app_version:appVersion,release_promoted:appVersion==='v0.4.13.2',pot_capacity_authority:POT_CAPACITY_AUTHORITY_VERSION,account_capacity_primary:true,legacy_weekly_fallback:true,weekly_prompt_owns_base_pot:false,recipe_screen_capacity_compiles_same_update_package:true,conflicting_capacity_fail_closed:true,uc_img_apply_bridge_count:1,raw_recipe_count:RAW_PUBLIC_RECIPE_MASTER.length,canonical_recipe_count:PUBLIC_RECIPE_MASTER.length,category_counts:categoryCounts,activated_recipe_ids:PUBLIC_RECIPE_ACTIVATION_ADDITIONS.map(row=>row.recipe_id),discovery_candidates_remaining:discoveryPlan.summary.recipe_candidate_count,recognition_catalog_count:snapshot.row_count,sqlite_migration_added:false,private_screenshot_names_committed:false},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V0.4.13.2_BEHAVIORAL_CONTRACT',app_version:appVersion,release_promoted:versionAtLeast(appVersion,'v0.4.13.2'),pot_capacity_authority:POT_CAPACITY_AUTHORITY_VERSION,account_capacity_primary:true,legacy_weekly_fallback:true,weekly_prompt_owns_base_pot:false,recipe_screen_capacity_compiles_same_update_package:true,conflicting_capacity_fail_closed:true,uc_img_apply_bridge_count:1,raw_recipe_count:RAW_PUBLIC_RECIPE_MASTER.length,canonical_recipe_count:PUBLIC_RECIPE_MASTER.length,category_counts:categoryCounts,activated_recipe_ids:PUBLIC_RECIPE_ACTIVATION_ADDITIONS.map(row=>row.recipe_id),discovery_candidates_remaining:discoveryPlan.summary.recipe_candidate_count,recognition_catalog_count:snapshot.row_count,sqlite_migration_added:false,private_screenshot_names_committed:false},null,2));
