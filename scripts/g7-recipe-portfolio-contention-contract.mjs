@@ -33,13 +33,15 @@ if(appVersion==='v0.4.12'){
   assert.ok(version.includes("// app_version: 'v0.4.13.1'"),'v0.4.13.2 must retain data-preservation predecessor bridge');
   assert.ok(version.includes("// app_version: 'v0.4.13'"),'v0.4.13.2 must retain G7 predecessor bridge');
 }else{
-  // G7.1 is a historical behavior contract. Later releases may own new build/cache names,
-  // while the original release lineage must remain traceable.
   assert.ok(version.includes("// app_version: 'v0.4.13'"),'G7 successor must retain v0.4.13 lineage bridge');
   assert.ok(version.includes("// app_build: '20260811-v0413-g7-recipe-portfolio-contention'"));
 }
-assert.equal(RECIPE_PORTFOLIO_CONTENTION_VERSION,'recipe-portfolio-contention-2026-08-11-a');
-assert.deepEqual(RECIPE_PORTFOLIO_OBJECTIVES,['unlock_recipes','preserve_resources','continuous_meals']);
+assert.ok([
+  'recipe-portfolio-contention-2026-08-11-a',
+  'recipe-portfolio-contention-2026-08-12-b-verified-energy',
+].includes(RECIPE_PORTFOLIO_CONTENTION_VERSION),`unexpected G7 portfolio engine successor: ${RECIPE_PORTFOLIO_CONTENTION_VERSION}`);
+assert.deepEqual(RECIPE_PORTFOLIO_OBJECTIVES.slice(0,3),['unlock_recipes','preserve_resources','continuous_meals'],'G7 successor must preserve predecessor objective order/semantics');
+if(RECIPE_PORTFOLIO_CONTENTION_VERSION==='recipe-portfolio-contention-2026-08-12-b-verified-energy')assert.ok(RECIPE_PORTFOLIO_OBJECTIVES.includes('maximize_verified_energy'),'verified-energy successor must extend, not replace, predecessor objectives');
 
 function candidate(id,{name=id,unlocked=false,energy=100,requirements=[]}={}){
   return {
@@ -119,7 +121,7 @@ const migrations=read('assets/js/migrations.js');
 assert.equal(migrations.includes('VALUES(10,'),false,'G7.1 must remain migration-free');
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'G7_1_RECIPE_PORTFOLIO_RESOURCE_CONTENTION_SUCCESSOR_AWARE',app_version:appVersion,release_promoted:versionAtLeast(appVersion,'v0.4.13'),
+  status:'PASS',gate:'G7_1_RECIPE_PORTFOLIO_RESOURCE_CONTENTION_EXTENSION_AWARE',app_version:appVersion,release_promoted:versionAtLeast(appVersion,'v0.4.13'),
   planner_version:RECIPE_PORTFOLIO_CONTENTION_VERSION,objectives:RECIPE_PORTFOLIO_OBJECTIVES,
   fixture_a:{ready:unlockPlan.summary.individually_ready_count,contention_edges:graphA.contention_edge_count,oversubscribed:graphA.oversubscribed_ingredient_count,simultaneous:false,top_sequence:unlockPlan.alternatives[0].sequence_key},
   fixture_b:{safe_reserve_enforced:true,empty_collection_zero_assumed:false},
