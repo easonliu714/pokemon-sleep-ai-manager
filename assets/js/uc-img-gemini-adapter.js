@@ -72,6 +72,9 @@ export async function analyzeUcImgScenarioWithGemini({scenarioKey,config,entries
   const effectivePrompt=platformAuthority?`${prompt}${buildUcImgWeeklyPlatformPromptInstruction(platformAuthority)}`:prompt;
   const trace=(event,details={})=>onTrace(event,{scenario_key:scenarioKey,scenario:config?.scenario||null,adapter_version:UC_IMG_GEMINI_ADAPTER_VERSION,...details});
   const outcome=await execute({projects:poolData.projects,model,prompt:effectivePrompt,images,responseJsonSchema,onTrace:trace});
+  if(Array.isArray(outcome?.projects)){
+    try{poolData.projects=outcome.projects;}catch{}
+  }
   if(!outcome?.ok){
     const error=new Error(safeAttemptFailureMessage(outcome));
     error.uc_img_attempts=[...(outcome?.attempts||[])];
