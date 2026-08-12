@@ -9,7 +9,8 @@ import {buildExternalOptimizationPrompt,normalizeOptimizationAiResponse} from '.
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.15','v0.4.16'].includes(appVersion),`unexpected G7.3 staging/release version ${appVersion}`);
+assert.ok(['v0.4.15','v0.4.16','v0.4.17'].includes(appVersion),`unexpected G7.3 staging/release/successor version ${appVersion}`);
+if(appVersion==='v0.4.17')assert.ok(version.includes("// app_version: 'v0.4.16'"),'v0.4.17 must retain v0.4.16 lineage bridge');
 
 const registry=currentProductionAuthorityRegistry();
 assert.equal(registry.numeric_rate_model_status,'NOT_YET_VERIFIED');
@@ -86,10 +87,11 @@ for(const file of ['assets/js/production-authority-registry.js','assets/js/team-
   const source=read(file);for(const forbidden of ['INSERT INTO','UPDATE ingredient_inventory','DELETE FROM','applyPayload(','dryRun(','fetch('])assert.equal(source.includes(forbidden),false,`${file} owns forbidden mutation/network path`);
 }
 const ui=read('assets/js/war-room-strategy-context-ui.js');
-for(const token of ['G7.3 隊伍最佳化 Strategy Pack','建立最佳化分析包','複製外部 AI 提示詞','deterministic re-evaluate'])assert.ok(ui.includes(token),`G7.3 UI token missing ${token}`);
+assert.ok(ui.includes('G7.3 隊伍最佳化 Strategy Pack')||ui.includes('G7.4 隊伍最佳化 Strategy Pack'),'G7.3 successor UI heading missing');
+for(const token of ['建立最佳化分析包','複製外部 AI 提示詞','deterministic re-evaluate'])assert.ok(ui.includes(token),`G7.3 UI token missing ${token}`);
 const local=read('assets/js/strategy-context-local.js');
 for(const token of ['buildLocalOptimizationStrategyPreview','production_rate_model:NOT_YET_VERIFIED','HOLD_NUMERIC_MODEL_NOT_ACTIVE'])assert.ok(local.includes(token),`G7.3 local token missing ${token}`);
 const sw=read('service-worker.js');
 for(const asset of ['./assets/js/production-authority-registry.js','./assets/js/team-objective-evaluator.js','./assets/js/bounded-team-search.js','./assets/js/strategy-optimization-pack.js','./assets/js/strategy-optimization-ai-contract.js','./assets/js/v0416-g73-ui.js'])assert.ok(sw.includes(`'${asset}'`),`first-offline precache missing ${asset}`);
 
-console.log(JSON.stringify({status:'PASS',gate:'V0416_G73_PRODUCTION_TEAM_SEARCH_CONTRACT',app_version:appVersion,production_rate_model_status:registry.numeric_rate_model_status,numeric_objective_blocked_without_verified_rates:true,bounded_search_deterministic:true,hard_constraints_preserved:true,budget_stop_returns_best_found:true,global_optimum_claimed:false,optimization_pack_v2:true,stable_ids_in_payload:false,external_ai_prompt:true,ai_numeric_authority:false,deterministic_re_evaluation_required:true},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V0416_G73_PRODUCTION_TEAM_SEARCH_CONTRACT_SUCCESSOR_AWARE',app_version:appVersion,production_rate_model_status:registry.numeric_rate_model_status,numeric_objective_blocked_without_verified_rates:true,bounded_search_deterministic:true,hard_constraints_preserved:true,budget_stop_returns_best_found:true,global_optimum_claimed:false,optimization_pack_v2:true,stable_ids_in_payload:false,external_ai_prompt:true,ai_numeric_authority:false,deterministic_re_evaluation_required:true},null,2));
