@@ -1,5 +1,5 @@
-export const STRATEGY_ANALYSIS_PACK_VERSION='strategy-analysis-pack-2026-08-10-c';
-export const STRATEGY_ANALYSIS_PROMPT_VERSION='strategy-analysis-prompt-2026-08-10-c';
+export const STRATEGY_ANALYSIS_PACK_VERSION='strategy-analysis-pack-2026-08-12-d-g72-evidence-authority';
+export const STRATEGY_ANALYSIS_PROMPT_VERSION='strategy-analysis-prompt-2026-08-12-d-g72-evidence-authority';
 export const STRATEGY_ANALYSIS_SHARING_NOTICE_VERSION='strategy-analysis-sharing-notice-2026-08-10-a';
 
 const text=value=>String(value??'').normalize('NFKC').trim();
@@ -8,6 +8,7 @@ const stable=value=>Array.isArray(value)?value.map(stable):value&&typeof value==
 const stableJson=value=>JSON.stringify(stable(value));
 const hash=value=>{let h=2166136261;for(const byte of new TextEncoder().encode(String(value))){h^=byte;h=Math.imul(h,16777619);}return(h>>>0).toString(16).padStart(8,'0');};
 const unique=value=>[...new Set((Array.isArray(value)?value:[]).map(text).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
+const hasOwn=(object,key)=>Object.prototype.hasOwnProperty.call(object||{},key);
 
 function candidateStableId(row){return text(row?.pokemon_id||row?.pokemon_instance_id);}
 function candidateSpecies(row){return text(row?.species||row?.current_species)||null;}
@@ -100,24 +101,75 @@ function relevantIngredientNames({recipeStrategy,recipeDiscovery,teamOptimizatio
   return names;
 }
 
+function resourceObserved(row){
+  const state=text(row?.quantity_state);
+  if(state)return state==='OBSERVED_QUANTITY'||state==='ZERO_CONFIRMED';
+  if(hasOwn(row,'player_record_exists'))return Boolean(row.player_record_exists);
+  return number(row?.quantity)!==null;
+}
+function resourceQuantityState(row){
+  const state=text(row?.quantity_state);
+  if(state)return state;
+  if(!resourceObserved(row))return 'NOT_OBSERVED';
+  return number(row?.quantity)===0?'ZERO_CONFIRMED':'OBSERVED_QUANTITY';
+}
+function collectionEvidenceFallback(source=[],collection='resources'){
+  const rows=Array.isArray(source)?source:[];
+  const observedCount=rows.filter(resourceObserved).length;
+  const confirmedZeroCount=rows.filter(row=>resourceQuantityState(row)==='ZERO_CONFIRMED').length;
+  const missingCount=Math.max(0,rows.length-observedCount);
+  return {
+    policy_version:null,collection,catalog_row_count:rows.length,observed_row_count:observedCount,confirmed_zero_row_count:confirmedZeroCount,missing_row_count:missingCount,
+    completeness_status:rows.length===0?'CATALOG_UNAVAILABLE':missingCount===0?'COMPLETE_BY_ROW_COVERAGE':observedCount===0?'NOT_OBSERVED':'PARTIAL',
+    missing_row_semantics:'UNKNOWN_NOT_ZERO',zero_fill_authorized:false,zero_confirmation_rule:'EXPLICIT_PLAYER_RECORD_QUANTITY_ZERO_ONLY',authority:'PLAYER_LOCAL_SQLITE',
+  };
+}
+function sanitizeCollectionEvidence(resourceSnapshot,key,source){
+  const raw=resourceSnapshot?.collection_evidence?.[key]||collectionEvidenceFallback(source,key);
+  return Object.freeze({
+    policy_version:text(raw?.policy_version)||text(resourceSnapshot?.collection_evidence?.policy_version)||null,
+    collection:key,
+    catalog_row_count:number(raw?.catalog_row_count)??0,
+    observed_row_count:number(raw?.observed_row_count)??0,
+    confirmed_zero_row_count:number(raw?.confirmed_zero_row_count)??0,
+    missing_row_count:number(raw?.missing_row_count)??0,
+    completeness_status:text(raw?.completeness_status)||'UNKNOWN',
+    missing_row_semantics:text(raw?.missing_row_semantics)||'UNKNOWN_NOT_ZERO',
+    zero_fill_authorized:raw?.zero_fill_authorized===true,
+    zero_confirmation_rule:text(raw?.zero_confirmation_rule)||'EXPLICIT_PLAYER_RECORD_QUANTITY_ZERO_ONLY',
+    authority:text(raw?.authority)||'PLAYER_LOCAL_SQLITE',
+  });
+}
+function sanitizePhysicalRow(row,base={}){
+  const state=resourceQuantityState(row),observed=resourceObserved(row);
+  return Object.freeze({
+    ...base,
+    quantity:observed?number(row?.quantity):null,
+    safe_reserve:hasOwn(row,'safe_reserve')?(observed?number(row?.safe_reserve):null):undefined,
+    available:observed?number(row?.available??row?.quantity):null,
+    quantity_state:state,
+    evidence_authority:observed?(text(row?.evidence_authority)||'PLAYER_INVENTORY_ROW'):'NO_PLAYER_RECORD',
+  });
+}
 function sanitizeResources(resourceSnapshot,{recipeStrategy,recipeDiscovery,teamOptimization}={}){
   const ingredientNames=relevantIngredientNames({recipeStrategy,recipeDiscovery,teamOptimization});
   const ingredientSource=Array.isArray(resourceSnapshot?.ingredients)?resourceSnapshot.ingredients:[];
   const itemSource=Array.isArray(resourceSnapshot?.items)?resourceSnapshot.items:[];
   const candySource=Array.isArray(resourceSnapshot?.candies)?resourceSnapshot.candies:[];
-  const ingredients=ingredientSource.filter(row=>ingredientNames.size===0?Boolean(row.player_record_exists)||Number(row.quantity||0)>0:ingredientNames.has(text(row.ingredient_name))).map(row=>Object.freeze({
-    ingredient_name:text(row.ingredient_name),quantity:Number(row.quantity||0),available:Number(row.available??row.quantity??0),
-  }));
-  const items=itemSource.filter(row=>Boolean(row.player_record_exists)||Number(row.quantity||0)>0||Number(row.safe_reserve||0)>0).map(row=>Object.freeze({
-    item_name:text(row.item_name),item_category:text(row.item_category)||null,quantity:Number(row.quantity||0),safe_reserve:Number(row.safe_reserve||0),available:Number(row.available||0),
-  }));
-  const candies=candySource.filter(row=>Boolean(row.player_record_exists)||Number(row.quantity||0)>0||Number(row.safe_reserve||0)>0).map(row=>Object.freeze({
+  const ingredients=ingredientSource.filter(row=>ingredientNames.size===0?resourceObserved(row):ingredientNames.has(text(row.ingredient_name))).map(row=>sanitizePhysicalRow(row,{ingredient_name:text(row.ingredient_name)}));
+  const items=itemSource.filter(resourceObserved).map(row=>sanitizePhysicalRow(row,{item_name:text(row.item_name),item_category:text(row.item_category)||null}));
+  const candies=candySource.filter(resourceObserved).map(row=>sanitizePhysicalRow(row,{
     candy_name:text(row.candy_name),candy_type:text(row.candy_type)||null,target_species_name:text(row.target_species_name)||null,target_type_name:text(row.target_type_name)||null,
-    quantity:Number(row.quantity||0),safe_reserve:Number(row.safe_reserve||0),available:Number(row.available||0),
   }));
   return Object.freeze({
     resource_context_version:text(resourceSnapshot?.version)||null,
     resource_status:text(resourceSnapshot?.status)||null,
+    evidence_policy_version:text(resourceSnapshot?.collection_evidence?.policy_version)||null,
+    collection_evidence:Object.freeze({
+      ingredients:sanitizeCollectionEvidence(resourceSnapshot,'ingredients',ingredientSource),
+      items:sanitizeCollectionEvidence(resourceSnapshot,'items',itemSource),
+      candies:sanitizeCollectionEvidence(resourceSnapshot,'candies',candySource),
+    }),
     ingredients:Object.freeze(ingredients),items:Object.freeze(items),candies:Object.freeze(candies),
     candy_conversion:Object.freeze({
       rule_status:text(resourceSnapshot?.candy_conversion?.rule_status)||'NOT_YET_VERIFIED',
@@ -151,6 +203,7 @@ function sanitizeGoalProfile(goalProfile){
 }
 
 function recipeRequirementParity(req,resource){
+  if(resource&&!resourceObserved(resource))return 'MISSING_RESOURCE';
   const projectionOwned=number(req?.owned),projectionUsable=number(req?.usable);
   const physicalQuantity=resource?number(resource.quantity):projectionOwned;
   const physicalAvailable=resource?number(resource.available):projectionUsable;
@@ -170,12 +223,13 @@ function sanitizeRecipeStrategy(recipeStrategy,resources){
       total_ingredients:number(row.total_ingredients),candidate_status:text(row.candidate_status)||null,hard_constraint_status:text(row.hard_constraint_status)||null,
       pot_fit:row.pot_fit===true?true:row.pot_fit===false?false:null,total_raw_shortage:number(row.total_raw_shortage),total_strategy_shortage:number(row.total_strategy_shortage),
       requirements:Object.freeze((row.requirements||[]).map(req=>{
-        const name=text(req.ingredient_name),resource=resourceMap.get(name)||null;
+        const name=text(req.ingredient_name),resource=resourceMap.get(name)||null,observed=resource?resourceObserved(resource):false;
         return Object.freeze({
           ingredient_name:name,required:number(req.required??req.required_quantity??req.quantity),
-          physical_quantity:resource?number(resource.quantity):number(req.owned),
+          physical_quantity:resource?(observed?number(resource.quantity):null):number(req.owned),
+          physical_quantity_state:resource?resourceQuantityState(resource):(number(req.owned)!==null?'LEGACY_PROJECTION_ONLY':'NOT_OBSERVED'),
           safe_reserve:number(req.safe_reserve),
-          physical_available:resource?number(resource.available):number(req.usable),
+          physical_available:resource?(observed?number(resource.available):null):number(req.usable),
           raw_shortage:number(req.raw_shortage),strategy_shortage:number(req.strategy_shortage??req.shortage),
           inventory_parity_status:recipeRequirementParity(req,resource),
         });
@@ -200,6 +254,30 @@ function sanitizeRecipeDiscovery(recipeDiscovery,resolver){
   });
 }
 
+function sanitizeRecipePortfolio(recipePortfolio,resolver){
+  if(!recipePortfolio)return null;
+  const safe=value=>stable(replaceStableIds(value,resolver));
+  return Object.freeze({
+    planner_version:text(recipePortfolio.planner_version)||null,
+    projection_status:text(recipePortfolio.projection_status)||null,
+    input_fingerprint:text(recipePortfolio.input_fingerprint)||null,
+    recipe_strategy_fingerprint:text(recipePortfolio.recipe_strategy_fingerprint)||null,
+    objective:text(recipePortfolio.objective)||null,
+    context:safe(recipePortfolio.context||{}),
+    summary:safe(recipePortfolio.summary||{}),
+    contention:recipePortfolio.contention?safe(recipePortfolio.contention):null,
+    alternatives:Object.freeze(safe((recipePortfolio.alternatives||[]).slice(0,3))),
+    missing_inventory_observations:Object.freeze(safe(recipePortfolio.missing_inventory_observations||[])),
+    read_only_manifest:Object.freeze({
+      player_data_write:recipePortfolio.player_data_write===true,
+      inventory_mutation:recipePortfolio.inventory_mutation===true,
+      public_master_write:recipePortfolio.public_master_write===true,
+      gemini_used:recipePortfolio.gemini_used===true,
+      direct_apply_allowed:false,
+    }),
+  });
+}
+
 function deriveMissingRules({candidateScoring,teamOptimization,recipeDiscovery,resourceSnapshot,weeklyContext}={}){
   const missing=new Set();
   const scoreCandidates=candidateScoring?.candidates||[];
@@ -211,6 +289,16 @@ function deriveMissingRules({candidateScoring,teamOptimization,recipeDiscovery,r
   for(const row of weeklyContext?.event_effect_states||[])if(row.rule_status==='FEATURE_ONLY')missing.add(`event_effect_rule:${row.effect_key}`);
   return Object.freeze([...missing].sort());
 }
+function deriveEvidenceGaps(resources,recipePortfolio){
+  const gaps=[];
+  for(const key of ['ingredients','items','candies']){
+    const evidence=resources?.collection_evidence?.[key];
+    if(evidence&&Number(evidence.missing_row_count||0)>0)gaps.push(`resource_collection:${key}:${evidence.completeness_status||'UNKNOWN'}:${evidence.missing_row_count}_UNKNOWN`);
+  }
+  const missingPortfolio=recipePortfolio?.missing_inventory_observations||[];
+  if(missingPortfolio.length)gaps.push(`recipe_portfolio:missing_inventory_observations:${missingPortfolio.length}`);
+  return Object.freeze(gaps.sort());
+}
 
 function recipeParityStatus(recipeStrategy){
   const statuses=(recipeStrategy?.candidates||[]).flatMap(row=>(row.requirements||[]).map(req=>req.inventory_parity_status));
@@ -219,6 +307,23 @@ function recipeParityStatus(recipeStrategy){
   if(statuses.includes('PARTIAL'))return 'PARTIAL';
   return statuses.length?'MATCH':'NOT_APPLICABLE';
 }
+function evidenceAuthorityManifest(){return Object.freeze({
+  manifest_version:'strategy-analysis-evidence-authority-2026-08-12-a',
+  fact_fields:Object.freeze([
+    'weekly_context observed/platform-authority values',
+    'resource_snapshot rows only when quantity_state=OBSERVED_QUANTITY or ZERO_CONFIRMED',
+    'candidate_pokemon species/level/specialty/type player-profile fields',
+  ]),
+  deterministic_fields:Object.freeze([
+    'candidate_pokemon.hard_constraint_status','candidate_pokemon.current_readiness_score','candidate_pokemon.favorite_berry_match',
+    'candidate_pokemon.weekly_ingredient_overlap','candidate_pokemon.weekly_ingredient_demand_covered','candidate_pokemon.profile_completeness',
+    'deterministic_results.team_optimization','deterministic_results.recipe_strategy','deterministic_results.recipe_discovery','deterministic_results.recipe_portfolio',
+  ]),
+  unknown_rule:'NOT_OBSERVED / null / missing collection rows are unknown, never numeric zero',
+  zero_rule:'Only quantity_state=ZERO_CONFIRMED is verified physical zero',
+  collection_rule:'Empty exported collection must be interpreted through resource_snapshot.collection_evidence; [] alone never means verified zero inventory',
+  derived_rule:'Candidate overlap/readiness/scoring fields are platform deterministic projections, not raw observations',
+});}
 function sharingNotice(){return Object.freeze({
   notice_version:STRATEGY_ANALYSIS_SHARING_NOTICE_VERSION,
   data_classification:'PRIVATE_GAME_RECORDS',
@@ -229,11 +334,11 @@ function sharingNotice(){return Object.freeze({
 });}
 
 function promptForPack(pack){
-  return `你是 Pokémon Sleep 策略分析模型。請只根據下方 Strategy Analysis Pack 提供建議。\n\n【Evidence Authority】\n1. FACT：resource_snapshot、weekly_context 中明確提供的玩家觀測／公版資料為 FACT；其中 resource_snapshot.quantity / available 是 physical resource 的最高權威，不得自行改寫、補猜或用外部知識替換。\n2. DETERMINISTIC：只有 Pack 已明確輸出的 deterministic projection / rule result 才能標示 DETERMINISTIC。你自行做的加減乘除、跨區塊 join、排序、使用後餘量、機會成本比較，即使輸入都來自 FACT，也必須標示 AI_INFERENCE。\n3. AI_INFERENCE：所有策略優先順序、option value、跨目標 trade-off 與資源競爭判斷都必須標示 AI_INFERENCE。\n\n【Missing Rule Safety】\n4. null、missing_rules、REVIEW_REQUIRED、FEATURE_ONLY、NOT_YET_VERIFIED、UNKNOWN 代表平台沒有足夠 verified deterministic rule；不得將未知視為 0、不得把沒有 Evidence 當成負面 Evidence、不得捏造精確數值。應使用 NOT COMPUTABLE / INSUFFICIENT EVIDENCE / QUALITATIVE TRADE-OFF。\n\n【Recipe / Resource Consistency】\n5. recipe requirement 的 physical_quantity / physical_available 與 resource_snapshot 是 physical inventory evidence；strategy_shortage 是平台 recipe strategy projection。不得僅因 strategy_shortage=0 就自行宣稱「目前確定可立即製作」。\n6. 必須檢查 inventory_parity_status。若為 MISMATCH / MISSING_RESOURCE / PARTIAL，標示 DATA_CONSISTENCY_GAP，指出衝突，不得自行挑一個值冒充 DETERMINISTIC。\n7. 若你使用 resource_snapshot 與 recipe requirement 自行比對可製作性、使用後剩餘量或解鎖順序，結果必須標示 AI_INFERENCE。\n8. 不得逐道料理孤立判斷；同一食材若同時被多個 recipe、Discovery stockpile 或其他目標需求，必須分析 resource contention、歸零風險、其他目標被阻斷的可能與 option value。缺少 production-rate model 時不得假設食材容易補回。\n\n【Candidate Reference Integrity】\n9. 只能引用 candidate_pokemon[] 中存在的 candidate_ref。若任何 deterministic result 引用了不存在的 candidate_ref，標示 REFERENCE_INTEGRITY_GAP，不得自行補猜個體資料，也不得把該 ref 作為正式推薦依據。\n\n【Discovery / Candy / Evolution Safety】\n10. canonical_active=false、canonical_name_zh_tw=null 或 CONSERVATIVE_DISCOVERY_UPPER_BOUND 只能作保守囤料方向，不得描述成已確認正式料理或確定需求量。\n11. physical candy 與 convertible candy 必須完全分離；candy_conversion.rule_status != ACTIVE_VERIFIED 或 derived_options 為空時，不得輸出任何換算數量。\n12. 持有進化道具不代表某 candidate 值得進化。缺 evolution target/cost/post-evolution benefit/training ROI 時只能作定性 trade-off。\n13. 只有 strategy_event_effects / ACTIVE_VERIFIED effect 能作 deterministic strategy evidence；feature_only_event_effects 不得自行轉成 numeric bonus。\n\n【Privacy / Action Boundary】\n14. 不得要求或推導 API Key、raw SQLite、stable Pokémon local ID、raw screenshots、完整 OCR、source image ref、identity fingerprint 或 private notes。\n15. 本回答只作建議，不代表可直接修改玩家 SQLite，也不要輸出任何 Apply operation。\n\n【Pack QA】\n16. 回答中必須新增「資料完整性／一致性問題」段落，檢查 missing candidate_ref、resource/recipe parity、contradictory deterministic results、unknown canonical identity、physical/convertible double counting。若沒有問題也要明確寫「未發現」。\n\n分析要求：\n${pack.analysis_request||'請依目前目標、資源、本週環境與 deterministic 結果，提出優先順序、理由、風險、缺少資料與下一步。'}\n\n輸出格式：\n1. 重點摘要\n2. 建議優先順序（每項標示 FACT / DETERMINISTIC / AI_INFERENCE）\n3. Resource opportunity-cost analysis\n4. Candidate / Recipe Evidence（只引用可解析 candidate_ref / recipe_id）\n5. 主要 trade-off\n6. 目前無法可靠計算的項目（對應 missing_rules）\n7. 資料完整性／一致性問題\n8. 建議補充的 Data / Evidence（依最能改善下一次決策品質排序）\n9. 最終策略（區分平台 FACT、平台 DETERMINISTIC、AI_INFERENCE）\n\nStrategy Analysis Pack JSON：\n${JSON.stringify(pack,null,2)}`;
+  return `你是 Pokémon Sleep 策略分析模型。請只根據下方 Strategy Analysis Pack 提供建議。\n\n【Evidence Authority】\n1. FACT：weekly_context 與 candidate_pokemon 的原始玩家欄位（species / level / specialty / type），以及 resource_snapshot 中 quantity_state=OBSERVED_QUANTITY 或 ZERO_CONFIRMED 的實體資源值，才可視為平台 FACT。不得自行改寫、補猜或用外部知識替換。\n2. resource_snapshot 中 quantity_state=NOT_OBSERVED 時，quantity / available 必須視為 UNKNOWN；即使 collection 陣列為空也絕對不代表 0。必須讀取 collection_evidence.completeness_status / missing_row_count。只有 ZERO_CONFIRMED 才能宣稱已確認為 0。\n3. DETERMINISTIC：candidate_pokemon 的 current_readiness_score、favorite_berry_match、weekly_ingredient_overlap、weekly_ingredient_demand_covered、profile_completeness、hard_constraint_status，以及 deterministic_results 全部都是平台規則推導結果，不是 raw FACT。可標示 DETERMINISTIC，但不得改寫成「畫面直接觀測」。\n4. 你自行做的加減乘除、跨區塊 join、重新排序、使用後餘量、機會成本比較，即使輸入都來自 FACT，也必須標示 AI_INFERENCE；除非該值已由 deterministic_results 明確提供。\n5. AI_INFERENCE：所有策略優先順序、option value、跨目標 trade-off 與平台未輸出的資源競爭判斷都必須標示 AI_INFERENCE。\n\n【Missing Rule / Evidence Safety】\n6. null、missing_rules、evidence_gaps、REVIEW_REQUIRED、FEATURE_ONLY、NOT_YET_VERIFIED、UNKNOWN、NOT_OBSERVED 代表平台沒有足夠 verified evidence/rule；不得將未知視為 0、不得把沒有 Evidence 當成負面 Evidence、不得捏造精確數值。應使用 NOT COMPUTABLE / INSUFFICIENT EVIDENCE / QUALITATIVE TRADE-OFF。\n7. 不得因缺少 ROI、產率或能量模型，就宣稱某方案「沒有價值」。未知是 uncertainty，不是 zero value。\n8. 除非 Pack 有明確 deterministic 欄位直接支持，不得使用「100%」「完全放棄」「一定」「保證」「絕對」等 categorical claim。\n\n【Recipe / Resource Consistency】\n9. recipe requirement 的 physical_quantity / physical_available 只有在 physical_quantity_state 為 OBSERVED_QUANTITY / ZERO_CONFIRMED 時才是 physical inventory evidence；strategy_shortage 是平台 recipe strategy projection。不得僅因 strategy_shortage=0 就自行宣稱「目前確定可立即製作」。\n10. 必須檢查 inventory_parity_status。若為 MISMATCH / MISSING_RESOURCE / PARTIAL，標示 DATA_CONSISTENCY_GAP，指出衝突，不得自行挑一個值冒充 DETERMINISTIC。\n11. deterministic_results.recipe_portfolio 是 G7.1 共享庫存 contention planner 的唯讀 DETERMINISTIC 輸出，可直接引用其 contention / alternatives / before→consumed→remaining 結果。不得把 individually READY 解讀成所有 READY 料理可同時製作。\n12. recipe_portfolio.read_only_manifest 任一 write/mutation flag 若為 true，標示 SAFETY_CONTRACT_GAP，不得依該結果產生 Apply 行為。\n13. 若你離開 recipe_portfolio 自行用 resource_snapshot 與 recipe requirement 重算可製作性、剩餘量或順序，該新結果必須標示 AI_INFERENCE。\n14. 同一食材若同時被多個 recipe、Discovery stockpile 或其他目標需求，必須分析 resource contention、歸零風險、其他目標被阻斷的可能與 option value。缺少 production-rate model 時不得假設食材容易補回。\n\n【Candidate Reference Integrity】\n15. 只能引用 candidate_pokemon[] 中存在的 candidate_ref。若任何 deterministic result 引用了不存在的 candidate_ref，標示 REFERENCE_INTEGRITY_GAP，不得自行補猜個體資料，也不得把該 ref 作為正式推薦依據。\n\n【Discovery / Candy / Evolution Safety】\n16. canonical_active=false、canonical_name_zh_tw=null 或 CONSERVATIVE_DISCOVERY_UPPER_BOUND 只能作保守囤料方向，不得描述成已確認正式料理或確定需求量。\n17. physical candy 與 convertible candy 必須完全分離；candy_conversion.rule_status != ACTIVE_VERIFIED 或 derived_options 為空時，不得輸出任何換算數量。\n18. 持有進化道具不代表某 candidate 值得進化。缺 evolution target/cost/post-evolution benefit/training ROI 時只能作定性 trade-off。\n19. 只有 strategy_event_effects / ACTIVE_VERIFIED effect 能作 deterministic strategy evidence；feature_only_event_effects 不得自行轉成 numeric bonus。\n\n【Privacy / Action Boundary】\n20. 不得要求或推導 API Key、raw SQLite、stable Pokémon local ID、raw screenshots、完整 OCR、source image ref、identity fingerprint 或 private notes。\n21. 本回答只作建議，不代表可直接修改玩家 SQLite，也不要輸出任何 Apply operation。\n\n【Pack QA】\n22. 回答中必須新增「資料完整性／一致性問題」段落，檢查 resource collection completeness、unknown-vs-zero、missing candidate_ref、resource/recipe parity、contradictory deterministic results、unknown canonical identity、physical/convertible double counting、recipe_portfolio read-only contract。若沒有問題也要明確寫「未發現」。\n\n分析要求：\n${pack.analysis_request||'請依目前目標、資源、本週環境與 deterministic 結果，提出優先順序、理由、風險、缺少資料與下一步。'}\n\n輸出格式：\n1. 重點摘要\n2. 建議優先順序（每項標示 FACT / DETERMINISTIC / AI_INFERENCE）\n3. Resource opportunity-cost analysis\n4. Candidate / Recipe Evidence（只引用可解析 candidate_ref / recipe_id）\n5. 主要 trade-off\n6. 目前無法可靠計算的項目（對應 missing_rules / evidence_gaps）\n7. 資料完整性／一致性問題\n8. 建議補充的 Data / Evidence（依最能改善下一次決策品質排序）\n9. 最終策略（區分平台 FACT、平台 DETERMINISTIC、AI_INFERENCE）\n\nStrategy Analysis Pack JSON：\n${JSON.stringify(pack,null,2)}`;
 }
 
 export function buildStrategyAnalysisPack({
-  analysisRequest='',weeklyContext={},goalProfile=null,resourceSnapshot={},candidateScoring={},teamOptimization={},recipeStrategy={},recipeDiscovery={},masterVersions={},ruleVersions={},currentTeamPokemonIds=[],candidateLimit=30,privacyManifest=null,
+  analysisRequest='',weeklyContext={},goalProfile=null,resourceSnapshot={},candidateScoring={},teamOptimization={},recipeStrategy={},recipeDiscovery={},recipePortfolio=null,masterVersions={},ruleVersions={},currentTeamPokemonIds=[],candidateLimit=30,privacyManifest=null,
 }={}){
   const allCandidates=sortCandidates(candidateScoring?.candidates||[]),resolver=buildEphemeralCandidateResolver(allCandidates);
   const requiredIds=new Set((currentTeamPokemonIds||[]).map(text).filter(Boolean));
@@ -251,7 +356,7 @@ export function buildStrategyAnalysisPack({
   const candidateRows=selected.map(row=>sanitizeCandidate(row,resolver.stable_to_ref.get(candidateStableId(row)),resolver));
   const currentTeamRefs=(currentTeamPokemonIds||[]).map(id=>resolver.stable_to_ref.get(text(id))).filter(Boolean);
   const weekly=sanitizeWeeklyContext(weeklyContext),goal=sanitizeGoalProfile(goalProfile),resources=sanitizeResources(resourceSnapshot,{recipeStrategy,recipeDiscovery,teamOptimization});
-  const recipeStrategySafe=sanitizeRecipeStrategy(recipeStrategy,resources);
+  const recipeStrategySafe=sanitizeRecipeStrategy(recipeStrategy,resources),recipePortfolioSafe=sanitizeRecipePortfolio(recipePortfolio,resolver);
   const deterministicResults=Object.freeze({
     team_optimization:Object.freeze({
       projection_status:text(teamOptimization?.projection_status)||null,
@@ -259,44 +364,67 @@ export function buildStrategyAnalysisPack({
     }),
     recipe_strategy:recipeStrategySafe,
     recipe_discovery:sanitizeRecipeDiscovery(recipeDiscovery,resolver),
+    recipe_portfolio:recipePortfolioSafe,
   });
   const candidateRefSet=new Set(candidateRows.map(row=>row.candidate_ref));
   const deterministicRefs=collectCandidateRefs(deterministicResults);
   const unresolvedRefs=[...deterministicRefs].filter(ref=>!candidateRefSet.has(ref));
   if(unresolvedRefs.length)throw new Error(`Strategy Analysis Pack candidate reference integrity failed: ${unresolvedRefs.length} unresolved reference(s)`);
   const missingRules=deriveMissingRules({candidateScoring,teamOptimization,recipeDiscovery,resourceSnapshot,weeklyContext});
+  const evidenceGaps=deriveEvidenceGaps(resources,recipePortfolioSafe);
+  const portfolioReadOnly=recipePortfolioSafe?Object.values(recipePortfolioSafe.read_only_manifest||{}).every(value=>value===false):true;
   const base={
     schema:'pokemon-sleep-strategy-analysis-pack/1.0',pack_version:STRATEGY_ANALYSIS_PACK_VERSION,prompt_version:STRATEGY_ANALYSIS_PROMPT_VERSION,
     analysis_request:text(analysisRequest)||'請依目前目標、資源、本週環境與 deterministic 結果，提出本週最值得執行的策略優先順序。',
-    sharing_notice:sharingNotice(),
+    sharing_notice:sharingNotice(),evidence_authority_manifest:evidenceAuthorityManifest(),
     weekly_context:weekly,goal_profile:goal,resource_snapshot:resources,
     current_team:Object.freeze({candidate_refs:Object.freeze(currentTeamRefs)}),candidate_pokemon:Object.freeze(candidateRows),deterministic_results:deterministicResults,
-    missing_rules:missingRules,public_master_versions:stable(masterVersions||{}),rule_versions:stable(ruleVersions||{}),
-    integrity_manifest:Object.freeze({candidate_reference_closure:true,unresolved_candidate_reference_count:0,recipe_resource_parity_status:recipeParityStatus(recipeStrategySafe)}),
+    missing_rules:missingRules,evidence_gaps:evidenceGaps,public_master_versions:stable(masterVersions||{}),rule_versions:stable(ruleVersions||{}),
+    integrity_manifest:Object.freeze({
+      candidate_reference_closure:true,unresolved_candidate_reference_count:0,recipe_resource_parity_status:recipeParityStatus(recipeStrategySafe),
+      resource_unknown_preserved:true,empty_collection_not_zero:true,recipe_portfolio_read_only:portfolioReadOnly,
+    }),
     privacy_manifest:Object.freeze(privacyManifest||{api_key_in_pack:false,raw_sqlite_in_pack:false,raw_screenshot_in_pack:false,raw_ocr_in_pack:false,stable_pokemon_ids_in_pack:false,identity_fingerprint_in_pack:false,private_notes_in_pack:false,source_image_refs_in_pack:false,ephemeral_candidate_refs:true}),
-    safety_manifest:Object.freeze({direct_apply_allowed:false,ai_numeric_source_of_truth:false,physical_candy_only:true,convertible_candy_in_physical_totals:false}),
+    safety_manifest:Object.freeze({direct_apply_allowed:false,ai_numeric_source_of_truth:false,physical_candy_only:true,convertible_candy_in_physical_totals:false,recipe_portfolio_mutation_allowed:false}),
   };
   const inputFingerprint=`strategy_analysis:${hash(stableJson(base))}`;
   const pack=Object.freeze({...base,input_fingerprint:inputFingerprint});
   return Object.freeze({pack,prompt:promptForPack(pack),resolver:Object.freeze({stable_to_ref:resolver.stable_to_ref,ref_to_stable:resolver.ref_to_stable}),privacy_manifest:pack.privacy_manifest});
 }
 
+const displayQuantity=value=>value===null||value===undefined?'UNKNOWN':value;
 export function strategyAnalysisPackMarkdown(pack){
+  const collections=pack.resource_snapshot?.collection_evidence||{};
+  const portfolio=pack.deterministic_results?.recipe_portfolio;
   const lines=[
     '# Pokémon Sleep Strategy Analysis Pack','',
     `> **分享提醒**：${pack.sharing_notice?.message||'此檔案包含玩家遊戲紀錄，請只提供給信賴的 AI 模型／服務分析，不建議公開散布。'}`,'',
     `- Pack version: \`${pack.pack_version}\``,`- Input fingerprint: \`${pack.input_fingerprint}\``,`- Week: ${pack.weekly_context?.week_start||'—'}`,`- Camp: ${pack.weekly_context?.camp||'—'}`,`- Goal: ${pack.goal_profile?.primary_goal||'—'}`,
     `- Candidate reference closure: ${pack.integrity_manifest?.candidate_reference_closure?'PASS':'FAIL'}`,
     `- Recipe / resource parity: ${pack.integrity_manifest?.recipe_resource_parity_status||'—'}`,
+    `- Unknown preserved: ${pack.integrity_manifest?.resource_unknown_preserved?'PASS':'FAIL'}`,
+    `- Recipe portfolio read-only: ${pack.integrity_manifest?.recipe_portfolio_read_only?'PASS':'FAIL'}`,
+    '','## Resource collection evidence','',
+    '| Collection | Completeness | Catalog | Observed | Confirmed zero | Unknown | Zero-fill |','|---|---|---:|---:|---:|---:|---|',
+    ...['ingredients','items','candies'].map(key=>{const row=collections?.[key]||{};return `| ${key} | ${row.completeness_status||'UNKNOWN'} | ${row.catalog_row_count??0} | ${row.observed_row_count??0} | ${row.confirmed_zero_row_count??0} | ${row.missing_row_count??0} | ${row.zero_fill_authorized?'AUTHORIZED':'NO'} |`; }),
     '','## Resource snapshot','',
-    '| 類型 | 名稱 | 持有 | 保留 | 可動用 |','|---|---|---:|---:|---:|',
-    ...(pack.resource_snapshot?.ingredients||[]).map(row=>`| 食材 | ${row.ingredient_name} | ${row.quantity} | — | ${row.available} |`),
-    ...(pack.resource_snapshot?.items||[]).map(row=>`| 道具 | ${row.item_name} | ${row.quantity} | ${row.safe_reserve} | ${row.available} |`),
-    ...(pack.resource_snapshot?.candies||[]).map(row=>`| 糖果 | ${row.candy_name} | ${row.quantity} | ${row.safe_reserve} | ${row.available} |`),
+    '| 類型 | 名稱 | 持有 | 保留 | 可動用 | Evidence |','|---|---|---:|---:|---:|---|',
+    ...(pack.resource_snapshot?.ingredients||[]).map(row=>`| 食材 | ${row.ingredient_name} | ${displayQuantity(row.quantity)} | — | ${displayQuantity(row.available)} | ${row.quantity_state||'UNKNOWN'} |`),
+    ...(pack.resource_snapshot?.items||[]).map(row=>`| 道具 | ${row.item_name} | ${displayQuantity(row.quantity)} | ${displayQuantity(row.safe_reserve)} | ${displayQuantity(row.available)} | ${row.quantity_state||'UNKNOWN'} |`),
+    ...(pack.resource_snapshot?.candies||[]).map(row=>`| 糖果 | ${row.candy_name} | ${displayQuantity(row.quantity)} | ${displayQuantity(row.safe_reserve)} | ${displayQuantity(row.available)} | ${row.quantity_state||'UNKNOWN'} |`),
+    '','## G7 recipe portfolio deterministic facts','',
+    `- Status: ${portfolio?.projection_status||'NOT_AVAILABLE'}`,
+    `- Planner: ${portfolio?.planner_version||'—'}`,
+    `- Objective: ${portfolio?.objective||'—'}`,
+    `- Alternatives: ${portfolio?.summary?.alternative_count??0}`,
+    `- Contention edges: ${portfolio?.contention?.contention_edge_count??0}`,
+    `- Oversubscribed ingredients: ${portfolio?.contention?.oversubscribed_ingredient_count??0}`,
+    `- Missing inventory observations: ${portfolio?.missing_inventory_observations?.length??0}`,
     '','## Current / candidate Pokémon','',
     '| Ref | 種類 | Lv | 專長 | Readiness | Hard Constraint |','|---|---|---:|---|---:|---|',
     ...(pack.candidate_pokemon||[]).map(row=>`| ${row.candidate_ref} | ${row.species||'—'} | ${row.level??'—'} | ${row.specialty||'—'} | ${row.current_readiness_score??'—'} | ${row.hard_constraint_status||'—'} |`),
     '','## Missing deterministic rules','',...(pack.missing_rules?.length?pack.missing_rules.map(item=>`- ${item}`):['- 無']),
+    '','## Evidence gaps','',...(pack.evidence_gaps?.length?pack.evidence_gaps.map(item=>`- ${item}`):['- 無']),
     '','## Analysis request','',pack.analysis_request||'',
     '','> 此檔案不包含 API Key、raw SQLite、原始截圖、完整 OCR、stable Pokémon local ID 或 identity fingerprint；但包含玩家 Pokémon、庫存、策略目標與本週環境等遊戲紀錄。請只交付給信賴的 AI 模型／服務。AI 回覆只作建議，不可直接 Apply。','',
   ];
