@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {
   classifyGeminiFailure,
   executeWithProjectPool,
@@ -128,6 +129,11 @@ const diagnosticText=JSON.stringify(diagnostic);
 for(const secret of ['AIza-DO-NOT-EXPORT-A','AIza-DO-NOT-EXPORT-N','PROJECT-A-KEY','PROJECT-B-KEY'])assert.equal(diagnosticText.includes(secret),false,`secret leaked: ${secret}`);
 assert.equal(diagnosticText.includes('AA=='),false,'image Base64 must not enter diagnostic');
 
+const uiSource=fs.readFileSync(new URL('../assets/js/unified-screenshot-update-center.js',import.meta.url),'utf8');
+assert.ok(uiSource.includes("uc-img-a-2026-08-12-e-attempt-lifecycle-diagnostic"));
+assert.ok(uiSource.includes("s.raw_response||s.last_ai_error?'':'disabled'"),'diagnostic export must remain enabled after a first-ever Gemini failure');
+assert.ok(uiSource.includes("state?.raw_response?validateScreenshotScenarioPayload(session,key,state.raw_response):null"),'failed attempt without raw response must not fabricate a JSON validation result');
+
 console.log(JSON.stringify({
   status:'PASS',
   gate:'V04133_SHARED_GEMINI_TRANSPORT_DIAGNOSTIC',
@@ -138,6 +144,7 @@ console.log(JSON.stringify({
   bounded_retry:true,
   controlled_project_failover:true,
   failed_attempt_diagnostic:true,
+  failure_first_export_enabled:true,
   stale_previous_response_separated:true,
   current_image_count_authoritative:true,
   api_key_in_diagnostic:false,
