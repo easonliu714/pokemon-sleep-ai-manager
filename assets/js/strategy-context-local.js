@@ -9,8 +9,10 @@ import {currentWeeklyContext} from './weekly-context-store.js';
 import {buildLocalTeamOptimization} from './team-optimizer-local.js';
 import {buildLocalRecipePortfolioContention} from './recipe-portfolio-contention-local.js';
 import {currentProductionAuthorityRegistry} from './production-authority-registry.js';
+import {evaluateTeamObjective} from './team-objective-evaluator.js';
 import {buildStrategyOptimizationPack} from './strategy-optimization-pack.js';
 import {buildExternalOptimizationPrompt,normalizeOptimizationAiResponse} from './strategy-optimization-ai-contract.js';
+import {intakeOptimizationAiResponse} from './strategy-optimization-ai-intake.js';
 
 export function buildLocalStrategyContextPreview({includeEventText=false,candidateLimit=20,recipeLimit=10}={}){
   if(isRescueReadonly())return {status:'PLAYER_DATA_UNAVAILABLE',payload:null,resolver:{},privacy_manifest:{raw_sqlite_in_payload:false,api_key_in_payload:false},missing_inputs:['player_database']};
@@ -59,4 +61,20 @@ export function normalizeLocalOptimizationResponse(input,preview){
   const validCandidateRefs=(payload.candidate_production_readiness||[]).map(row=>row.candidate_ref).filter(Boolean);
   const validRecipeIds=(payload.recipe_gap_summary||[]).map(row=>row.recipe_id).filter(Boolean);
   return normalizeOptimizationAiResponse(input,{validCandidateRefs,validRecipeIds});
+}
+
+export function intakeLocalOptimizationResponse(input,preview){
+  const resolver=preview?.resolver||{};
+  const candidateScoring=buildLocalPokemonCandidateScoring();
+  const goalProfile=getActiveStrategyGoalProfile();
+  const productionRegistry=currentProductionAuthorityRegistry();
+  return intakeOptimizationAiResponse(input,{
+    optimizationPreview:preview,
+    evaluateProposal:(candidateRefs,row)=>{
+      const pokemonIds=candidateRefs.map(ref=>resolver?.[ref]?.pokemon_id).filter(Boolean);
+      if(pokemonIds.length!==5)return {objective_status:'RESOLVER_MISMATCH',objective_score:null,missing_inputs:['candidate_resolver']};
+      const team={team_id:`ai_proposal:${row?.proposal_id||candidateRefs.join('-')}`,slots:pokemonIds.map((pokemon_id,index)=>({slot_index:index+1,pokemon_id}))};
+      return evaluateTeamObjective({team,candidateFeatures:candidateScoring,goalProfile,productionRegistry,cookingProjection:null});
+    },
+  });
 }
