@@ -1,0 +1,27 @@
+name: v0.4.13.4 Recipe Pot Scenario Contract
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - 'assets/js/ai-workflow.js'
+      - 'assets/js/public-master-recognition.js'
+      - 'assets/js/pot-capacity-authority.js'
+      - 'assets/js/version-authority.js'
+      - 'scripts/v04134-recipe-pot-scenario-contract.mjs'
+      - '.github/workflows/v04134-recipe-pot-scenario-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Recipe status + pot capacity scenario contract
+        run: node scripts/v04134-recipe-pot-scenario-contract.mjs
