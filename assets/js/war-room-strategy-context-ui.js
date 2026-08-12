@@ -1,5 +1,6 @@
 import './v0416-g73-ui.js';
 import {buildLocalStrategyContextPreview,buildLocalOptimizationStrategyPreview,intakeLocalOptimizationResponse} from './strategy-context-local.js';
+import {renderProductionEvidencePanel} from './production-evidence-ui.js';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 let lastPreview=null,lastOptimization=null,lastIntake=null;
@@ -98,4 +99,5 @@ export function renderWarRoomStrategyContext(root=document.getElementById('warro
     }catch(error){lastIntake=null;intakeResult.textContent=`AI 回覆驗證失敗：${error?.message||String(error)}`;}
   };
   root.querySelector('#warRoomClearOptimizationResponse').onclick=()=>{aiText.value='';lastIntake=null;intakeResult.textContent='尚未驗證 AI 回覆。';};
+  renderProductionEvidencePanel(root);
 }
