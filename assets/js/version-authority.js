@@ -13,6 +13,7 @@
   });
 })(globalThis);
 
+// Behavior-first target: v0.4.13.2. Central authority intentionally remains v0.4.13.1 until exact-head behavioral gates are all terminal PASS.
 // Legacy CI parser bridge only; not executed and not a release authority:
 // app_version: 'v0.4.13'
 // app_build: '20260811-v0413-g7-recipe-portfolio-contention'
