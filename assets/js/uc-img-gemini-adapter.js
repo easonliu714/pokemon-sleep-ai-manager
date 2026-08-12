@@ -9,7 +9,8 @@ import {
   constrainUcImgWeeklyJsonSchema,
 } from './uc-img-weekly-platform-authority.js';
 
-export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-08-12-a-pot-capacity-authority';
+export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-08-12-b-shared-transport-diagnostic';
+export const UC_IMG_DIAGNOSTIC_SCHEMA='pokemon-sleep-uc-img-ai-diagnostic/1.1';
 
 const clean=value=>String(value??'').trim();
 const nowIso=()=>new Date().toISOString();
@@ -54,6 +55,14 @@ export function buildUcImgGeminiSchema(config,scenarioKey,{platformAuthority=nul
   return scenarioKey==='weekly'&&platformAuthority?constrainUcImgWeeklyJsonSchema(schema,platformAuthority):schema;
 }
 
+function safeAttemptFailureMessage(outcome){
+  const failed=[...(outcome?.attempts||[])].reverse().find(item=>item?.status==='FAILED')||outcome?.failure||null;
+  const label=failed?.error_class||outcome?.reason||'all_projects_unavailable';
+  const status=Number(failed?.http_status||0);
+  const suffix=status?` (HTTP ${status})`:failed?.transport_kind==='fetch_exception'?' (browser transport)':'';
+  return `Gemini 分析暫停：${label}${suffix}`;
+}
+
 export async function analyzeUcImgScenarioWithGemini({scenarioKey,config,entries,fileMap,prompt,poolData,execute=executeWithProjectPool,onTrace=()=>{},platformNow=null}={}){
   if(!poolData?.projects?.length)throw new Error('尚未設定 Gemini API Key。請先到「使用說明 → AI API Key 與備援 Project」設定並測試 Key。');
   const model=clean(poolData.model);if(!model)throw new Error('尚未選擇 Gemini 模型。');
@@ -61,10 +70,14 @@ export async function analyzeUcImgScenarioWithGemini({scenarioKey,config,entries
   const images=await prepareGeminiImages(entries,fileMap);
   const responseJsonSchema=buildUcImgGeminiSchema(config,scenarioKey,{platformAuthority});
   const effectivePrompt=platformAuthority?`${prompt}${buildUcImgWeeklyPlatformPromptInstruction(platformAuthority)}`:prompt;
-  const outcome=await execute({projects:poolData.projects,model,prompt:effectivePrompt,images,responseJsonSchema,onTrace});
+  const trace=(event,details={})=>onTrace(event,{scenario_key:scenarioKey,scenario:config?.scenario||null,adapter_version:UC_IMG_GEMINI_ADAPTER_VERSION,...details});
+  const outcome=await execute({projects:poolData.projects,model,prompt:effectivePrompt,images,responseJsonSchema,onTrace:trace});
   if(!outcome?.ok){
-    const classes=(outcome?.attempts||[]).map(item=>item.error_class).filter(Boolean);
-    throw new Error(`Gemini 分析暫停：${classes.join(' → ')||outcome?.reason||'all_projects_unavailable'}`);
+    const error=new Error(safeAttemptFailureMessage(outcome));
+    error.uc_img_attempts=[...(outcome?.attempts||[])];
+    error.uc_img_failure=outcome?.failure||null;
+    error.uc_img_projects=outcome?.projects||poolData.projects;
+    throw error;
   }
   const parsed=parseGeminiJsonPayload(outcome.payload);
   const payload=platformAuthority?applyUcImgWeeklyPlatformAuthority(parsed.payload,platformAuthority):parsed.payload;
@@ -98,20 +111,93 @@ function diagnosticResponse(rawResponse){
   try{return JSON.parse(rawResponse);}catch{return {raw_text:String(rawResponse),parse_failed:true};}
 }
 
-export function buildUcImgDiagnosticBundle({appVersion=null,session,scenarioKey,config,coverage,rawResponse='',validation=null,providerMeta=null}={}){
+function assignedImageSummary(session,scenarioKey){
+  const rows=(session?.entries||[]).filter(entry=>entry?.scenario_key===scenarioKey);
   return {
-    schema:'pokemon-sleep-uc-img-ai-diagnostic/1.0',
+    assigned_image_count:rows.length,
+    assigned_image_refs:rows.map(entry=>entry.image_ref).filter(Boolean),
+    ready_image_count:rows.filter(entry=>entry?.byte_state==='READY').length,
+    byte_states:rows.map(entry=>({image_ref:entry.image_ref||null,byte_state:entry.byte_state||null,byte_snapshot_size:Number(entry.byte_snapshot_size||0)})),
+  };
+}
+
+function diagnosticTraceRows(scenarioKey,debugTrace=globalThis.DebugTrace){
+  const events=Array.isArray(debugTrace?.events)?debugTrace.events:[];
+  return events.filter(event=>event?.category==='uc_img_gemini'&&event?.details?.scenario_key===scenarioKey).slice(-30).map(event=>({
+    timestamp:event.timestamp||null,
+    event:event.event||null,
+    status:event.status||null,
+    details:event.details||null,
+  }));
+}
+
+function currentAttemptFromTrace(rows=[]){
+  const terminal=[...rows].reverse().find(row=>row.event==='ai_request_failed'||row.event==='ai_request_completed');
+  if(!terminal)return null;
+  const d=terminal.details||{};
+  return {
+    status:terminal.event==='ai_request_failed'?'FAILED':'COMPLETED',
+    finished_at:terminal.timestamp||d.completed_at||null,
+    attempt_number:Number(d.attempt_number||0)||null,
+    project_attempt_number:Number(d.project_attempt_number||0)||null,
+    provider:'gemini',
+    model:d.model||null,
+    project_alias:d.alias||null,
+    project_fingerprint:d.fingerprint||null,
+    image_count:Number(d.image_count||0),
+    structured_output:Boolean(d.structured_output),
+    failure:terminal.event==='ai_request_failed'?{
+      error_class:d.error_class||null,
+      transport_kind:d.transport_kind||null,
+      http_status:Number(d.http_status||0)||null,
+      http_status_text:d.http_status_text||null,
+      retry_after:d.retry_after||null,
+      retryable:Boolean(d.retryable),
+      failover:Boolean(d.failover),
+      error_name:d.error_name||null,
+      error_message:d.error_message||null,
+      elapsed_ms:Number(d.elapsed_ms||0),
+    }:null,
+    elapsed_ms:Number(d.elapsed_ms||0),
+  };
+}
+
+export function buildUcImgDiagnosticBundle({appVersion=null,session,scenarioKey,config,coverage,rawResponse='',validation=null,providerMeta=null,debugTrace=globalThis.DebugTrace}={}){
+  const state=session?.scenario_state?.[scenarioKey]||{};
+  const imageSummary=assignedImageSummary(session,scenarioKey);
+  const attemptTrace=diagnosticTraceRows(scenarioKey,debugTrace);
+  const currentAttempt=currentAttemptFromTrace(attemptTrace);
+  const failed=Boolean(state?.last_ai_error)||currentAttempt?.status==='FAILED';
+  const previousSuccess=diagnosticResponse(rawResponse);
+  return {
+    schema:UC_IMG_DIAGNOSTIC_SCHEMA,
     app_version:appVersion||null,
+    adapter_version:UC_IMG_GEMINI_ADAPTER_VERSION,
     session_id:session?.session_id||null,
     scenario_key:scenarioKey||null,
     scenario:config?.scenario||null,
-    provider:providerMeta?.provider||null,
-    model:providerMeta?.model||null,
-    project_alias:providerMeta?.project_alias||null,
-    response_contract:providerMeta?.response_contract||null,
     coverage:coverage||null,
-    image_count:Number(providerMeta?.image_count||0),
-    response:diagnosticResponse(rawResponse),
+    ...imageSummary,
+    current_attempt:currentAttempt,
+    last_ai_error:state?.last_ai_error||null,
+    attempt_trace:attemptTrace,
+    response_is_current:!failed&&Boolean(previousSuccess),
+    current_attempt_response:failed?null:previousSuccess,
+    previous_success:failed&&previousSuccess?{
+      provider:providerMeta?.provider||null,
+      model:providerMeta?.model||null,
+      project_alias:providerMeta?.project_alias||null,
+      response_contract:providerMeta?.response_contract||null,
+      image_count:Number(providerMeta?.image_count||0),
+      completed_at:providerMeta?.completed_at||null,
+      response:previousSuccess,
+    }:null,
+    provider:currentAttempt?.provider||providerMeta?.provider||null,
+    model:currentAttempt?.model||providerMeta?.model||null,
+    project_alias:currentAttempt?.project_alias||providerMeta?.project_alias||null,
+    response_contract:providerMeta?.response_contract||null,
+    image_count:Number(currentAttempt?.image_count||imageSummary.assigned_image_count||0),
+    response:failed?null:previousSuccess,
     validation:validation?{
       ok:Boolean(validation.ok),
       errors:[...(validation.errors||[])],
@@ -121,6 +207,6 @@ export function buildUcImgDiagnosticBundle({appVersion=null,session,scenarioKey,
     }:null,
     platform_authority:providerMeta?.platform_authority||null,
     generated_at:nowIso(),
-    safety:{api_key_included:false,screenshot_bytes_included:false,sqlite_export_included:false},
+    safety:{api_key_included:false,screenshot_bytes_included:false,screenshot_base64_included:false,sqlite_export_included:false,full_prompt_included:false},
   };
 }
