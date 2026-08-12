@@ -10,7 +10,7 @@ const SCENARIO_ENTITIES=Object.freeze({
   ingredient_inventory_update:new Set(['ingredient_inventory','account_capacity']),
   item_inventory_update:new Set(['item_inventory','account_capacity']),
   candy_inventory_update:new Set(['candy_inventory']),
-  recipe_status_update:new Set(['recipes']),
+  recipe_status_update:new Set(['recipes','account_capacity']),
   weekly_context_update:new Set(['weekly_context']),
   recipes:new Set(['recipes','recipe_ingredients']),
   ingredients:new Set(['ingredient_inventory','account_capacity']),
