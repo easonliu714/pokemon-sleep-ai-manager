@@ -1,0 +1,70 @@
+name: v0.4.13.7 Startup Watchdog False Positive Closure
+
+on:
+  push:
+    branches:
+      - main
+      - 'hotfix/**'
+    paths:
+      - 'assets/js/v0394-startup-watchdog.js'
+      - 'assets/js/version-authority.js'
+      - 'scripts/v04135-account-capacity-apply-not-null-contract.mjs'
+      - 'scripts/v04136-pot-manual-authority-alignment-contract.mjs'
+      - 'scripts/v04137-apply-startup-watchdog-patch.py'
+      - 'scripts/v04137-startup-watchdog-false-positive-contract.mjs'
+      - '.github/workflows/v04137-startup-watchdog-false-positive-closure.yml'
+  pull_request:
+    paths:
+      - 'assets/js/v0394-startup-watchdog.js'
+      - 'assets/js/version-authority.js'
+      - 'scripts/v04135-account-capacity-apply-not-null-contract.mjs'
+      - 'scripts/v04136-pot-manual-authority-alignment-contract.mjs'
+      - 'scripts/v04137-startup-watchdog-false-positive-contract.mjs'
+      - '.github/workflows/v04137-startup-watchdog-false-positive-closure.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply idempotent v0.4.13.7 runtime patch
+        if: github.event_name == 'push' && github.ref_name != 'main'
+        run: python scripts/v04137-apply-startup-watchdog-patch.py
+      - name: Syntax check startup watchdog
+        if: github.event_name != 'push' || github.ref_name == 'main' || success()
+        run: node --check assets/js/v0394-startup-watchdog.js
+      - name: v0.4.13.5 predecessor contract
+        if: github.event_name != 'push' || github.ref_name == 'main' || success()
+        run: node scripts/v04135-account-capacity-apply-not-null-contract.mjs
+      - name: v0.4.13.6 predecessor contract
+        if: github.event_name != 'push' || github.ref_name == 'main' || success()
+        run: node scripts/v04136-pot-manual-authority-alignment-contract.mjs
+      - name: v0.4.13.7 watchdog false-positive contract
+        if: github.event_name != 'push' || github.ref_name == 'main' || success()
+        run: node scripts/v04137-startup-watchdog-false-positive-contract.mjs
+      - name: Diff safety
+        if: github.event_name == 'push' && github.ref_name != 'main'
+        run: |
+          git diff --check
+          git status --short
+      - name: Commit generated runtime patch
+        if: github.event_name == 'push' && github.ref_name != 'main'
+        run: |
+          if git diff --quiet; then
+            echo 'No generated runtime patch remains.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/js/v0394-startup-watchdog.js assets/js/version-authority.js scripts/v04135-account-capacity-apply-not-null-contract.mjs scripts/v04136-pot-manual-authority-alignment-contract.mjs
+          git commit -m 'fix: v0.4.13.7 startup watchdog false-positive closure'
+          git push origin HEAD:${GITHUB_REF_NAME}
