@@ -126,7 +126,7 @@ export function intakeOptimizationAiResponse(input,{optimizationPreview=null,eva
     if(!normalizedRow&&refs.length===5&&!reasons.length)reasons.push('normalization_rejected');
     if(reasons.length){rejected.push({proposal_id:text(raw?.proposal_id,120)||null,proposal_name:text(raw?.proposal_name,240)||null,candidate_refs:refs,reasons:[...new Set(reasons)].sort()});continue;}
     let evaluation=null;try{evaluation=typeof evaluateProposal==='function'?evaluateProposal(normalizedRow.candidate_refs,normalizedRow):null;}catch(error){evaluation={objective_status:'EVALUATION_ERROR',objective_score:null,error:text(error?.message||String(error),600)};}
-    const numericScore=evaluation&&Number.isFinite(Number(evaluation.objective_score))?Number(evaluation.objective_score):null;
+    const rawScore=evaluation?.objective_score;const numericScore=rawScore===null||rawScore===undefined||rawScore===''||!Number.isFinite(Number(rawScore))?null:Number(rawScore);
     accepted.push({
       ...normalizedRow,hard_constraints_status:'PASS',hard_constraint_reasons:Object.freeze([]),
       deterministic_evaluation:evaluation||null,deterministic_re_evaluation_status:evaluation?(numericScore===null?'HOLD':'READY'):'RE_EVALUATION_REQUIRED',objective_score:numericScore,
