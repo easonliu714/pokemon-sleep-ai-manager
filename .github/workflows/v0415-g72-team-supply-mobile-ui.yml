@@ -1,0 +1,53 @@
+name: v0.4.15 G7.2 Team Supply Mobile UI
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+    paths:
+      - 'assets/js/team-supply-readiness.js'
+      - 'assets/js/recipe-portfolio-contention-local.js'
+      - 'assets/js/war-room-cooking-planner-ui.js'
+      - 'assets/js/recipe-unified-player-workbench.js'
+      - 'assets/js/v0415-ui-polish.js'
+      - 'assets/js/public-catalog-workbench.js'
+      - 'assets/js/version-authority.js'
+      - 'service-worker.js'
+      - 'scripts/v0415-g72-team-supply-mobile-ui-contract.mjs'
+      - '.github/workflows/v0415-g72-team-supply-mobile-ui.yml'
+  pull_request:
+    paths:
+      - 'assets/js/team-supply-readiness.js'
+      - 'assets/js/recipe-portfolio-contention-local.js'
+      - 'assets/js/war-room-cooking-planner-ui.js'
+      - 'assets/js/recipe-unified-player-workbench.js'
+      - 'assets/js/v0415-ui-polish.js'
+      - 'assets/js/public-catalog-workbench.js'
+      - 'assets/js/version-authority.js'
+      - 'service-worker.js'
+      - 'scripts/v0415-g72-team-supply-mobile-ui-contract.mjs'
+      - '.github/workflows/v0415-g72-team-supply-mobile-ui.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax check v0.4.15 runtime
+        run: |
+          node --check assets/js/team-supply-readiness.js
+          node --check assets/js/recipe-portfolio-contention-local.js
+          node --check assets/js/war-room-cooking-planner-ui.js
+          node --check assets/js/recipe-unified-player-workbench.js
+          node --check assets/js/v0415-ui-polish.js
+          node --check assets/js/public-catalog-workbench.js
+      - name: G7.2 Team Supply + Recipe/Diagnostics mobile contract
+        run: node scripts/v0415-g72-team-supply-mobile-ui-contract.mjs
