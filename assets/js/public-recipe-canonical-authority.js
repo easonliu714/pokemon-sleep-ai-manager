@@ -4,8 +4,8 @@ import {
   PUBLIC_RECIPE_MASTER_VERSION as BASE_PUBLIC_RECIPE_MASTER_VERSION,
 } from './public-recipe-master.js';
 
-export const PUBLIC_RECIPE_CANONICAL_NAME_VERSION='public-recipe-zh-tw-names-2026-08-11-b';
-export const PUBLIC_RECIPE_MASTER_VERSION='public-recipe-master-2026-08-11-c';
+export const PUBLIC_RECIPE_CANONICAL_NAME_VERSION='public-recipe-zh-tw-names-2026-08-12-a';
+export const PUBLIC_RECIPE_MASTER_VERSION='public-recipe-master-2026-08-12-a';
 export const PUBLIC_RECIPE_BASE_MASTER_VERSION=BASE_PUBLIC_RECIPE_MASTER_VERSION;
 
 const HISTORICAL_NAME_SOURCE=Object.freeze({
@@ -30,6 +30,14 @@ const FORMULA_SOURCE=Object.freeze({
   source_ref:'internal:v04114-android-live-current-recipe-formula-evidence',
   verified_at:'2026-08-11',
   verification_status:'GAME_SCREENSHOT_VERIFIED_FORMULA',
+});
+
+const AUG12_ACTIVATION_SOURCE=Object.freeze({
+  source_type:'game_screenshot_reference_crosscheck',
+  source_name:'current in-game zh-TW recipe activation screenshot + current structured reference cross-check',
+  source_ref:'internal:v04132-recipe-activation-evidence+#172',
+  verified_at:'2026-08-12',
+  verification_status:'GAME_SCREENSHOT_VERIFIED_NAME_FORMULA_REFERENCE_CROSSCHECK',
 });
 
 export const PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES=Object.freeze([
@@ -89,6 +97,33 @@ export const PUBLIC_RECIPE_FORMULA_OVERRIDES=Object.freeze([
   }),
 ]);
 
+export const PUBLIC_RECIPE_ACTIVATION_ADDITIONS=Object.freeze([
+  Object.freeze({
+    recipe_id:'curry_greengrass_bun',category:'咖哩／濃湯',recipe_name:'萌綠咖哩麵包',base_energy:10945,total_ingredients:63,
+    ingredients:Object.freeze([
+      Object.freeze({ingredient_name:'暖暖薑',quantity:20}),
+      Object.freeze({ingredient_name:'火辣香草',quantity:20}),
+      Object.freeze({ingredient_name:'萌綠大豆',quantity:8}),
+      Object.freeze({ingredient_name:'純粹油',quantity:15}),
+    ]),
+    ...AUG12_ACTIVATION_SOURCE,
+    introduced_on:'2026-08-10',
+    activation_contract_version:'public-recipe-activation-2026-08-12-a',
+  }),
+  Object.freeze({
+    recipe_id:'curry_bounce_udon',category:'咖哩／濃湯',recipe_name:'彈跳咖哩烏龍麵',base_energy:25539,total_ingredients:112,
+    ingredients:Object.freeze([
+      Object.freeze({ingredient_name:'暖暖薑',quantity:39}),
+      Object.freeze({ingredient_name:'品鮮蘑菇',quantity:31}),
+      Object.freeze({ingredient_name:'火辣香草',quantity:22}),
+      Object.freeze({ingredient_name:'豆製肉',quantity:20}),
+    ]),
+    ...AUG12_ACTIVATION_SOURCE,
+    introduced_on:'2026-08-10',
+    activation_contract_version:'public-recipe-activation-2026-08-12-a',
+  }),
+]);
+
 export const PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS=Object.freeze([
   Object.freeze({
     recipe_id:'curry_dizzy_punch',
@@ -117,7 +152,7 @@ export const PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS=Object.freeze([
 const overrideById=new Map(PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES.map(row=>[row.recipe_id,row]));
 const formulaOverrideById=new Map(PUBLIC_RECIPE_FORMULA_OVERRIDES.map(row=>[row.recipe_id,row]));
 
-export const PUBLIC_RECIPE_MASTER=Object.freeze(BASE_PUBLIC_RECIPE_MASTER.map(base=>{
+const upgradedBase=BASE_PUBLIC_RECIPE_MASTER.map(base=>{
   const override=overrideById.get(base.recipe_id),formulaOverride=formulaOverrideById.get(base.recipe_id);
   if(override&&base.recipe_name!==override.legacy_public_name){
     throw new Error(`recipe_name_contract_base_mismatch:${base.recipe_id}:${base.recipe_name}:${override.legacy_public_name}`);
@@ -137,7 +172,12 @@ export const PUBLIC_RECIPE_MASTER=Object.freeze(BASE_PUBLIC_RECIPE_MASTER.map(ba
     }:{}),
     data_version:PUBLIC_RECIPE_MASTER_VERSION,
   });
-}));
+});
+
+export const PUBLIC_RECIPE_MASTER=Object.freeze([
+  ...upgradedBase,
+  ...PUBLIC_RECIPE_ACTIVATION_ADDITIONS.map(row=>Object.freeze({...row,data_version:PUBLIC_RECIPE_MASTER_VERSION})),
+]);
 
 const screenshotLegacyAliases=PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES.map(row=>Object.freeze({
   recipe_id:row.recipe_id,

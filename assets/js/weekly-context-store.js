@@ -3,13 +3,21 @@ import {localWeekStart} from './evaluation-week.js';
 import {normalizeWeeklyContext,parseWeeklyEventEffects} from './weekly-context-normalization.js';
 import {resolveCampFavoriteBerries} from './public-camp-berry-master.js';
 import {resolveWeeklyManualOverride} from './weekly-context-manual-override.js';
+import {resolveBasePotCapacity} from './pot-capacity-authority.js';
 
-export const WEEKLY_CONTEXT_STORE_VERSION='weekly-context-store-2026-08-10-d';
+export const WEEKLY_CONTEXT_STORE_VERSION='weekly-context-store-2026-08-12-e-pot-capacity-projection';
 
 const meaningful=value=>value!==null&&value!==undefined&&value!=='';
 const own=(object,key)=>Object.prototype.hasOwnProperty.call(object||{},key);
-const CORE_FIELDS=['camp','dish_category','event_name','pot_size','base_notes'];
+const CORE_FIELDS=['camp','dish_category','event_name','base_notes'];
 const BERRY_FIELDS=['favorite_berry_1','favorite_berry_2','favorite_berry_3'];
+
+function accountPotCapacity(){
+  try{
+    const row=rows("SELECT total_capacity FROM account_capacity WHERE capacity_key='pot' LIMIT 1")[0];
+    return row?.total_capacity??null;
+  }catch{return null;}
+}
 function importAuthorityByContextId(){
   const map=new Map();
   let audit=[];
@@ -59,6 +67,12 @@ function mergedEffects(primary,manual,manualOverride,fieldSources){
   }
   return Object.keys(merged).length?JSON.stringify(merged):null;
 }
+function legacyWeeklyPot(imported,manual,manualOverride){
+  if(manualOverride.active&&own(manualOverride.fields,'pot_size'))return manualOverride.fields.pot_size;
+  if(imported&&(meaningful(imported.pot_size)||imported.pot_size===0))return imported.pot_size;
+  if(manual&&(meaningful(manual.pot_size)||manual.pot_size===0))return manual.pot_size;
+  return null;
+}
 function compose(epoch,{imported,manual}){
   if(!imported&&!manual)return null;
   const revision=importRevision(imported);
@@ -74,6 +88,10 @@ function compose(epoch,{imported,manual}){
       row[field]=manual[field];fieldSources[field]='MANUAL_FALLBACK';
     }else row[field]=null;
   }
+  // Base pot capacity is account-level player state. Weekly rows are compatibility-only fallback.
+  const potAuthority=resolveBasePotCapacity({accountCapacity:accountPotCapacity(),legacyWeeklyPot:legacyWeeklyPot(imported,manual,manualOverride)});
+  row.pot_size=potAuthority.pot_size;
+  if(potAuthority.pot_size!==null)fieldSources.pot_size=potAuthority.source;
   // A user changing camp must never inherit a previous camp's dynamic berry trio.
   // Fixed camps are re-projected below by Public Camp Master; random/EX camps
   // require a fresh explicit trio in the same manual override when desired.
@@ -87,7 +105,7 @@ function compose(epoch,{imported,manual}){
   const berry=resolveCampFavoriteBerries(normalized.camp,[normalized.favorite_berry_1,normalized.favorite_berry_2,normalized.favorite_berry_3]);
   const berries=[...berry.berries];
   if(berry.policy==='FIXED_3')for(const field of BERRY_FIELDS)fieldSources[field]='PUBLIC_CAMP_MASTER';
-  const manualFallbackFields=Object.entries(fieldSources).filter(([,source])=>source==='MANUAL_FALLBACK').map(([field])=>field).sort();
+  const manualFallbackFields=Object.entries(fieldSources).filter(([,source])=>source==='MANUAL_FALLBACK'||source==='LEGACY_WEEKLY_POT_FALLBACK').map(([field])=>field).sort();
   const manualOverrideFields=Object.entries(fieldSources).filter(([,source])=>source==='MANUAL_OVERRIDE').map(([field])=>field).filter(field=>!field.startsWith('event_effects.')).sort();
   const authoritySource=manualOverrideFields.length?'MANUAL_OVERRIDE':imported?'UPDATE_CENTER_JSON':'MANUAL_FALLBACK';
   return Object.freeze({
@@ -99,6 +117,8 @@ function compose(epoch,{imported,manual}){
     berry_policy:berry.policy,
     berry_locked:berry.locked,
     berry_source:berry.source,
+    pot_capacity_authority:potAuthority.source,
+    pot_capacity_legacy_fallback:potAuthority.is_legacy_fallback,
     context_status:'CURRENT_WEEK_READY',
     authority_source:authoritySource,
     authority_context_id:imported?.context_id||manual?.context_id||null,
@@ -119,13 +139,15 @@ function compose(epoch,{imported,manual}){
 export function currentWeeklyContext({date=new Date()}={}){
   const epoch=localWeekStart(date),classified=classifyRows(epoch),resolved=compose(epoch,classified);
   if(resolved)return resolved;
+  const potAuthority=resolveBasePotCapacity({accountCapacity:accountPotCapacity(),legacyWeeklyPot:null});
   return Object.freeze({
-    context_id:null,week_start:epoch,camp:null,dish_category:null,event_name:null,pot_size:null,
+    context_id:null,week_start:epoch,camp:null,dish_category:null,event_name:null,pot_size:potAuthority.pot_size,
     favorite_berry_1:null,favorite_berry_2:null,favorite_berry_3:null,event_effects:null,base_notes:null,updated_at:null,
     context_status:'CURRENT_WEEK_MISSING',authority_source:'MISSING',authority_context_id:null,authority_update_id:null,authority_imported_at:null,authority_revision:null,
+    pot_capacity_authority:potAuthority.source,pot_capacity_legacy_fallback:false,
     berry_policy:'UNKNOWN',berry_source:'MISSING_PLAYER_WEEK_OBSERVATION',favorite_berries:Object.freeze([]),manual_fallback_fields:Object.freeze([]),
     manual_override_active:false,manual_override_stale:false,manual_override_fields:Object.freeze([]),manual_override_setting_key:null,manual_override_based_on_revision:null,
-    field_sources:Object.freeze({}),
+    field_sources:Object.freeze(potAuthority.pot_size!==null?{pot_size:potAuthority.source}:{}),
   });
 }
 

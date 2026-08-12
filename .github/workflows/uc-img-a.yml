@@ -9,9 +9,12 @@ on:
       - 'assets/js/identity-import-apply-operation.js'
       - 'assets/js/weekly-context-manual-override.js'
       - 'assets/js/weekly-context-override-rebase.js'
+      - 'assets/js/weekly-context-store.js'
       - 'assets/js/ai-workflow.js'
       - 'assets/js/prompt-catalog.js'
       - 'assets/js/unified-screenshot-update-center.js'
+      - 'assets/js/uc-img-v04132-pot-capacity-bootstrap.js'
+      - 'assets/js/pot-capacity-authority.js'
       - 'assets/js/uc-img-gemini-adapter.js'
       - 'assets/js/uc-img-diagnostic-export.js'
       - 'assets/js/uc-img-session-lifecycle.js'
@@ -21,6 +24,8 @@ on:
       - 'assets/js/public-recipe-alias-master.js'
       - 'assets/js/public-recipe-canonical-authority.js'
       - 'assets/js/public-recipe-provenance.js'
+      - 'assets/js/public-recipe-discovery-master.js'
+      - 'assets/js/recipe-discovery-stockpile.js'
       - 'assets/js/recipe-unified-player-workbench.js'
       - 'assets/js/public-catalog-workbench.js'
       - 'assets/js/shared-master-data.js'
@@ -31,6 +36,8 @@ on:
       - 'assets/js/candy-inventory-ui.js'
       - 'assets/js/version-authority.js'
       - 'service-worker.js'
+      - 'scripts/v04132-pot-authority-recipe78-contract.mjs'
+      - 'scripts/v04132-release-contract.mjs'
       - 'scripts/v04131-data-preservation-contract.mjs'
       - 'scripts/v04131-release-contract.mjs'
       - 'scripts/uc-img-root-contract.mjs'
@@ -77,6 +84,8 @@ jobs:
         run: node scripts/uc-img-root-contract.mjs
       - name: Verify v0.4.13.1 cross-path data preservation
         run: node scripts/v04131-data-preservation-contract.mjs
+      - name: Verify v0.4.13.2 pot authority and Recipe 78 behavior
+        run: node scripts/v04132-pot-authority-recipe78-contract.mjs
       - name: Verify UC.IMG-A executable contract
         run: node scripts/uc-img-a-contract.mjs
       - name: Verify Internal Gemini dual-mode contract
@@ -98,6 +107,7 @@ jobs:
       - name: Verify current and historical release contracts
         run: |
           CURRENT_VERSION="$(sed -n "s/^[[:space:]]*app_version: '\([^']*\)',/\1/p" assets/js/version-authority.js | head -n1)"
+          if [ "$CURRENT_VERSION" = "v0.4.13.2" ]; then node scripts/v04132-release-contract.mjs; fi
           if [ "$CURRENT_VERSION" = "v0.4.13.1" ]; then node scripts/v04131-release-contract.mjs; fi
           if [ "$CURRENT_VERSION" = "v0.4.12" ]; then node scripts/v0412-release-contract.mjs; fi
           if [ "$CURRENT_VERSION" = "v0.4.11.4" ]; then node scripts/v04114-release-contract.mjs; fi
@@ -117,12 +127,15 @@ jobs:
           node --check assets/js/data-preservation-policy.js
           node --check assets/js/weekly-context-override-rebase.js
           node --check assets/js/weekly-context-manual-override.js
+          node --check assets/js/weekly-context-store.js
+          node --check assets/js/pot-capacity-authority.js
           node --check assets/js/importer.js
           node --check assets/js/identity-import-apply-operation.js
           node --check assets/js/update-package-contract.js
           node --check assets/js/ai-workflow.js
           node --check assets/js/prompt-catalog.js
           node --check assets/js/unified-screenshot-update-center.js
+          node --check assets/js/uc-img-v04132-pot-capacity-bootstrap.js
           node --check assets/js/uc-img-gemini-adapter.js
           node --check assets/js/uc-img-diagnostic-export.js
           node --check assets/js/uc-img-session-lifecycle.js
@@ -132,12 +145,16 @@ jobs:
           node --check assets/js/public-recipe-alias-master.js
           node --check assets/js/public-recipe-canonical-authority.js
           node --check assets/js/public-recipe-provenance.js
+          node --check assets/js/public-recipe-discovery-master.js
+          node --check assets/js/recipe-discovery-stockpile.js
           node --check assets/js/recipe-unified-player-workbench.js
           node --check assets/js/public-catalog-workbench.js
           node --check assets/js/shared-master-data.js
           node --check assets/js/ai-project-pool-runtime.js
           node --check assets/js/candy-inventory-ui.js
           node --check assets/js/version-authority.js
+          node --check scripts/v04132-pot-authority-recipe78-contract.mjs
+          node --check scripts/v04132-release-contract.mjs
           node --check scripts/v04131-data-preservation-contract.mjs
           node --check scripts/v04131-release-contract.mjs
           node --check scripts/public-master-recognition-contract.mjs

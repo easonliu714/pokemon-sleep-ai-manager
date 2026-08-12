@@ -9,7 +9,7 @@ import {
   constrainUcImgWeeklyJsonSchema,
 } from './uc-img-weekly-platform-authority.js';
 
-export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-08-11-b-public-master-recognition';
+export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-08-12-a-pot-capacity-authority';
 
 const clean=value=>String(value??'').trim();
 const nowIso=()=>new Date().toISOString();

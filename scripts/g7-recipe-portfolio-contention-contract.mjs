@@ -12,7 +12,7 @@ const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.12','v0.4.13','v0.4.13.1'].includes(appVersion),`unexpected G7.1 release authority: ${appVersion}`);
+assert.ok(['v0.4.12','v0.4.13','v0.4.13.1','v0.4.13.2'].includes(appVersion),`unexpected G7.1 release authority: ${appVersion}`);
 if(appVersion==='v0.4.12'){
   assert.equal(appBuild,'20260811-v0412-recipe-unified-player-workbench','G7.1 behavior-first stage must keep v0.4.12 Release Authority');
 }else if(appVersion==='v0.4.13'){
@@ -20,11 +20,16 @@ if(appVersion==='v0.4.12'){
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.13-v0413-g7-recipe-portfolio-contention');
   assert.ok(version.includes("// app_version: 'v0.4.12'"),'v0.4.13 must retain v0.4.12 legacy bridge');
   assert.ok(version.includes("// app_build: '20260811-v0412-recipe-unified-player-workbench'"));
-}else{
+}else if(appVersion==='v0.4.13.1'){
   assert.equal(appBuild,'20260811-v04131-data-preservation-hotfix');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.13.1-v04131-data-preservation-hotfix');
   assert.ok(version.includes("// app_version: 'v0.4.13'"),'v0.4.13.1 must retain G7.1 predecessor bridge');
   assert.ok(version.includes("// app_build: '20260811-v0413-g7-recipe-portfolio-contention'"));
+}else{
+  assert.equal(appBuild,'20260812-v04132-pot-authority-recipe78');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.13.2-v04132-pot-authority-recipe78');
+  assert.ok(version.includes("// app_version: 'v0.4.13.1'"),'v0.4.13.2 must retain data-preservation predecessor bridge');
+  assert.ok(version.includes("// app_version: 'v0.4.13'"),'v0.4.13.2 must retain G7 predecessor bridge');
 }
 assert.equal(RECIPE_PORTFOLIO_CONTENTION_VERSION,'recipe-portfolio-contention-2026-08-11-a');
 assert.deepEqual(RECIPE_PORTFOLIO_OBJECTIVES,['unlock_recipes','preserve_resources','continuous_meals']);
@@ -38,7 +43,6 @@ function candidate(id,{name=id,unlocked=false,energy=100,requirements=[]}={}){
 }
 function strategy(candidates,fingerprint='fixture'){return {input_fingerprint:fingerprint,candidates};}
 
-// Fixture A: every recipe is READY against the original inventory, but A and B compete for the same physical apples.
 const fixtureA=[
   candidate('a_unlock',{name:'A 解鎖料理',requirements:[['特選蘋果',4]]}),
   candidate('b_unlock',{name:'B 解鎖料理',requirements:[['特選蘋果',5]]}),
@@ -66,7 +70,6 @@ assert.deepEqual(unlockPlan.alternatives[0].steps[0].ingredients[0],{
 });
 assert.equal(unlockPlan.player_data_write,false);assert.equal(unlockPlan.inventory_mutation,false);assert.equal(unlockPlan.public_master_write,false);assert.equal(unlockPlan.gemini_used,false);
 
-// Fixture B: planner independently re-enforces Safe Reserve even if an upstream fixture incorrectly claims PASS.
 const fixtureB=[candidate('milk_cook',{name:'牛奶料理',unlocked:true,requirements:[['哞哞鮮奶',4]]})];
 const reserveBlocked=projectRecipePortfolioContention({recipeStrategy:strategy(fixtureB,'B'),inventory:[{ingredient_name:'哞哞鮮奶',quantity:5}],ingredientSafeReserve:{'哞哞鮮奶':2},objective:'continuous_meals',maxMeals:2});
 assert.equal(reserveBlocked.summary.individually_ready_count,1);
@@ -75,7 +78,6 @@ const noRows=projectRecipePortfolioContention({recipeStrategy:strategy(fixtureB,
 assert.equal(noRows.projection_status,'INVENTORY_NOT_OBSERVED');
 assert.equal(noRows.context.inventory_semantics,'NO_ROWS_EXPORTED_NOT_ZERO_CONFIRMED','empty inventory collection must not be silently treated as verified zero');
 
-// Fixture C: strategy modes are deterministic and have explainable trade-offs.
 const fixtureC=[
   candidate('a_apple',{name:'蘋果料理 A',unlocked:true,requirements:[['特選蘋果',3]]}),
   candidate('b_apple',{name:'蘋果料理 B',unlocked:true,requirements:[['特選蘋果',3]]}),
@@ -110,7 +112,7 @@ const migrations=read('assets/js/migrations.js');
 assert.equal(migrations.includes('VALUES(10,'),false,'G7.1 must remain migration-free');
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'G7_1_RECIPE_PORTFOLIO_RESOURCE_CONTENTION',app_version:appVersion,release_promoted:['v0.4.13','v0.4.13.1'].includes(appVersion),
+  status:'PASS',gate:'G7_1_RECIPE_PORTFOLIO_RESOURCE_CONTENTION_SUCCESSOR_AWARE',app_version:appVersion,release_promoted:['v0.4.13','v0.4.13.1','v0.4.13.2'].includes(appVersion),
   planner_version:RECIPE_PORTFOLIO_CONTENTION_VERSION,objectives:RECIPE_PORTFOLIO_OBJECTIVES,
   fixture_a:{ready:unlockPlan.summary.individually_ready_count,contention_edges:graphA.contention_edge_count,oversubscribed:graphA.oversubscribed_ingredient_count,simultaneous:false,top_sequence:unlockPlan.alternatives[0].sequence_key},
   fixture_b:{safe_reserve_enforced:true,empty_collection_zero_assumed:false},

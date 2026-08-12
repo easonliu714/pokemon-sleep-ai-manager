@@ -1,136 +1,42 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {PUBLIC_CAMP_BERRY_MASTER,campBerryAuthority,resolveCampFavoriteBerries} from '../assets/js/public-camp-berry-master.js';
-import {PUBLIC_RECIPE_DISCOVERY} from '../assets/js/public-recipe-discovery-master.js';
+import {PUBLIC_RECIPE_DISCOVERY,activeCanonicalDiscoveryRows} from '../assets/js/public-recipe-discovery-master.js';
 import {projectRecipeDiscoveryStockpile} from '../assets/js/recipe-discovery-stockpile.js';
 import {buildScenarioTemplate} from '../assets/js/prompt-catalog.js';
 import {validateWeeklyContextImportPayload,WEEKLY_CONTEXT_IMPORT_CONTRACT_VERSION} from '../assets/js/weekly-context-import-contract.js';
 
-const read=file=>fs.readFileSync(file,'utf8');
-const byCamp=name=>campBerryAuthority(name);
-assert.equal(PUBLIC_CAMP_BERRY_MASTER.length,9);
-assert.equal(byCamp('萌綠之島').berry_policy,'WEEKLY_RANDOM_3');
-assert.deepEqual(byCamp('萌綠之島').favorite_berries,[]);
-assert.deepEqual(byCamp('天青沙灘').favorite_berries,['橙橙果','桃桃果','椰木果']);
-assert.deepEqual(byCamp('灰褐洞窟').favorite_berries,['蘋野果','勿花果','文柚果']);
-assert.deepEqual(byCamp('白花雪原').favorite_berries,['莓莓果','柿仔果','異奇果']);
-assert.deepEqual(byCamp('寶藍湖畔').favorite_berries,['金枕果','櫻子果','芒芒果']);
-assert.deepEqual(byCamp('黃金舊發電廠').favorite_berries,['葡萄果','墨莓果','靛莓果']);
-assert.deepEqual(byCamp('琥褐溪谷').favorite_berries,['零餘果','木子果','番荔果']);
-assert.equal(byCamp('天青沙灘EX').berry_policy,'EX_DYNAMIC');
-assert.deepEqual(byCamp('天青沙灘EX').main_berry_pool,['桃桃果','椰木果','橙橙果']);
+const read=file=>fs.readFileSync(file,'utf8');const byCamp=name=>campBerryAuthority(name);
+assert.equal(PUBLIC_CAMP_BERRY_MASTER.length,9);assert.equal(byCamp('萌綠之島').berry_policy,'WEEKLY_RANDOM_3');assert.deepEqual(byCamp('萌綠之島').favorite_berries,[]);assert.deepEqual(byCamp('天青沙灘').favorite_berries,['橙橙果','桃桃果','椰木果']);assert.deepEqual(byCamp('灰褐洞窟').favorite_berries,['蘋野果','勿花果','文柚果']);assert.deepEqual(byCamp('白花雪原').favorite_berries,['莓莓果','柿仔果','異奇果']);assert.deepEqual(byCamp('寶藍湖畔').favorite_berries,['金枕果','櫻子果','芒芒果']);assert.deepEqual(byCamp('黃金舊發電廠').favorite_berries,['葡萄果','墨莓果','靛莓果']);assert.deepEqual(byCamp('琥褐溪谷').favorite_berries,['零餘果','木子果','番荔果']);assert.equal(byCamp('天青沙灘EX').berry_policy,'EX_DYNAMIC');assert.deepEqual(byCamp('天青沙灘EX').main_berry_pool,['桃桃果','椰木果','橙橙果']);
+const cyan=resolveCampFavoriteBerries('天青沙灘',['莓莓果','柿仔果','異奇果']);assert.equal(cyan.locked,true);assert.deepEqual(cyan.berries,['橙橙果','桃桃果','椰木果']);const greengrassEmpty=resolveCampFavoriteBerries('萌綠之島',['','','']);assert.equal(greengrassEmpty.locked,false);assert.deepEqual(greengrassEmpty.berries,[]);const greengrassObserved=resolveCampFavoriteBerries('萌綠之島',['莓莓果','柿仔果','異奇果']);assert.deepEqual(greengrassObserved.berries,['莓莓果','柿仔果','異奇果']);assert.equal(greengrassObserved.source,'PLAYER_WEEK_OBSERVATION');
 
-const cyan=resolveCampFavoriteBerries('天青沙灘',['莓莓果','柿仔果','異奇果']);
-assert.equal(cyan.locked,true);
-assert.deepEqual(cyan.berries,['橙橙果','桃桃果','椰木果'],'fixed camp must ignore stale/player berry values');
-const greengrassEmpty=resolveCampFavoriteBerries('萌綠之島',['','','']);
-assert.equal(greengrassEmpty.locked,false);
-assert.deepEqual(greengrassEmpty.berries,[],'Greengrass must not inherit stale berries');
-const greengrassObserved=resolveCampFavoriteBerries('萌綠之島',['莓莓果','柿仔果','異奇果']);
-assert.deepEqual(greengrassObserved.berries,['莓莓果','柿仔果','異奇果']);
-assert.equal(greengrassObserved.source,'PLAYER_WEEK_OBSERVATION');
+const store=read('assets/js/weekly-context-store.js');for(const token of ['WHERE week_start=?','import_changes','import_batches','weekly_context_update','UPDATE_CENTER_JSON','MANUAL_FALLBACK','manual_fallback_fields','field_sources'])assert.ok(store.includes(token),`weekly context authority store missing: ${token}`);assert.ok(!store.includes("SELECT * FROM weekly_context ORDER BY updated_at DESC LIMIT 1"));
+for(const file of ['assets/js/recipe-strategy-local.js','assets/js/pokemon-candidate-local.js','assets/js/recipe-discovery-stockpile-local.js','assets/js/strategy-context-local.js','assets/js/evaluation-lifecycle.js','assets/js/shared-knowledge-ui.js']){const source=read(file);assert.ok(source.includes('currentWeeklyContext'),`${file} must consume currentWeeklyContext`);assert.ok(!source.includes("SELECT * FROM weekly_context ORDER BY updated_at DESC LIMIT 1"));}
 
-const store=read('assets/js/weekly-context-store.js');
-for(const token of ['WHERE week_start=?','import_changes','import_batches','weekly_context_update','UPDATE_CENTER_JSON','MANUAL_FALLBACK','manual_fallback_fields','field_sources'])assert.ok(store.includes(token),`weekly context authority store missing: ${token}`);
-assert.ok(!store.includes("SELECT * FROM weekly_context ORDER BY updated_at DESC LIMIT 1"),'current-week store must not fall back to latest updated row');
-for(const file of ['assets/js/recipe-strategy-local.js','assets/js/pokemon-candidate-local.js','assets/js/recipe-discovery-stockpile-local.js','assets/js/strategy-context-local.js','assets/js/evaluation-lifecycle.js','assets/js/shared-knowledge-ui.js']){
-  const source=read(file);
-  assert.ok(source.includes('currentWeeklyContext'),`${file} must consume currentWeeklyContext`);
-  assert.ok(!source.includes("SELECT * FROM weekly_context ORDER BY updated_at DESC LIMIT 1"),`${file} must not consume stale latest-updated weekly row`);
-}
+const weeklyTemplate=buildScenarioTemplate('weekly');assert.equal(weeklyTemplate.scenario,'weekly_context_update');assert.equal(weeklyTemplate.context_authority,'UPDATE_CENTER_JSON');assert.equal(weeklyTemplate.operations.length,1);assert.equal(weeklyTemplate.operations[0].entity,'weekly_context');assert.equal(weeklyTemplate.operations[0].action,'upsert');assert.match(weeklyTemplate.operations[0].data.week_start,/^\d{4}-\d{2}-\d{2}$/);assert.equal(weeklyTemplate.operations[0].key.context_id,`weekly_context_${weeklyTemplate.operations[0].data.week_start}_import`);assert.ok(['string','object'].includes(typeof weeklyTemplate.operations[0].data.event_effects));assert.ok(weeklyTemplate.operations[0].data.updated_at);
+const templateNow=new Date(`${weeklyTemplate.operations[0].data.week_start}T12:00:00`);assert.equal(validateWeeklyContextImportPayload(weeklyTemplate,{now:templateNow}).ok,true);
+const clone=value=>JSON.parse(JSON.stringify(value));const legacyString=clone(weeklyTemplate);legacyString.operations[0].data.event_effects=JSON.stringify({recipe_final_energy_multiplier:1.5});assert.equal(validateWeeklyContextImportPayload(legacyString,{now:templateNow}).ok,true);const objectEffects=clone(weeklyTemplate);objectEffects.operations[0].data.event_effects={recipe_final_energy_multiplier:1.5};assert.equal(validateWeeklyContextImportPayload(objectEffects,{now:templateNow}).ok,true);const stale=clone(weeklyTemplate);stale.operations[0].data.week_start='2026-08-03';stale.operations[0].key.context_id='weekly_context_2026-08-03_import';assert.equal(validateWeeklyContextImportPayload(stale,{now:templateNow}).ok,false);const partialBerries=clone(weeklyTemplate);partialBerries.operations[0].data.favorite_berry_1='莓莓果';partialBerries.operations[0].data.favorite_berry_2=null;partialBerries.operations[0].data.favorite_berry_3=null;assert.equal(validateWeeklyContextImportPayload(partialBerries,{now:templateNow}).ok,false);const unknownEffect=clone(weeklyTemplate);unknownEffect.operations[0].data.event_effects={unknown_multiplier:2};assert.equal(validateWeeklyContextImportPayload(unknownEffect,{now:templateNow}).ok,false);const wrongOp=clone(weeklyTemplate);wrongOp.operations[0].entity='pokemon';assert.equal(validateWeeklyContextImportPayload(wrongOp,{now:templateNow}).ok,false);
+const prompt=read('assets/js/prompt-catalog.js');for(const token of ['context_authority=UPDATE_CENTER_JSON','weekly_context_<week_start>_import','全部三種喜好樹果','不得沿用上週','不要直接輸出戰情室或食譜建議'])assert.ok(prompt.includes(token));assert.ok(prompt.includes('event_effects'));
 
-const weeklyTemplate=buildScenarioTemplate('weekly');
-assert.equal(weeklyTemplate.scenario,'weekly_context_update');
-assert.equal(weeklyTemplate.context_authority,'UPDATE_CENTER_JSON');
-assert.equal(weeklyTemplate.operations.length,1);
-assert.equal(weeklyTemplate.operations[0].entity,'weekly_context');
-assert.equal(weeklyTemplate.operations[0].action,'upsert');
-assert.match(weeklyTemplate.operations[0].data.week_start,/^\d{4}-\d{2}-\d{2}$/);
-assert.equal(weeklyTemplate.operations[0].key.context_id,`weekly_context_${weeklyTemplate.operations[0].data.week_start}_import`);
-assert.ok(['string','object'].includes(typeof weeklyTemplate.operations[0].data.event_effects));
-assert.ok(weeklyTemplate.operations[0].data.updated_at);
-const templateNow=new Date(`${weeklyTemplate.operations[0].data.week_start}T12:00:00`);
-assert.equal(validateWeeklyContextImportPayload(weeklyTemplate,{now:templateNow}).ok,true,'generated Weekly Context template must satisfy the executable import contract');
-
-const clone=value=>JSON.parse(JSON.stringify(value));
-const legacyString=clone(weeklyTemplate);legacyString.operations[0].data.event_effects=JSON.stringify({recipe_final_energy_multiplier:1.5});
-assert.equal(validateWeeklyContextImportPayload(legacyString,{now:templateNow}).ok,true,'v0.4.6.1 string event_effects must remain supported');
-const objectEffects=clone(weeklyTemplate);objectEffects.operations[0].data.event_effects={recipe_final_energy_multiplier:1.5};
-assert.equal(validateWeeklyContextImportPayload(objectEffects,{now:templateNow}).ok,true,'successor object event_effects may be accepted without breaking historical semantics');
-const stale=clone(weeklyTemplate);stale.operations[0].data.week_start='2026-08-03';stale.operations[0].key.context_id='weekly_context_2026-08-03_import';
-assert.equal(validateWeeklyContextImportPayload(stale,{now:templateNow}).ok,false,'stale prior-week JSON must be rejected');
-const partialBerries=clone(weeklyTemplate);partialBerries.operations[0].data.favorite_berry_1='莓莓果';partialBerries.operations[0].data.favorite_berry_2=null;partialBerries.operations[0].data.favorite_berry_3=null;
-assert.equal(validateWeeklyContextImportPayload(partialBerries,{now:templateNow}).ok,false,'random/dynamic berry observations must be 0 or exactly 3');
-const unknownEffect=clone(weeklyTemplate);unknownEffect.operations[0].data.event_effects={unknown_multiplier:2};
-assert.equal(validateWeeklyContextImportPayload(unknownEffect,{now:templateNow}).ok,false,'unknown event-effect keys must be rejected');
-const wrongOp=clone(weeklyTemplate);wrongOp.operations[0].entity='pokemon';
-assert.equal(validateWeeklyContextImportPayload(wrongOp,{now:templateNow}).ok,false,'weekly scenario with wrong entity must not fall through to general import behavior');
-
-const prompt=read('assets/js/prompt-catalog.js');
-for(const token of ['context_authority=UPDATE_CENTER_JSON','weekly_context_<week_start>_import','全部三種喜好樹果','不得沿用上週','不要直接輸出戰情室或食譜建議'])assert.ok(prompt.includes(token),`weekly prompt contract missing: ${token}`);
-assert.ok(prompt.includes('event_effects'),'weekly prompt must define event_effects handling');
-
-assert.equal(PUBLIC_RECIPE_DISCOVERY.length,2);
+assert.equal(PUBLIC_RECIPE_DISCOVERY.length,2);const promoted=activeCanonicalDiscoveryRows(),promotionActive=promoted.length===2;assert.ok([0,2].includes(promoted.length));
 for(const row of PUBLIC_RECIPE_DISCOVERY){
-  assert.equal(row.quantity_assignment_status,'UNKNOWN_UNORDERED_SIGNATURE');
-  assert.equal(row.active_canonical,false);
-  assert.equal(row.canonical_formula,null);
-  assert.equal('planning_formula' in row,false);
-  assert.equal(row.max_observed_quantity,Math.max(...row.observed_quantity_signature));
-  assert.equal(row.reference_ingredient_set.length,4);
+  if(promotionActive){assert.equal(row.quantity_assignment_status,'EXACT_CURRENT_GAME_FORMULA_CONFIRMED');assert.equal(row.active_canonical,true);assert.ok(Array.isArray(row.canonical_formula)&&row.canonical_formula.length===4);assert.equal(row.lifecycle,'PROMOTED_TO_CANONICAL_ACTIVE');}
+  else{assert.equal(row.quantity_assignment_status,'UNKNOWN_UNORDERED_SIGNATURE');assert.equal(row.active_canonical,false);assert.equal(row.canonical_formula,null);assert.equal('planning_formula' in row,false);assert.equal(row.max_observed_quantity,Math.max(...row.observed_quantity_signature));assert.equal(row.reference_ingredient_set.length,4);}
 }
 const make=(id,species,ingredients)=>({pokemon_id:id,species,level:30,specialty:'食材',hard_constraint_status:'PASS',mandatory_candidate:false,favorite_berry_match:false,current_readiness_score:50,profile_completeness:{ratio:1},unlocked_ingredients:ingredients.map(ingredient_name=>({ingredient_name,unlock_level:1,quantity:1})),failed_constraints:[],review_constraints:[]});
-const scoringProjection={feature_fingerprint:'v0461',candidates:[
-  make('p1','甲',['暖暖薑']),make('p2','乙',['火辣香草']),make('p3','丙',['品鮮蘑菇']),make('p4','丁',['豆製肉']),make('p5','戊',['萌綠大豆','純粹油']),
-]};
-const goalProfile={goal_profile_id:'goal',hard_constraints:{must_include_pokemon:[],exclude_pokemon:[],must_include_role:[],max_same_species:5}};
-const weeklyContext={context_id:'weekly_context_2026-08-10_import',week_start:'2026-08-10',camp:'萌綠之島',dish_category:'咖哩／濃湯',event_name:'夏日嘉年華2026',pot_size:57,event_effects:JSON.stringify({recipe_final_energy_multiplier:1.5,sunday_pot_multiplier:2})};
-const projected=projectRecipeDiscoveryStockpile({inventory:[],scoringProjection,goalProfile,weeklyContext,maxAlternatives:0});
-assert.equal(projected.summary.total_target,236);
-assert.equal(projected.summary.target_semantics,'CONSERVATIVE_DISCOVERY_UPPER_BOUND');
-assert.deepEqual(Object.fromEntries(projected.stockpile.map(row=>[row.ingredient_name,row.target])),{
-  '暖暖薑':59,'火辣香草':59,'品鮮蘑菇':39,'豆製肉':39,'萌綠大豆':20,'純粹油':20,
-});
+const scoringProjection={feature_fingerprint:'v0461',candidates:[make('p1','甲',['暖暖薑']),make('p2','乙',['火辣香草']),make('p3','丙',['品鮮蘑菇']),make('p4','丁',['豆製肉']),make('p5','戊',['萌綠大豆','純粹油'])]};
+const goalProfile={goal_profile_id:'goal',hard_constraints:{must_include_pokemon:[],exclude_pokemon:[],must_include_role:[],max_same_species:5}};const weeklyContext={context_id:'weekly_context_2026-08-10_import',week_start:'2026-08-10',camp:'萌綠之島',dish_category:'咖哩／濃湯',event_name:'夏日嘉年華2026',pot_size:57,event_effects:JSON.stringify({recipe_final_energy_multiplier:1.5,sunday_pot_multiplier:2})};const projected=projectRecipeDiscoveryStockpile({inventory:[],scoringProjection,goalProfile,weeklyContext,maxAlternatives:0});
+if(promotionActive){assert.equal(projected.summary.recipe_candidate_count,0);assert.equal(projected.summary.total_target,0);assert.deepEqual(projected.stockpile,[]);}else{assert.equal(projected.summary.total_target,236);assert.equal(projected.summary.target_semantics,'CONSERVATIVE_DISCOVERY_UPPER_BOUND');assert.deepEqual(Object.fromEntries(projected.stockpile.map(row=>[row.ingredient_name,row.target])),{'暖暖薑':59,'火辣香草':59,'品鮮蘑菇':39,'豆製肉':39,'萌綠大豆':20,'純粹油':20});}
 
-const weeklyUi=read('assets/js/weekly-context-ui-bridge.js');
-assert.ok(weeklyUi.includes('更新中心 JSON'),'Weekly UI must retain imported JSON authority visibility');
-assert.ok(weeklyUi.includes('weekly_context_${weekStart}_manual'),'manual fallback path must remain available without an import');
-assert.ok(weeklyUi.includes('公版 Camp Berry Master 自動帶入並鎖定'),'fixed Camp Berry authority must remain hard locked');
-assert.ok(weeklyUi.includes('系統不會沿用上週資料'),'random weekly berry state must never inherit the previous week');
-const successorManualOverride=store.includes('MANUAL_OVERRIDE')||weeklyUi.includes('MANUAL_OVERRIDE');
-if(successorManualOverride){
-  for(const token of ['authority_revision','manual_override_fields'])assert.ok(store.includes(token),`successor explicit override missing revision contract: ${token}`);
-  for(const token of ['更新中心 JSON 為初始權威來源','清除本週人工覆寫'])assert.ok(weeklyUi.includes(token),`successor Weekly UI missing explicit override UX: ${token}`);
-}else{
-  assert.ok(weeklyUi.includes('JSON 已提供的欄位仍保持優先'),'v0.4.6.1-era UI must retain JSON-over-fallback precedence');
-}
-const importContract=read('assets/js/weekly-context-import-contract.js');
-for(const token of ['context_authority 必須為','不可使用上週／未來週 JSON','event_effects 不支援欄位','favorite_berry_1~3 必須全部三欄一起提供'])assert.ok(importContract.includes(token),`weekly import contract missing ${token}`);
-const updateBridge=read('assets/js/weekly-context-update-center-bridge.js');
-for(const token of ['Authority Chain','Weekly Context JSON Contract','validateWeeklyContextImportPayload','hiddenForWeeklyContext','隻玩家資料'])assert.ok(updateBridge.includes(token),`weekly import inspection missing ${token}`);
-const consumerBanner=read('assets/js/weekly-context-consumer-banner.js');
-for(const token of ['本頁 Weekly Context 唯一來源：［本週環境］','recipeWeeklyContextAuthority','warroomWeeklyContextAuthority','更新中心 JSON'])assert.ok(consumerBanner.includes(token),`weekly consumer banner missing ${token}`);
-const knowledge=read('assets/js/camp-berry-knowledge-ui.js');
-for(const token of ['營地與喜好樹果','campBerryMasterTable','每週隨機 3 種'])assert.ok(knowledge.includes(token),`camp knowledge UI missing ${token}`);
-const exDisplayPreserved=knowledge.includes('EX 動態主／副樹果')||knowledge.includes("if(row.berry_policy==='EX_DYNAMIC')return 'EX 動態'");
-assert.ok(exDisplayPreserved,'camp knowledge UI must retain an EX dynamic presentation label without pinning verbose wording');
-assert.equal(byCamp('天青沙灘EX').berry_policy,'EX_DYNAMIC','historical EX main/sub-berry semantics must remain authoritative in Public Camp Master');
-const generalTeam=read('assets/js/war-room-team-optimizer-ui.js');
-assert.ok(generalTeam.includes('一般戰略自動組隊（Goal Profile）'));
-assert.ok(generalTeam.includes('新料理解鎖備貨專用隊伍'));
-const discoveryUi=read('assets/js/war-room-recipe-discovery-ui.js');
-for(const token of ['無序，尚不能對應至個別食材','保守備貨上界','不是已驗證 canonical 配方','新料理解鎖備貨專用 5 人隊伍'])assert.ok(discoveryUi.includes(token),`Discovery UI missing ${token}`);
-const recommendation=read('assets/js/current-week-recipe-recommendation-bridge.js');
-assert.ok(recommendation.includes('currentWeeklyContext'));
-assert.ok(!recommendation.includes("SELECT * FROM weekly_context ORDER BY updated_at DESC LIMIT 1"));
-const bootstrap=read('assets/js/recipe-strategy-local.js');
-for(const moduleName of ['weekly-context-ui-bridge.js','weekly-context-update-center-bridge.js','weekly-context-consumer-banner.js','camp-berry-knowledge-ui.js','current-week-recipe-recommendation-bridge.js'])assert.ok(bootstrap.includes(moduleName),`runtime bridge not mounted: ${moduleName}`);
+const weeklyUi=read('assets/js/weekly-context-ui-bridge.js');assert.ok(weeklyUi.includes('更新中心 JSON'));assert.ok(weeklyUi.includes('weekly_context_${weekStart}_manual'));assert.ok(weeklyUi.includes('公版 Camp Berry Master 自動帶入並鎖定'));assert.ok(weeklyUi.includes('系統不會沿用上週資料'));
+const successorManualOverride=store.includes('MANUAL_OVERRIDE')||weeklyUi.includes('MANUAL_OVERRIDE');if(successorManualOverride){for(const token of ['authority_revision','manual_override_fields'])assert.ok(store.includes(token));for(const token of ['更新中心 JSON 為初始權威來源','清除本週人工覆寫'])assert.ok(weeklyUi.includes(token));}else assert.ok(weeklyUi.includes('JSON 已提供的欄位仍保持優先'));
+const importContract=read('assets/js/weekly-context-import-contract.js');for(const token of ['context_authority 必須為','不可使用上週／未來週 JSON','event_effects 不支援欄位','favorite_berry_1~3 必須全部三欄一起提供'])assert.ok(importContract.includes(token));
+const updateBridge=read('assets/js/weekly-context-update-center-bridge.js');for(const token of ['Authority Chain','Weekly Context JSON Contract','validateWeeklyContextImportPayload','hiddenForWeeklyContext','隻玩家資料'])assert.ok(updateBridge.includes(token));
+const consumerBanner=read('assets/js/weekly-context-consumer-banner.js');for(const token of ['本頁 Weekly Context 唯一來源：［本週環境］','recipeWeeklyContextAuthority','warroomWeeklyContextAuthority','更新中心 JSON'])assert.ok(consumerBanner.includes(token));
+const knowledge=read('assets/js/camp-berry-knowledge-ui.js');for(const token of ['營地與喜好樹果','campBerryMasterTable','每週隨機 3 種'])assert.ok(knowledge.includes(token));const exDisplayPreserved=knowledge.includes('EX 動態主／副樹果')||knowledge.includes("if(row.berry_policy==='EX_DYNAMIC')return 'EX 動態'");assert.ok(exDisplayPreserved);assert.equal(byCamp('天青沙灘EX').berry_policy,'EX_DYNAMIC');
+const generalTeam=read('assets/js/war-room-team-optimizer-ui.js');assert.ok(generalTeam.includes('一般戰略自動組隊（Goal Profile）'));assert.ok(generalTeam.includes('新料理解鎖備貨專用隊伍'));
+const discoveryUi=read('assets/js/war-room-recipe-discovery-ui.js');for(const token of ['無序，尚不能對應至個別食材','保守備貨上界','不是已驗證 canonical 配方','新料理解鎖備貨專用 5 人隊伍'])assert.ok(discoveryUi.includes(token));
+const recommendation=read('assets/js/current-week-recipe-recommendation-bridge.js');assert.ok(recommendation.includes('currentWeeklyContext'));assert.ok(!recommendation.includes("SELECT * FROM weekly_context ORDER BY updated_at DESC LIMIT 1"));
+const bootstrap=read('assets/js/recipe-strategy-local.js');for(const moduleName of ['weekly-context-ui-bridge.js','weekly-context-update-center-bridge.js','weekly-context-consumer-banner.js','camp-berry-knowledge-ui.js','current-week-recipe-recommendation-bridge.js'])assert.ok(bootstrap.includes(moduleName));
 
-console.log(JSON.stringify({
-  status:'PASS',gate:'V0461_WEEKLY_CONTEXT_HISTORICAL_INTEGRATION',weekly_import_contract_version:WEEKLY_CONTEXT_IMPORT_CONTRACT_VERSION,
-  camp_authority_rows:PUBLIC_CAMP_BERRY_MASTER.length,greengrass_policy:byCamp('萌綠之島').berry_policy,cyan_policy:byCamp('天青沙灘').berry_policy,discovery_target:projected.summary.total_target,
-  quantity_assignment:'UNKNOWN_UNORDERED_SIGNATURE',current_week_scoped:true,
-  authority_chain:successorManualOverride?'UPDATE_CENTER_JSON(initial) -> EXPLICIT_MANUAL_OVERRIDE -> WEEKLY_ENVIRONMENT -> WAR_ROOM/RECIPES':'UPDATE_CENTER_JSON -> WEEKLY_ENVIRONMENT -> WAR_ROOM/RECIPES',
-  manual_fallback_secondary:true,successor_manual_override_supported:successorManualOverride,legacy_string_event_effects_compatible:true,stale_week_rejected:true,malformed_weekly_payloads_rejected:true,team_objectives_distinguished:true,
-  ex_dynamic_semantics_preserved:true,presentation_label_contract:'COMPACT_OR_LEGACY',
-},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V0461_WEEKLY_CONTEXT_HISTORICAL_INTEGRATION_SUCCESSOR_AWARE',weekly_import_contract_version:WEEKLY_CONTEXT_IMPORT_CONTRACT_VERSION,camp_authority_rows:PUBLIC_CAMP_BERRY_MASTER.length,greengrass_policy:byCamp('萌綠之島').berry_policy,cyan_policy:byCamp('天青沙灘').berry_policy,discovery_promoted:promotionActive,discovery_target:projected.summary.total_target,quantity_assignment:promotionActive?'CANONICAL_RECIPE_MASTER':'UNKNOWN_UNORDERED_SIGNATURE',current_week_scoped:true,authority_chain:successorManualOverride?'UPDATE_CENTER_JSON(initial) -> EXPLICIT_MANUAL_OVERRIDE -> WEEKLY_ENVIRONMENT -> WAR_ROOM/RECIPES':'UPDATE_CENTER_JSON -> WEEKLY_ENVIRONMENT -> WAR_ROOM/RECIPES',manual_fallback_secondary:true,successor_manual_override_supported:successorManualOverride,legacy_string_event_effects_compatible:true,stale_week_rejected:true,malformed_weekly_payloads_rejected:true,team_objectives_distinguished:true,ex_dynamic_semantics_preserved:true,presentation_label_contract:'COMPACT_OR_LEGACY'},null,2));
