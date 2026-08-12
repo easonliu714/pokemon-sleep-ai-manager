@@ -1,4 +1,5 @@
 import './version-authority.js';
+import './uc-img-v04132-pot-capacity-bootstrap.js';
 import {rows,isRescueReadonly} from './database.js';
 import {PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-canonical-authority.js';
 import {saveIngredient,saveItem} from './manual-editor.js';
