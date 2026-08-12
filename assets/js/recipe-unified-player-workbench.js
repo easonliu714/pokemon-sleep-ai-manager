@@ -5,12 +5,14 @@ import {currentWeeklyContext} from './weekly-context-store.js';
 import {normalizeDishCategory} from './weekly-context-normalization.js';
 import {localIso} from './time-utils.js';
 
-export const RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION='recipe-unified-player-workbench-2026-08-11-a';
+export const RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION='recipe-unified-player-workbench-2026-08-12-b-summary-cards';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const draftById=new Map();
 const authorityById=new Map(PUBLIC_RECIPE_MASTER.map(recipe=>[String(recipe.recipe_id),recipe]));
 const ingredientRows=PUBLIC_RECIPE_MASTER.flatMap(recipe=>(recipe.ingredients||[]).map(item=>({recipe_id:recipe.recipe_id,ingredient_name:item.ingredient_name,quantity:Number(item.quantity||0)})));
+const CATEGORY_ORDER=Object.freeze(['咖哩／濃湯','沙拉','甜點／飲料']);
+const numberOrNull=value=>{const n=Number(value);return value===null||value===undefined||value===''||!Number.isFinite(n)?null:n;};
 
 function dbReady(){
   try{return !isRescueReadonly()&&Number(rows('SELECT COUNT(*) AS count FROM schema_migrations')[0]?.count||0)>0;}catch{return false;}
@@ -27,6 +29,16 @@ function recommendations(data,week){
   return new Set(sortGapResults(pool,'shortage').slice(0,3).map(row=>String(row.recipe_id)));
 }
 
+function categoryStatistics(catalogRows){
+  const stats={};
+  for(const category of CATEGORY_ORDER){
+    const rowsForCategory=catalogRows.filter(row=>normalizeDishCategory(row.category)===category);
+    const unlocked=rowsForCategory.filter(row=>Number(row.unlocked||0)===1).length;
+    stats[category]=Object.freeze({category,total:rowsForCategory.length,unlocked,locked:rowsForCategory.length-unlocked});
+  }
+  return Object.freeze(stats);
+}
+
 export function buildRecipeUnifiedWorkbenchProjection({catalogRows=[],inventory=[],week={}}={}){
   const ids=catalogRows.map(row=>String(row.recipe_id));
   const duplicateIds=[...new Set(ids.filter((id,index)=>ids.indexOf(id)!==index))];
@@ -36,12 +48,22 @@ export function buildRecipeUnifiedWorkbenchProjection({catalogRows=[],inventory=
   const unlockedRecommended=recommendations(unlockedBase,week),lockedRecommended=recommendations(lockedBase,week);
   const decorate=(data,set)=>sortRows(data).map(row=>({...row,weekly_recommended:set.has(String(row.recipe_id))}));
   const unlocked=decorate(unlockedBase,unlockedRecommended),locked=decorate(lockedBase,lockedRecommended);
+  const basePot=numberOrNull(week?.pot_size);
+  const deterministicEffects=week?.strategy_event_effects&&typeof week.strategy_event_effects==='object'?week.strategy_event_effects:{};
+  const verifiedSundayMultiplier=Object.prototype.hasOwnProperty.call(deterministicEffects,'sunday_pot_multiplier')?numberOrNull(deterministicEffects.sunday_pot_multiplier):null;
+  const boostedPot=basePot!==null&&verifiedSundayMultiplier!==null?basePot*verifiedSundayMultiplier:null;
   return Object.freeze({
     total_count:catalogRows.length,
     unlocked_count:unlocked.length,
     locked_count:locked.length,
+    category_statistics:categoryStatistics(catalogRows),
+    base_pot_capacity:basePot,
+    verified_pot_multiplier:verifiedSundayMultiplier,
+    verified_boosted_pot_capacity:boostedPot,
+    pot_bonus_status:boostedPot===null?'NOT_ACTIVE_OR_NOT_VERIFIED':'ACTIVE_VERIFIED',
     duplicate_recipe_ids:Object.freeze(duplicateIds),
     partition_complete:duplicateIds.length===0&&unlocked.length+locked.length===catalogRows.length,
+    category_partition_complete:CATEGORY_ORDER.reduce((sum,category)=>sum+(categoryStatistics(catalogRows)[category]?.total||0),0)===catalogRows.length,
     week_start:week?.week_start||null,
     dish_category:normalizeDishCategory(week?.dish_category)||null,
     authority_source:week?.authority_source||'MISSING',
@@ -56,7 +78,8 @@ function ensureShell(){
   if(!section||!table)return null;
   document.getElementById('sharedKnowledgeBlock')?.remove();
   let summary=document.getElementById('recipeWeeklyAuthoritySummary');
-  if(!summary){summary=document.createElement('div');summary.id='recipeWeeklyAuthoritySummary';summary.className='notice recipe-workbench-authority';table.closest('.table-wrap')?.before(summary);}
+  if(!summary){summary=document.createElement('div');summary.id='recipeWeeklyAuthoritySummary';summary.className='recipe-workbench-summary';table.closest('.table-wrap')?.before(summary);}
+  else summary.className='recipe-workbench-summary';
   let unlockedHeading=document.getElementById('recipeUnlockedWorkbenchHeading');
   if(!unlockedHeading){unlockedHeading=document.createElement('h3');unlockedHeading.id='recipeUnlockedWorkbenchHeading';unlockedHeading.textContent='已解鎖料理／玩家狀態';summary.after(unlockedHeading);}
   const unlockedWrap=table.closest('.table-wrap');
@@ -64,7 +87,7 @@ function ensureShell(){
   let lockedHeading=document.getElementById('recipeLockedWorkbenchHeading');
   if(!lockedHeading){lockedHeading=document.createElement('h3');lockedHeading.id='recipeLockedWorkbenchHeading';lockedHeading.textContent='未解鎖料理';unlockedWrap?.after(lockedHeading);}
   let lockedNotice=document.getElementById('recipeLockedWorkbenchNotice');
-  if(!lockedNotice){lockedNotice=document.createElement('p');lockedNotice.id='recipeLockedWorkbenchNotice';lockedNotice.className='notice';lockedNotice.textContent='未解鎖料理與已解鎖工作表分離；缺少玩家紀錄不代表已解鎖。需要人工補登時仍使用同一玩家料理儲存路徑。';lockedHeading.after(lockedNotice);}
+  if(!lockedNotice){lockedNotice=document.createElement('p');lockedNotice.id='recipeLockedWorkbenchNotice';lockedNotice.className='notice';lockedNotice.textContent='缺少玩家紀錄不代表已解鎖；需要補登時可直接使用表格中的玩家狀態欄位。';lockedHeading.after(lockedNotice);}
   let lockedTable=document.getElementById('lockedRecipeTable');
   if(!lockedTable){const wrap=document.createElement('div');wrap.className='table-wrap recipe-workbench-wrap';lockedTable=document.createElement('table');lockedTable.id='lockedRecipeTable';wrap.appendChild(lockedTable);lockedNotice.after(wrap);}
   return {section,table,lockedTable,summary};
@@ -157,10 +180,25 @@ function bindTable(table,projection){
   }));
 }
 
+function statCard(label,strong,sub,extraClass=''){
+  return `<article class="recipe-stat-card ${extraClass}"><span>${esc(label)}</span><strong>${esc(strong)}</strong><small>${esc(sub)}</small></article>`;
+}
 function renderSummary(target,projection){
   const week=projection.week_start||'—',category=projection.dish_category||'未設定',authority=projection.authority_source||'MISSING';
-  target.innerHTML=`本週推薦來源：<b>［本週環境］Current Weekly Context</b> · 週期 <b>${esc(week)}</b> · 料理 <b>${esc(category)}</b> · Authority <code>${esc(authority)}</code>${projection.authority_update_id?` · Update ID <code>${esc(projection.authority_update_id)}</code>`:''}<br>Public Recipe Master：<code>${esc(PUBLIC_RECIPE_MASTER_VERSION)}</code> · 已解鎖 <b>${projection.unlocked_count}</b>／未解鎖 <b>${projection.locked_count}</b>／總數 <b>${projection.total_count}</b>`;
+  const boosted=projection.verified_boosted_pot_capacity===null?'未啟用':energyCapacity(projection.verified_boosted_pot_capacity);
+  const boostedSub=projection.verified_boosted_pot_capacity===null?'沒有 ACTIVE_VERIFIED 鍋子倍率':`基礎 ${energyCapacity(projection.base_pot_capacity)} × ${projection.verified_pot_multiplier}`;
+  const categories=CATEGORY_ORDER.map(name=>{
+    const row=projection.category_statistics[name]||{total:0,unlocked:0,locked:0};
+    return statCard(name,`${row.unlocked} / ${row.total}`,`已解鎖 / 總數 · 未解鎖 ${row.locked}`,'category');
+  }).join('');
+  target.innerHTML=`<div class="recipe-summary-grid">
+    ${statCard('基礎鍋子',energyCapacity(projection.base_pot_capacity),'帳號層級可用容量','pot')}
+    ${statCard('已驗證加成鍋子',boosted,boostedSub,'pot')}
+    ${statCard('全部料理',`${projection.unlocked_count} / ${projection.total_count}`,`已解鎖 / 總數 · 未解鎖 ${projection.locked_count}`,'total')}
+    ${categories}
+  </div><div class="recipe-summary-meta"><b>本週 ${esc(category)}</b> · ${esc(week)} · Weekly Context <code>${esc(authority)}</code>${projection.authority_update_id?` · <code>${esc(projection.authority_update_id)}</code>`:''}<br>Public Recipe Master <code>${esc(PUBLIC_RECIPE_MASTER_VERSION)}</code></div>`;
 }
+function energyCapacity(value){return value===null||value===undefined||!Number.isFinite(Number(value))?'未設定':Number(value).toLocaleString('zh-TW',{maximumFractionDigits:2});}
 
 export function renderRecipeUnifiedWorkbench(){
   const shell=ensureShell();if(!shell)return null;
