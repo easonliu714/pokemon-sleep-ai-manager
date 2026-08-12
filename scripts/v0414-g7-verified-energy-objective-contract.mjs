@@ -2,9 +2,15 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {projectRecipePortfolioContention,RECIPE_PORTFOLIO_OBJECTIVES} from '../assets/js/recipe-portfolio-contention.js';
 
+const versionTuple=value=>{const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$/);return match?match.slice(1).map(part=>Number(part||0)):null;};
+const versionAtLeast=(value,minimum)=>{const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;for(let i=0;i<4;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return true;};
 const version=fs.readFileSync('assets/js/version-authority.js','utf8');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
-assert.equal(appVersion,'v0.4.14');
+assert.ok(versionAtLeast(appVersion,'v0.4.14'),`v0.4.14 verified-energy contract requires v0.4.14 or successor, got ${appVersion}`);
+if(appVersion!=='v0.4.14'){
+  assert.ok(version.includes("// app_version: 'v0.4.14'"),'successor release must retain v0.4.14 lineage');
+  assert.ok(version.includes("// app_build: '20260812-v0414-g7-verified-energy-objective'"));
+}
 assert.ok(RECIPE_PORTFOLIO_OBJECTIVES.includes('maximize_verified_energy'));
 
 const candidate=(recipe_id,recipe_name,{base_energy,current_energy=null,recipe_level=null,ingredient})=>({
@@ -71,7 +77,7 @@ assert.equal(result.gemini_used,false);
 
 console.log(JSON.stringify({
   status:'PASS',
-  gate:'V0414_G7_VERIFIED_ENERGY_OBJECTIVE',
+  gate:'V0414_G7_VERIFIED_ENERGY_OBJECTIVE_SUCCESSOR_AWARE',
   app_version:appVersion,
   objective:'maximize_verified_energy',
   player_current_energy_priority:true,
