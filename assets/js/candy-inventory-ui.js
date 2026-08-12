@@ -1,4 +1,4 @@
-import './unified-screenshot-update-center.js';
+import './uc-img-v04132-pot-capacity-bootstrap.js';
 import {rows,isDatabaseReady,isRescueReadonly} from './database.js';
 import {buildPublicCandyMasterRows,PUBLIC_CANDY_MASTER_VERSION,SPECIES_CANDY_NAME_RULE_VERSION} from './public-candy-master.js';
 import {relevantResourceSnapshot,CANDY_CONVERSION_RULE_STATUS} from './resource-context.js';
