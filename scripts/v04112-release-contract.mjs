@@ -5,11 +5,13 @@ import {prepareGeminiImages,UC_IMG_GEMINI_ADAPTER_VERSION} from '../assets/js/uc
 import {addScreenshotEntry,createScreenshotUpdateSession,serializableScreenshotSession} from '../assets/js/unified-screenshot-update-center.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
+const versionTuple=value=>{const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$/);return match?match.slice(1).map(part=>Number(part||0)):null;};
+const versionAtLeast=(value,minimum)=>{const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;for(let i=0;i<4;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return true;};
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.11.2','v0.4.11.3','v0.4.11.4','v0.4.12','v0.4.13','v0.4.13.1','v0.4.13.2'].includes(appVersion),`unexpected v0.4.11.2 successor: ${appVersion}`);
+assert.ok(versionAtLeast(appVersion,'v0.4.11.2'),`unexpected v0.4.11.2 successor: ${appVersion}`);
 if(appVersion==='v0.4.11.2'){
   assert.equal(appBuild,'20260811-v04112-android-eager-image-bytes');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11.2-v04112-android-eager-image-bytes');
@@ -33,16 +35,22 @@ if(appVersion==='v0.4.11.2'){
   assert.equal(appBuild,'20260811-v04131-data-preservation-hotfix');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.13.1-v04131-data-preservation-hotfix');
   for(const predecessor of ['v0.4.13','v0.4.12','v0.4.11.4','v0.4.11.3','v0.4.11.2'])assert.ok(version.includes(`// app_version: '${predecessor}'`));
-}else{
+}else if(appVersion==='v0.4.13.2'){
   assert.equal(appBuild,'20260812-v04132-pot-authority-recipe78');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.13.2-v04132-pot-authority-recipe78');
   for(const predecessor of ['v0.4.13.1','v0.4.13','v0.4.12','v0.4.11.4','v0.4.11.3','v0.4.11.2'])assert.ok(version.includes(`// app_version: '${predecessor}'`));
+}else{
+  // Historical release contract: successors own their current build/cache names,
+  // but must preserve the v0.4.11.2 lineage while retaining the same behavior.
+  for(const predecessor of ['v0.4.13.2','v0.4.13.1','v0.4.13','v0.4.12','v0.4.11.4','v0.4.11.3','v0.4.11.2'])assert.ok(version.includes(`// app_version: '${predecessor}'`),`missing predecessor lineage ${predecessor}`);
+  assert.ok(version.includes("// app_build: '20260811-v04112-android-eager-image-bytes'"));
 }
 assert.ok(version.includes("// app_version: 'v0.4.11.1'"));
 assert.ok(version.includes("// app_build: '20260811-v04111-uc-img-session-timestamp'"));
 assert.ok(version.includes("// app_version: 'v0.4.11'"));
 assert.equal(UC_IMG_IMAGE_RUNTIME_VERSION,'uc-img-image-runtime-2026-08-11-a');
-assert.ok(['uc-img-gemini-2026-08-11-b-public-master-recognition','uc-img-gemini-2026-08-12-a-pot-capacity-authority'].includes(UC_IMG_GEMINI_ADAPTER_VERSION),`unexpected Gemini adapter successor: ${UC_IMG_GEMINI_ADAPTER_VERSION}`);
+const adapterDate=UC_IMG_GEMINI_ADAPTER_VERSION.match(/^uc-img-gemini-(\d{4}-\d{2}-\d{2})-/)?.[1]||null;
+assert.ok(adapterDate&&adapterDate>='2026-08-11',`unexpected Gemini adapter successor: ${UC_IMG_GEMINI_ADAPTER_VERSION}`);
 
 const picker={name:'release-image.png',type:'image/png',size:4,arrayBuffer:async()=>Uint8Array.from([1,2,3,4]).buffer};
 const snapshot=await snapshotUcImgPickerFile(picker);
@@ -76,4 +84,4 @@ assert.ok(sw.includes("url.pathname.endsWith('.js')"),'new runtime JS must keep 
 const migrations=read('assets/js/migrations.js');
 assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.11.2 lineage must remain schema-migration-free');
 
-console.log(JSON.stringify({status:'PASS',gate:'V0.4.11.2_RELEASE_CONTRACT_SUCCESSOR_AWARE',app_version:appVersion,eager_picker_snapshot:true,platform_owned_memory_blob:true,raw_picker_file_runtime_authority:false,explicit_byte_lifecycle:true,screenshot_bytes_persisted:false,v04111_restore_semantics_preserved:true,gemini_adapter_version:UC_IMG_GEMINI_ADAPTER_VERSION,single_apply_bridge:true,sqlite_migration_added:false,offline_runtime_cache_contract:true},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V0.4.11.2_RELEASE_CONTRACT_SUCCESSOR_AWARE',app_version:appVersion,eager_picker_snapshot:true,platform_owned_memory_blob:true,raw_picker_file_runtime_authority:false,explicit_byte_lifecycle:true,screenshot_bytes_persisted:false,v04111_restore_semantics_preserved:true,gemini_adapter_version:UC_IMG_GEMINI_ADAPTER_VERSION,gemini_adapter_authority_date:adapterDate,single_apply_bridge:true,sqlite_migration_added:false,offline_runtime_cache_contract:true},null,2));

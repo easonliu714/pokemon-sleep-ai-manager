@@ -21,7 +21,8 @@ if(tuple[2]===10&&tuple[3]===0){
   assert.equal(version.match(/cache_name:\s*'([^']+)'/)?.[1],'pokemon-sleep-ai-v0.4.10-v0410-unified-screenshot-update-center-a');
 }
 assert.ok(version.includes("// app_version: 'v0.4.9.1'"),'v0.4.10+ must retain v0.4.9.1 legacy bridge');
-assert.match(UC_IMG_A_VERSION,/^uc-img-a-2026-08-11-/);
+const ucImgAuthorityDate=UC_IMG_A_VERSION.match(/^uc-img-a-(\d{4}-\d{2}-\d{2})-/)?.[1]||null;
+assert.ok(ucImgAuthorityDate&&ucImgAuthorityDate>='2026-08-11',`unexpected UC.IMG-A successor authority: ${UC_IMG_A_VERSION}`);
 assert.deepEqual(Object.keys(UC_IMG_A_SCENARIOS),['weekly','ingredients','recipes']);
 assert.equal(UC_IMG_A_SCENARIOS.weekly.scenario,'weekly_context_update');
 assert.equal(UC_IMG_A_SCENARIOS.ingredients.scenario,'ingredient_inventory_update');
@@ -76,7 +77,7 @@ assert.ok(serviceWorker.includes("url.pathname.endsWith('.js')"),'UC.IMG-A relie
 console.log(JSON.stringify({
   status:'PASS',gate:'V0.4.10_RELEASE_CONTRACT_SUCCESSOR_AWARE',current_app_version:`v${tuple.join('.')}`,
   historical_behavior_compatible:true,exact_release_authority_enforced:tuple[2]===10&&tuple[3]===0,
-  uc_img_a_version:UC_IMG_A_VERSION,
+  uc_img_a_version:UC_IMG_A_VERSION,uc_img_authority_date:ucImgAuthorityDate,
   scenarios:Object.values(UC_IMG_A_SCENARIOS).map(value=>value.scenario),multi_image:true,coverage_semantics:true,
   evidence_traceability:true,stale_response_guard:true,existing_dry_run_apply_bridge:true,screenshot_bytes_persisted:false,
   screenshot_byte_privacy_contract:legacyBytePrivacyMarker?'legacy-label':'byte-lifecycle-successor',

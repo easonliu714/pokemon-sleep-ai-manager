@@ -135,6 +135,10 @@ function sparseData(operation) {
 function managedData(operation, key, before, inputData, payload) {
   const data = { ...inputData };
   const hasPlayerChange = Object.keys(inputData).some((field) => !['updated_at', 'source_update_id'].includes(field));
+  // account_capacity.updated_at is NOT NULL; screenshot/public-master operations carry observed capacity only, so the importer owns the persistence timestamp.
+  if (operation.entity === 'account_capacity' && hasPlayerChange) {
+    if (!hasOwn(data, 'updated_at')) data.updated_at = localIso();
+  }
   if (['ingredient_inventory', 'item_inventory','candy_inventory'].includes(operation.entity) && hasPlayerChange) {
     if (!hasOwn(data, 'updated_at')) data.updated_at = localIso();
     if (!hasOwn(data, 'source_update_id')) data.source_update_id = payload.update_id;

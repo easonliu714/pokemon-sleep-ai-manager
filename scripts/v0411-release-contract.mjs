@@ -15,6 +15,8 @@ import {UC_IMG_A_VERSION,UC_IMG_A_SCENARIOS,buildScreenshotScenarioPrompt,create
 import {UC_IMG_GEMINI_ADAPTER_VERSION,buildUcImgGeminiSchema} from '../assets/js/uc-img-gemini-adapter.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
+const versionTuple=value=>{const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$/);return match?match.slice(1).map(part=>Number(part||0)):null;};
+const versionAtLeast=(value,minimum)=>{const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;for(let i=0;i<4;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return true;};
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
@@ -30,8 +32,11 @@ const exactReleases={
   'v0.4.13.1':['20260811-v04131-data-preservation-hotfix','pokemon-sleep-ai-v0.4.13.1-v04131-data-preservation-hotfix'],
   'v0.4.13.2':['20260812-v04132-pot-authority-recipe78','pokemon-sleep-ai-v0.4.13.2-v04132-pot-authority-recipe78'],
 };
-assert.ok(exactReleases[appVersion],`unexpected v0.4.11 successor: ${appVersion}`);
-assert.deepEqual([appBuild,cacheName],exactReleases[appVersion]);
+assert.ok(versionAtLeast(appVersion,'v0.4.11'),`unexpected v0.4.11 successor: ${appVersion}`);
+if(exactReleases[appVersion])assert.deepEqual([appBuild,cacheName],exactReleases[appVersion]);
+else{
+  for(const predecessor of ['v0.4.13.2','v0.4.13.1','v0.4.13','v0.4.12','v0.4.11.4','v0.4.11.3','v0.4.11.2','v0.4.11.1','v0.4.11'])assert.ok(version.includes(`// app_version: '${predecessor}'`),`${appVersion} must retain ${predecessor} legacy bridge`);
+}
 const predecessors=['v0.4.11','v0.4.10.3'];
 if(appVersion!=='v0.4.11')for(const predecessor of predecessors)assert.ok(version.includes(`// app_version: '${predecessor}'`),`${appVersion} must retain ${predecessor} legacy bridge`);
 for(const [successor,required] of Object.entries({
@@ -42,8 +47,10 @@ for(const [successor,required] of Object.entries({
 }))if(appVersion===successor)for(const predecessor of required)assert.ok(version.includes(`// app_version: '${predecessor}'`),`${successor} must retain ${predecessor} legacy bridge`);
 assert.ok(version.includes("// app_build: '20260811-v04103-ingredient-key-contract-hotfix'"));
 
-assert.equal(UC_IMG_A_VERSION,'uc-img-a-2026-08-11-d-public-master-recognition');
-assert.ok(['uc-img-gemini-2026-08-11-b-public-master-recognition','uc-img-gemini-2026-08-12-a-pot-capacity-authority'].includes(UC_IMG_GEMINI_ADAPTER_VERSION),`unexpected Gemini adapter successor: ${UC_IMG_GEMINI_ADAPTER_VERSION}`);
+const ucImgAuthorityDate=UC_IMG_A_VERSION.match(/^uc-img-a-(\d{4}-\d{2}-\d{2})-/)?.[1]||null;
+assert.ok(ucImgAuthorityDate&&ucImgAuthorityDate>='2026-08-11',`unexpected UC.IMG-A successor: ${UC_IMG_A_VERSION}`);
+const adapterDate=UC_IMG_GEMINI_ADAPTER_VERSION.match(/^uc-img-gemini-(\d{4}-\d{2}-\d{2})-/)?.[1]||null;
+assert.ok(adapterDate&&adapterDate>='2026-08-11',`unexpected Gemini adapter successor: ${UC_IMG_GEMINI_ADAPTER_VERSION}`);
 assert.equal(PUBLIC_MASTER_RECOGNITION_SCHEMA,'pokemon-sleep-public-master-recognition/1.0');
 assert.match(PUBLIC_MASTER_RECOGNITION_VERSION,/^public-master-recognition-2026-08-(?:11-(?:a|b-recipe-canonical)|12-[a-z0-9-]+)$/,'Public Master recognition successor version invalid');
 assert.deepEqual(Object.keys(PUBLIC_MASTER_RECOGNITION_REGISTRY).sort(),['candies','ingredients','items','recipes']);
@@ -69,7 +76,8 @@ const ingredientSchema=buildPublicMasterRecognitionJsonSchema('ingredients');
 assert.deepEqual(ingredientSchema.properties.schema.enum,[PUBLIC_MASTER_RECOGNITION_SCHEMA]);assert.deepEqual(ingredientSchema.properties.observations.items.properties.status.enum,['MATCHED','AMBIGUOUS','UNMATCHED']);assert.equal(ingredientSchema.properties.observations.items.properties.canonical_key.properties.ingredient_name.enum.length,19);assert.equal('ingredient_id' in ingredientSchema.properties.observations.items.properties.canonical_key.properties,false);
 const runtimeIngredientSchema=buildUcImgGeminiSchema(UC_IMG_A_SCENARIOS.ingredients,'ingredients');assert.deepEqual(runtimeIngredientSchema,ingredientSchema,'Internal Gemini must use the same constrained ingredient schema');
 const runtimeRecipeSchema=buildUcImgGeminiSchema(UC_IMG_A_SCENARIOS.recipes,'recipes');assert.deepEqual(runtimeRecipeSchema.properties.schema.enum,[PUBLIC_MASTER_RECOGNITION_SCHEMA]);
-if(UC_IMG_GEMINI_ADAPTER_VERSION.includes('pot-capacity'))assert.ok(runtimeRecipeSchema.properties.capacity_observations,'Recipe successor must expose direct-visible base pot capacity observations');
+const recipePotCapacityObservation=Boolean(runtimeRecipeSchema.properties.capacity_observations);
+if(versionAtLeast(appVersion,'v0.4.13.2'))assert.equal(recipePotCapacityObservation,true,'Recipe successor must expose direct-visible base pot capacity observations');
 const weeklySchema=buildUcImgGeminiSchema(UC_IMG_A_SCENARIOS.weekly,'weekly');assert.deepEqual(weeklySchema.properties.schema_version.enum,['1.1']);assert.equal('capacity_observations' in weeklySchema.properties,false,'Weekly must never inherit base pot authority');
 
 const session=createScreenshotUpdateSession();const ingredientImage=addScreenshotEntry(session,{name:'ingredient-live.png',size:10,type:'image/png'});assignScreenshotScenario(session,ingredientImage.entry_id,'ingredients');const recipeImage=addScreenshotEntry(session,{name:'recipe-live.png',size:10,type:'image/png'});assignScreenshotScenario(session,recipeImage.entry_id,'recipes');
@@ -83,4 +91,4 @@ const ui=read('assets/js/unified-screenshot-update-center.js');assert.equal((ui.
 const adapter=read('assets/js/uc-img-gemini-adapter.js');for(const forbidden of ['applyPayload','dryRun','importer.js','localStorage','indexedDB'])assert.equal(adapter.includes(forbidden),false,`Gemini adapter must not own ${forbidden}`);
 const migrations=read('assets/js/migrations.js');assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.11 lineage remains schema-migration-free');
 
-console.log(JSON.stringify({status:'PASS',gate:'V0.4.11_RELEASE_CONTRACT_SUCCESSOR_AWARE',app_version:appVersion,gemini_adapter_version:UC_IMG_GEMINI_ADAPTER_VERSION,recognition_version:PUBLIC_MASTER_RECOGNITION_VERSION,ingredient_catalog_count:ingredientSnapshot.row_count,historical_recipe_catalog_count:HISTORICAL_BASE_RECIPE_MASTER.length,recipe_catalog_count:recipeSnapshot.row_count,historical_recipe_ids_preserved:true,recipe_pot_capacity_observation:UC_IMG_GEMINI_ADAPTER_VERSION.includes('pot-capacity'),weekly_base_pot_authority:false,public_only_catalogs:true,ai_created_ids:false,unknown_silent_drop:false,fuzzy_auto_write:false,direct_ai_apply_bypass:false,single_apply_bridge:true,screenshot_bytes_persisted:false,sqlite_migration_added:false,public_master_runtime_mutation:false},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V0.4.11_RELEASE_CONTRACT_SUCCESSOR_AWARE',app_version:appVersion,uc_img_authority_date:ucImgAuthorityDate,gemini_adapter_version:UC_IMG_GEMINI_ADAPTER_VERSION,gemini_adapter_authority_date:adapterDate,recognition_version:PUBLIC_MASTER_RECOGNITION_VERSION,ingredient_catalog_count:ingredientSnapshot.row_count,historical_recipe_catalog_count:HISTORICAL_BASE_RECIPE_MASTER.length,recipe_catalog_count:recipeSnapshot.row_count,historical_recipe_ids_preserved:true,recipe_pot_capacity_observation:recipePotCapacityObservation,weekly_base_pot_authority:false,public_only_catalogs:true,ai_created_ids:false,unknown_silent_drop:false,fuzzy_auto_write:false,direct_ai_apply_bypass:false,single_apply_bridge:true,screenshot_bytes_persisted:false,sqlite_migration_added:false,public_master_runtime_mutation:false},null,2));

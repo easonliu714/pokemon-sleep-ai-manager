@@ -4,11 +4,13 @@ import {PUBLIC_RECIPE_MASTER,PUBLIC_RECIPE_MASTER_VERSION} from '../assets/js/pu
 import {buildRecipeUnifiedWorkbenchProjection,RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION} from '../assets/js/recipe-unified-player-workbench.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
+const versionTuple=value=>{const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$/);return match?match.slice(1).map(part=>Number(part||0)):null;};
+const versionAtLeast=(value,minimum)=>{const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;for(let i=0;i<4;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return true;};
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.11.4','v0.4.12','v0.4.13','v0.4.13.1','v0.4.13.2'].includes(appVersion),`unexpected v0.4.12 successor authority: ${appVersion}`);
+assert.ok(appVersion==='v0.4.11.4'||versionAtLeast(appVersion,'v0.4.12'),`unexpected v0.4.12 successor authority: ${appVersion}`);
 if(appVersion==='v0.4.11.4'){
   assert.equal(appBuild,'20260811-v04114-recipe-zh-tw-diagnostic-export','behavior-first stage must remain on v0.4.11.4 before v0.4.12 release promotion');
 }else if(appVersion==='v0.4.12'){
@@ -24,10 +26,15 @@ if(appVersion==='v0.4.11.4'){
   assert.equal(appBuild,'20260811-v04131-data-preservation-hotfix');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.13.1-v04131-data-preservation-hotfix');
   assert.ok(version.includes("// app_version: 'v0.4.13'"),'v0.4.13.1 must retain v0.4.13 predecessor bridge');
-}else{
+}else if(appVersion==='v0.4.13.2'){
   assert.equal(appBuild,'20260812-v04132-pot-authority-recipe78');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.13.2-v04132-pot-authority-recipe78');
   assert.ok(version.includes("// app_version: 'v0.4.13.1'"));
+}else{
+  // v0.4.12 is a historical behavior contract. Successor releases own their own
+  // release metadata but must retain the v0.4.12 lineage marker.
+  assert.ok(version.includes("// app_version: 'v0.4.12'"),'successor must retain v0.4.12 lineage bridge');
+  assert.ok(version.includes("// app_build: '20260811-v0412-recipe-unified-player-workbench'"));
 }
 assert.ok(version.includes("// app_build: '20260811-v04114-recipe-zh-tw-diagnostic-export'"));
 assert.ok(['public-recipe-master-2026-08-11-c','public-recipe-master-2026-08-12-a'].includes(PUBLIC_RECIPE_MASTER_VERSION));
@@ -78,4 +85,4 @@ assert.equal((ucImg.match(/applyPayload\(/g)||[]).length,1,'UC.IMG must retain e
 const migrations=read('assets/js/migrations.js');
 assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.12 Recipe Workbench lineage must remain schema-migration-free');
 
-console.log(JSON.stringify({status:'PASS',gate:'V0412_RECIPE_UNIFIED_PLAYER_WORKBENCH_BEHAVIOR',app_version:appVersion,v0412_or_successor:['v0.4.12','v0.4.13','v0.4.13.1','v0.4.13.2'].includes(appVersion),workbench_version:RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION,canonical_recipe_count:PUBLIC_RECIPE_MASTER.length,synthetic_unlocked_count:projection.unlocked_count,synthetic_locked_count:projection.locked_count,duplicate_recipe_ids:projection.duplicate_recipe_ids,unified_unlocked_table:true,separate_locked_table:true,weekly_recommendation_in_unified_rows:true,deterministic_shortage_analysis:true,public_master_read_only:true,player_recipe_writer_single_owner:true,unrelated_draft_inputs_preserved:true,android_horizontal_containment:true,first_offline_recipe_module_precached:true,sqlite_migration_added:false,uc_img_apply_bridge_count:1},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V0412_RECIPE_UNIFIED_PLAYER_WORKBENCH_BEHAVIOR',app_version:appVersion,v0412_or_successor:versionAtLeast(appVersion,'v0.4.12'),workbench_version:RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION,canonical_recipe_count:PUBLIC_RECIPE_MASTER.length,synthetic_unlocked_count:projection.unlocked_count,synthetic_locked_count:projection.locked_count,duplicate_recipe_ids:projection.duplicate_recipe_ids,unified_unlocked_table:true,separate_locked_table:true,weekly_recommendation_in_unified_rows:true,deterministic_shortage_analysis:true,public_master_read_only:true,player_recipe_writer_single_owner:true,unrelated_draft_inputs_preserved:true,android_horizontal_containment:true,first_offline_recipe_module_precached:true,sqlite_migration_added:false,uc_img_apply_bridge_count:1},null,2));

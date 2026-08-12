@@ -8,11 +8,13 @@ import {
 } from '../assets/js/recipe-portfolio-contention.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
+const versionTuple=value=>{const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$/);return match?match.slice(1).map(part=>Number(part||0)):null;};
+const versionAtLeast=(value,minimum)=>{const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;for(let i=0;i<4;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return true;};
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.12','v0.4.13','v0.4.13.1','v0.4.13.2'].includes(appVersion),`unexpected G7.1 release authority: ${appVersion}`);
+assert.ok(appVersion==='v0.4.12'||versionAtLeast(appVersion,'v0.4.13'),`unexpected G7.1 release authority: ${appVersion}`);
 if(appVersion==='v0.4.12'){
   assert.equal(appBuild,'20260811-v0412-recipe-unified-player-workbench','G7.1 behavior-first stage must keep v0.4.12 Release Authority');
 }else if(appVersion==='v0.4.13'){
@@ -25,11 +27,16 @@ if(appVersion==='v0.4.12'){
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.13.1-v04131-data-preservation-hotfix');
   assert.ok(version.includes("// app_version: 'v0.4.13'"),'v0.4.13.1 must retain G7.1 predecessor bridge');
   assert.ok(version.includes("// app_build: '20260811-v0413-g7-recipe-portfolio-contention'"));
-}else{
+}else if(appVersion==='v0.4.13.2'){
   assert.equal(appBuild,'20260812-v04132-pot-authority-recipe78');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.13.2-v04132-pot-authority-recipe78');
   assert.ok(version.includes("// app_version: 'v0.4.13.1'"),'v0.4.13.2 must retain data-preservation predecessor bridge');
   assert.ok(version.includes("// app_version: 'v0.4.13'"),'v0.4.13.2 must retain G7 predecessor bridge');
+}else{
+  // G7.1 is a historical behavior contract. Later releases may own new build/cache names,
+  // while the original release lineage must remain traceable.
+  assert.ok(version.includes("// app_version: 'v0.4.13'"),'G7 successor must retain v0.4.13 lineage bridge');
+  assert.ok(version.includes("// app_build: '20260811-v0413-g7-recipe-portfolio-contention'"));
 }
 assert.equal(RECIPE_PORTFOLIO_CONTENTION_VERSION,'recipe-portfolio-contention-2026-08-11-a');
 assert.deepEqual(RECIPE_PORTFOLIO_OBJECTIVES,['unlock_recipes','preserve_resources','continuous_meals']);
@@ -112,7 +119,7 @@ const migrations=read('assets/js/migrations.js');
 assert.equal(migrations.includes('VALUES(10,'),false,'G7.1 must remain migration-free');
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'G7_1_RECIPE_PORTFOLIO_RESOURCE_CONTENTION_SUCCESSOR_AWARE',app_version:appVersion,release_promoted:['v0.4.13','v0.4.13.1','v0.4.13.2'].includes(appVersion),
+  status:'PASS',gate:'G7_1_RECIPE_PORTFOLIO_RESOURCE_CONTENTION_SUCCESSOR_AWARE',app_version:appVersion,release_promoted:versionAtLeast(appVersion,'v0.4.13'),
   planner_version:RECIPE_PORTFOLIO_CONTENTION_VERSION,objectives:RECIPE_PORTFOLIO_OBJECTIVES,
   fixture_a:{ready:unlockPlan.summary.individually_ready_count,contention_edges:graphA.contention_edge_count,oversubscribed:graphA.oversubscribed_ingredient_count,simultaneous:false,top_sequence:unlockPlan.alternatives[0].sequence_key},
   fixture_b:{safe_reserve_enforced:true,empty_collection_zero_assumed:false},
