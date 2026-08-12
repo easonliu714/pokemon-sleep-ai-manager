@@ -11,8 +11,7 @@ import {buildLocalRecipePortfolioContention} from './recipe-portfolio-contention
 import {currentProductionAuthorityRegistry} from './production-authority-registry.js';
 import {evaluateTeamObjective} from './team-objective-evaluator.js';
 import {buildStrategyOptimizationPack} from './strategy-optimization-pack.js';
-import {buildExternalOptimizationPrompt,normalizeOptimizationAiResponse} from './strategy-optimization-ai-contract.js';
-import {intakeOptimizationAiResponse} from './strategy-optimization-ai-intake.js';
+import {buildExternalOptimizationPrompt,normalizeOptimizationAiResponse,intakeOptimizationAiResponse} from './strategy-optimization-ai-contract.js';
 
 export function buildLocalStrategyContextPreview({includeEventText=false,candidateLimit=20,recipeLimit=10}={}){
   if(isRescueReadonly())return {status:'PLAYER_DATA_UNAVAILABLE',payload:null,resolver:{},privacy_manifest:{raw_sqlite_in_payload:false,api_key_in_payload:false},missing_inputs:['player_database']};
