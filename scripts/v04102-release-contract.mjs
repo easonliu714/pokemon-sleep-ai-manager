@@ -27,88 +27,36 @@ const exactReleases={
   'v0.4.12':['20260811-v0412-recipe-unified-player-workbench','pokemon-sleep-ai-v0.4.12-v0412-recipe-unified-player-workbench'],
   'v0.4.13':['20260811-v0413-g7-recipe-portfolio-contention','pokemon-sleep-ai-v0.4.13-v0413-g7-recipe-portfolio-contention'],
   'v0.4.13.1':['20260811-v04131-data-preservation-hotfix','pokemon-sleep-ai-v0.4.13.1-v04131-data-preservation-hotfix'],
+  'v0.4.13.2':['20260812-v04132-pot-authority-recipe78','pokemon-sleep-ai-v0.4.13.2-v04132-pot-authority-recipe78'],
 };
-assert.ok(exactReleases[appVersion],`unexpected v0.4.10.2 successor: ${appVersion}`);
-assert.deepEqual([appBuild,cacheName],exactReleases[appVersion]);
-if(appVersion!=='v0.4.10.2')assert.ok(version.includes("// app_version: 'v0.4.10.2'"),'successor must retain v0.4.10.2 legacy bridge');
-if(appVersion==='v0.4.12')for(const predecessor of ['v0.4.11.4','v0.4.11.3','v0.4.11.2','v0.4.11.1','v0.4.11','v0.4.10.3'])assert.ok(version.includes(`// app_version: '${predecessor}'`),`v0.4.12 must retain ${predecessor} legacy bridge`);
-if(appVersion==='v0.4.13')for(const predecessor of ['v0.4.12','v0.4.11.4','v0.4.11.3','v0.4.11.2','v0.4.11.1','v0.4.11','v0.4.10.3'])assert.ok(version.includes(`// app_version: '${predecessor}'`),`v0.4.13 must retain ${predecessor} legacy bridge`);
-if(appVersion==='v0.4.13.1')for(const predecessor of ['v0.4.13','v0.4.12','v0.4.11.4','v0.4.11.3','v0.4.11.2','v0.4.11.1','v0.4.11','v0.4.10.3'])assert.ok(version.includes(`// app_version: '${predecessor}'`),`v0.4.13.1 must retain ${predecessor} legacy bridge`);
-assert.ok(version.includes("// app_version: 'v0.4.10.1'"),'v0.4.10.2 lineage must retain v0.4.10.1 legacy bridge');
-assert.ok(version.includes("// app_build: '20260811-v04101-update-package-root-contract'"));
+assert.ok(exactReleases[appVersion],`unexpected v0.4.10.2 successor: ${appVersion}`);assert.deepEqual([appBuild,cacheName],exactReleases[appVersion]);
+if(appVersion!=='v0.4.10.2')assert.ok(version.includes("// app_version: 'v0.4.10.2'"));
+for(const [successor,required] of Object.entries({
+  'v0.4.12':['v0.4.11.4','v0.4.11.3','v0.4.11.2','v0.4.11.1','v0.4.11','v0.4.10.3'],
+  'v0.4.13':['v0.4.12','v0.4.11.4','v0.4.11.3','v0.4.11.2','v0.4.11.1','v0.4.11','v0.4.10.3'],
+  'v0.4.13.1':['v0.4.13','v0.4.12','v0.4.11.4','v0.4.11.3','v0.4.11.2','v0.4.11.1','v0.4.11','v0.4.10.3'],
+  'v0.4.13.2':['v0.4.13.1','v0.4.13','v0.4.12','v0.4.11.4','v0.4.11.3','v0.4.11.2','v0.4.11.1','v0.4.11','v0.4.10.3'],
+}))if(appVersion===successor)for(const predecessor of required)assert.ok(version.includes(`// app_version: '${predecessor}'`));
+assert.ok(version.includes("// app_version: 'v0.4.10.1'"));assert.ok(version.includes("// app_build: '20260811-v04101-update-package-root-contract'"));
 
-assert.deepEqual(UC_IMG_A_MODES,['internal','external']);
-assert.deepEqual(UPDATE_PACKAGE_REQUIRED_ROOT,['schema_version','update_id','generated_at','source','operations']);
-assert.equal(UPDATE_PACKAGE_SCHEMA_VERSION,'1.1');
-assert.equal(UPDATE_PACKAGE_SOURCE,'ai_screenshot_analysis');
+assert.deepEqual(UC_IMG_A_MODES,['internal','external']);assert.deepEqual(UPDATE_PACKAGE_REQUIRED_ROOT,['schema_version','update_id','generated_at','source','operations']);assert.equal(UPDATE_PACKAGE_SCHEMA_VERSION,'1.1');assert.equal(UPDATE_PACKAGE_SOURCE,'ai_screenshot_analysis');
 const recognitionSuccessor=UC_IMG_A_VERSION.includes('public-master-recognition');
 if(recognitionSuccessor){
   assert.equal(UC_IMG_A_VERSION,'uc-img-a-2026-08-11-d-public-master-recognition');
-  assert.equal(UC_IMG_GEMINI_ADAPTER_VERSION,'uc-img-gemini-2026-08-11-b-public-master-recognition');
+  assert.ok(['uc-img-gemini-2026-08-11-b-public-master-recognition','uc-img-gemini-2026-08-12-a-pot-capacity-authority'].includes(UC_IMG_GEMINI_ADAPTER_VERSION),`unexpected recognition adapter successor: ${UC_IMG_GEMINI_ADAPTER_VERSION}`);
 }else{
-  assert.equal(UC_IMG_A_VERSION,'uc-img-a-2026-08-11-c-dual-mode');
-  assert.equal(UC_IMG_GEMINI_ADAPTER_VERSION,'uc-img-gemini-2026-08-11-a');
+  assert.equal(UC_IMG_A_VERSION,'uc-img-a-2026-08-11-c-dual-mode');assert.equal(UC_IMG_GEMINI_ADAPTER_VERSION,'uc-img-gemini-2026-08-11-a');
 }
 
-const weeklySchema=buildUcImgGeminiSchema(UC_IMG_A_SCENARIOS.weekly,'weekly');
-assert.deepEqual(weeklySchema.properties.schema_version.enum,['1.1']);
-assert.deepEqual(weeklySchema.properties.source.enum,['ai_screenshot_analysis']);
-assert.deepEqual(weeklySchema.properties.scenario.enum,['weekly_context_update']);
-assert.deepEqual(weeklySchema.properties.operations.items.properties.entity.enum,['weekly_context']);
-assert.deepEqual(weeklySchema.properties.operations.items.properties.action.enum,['upsert']);
-assert.deepEqual(weeklySchema.properties.context_authority.enum,['UPDATE_CENTER_JSON']);
-
+const weeklySchema=buildUcImgGeminiSchema(UC_IMG_A_SCENARIOS.weekly,'weekly');assert.deepEqual(weeklySchema.properties.schema_version.enum,['1.1']);assert.deepEqual(weeklySchema.properties.source.enum,['ai_screenshot_analysis']);assert.deepEqual(weeklySchema.properties.scenario.enum,['weekly_context_update']);assert.deepEqual(weeklySchema.properties.operations.items.properties.entity.enum,['weekly_context']);assert.deepEqual(weeklySchema.properties.operations.items.properties.action.enum,['upsert']);assert.deepEqual(weeklySchema.properties.context_authority.enum,['UPDATE_CENTER_JSON']);assert.equal('capacity_observations' in weeklySchema.properties,false,'Weekly must not inherit base pot authority');
 for(const key of ['ingredients','recipes']){
   const cfg=UC_IMG_A_SCENARIOS[key],schema=buildUcImgGeminiSchema(cfg,key);
-  if(recognitionSuccessor){
-    assert.deepEqual(schema.properties.schema.enum,[PUBLIC_MASTER_RECOGNITION_SCHEMA]);
-    assert.deepEqual(schema.properties.scenario.enum,[cfg.scenario]);
-    assert.ok(schema.properties.observations,'recognition successor must preserve structured JSON output');
-  }else{
-    assert.deepEqual(schema.properties.schema_version.enum,['1.1']);
-    assert.deepEqual(schema.properties.source.enum,['ai_screenshot_analysis']);
-    assert.deepEqual(schema.properties.scenario.enum,[cfg.scenario]);
-    assert.deepEqual(schema.properties.operations.items.properties.entity.enum,cfg.entities);
-    assert.deepEqual(schema.properties.operations.items.properties.action.enum,['upsert']);
-  }
+  if(recognitionSuccessor){assert.deepEqual(schema.properties.schema.enum,[PUBLIC_MASTER_RECOGNITION_SCHEMA]);assert.deepEqual(schema.properties.scenario.enum,[cfg.scenario]);assert.ok(schema.properties.observations);if(key==='recipes'&&UC_IMG_GEMINI_ADAPTER_VERSION.includes('pot-capacity'))assert.ok(schema.properties.capacity_observations);}
+  else{assert.deepEqual(schema.properties.schema_version.enum,['1.1']);assert.deepEqual(schema.properties.source.enum,['ai_screenshot_analysis']);assert.deepEqual(schema.properties.scenario.enum,[cfg.scenario]);assert.deepEqual(schema.properties.operations.items.properties.entity.enum,cfg.entities);assert.deepEqual(schema.properties.operations.items.properties.action.enum,['upsert']);}
 }
 
-const directSchema=buildUpdatePackageJsonSchema({scenario:'ingredient_inventory_update',entities:['ingredient_inventory','account_capacity']});
-const body=buildGeminiGenerateBody({prompt:'test',images:[{data:'AQ==',mimeType:'image/png'},{data:'Ag==',mimeType:'image/jpeg'}],responseJsonSchema:directSchema});
-assert.equal(body.generationConfig.responseMimeType,'application/json');
-assert.deepEqual(body.generationConfig.responseJsonSchema,directSchema);
-assert.equal(body.contents[0].parts.filter(part=>part.inlineData).length,2);
-const legacyBody=buildGeminiGenerateBody({prompt:'legacy',imageBase64:'AQ==',mimeType:'image/png'});
-assert.equal(legacyBody.contents[0].parts.filter(part=>part.inlineData).length,1);
-assert.equal('responseJsonSchema' in legacyBody.generationConfig,false);
-
-const adapter=read('assets/js/uc-img-gemini-adapter.js');
-for(const forbidden of ['applyPayload','dryRun','importer.js','localStorage','indexedDB'])assert.equal(adapter.includes(forbidden),false,`Gemini adapter must not own ${forbidden}`);
-const ucImg=read('assets/js/unified-screenshot-update-center.js');
-for(const token of ['Gemini API 直接分析','外部 AI Prompt','runtime.files','buildUcImgDiagnosticBundle','validateScreenshotScenarioPayload','dryRun','applyPayload'])assert.ok(ucImg.includes(token),`v0.4.10.2 lineage UC.IMG missing ${token}`);
-assert.equal((ucImg.match(/applyPayload\(/g)||[]).length,1,'UC.IMG must retain exactly one Apply bridge');
-assert.ok(ucImg.includes('截圖不會寫入 SQLite 或 GitHub'));
-assert.ok(ucImg.includes('Key Vault / Project Pool'));
-
-const migrations=read('assets/js/migrations.js');
-assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.10.2 lineage must remain schema-migration-free through v0.4.13.1');
-
-console.log(JSON.stringify({
-  status:'PASS',gate:'V0.4.10.2_RELEASE_CONTRACT',
-  app_version:appVersion,
-  successor_v0412:appVersion==='v0.4.12',successor_v0413:appVersion==='v0.4.13',successor_v04131:appVersion==='v0.4.13.1',
-  uc_img_version:UC_IMG_A_VERSION,
-  gemini_adapter_version:UC_IMG_GEMINI_ADAPTER_VERSION,
-  modes:UC_IMG_A_MODES,
-  scenarios:Object.values(UC_IMG_A_SCENARIOS).map(item=>item.scenario),
-  structured_json_schema:true,
-  recognition_successor:recognitionSuccessor,
-  multi_image:true,
-  legacy_single_image_compatible:true,
-  direct_ai_apply_bypass:false,
-  external_prompt_fallback:true,
-  api_key_persisted_by_uc_img:false,
-  screenshot_bytes_persisted:false,
-  sqlite_migration_added:false,
-  public_master_mutated:false,
-},null,2));
+const directSchema=buildUpdatePackageJsonSchema({scenario:'ingredient_inventory_update',entities:['ingredient_inventory','account_capacity']});const body=buildGeminiGenerateBody({prompt:'test',images:[{data:'AQ==',mimeType:'image/png'},{data:'Ag==',mimeType:'image/jpeg'}],responseJsonSchema:directSchema});assert.equal(body.generationConfig.responseMimeType,'application/json');assert.deepEqual(body.generationConfig.responseJsonSchema,directSchema);assert.equal(body.contents[0].parts.filter(part=>part.inlineData).length,2);const legacyBody=buildGeminiGenerateBody({prompt:'legacy',imageBase64:'AQ==',mimeType:'image/png'});assert.equal(legacyBody.contents[0].parts.filter(part=>part.inlineData).length,1);assert.equal('responseJsonSchema' in legacyBody.generationConfig,false);
+const adapter=read('assets/js/uc-img-gemini-adapter.js');for(const forbidden of ['applyPayload','dryRun','importer.js','localStorage','indexedDB'])assert.equal(adapter.includes(forbidden),false);
+const ucImg=read('assets/js/unified-screenshot-update-center.js');for(const token of ['Gemini API 直接分析','外部 AI Prompt','runtime.files','buildUcImgDiagnosticBundle','validateScreenshotScenarioPayload','dryRun','applyPayload'])assert.ok(ucImg.includes(token));assert.equal((ucImg.match(/applyPayload\(/g)||[]).length,1);assert.ok(ucImg.includes('截圖不會寫入 SQLite 或 GitHub'));assert.ok(ucImg.includes('Key Vault / Project Pool'));
+const migrations=read('assets/js/migrations.js');assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.10.2 lineage remains schema-migration-free');
+console.log(JSON.stringify({status:'PASS',gate:'V0.4.10.2_RELEASE_CONTRACT_SUCCESSOR_AWARE',app_version:appVersion,uc_img_version:UC_IMG_A_VERSION,gemini_adapter_version:UC_IMG_GEMINI_ADAPTER_VERSION,modes:UC_IMG_A_MODES,scenarios:Object.values(UC_IMG_A_SCENARIOS).map(item=>item.scenario),structured_json_schema:true,recognition_successor:recognitionSuccessor,recipe_pot_capacity_successor:recognitionSuccessor&&UC_IMG_GEMINI_ADAPTER_VERSION.includes('pot-capacity'),weekly_base_pot_authority:false,multi_image:true,legacy_single_image_compatible:true,direct_ai_apply_bypass:false,external_prompt_fallback:true,api_key_persisted_by_uc_img:false,screenshot_bytes_persisted:false,sqlite_migration_added:false,public_master_mutated:false},null,2));
