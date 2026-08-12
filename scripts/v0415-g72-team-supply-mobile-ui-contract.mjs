@@ -5,13 +5,20 @@ import {buildRecipeUnifiedWorkbenchProjection,RECIPE_UNIFIED_PLAYER_WORKBENCH_VE
 import {PUBLIC_RECIPE_MASTER} from '../assets/js/public-recipe-canonical-authority.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
+const versionTuple=value=>{const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$/);return match?match.slice(1).map(part=>Number(part||0)):null;};
+const versionAtLeast=(value,minimum)=>{const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;for(let i=0;i<4;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return true;};
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1];
-assert.equal(appVersion,'v0.4.15');
-assert.equal(appBuild,'20260812-v0415-g72-team-supply-mobile-ui');
-assert.equal(cacheName,'pokemon-sleep-ai-v0.4.15-v0415-g72-team-supply-mobile-ui');
+assert.ok(versionAtLeast(appVersion,'v0.4.15'),`v0.4.15 G7.2 contract requires v0.4.15 or successor, got ${appVersion}`);
+if(appVersion==='v0.4.15'){
+  assert.equal(appBuild,'20260812-v0415-g72-team-supply-mobile-ui');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.15-v0415-g72-team-supply-mobile-ui');
+}else{
+  assert.ok(version.includes("// app_version: 'v0.4.15'"),'successor release must retain v0.4.15 lineage');
+  assert.ok(version.includes("// app_build: '20260812-v0415-g72-team-supply-mobile-ui'"));
+}
 assert.ok(version.includes("// app_version: 'v0.4.14'"));
 
 const member=(pokemon_id,species,ingredients,helper_seconds=3000)=>({pokemon_id,species,level:30,helper_seconds,unlocked_ingredients:ingredients.map(([ingredient_name,quantity])=>({unlock_level:1,ingredient_name,quantity}))});
