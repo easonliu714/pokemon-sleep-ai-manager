@@ -31,15 +31,13 @@ if(appVersion==='v0.4.11.4'){
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.13.2-v04132-pot-authority-recipe78');
   assert.ok(version.includes("// app_version: 'v0.4.13.1'"));
 }else{
-  // v0.4.12 is a historical behavior contract. Successor releases own their own
-  // release metadata but must retain the v0.4.12 lineage marker.
   assert.ok(version.includes("// app_version: 'v0.4.12'"),'successor must retain v0.4.12 lineage bridge');
   assert.ok(version.includes("// app_build: '20260811-v0412-recipe-unified-player-workbench'"));
 }
 assert.ok(version.includes("// app_build: '20260811-v04114-recipe-zh-tw-diagnostic-export'"));
 assert.ok(['public-recipe-master-2026-08-11-c','public-recipe-master-2026-08-12-a'].includes(PUBLIC_RECIPE_MASTER_VERSION));
 assert.ok([76,78].includes(PUBLIC_RECIPE_MASTER.length));
-assert.equal(RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION,'recipe-unified-player-workbench-2026-08-11-a');
+assert.ok(['recipe-unified-player-workbench-2026-08-11-a','recipe-unified-player-workbench-2026-08-12-b-summary-cards'].includes(RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION),`unexpected Recipe Workbench successor: ${RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION}`);
 
 const total=PUBLIC_RECIPE_MASTER.length;
 const curryIds=PUBLIC_RECIPE_MASTER.filter(row=>row.category==='咖哩／濃湯').slice(0,13).map(row=>row.recipe_id);
@@ -85,4 +83,4 @@ assert.equal((ucImg.match(/applyPayload\(/g)||[]).length,1,'UC.IMG must retain e
 const migrations=read('assets/js/migrations.js');
 assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.12 Recipe Workbench lineage must remain schema-migration-free');
 
-console.log(JSON.stringify({status:'PASS',gate:'V0412_RECIPE_UNIFIED_PLAYER_WORKBENCH_BEHAVIOR',app_version:appVersion,v0412_or_successor:versionAtLeast(appVersion,'v0.4.12'),workbench_version:RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION,canonical_recipe_count:PUBLIC_RECIPE_MASTER.length,synthetic_unlocked_count:projection.unlocked_count,synthetic_locked_count:projection.locked_count,duplicate_recipe_ids:projection.duplicate_recipe_ids,unified_unlocked_table:true,separate_locked_table:true,weekly_recommendation_in_unified_rows:true,deterministic_shortage_analysis:true,public_master_read_only:true,player_recipe_writer_single_owner:true,unrelated_draft_inputs_preserved:true,android_horizontal_containment:true,first_offline_recipe_module_precached:true,sqlite_migration_added:false,uc_img_apply_bridge_count:1},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V0412_RECIPE_UNIFIED_PLAYER_WORKBENCH_BEHAVIOR_SUCCESSOR_AWARE',app_version:appVersion,v0412_or_successor:versionAtLeast(appVersion,'v0.4.12'),workbench_version:RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION,canonical_recipe_count:PUBLIC_RECIPE_MASTER.length,synthetic_unlocked_count:projection.unlocked_count,synthetic_locked_count:projection.locked_count,duplicate_recipe_ids:projection.duplicate_recipe_ids,unified_unlocked_table:true,separate_locked_table:true,weekly_recommendation_in_unified_rows:true,deterministic_shortage_analysis:true,public_master_read_only:true,player_recipe_writer_single_owner:true,unrelated_draft_inputs_preserved:true,android_horizontal_containment:true,first_offline_recipe_module_precached:true,sqlite_migration_added:false,uc_img_apply_bridge_count:1},null,2));
