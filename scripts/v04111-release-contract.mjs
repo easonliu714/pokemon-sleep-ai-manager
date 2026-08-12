@@ -11,11 +11,13 @@ import {
 import {buildUpdatePackageId} from '../assets/js/update-package-contract.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
+const versionTuple=value=>{const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$/);return match?match.slice(1).map(part=>Number(part||0)):null;};
+const versionAtLeast=(value,minimum)=>{const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;for(let i=0;i<4;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return true;};
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.11.1','v0.4.11.2','v0.4.11.3','v0.4.11.4','v0.4.12','v0.4.13','v0.4.13.1','v0.4.13.2'].includes(appVersion),`unexpected v0.4.11.1 successor: ${appVersion}`);
+assert.ok(versionAtLeast(appVersion,'v0.4.11.1'),`unexpected v0.4.11.1 successor: ${appVersion}`);
 if(appVersion==='v0.4.11.1'){
   assert.equal(appBuild,'20260811-v04111-uc-img-session-timestamp');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.11.1-v04111-uc-img-session-timestamp');
@@ -43,10 +45,13 @@ if(appVersion==='v0.4.11.1'){
   assert.equal(appBuild,'20260811-v04131-data-preservation-hotfix');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.13.1-v04131-data-preservation-hotfix');
   for(const predecessor of ['v0.4.13','v0.4.12','v0.4.11.4','v0.4.11.3','v0.4.11.2','v0.4.11.1'])assert.ok(version.includes(`// app_version: '${predecessor}'`),`v0.4.13.1 must retain ${predecessor} legacy bridge`);
-}else{
+}else if(appVersion==='v0.4.13.2'){
   assert.equal(appBuild,'20260812-v04132-pot-authority-recipe78');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.13.2-v04132-pot-authority-recipe78');
   for(const predecessor of ['v0.4.13.1','v0.4.13','v0.4.12','v0.4.11.4','v0.4.11.3','v0.4.11.2','v0.4.11.1'])assert.ok(version.includes(`// app_version: '${predecessor}'`),`v0.4.13.2 must retain ${predecessor} legacy bridge`);
+}else{
+  for(const predecessor of ['v0.4.13.2','v0.4.13.1','v0.4.13','v0.4.12','v0.4.11.4','v0.4.11.3','v0.4.11.2','v0.4.11.1'])assert.ok(version.includes(`// app_version: '${predecessor}'`),`${appVersion} must retain ${predecessor} legacy bridge`);
+  assert.ok(version.includes("// app_build: '20260811-v04111-uc-img-session-timestamp'"));
 }
 assert.ok(version.includes("// app_version: 'v0.4.11'"),'release must retain v0.4.11 legacy bridge');
 assert.ok(version.includes("// app_build: '20260811-v0411-public-master-constrained-recognition'"));
@@ -102,8 +107,8 @@ const migrations=read('assets/js/migrations.js');
 assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.11.1 lineage must remain schema-migration-free');
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'V0.4.11.1_RELEASE_CONTRACT',app_version:appVersion,
-  successor_v04112:appVersion==='v0.4.11.2',successor_v04113:appVersion==='v0.4.11.3',successor_v04114:appVersion==='v0.4.11.4',successor_v0412:appVersion==='v0.4.12',successor_v0413:appVersion==='v0.4.13',successor_v04131:appVersion==='v0.4.13.1',successor_v04132:appVersion==='v0.4.13.2',
+  status:'PASS',gate:'V0.4.11.1_RELEASE_CONTRACT_SUCCESSOR_AWARE',app_version:appVersion,
+  successor_v04112:versionAtLeast(appVersion,'v0.4.11.2'),successor_v04113:versionAtLeast(appVersion,'v0.4.11.3'),successor_v04114:versionAtLeast(appVersion,'v0.4.11.4'),successor_v0412:versionAtLeast(appVersion,'v0.4.12'),successor_v0413:versionAtLeast(appVersion,'v0.4.13'),successor_v04131:versionAtLeast(appVersion,'v0.4.13.1'),successor_v04132:versionAtLeast(appVersion,'v0.4.13.2'),
   orphan_screenshot_metadata_cleanup:true,restore_owner:'unified-screenshot-update-center',next_image_number_monotonic:true,
   non_applied_response_fail_closed:true,applied_history_preserved:true,
   platform_owned_catalog_transaction_timestamp:true,ai_timestamp_transaction_authority:false,
