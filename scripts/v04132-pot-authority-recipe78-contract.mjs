@@ -30,6 +30,7 @@ import {recipeScenarioAcceptsPotCapacity} from '../assets/js/uc-img-v04132-pot-c
 
 const read=path=>fs.readFileSync(path,'utf8');
 const signature=recipe=>[...(recipe.ingredients||[])].map(row=>`${row.ingredient_name}=${Number(row.quantity)}`).sort((a,b)=>a.localeCompare(b,'zh-Hant')).join('|');
+const expectedSignature=rows=>rows.map(([name,qty])=>`${name}=${qty}`).sort((a,b)=>a.localeCompare(b,'zh-Hant')).join('|');
 
 const version=read('assets/js/version-authority.js');
 assert.equal(version.match(/app_version:\s*'([^']+)'/)?.[1],'v0.4.13.1','behavior-first stage must not bump central release authority');
@@ -65,7 +66,7 @@ const weeklyExampleMatch=prompt.match(/weekly:wrap\([\s\S]*?\{week_start:null[\s
 assert.ok(weeklyExampleMatch,'weekly template example must remain discoverable');
 assert.equal(weeklyExampleMatch[0].includes('pot_size:null'),false,'Weekly example must not solicit base pot capacity');
 const weeklyStore=read('assets/js/weekly-context-store.js');
-assert.ok(weeklyStore.includes("source:'ACCOUNT_CAPACITY'" )||weeklyStore.includes("fieldSources.pot_size=potAuthority.source"));
+assert.ok(weeklyStore.includes('fieldSources.pot_size=potAuthority.source'));
 assert.ok(weeklyStore.includes('LEGACY_WEEKLY_POT_FALLBACK'));
 assert.ok(weeklyStore.includes("SELECT total_capacity FROM account_capacity WHERE capacity_key='pot'"));
 
@@ -81,11 +82,11 @@ const additions=Object.fromEntries(PUBLIC_RECIPE_ACTIVATION_ADDITIONS.map(row=>[
 assert.equal(additions.curry_greengrass_bun.recipe_name,'萌綠咖哩麵包');
 assert.equal(additions.curry_greengrass_bun.base_energy,10945);
 assert.equal(additions.curry_greengrass_bun.total_ingredients,63);
-assert.equal(signature(additions.curry_greengrass_bun),'暖暖薑=20|火辣香草=20|純粹油=15|萌綠大豆=8');
+assert.equal(signature(additions.curry_greengrass_bun),expectedSignature([['暖暖薑',20],['火辣香草',20],['萌綠大豆',8],['純粹油',15]]));
 assert.equal(additions.curry_bounce_udon.recipe_name,'彈跳咖哩烏龍麵');
 assert.equal(additions.curry_bounce_udon.base_energy,25539);
 assert.equal(additions.curry_bounce_udon.total_ingredients,112);
-assert.equal(signature(additions.curry_bounce_udon),'品鮮蘑菇=31|暖暖薑=39|火辣香草=22|豆製肉=20');
+assert.equal(signature(additions.curry_bounce_udon),expectedSignature([['暖暖薑',39],['品鮮蘑菇',31],['火辣香草',22],['豆製肉',20]]));
 for(const id of Object.keys(additions))assert.equal(rawIds.has(id),false,`new recipe id collides with old 76: ${id}`);
 
 assert.equal(PUBLIC_RECIPE_PROVENANCE_VERSION,'public-recipe-provenance-2026-08-12-d');
