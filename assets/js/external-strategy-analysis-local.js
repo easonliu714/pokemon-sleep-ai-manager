@@ -3,11 +3,12 @@ import {currentWeeklyContext} from './weekly-context-store.js';
 import {parseWeeklyEventEffects} from './weekly-context-normalization.js';
 import {projectWeeklyEventEffects,WEEKLY_EVENT_EFFECT_REGISTRY_VERSION} from './weekly-event-effect-registry.js';
 import {getActiveStrategyGoalProfile} from './strategy-goal-store.js';
-import {buildUnifiedResourceSnapshot} from './resource-context.js';
+import {buildUnifiedResourceSnapshot,RESOURCE_EVIDENCE_POLICY_VERSION} from './resource-context.js';
 import {buildLocalPokemonCandidateScoring} from './pokemon-candidate-local.js';
 import {buildLocalTeamOptimization} from './team-optimizer-local.js';
 import {buildLocalRecipeStrategyProjection} from './recipe-strategy-local.js';
 import {buildLocalRecipeDiscoveryStockpile} from './recipe-discovery-stockpile-local.js';
+import {buildLocalRecipePortfolioContention} from './recipe-portfolio-contention-local.js';
 import {buildStrategyAnalysisPack,buildEphemeralCandidateResolver,strategyAnalysisPackMarkdown,STRATEGY_ANALYSIS_PACK_VERSION,STRATEGY_ANALYSIS_PROMPT_VERSION} from './external-strategy-analysis-pack.js';
 import {sanitizeGoalProfileForExternal,assertNoStablePokemonIds,forbiddenKeyPaths,assertNoForbiddenKeyPaths,strategyAnalysisPrivacyManifest,STRATEGY_ANALYSIS_PRIVACY_VERSION} from './external-strategy-analysis-privacy.js';
 import {PUBLIC_CANDY_MASTER_VERSION} from './public-candy-master.js';
@@ -20,8 +21,9 @@ import {POKEMON_SCORING_RULE_REGISTRY_VERSION,POKEMON_SCORING_RULES} from './pok
 import {TEAM_OPTIMIZER_VERSION} from './team-optimizer.js';
 import {RECIPE_DISCOVERY_STOCKPILE_VERSION} from './recipe-discovery-stockpile.js';
 import {RECIPE_STRATEGY_ENGINE_VERSION} from './recipe-strategy-projection.js';
+import {RECIPE_PORTFOLIO_CONTENTION_VERSION} from './recipe-portfolio-contention.js';
 
-export const STRATEGY_ANALYSIS_LOCAL_VERSION='strategy-analysis-local-2026-08-10-c';
+export const STRATEGY_ANALYSIS_LOCAL_VERSION='strategy-analysis-local-2026-08-12-d-g72-evidence-authority';
 
 const text=value=>String(value??'').normalize('NFKC').trim();
 function currentTeamPokemonIds(){
@@ -42,6 +44,8 @@ function ruleVersions(){return Object.freeze({
   team_optimizer_version:TEAM_OPTIMIZER_VERSION,
   recipe_strategy_engine_version:RECIPE_STRATEGY_ENGINE_VERSION,
   recipe_discovery_stockpile_version:RECIPE_DISCOVERY_STOCKPILE_VERSION,
+  recipe_portfolio_contention_version:RECIPE_PORTFOLIO_CONTENTION_VERSION,
+  resource_evidence_policy_version:RESOURCE_EVIDENCE_POLICY_VERSION,
   strategy_analysis_pack_version:STRATEGY_ANALYSIS_PACK_VERSION,
   strategy_analysis_prompt_version:STRATEGY_ANALYSIS_PROMPT_VERSION,
   strategy_analysis_privacy_version:STRATEGY_ANALYSIS_PRIVACY_VERSION,
@@ -69,11 +73,12 @@ export function buildLocalStrategyAnalysisPack({analysisRequest='',candidateLimi
   const team=buildLocalTeamOptimization();
   const recipe=buildLocalRecipeStrategyProjection();
   const discovery=buildLocalRecipeDiscoveryStockpile();
+  const portfolio=buildLocalRecipePortfolioContention();
   const resolver=buildEphemeralCandidateResolver(scoring.candidates||[]);
   const safeGoal=sanitizeGoalProfileForExternal(goal,{stableToRef:resolver.stable_to_ref,candidates:scoring.candidates||[]});
   const privacyManifest=strategyAnalysisPrivacyManifest();
   const built=buildStrategyAnalysisPack({
-    analysisRequest,weeklyContext:weekly,goalProfile:safeGoal,resourceSnapshot:resources,candidateScoring:scoring,teamOptimization:team,recipeStrategy:recipe,recipeDiscovery:discovery,
+    analysisRequest,weeklyContext:weekly,goalProfile:safeGoal,resourceSnapshot:resources,candidateScoring:scoring,teamOptimization:team,recipeStrategy:recipe,recipeDiscovery:discovery,recipePortfolio:portfolio,
     masterVersions:masterVersions(),ruleVersions:ruleVersions(),currentTeamPokemonIds:currentTeamPokemonIds(),candidateLimit,privacyManifest,
   });
   const json=JSON.stringify(built.pack,null,2),markdown=strategyAnalysisPackMarkdown(built.pack),prompt=built.prompt;
@@ -92,11 +97,17 @@ export function buildLocalStrategyAnalysisPack({analysisRequest='',candidateLimi
 
 export function strategyAnalysisPackSummary(result){
   const pack=result?.pack||{};
+  const collections=pack.resource_snapshot?.collection_evidence||{};
+  const unknownRows=['ingredients','items','candies'].reduce((sum,key)=>sum+Number(collections?.[key]?.missing_row_count||0),0);
+  const confirmedZeroRows=['ingredients','items','candies'].reduce((sum,key)=>sum+Number(collections?.[key]?.confirmed_zero_row_count||0),0);
   return Object.freeze({
     input_fingerprint:pack.input_fingerprint||null,
     week_start:pack.weekly_context?.week_start||null,camp:pack.weekly_context?.camp||null,primary_goal:pack.goal_profile?.primary_goal||null,
     candidate_count:pack.candidate_pokemon?.length||0,missing_rule_count:pack.missing_rules?.length||0,
     ingredient_count:pack.resource_snapshot?.ingredients?.length||0,item_count:pack.resource_snapshot?.items?.length||0,candy_count:pack.resource_snapshot?.candies?.length||0,
+    unknown_resource_row_count:unknownRows,confirmed_zero_row_count:confirmedZeroRows,
+    recipe_portfolio_status:pack.deterministic_results?.recipe_portfolio?.projection_status||null,
+    recipe_portfolio_alternative_count:pack.deterministic_results?.recipe_portfolio?.summary?.alternative_count||0,
     export_safe:Boolean(result?.export_safe),
   });
 }
