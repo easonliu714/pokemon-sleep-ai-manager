@@ -1,9 +1,10 @@
-export const RECIPE_PORTFOLIO_CONTENTION_VERSION='recipe-portfolio-contention-2026-08-11-a';
-export const RECIPE_PORTFOLIO_OBJECTIVES=Object.freeze(['unlock_recipes','preserve_resources','continuous_meals']);
+export const RECIPE_PORTFOLIO_CONTENTION_VERSION='recipe-portfolio-contention-2026-08-12-b-verified-energy';
+export const RECIPE_PORTFOLIO_OBJECTIVES=Object.freeze(['unlock_recipes','preserve_resources','continuous_meals','maximize_verified_energy']);
 
 const READY_STATUS=new Set(['COOK_NOW_UNLOCKED','UNLOCK_CANDIDATE_READY']);
 const text=value=>String(value??'').normalize('NFKC').trim();
 const integer=(value,fallback=0)=>{const n=Number(value);return Number.isFinite(n)?Math.max(0,Math.trunc(n)):fallback;};
+const positiveNumber=(value,fallback=null)=>{const n=Number(value);return Number.isFinite(n)&&n>0?n:fallback;};
 const stable=value=>Array.isArray(value)?value.map(stable):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,stable(value[key])])):value;
 function hash(value){let h=2166136261;for(const byte of new TextEncoder().encode(value)){h^=byte;h=Math.imul(h,16777619);}return(h>>>0).toString(16).padStart(8,'0');}
 function mapFromRows(rows){return new Map((rows||[]).map(row=>[text(row.ingredient_name),integer(row.quantity,0)]).filter(([name])=>name));}
@@ -15,6 +16,29 @@ function requirementMap(candidate){return new Map((candidate?.requirements||[]).
 function cloneMap(map){return new Map(map);}
 function mapObject(map){return Object.fromEntries([...map.entries()].sort(([a],[b])=>a.localeCompare(b,'zh-Hant')));}
 function usableTotal(remaining,reserves){let total=0;for(const [name,qty] of remaining)total+=Math.max(0,qty-integer(reserves.get(name),0));return total;}
+function normalizeEnergyContext(input={}){
+  return Object.freeze({
+    recipe_final_energy_multiplier:positiveNumber(input.recipe_final_energy_multiplier,1),
+    multiplier_source:text(input.multiplier_source)||'DEFAULT_IDENTITY',
+    event_effect_registry_version:text(input.event_effect_registry_version)||null,
+    event_effect_strategy_fingerprint:text(input.event_effect_strategy_fingerprint)||null,
+  });
+}
+function projectCandidateEnergy(candidate,energyContext){
+  const current=positiveNumber(candidate?.current_energy,null),base=positiveNumber(candidate?.base_energy,null);
+  const pre=current??base;
+  const source=current!==null?'PLAYER_CURRENT_ENERGY':base!==null?'PUBLIC_BASE_ENERGY':'MISSING';
+  const multiplier=energyContext.recipe_final_energy_multiplier;
+  return Object.freeze({
+    recipe_level:candidate?.recipe_level??null,
+    energy_source:source,
+    energy_fallback:source==='PUBLIC_BASE_ENERGY',
+    pre_event_energy:pre,
+    verified_event_multiplier:multiplier,
+    multiplier_source:energyContext.multiplier_source,
+    projected_verified_energy:pre===null?null:pre*multiplier,
+  });
+}
 
 function canExecute(candidate,remaining,reserves,observedNames){
   const missing=[];
@@ -92,7 +116,7 @@ export function buildRecipeContentionGraph({candidates=[],inventory=[],ingredien
   });
 }
 
-function applyRecipeStep({candidate,remaining,reserves,observedNames,eligibleCandidates,usedIds,objective,stepIndex}){
+function applyRecipeStep({candidate,remaining,reserves,observedNames,eligibleCandidates,usedIds,objective,stepIndex,energyContext}){
   const beforeExecutable=executableCandidates(eligibleCandidates,remaining,reserves,observedNames,usedIds,objective);
   const next=cloneMap(remaining),ingredients=[];
   for(const [name,required] of [...requirementMap(candidate).entries()].sort(([a],[b])=>a.localeCompare(b,'zh-Hant'))){
@@ -106,11 +130,12 @@ function applyRecipeStep({candidate,remaining,reserves,observedNames,eligibleCan
   const newlyBlocked=beforeExecutable.filter(row=>row.recipe_id!==candidate.recipe_id&&!afterIds.has(row.recipe_id)).map(row=>row.recipe_id).sort();
   const candidateById=new Map(eligibleCandidates.map(row=>[row.recipe_id,row]));
   for(const row of ingredients)row.buffer_state=stepBufferState({name:row.ingredient_name,remaining:row.remaining,reserve:row.safe_reserve,candidates:eligibleCandidates.filter(item=>item.recipe_id!==candidate.recipe_id)});
+  const energy=projectCandidateEnergy(candidate,energyContext);
   return {
     remaining:next,usedIds:nextUsed,
     step:Object.freeze({
       step:stepIndex,recipe_id:candidate.recipe_id,recipe_name:candidate.recipe_name,unlocked_before:Boolean(candidate.unlocked),
-      unlock_opportunity:!candidate.unlocked&&!usedIds.has(candidate.recipe_id),base_energy:candidate.base_energy??null,
+      unlock_opportunity:!candidate.unlocked&&!usedIds.has(candidate.recipe_id),base_energy:candidate.base_energy??null,current_energy:candidate.current_energy??null,...energy,
       ingredients:Object.freeze(ingredients.map(Object.freeze)),
       newly_blocked_recipe_ids:Object.freeze(newlyBlocked),
       newly_blocked_recipes:Object.freeze(newlyBlocked.map(id=>({recipe_id:id,recipe_name:candidateById.get(id)?.recipe_name||id}))),
@@ -126,6 +151,7 @@ function planMetrics(state,{eligibleCandidates,reserves,observedNames,objective,
   const exhausted=new Set(),low=new Set();
   for(const step of state.steps)for(const row of step.ingredients){if(row.buffer_state==='EXHAUSTED_USABLE')exhausted.add(row.ingredient_name);else if(row.buffer_state==='LOW_BUFFER')low.add(row.ingredient_name);}
   const baseEnergy=state.steps.reduce((sum,step)=>sum+(Number(step.base_energy)||0),0);
+  const projectedEnergy=state.steps.reduce((sum,step)=>sum+(Number(step.projected_verified_energy)||0),0);
   return {
     completed_meals:state.steps.length,target_meals:maxMeals,target_reached:state.steps.length>=maxMeals,
     unlock_count:unlockCount,unique_recipe_count:uniqueCount,next_executable_count:nextExecutable.length,
@@ -133,7 +159,10 @@ function planMetrics(state,{eligibleCandidates,reserves,observedNames,objective,
     remaining_usable_total:usableTotal(state.remaining,reserves),
     exhausted_ingredient_count:exhausted.size,exhausted_ingredients:[...exhausted].sort((a,b)=>a.localeCompare(b,'zh-Hant')),
     low_buffer_ingredient_count:low.size,low_buffer_ingredients:[...low].sort((a,b)=>a.localeCompare(b,'zh-Hant')),
-    base_energy_sum:baseEnergy,
+    base_energy_sum:baseEnergy,projected_verified_energy_sum:projectedEnergy,
+    player_current_energy_meals:state.steps.filter(step=>step.energy_source==='PLAYER_CURRENT_ENERGY').length,
+    base_energy_fallback_meals:state.steps.filter(step=>step.energy_source==='PUBLIC_BASE_ENERGY').length,
+    missing_energy_meals:state.steps.filter(step=>step.energy_source==='MISSING').length,
   };
 }
 function comparePlans(a,b,objective){
@@ -144,6 +173,8 @@ function comparePlans(a,b,objective){
     c=desc(A.unlock_count,B.unlock_count)||desc(A.unique_recipe_count,B.unique_recipe_count)||desc(A.completed_meals,B.completed_meals)||asc(A.exhausted_ingredient_count,B.exhausted_ingredient_count)||desc(A.remaining_usable_total,B.remaining_usable_total)||desc(A.base_energy_sum,B.base_energy_sum);
   }else if(objective==='preserve_resources'){
     c=desc(A.completed_meals,B.completed_meals)||asc(A.exhausted_ingredient_count,B.exhausted_ingredient_count)||asc(A.low_buffer_ingredient_count,B.low_buffer_ingredient_count)||desc(A.remaining_usable_total,B.remaining_usable_total)||desc(A.next_executable_count,B.next_executable_count)||desc(A.base_energy_sum,B.base_energy_sum);
+  }else if(objective==='maximize_verified_energy'){
+    c=desc(A.completed_meals,B.completed_meals)||desc(A.projected_verified_energy_sum,B.projected_verified_energy_sum)||desc(A.player_current_energy_meals,B.player_current_energy_meals)||asc(A.missing_energy_meals,B.missing_energy_meals)||asc(A.base_energy_fallback_meals,B.base_energy_fallback_meals)||desc(A.remaining_usable_total,B.remaining_usable_total);
   }else{
     c=desc(A.completed_meals,B.completed_meals)||desc(A.next_executable_count,B.next_executable_count)||asc(A.exhausted_ingredient_count,B.exhausted_ingredient_count)||asc(A.low_buffer_ingredient_count,B.low_buffer_ingredient_count)||desc(A.remaining_usable_total,B.remaining_usable_total)||desc(A.base_energy_sum,B.base_energy_sum);
   }
@@ -155,32 +186,34 @@ function decorateState(state,options){
 }
 
 export function projectRecipePortfolioContention({
-  recipeStrategy={candidates:[]},inventory=[],ingredientSafeReserve={},objective='unlock_recipes',maxMeals=3,maxAlternatives=3,beamWidth=64,
+  recipeStrategy={candidates:[]},inventory=[],ingredientSafeReserve={},energyContext={},objective='unlock_recipes',maxMeals=3,maxAlternatives=3,beamWidth=64,
 }={}){
   const mode=RECIPE_PORTFOLIO_OBJECTIVES.includes(objective)?objective:'unlock_recipes';
   const mealLimit=Math.max(1,Math.min(7,integer(maxMeals,3)||3));
   const alternativeLimit=Math.max(1,Math.min(5,integer(maxAlternatives,3)||3));
   const width=Math.max(alternativeLimit,Math.min(256,integer(beamWidth,64)||64));
+  const energy=normalizeEnergyContext(energyContext);
   const physical=mapFromRows(inventory),reserves=reserveMap(ingredientSafeReserve),observedNames=new Set(physical.keys());
   const candidates=(recipeStrategy?.candidates||[]).filter(row=>row?.hard_constraint_status==='PASS'&&READY_STATUS.has(row?.candidate_status)).sort((a,b)=>String(a.recipe_id).localeCompare(String(b.recipe_id)));
   const missingByRecipe=candidates.map(candidate=>({recipe_id:candidate.recipe_id,ingredients:[...requirementMap(candidate).keys()].filter(name=>!observedNames.has(name)).sort((a,b)=>a.localeCompare(b,'zh-Hant'))})).filter(row=>row.ingredients.length);
   const safeCandidates=candidates.filter(candidate=>!missingByRecipe.some(row=>row.recipe_id===candidate.recipe_id));
   const contention=buildRecipeContentionGraph({candidates:safeCandidates,inventory,ingredientSafeReserve});
-  const inputFingerprint=`recipe_portfolio:${hash(JSON.stringify(stable({version:RECIPE_PORTFOLIO_CONTENTION_VERSION,recipe_strategy_fingerprint:recipeStrategy?.input_fingerprint||null,inventory:[...physical.entries()].sort(),safe_reserve:[...reserves.entries()].sort(),objective:mode,max_meals:mealLimit,max_alternatives:alternativeLimit,beam_width:width,candidate_ids:safeCandidates.map(row=>row.recipe_id)})))}`;
+  const candidateEnergyState=safeCandidates.map(row=>[row.recipe_id,row.recipe_level??null,row.current_energy??null,row.base_energy??null]);
+  const inputFingerprint=`recipe_portfolio:${hash(JSON.stringify(stable({version:RECIPE_PORTFOLIO_CONTENTION_VERSION,recipe_strategy_fingerprint:recipeStrategy?.input_fingerprint||null,inventory:[...physical.entries()].sort(),safe_reserve:[...reserves.entries()].sort(),energy_context:energy,objective:mode,max_meals:mealLimit,max_alternatives:alternativeLimit,beam_width:width,candidate_energy_state:candidateEnergyState})))}`;
   if(!inventory.length)return Object.freeze({
-    schema:'pokemon-sleep-recipe-portfolio-contention/1.0',planner_version:RECIPE_PORTFOLIO_CONTENTION_VERSION,projection_status:'INVENTORY_NOT_OBSERVED',input_fingerprint:inputFingerprint,objective:mode,
-    context:Object.freeze({max_meals:mealLimit,max_alternatives:alternativeLimit,beam_width:width,inventory_semantics:'NO_ROWS_EXPORTED_NOT_ZERO_CONFIRMED'}),
+    schema:'pokemon-sleep-recipe-portfolio-contention/1.1',planner_version:RECIPE_PORTFOLIO_CONTENTION_VERSION,projection_status:'INVENTORY_NOT_OBSERVED',input_fingerprint:inputFingerprint,objective:mode,
+    context:Object.freeze({max_meals:mealLimit,max_alternatives:alternativeLimit,beam_width:width,inventory_semantics:'NO_ROWS_EXPORTED_NOT_ZERO_CONFIRMED',energy_context:energy}),
     summary:Object.freeze({individually_ready_count:candidates.length,simulation_candidate_count:0,alternative_count:0}),contention,alternatives:Object.freeze([]),missing_inventory_observations:Object.freeze(missingByRecipe),
     player_data_write:false,inventory_mutation:false,public_master_write:false,gemini_used:false,
   });
-  const options={eligibleCandidates:safeCandidates,reserves,observedNames,objective:mode,maxMeals:mealLimit};
+  const options={eligibleCandidates:safeCandidates,reserves,observedNames,objective:mode,maxMeals:mealLimit,energyContext:energy};
   let frontier=[decorateState({remaining:cloneMap(physical),usedIds:new Set(),steps:[]},options)],all=[];
   for(let depth=0;depth<mealLimit;depth++){
     const expanded=[];
     for(const state of frontier){
       const executable=executableCandidates(safeCandidates,state.remaining,reserves,observedNames,state.usedIds,mode);
       for(const candidate of executable){
-        const applied=applyRecipeStep({candidate,remaining:state.remaining,reserves,observedNames,eligibleCandidates:safeCandidates,usedIds:state.usedIds,objective:mode,stepIndex:state.steps.length+1});
+        const applied=applyRecipeStep({candidate,remaining:state.remaining,reserves,observedNames,eligibleCandidates:safeCandidates,usedIds:state.usedIds,objective:mode,stepIndex:state.steps.length+1,energyContext:energy});
         expanded.push(decorateState({remaining:applied.remaining,usedIds:applied.usedIds,steps:[...state.steps,applied.step]},options));
       }
     }
@@ -201,17 +234,21 @@ export function projectRecipePortfolioContention({
       unlock_count:m.unlock_count,unique_recipe_count:m.unique_recipe_count,next_executable_count:m.next_executable_count,
       next_executable_recipe_ids:Object.freeze(m.next_executable_recipe_ids),remaining_inventory:Object.freeze(mapObject(state.remaining)),aggregate_consumed:Object.freeze(aggregateConsumed(state.steps)),
       remaining_usable_total:m.remaining_usable_total,exhausted_ingredients:Object.freeze(m.exhausted_ingredients),low_buffer_ingredients:Object.freeze(m.low_buffer_ingredients),base_energy_sum:m.base_energy_sum,
+      projected_verified_energy_sum:m.projected_verified_energy_sum,player_current_energy_meals:m.player_current_energy_meals,base_energy_fallback_meals:m.base_energy_fallback_meals,missing_energy_meals:m.missing_energy_meals,
       compatible_recipe_ids:Object.freeze([...new Set(state.steps.map(step=>step.recipe_id))]),
-      warnings:Object.freeze([...(m.target_reached?[]:['TARGET_MEALS_NOT_REACHED']),...(contention.contention_edge_count?['SHARED_INVENTORY_CONTENTION']:[]),...(m.exhausted_ingredient_count?['USABLE_INVENTORY_EXHAUSTED']:[]),...(m.low_buffer_ingredient_count?['LOW_BUFFER_AFTER_PLAN']:[])]),
+      warnings:Object.freeze([...(m.target_reached?[]:['TARGET_MEALS_NOT_REACHED']),...(contention.contention_edge_count?['SHARED_INVENTORY_CONTENTION']:[]),...(m.exhausted_ingredient_count?['USABLE_INVENTORY_EXHAUSTED']:[]),...(m.low_buffer_ingredient_count?['LOW_BUFFER_AFTER_PLAN']:[]),...(m.base_energy_fallback_meals?['ENERGY_BASE_FALLBACK_USED']:[]),...(m.missing_energy_meals?['ENERGY_INPUT_MISSING']:[])]),
     }));
     if(alternatives.length>=alternativeLimit)break;
   }
   return Object.freeze({
-    schema:'pokemon-sleep-recipe-portfolio-contention/1.0',planner_version:RECIPE_PORTFOLIO_CONTENTION_VERSION,projection_status:'READY',input_fingerprint:inputFingerprint,objective:mode,
-    context:Object.freeze({max_meals:mealLimit,max_alternatives:alternativeLimit,beam_width:width,inventory_semantics:'OBSERVED_ROWS_ONLY_COLLECTION_COMPLETENESS_NOT_ASSERTED',safe_reserve:Object.freeze(mapObject(reserves))}),
+    schema:'pokemon-sleep-recipe-portfolio-contention/1.1',planner_version:RECIPE_PORTFOLIO_CONTENTION_VERSION,projection_status:'READY',input_fingerprint:inputFingerprint,objective:mode,
+    context:Object.freeze({max_meals:mealLimit,max_alternatives:alternativeLimit,beam_width:width,inventory_semantics:'OBSERVED_ROWS_ONLY_COLLECTION_COMPLETENESS_NOT_ASSERTED',safe_reserve:Object.freeze(mapObject(reserves)),energy_context:energy}),
     summary:Object.freeze({
       individually_ready_count:candidates.length,simulation_candidate_count:safeCandidates.length,
       unlocked_ready_count:safeCandidates.filter(row=>row.unlocked).length,unlock_candidate_ready_count:safeCandidates.filter(row=>!row.unlocked).length,
+      player_current_energy_candidate_count:safeCandidates.filter(row=>positiveNumber(row.current_energy,null)!==null).length,
+      base_energy_fallback_candidate_count:safeCandidates.filter(row=>positiveNumber(row.current_energy,null)===null&&positiveNumber(row.base_energy,null)!==null).length,
+      missing_energy_candidate_count:safeCandidates.filter(row=>positiveNumber(row.current_energy,null)===null&&positiveNumber(row.base_energy,null)===null).length,
       missing_inventory_observation_recipe_count:missingByRecipe.length,contention_edge_count:contention.contention_edge_count,oversubscribed_ingredient_count:contention.oversubscribed_ingredient_count,
       all_individually_ready_simultaneously_executable:contention.all_individually_ready_simultaneously_executable,alternative_count:alternatives.length,
     }),

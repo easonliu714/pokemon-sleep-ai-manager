@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import {resolveBasePotCapacity} from '../assets/js/pot-capacity-authority.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
+const versionTuple=value=>{const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$/);return match?match.slice(1).map(part=>Number(part||0)):null;};
+const versionAtLeast=(value,minimum)=>{const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;for(let i=0;i<4;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return true;};
 const ui=read('assets/js/weekly-context-ui-bridge.js');
 const manual=read('assets/js/weekly-context-manual-override.js');
 const store=read('assets/js/weekly-context-store.js');
@@ -11,9 +13,14 @@ const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1];
-assert.equal(appVersion,'v0.4.13.6');
-assert.equal(appBuild,'20260812-v04136-pot-manual-authority-alignment');
-assert.equal(cacheName,'pokemon-sleep-ai-v0.4.13.6-v04136-pot-manual-authority-alignment');
+assert.ok(versionAtLeast(appVersion,'v0.4.13.6'),`v0.4.13.6 pot contract requires v0.4.13.6 or successor, got ${appVersion}`);
+if(appVersion==='v0.4.13.6'){
+  assert.equal(appBuild,'20260812-v04136-pot-manual-authority-alignment');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.13.6-v04136-pot-manual-authority-alignment');
+}else{
+  assert.ok(version.includes("// app_version: 'v0.4.13.6'"),'successor release must retain v0.4.13.6 lineage');
+  assert.ok(version.includes("// app_build: '20260812-v04136-pot-manual-authority-alignment'"));
+}
 assert.ok(version.includes("// app_version: 'v0.4.13.5'"),'release lineage must retain v0.4.13.5');
 
 const accountWins=resolveBasePotCapacity({accountCapacity:60,legacyWeeklyPot:57});
@@ -47,7 +54,7 @@ assert.match(ui,/for\(const field of weeklyOverrideFields\)if\(active\.has\(fiel
 
 console.log(JSON.stringify({
   status:'PASS',
-  gate:'V0.4.13.6_POT_MANUAL_AUTHORITY_ALIGNMENT',
+  gate:'V0.4.13.6_POT_MANUAL_AUTHORITY_ALIGNMENT_SUCCESSOR_AWARE',
   app_version:appVersion,
   account_capacity_precedence:true,
   weekly_pot_new_override:false,
