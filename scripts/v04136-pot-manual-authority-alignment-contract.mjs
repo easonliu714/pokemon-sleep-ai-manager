@@ -11,10 +11,16 @@ const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1];
-assert.equal(appVersion,'v0.4.13.6');
-assert.equal(appBuild,'20260812-v04136-pot-manual-authority-alignment');
-assert.equal(cacheName,'pokemon-sleep-ai-v0.4.13.6-v04136-pot-manual-authority-alignment');
-assert.ok(version.includes("// app_version: 'v0.4.13.5'"),'release lineage must retain v0.4.13.5');
+const supportedReleaseAuthorities=new Set(['v0.4.13.6','v0.4.13.7']);
+assert.ok(supportedReleaseAuthorities.has(appVersion),`unexpected successor authority for v0.4.13.6 pot contract: ${appVersion}`);
+if(appVersion==='v0.4.13.6'){
+  assert.equal(appBuild,'20260812-v04136-pot-manual-authority-alignment');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.13.6-v04136-pot-manual-authority-alignment');
+  assert.ok(version.includes("// app_version: 'v0.4.13.5'"),'release lineage must retain v0.4.13.5');
+}else{
+  assert.ok(version.includes("// app_version: 'v0.4.13.6'"),'successor release lineage must retain v0.4.13.6');
+  assert.ok(version.includes("// app_build: '20260812-v04136-pot-manual-authority-alignment'"),'successor release lineage must retain v0.4.13.6 build');
+}
 
 const accountWins=resolveBasePotCapacity({accountCapacity:60,legacyWeeklyPot:57});
 assert.deepEqual(accountWins,{pot_size:60,source:'ACCOUNT_CAPACITY',is_legacy_fallback:false});
@@ -49,6 +55,7 @@ console.log(JSON.stringify({
   status:'PASS',
   gate:'V0.4.13.6_POT_MANUAL_AUTHORITY_ALIGNMENT',
   app_version:appVersion,
+  successor_aware:true,
   account_capacity_precedence:true,
   weekly_pot_new_override:false,
   manual_edit_routes_to_account_capacity:true,
