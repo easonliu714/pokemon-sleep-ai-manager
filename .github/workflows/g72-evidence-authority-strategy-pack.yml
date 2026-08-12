@@ -1,0 +1,48 @@
+name: G7.2 Evidence Authority Strategy Pack
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+      - 'hotfix/**'
+    paths:
+      - 'assets/js/resource-context.js'
+      - 'assets/js/external-strategy-analysis-local.js'
+      - 'assets/js/external-strategy-analysis-pack.js'
+      - 'assets/js/recipe-portfolio-contention-local.js'
+      - 'assets/js/recipe-portfolio-contention.js'
+      - 'assets/js/war-room-strategy-analysis-pack-ui.js'
+      - 'scripts/g72-evidence-authority-strategy-pack-contract.mjs'
+      - '.github/workflows/g72-evidence-authority-strategy-pack.yml'
+  pull_request:
+    paths:
+      - 'assets/js/resource-context.js'
+      - 'assets/js/external-strategy-analysis-local.js'
+      - 'assets/js/external-strategy-analysis-pack.js'
+      - 'assets/js/recipe-portfolio-contention-local.js'
+      - 'assets/js/recipe-portfolio-contention.js'
+      - 'assets/js/war-room-strategy-analysis-pack-ui.js'
+      - 'scripts/g72-evidence-authority-strategy-pack-contract.mjs'
+      - '.github/workflows/g72-evidence-authority-strategy-pack.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check G7.2 modules
+        run: |
+          node --check assets/js/resource-context.js
+          node --check assets/js/external-strategy-analysis-local.js
+          node --check assets/js/external-strategy-analysis-pack.js
+          node --check assets/js/war-room-strategy-analysis-pack-ui.js
+      - name: G7.2 evidence authority contract
+        run: node scripts/g72-evidence-authority-strategy-pack-contract.mjs
