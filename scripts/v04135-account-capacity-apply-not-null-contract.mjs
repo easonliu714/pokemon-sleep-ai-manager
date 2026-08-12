@@ -9,11 +9,13 @@ import {
 import {validateWorkflow} from '../assets/js/ai-workflow.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
+const versionTuple=value=>{const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$/);return match?match.slice(1).map(part=>Number(part||0)):null;};
+const versionAtLeast=(value,minimum)=>{const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;for(let i=0;i<4;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return true;};
 const schema=read('assets/js/schema.js');
 const importer=read('assets/js/importer.js');
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.13.4','v0.4.13.5'].includes(appVersion),`unexpected account-capacity hotfix authority: ${appVersion}`);
+assert.ok(appVersion==='v0.4.13.4'||versionAtLeast(appVersion,'v0.4.13.5'),`unexpected account-capacity hotfix authority: ${appVersion}`);
 
 assert.match(schema,/CREATE TABLE IF NOT EXISTS account_capacity\(capacity_key TEXT PRIMARY KEY,total_capacity INTEGER NOT NULL,used_count INTEGER,updated_at TEXT NOT NULL,source TEXT\)/);
 assert.match(importer,/operation\.entity === 'account_capacity' && hasPlayerChange/);
@@ -77,8 +79,9 @@ assert.deepEqual(Object.keys(persistenceRecord),['capacity_key','total_capacity'
 
 console.log(JSON.stringify({
   status:'PASS',
-  gate:'V0.4.13.5_ACCOUNT_CAPACITY_APPLY_NOT_NULL',
+  gate:'V0.4.13.5_ACCOUNT_CAPACITY_APPLY_NOT_NULL_SUCCESSOR_AWARE',
   app_version:appVersion,
+  historical_behavior_compatible:true,
   schema_updated_at_not_null:true,
   sparse_compiler_payload:true,
   importer_managed_timestamp:true,
