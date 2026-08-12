@@ -9,6 +9,7 @@ import {currentWeeklyContext} from './weekly-context-store.js';
 import {buildLocalTeamOptimization} from './team-optimizer-local.js';
 import {buildLocalRecipePortfolioContention} from './recipe-portfolio-contention-local.js';
 import {currentProductionAuthorityRegistry} from './production-authority-registry.js';
+import {buildProductionEvidenceSnapshot} from './production-evidence-registry.js';
 import {evaluateTeamObjective} from './team-objective-evaluator.js';
 import {buildStrategyOptimizationPack} from './strategy-optimization-pack.js';
 import {buildExternalOptimizationPrompt,normalizeOptimizationAiResponse,intakeOptimizationAiResponse} from './strategy-optimization-ai-contract.js';
@@ -46,6 +47,15 @@ export function buildLocalOptimizationStrategyPreview({includeEventText=false,ca
     ...pack,status:'READY',missing_inputs:[...new Set(missing_inputs)].sort(),external_prompt:buildExternalOptimizationPrompt(pack.payload),
     production_rate_model_status:productionRegistry.numeric_rate_model_status,team_search_execution_status:productionRegistry.numeric_rate_model_status==='ACTIVE_VERIFIED'?'READY_FOR_NUMERIC_SEARCH':'HOLD_NUMERIC_MODEL_NOT_ACTIVE',
   };
+}
+
+export function buildLocalProductionEvidenceSnapshot(){
+  if(isRescueReadonly())return {schema:'pokemon-sleep-production-evidence-snapshot/1.0',activation_decision:'PLAYER_DATA_UNAVAILABLE',rules:[],summary:{},safety:{player_data_write:false,sqlite_write:false,runtime_network_fetch:false,ai_numeric_authority:false}};
+  return buildProductionEvidenceSnapshot({
+    candidateFeatures:buildLocalPokemonCandidateScoring(),
+    weeklyContext:currentWeeklyContext(),
+    productionRegistry:currentProductionAuthorityRegistry(),
+  });
 }
 
 export function normalizeLocalStrategyResponse(input,preview){
