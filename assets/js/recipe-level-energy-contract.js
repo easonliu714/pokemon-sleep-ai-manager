@@ -3,10 +3,12 @@ import {PUBLIC_RECIPE_MASTER} from './public-recipe-canonical-authority.js';
 export const RECIPE_LEVEL_ENERGY_CONTRACT_VERSION='recipe-level-energy-contract-2026-08-13-a';
 export const RECIPE_LEVEL_MAX=70;
 
-// Pokémon Sleep uses one common recipe-level bonus table for all registered recipes.
-// The recipe screen strength is calculated as:
-//   level1_energy + ROUND_HALF_EVEN(level1_energy * level_bonus_percent / 100)
-// ROUND_HALF_EVEN is required to reproduce observed in-game .5 boundary cases.
+// Pokémon Sleep uses one common displayed recipe-level bonus table for all registered recipes.
+// Current player screenshots show that two exact .5 boundaries (2150@Lv20 and 4670@Lv20)
+// resolve downward. Until an odd-lower-integer .5 boundary is observed in-game, this contract
+// uses round-half-even as the narrowest deterministic rule consistent with those observations.
+// Non-.5 values follow ordinary nearest-integer rounding. Imported screenshot current_energy
+// remains an observed player value and is never retroactively rewritten by this calculator.
 export const RECIPE_LEVEL_BONUS_PERCENT=Object.freeze([
   0,
   2,4,6,8,9,11,13,16,18,19,21,23,24,26,28,30,31,33,35,
@@ -22,7 +24,12 @@ export const RECIPE_LEVEL_ENERGY_EVIDENCE=Object.freeze({
   max_level_bonus_percent:258,
   official_cap_source:'Pokémon Sleep official Ver.3.6.0 update: recipe level 65→70',
   level_table_crosscheck:'Pokémon Sleep 攻略・検証 Wiki recipe-level bonus table, checked 2026-08-13',
-  exact_value_crosscheck:'current in-game recipe screenshots + Game8 per-recipe level tables, checked 2026-08-13',
+  non_half_boundary_reference_crosscheck:'Game8 per-recipe level tables, checked 2026-08-13',
+  half_boundary_game_anchors:Object.freeze([
+    '入口即化蛋捲咖哩: Lv1 2150 -> Lv20 2902 (current player screenshot)',
+    '柔軟玉米濃湯: Lv1 4670 -> Lv20 6304 (current player screenshot)',
+  ]),
+  rounding_status:'ACTIVE_WITH_GAME_SCREENSHOT_HALF_BOUNDARY_ANCHOR_PENDING_ODD_TIE_CONFIRMATION',
 });
 
 function integerOrNull(value){
