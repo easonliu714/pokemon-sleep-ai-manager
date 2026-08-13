@@ -80,7 +80,7 @@ const formulaChanges=[];
 for(const [id,raw] of rawById){const current=canonicalById.get(id);if(signature(raw)!==signature(current))formulaChanges.push(id);}
 if(auditedFormulaAuthority){
   assert.deepEqual(formulaChanges,[],'audited historical formulas must remain identical to reviewed base master');
-  assert.equal(signature(canonicalById.get('curry_parent_child')),'特選蘋果=11|特選蛋=8|甜甜蜜=12|窩心洋芋=4');
+  assert.equal(signature(canonicalById.get('curry_parent_child')),'特選蛋=8|特選蘋果=11|甜甜蜜=12|窩心洋芋=4');
 }else{
   assert.deepEqual(formulaChanges,['curry_parent_child'],'pre-hotfix lineage may only contain its historical parent-child override');
   assert.equal(signature(canonicalById.get('curry_parent_child')),'好眠番茄=11|特選蛋=8|甜甜蜜=12|窩心洋芋=4');
