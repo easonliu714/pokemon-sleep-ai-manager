@@ -6,12 +6,13 @@ import {currentProductionAuthorityRegistry} from '../assets/js/production-author
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.18','v0.4.19','v0.4.20','v0.4.21','v0.4.22'].includes(appVersion),`unexpected G7.5 release/successor version ${appVersion}`);
+assert.ok(['v0.4.18','v0.4.19','v0.4.20','v0.4.21','v0.4.22','v0.4.22.1'].includes(appVersion),`unexpected G7.5 release/successor version ${appVersion}`);
 if(appVersion!=='v0.4.18')assert.ok(version.includes("// app_version: 'v0.4.18'"),`${appVersion} must retain v0.4.18 lineage bridge`);
-const berryStrengthSuccessor=['v0.4.19','v0.4.20','v0.4.21','v0.4.22'].includes(appVersion);
-const favoriteMultiplierSuccessor=['v0.4.20','v0.4.21','v0.4.22'].includes(appVersion);
-const helpSplitSuccessor=['v0.4.21','v0.4.22'].includes(appVersion);
-const baseOutputSuccessor=appVersion==='v0.4.22';
+if(appVersion==='v0.4.22.1')assert.ok(version.includes("// app_version: 'v0.4.22'"),'v0.4.22.1 must retain v0.4.22 lineage bridge');
+const berryStrengthSuccessor=['v0.4.19','v0.4.20','v0.4.21','v0.4.22','v0.4.22.1'].includes(appVersion);
+const favoriteMultiplierSuccessor=['v0.4.20','v0.4.21','v0.4.22','v0.4.22.1'].includes(appVersion);
+const helpSplitSuccessor=['v0.4.21','v0.4.22','v0.4.22.1'].includes(appVersion);
+const baseOutputSuccessor=['v0.4.22','v0.4.22.1'].includes(appVersion);
 
 const subskillEvidence=level=>{
   const count=level>=50?3:level>=25?2:level>=10?1:0;
@@ -21,15 +22,8 @@ const subskillEvidence=level=>{
     {unlock_level:50,subskill_name:'技能機率提升S'},
   ].slice(0,count)};
 };
-const candidate=(pokemon_id,type,level,main_skill,favorite_berry_match,ingredient,specialty)=>({
-  pokemon_id,type,level,helper_seconds:2200,main_skill,favorite_berry_match,specialty,
-  unlocked_ingredients:[{ingredient_name:ingredient,quantity:2}],...subskillEvidence(level),
-});
-const candidateFeatures={candidates:[
-  candidate('private-a','火',30,'能量填充S',true,'火辣香草','樹果'),
-  candidate('private-b','水',40,'食材獲取S',true,'哞哞鮮奶','食材'),
-  candidate('private-c','妖精',50,'活力全體療癒S',false,'甜甜蜜','技能'),
-]};
+const candidate=(pokemon_id,type,level,main_skill,favorite_berry_match,ingredient,specialty)=>({pokemon_id,type,level,helper_seconds:2200,main_skill,favorite_berry_match,specialty,unlocked_ingredients:[{ingredient_name:ingredient,quantity:2}],...subskillEvidence(level)});
+const candidateFeatures={candidates:[candidate('private-a','火',30,'能量填充S',true,'火辣香草','樹果'),candidate('private-b','水',40,'食材獲取S',true,'哞哞鮮奶','食材'),candidate('private-c','妖精',50,'活力全體療癒S',false,'甜甜蜜','技能')]};
 const weeklyContext={favorite_berry_1:'蘋野果',favorite_berry_2:'橙橙果',favorite_berry_3:'桃桃果'};
 const registry=currentProductionAuthorityRegistry();
 const first=buildProductionEvidenceSnapshot({candidateFeatures,weeklyContext,productionRegistry:registry});
@@ -63,7 +57,7 @@ if(baseOutputSuccessor){const incompleteOutput=incomplete.rules.find(row=>row.di
 assert.equal(incomplete.activation_decision,'HOLD_NUMERIC_MODEL_NOT_ACTIVE');
 
 const ui=read('assets/js/production-evidence-ui.js');
-if(['v0.4.21','v0.4.22'].includes(appVersion))for(const token of ['G7.5 產能模型','重新計算','複製 Evidence JSON','進階 Evidence / JSON','事件分流'])assert.ok(ui.includes(token),`compact G7.5 UI token missing ${token}`);else{for(const token of ['G7.5 Production Model Evidence Gate','重新檢查 Evidence','複製 Evidence JSON','缺值不等於 0'])assert.ok(ui.includes(token),`G7.5 UI token missing ${token}`);assert.ok(berryStrengthSuccessor?ui.includes('局部 ACTIVE_VERIFIED ≠ 完整 Production Model 已啟用'):ui.includes('Evidence identified ≠ ACTIVE_VERIFIED'));}
+if(['v0.4.21','v0.4.22','v0.4.22.1'].includes(appVersion))for(const token of ['G7.5 產能模型','重新計算','複製 Evidence JSON','進階 Evidence / JSON','事件分流'])assert.ok(ui.includes(token),`compact G7.5 UI token missing ${token}`);else{for(const token of ['G7.5 Production Model Evidence Gate','重新檢查 Evidence','複製 Evidence JSON','缺值不等於 0'])assert.ok(ui.includes(token),`G7.5 UI token missing ${token}`);assert.ok(berryStrengthSuccessor?ui.includes('局部 ACTIVE_VERIFIED ≠ 完整 Production Model 已啟用'):ui.includes('Evidence identified ≠ ACTIVE_VERIFIED'));}
 const local=read('assets/js/strategy-context-local.js');assert.ok(local.includes('buildLocalProductionEvidenceSnapshot'));const warroom=read('assets/js/war-room-strategy-context-ui.js');assert.ok(warroom.includes('renderProductionEvidencePanel(root)'));const sw=read('service-worker.js');for(const asset of ['./assets/js/production-evidence-registry.js','./assets/js/production-evidence-ui.js'])assert.ok(sw.includes(`'${asset}'`),`first-offline precache missing ${asset}`);for(const file of ['assets/js/production-evidence-registry.js','assets/js/production-evidence-ui.js']){const source=read(file);for(const forbidden of ['INSERT INTO','UPDATE pokemon','UPDATE ingredient_inventory','DELETE FROM','applyPayload(','dryRun(','fetch('])assert.equal(source.includes(forbidden),false,`${file} owns forbidden mutation/network path`);}
 
 console.log(JSON.stringify({status:'PASS',gate:'V0418_G75_PRODUCTION_EVIDENCE_ACTIVATION_SUCCESSOR_AWARE',app_version:appVersion,numeric_rate_model_status:first.numeric_rate_model_status,activation_decision:first.activation_decision,active_numeric_dimension_count:first.summary.active_numeric_dimension_count,helper_observed:true,type_to_berry_local_master:true,berry_strength_active_verified:berryStrengthSuccessor,favorite_multiplier_active_verified:favoriteMultiplierSuccessor,help_event_split_structural_verified:helpSplitSuccessor,base_berry_output_active_verified:baseOutputSuccessor,ingredient_rate_fail_closed:true,skill_trigger_dynamic_blocked:true,missing_is_zero:false,player_write:false,runtime_network_fetch:false,ai_numeric_authority:false,mobile_evidence_ui:true},null,2));

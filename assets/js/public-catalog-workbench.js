@@ -1,5 +1,6 @@
 import './version-authority.js';
 import './v0415-ui-polish.js';
+import './recipe-level-energy-autofill.js';
 import {rows,isRescueReadonly} from './database.js';
 import {PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-canonical-authority.js';
 import {saveIngredient,saveItem} from './manual-editor.js';

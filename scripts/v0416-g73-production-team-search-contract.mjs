@@ -9,17 +9,19 @@ import {buildExternalOptimizationPrompt,normalizeOptimizationAiResponse} from '.
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
-const releases=['v0.4.15','v0.4.16','v0.4.17','v0.4.17.1','v0.4.18','v0.4.19','v0.4.20','v0.4.21','v0.4.22'];
-const successors=['v0.4.17','v0.4.17.1','v0.4.18','v0.4.19','v0.4.20','v0.4.21','v0.4.22'];
+const releases=['v0.4.15','v0.4.16','v0.4.17','v0.4.17.1','v0.4.18','v0.4.19','v0.4.20','v0.4.21','v0.4.22','v0.4.22.1'];
+const successors=['v0.4.17','v0.4.17.1','v0.4.18','v0.4.19','v0.4.20','v0.4.21','v0.4.22','v0.4.22.1'];
 assert.ok(releases.includes(appVersion),`unexpected G7.3 staging/release/successor version ${appVersion}`);
 if(successors.includes(appVersion))assert.ok(version.includes("// app_version: 'v0.4.16'"),`${appVersion} must retain v0.4.16 lineage bridge`);
+if(appVersion==='v0.4.22.1')assert.ok(version.includes("// app_version: 'v0.4.22'"),'v0.4.22.1 must retain v0.4.22 lineage bridge');
 
+const baseOutputSuccessor=['v0.4.22','v0.4.22.1'].includes(appVersion);
 const registry=currentProductionAuthorityRegistry();
 assert.equal(registry.numeric_rate_model_status,'NOT_YET_VERIFIED');
 assert.equal(registry.rules.helper_interval_seconds.status,'OBSERVED_INPUT');
-assert.equal(registry.rules.berry_energy_per_berry.status,['v0.4.19','v0.4.20','v0.4.21','v0.4.22'].includes(appVersion)?'ACTIVE_VERIFIED':'NOT_YET_VERIFIED');
-if(['v0.4.20','v0.4.21','v0.4.22'].includes(appVersion))assert.equal(registry.rules.favorite_berry_multiplier.status,'ACTIVE_VERIFIED');
-assert.equal(registry.rules.berry_output_per_help.status,appVersion==='v0.4.22'?'ACTIVE_VERIFIED':'NOT_YET_VERIFIED');
+assert.equal(registry.rules.berry_energy_per_berry.status,['v0.4.19','v0.4.20','v0.4.21','v0.4.22','v0.4.22.1'].includes(appVersion)?'ACTIVE_VERIFIED':'NOT_YET_VERIFIED');
+if(['v0.4.20','v0.4.21','v0.4.22','v0.4.22.1'].includes(appVersion))assert.equal(registry.rules.favorite_berry_multiplier.status,'ACTIVE_VERIFIED');
+assert.equal(registry.rules.berry_output_per_help.status,baseOutputSuccessor?'ACTIVE_VERIFIED':'NOT_YET_VERIFIED');
 for(const key of ['ingredient_probability_per_help','ingredient_slot_distribution','main_skill_trigger_probability','main_skill_effect_value'])assert.equal(registry.rules[key].status,'NOT_YET_VERIFIED');
 
 const features={input_fingerprint:'features:g73',candidates:Array.from({length:5},(_,index)=>({
@@ -35,7 +37,7 @@ assert.equal(objective.total_goal_value,null);
 assert.equal(objective.verified_partial_goal_value,null);
 assert.ok(objective.missing_inputs.includes('berry_energy_per_hour:NOT_YET_VERIFIED'));
 assert.ok(objective.members.every(row=>row.berry_energy_per_hour===null&&row.ingredient_per_hour_by_name===null&&row.skill_energy_per_hour===null));
-if(appVersion==='v0.4.22')assert.ok(objective.members.every(row=>row.berry_output_per_help_status==='ACTIVE_VERIFIED'&&row.berry_output_per_regular_berry_result_help>0));
+if(baseOutputSuccessor)assert.ok(objective.members.every(row=>row.berry_output_per_help_status==='ACTIVE_VERIFIED'&&row.berry_output_per_regular_berry_result_help>0));
 
 const candidates=[
   {pokemon_id:'A',species:'SA',specialty:'樹果',hard_constraint_status:'PASS',test_score:10},

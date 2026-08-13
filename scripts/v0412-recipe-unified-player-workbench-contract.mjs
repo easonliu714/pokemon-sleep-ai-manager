@@ -35,7 +35,7 @@ if(appVersion==='v0.4.11.4'){
   assert.ok(version.includes("// app_build: '20260811-v0412-recipe-unified-player-workbench'"));
 }
 assert.ok(version.includes("// app_build: '20260811-v04114-recipe-zh-tw-diagnostic-export'"));
-assert.ok(['public-recipe-master-2026-08-11-c','public-recipe-master-2026-08-12-a'].includes(PUBLIC_RECIPE_MASTER_VERSION));
+assert.ok(['public-recipe-master-2026-08-11-c','public-recipe-master-2026-08-12-a','public-recipe-master-2026-08-13-a','public-recipe-master-2026-08-13-b'].includes(PUBLIC_RECIPE_MASTER_VERSION));
 assert.ok([76,78].includes(PUBLIC_RECIPE_MASTER.length));
 assert.ok(['recipe-unified-player-workbench-2026-08-11-a','recipe-unified-player-workbench-2026-08-12-b-summary-cards'].includes(RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION),`unexpected Recipe Workbench successor: ${RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION}`);
 

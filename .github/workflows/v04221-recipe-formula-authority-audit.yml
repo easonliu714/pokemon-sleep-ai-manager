@@ -1,0 +1,60 @@
+name: v0.4.22.1 Recipe Formula Authority Audit
+
+on:
+  push:
+    branches:
+      - main
+      - 'hotfix/**'
+      - 'feature/**'
+    paths:
+      - 'assets/js/version-authority.js'
+      - 'service-worker.js'
+      - 'assets/js/public-recipe-master.js'
+      - 'assets/js/public-recipe-canonical-authority.js'
+      - 'assets/js/public-recipe-provenance.js'
+      - 'assets/js/public-master-recognition.js'
+      - 'assets/js/shared-master-data.js'
+      - 'scripts/version-authority-audit.mjs'
+      - 'scripts/v04221-recipe-formula-authority-audit.mjs'
+      - 'scripts/v04221-release-contract.mjs'
+      - '.github/workflows/v04221-recipe-formula-authority-audit.yml'
+  pull_request:
+    paths:
+      - 'assets/js/version-authority.js'
+      - 'service-worker.js'
+      - 'assets/js/public-recipe-master.js'
+      - 'assets/js/public-recipe-canonical-authority.js'
+      - 'assets/js/public-recipe-provenance.js'
+      - 'assets/js/public-master-recognition.js'
+      - 'assets/js/shared-master-data.js'
+      - 'scripts/version-authority-audit.mjs'
+      - 'scripts/v04221-recipe-formula-authority-audit.mjs'
+      - 'scripts/v04221-release-contract.mjs'
+      - '.github/workflows/v04221-recipe-formula-authority-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  recipe-formula-authority-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check
+        run: |
+          node --check assets/js/version-authority.js
+          node --check assets/js/public-recipe-canonical-authority.js
+          node --check assets/js/public-recipe-provenance.js
+          node --check assets/js/public-master-recognition.js
+          node --check scripts/v04221-recipe-formula-authority-audit.mjs
+          node --check scripts/v04221-release-contract.mjs
+      - name: Version authority audit
+        run: node scripts/version-authority-audit.mjs
+      - name: Full 78-recipe formula authority audit
+        run: node scripts/v04221-recipe-formula-authority-audit.mjs
+      - name: v0.4.22.1 release authority contract
+        run: node scripts/v04221-release-contract.mjs
