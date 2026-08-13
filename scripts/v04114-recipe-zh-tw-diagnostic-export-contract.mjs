@@ -10,6 +10,7 @@ import {
   PUBLIC_RECIPE_FORMULA_OVERRIDES,
   PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS,
   PUBLIC_RECIPE_ACTIVATION_ADDITIONS,
+  PUBLIC_RECIPE_FORMULA_AUDIT_VERSION,
   resolvePublicRecipeName,
 } from '../assets/js/public-recipe-canonical-authority.js';
 import {PUBLIC_RECIPE_MASTER as RAW_PUBLIC_RECIPE_MASTER} from '../assets/js/public-recipe-master.js';
@@ -30,14 +31,21 @@ const root=path.resolve(path.dirname(__filename),'..');
 const read=relative=>fs.readFileSync(path.join(root,relative),'utf8');
 const signature=recipe=>[...(recipe.ingredients||[])].map(row=>`${row.ingredient_name}=${Number(row.quantity)}`).sort((a,b)=>a.localeCompare(b,'zh-Hant')).join('|');
 
-assert.ok(['public-recipe-master-2026-08-11-c','public-recipe-master-2026-08-12-a'].includes(PUBLIC_RECIPE_MASTER_VERSION));
+assert.ok(['public-recipe-master-2026-08-11-c','public-recipe-master-2026-08-12-a','public-recipe-master-2026-08-13-a'].includes(PUBLIC_RECIPE_MASTER_VERSION));
 assert.ok(['public-recipe-zh-tw-names-2026-08-11-b','public-recipe-zh-tw-names-2026-08-12-a'].includes(PUBLIC_RECIPE_CANONICAL_NAME_VERSION));
 assert.equal(PUBLIC_RECIPE_ALIAS_VERSION,'public-recipe-alias-2026-08-11-b');
-assert.ok(['public-recipe-provenance-2026-08-11-c','public-recipe-provenance-2026-08-12-d'].includes(PUBLIC_RECIPE_PROVENANCE_VERSION));
+assert.ok(['public-recipe-provenance-2026-08-11-c','public-recipe-provenance-2026-08-12-d','public-recipe-provenance-2026-08-13-a'].includes(PUBLIC_RECIPE_PROVENANCE_VERSION));
 assert.equal(RAW_PUBLIC_RECIPE_MASTER.length,76);
 assert.ok([76,78].includes(PUBLIC_RECIPE_MASTER.length));
 assert.equal(PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES.length,34,'33 v0.4.3 names + current-game 迷昏拳 resolution expected');
-assert.equal(PUBLIC_RECIPE_FORMULA_OVERRIDES.length,1,'only 親子愛咖哩 formula may modify the historical 76 baseline');
+
+const auditedFormulaAuthority=PUBLIC_RECIPE_MASTER_VERSION==='public-recipe-master-2026-08-13-a';
+if(auditedFormulaAuthority){
+  assert.equal(PUBLIC_RECIPE_FORMULA_AUDIT_VERSION,'public-recipe-formula-audit-2026-08-13-a');
+  assert.equal(PUBLIC_RECIPE_FORMULA_OVERRIDES.length,0,'full recipe audit forbids historical runtime formula overrides');
+}else{
+  assert.equal(PUBLIC_RECIPE_FORMULA_OVERRIDES.length,1,'pre-hotfix lineage had one explicitly reviewed formula override');
+}
 
 const rawById=new Map(RAW_PUBLIC_RECIPE_MASTER.map(row=>[row.recipe_id,row]));
 const canonicalById=new Map(PUBLIC_RECIPE_MASTER.map(row=>[row.recipe_id,row]));
@@ -70,15 +78,25 @@ const legacyDizzy=resolvePublicRecipeName('暈眩拳辣味咖哩');assert.equal(
 
 const formulaChanges=[];
 for(const [id,raw] of rawById){const current=canonicalById.get(id);if(signature(raw)!==signature(current))formulaChanges.push(id);}
-assert.deepEqual(formulaChanges,['curry_parent_child'],'no historical formula outside explicit screenshot evidence may change');
-assert.equal(signature(canonicalById.get('curry_parent_child')),'好眠番茄=11|特選蛋=8|甜甜蜜=12|窩心洋芋=4');
+if(auditedFormulaAuthority){
+  assert.deepEqual(formulaChanges,[],'audited historical formulas must remain identical to reviewed base master');
+  assert.equal(signature(canonicalById.get('curry_parent_child')),'特選蘋果=11|特選蛋=8|甜甜蜜=12|窩心洋芋=4');
+}else{
+  assert.deepEqual(formulaChanges,['curry_parent_child'],'pre-hotfix lineage may only contain its historical parent-child override');
+  assert.equal(signature(canonicalById.get('curry_parent_child')),'好眠番茄=11|特選蛋=8|甜甜蜜=12|窩心洋芋=4');
+}
 assert.equal(canonicalById.get('curry_parent_child').total_ingredients,35);
 assert.equal(signature(canonicalById.get('curry_dizzy_punch')),'火辣香草=11|甜甜蜜=11|醒腦咖啡豆=11');
 const dizzyReview=PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS.find(row=>row.recipe_id==='curry_dizzy_punch');
 const parentReview=PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS.find(row=>row.recipe_id==='curry_parent_child');
 assert.equal(dizzyReview?.resolution,'CURRENT_PUBLIC_FORMULA_CONFIRMED_OLD_OCR_EVIDENCE_REJECTED');
-assert.equal(parentReview?.resolution,'OBSERVED_FORMULA_PROMOTED_TO_CURRENT_PUBLIC_AUTHORITY');
-assert.equal(PUBLIC_RECIPE_PROVENANCE.find(row=>row.recipe_id==='curry_parent_child')?.formula_evidence,'GAME_SCREENSHOT_VERIFIED');
+if(auditedFormulaAuthority){
+  assert.equal(parentReview?.resolution,'CURRENT_PUBLIC_FORMULA_CONFIRMED_BAD_SCREENSHOT_OBSERVATION_REJECTED');
+  assert.equal(PUBLIC_RECIPE_PROVENANCE.find(row=>row.recipe_id==='curry_parent_child')?.formula_evidence,'GAME_SCREENSHOT_VERIFIED_REFERENCE_CROSSCHECK');
+}else{
+  assert.equal(parentReview?.resolution,'OBSERVED_FORMULA_PROMOTED_TO_CURRENT_PUBLIC_AUTHORITY');
+  assert.equal(PUBLIC_RECIPE_PROVENANCE.find(row=>row.recipe_id==='curry_parent_child')?.formula_evidence,'GAME_SCREENSHOT_VERIFIED');
+}
 assert.equal(PUBLIC_RECIPE_PROVENANCE.length,PUBLIC_RECIPE_MASTER.length);
 
 const lockedObservation={observation_id:'locked-1',status:'UNMATCHED',observed_text:'4種食材的咖哩',observed_data:{unlocked:false},source_image_ref:'image-locked',confidence:0.99,reason:'LOCKED_UNKNOWN_RECIPE_SLOT'};
@@ -102,4 +120,4 @@ await new Promise(resolve=>setTimeout(resolve,0));assert.equal(revoked,true);
 const uiSource=read('assets/js/unified-screenshot-update-center.js');assert.ok(uiSource.includes('匯出 AI 診斷包'));assert.equal(uiSource.includes('複製 AI 診斷包'),false);assert.ok(uiSource.includes('platform_authority:analysis.platform_authority||null'));assert.ok(uiSource.includes('downloadUcImgDiagnosticJson(bundle)'));
 const exportSource=read('assets/js/uc-img-diagnostic-export.js');for(const forbidden of ['localStorage','sessionStorage','indexedDB','api_key','screenshot_bytes'])assert.equal(exportSource.includes(forbidden),false);
 
-console.log(JSON.stringify({status:'PASS',gate:'V04114_RECIPE_ZH_TW_AUTHORITY_DIAGNOSTIC_EXPORT_SUCCESSOR_AWARE',diagnostic_schema:UC_IMG_DIAGNOSTIC_SCHEMA,recipe_master_version:PUBLIC_RECIPE_MASTER_VERSION,canonical_name_version:PUBLIC_RECIPE_CANONICAL_NAME_VERSION,alias_version:PUBLIC_RECIPE_ALIAS_VERSION,recipe_count:PUBLIC_RECIPE_MASTER.length,historical_recipe_count:RAW_PUBLIC_RECIPE_MASTER.length,evidence_backed_additions:additions.map(row=>row.recipe_id),current_zh_tw_name_overrides:PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES.length,explicit_historical_formula_changes:formulaChanges,locked_unknown_recipe_slot_review:false,weekly_platform_authority_diagnostic:true,diagnostic_json_download:true,screenshot_bytes_in_export:false,api_key_in_export:false,sqlite_in_export:false},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V04114_RECIPE_ZH_TW_AUTHORITY_DIAGNOSTIC_EXPORT_SUCCESSOR_AWARE',diagnostic_schema:UC_IMG_DIAGNOSTIC_SCHEMA,recipe_master_version:PUBLIC_RECIPE_MASTER_VERSION,canonical_name_version:PUBLIC_RECIPE_CANONICAL_NAME_VERSION,alias_version:PUBLIC_RECIPE_ALIAS_VERSION,recipe_count:PUBLIC_RECIPE_MASTER.length,historical_recipe_count:RAW_PUBLIC_RECIPE_MASTER.length,evidence_backed_additions:additions.map(row=>row.recipe_id),current_zh_tw_name_overrides:PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES.length,explicit_historical_formula_changes:formulaChanges,formula_audit_version:auditedFormulaAuthority?PUBLIC_RECIPE_FORMULA_AUDIT_VERSION:null,locked_unknown_recipe_slot_review:false,weekly_platform_authority_diagnostic:true,diagnostic_json_download:true,screenshot_bytes_in_export:false,api_key_in_export:false,sqlite_in_export:false},null,2));
