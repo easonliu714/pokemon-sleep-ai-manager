@@ -1,0 +1,52 @@
+name: v0.4.21 G7.5C Help Event Split
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+    paths:
+      - 'assets/js/help-event-split-contract.js'
+      - 'assets/js/production-authority-registry.js'
+      - 'assets/js/production-evidence-registry.js'
+      - 'assets/js/production-evidence-ui.js'
+      - 'assets/js/team-objective-evaluator.js'
+      - 'assets/js/version-authority.js'
+      - 'service-worker.js'
+      - 'scripts/v0421-g75c-help-event-split-contract.mjs'
+      - '.github/workflows/v0421-g75c-help-event-split.yml'
+  pull_request:
+    paths:
+      - 'assets/js/help-event-split-contract.js'
+      - 'assets/js/production-authority-registry.js'
+      - 'assets/js/production-evidence-registry.js'
+      - 'assets/js/production-evidence-ui.js'
+      - 'assets/js/team-objective-evaluator.js'
+      - 'assets/js/version-authority.js'
+      - 'service-worker.js'
+      - 'scripts/v0421-g75c-help-event-split-contract.mjs'
+      - '.github/workflows/v0421-g75c-help-event-split.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check G7.5C runtime
+        run: |
+          node --check assets/js/help-event-split-contract.js
+          node --check assets/js/production-authority-registry.js
+          node --check assets/js/production-evidence-registry.js
+          node --check assets/js/production-evidence-ui.js
+          node --check assets/js/team-objective-evaluator.js
+          node --check service-worker.js
+          node --check scripts/v0421-g75c-help-event-split-contract.mjs
+      - name: Help event split governance contract
+        run: node scripts/v0421-g75c-help-event-split-contract.mjs
