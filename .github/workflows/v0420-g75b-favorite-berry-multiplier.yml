@@ -1,0 +1,27 @@
+name: v0.4.20 G7.5B Favorite Berry Multiplier Contract
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check favorite berry modules
+        run: |
+          node --check assets/js/favorite-berry-multiplier-contract.js
+          node --check assets/js/production-authority-registry.js
+          node --check assets/js/production-evidence-registry.js
+          node --check assets/js/production-evidence-ui.js
+          node --check assets/js/team-objective-evaluator.js
+          node --check service-worker.js
+          node --check scripts/v0420-g75b-favorite-berry-multiplier-contract.mjs
+      - name: G7.5B favorite berry multiplier contract
+        run: node scripts/v0420-g75b-favorite-berry-multiplier-contract.mjs
