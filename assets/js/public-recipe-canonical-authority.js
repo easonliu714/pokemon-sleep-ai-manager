@@ -5,8 +5,9 @@ import {
 } from './public-recipe-master.js';
 
 export const PUBLIC_RECIPE_CANONICAL_NAME_VERSION='public-recipe-zh-tw-names-2026-08-12-a';
-export const PUBLIC_RECIPE_MASTER_VERSION='public-recipe-master-2026-08-12-a';
+export const PUBLIC_RECIPE_MASTER_VERSION='public-recipe-master-2026-08-13-a';
 export const PUBLIC_RECIPE_BASE_MASTER_VERSION=BASE_PUBLIC_RECIPE_MASTER_VERSION;
+export const PUBLIC_RECIPE_FORMULA_AUDIT_VERSION='public-recipe-formula-audit-2026-08-13-a';
 
 const HISTORICAL_NAME_SOURCE=Object.freeze({
   source_type:'game_screenshot_verified',
@@ -38,6 +39,34 @@ const AUG12_ACTIVATION_SOURCE=Object.freeze({
   source_ref:'internal:v04132-recipe-activation-evidence+#172',
   verified_at:'2026-08-12',
   verification_status:'GAME_SCREENSHOT_VERIFIED_NAME_FORMULA_REFERENCE_CROSSCHECK',
+});
+
+export const PUBLIC_RECIPE_FORMULA_MUTATION_POLICY=Object.freeze({
+  policy_version:'public-recipe-formula-mutation-policy-2026-08-13-a',
+  ai_may_mutate_formula:false,
+  historical_formula_default:'BASE_MASTER_IMMUTABLE',
+  runtime_override_default:'FORBIDDEN_UNLESS_MANUAL_EVIDENCE_REVIEWED',
+  required_promotion_evidence:Object.freeze(['IN_GAME_SCREENSHOT','CURRENT_STRUCTURED_REFERENCE_CROSSCHECK']),
+  manual_review_required:true,
+});
+
+export const PUBLIC_RECIPE_FORMULA_AUDIT=Object.freeze({
+  audit_version:PUBLIC_RECIPE_FORMULA_AUDIT_VERSION,
+  audited_recipe_count:78,
+  audited_at:'2026-08-13',
+  status:'FULL_CATALOG_REFERENCE_CROSSCHECKED',
+  source_refs:Object.freeze([
+    'Serebii Pokémon Sleep current Dishes catalog, checked 2026-08-13',
+    'Bulbapedia Cooking (Sleep) current recipe tables/version history, checked 2026-08-13',
+    'sanitized user-provided current recipe reference screenshots, 2026-08-13',
+  ]),
+  known_rejected_observation:Object.freeze({
+    recipe_id:'curry_parent_child',
+    rejected_ingredient_name:'好眠番茄',
+    rejected_quantity:11,
+    canonical_ingredient_name:'特選蘋果',
+    canonical_quantity:11,
+  }),
 });
 
 export const PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES=Object.freeze([
@@ -82,20 +111,9 @@ export const PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES=Object.freeze([
   name_contract_version:PUBLIC_RECIPE_CANONICAL_NAME_VERSION,
 })));
 
-export const PUBLIC_RECIPE_FORMULA_OVERRIDES=Object.freeze([
-  Object.freeze({
-    recipe_id:'curry_parent_child',
-    total_ingredients:35,
-    ingredients:Object.freeze([
-      Object.freeze({ingredient_name:'甜甜蜜',quantity:12}),
-      Object.freeze({ingredient_name:'好眠番茄',quantity:11}),
-      Object.freeze({ingredient_name:'特選蛋',quantity:8}),
-      Object.freeze({ingredient_name:'窩心洋芋',quantity:4}),
-    ]),
-    evidence_class:'CURRENT_GAME_SCREENSHOT_FORMULA',
-    formula_contract_version:'public-recipe-formula-2026-08-11-a',
-  }),
-]);
+// Historical formulas are immutable by default. The prior curry_parent_child tomato override
+// came from a misread screenshot and is intentionally removed by v0.4.22.1.
+export const PUBLIC_RECIPE_FORMULA_OVERRIDES=Object.freeze([]);
 
 export const PUBLIC_RECIPE_ACTIVATION_ADDITIONS=Object.freeze([
   Object.freeze({
@@ -144,8 +162,8 @@ export const PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS=Object.freeze([
     auto_apply:false,
     observed_formula:Object.freeze([['好眠番茄',11],['特選蛋',8],['甜甜蜜',12],['窩心洋芋',4]]),
     current_formula:Object.freeze([['特選蘋果',11],['特選蛋',8],['甜甜蜜',12],['窩心洋芋',4]]),
-    resolved_by:'CURRENT_GAME_SCREENSHOT_2026_08_11',
-    resolution:'OBSERVED_FORMULA_PROMOTED_TO_CURRENT_PUBLIC_AUTHORITY',
+    resolved_by:'CURRENT_GAME_SCREENSHOT_2026_08_13+CURRENT_REFERENCE_CROSSCHECK',
+    resolution:'CURRENT_PUBLIC_FORMULA_CONFIRMED_BAD_SCREENSHOT_OBSERVATION_REJECTED',
   }),
 ]);
 
@@ -170,13 +188,14 @@ const upgradedBase=BASE_PUBLIC_RECIPE_MASTER.map(base=>{
       recipe_name:override.canonical_name_zh_tw,
       ...nameSource,
     }:{}),
+    formula_audit_version:PUBLIC_RECIPE_FORMULA_AUDIT_VERSION,
     data_version:PUBLIC_RECIPE_MASTER_VERSION,
   });
 });
 
 export const PUBLIC_RECIPE_MASTER=Object.freeze([
   ...upgradedBase,
-  ...PUBLIC_RECIPE_ACTIVATION_ADDITIONS.map(row=>Object.freeze({...row,data_version:PUBLIC_RECIPE_MASTER_VERSION})),
+  ...PUBLIC_RECIPE_ACTIVATION_ADDITIONS.map(row=>Object.freeze({...row,formula_audit_version:PUBLIC_RECIPE_FORMULA_AUDIT_VERSION,data_version:PUBLIC_RECIPE_MASTER_VERSION})),
 ]);
 
 const screenshotLegacyAliases=PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES.map(row=>Object.freeze({
