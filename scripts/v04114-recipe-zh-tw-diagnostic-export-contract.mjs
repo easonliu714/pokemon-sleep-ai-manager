@@ -31,7 +31,7 @@ const root=path.resolve(path.dirname(__filename),'..');
 const read=relative=>fs.readFileSync(path.join(root,relative),'utf8');
 const signature=recipe=>[...(recipe.ingredients||[])].map(row=>`${row.ingredient_name}=${Number(row.quantity)}`).sort((a,b)=>a.localeCompare(b,'zh-Hant')).join('|');
 
-assert.ok(['public-recipe-master-2026-08-11-c','public-recipe-master-2026-08-12-a','public-recipe-master-2026-08-13-a'].includes(PUBLIC_RECIPE_MASTER_VERSION));
+assert.ok(['public-recipe-master-2026-08-11-c','public-recipe-master-2026-08-12-a','public-recipe-master-2026-08-13-a','public-recipe-master-2026-08-13-b'].includes(PUBLIC_RECIPE_MASTER_VERSION));
 assert.ok(['public-recipe-zh-tw-names-2026-08-11-b','public-recipe-zh-tw-names-2026-08-12-a'].includes(PUBLIC_RECIPE_CANONICAL_NAME_VERSION));
 assert.equal(PUBLIC_RECIPE_ALIAS_VERSION,'public-recipe-alias-2026-08-11-b');
 assert.ok(['public-recipe-provenance-2026-08-11-c','public-recipe-provenance-2026-08-12-d','public-recipe-provenance-2026-08-13-a'].includes(PUBLIC_RECIPE_PROVENANCE_VERSION));
@@ -39,9 +39,8 @@ assert.equal(RAW_PUBLIC_RECIPE_MASTER.length,76);
 assert.ok([76,78].includes(PUBLIC_RECIPE_MASTER.length));
 assert.equal(PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES.length,34,'33 v0.4.3 names + current-game 迷昏拳 resolution expected');
 
-const auditedFormulaAuthority=PUBLIC_RECIPE_MASTER_VERSION==='public-recipe-master-2026-08-13-a';
+const auditedFormulaAuthority=PUBLIC_RECIPE_FORMULA_AUDIT_VERSION==='public-recipe-formula-audit-2026-08-13-a';
 if(auditedFormulaAuthority){
-  assert.equal(PUBLIC_RECIPE_FORMULA_AUDIT_VERSION,'public-recipe-formula-audit-2026-08-13-a');
   assert.equal(PUBLIC_RECIPE_FORMULA_OVERRIDES.length,0,'full recipe audit forbids historical runtime formula overrides');
 }else{
   assert.equal(PUBLIC_RECIPE_FORMULA_OVERRIDES.length,1,'pre-hotfix lineage had one explicitly reviewed formula override');
