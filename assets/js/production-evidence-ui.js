@@ -7,7 +7,7 @@ function authorityClass(status){return /ACTIVE_VERIFIED|LOCAL_PUBLIC_MASTER|OBSE
 function ruleCard(row){
   const cov=row?.coverage||{},blockers=row?.blocking_reasons||[],active=row?.authority_status==='ACTIVE_VERIFIED';
   return `<article class="proposal-card"><b><code>${esc(row?.dimension||'—')}</code></b>
-    <div class="status-row"><span class="status-pill ${evidenceClass(row?.evidence_status)}">${esc(row?.evidence_status||'—')}</span><span class="status-pill ${authorityClass(row?.authority_status)}">${esc(row?.authority_status||'—')}</span></div>
+    <div class="status-row"><span class="status-pill ${evidenceClass(row?.evidence_status)}">Evidence · ${esc(row?.evidence_status||'—')}</span><span class="status-pill ${authorityClass(row?.authority_status)}">Authority · ${esc(row?.authority_status||'—')}</span></div>
     <p class="notice">Coverage ${esc(cov.observed_count??0)}/${esc(cov.total_count??0)} (${esc(pct(cov.ratio))})</p>
     <p>${blockers.length?`阻擋：${esc(blockers.join('、'))}`:active?'此 dimension 已通過 Production Authority，可作為局部 numeric component；完整 rate model 仍須等待其他必要 dimension。':'目前 Evidence 無額外阻擋；仍依 Production Authority 決定是否可進數值模型。'}</p>
     <p class="notice">Evidence：${esc((row?.source_refs||[]).join('；')||'—')}</p>
@@ -17,8 +17,8 @@ function renderResult(container,snapshot){
   const s=snapshot?.summary||{};
   container.innerHTML=`<p><b>Evidence Fingerprint：</b><code>${esc(snapshot?.evidence_fingerprint||'—')}</code></p>
     <p><b>Activation：</b>${esc(snapshot?.activation_decision||'—')}；<b>Numeric model：</b>${esc(snapshot?.numeric_rate_model_status||'—')}</p>
-    <div class="status-row"><span class="status-pill pass">helper ${esc(s.helper_seconds_observed_count??0)}/${esc(snapshot?.candidate_count??0)}</span><span class="status-pill pass">type→berry ${esc(s.type_to_berry_mapped_count??0)}/${esc(snapshot?.candidate_count??0)}</span><span class="status-pill pass">berry strength ${esc(s.berry_strength_resolved_candidate_count??0)}/${esc(snapshot?.candidate_count??0)}</span><span class="status-pill hold">active numeric ${esc(s.active_numeric_dimension_count??0)}/${esc(s.numeric_dimension_count??0)}</span><span class="status-pill hold">blocked ${esc(s.blocked_numeric_dimension_count??0)}</span></div>
-    <p class="notice"><b>安全邊界：</b>局部 ACTIVE_VERIFIED ≠ 完整 Production Model 已啟用；缺值不等於 0。本區不寫 SQLite、不呼叫網路、不讓 AI 成為 numeric authority。</p>
+    <div class="status-row"><span class="status-pill pass">helper ${esc(s.helper_seconds_observed_count??0)}/${esc(snapshot?.candidate_count??0)}</span><span class="status-pill pass">type→berry ${esc(s.type_to_berry_mapped_count??0)}/${esc(snapshot?.candidate_count??0)}</span><span class="status-pill pass">berry strength ${esc(s.berry_strength_resolved_candidate_count??0)}/${esc(snapshot?.candidate_count??0)}</span><span class="status-pill pass">favorite multiplier ${esc(s.favorite_berry_multiplier_resolved_candidate_count??0)}/${esc(snapshot?.candidate_count??0)}</span><span class="status-pill hold">active numeric ${esc(s.active_numeric_dimension_count??0)}/${esc(s.numeric_dimension_count??0)}</span><span class="status-pill hold">blocked ${esc(s.blocked_numeric_dimension_count??0)}</span></div>
+    <p class="notice"><b>安全邊界：</b>局部 ACTIVE_VERIFIED ≠ 完整 Production Model 已啟用；Favorite ×2 只代表基礎 Berry Strength multiplier，不包含 Expert Mode 額外幫忙頻率／額外 Strength 效果或活動加成；缺值不等於 0。本區不寫 SQLite、不呼叫網路、不讓 AI 成為 numeric authority。</p>
     <div class="proposal-grid">${(snapshot?.rules||[]).map(ruleCard).join('')}</div>
     <details><summary>查看 Evidence Snapshot JSON</summary><pre>${esc(JSON.stringify(snapshot,null,2))}</pre></details>`;
 }

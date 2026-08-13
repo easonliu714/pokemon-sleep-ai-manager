@@ -9,13 +9,14 @@ import {buildExternalOptimizationPrompt,normalizeOptimizationAiResponse} from '.
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.15','v0.4.16','v0.4.17','v0.4.17.1','v0.4.18','v0.4.19'].includes(appVersion),`unexpected G7.3 staging/release/successor version ${appVersion}`);
-if(['v0.4.17','v0.4.17.1','v0.4.18','v0.4.19'].includes(appVersion))assert.ok(version.includes("// app_version: 'v0.4.16'"),`${appVersion} must retain v0.4.16 lineage bridge`);
+assert.ok(['v0.4.15','v0.4.16','v0.4.17','v0.4.17.1','v0.4.18','v0.4.19','v0.4.20'].includes(appVersion),`unexpected G7.3 staging/release/successor version ${appVersion}`);
+if(['v0.4.17','v0.4.17.1','v0.4.18','v0.4.19','v0.4.20'].includes(appVersion))assert.ok(version.includes("// app_version: 'v0.4.16'"),`${appVersion} must retain v0.4.16 lineage bridge`);
 
 const registry=currentProductionAuthorityRegistry();
 assert.equal(registry.numeric_rate_model_status,'NOT_YET_VERIFIED');
 assert.equal(registry.rules.helper_interval_seconds.status,'OBSERVED_INPUT');
-assert.equal(registry.rules.berry_energy_per_berry.status,appVersion==='v0.4.19'?'ACTIVE_VERIFIED':'NOT_YET_VERIFIED');
+assert.equal(registry.rules.berry_energy_per_berry.status,['v0.4.19','v0.4.20'].includes(appVersion)?'ACTIVE_VERIFIED':'NOT_YET_VERIFIED');
+if(appVersion==='v0.4.20')assert.equal(registry.rules.favorite_berry_multiplier.status,'ACTIVE_VERIFIED');
 for(const key of ['berry_output_per_help','ingredient_probability_per_help','ingredient_slot_distribution','main_skill_trigger_probability','main_skill_effect_value'])assert.equal(registry.rules[key].status,'NOT_YET_VERIFIED');
 
 const features={input_fingerprint:'features:g73',candidates:Array.from({length:5},(_,index)=>({
