@@ -1,6 +1,7 @@
 import {currentProductionAuthorityRegistry} from './production-authority-registry.js';
+import {resolveBerryStrengthForTypeAtLevel} from './public-berry-strength-master.js';
 
-export const TEAM_OBJECTIVE_EVALUATOR_VERSION='team-objective-evaluator-2026-08-12-a';
+export const TEAM_OBJECTIVE_EVALUATOR_VERSION='team-objective-evaluator-2026-08-13-a';
 const text=value=>String(value??'').normalize('NFKC').trim();
 const num=value=>{const n=Number(value);return value===null||value===undefined||value===''||!Number.isFinite(n)?null:n;};
 const stable=value=>Array.isArray(value)?value.map(stable):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,stable(value[key])])):value;
@@ -11,9 +12,13 @@ export function projectMemberProductionEvidence(candidate,{productionRegistry=cu
   const unlockedIngredients=(candidate?.unlocked_ingredients||[]).map(row=>Object.freeze({
     unlock_level:num(row.unlock_level),ingredient_name:text(row.ingredient_name),quantity:num(row.quantity),
   })).filter(row=>row.ingredient_name);
+  const berryStrength=verified(productionRegistry,'berry_energy_per_berry')?resolveBerryStrengthForTypeAtLevel(candidate?.type,candidate?.level):null;
   const evidence=Object.freeze({
-    pokemon_id:text(candidate?.pokemon_id),species:text(candidate?.species),level:num(candidate?.level),specialty:text(candidate?.specialty)||null,
+    pokemon_id:text(candidate?.pokemon_id),species:text(candidate?.species),level:num(candidate?.level),specialty:text(candidate?.specialty)||null,type:text(candidate?.type)||null,
     helper_seconds:num(candidate?.helper_seconds),favorite_berry:text(candidate?.favorite_berry)||null,favorite_berry_match:candidate?.favorite_berry_match??null,
+    berry_name:berryStrength?.berry_name||text(candidate?.favorite_berry)||null,
+    berry_energy_per_berry:berryStrength?.status==='ACTIVE_VERIFIED'?num(berryStrength.strength):null,
+    berry_energy_per_berry_status:berryStrength?.status||'NOT_YET_VERIFIED',
     main_skill:text(candidate?.main_skill)||null,main_skill_level:num(candidate?.main_skill_level),unlocked_ingredients:Object.freeze(unlockedIngredients),
     berry_energy_per_hour:null,ingredient_per_hour_by_name:null,skill_energy_per_hour:null,
     berry_rate_status:verified(productionRegistry,'berry_output_per_help')&&verified(productionRegistry,'berry_energy_per_berry')?'ACTIVE_VERIFIED':'NOT_YET_VERIFIED',
