@@ -16,8 +16,9 @@ import {projectMemberProductionEvidence,evaluateTeamObjective} from '../assets/j
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
-assert.equal(appVersion,'v0.4.20');
-assert.ok(version.includes("// app_version: 'v0.4.19'"),'v0.4.20 must retain v0.4.19 lineage bridge');
+assert.ok(['v0.4.20','v0.4.21'].includes(appVersion),`v0.4.20 favorite multiplier contract requires v0.4.20 or governed successor, got ${appVersion}`);
+assert.ok(version.includes("// app_version: 'v0.4.19'"),'favorite multiplier release must retain v0.4.19 lineage bridge');
+if(appVersion==='v0.4.21')assert.ok(version.includes("// app_version: 'v0.4.20'"),'v0.4.21 must retain v0.4.20 lineage bridge');
 assert.equal(FAVORITE_BERRY_BASE_STRENGTH_MULTIPLIER,2);
 assert.equal(NON_FAVORITE_BERRY_BASE_STRENGTH_MULTIPLIER,1);
 assert.ok(FAVORITE_BERRY_MULTIPLIER_CONTRACT_ID.includes('2026-08-13'));
@@ -57,7 +58,7 @@ const candidateFeatures={candidates:[
 ]};
 const weeklyContext={favorite_berry_1:'蘋野果',favorite_berry_2:'橙橙果',favorite_berry_3:'番荔果'};
 const snapshot=buildProductionEvidenceSnapshot({candidateFeatures,weeklyContext,productionRegistry:registry});
-assert.equal(snapshot.schema,'pokemon-sleep-production-evidence-snapshot/1.1');
+assert.ok(['pokemon-sleep-production-evidence-snapshot/1.1','pokemon-sleep-production-evidence-snapshot/1.2'].includes(snapshot.schema));
 assert.equal(snapshot.activation_decision,'HOLD_NUMERIC_MODEL_NOT_ACTIVE');
 assert.equal(snapshot.numeric_rate_model_status,'NOT_YET_VERIFIED');
 assert.equal(snapshot.summary.active_numeric_dimension_count,2);
@@ -115,10 +116,11 @@ for(const file of ['assets/js/favorite-berry-multiplier-contract.js','assets/js/
 const sw=read('service-worker.js');
 assert.ok(sw.includes("'./assets/js/favorite-berry-multiplier-contract.js'"),'first-offline precache missing favorite berry multiplier contract');
 const ui=read('assets/js/production-evidence-ui.js');
-for(const token of ['favorite multiplier','Favorite ×2','Evidence ·','Authority ·'])assert.ok(ui.includes(token),`v0.4.20 evidence UI token missing ${token}`);
+if(appVersion==='v0.4.20')for(const token of ['favorite multiplier','Favorite ×2','Evidence ·','Authority ·'])assert.ok(ui.includes(token),`v0.4.20 evidence UI token missing ${token}`);
+else for(const token of ['evidence-metric-grid','數值模型','進階 Evidence / JSON','favorite_berry_multiplier'])assert.ok(ui.includes(token),`compact successor evidence UI token missing ${token}`);
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'V0420_G75B_FAVORITE_BERRY_MULTIPLIER_CONTRACT',app_version:appVersion,
+  status:'PASS',gate:'V0420_G75B_FAVORITE_BERRY_MULTIPLIER_CONTRACT_SUCCESSOR_AWARE',app_version:appVersion,
   base_favorite_multiplier:FAVORITE_BERRY_BASE_STRENGTH_MULTIPLIER,non_favorite_multiplier:NON_FAVORITE_BERRY_BASE_STRENGTH_MULTIPLIER,
   favorite_coverage:snapshot.summary.favorite_berry_multiplier_resolved_candidate_count,
   active_numeric_dimension_count:snapshot.summary.active_numeric_dimension_count,blocked_numeric_dimension_count:snapshot.summary.blocked_numeric_dimension_count,
