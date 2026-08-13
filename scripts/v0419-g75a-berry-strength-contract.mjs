@@ -18,9 +18,9 @@ import {projectMemberProductionEvidence,evaluateTeamObjective} from '../assets/j
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.19','v0.4.20'].includes(appVersion),`unexpected G7.5A release/successor ${appVersion}`);
-if(appVersion==='v0.4.20')assert.ok(version.includes("// app_version: 'v0.4.19'"),'v0.4.20 must retain v0.4.19 lineage bridge');
-const favoriteMultiplierSuccessor=appVersion==='v0.4.20';
+assert.ok(['v0.4.19','v0.4.20','v0.4.21'].includes(appVersion),`unexpected G7.5A release/successor ${appVersion}`);
+if(['v0.4.20','v0.4.21'].includes(appVersion))assert.ok(version.includes("// app_version: 'v0.4.19'"),`${appVersion} must retain v0.4.19 lineage bridge`);
+const favoriteMultiplierSuccessor=['v0.4.20','v0.4.21'].includes(appVersion);
 assert.equal(BERRY_STRENGTH_MIN_LEVEL,1);
 assert.equal(BERRY_STRENGTH_MAX_LEVEL,70);
 assert.equal(PUBLIC_BERRY_STRENGTH_MASTER.length,18);
@@ -77,7 +77,7 @@ const candidateFeatures={candidates:[
 ]};
 const weeklyContext={favorite_berry_1:'蘋野果',favorite_berry_2:'橙橙果',favorite_berry_3:'番荔果'};
 const snapshot=buildProductionEvidenceSnapshot({candidateFeatures,weeklyContext,productionRegistry:registry});
-assert.equal(snapshot.schema,'pokemon-sleep-production-evidence-snapshot/1.1');
+assert.ok(['pokemon-sleep-production-evidence-snapshot/1.1','pokemon-sleep-production-evidence-snapshot/1.2'].includes(snapshot.schema));
 assert.equal(snapshot.activation_decision,'HOLD_NUMERIC_MODEL_NOT_ACTIVE');
 assert.equal(snapshot.numeric_rate_model_status,'NOT_YET_VERIFIED');
 assert.equal(snapshot.summary.active_numeric_dimension_count,favoriteMultiplierSuccessor?2:1);
@@ -130,7 +130,8 @@ for(const forbidden of ['INSERT INTO','UPDATE pokemon','UPDATE ingredient_invent
 const sw=read('service-worker.js');
 assert.ok(sw.includes("'./assets/js/public-berry-strength-master.js'"),'first-offline precache missing berry strength master');
 const ui=read('assets/js/production-evidence-ui.js');
-for(const token of ['berry strength','局部 ACTIVE_VERIFIED ≠ 完整 Production Model 已啟用'])assert.ok(ui.includes(token),`v0.4.19 evidence UI token missing ${token}`);
+if(appVersion==='v0.4.21')for(const token of ['G7.5 產能模型','單顆樹果能量','已啟用數值','進階 Evidence / JSON'])assert.ok(ui.includes(token),`compact successor evidence UI token missing ${token}`);
+else for(const token of ['berry strength','局部 ACTIVE_VERIFIED ≠ 完整 Production Model 已啟用'])assert.ok(ui.includes(token),`v0.4.19 evidence UI token missing ${token}`);
 
 console.log(JSON.stringify({
   status:'PASS',gate:'V0419_G75A_BERRY_STRENGTH_NUMERIC_MASTER_SUCCESSOR_AWARE',app_version:appVersion,
