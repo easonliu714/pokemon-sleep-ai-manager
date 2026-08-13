@@ -22,8 +22,9 @@ import {buildStrategyOptimizationPack} from '../assets/js/strategy-optimization-
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
-assert.equal(appVersion,'v0.4.22');
+assert.ok(['v0.4.22','v0.4.22.1'].includes(appVersion),`unexpected G7.5D release/successor ${appVersion}`);
 assert.ok(version.includes("// app_version: 'v0.4.21'"));
+if(appVersion==='v0.4.22.1')assert.ok(version.includes("// app_version: 'v0.4.22'"),'v0.4.22.1 must retain v0.4.22 lineage bridge');
 assert.equal(BASE_BERRY_OUTPUT_AUTHORITY_STATUS,'ACTIVE_VERIFIED');
 assert.equal(BASE_BERRY_OUTPUT_SCOPE,'REGULAR_BERRY_RESULT_HELP_PRE_EVENT_PRE_EXPERT');
 assert.equal(BERRY_SPECIALTY_BASE_OUTPUT,2);
@@ -130,7 +131,7 @@ const sw=read('service-worker.js');
 assert.ok(sw.includes("'./assets/js/base-berry-output-contract.js'"),'first-offline precache missing base berry output contract');
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'V0422_G75D_BASE_BERRY_OUTPUT_NUMERIC_AUTHORITY',app_version:appVersion,
+  status:'PASS',gate:'V0422_G75D_BASE_BERRY_OUTPUT_NUMERIC_AUTHORITY_SUCCESSOR_AWARE',app_version:appVersion,
   berry_specialty_base_output:2,other_specialty_base_output:1,berry_finding_s_bonus:1,
   base_berry_output_coverage:`${snapshot.summary.base_berry_output_resolved_candidate_count}/${snapshot.candidate_count}`,
   active_numeric_dimension_count:snapshot.summary.active_numeric_dimension_count,
