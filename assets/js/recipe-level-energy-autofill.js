@@ -4,7 +4,7 @@ import {
   calculateRecipeEnergyById,
 } from './recipe-level-energy-contract.js';
 
-export const RECIPE_LEVEL_ENERGY_AUTOFILL_VERSION='recipe-level-energy-autofill-2026-08-13-a';
+export const RECIPE_LEVEL_ENERGY_AUTOFILL_VERSION='recipe-level-energy-autofill-2026-08-13-b-render-hydration';
 
 function levelInput(target){
   return target instanceof HTMLInputElement&&target.classList.contains('canonical-recipe-level');
@@ -33,7 +33,7 @@ function configureLevelInput(level){
   level.dataset.energyContract=RECIPE_LEVEL_ENERGY_CONTRACT_VERSION;
 }
 
-function syncEnergyFromLevel(level,{dispatch=true}={}){
+function syncEnergyFromLevel(level,{dispatch=true,renderHydration=false}={}){
   configureLevelInput(level);
   const energy=energyInputFor(level);
   if(!energy)return null;
@@ -49,13 +49,22 @@ function syncEnergyFromLevel(level,{dispatch=true}={}){
   energy.value=String(calculated);
   energy.dataset.autoDerived='true';
   energy.dataset.energyContract=RECIPE_LEVEL_ENERGY_CONTRACT_VERSION;
+  if(renderHydration)energy.dataset.renderHydrated='true';else delete energy.dataset.renderHydrated;
   energy.title=`由料理等級 Lv.${parsedLevel} 自動計算；可由圖片匯入值覆蓋，手動變更等級時會重新同步`;
   if(dispatch)energy.dispatchEvent(new Event('input',{bubbles:true}));
   return calculated;
 }
 
+function hydrateBlankEnergyFromLevel(level){
+  configureLevelInput(level);
+  const energy=energyInputFor(level);
+  if(!energy||energy.value!=='')return null;
+  if(validLevelValue(level)===null)return null;
+  return syncEnergyFromLevel(level,{dispatch:false,renderHydration:true});
+}
+
 function enhanceExistingInputs(root=document){
-  root.querySelectorAll?.('.canonical-recipe-level').forEach(configureLevelInput);
+  root.querySelectorAll?.('.canonical-recipe-level').forEach(hydrateBlankEnergyFromLevel);
 }
 
 function onLevelEdit(event){
@@ -89,7 +98,7 @@ function install(){
     for(const record of records){
       for(const node of record.addedNodes){
         if(!(node instanceof Element))continue;
-        if(node.matches('.canonical-recipe-level'))configureLevelInput(node);
+        if(node.matches('.canonical-recipe-level'))hydrateBlankEnergyFromLevel(node);
         enhanceExistingInputs(node);
       }
     }
