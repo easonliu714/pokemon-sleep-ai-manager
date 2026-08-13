@@ -1,9 +1,12 @@
-export const PRODUCTION_AUTHORITY_REGISTRY_VERSION='production-authority-registry-2026-08-12-a';
+import {PUBLIC_BERRY_STRENGTH_VERSION,BERRY_STRENGTH_FORMULA_VERSION} from './public-berry-strength-master.js';
+
+export const PRODUCTION_AUTHORITY_REGISTRY_VERSION='production-authority-registry-2026-08-13-a';
 
 const RULES=Object.freeze({
   helper_interval_seconds:Object.freeze({dimension:'helper_interval_seconds',status:'OBSERVED_INPUT',rule_version:'player-observed-helper-seconds-v1',source_refs:Object.freeze(['player_pokemon.helper_seconds']),missing_inputs:Object.freeze([])}),
   berry_output_per_help:Object.freeze({dimension:'berry_output_per_help',status:'NOT_YET_VERIFIED',rule_version:null,source_refs:Object.freeze([]),missing_inputs:Object.freeze(['verified_berry_output_per_help_rule'])}),
-  berry_energy_per_berry:Object.freeze({dimension:'berry_energy_per_berry',status:'NOT_YET_VERIFIED',rule_version:null,source_refs:Object.freeze([]),missing_inputs:Object.freeze(['verified_berry_energy_rule'])}),
+  berry_energy_per_berry:Object.freeze({dimension:'berry_energy_per_berry',status:'ACTIVE_VERIFIED',rule_version:BERRY_STRENGTH_FORMULA_VERSION,source_refs:Object.freeze([PUBLIC_BERRY_STRENGTH_VERSION,'pokemon-sleep-berry-base-energy-formula-verified-2026-08-13']),missing_inputs:Object.freeze([])}),
+  favorite_berry_multiplier:Object.freeze({dimension:'favorite_berry_multiplier',status:'NOT_YET_VERIFIED',rule_version:null,source_refs:Object.freeze([]),missing_inputs:Object.freeze(['verified_favorite_berry_multiplier_rule'])}),
   ingredient_probability_per_help:Object.freeze({dimension:'ingredient_probability_per_help',status:'NOT_YET_VERIFIED',rule_version:null,source_refs:Object.freeze([]),missing_inputs:Object.freeze(['verified_ingredient_probability_rule'])}),
   ingredient_slot_distribution:Object.freeze({dimension:'ingredient_slot_distribution',status:'NOT_YET_VERIFIED',rule_version:null,source_refs:Object.freeze([]),missing_inputs:Object.freeze(['verified_ingredient_slot_distribution_rule'])}),
   main_skill_trigger_probability:Object.freeze({dimension:'main_skill_trigger_probability',status:'NOT_YET_VERIFIED',rule_version:null,source_refs:Object.freeze([]),missing_inputs:Object.freeze(['verified_main_skill_trigger_rule'])}),
