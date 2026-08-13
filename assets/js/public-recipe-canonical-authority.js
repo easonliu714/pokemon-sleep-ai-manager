@@ -5,9 +5,10 @@ import {
 } from './public-recipe-master.js';
 
 export const PUBLIC_RECIPE_CANONICAL_NAME_VERSION='public-recipe-zh-tw-names-2026-08-12-a';
-export const PUBLIC_RECIPE_MASTER_VERSION='public-recipe-master-2026-08-13-a';
+export const PUBLIC_RECIPE_MASTER_VERSION='public-recipe-master-2026-08-13-b';
 export const PUBLIC_RECIPE_BASE_MASTER_VERSION=BASE_PUBLIC_RECIPE_MASTER_VERSION;
 export const PUBLIC_RECIPE_FORMULA_AUDIT_VERSION='public-recipe-formula-audit-2026-08-13-a';
+export const PUBLIC_RECIPE_LEVEL1_ENERGY_VERSION='public-recipe-level1-energy-2026-08-13-a';
 
 const HISTORICAL_NAME_SOURCE=Object.freeze({
   source_type:'game_screenshot_verified',
@@ -41,6 +42,14 @@ const AUG12_ACTIVATION_SOURCE=Object.freeze({
   verification_status:'GAME_SCREENSHOT_VERIFIED_NAME_FORMULA_REFERENCE_CROSSCHECK',
 });
 
+const LEVEL1_ENERGY_SOURCE=Object.freeze({
+  level1_energy_source_type:'game_screenshot_reference_crosscheck',
+  level1_energy_source_name:'current in-game zh-TW recipe list screenshots + current structured recipe reference cross-check',
+  level1_energy_source_ref:'internal:v04221-full-78-level1-energy-evidence',
+  level1_energy_verified_at:'2026-08-13',
+  level1_energy_verification_status:'GAME_SCREENSHOT_VERIFIED_LEVEL1_ENERGY_REFERENCE_CROSSCHECK',
+});
+
 export const PUBLIC_RECIPE_FORMULA_MUTATION_POLICY=Object.freeze({
   policy_version:'public-recipe-formula-mutation-policy-2026-08-13-a',
   ai_may_mutate_formula:false,
@@ -68,6 +77,99 @@ export const PUBLIC_RECIPE_FORMULA_AUDIT=Object.freeze({
     canonical_quantity:11,
   }),
 });
+
+export const PUBLIC_RECIPE_LEVEL1_ENERGY_AUDIT=Object.freeze({
+  energy_version:PUBLIC_RECIPE_LEVEL1_ENERGY_VERSION,
+  audited_recipe_count:78,
+  audited_at:'2026-08-13',
+  status:'FULL_CATALOG_LEVEL1_ENERGY_VERIFIED',
+  semantic_contract:'base_energy === level1_energy === in-game recipe value at Lv.1',
+  source_refs:Object.freeze([
+    'current user-provided in-game zh-TW recipe list screenshots, 2026-08-13',
+    'Serebii Pokémon Sleep current Dishes catalog, checked 2026-08-13',
+  ]),
+});
+
+export const PUBLIC_RECIPE_LEVEL1_ENERGY_AUTHORITY=Object.freeze([
+  ['curry_apple',748],
+  ['recipe_curry_002',7483],
+  ['curry_solar_tomato',2078],
+  ['curry_dream_eater',9010],
+  ['curry_spicy_leek',5900],
+  ['curry_mushroom',4162],
+  ['curry_parent_child',4523],
+  ['recipe_curry_008',1910],
+  ['recipe_curry_009',3181],
+  ['recipe_curry_010',814],
+  ['recipe_curry_011',856],
+  ['recipe_curry_012',839],
+  ['curry_ninja',9445],
+  ['recipe_curry_014',1942],
+  ['recipe_curry_015',2150],
+  ['recipe_curry_016',3372],
+  ['curry_soft_corn',4670],
+  ['recipe_curry_018',13690],
+  ['curry_dizzy_punch',5702],
+  ['recipe_curry_020',19061],
+  ['recipe_curry_021',20655],
+  ['recipe_curry_022',15621],
+  ['recipe_curry_023',24802],
+  ['curry_greengrass_bun',10945],
+  ['curry_bounce_udon',25539],
+  ['recipe_salad_001',8169],
+  ['recipe_salad_002',5859],
+  ['recipe_salad_003',1898],
+  ['salad_glutton_potato',5040],
+  ['salad_tofu',3113],
+  ['recipe_salad_006',3046],
+  ['recipe_salad_007',978],
+  ['recipe_salad_008',1045],
+  ['recipe_salad_009',2942],
+  ['recipe_salad_010',3665],
+  ['salad_overheat',5225],
+  ['salad_apple',855],
+  ['recipe_salad_013',2845],
+  ['salad_apple_cheese',2655],
+  ['salad_ninja',11659],
+  ['recipe_salad_016',2114],
+  ['recipe_salad_017',11393],
+  ['recipe_salad_018',7675],
+  ['recipe_salad_019',2785],
+  ['recipe_salad_020',8755],
+  ['recipe_salad_021',20218],
+  ['recipe_salad_022',11881],
+  ['recipe_salad_023',19293],
+  ['recipe_salad_024',7125],
+  ['recipe_salad_025',25162],
+  ['recipe_salad_026',25356],
+  ['recipe_dessert_001',1907],
+  ['recipe_dessert_002',4921],
+  ['dessert_apple_juice',855],
+  ['recipe_dessert_004',1079],
+  ['recipe_dessert_005',1913],
+  ['recipe_dessert_006',7594],
+  ['recipe_dessert_007',4734],
+  ['recipe_dessert_008',1748],
+  ['recipe_dessert_009',5065],
+  ['recipe_dessert_010',3378],
+  ['dessert_warm_milk',814],
+  ['recipe_dessert_012',1924],
+  ['recipe_dessert_013',3263],
+  ['recipe_dessert_014',1924],
+  ['recipe_dessert_015',3015],
+  ['recipe_dessert_016',5547],
+  ['recipe_dessert_017',6048],
+  ['recipe_dessert_018',10925],
+  ['recipe_dessert_019',3314],
+  ['recipe_dessert_020',13834],
+  ['dessert_early_coffee_jelly',6793],
+  ['dessert_spiced_cola',17494],
+  ['recipe_dessert_023',7125],
+  ['dessert_clodsire_eclair',20885],
+  ['dessert_ghost_donut',24354],
+  ['recipe_dessert_026',8165],
+  ['dessert_honey_chocolate',25484],
+].map(([recipe_id,level1_energy])=>Object.freeze({recipe_id,level1_energy,energy_version:PUBLIC_RECIPE_LEVEL1_ENERGY_VERSION})));
 
 export const PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES=Object.freeze([
   ['curry_soft_corn','柔軟玉米濃湯','玉米濃湯'],
@@ -169,6 +271,20 @@ export const PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS=Object.freeze([
 
 const overrideById=new Map(PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES.map(row=>[row.recipe_id,row]));
 const formulaOverrideById=new Map(PUBLIC_RECIPE_FORMULA_OVERRIDES.map(row=>[row.recipe_id,row]));
+const level1EnergyById=new Map(PUBLIC_RECIPE_LEVEL1_ENERGY_AUTHORITY.map(row=>[row.recipe_id,row]));
+
+function applyLevel1Energy(recipe){
+  const energy=level1EnergyById.get(recipe.recipe_id);
+  if(!energy)throw new Error(`recipe_level1_energy_missing:${recipe.recipe_id}`);
+  if(!Number.isInteger(energy.level1_energy)||energy.level1_energy<=0)throw new Error(`recipe_level1_energy_invalid:${recipe.recipe_id}:${energy.level1_energy}`);
+  return Object.freeze({
+    ...recipe,
+    base_energy:energy.level1_energy,
+    level1_energy:energy.level1_energy,
+    level1_energy_version:PUBLIC_RECIPE_LEVEL1_ENERGY_VERSION,
+    ...LEVEL1_ENERGY_SOURCE,
+  });
+}
 
 const upgradedBase=BASE_PUBLIC_RECIPE_MASTER.map(base=>{
   const override=overrideById.get(base.recipe_id),formulaOverride=formulaOverrideById.get(base.recipe_id);
@@ -176,7 +292,7 @@ const upgradedBase=BASE_PUBLIC_RECIPE_MASTER.map(base=>{
     throw new Error(`recipe_name_contract_base_mismatch:${base.recipe_id}:${base.recipe_name}:${override.legacy_public_name}`);
   }
   const nameSource=override?.recipe_id==='curry_dizzy_punch'?CURRENT_NAME_SOURCE:HISTORICAL_NAME_SOURCE;
-  return Object.freeze({
+  return applyLevel1Energy(Object.freeze({
     ...base,
     ...(formulaOverride?{
       ingredients:formulaOverride.ingredients,
@@ -190,13 +306,24 @@ const upgradedBase=BASE_PUBLIC_RECIPE_MASTER.map(base=>{
     }:{}),
     formula_audit_version:PUBLIC_RECIPE_FORMULA_AUDIT_VERSION,
     data_version:PUBLIC_RECIPE_MASTER_VERSION,
-  });
+  }));
 });
+
+const activatedRecipes=PUBLIC_RECIPE_ACTIVATION_ADDITIONS.map(row=>applyLevel1Energy(Object.freeze({
+  ...row,
+  formula_audit_version:PUBLIC_RECIPE_FORMULA_AUDIT_VERSION,
+  data_version:PUBLIC_RECIPE_MASTER_VERSION,
+})));
 
 export const PUBLIC_RECIPE_MASTER=Object.freeze([
   ...upgradedBase,
-  ...PUBLIC_RECIPE_ACTIVATION_ADDITIONS.map(row=>Object.freeze({...row,formula_audit_version:PUBLIC_RECIPE_FORMULA_AUDIT_VERSION,data_version:PUBLIC_RECIPE_MASTER_VERSION})),
+  ...activatedRecipes,
 ]);
+
+if(level1EnergyById.size!==PUBLIC_RECIPE_MASTER.length)throw new Error(`recipe_level1_energy_authority_count_mismatch:${level1EnergyById.size}:${PUBLIC_RECIPE_MASTER.length}`);
+for(const recipe of PUBLIC_RECIPE_MASTER){
+  if(Number(recipe.base_energy)!==Number(recipe.level1_energy))throw new Error(`recipe_level1_energy_semantic_mismatch:${recipe.recipe_id}`);
+}
 
 const screenshotLegacyAliases=PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES.map(row=>Object.freeze({
   recipe_id:row.recipe_id,
