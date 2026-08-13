@@ -2,8 +2,9 @@ import {
   POKEMON_SCORING_RULES,
   POKEMON_SCORING_RULE_REGISTRY_VERSION,
 } from './pokemon-scoring-rule-registry.js';
+import {resolvePokemonProductionModifierProfile} from './pokemon-master-options.js';
 
-export const POKEMON_SCORING_ENGINE_VERSION='pokemon-scoring-engine-2026-08-09-a';
+export const POKEMON_SCORING_ENGINE_VERSION='pokemon-scoring-engine-2026-08-13-b-production-modifiers';
 
 const round2=value=>Math.round((Number(value)+Number.EPSILON)*100)/100;
 const nullScores=()=>({
@@ -42,6 +43,7 @@ function currentUnlockReadiness(feature){
 export function scorePokemonCandidateFeatures(featureProjection){
   const candidates=(featureProjection?.candidates||[]).map(feature=>{
     const scores=nullScores(),score_breakdown={},missing_inputs=[],reasons=[];
+    const production_modifier_profile=resolvePokemonProductionModifierProfile(feature);
     const readinessRule=POKEMON_SCORING_RULES.current_readiness_score;
     if(readinessRule.status==='ACTIVE_VERIFIED'){
       const result=currentUnlockReadiness(feature);
@@ -66,6 +68,7 @@ export function scorePokemonCandidateFeatures(featureProjection){
     return {
       ...feature,
       ...scores,
+      production_modifier_profile,
       score_breakdown,
       score_rule_registry_version:POKEMON_SCORING_RULE_REGISTRY_VERSION,
       scoring_engine_version:POKEMON_SCORING_ENGINE_VERSION,
@@ -83,17 +86,19 @@ export function scorePokemonCandidateFeatures(featureProjection){
     return String(a.pokemon_id).localeCompare(String(b.pokemon_id));
   });
   return {
-    schema:'pokemon-sleep-evidence-gated-scoring/1.0',
+    schema:'pokemon-sleep-evidence-gated-scoring/1.1',
     scoring_engine_version:POKEMON_SCORING_ENGINE_VERSION,
     scoring_rule_registry_version:POKEMON_SCORING_RULE_REGISTRY_VERSION,
     feature_fingerprint:featureProjection?.input_fingerprint||null,
     active_numeric_dimensions:Object.entries(POKEMON_SCORING_RULES).filter(([,rule])=>rule.status==='ACTIVE_VERIFIED').map(([dimension])=>dimension),
+    production_modifier_numeric_activation:false,
     candidates,
     ranked_candidates:ranked,
     summary:{
       candidate_count:candidates.length,
       rank_eligible_count:ranked.length,
       scored_candidate_count:candidates.filter(row=>row.numeric_score_count>0).length,
+      production_modifier_review_count:candidates.filter(row=>row.production_modifier_profile?.status==='REVIEW_REQUIRED').length,
     },
     player_data_write:false,
   };
