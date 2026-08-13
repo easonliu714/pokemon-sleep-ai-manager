@@ -1,6 +1,7 @@
 import {buildLocalProductionEvidenceSnapshot} from './strategy-context-local.js';
 
 const STYLE_ID='pokemonSleepProductionEvidenceCompactUi';
+const ADVANCED_LABEL='進階 Evidence / JSON';
 const CSS=`
 .g75-production-evidence{min-width:0;max-width:100%}
 .g75-production-evidence .buttons{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
@@ -67,7 +68,7 @@ function renderResult(container,snapshot){
   const modelLabel=snapshot?.numeric_rate_model_status==='ACTIVE_VERIFIED'?'已啟用':'尚未啟用';
   container.innerHTML=`<div class="evidence-metric-grid">${metric('數值模型',modelLabel)}${metric('已啟用數值',`${s.active_numeric_dimension_count??0}/${s.numeric_dimension_count??0}`)}${metric('待補數值',s.blocked_numeric_dimension_count??0)}${metric('事件分流',s.structural_verified_dimension_count?'已驗證':'待補')}</div>
     <div class="evidence-rule-grid">${mainRows.map(compactRuleCard).join('')}</div>
-    <details class="evidence-advanced"><summary>進階 Evidence / JSON</summary><div class="evidence-raw-grid">${rules.map(rawRule).join('')}</div><details><summary>完整 Snapshot JSON</summary><pre>${esc(JSON.stringify(snapshot,null,2))}</pre></details></details>`;
+    <details class="evidence-advanced"><summary>${ADVANCED_LABEL}</summary><div class="evidence-raw-grid">${rules.map(rawRule).join('')}</div><details><summary>完整 Snapshot JSON</summary><pre>${esc(JSON.stringify(snapshot,null,2))}</pre></details></details>`;
 }
 
 export function renderProductionEvidencePanel(root){
