@@ -1,8 +1,9 @@
 import {currentProductionAuthorityRegistry} from './production-authority-registry.js';
 import {resolveBerryStrengthForTypeAtLevel} from './public-berry-strength-master.js';
 import {resolveFavoriteBerryMultiplierFromMatch} from './favorite-berry-multiplier-contract.js';
+import {resolveCandidateBaseBerryOutput} from './base-berry-output-contract.js';
 
-export const TEAM_OBJECTIVE_EVALUATOR_VERSION='team-objective-evaluator-2026-08-13-b';
+export const TEAM_OBJECTIVE_EVALUATOR_VERSION='team-objective-evaluator-2026-08-13-c';
 const text=value=>String(value??'').normalize('NFKC').trim();
 const num=value=>{const n=Number(value);return value===null||value===undefined||value===''||!Number.isFinite(n)?null:n;};
 const stable=value=>Array.isArray(value)?value.map(stable):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,stable(value[key])])):value;
@@ -15,10 +16,15 @@ export function projectMemberProductionEvidence(candidate,{productionRegistry=cu
   })).filter(row=>row.ingredient_name);
   const berryStrength=verified(productionRegistry,'berry_energy_per_berry')?resolveBerryStrengthForTypeAtLevel(candidate?.type,candidate?.level):null;
   const favoriteMultiplier=verified(productionRegistry,'favorite_berry_multiplier')?resolveFavoriteBerryMultiplierFromMatch(candidate?.favorite_berry_match):null;
+  const baseBerryOutput=verified(productionRegistry,'berry_output_per_help')?resolveCandidateBaseBerryOutput(candidate):null;
   const baseBerryEnergy=berryStrength?.status==='ACTIVE_VERIFIED'?num(berryStrength.strength):null;
   const favoriteMultiplierValue=favoriteMultiplier?.status==='ACTIVE_VERIFIED'?num(favoriteMultiplier.multiplier):null;
+  const berryOutputValue=baseBerryOutput?.status==='ACTIVE_VERIFIED'?num(baseBerryOutput.total_output):null;
   const favoriteAdjustedBerryEnergy=baseBerryEnergy!==null&&favoriteMultiplierValue!==null?baseBerryEnergy*favoriteMultiplierValue:null;
-  const berryRateReady=verified(productionRegistry,'berry_output_per_help')&&verified(productionRegistry,'berry_energy_per_berry')&&verified(productionRegistry,'favorite_berry_multiplier')&&favoriteMultiplierValue!==null;
+  const berryResultHelpEnergy=favoriteAdjustedBerryEnergy!==null&&berryOutputValue!==null?favoriteAdjustedBerryEnergy*berryOutputValue:null;
+  // Berry/hour still requires the probability that a regular help resolves to a Berry result.
+  // Until ingredient_probability_per_help is verified, a verified Berry-result quantity must remain a partial component only.
+  const berryRateReady=verified(productionRegistry,'berry_output_per_help')&&verified(productionRegistry,'berry_energy_per_berry')&&verified(productionRegistry,'favorite_berry_multiplier')&&verified(productionRegistry,'ingredient_probability_per_help')&&favoriteMultiplierValue!==null&&berryOutputValue!==null;
   const evidence=Object.freeze({
     pokemon_id:text(candidate?.pokemon_id),species:text(candidate?.species),level:num(candidate?.level),specialty:text(candidate?.specialty)||null,type:text(candidate?.type)||null,
     helper_seconds:num(candidate?.helper_seconds),favorite_berry:text(candidate?.favorite_berry)||null,favorite_berry_match:candidate?.favorite_berry_match??null,
@@ -29,6 +35,11 @@ export function projectMemberProductionEvidence(candidate,{productionRegistry=cu
     favorite_berry_multiplier_status:favoriteMultiplier?.status||'NOT_YET_VERIFIED',
     favorite_adjusted_berry_energy_per_berry:favoriteAdjustedBerryEnergy,
     favorite_adjusted_berry_energy_status:favoriteAdjustedBerryEnergy!==null?'ACTIVE_VERIFIED_PARTIAL_COMPONENT':'NOT_YET_VERIFIED',
+    berry_output_per_regular_berry_result_help:berryOutputValue,
+    berry_output_per_help_status:baseBerryOutput?.status||'NOT_YET_VERIFIED',
+    berry_finding_s_bonus:num(baseBerryOutput?.berry_finding_s_bonus),
+    favorite_adjusted_berry_energy_per_regular_berry_result_help:berryResultHelpEnergy,
+    berry_result_help_energy_status:berryResultHelpEnergy!==null?'ACTIVE_VERIFIED_PARTIAL_COMPONENT':'NOT_YET_VERIFIED',
     main_skill:text(candidate?.main_skill)||null,main_skill_level:num(candidate?.main_skill_level),unlocked_ingredients:Object.freeze(unlockedIngredients),
     berry_energy_per_hour:null,ingredient_per_hour_by_name:null,skill_energy_per_hour:null,
     berry_rate_status:berryRateReady?'ACTIVE_VERIFIED':'NOT_YET_VERIFIED',

@@ -1,7 +1,7 @@
 import {DEFAULT_TEAM_SEARCH_BUDGET} from './bounded-team-search.js';
 import {currentProductionAuthorityRegistry} from './production-authority-registry.js';
 
-export const STRATEGY_OPTIMIZATION_PACK_VERSION='strategy-optimization-pack-2026-08-12-a';
+export const STRATEGY_OPTIMIZATION_PACK_VERSION='strategy-optimization-pack-2026-08-13-b';
 const text=value=>String(value??'').normalize('NFKC').trim();
 const num=value=>{const n=Number(value);return value===null||value===undefined||value===''||!Number.isFinite(n)?null:n;};
 const stable=value=>Array.isArray(value)?value.map(stable):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,stable(value[key])])):value;
@@ -22,7 +22,9 @@ function candidateProductionPayload(ref,row,registry){
     main_skill:text(row?.main_skill)||null,main_skill_level:num(row?.main_skill_level),
     unlocked_ingredients:(row?.unlocked_ingredients||[]).map(item=>({unlock_level:num(item.unlock_level),ingredient_name:text(item.ingredient_name),quantity:num(item.quantity)})).filter(item=>item.ingredient_name),
     rate_statuses:{
-      berry:registry?.rules?.berry_output_per_help?.status==='ACTIVE_VERIFIED'&&registry?.rules?.berry_energy_per_berry?.status==='ACTIVE_VERIFIED'?'ACTIVE_VERIFIED':'NOT_YET_VERIFIED',
+      // Output quantity per Berry-result help is only one component of berries/hour.
+      // Ingredient probability determines how often a regular help resolves to Berries instead of ingredients.
+      berry:registry?.rules?.berry_output_per_help?.status==='ACTIVE_VERIFIED'&&registry?.rules?.berry_energy_per_berry?.status==='ACTIVE_VERIFIED'&&registry?.rules?.ingredient_probability_per_help?.status==='ACTIVE_VERIFIED'?'ACTIVE_VERIFIED':'NOT_YET_VERIFIED',
       ingredient:registry?.rules?.ingredient_probability_per_help?.status==='ACTIVE_VERIFIED'&&registry?.rules?.ingredient_slot_distribution?.status==='ACTIVE_VERIFIED'?'ACTIVE_VERIFIED':'NOT_YET_VERIFIED',
       skill:registry?.rules?.main_skill_trigger_probability?.status==='ACTIVE_VERIFIED'&&registry?.rules?.main_skill_effect_value?.status==='ACTIVE_VERIFIED'?'ACTIVE_VERIFIED':'NOT_YET_VERIFIED',
     },
