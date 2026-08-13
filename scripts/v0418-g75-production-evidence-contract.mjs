@@ -13,10 +13,17 @@ const favoriteMultiplierSuccessor=['v0.4.20','v0.4.21','v0.4.22'].includes(appVe
 const helpSplitSuccessor=['v0.4.21','v0.4.22'].includes(appVersion);
 const baseOutputSuccessor=appVersion==='v0.4.22';
 
+const subskillEvidence=level=>{
+  const count=level>=50?3:level>=25?2:level>=10?1:0;
+  return {unlocked_subskill_slot_count:count,unlocked_subskills:[
+    {unlock_level:10,subskill_name:'幫忙速度S'},
+    {unlock_level:25,subskill_name:'持有上限提升S'},
+    {unlock_level:50,subskill_name:'技能機率提升S'},
+  ].slice(0,count)};
+};
 const candidate=(pokemon_id,type,level,main_skill,favorite_berry_match,ingredient,specialty)=>({
   pokemon_id,type,level,helper_seconds:2200,main_skill,favorite_berry_match,specialty,
-  unlocked_ingredients:[{ingredient_name:ingredient,quantity:2}],unlocked_subskill_slot_count:2,
-  unlocked_subskills:[{unlock_level:10,subskill_name:'幫忙速度S'},{unlock_level:25,subskill_name:'持有上限提升S'}],
+  unlocked_ingredients:[{ingredient_name:ingredient,quantity:2}],...subskillEvidence(level),
 });
 const candidateFeatures={candidates:[
   candidate('private-a','火',30,'能量填充S',true,'火辣香草','樹果'),
