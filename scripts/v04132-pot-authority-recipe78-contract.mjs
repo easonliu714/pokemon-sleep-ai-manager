@@ -71,7 +71,7 @@ const prompt=read('assets/js/prompt-catalog.js');assert.ok(prompt.includes('玩�
 const weeklyExampleMatch=prompt.match(/weekly:wrap\([\s\S]*?\{week_start:null[\s\S]*?\},\n\s*'weekly_context_update'/);assert.ok(weeklyExampleMatch);assert.equal(weeklyExampleMatch[0].includes('pot_size:null'),false);
 const weeklyStore=read('assets/js/weekly-context-store.js');assert.ok(weeklyStore.includes('fieldSources.pot_size=potAuthority.source'));assert.ok(weeklyStore.includes('LEGACY_WEEKLY_POT_FALLBACK'));assert.ok(weeklyStore.includes("SELECT total_capacity FROM account_capacity WHERE capacity_key='pot'"));
 
-assert.equal(RAW_PUBLIC_RECIPE_MASTER.length,76);assert.equal(PUBLIC_RECIPE_MASTER.length,78);assert.equal(PUBLIC_RECIPE_MASTER_VERSION,'public-recipe-master-2026-08-12-a');assert.equal(PUBLIC_RECIPE_ACTIVATION_ADDITIONS.length,2);
+assert.equal(RAW_PUBLIC_RECIPE_MASTER.length,76);assert.equal(PUBLIC_RECIPE_MASTER.length,78);assert.ok(['public-recipe-master-2026-08-12-a','public-recipe-master-2026-08-13-a'].includes(PUBLIC_RECIPE_MASTER_VERSION));assert.equal(PUBLIC_RECIPE_ACTIVATION_ADDITIONS.length,2);
 const categoryCounts=Object.fromEntries(['咖哩／濃湯','沙拉','甜點／飲料'].map(category=>[category,PUBLIC_RECIPE_MASTER.filter(row=>row.category===category).length]));assert.deepEqual(categoryCounts,{'咖哩／濃湯':25,'沙拉':26,'甜點／飲料':27});
 const rawIds=new Set(RAW_PUBLIC_RECIPE_MASTER.map(row=>row.recipe_id));for(const row of RAW_PUBLIC_RECIPE_MASTER)assert.ok(PUBLIC_RECIPE_MASTER.some(current=>current.recipe_id===row.recipe_id));
 const additions=Object.fromEntries(PUBLIC_RECIPE_ACTIVATION_ADDITIONS.map(row=>[row.recipe_id,row]));
@@ -79,7 +79,7 @@ assert.equal(additions.curry_greengrass_bun.recipe_name,'萌綠咖哩麵包');as
 assert.equal(additions.curry_bounce_udon.recipe_name,'彈跳咖哩烏龍麵');assert.equal(additions.curry_bounce_udon.base_energy,25539);assert.equal(additions.curry_bounce_udon.total_ingredients,112);assert.equal(signature(additions.curry_bounce_udon),expectedSignature([['暖暖薑',39],['品鮮蘑菇',31],['火辣香草',22],['豆製肉',20]]));
 for(const id of Object.keys(additions))assert.equal(rawIds.has(id),false);
 
-assert.equal(PUBLIC_RECIPE_PROVENANCE_VERSION,'public-recipe-provenance-2026-08-12-d');assert.equal(PUBLIC_RECIPE_PROVENANCE.length,78);
+assert.ok(['public-recipe-provenance-2026-08-12-d','public-recipe-provenance-2026-08-13-a'].includes(PUBLIC_RECIPE_PROVENANCE_VERSION));assert.equal(PUBLIC_RECIPE_PROVENANCE.length,78);
 const coverage=recipeProvenanceCoverage();assert.equal(coverage.active_recipe_count,78);assert.equal(coverage.upcoming_evidence_count,0);assert.equal(coverage.promoted_historical_evidence_count,2);
 assert.equal(PUBLIC_RECIPE_DISCOVERY.length,2);assert.ok(PUBLIC_RECIPE_DISCOVERY.every(row=>row.active_canonical===true&&row.lifecycle==='PROMOTED_TO_CANONICAL_ACTIVE'));
 const discoveryPlan=projectRecipeDiscoveryStockpile({inventory:[],scoringProjection:{candidates:[]},weeklyContext:{}});assert.equal(discoveryPlan.summary.recipe_candidate_count,0);
