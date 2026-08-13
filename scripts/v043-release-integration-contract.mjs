@@ -27,7 +27,7 @@ assert.equal(versionAtLeast(currentVersion,'v0.4.3'),true,'current release must 
 assert.ok(buildMatch?.[1]&&cacheMatch?.[1],'central build/cache authority missing');
 if(/^v0\.4\.3(?:\.\d+)?$/.test(currentVersion)){assert.match(buildMatch[1],/^20260809-v043(?:1-)?/,'unexpected v0.4.3 patch build authority');assert.match(cacheMatch[1],/^pokemon-sleep-ai-v0\.4\.3(?:\.\d+)?-/,'unexpected v0.4.3 patch cache authority');}
 
-assert.match(PUBLIC_RECIPE_MASTER_VERSION,/^public-recipe-master-2026-08-(?:09-b|11-[a-z]|12-[a-z])$/,'v0.4.3 canonical master must allow reviewed successor versions');
+assert.match(PUBLIC_RECIPE_MASTER_VERSION,/^public-recipe-master-2026-08-(?:09-b|11-[a-z]|12-[a-z]|13-[a-z])$/,'v0.4.3 canonical master must allow reviewed successor versions');
 assert.equal(HISTORICAL_BASE_RECIPE_MASTER.length,76,'v0.4.3 historical recipe baseline must remain 76');
 assert.ok(PUBLIC_RECIPE_MASTER.length>=76,'successor may add evidence-backed recipes but may not remove the v0.4.3 baseline');
 const currentIds=new Set(PUBLIC_RECIPE_MASTER.map(row=>row.recipe_id));
