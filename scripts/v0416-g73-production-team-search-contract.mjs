@@ -9,21 +9,23 @@ import {buildExternalOptimizationPrompt,normalizeOptimizationAiResponse} from '.
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
-const releases=['v0.4.15','v0.4.16','v0.4.17','v0.4.17.1','v0.4.18','v0.4.19','v0.4.20','v0.4.21'];
-const successors=['v0.4.17','v0.4.17.1','v0.4.18','v0.4.19','v0.4.20','v0.4.21'];
+const releases=['v0.4.15','v0.4.16','v0.4.17','v0.4.17.1','v0.4.18','v0.4.19','v0.4.20','v0.4.21','v0.4.22'];
+const successors=['v0.4.17','v0.4.17.1','v0.4.18','v0.4.19','v0.4.20','v0.4.21','v0.4.22'];
 assert.ok(releases.includes(appVersion),`unexpected G7.3 staging/release/successor version ${appVersion}`);
 if(successors.includes(appVersion))assert.ok(version.includes("// app_version: 'v0.4.16'"),`${appVersion} must retain v0.4.16 lineage bridge`);
 
 const registry=currentProductionAuthorityRegistry();
 assert.equal(registry.numeric_rate_model_status,'NOT_YET_VERIFIED');
 assert.equal(registry.rules.helper_interval_seconds.status,'OBSERVED_INPUT');
-assert.equal(registry.rules.berry_energy_per_berry.status,['v0.4.19','v0.4.20','v0.4.21'].includes(appVersion)?'ACTIVE_VERIFIED':'NOT_YET_VERIFIED');
-if(['v0.4.20','v0.4.21'].includes(appVersion))assert.equal(registry.rules.favorite_berry_multiplier.status,'ACTIVE_VERIFIED');
-for(const key of ['berry_output_per_help','ingredient_probability_per_help','ingredient_slot_distribution','main_skill_trigger_probability','main_skill_effect_value'])assert.equal(registry.rules[key].status,'NOT_YET_VERIFIED');
+assert.equal(registry.rules.berry_energy_per_berry.status,['v0.4.19','v0.4.20','v0.4.21','v0.4.22'].includes(appVersion)?'ACTIVE_VERIFIED':'NOT_YET_VERIFIED');
+if(['v0.4.20','v0.4.21','v0.4.22'].includes(appVersion))assert.equal(registry.rules.favorite_berry_multiplier.status,'ACTIVE_VERIFIED');
+assert.equal(registry.rules.berry_output_per_help.status,appVersion==='v0.4.22'?'ACTIVE_VERIFIED':'NOT_YET_VERIFIED');
+for(const key of ['ingredient_probability_per_help','ingredient_slot_distribution','main_skill_trigger_probability','main_skill_effect_value'])assert.equal(registry.rules[key].status,'NOT_YET_VERIFIED');
 
 const features={input_fingerprint:'features:g73',candidates:Array.from({length:5},(_,index)=>({
   pokemon_id:`p${index+1}`,species:`S${index+1}`,level:30,specialty:index===0?'樹果':'食材',helper_seconds:2500+index*100,favorite_berry_match:index===0,
   main_skill:'能量填充S',main_skill_level:3,unlocked_ingredients:[{unlock_level:1,ingredient_name:`I${index+1}`,quantity:2}],
+  unlocked_subskill_slot_count:2,unlocked_subskills:[{unlock_level:10,subskill_name:'幫忙速度S'},{unlock_level:25,subskill_name:'持有上限提升S'}],
 }))};
 const team={team_id:'team:g73',slots:features.candidates.map((row,index)=>({slot_index:index,pokemon_id:row.pokemon_id}))};
 const objective=evaluateTeamObjective({team,candidateFeatures:features,goalProfile:{primary_goal:'max_snorlax_energy'},productionRegistry:registry});
@@ -33,6 +35,7 @@ assert.equal(objective.total_goal_value,null);
 assert.equal(objective.verified_partial_goal_value,null);
 assert.ok(objective.missing_inputs.includes('berry_energy_per_hour:NOT_YET_VERIFIED'));
 assert.ok(objective.members.every(row=>row.berry_energy_per_hour===null&&row.ingredient_per_hour_by_name===null&&row.skill_energy_per_hour===null));
+if(appVersion==='v0.4.22')assert.ok(objective.members.every(row=>row.berry_output_per_help_status==='ACTIVE_VERIFIED'&&row.berry_output_per_regular_berry_result_help>0));
 
 const candidates=[
   {pokemon_id:'A',species:'SA',specialty:'樹果',hard_constraint_status:'PASS',test_score:10},
@@ -71,6 +74,7 @@ assert.deepEqual(pack.payload.seed_team.candidate_refs,['cand_001','cand_002','c
 assert.equal(pack.payload.production_authority.numeric_rate_model_status,'NOT_YET_VERIFIED');
 assert.equal(pack.payload.search_policy.global_optimum_claimed,false);
 assert.equal(pack.payload.search_policy.ai_proposal_requires_deterministic_re_evaluation,true);
+assert.ok(pack.payload.candidate_production_readiness.every(row=>row.rate_statuses.berry==='NOT_YET_VERIFIED'),'berry/hour must remain HOLD until ingredient probability is verified');
 const serialized=JSON.stringify(pack.payload);
 for(const privateId of ['"p1"','"p2"','"p3"','"p4"','"p5"'])assert.equal(serialized.includes(privateId),false,`stable pokemon id leaked into optimization payload: ${privateId}`);
 assert.equal(pack.privacy_manifest.raw_sqlite_in_payload,false);
