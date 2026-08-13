@@ -5,6 +5,9 @@ import {
   PUBLIC_RECIPE_BASE_MASTER_VERSION,
   PUBLIC_RECIPE_FORMULA_AUDIT,
   PUBLIC_RECIPE_FORMULA_AUDIT_VERSION,
+  PUBLIC_RECIPE_LEVEL1_ENERGY_AUDIT,
+  PUBLIC_RECIPE_LEVEL1_ENERGY_VERSION,
+  PUBLIC_RECIPE_LEVEL1_ENERGY_AUTHORITY,
   PUBLIC_RECIPE_FORMULA_MUTATION_POLICY,
   PUBLIC_RECIPE_FORMULA_OVERRIDES,
   PUBLIC_RECIPE_ACTIVATION_ADDITIONS,
@@ -12,6 +15,11 @@ import {
 } from '../assets/js/public-recipe-canonical-authority.js';
 import {PUBLIC_RECIPE_MASTER as RAW_PUBLIC_RECIPE_MASTER} from '../assets/js/public-recipe-master.js';
 import {PUBLIC_INGREDIENT_NAMES} from '../assets/js/shared-master-data.js';
+import {
+  RECIPE_LEVEL_MAX,
+  RECIPE_LEVEL_BONUS_PERCENT,
+  calculateRecipeEnergyById,
+} from '../assets/js/recipe-level-energy-contract.js';
 import {
   buildPublicMasterRecognitionJsonSchema,
   buildPublicMasterCatalogSnapshot,
@@ -25,11 +33,19 @@ const formulaObject=recipe=>Object.fromEntries((recipe?.ingredients||[]).map(row
 const formulaSignature=recipe=>JSON.stringify(Object.entries(formulaObject(recipe)).sort(([a],[b])=>a.localeCompare(b,'zh-Hant')));
 const assertFormula=(recipeId,expected)=>assert.deepEqual(formulaObject(currentById.get(recipeId)),expected,`formula drift: ${recipeId}`);
 
-assert.equal(PUBLIC_RECIPE_MASTER_VERSION,'public-recipe-master-2026-08-13-a');
+assert.equal(PUBLIC_RECIPE_MASTER_VERSION,'public-recipe-master-2026-08-13-b');
 assert.equal(PUBLIC_RECIPE_FORMULA_AUDIT_VERSION,'public-recipe-formula-audit-2026-08-13-a');
+assert.equal(PUBLIC_RECIPE_LEVEL1_ENERGY_VERSION,'public-recipe-level1-energy-2026-08-13-a');
 assert.equal(PUBLIC_RECIPE_BASE_MASTER_VERSION,'public-recipe-master-2026-08-09-a');
 assert.equal(PUBLIC_RECIPE_FORMULA_AUDIT.audited_recipe_count,78);
 assert.equal(PUBLIC_RECIPE_FORMULA_AUDIT.status,'FULL_CATALOG_REFERENCE_CROSSCHECKED');
+assert.equal(PUBLIC_RECIPE_LEVEL1_ENERGY_AUDIT.audited_recipe_count,78);
+assert.equal(PUBLIC_RECIPE_LEVEL1_ENERGY_AUDIT.status,'FULL_CATALOG_LEVEL1_ENERGY_VERIFIED');
+assert.equal(PUBLIC_RECIPE_LEVEL1_ENERGY_AUTHORITY.length,78);
+assert.equal(RECIPE_LEVEL_MAX,70);
+assert.equal(RECIPE_LEVEL_BONUS_PERCENT.length,70);
+assert.equal(RECIPE_LEVEL_BONUS_PERCENT[0],0);
+assert.equal(RECIPE_LEVEL_BONUS_PERCENT[69],258);
 assert.equal(PUBLIC_RECIPE_FORMULA_MUTATION_POLICY.ai_may_mutate_formula,false);
 assert.equal(PUBLIC_RECIPE_FORMULA_MUTATION_POLICY.manual_review_required,true);
 assert.equal(PUBLIC_RECIPE_FORMULA_OVERRIDES.length,0,'historical recipe formulas must not be runtime-overridden after full audit');
@@ -51,6 +67,8 @@ for(const recipe of PUBLIC_RECIPE_MASTER){
   const sum=recipe.ingredients.reduce((total,row)=>total+Number(row.quantity||0),0);
   assert.equal(sum,Number(recipe.total_ingredients),`total_ingredients mismatch: ${recipe.recipe_id}`);
   assert.equal(new Set(recipe.ingredients.map(row=>row.ingredient_name)).size,recipe.ingredients.length,`duplicate ingredient row: ${recipe.recipe_id}`);
+  assert.ok(Number.isInteger(recipe.level1_energy)&&recipe.level1_energy>0,`Lv1 energy missing: ${recipe.recipe_id}`);
+  assert.equal(Number(recipe.base_energy),Number(recipe.level1_energy),`base/Lv1 energy semantic mismatch: ${recipe.recipe_id}`);
   for(const ingredient of recipe.ingredients){
     assert.ok(ingredientNames.has(ingredient.ingredient_name),`unknown ingredient ${ingredient.ingredient_name} in ${recipe.recipe_id}`);
     assert.ok(Number.isInteger(Number(ingredient.quantity))&&Number(ingredient.quantity)>0,`invalid quantity in ${recipe.recipe_id}`);
@@ -86,6 +104,12 @@ assertFormula('dessert_honey_chocolate',{'放鬆可可':21,'甜甜蜜':38,'純�
 assertFormula('curry_greengrass_bun',{'暖暖薑':20,'火辣香草':20,'萌綠大豆':8,'純粹油':15});
 assertFormula('curry_bounce_udon',{'暖暖薑':39,'品鮮蘑菇':31,'火辣香草':22,'豆製肉':20});
 
+// Current screenshot regression anchors for direct level -> current energy synchronization.
+assert.equal(calculateRecipeEnergyById('curry_parent_child',25),6649,'親子愛咖哩 Lv25 energy drift');
+assert.equal(calculateRecipeEnergyById('recipe_curry_015',20),2902,'入口即化蛋捲咖哩 Lv20 rounding drift');
+assert.equal(calculateRecipeEnergyById('curry_apple',11),890,'特選蘋果咖哩 Lv11 energy drift');
+assert.equal(calculateRecipeEnergyById('recipe_curry_014',16),2486,'日照炸肉排咖哩 Lv16 energy drift');
+
 // Gemini/public-recognition may observe player recipe state only; formula payload fields are forbidden.
 const recipeSchema=buildPublicMasterRecognitionJsonSchema('recipes');
 const observedSchema=recipeSchema.properties.observations.items.properties.observed_data;
@@ -114,13 +138,15 @@ assert.ok(validation.errors.some(error=>error.includes('observed_data 不支援�
 
 console.log(JSON.stringify({
   status:'PASS',
-  gate:'V04221_FULL_78_RECIPE_FORMULA_AUTHORITY_AUDIT',
+  gate:'V04221_FULL_78_RECIPE_FORMULA_AND_ENERGY_AUTHORITY_AUDIT',
   recipe_master_version:PUBLIC_RECIPE_MASTER_VERSION,
   formula_audit_version:PUBLIC_RECIPE_FORMULA_AUDIT_VERSION,
+  level1_energy_version:PUBLIC_RECIPE_LEVEL1_ENERGY_VERSION,
   audited_recipe_count:PUBLIC_RECIPE_MASTER.length,
   historical_recipe_count:RAW_PUBLIC_RECIPE_MASTER.length,
   activation_addition_count:PUBLIC_RECIPE_ACTIVATION_ADDITIONS.length,
   runtime_formula_override_count:PUBLIC_RECIPE_FORMULA_OVERRIDES.length,
+  level_energy_max:RECIPE_LEVEL_MAX,
   parent_child_formula:'特選蘋果x11+特選蛋x8+甜甜蜜x12+窩心洋芋x4',
   ai_formula_mutation_allowed:false,
 },null,2));
