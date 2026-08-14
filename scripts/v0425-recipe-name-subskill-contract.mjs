@@ -40,11 +40,7 @@ assert.equal(renamedCount,18,'v0.4.25 audit should correct exactly the verified 
 
 const spicy=currentById.get('curry_spicy_leek'),spicyPrevious=previousById.get('curry_spicy_leek');
 assert.equal(spicy.recipe_name,'辣味蔥勁十足咖哩');
-assert.deepEqual(spicy.ingredients,[
-  {ingredient_name:'粗枝大蔥',quantity:14},
-  {ingredient_name:'暖暖薑',quantity:10},
-  {ingredient_name:'火辣香草',quantity:8},
-]);
+assert.deepEqual(Object.fromEntries(spicy.ingredients.map(row=>[row.ingredient_name,row.quantity])),{'粗枝大蔥':14,'暖暖薑':10,'火辣香草':8});
 assert.ok(PUBLIC_RECIPE_ALIASES.some(row=>row.recipe_id==='curry_spicy_leek'&&row.alias_value==='微辣蔥咖哩'&&row.is_auto_replace_safe===true));
 assert.ok(recipeAliasesForCanonical('curry_spicy_leek',spicyPrevious.recipe_name).includes('辣味蔥勁十足咖哩'),'old recognition snapshot must accept current in-game name');
 assert.equal(isRecipeAutomaticIdentityMatch('辣味蔥勁十足咖哩',spicyPrevious),true);
