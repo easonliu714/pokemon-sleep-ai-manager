@@ -77,9 +77,13 @@ assert.equal(mismatch.nature_reconciliation.auto_rewrite_player_observation,fals
 
 const registry=currentProductionAuthorityRegistry();
 const baseNumeric=['berry_output_per_help','berry_energy_per_berry','favorite_berry_multiplier','ingredient_probability_per_help','ingredient_slot_distribution','main_skill_trigger_probability','main_skill_effect_value'];
-assert.equal(baseNumeric.filter(name=>registry.rules[name]?.status==='ACTIVE_VERIFIED').length,3);
+const active=baseNumeric.filter(name=>registry.rules[name]?.status==='ACTIVE_VERIFIED');
+const slotSuccessor=registry.rules.ingredient_slot_distribution?.status==='ACTIVE_VERIFIED';
+if(slotSuccessor){assert.equal(registry.rules.ingredient_slot_distribution.rule_version,'ingredient-slot-distribution-v1');assert.equal(registry.rules.ingredient_slot_distribution.runtime_numeric_activation,true);}
+assert.deepEqual(active,['berry_output_per_help','berry_energy_per_berry','favorite_berry_multiplier',...(slotSuccessor?['ingredient_slot_distribution']:[])],'Recipe/Subskill authority must not promote Production dimensions; only exact E3B slot successor is allowed');
 assert.equal(registry.rules.ingredient_probability_per_help.status,'NOT_YET_VERIFIED');
 assert.equal(registry.rules.main_skill_trigger_probability.status,'NOT_YET_VERIFIED');
+assert.equal(registry.rules.main_skill_effect_value.status,'NOT_YET_VERIFIED');
 assert.equal(registry.numeric_rate_model_status,'NOT_YET_VERIFIED');
 
 const displayEvidenceSource=fs.readFileSync('assets/js/recipe-display-name-evidence.js','utf8');
@@ -101,6 +105,6 @@ console.log(JSON.stringify({
   subskill_numeric_registry_version:SUBSKILL_NUMERIC_MODIFIER_VERSION,helping_bonus_reduction:0.05,
   helping_speed_reductions:[0.07,0.14],subskill_help_speed_cap:SUBSKILL_HELP_SPEED_REDUCTION_CAP,
   ingredient_finder_s_multiplier:1.18,skill_trigger_m_multiplier:1.36,
-  base_numeric_dimensions_active:'3/7',overall_numeric_model_status:registry.numeric_rate_model_status,
+  base_numeric_dimensions_active:`${active.length}/7`,ingredient_slot_successor:slotSuccessor,overall_numeric_model_status:registry.numeric_rate_model_status,
   nature_mismatch_auto_rewrite:false,sqlite_player_public_master_overwrite:false,
 },null,2));
