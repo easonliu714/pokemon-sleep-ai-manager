@@ -80,15 +80,18 @@ assert.equal(registry.numeric_rate_model_status,'NOT_YET_VERIFIED');
 assert.equal(registry.rules.berry_output_per_help.status,'ACTIVE_VERIFIED');
 assert.equal(registry.rules.berry_output_per_help.scope,BASE_BERRY_OUTPUT_SCOPE);
 assert.deepEqual(registry.rules.berry_output_per_help.missing_inputs,[]);
-assert.deepEqual(registry.active_verified_dimensions,['berry_output_per_help','berry_energy_per_berry','favorite_berry_multiplier']);
+const slotSuccessor=registry.rules.ingredient_slot_distribution?.status==='ACTIVE_VERIFIED';
+if(slotSuccessor){assert.equal(registry.rules.ingredient_slot_distribution.rule_version,'ingredient-slot-distribution-v1');assert.equal(registry.rules.ingredient_slot_distribution.runtime_numeric_activation,true);}
+assert.deepEqual(registry.active_verified_dimensions,['berry_output_per_help','berry_energy_per_berry','favorite_berry_multiplier',...(slotSuccessor?['ingredient_slot_distribution']:[])]);
 assert.deepEqual(registry.active_verified_structural_dimensions,['help_event_split']);
 
 const snapshot=buildProductionEvidenceSnapshot({candidateFeatures,weeklyContext,productionRegistry:registry});
 assert.equal(snapshot.activation_decision,'HOLD_NUMERIC_MODEL_NOT_ACTIVE');
 assert.equal(snapshot.numeric_rate_model_status,'NOT_YET_VERIFIED');
 assert.equal(snapshot.summary.numeric_dimension_count,7);
-assert.equal(snapshot.summary.active_numeric_dimension_count,3);
-assert.equal(snapshot.summary.blocked_numeric_dimension_count,4);
+const expectedActive=3+(slotSuccessor?1:0);
+assert.equal(snapshot.summary.active_numeric_dimension_count,expectedActive);
+assert.equal(snapshot.summary.blocked_numeric_dimension_count,7-expectedActive);
 assert.equal(snapshot.summary.base_berry_output_resolved_candidate_count,75);
 assert.equal(snapshot.summary.berry_finding_s_candidate_count,15);
 const outputRow=snapshot.rules.find(row=>row.dimension==='berry_output_per_help');
@@ -107,6 +110,7 @@ assert.notEqual(member.favorite_adjusted_berry_energy_per_regular_berry_result_h
 assert.equal(member.berry_result_help_energy_status,'ACTIVE_VERIFIED_PARTIAL_COMPONENT');
 assert.equal(member.berry_rate_status,'NOT_YET_VERIFIED','Berry/hour must remain blocked until Berry-vs-ingredient outcome probability is verified');
 assert.equal(member.berry_energy_per_hour,null);
+assert.equal(member.ingredient_per_hour_by_name,null,'slot distribution alone must not manufacture ingredient/hour');
 
 const team={team_id:'berry-output-partial',slots:candidateFeatures.candidates.slice(0,5).map(row=>({pokemon_id:row.pokemon_id}))};
 const objective=evaluateTeamObjective({team,candidateFeatures,goalProfile:{primary_goal:'max_snorlax_energy'},productionRegistry:registry});
@@ -136,7 +140,8 @@ console.log(JSON.stringify({
   base_berry_output_coverage:`${snapshot.summary.base_berry_output_resolved_candidate_count}/${snapshot.candidate_count}`,
   active_numeric_dimension_count:snapshot.summary.active_numeric_dimension_count,
   blocked_numeric_dimension_count:snapshot.summary.blocked_numeric_dimension_count,
-  berry_energy_per_hour:null,overall_numeric_model_status:registry.numeric_rate_model_status,
+  ingredient_slot_successor:slotSuccessor,
+  berry_energy_per_hour:null,ingredient_hour_still_blocked:true,overall_numeric_model_status:registry.numeric_rate_model_status,
   event_expert_skill_modifiers_isolated:true,ingredient_outcome_probability_still_required:true,
   player_write:false,sqlite_write:false,runtime_network_fetch:false,ai_numeric_authority:false,
 },null,2));
