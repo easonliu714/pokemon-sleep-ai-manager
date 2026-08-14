@@ -8,6 +8,7 @@ on:
       - 'fix/**'
     paths:
       - 'assets/js/ingredient-probability-activation-policy.js'
+      - 'assets/js/public-pokemon-species-form-roster-readiness.js'
       - 'assets/js/public-species-ingredient-rate-reference.js'
       - 'assets/js/ingredient-probability-reference-contract.js'
       - 'assets/js/ingredient-slot-distribution-contract.js'
@@ -24,6 +25,7 @@ on:
   pull_request:
     paths:
       - 'assets/js/ingredient-probability-activation-policy.js'
+      - 'assets/js/public-pokemon-species-form-roster-readiness.js'
       - 'assets/js/public-species-ingredient-rate-reference.js'
       - 'assets/js/ingredient-probability-reference-contract.js'
       - 'assets/js/ingredient-slot-distribution-contract.js'
@@ -53,6 +55,7 @@ jobs:
       - name: Syntax check probability evidence policy
         run: |
           node --check assets/js/ingredient-probability-activation-policy.js
+          node --check assets/js/public-pokemon-species-form-roster-readiness.js
           node --check scripts/v0428-g75e3c-probability-evidence-policy-contract.mjs
       - name: Verify probability activation evidence policy
         run: node scripts/v0428-g75e3c-probability-evidence-policy-contract.mjs
@@ -64,13 +67,15 @@ jobs:
         run: node scripts/v0426-g75e3a-species-ingredient-rate-reference-contract.mjs
       - name: Preserve Recipe 78 current authority
         run: node scripts/v04251-recipe-current-authority-lock-contract.mjs
-      - name: Verify policy is read-only and local
+      - name: Verify policy and roster boundary are read-only and local
         run: |
           node - <<'NODE'
           const fs=require('node:fs');
-          const source=fs.readFileSync('assets/js/ingredient-probability-activation-policy.js','utf8');
-          for(const forbidden of ['fetch(', 'localStorage', 'sessionStorage', 'indexedDB', 'INSERT INTO', 'UPDATE ingredient_inventory', 'DELETE FROM', 'applyPayload(', 'dryRun(']) {
-            if(source.includes(forbidden)) throw new Error(`probability policy contains forbidden path: ${forbidden}`);
+          for(const file of ['assets/js/ingredient-probability-activation-policy.js','assets/js/public-pokemon-species-form-roster-readiness.js']) {
+            const source=fs.readFileSync(file,'utf8');
+            for(const forbidden of ['fetch(', 'localStorage', 'sessionStorage', 'indexedDB', 'INSERT INTO', 'UPDATE ingredient_inventory', 'DELETE FROM', 'applyPayload(', 'dryRun(']) {
+              if(source.includes(forbidden)) throw new Error(`${file} contains forbidden path: ${forbidden}`);
+            }
           }
           NODE
       - name: Verify repository not mutated
