@@ -54,7 +54,7 @@ const p2=profiles.find(row=>row.pokemon_id==='P2');
 const p3=profiles.find(row=>row.pokemon_id==='P3');
 assert.deepEqual(p1.ingredients,['醒腦咖啡豆']);
 assert.deepEqual([...p1.subskills].sort(),['幫忙速度S','食材機率提升S'].sort());
-assert.equal(p1.main_skill,'食材獲取S（固定）');
+assert.equal(p1.main_skill,'食材獲取S(固定)');
 
 const facets=buildPokemonRosterFacetOptions(profiles);
 assert.deepEqual(facets.berries,['橙橙果','葡萄果','金枕果'].sort((a,b)=>a.localeCompare(b,'zh-Hant')));
@@ -81,7 +81,7 @@ assert.equal(rankedCoffee.length,3);
 assert.equal(rankedCoffee[0].profile.pokemon_id,'P1','explicit relevant positive evidence must outrank higher existing rating with a relevant penalty');
 assert.ok(rankedCoffee[0].evidence.score>rankedCoffee[1].evidence.score);
 
-const skillFilter={main_skill:'食材獲取S（固定）'};
+const skillFilter={main_skill:'食材獲取S(固定)'};
 const rankedSkill=rankRosterFilterMatches(profiles,skillFilter);
 assert.deepEqual(rankedSkill.map(row=>row.profile.pokemon_id).sort(),['P1','P3']);
 assert.ok(recommendationEvidenceForProfile(p3,skillFilter).badges.some(row=>row.label==='副技能加成：技能機率提升S'));
