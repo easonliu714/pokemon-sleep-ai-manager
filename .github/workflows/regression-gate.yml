@@ -26,6 +26,9 @@ jobs:
       - name: Verify CI topology policy
         run: node scripts/ci-topology-policy-contract.mjs
 
+      - name: Verify species ingredient candidate boundary
+        run: node scripts/species-ingredient-candidate-source-extract-contract.mjs
+
       - name: Extract pinned species ingredient candidates
         env:
           ALLOW_PINNED_EVIDENCE_FETCH: '1'
