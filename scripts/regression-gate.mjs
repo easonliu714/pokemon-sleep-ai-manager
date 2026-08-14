@@ -130,4 +130,19 @@ async function serviceWorkerGate(){
   assert.match(sw,/skipWaiting\(\)/,'service worker must call skipWaiting');assert.match(sw,/clients\.claim\(\)/,'service worker must claim clients');assert.match(sw,/keys\.filter\(\(key\) => key !== CACHE\)/,'service worker must delete stale caches');console.log('PASS service worker: canonical/public catalog modules cached and stale caches removed');
 }
 
-await syntaxGate();await migrationStaticGate();await migrationFixtureGate();await knowledgeGate();await serviceWorkerGate();console.log('REGRESSION GATE PASS');
+function annotationEscape(value){return String(value??'').replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A');}
+async function runPhase(name,fn){
+  try{await fn();}
+  catch(error){
+    const detail=error?.stack||error?.message||String(error);
+    console.error(`::error title=${annotationEscape(`Frontend regression ${name}`)}::${annotationEscape(detail)}`);
+    throw error;
+  }
+}
+
+await runPhase('syntax',syntaxGate);
+await runPhase('migration-static',migrationStaticGate);
+await runPhase('migration-fixture',migrationFixtureGate);
+await runPhase('knowledge',knowledgeGate);
+await runPhase('service-worker',serviceWorkerGate);
+console.log('REGRESSION GATE PASS');
