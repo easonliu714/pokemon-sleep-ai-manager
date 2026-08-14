@@ -3,7 +3,13 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {spawnSync} from 'node:child_process';
 
-export const LEGACY_RUNTIME_REGRESSION_VERSION='legacy-runtime-regression-2026-08-14-a';
+export const LEGACY_RUNTIME_REGRESSION_VERSION='legacy-runtime-regression-2026-08-14-b';
+let currentPhase='bootstrap';
+function annotationSafe(value){return String(value??'').replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A');}
+process.on('uncaughtException',error=>{
+  console.error(`::error title=${annotationSafe(`Legacy runtime ${currentPhase}`)}::${annotationSafe(error?.stack||error?.message||error)}`);
+  process.exitCode=1;
+});
 
 const existingContracts=Object.freeze([
   'tests/v03751_version_authority_gate.mjs',
@@ -12,7 +18,6 @@ const existingContracts=Object.freeze([
   'scripts/v0392-new-user-bootstrap-gate.mjs',
 ]);
 
-function annotationSafe(value){return String(value??'').replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A');}
 function run(command,args,{label=command}={}){
   const result=spawnSync(command,args,{encoding:'utf8'});
   if(result.stdout)process.stdout.write(result.stdout);
@@ -26,14 +31,14 @@ function run(command,args,{label=command}={}){
 }
 const read=path=>fs.readFileSync(path,'utf8');
 
+currentPhase='existing-contracts';
 for(const path of existingContracts){
   assert.equal(fs.existsSync(path),true,`legacy behavioral contract missing: ${path}`);
   run(process.execPath,['--check',path],{label:`syntax:${path}`});
   run(process.execPath,[path],{label:`contract:${path}`});
 }
 
-// v0.3.82 historical intent: snapshot/import/master/migration are present and
-// runtime/cache authority stays centralized instead of being copied into feature files.
+currentPhase='v0382-central-authority';
 {
   const required=['assets/js/v0382-image-byte-snapshot.js','assets/js/unified-import-analysis-workbench.js','assets/js/migrations.js','assets/js/shared-master-data.js','assets/js/public-recipe-master.js','assets/js/public-recipe-master-sync.js','assets/js/version-authority.js'];
   for(const path of required)assert.equal(fs.existsSync(path),true,`v0382 dependency missing: ${path}`);
@@ -45,7 +50,7 @@ for(const path of existingContracts){
   console.log('PASS legacy v0.3.82 centralized-authority contract');
 }
 
-// v0.3.85 / v0.3.87.1 boot-isolation and finalize behavior, successor-aware.
+currentPhase='boot-isolation-finalize';
 {
   for(const path of ['assets/js/database.js','assets/js/app.js','assets/js/bootstrap.js','assets/js/v0383-catalog-ocr-review-contract.js','assets/js/public-catalog-workbench.js','assets/js/version-authority.js'])assert.equal(fs.existsSync(path),true,`${path} missing`);
   const database=read('assets/js/database.js'),app=read('assets/js/app.js'),bootstrap=read('assets/js/bootstrap.js'),catalogContract=read('assets/js/v0383-catalog-ocr-review-contract.js'),catalog=read('assets/js/public-catalog-workbench.js');
@@ -55,7 +60,7 @@ for(const path of existingContracts){
   console.log('PASS legacy boot-isolation/finalize contract');
 }
 
-// v0.3.88 zero-SQL rescue behavior. This is a current safety boundary, not an old version marker.
+currentPhase='zero-sql-rescue';
 {
   const database=read('assets/js/database.js'),app=read('assets/js/app.js');
   assert.match(database,/RESCUE_READY/);assert.match(database,/BOOTSTRAP_COMPLETE/);assert.match(database,/rescueReadonly/);assert.match(database,/readonly_rescue_mode/);assert.match(database,/zero_sql:true/);assert.match(database,/if\(rescueReadonly\)return \[\]/);assert.match(database,/if\(rescueReadonly\)return 0/);assert.match(app,/initializeDatabase/);
@@ -63,7 +68,7 @@ for(const path of existingContracts){
   console.log('PASS legacy zero-SQL rescue contract');
 }
 
-// v0.3.90 worker isolation + v0.3.91 lifecycle-race closure under central authority.
+currentPhase='worker-isolation-lifecycle';
 {
   for(const path of ['assets/js/database.js','assets/js/storage.js','assets/js/sqlite-load-worker.js','assets/js/v0390-worker-load-control.js','assets/js/bootstrap.js','assets/js/version-authority.js','service-worker.js','index.html'])assert.equal(fs.existsSync(path),true,`${path} missing`);
   const database=read('assets/js/database.js'),storage=read('assets/js/storage.js'),worker=read('assets/js/sqlite-load-worker.js'),control=read('assets/js/v0390-worker-load-control.js'),bootstrap=read('assets/js/bootstrap.js'),authority=read('assets/js/version-authority.js'),sw=read('service-worker.js'),index=read('index.html');
@@ -74,5 +79,6 @@ for(const path of existingContracts){
   console.log('PASS legacy worker isolation/lifecycle contract');
 }
 
+currentPhase='mutation-guard';
 run('git',['diff','--exit-code'],{label:'legacy-runtime mutation guard'});
 console.log(JSON.stringify({status:'PASS',gate:'LEGACY_RUNTIME_REGRESSION',version:LEGACY_RUNTIME_REGRESSION_VERSION,existing_contract_count:existingContracts.length,embedded_behavior_groups:4,player_data_write:false,release_authority_mutation:false},null,2));
