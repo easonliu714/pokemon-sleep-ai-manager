@@ -67,6 +67,9 @@ export const INGREDIENT_PRODUCTION_SEMANTIC_BOUNDARY=freeze({
       INGREDIENT_PRODUCTION_EVIDENCE_SOURCES.raenonx_production_rates,
     ]),
     blockers:freeze([
+      // Kept for historical G7.5 predecessor contracts; the newer blocker below is the
+      // stricter activation prerequisite and does not weaken the HOLD boundary.
+      'SPECIES_BASE_INGREDIENT_RATE_LOCAL_MASTER_MISSING',
       'LOCAL_VERSIONED_SPECIES_BASE_INGREDIENT_RATE_MASTER_MISSING',
       'FULL_CURRENT_SPECIES_PROVENANCE_COVERAGE_MISSING',
       'DETERMINISTIC_FIXTURE_ANCHORS_MISSING',
@@ -92,6 +95,8 @@ export const INGREDIENT_PRODUCTION_SEMANTIC_BOUNDARY=freeze({
     reference_candidate_rule:'EQUAL_SELECTION_AMONG_CURRENTLY_UNLOCKED_INGREDIENT_SLOTS',
     reference_candidate_weights:freeze({level_1:'1',level_30:'1/2_each_unlocked_slot',level_60:'1/3_each_unlocked_slot'}),
     blockers:freeze([
+      // Historical wording remains as an alias so predecessor gates can replay unchanged.
+      'INGREDIENT_SLOT_PRODUCTION_WEIGHT_RULE_MISSING',
       'LOCAL_GOVERNED_PRODUCTION_SLOT_SELECTION_CONTRACT_MISSING',
       'INDEPENDENT_CROSSCHECK_OR_LOCAL_OBSERVATION_FIXTURE_MISSING',
       'EDGE_CASE_CONTRACT_FOR_DUPLICATE_INGREDIENT_NAMES_MISSING',
