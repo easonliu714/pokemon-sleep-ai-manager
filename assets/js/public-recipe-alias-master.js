@@ -32,20 +32,19 @@ export function normalizeRecipeIdentityText(value){
 }
 
 export function recipeAliasesForCanonical(recipeId,recipeName,aliases=PUBLIC_RECIPE_ALIASES){
-  const id=String(recipeId??'').trim(),name=normalizeRecipeIdentityText(recipeName);
-  return aliases
-    .filter(row=>String(row.recipe_id??'').trim()===id&&normalizeRecipeIdentityText(row.recipe_name)===name)
-    .map(row=>row.alias_name);
+  const id=String(recipeId??'').trim(),requestedName=normalizeRecipeIdentityText(recipeName),current=canonicalById.get(id),currentName=normalizeRecipeIdentityText(current?.recipe_name);
+  const values=aliases.filter(row=>String(row.recipe_id??'').trim()===id).map(row=>row.alias_name);
+  // Successor bridge: a restored/older recognition snapshot can still carry the previous
+  // canonical display name. The current audited in-game name is then exposed as an approved
+  // identity alias for that snapshot only; current runtime catalog/master remains authoritative.
+  if(currentName&&requestedName&&currentName!==requestedName)values.push(current.recipe_name);
+  return [...new Set(values.filter(Boolean))];
 }
 
 export function isApprovedRecipeAlias(observedText,recipeId,recipeName,aliases=PUBLIC_RECIPE_ALIASES){
   const observed=normalizeRecipeIdentityText(observedText);
   if(!observed)return false;
-  return aliases.some(row=>
-    String(row.recipe_id??'').trim()===String(recipeId??'').trim()&&
-    normalizeRecipeIdentityText(row.recipe_name)===normalizeRecipeIdentityText(recipeName)&&
-    normalizeRecipeIdentityText(row.alias_name)===observed
-  );
+  return recipeAliasesForCanonical(recipeId,recipeName,aliases).some(alias=>normalizeRecipeIdentityText(alias)===observed);
 }
 
 export function isRecipeAutomaticIdentityMatch(observedText,recipeRow,{userResolution=null,aliases=PUBLIC_RECIPE_ALIASES}={}){
