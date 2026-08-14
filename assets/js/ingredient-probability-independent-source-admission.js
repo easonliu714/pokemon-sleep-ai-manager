@@ -1,7 +1,7 @@
 import {INDEPENDENT_CROSSCHECK_SOURCE_STATUS} from './ingredient-probability-independent-crosscheck-contract.js';
 
-export const INGREDIENT_PROBABILITY_INDEPENDENT_SOURCE_ADMISSION_ID='ingredient-probability-independent-source-admission-2026-08-14-b';
-export const INGREDIENT_PROBABILITY_INDEPENDENT_SOURCE_ADMISSION_VERSION='ingredient-probability-independent-source-admission-v1.1';
+export const INGREDIENT_PROBABILITY_INDEPENDENT_SOURCE_ADMISSION_ID='ingredient-probability-independent-source-admission-2026-08-14-a';
+export const INGREDIENT_PROBABILITY_INDEPENDENT_SOURCE_ADMISSION_VERSION='ingredient-probability-independent-source-admission-v1';
 
 export const INDEPENDENT_SOURCE_LINEAGE_REVIEW_STATUS=Object.freeze({
   NOT_REVIEWED:'NOT_REVIEWED',
@@ -69,7 +69,7 @@ export function evaluateIndependentIngredientProbabilitySourceAdmission(source={
 
 export function currentIndependentIngredientProbabilitySourceAdmissionContract(){
   return freeze({
-    schema:'pokemon-sleep-ingredient-probability-independent-source-admission/1.1',
+    schema:'pokemon-sleep-ingredient-probability-independent-source-admission/1.0',
     contract_id:INGREDIENT_PROBABILITY_INDEPENDENT_SOURCE_ADMISSION_ID,
     contract_version:INGREDIENT_PROBABILITY_INDEPENDENT_SOURCE_ADMISSION_VERSION,
     requirements:INDEPENDENT_SOURCE_ADMISSION_REQUIREMENTS,
