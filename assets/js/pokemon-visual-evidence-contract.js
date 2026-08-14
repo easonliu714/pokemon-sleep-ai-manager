@@ -3,7 +3,8 @@ import {inspectIngredientIdentity} from './public-ingredient-identity.js';
 import {publicSpeciesIngredientCandidatesForObservedName} from './public-species-form-zh-tw-identity-resolver.js';
 
 export const POKEMON_VISUAL_EVIDENCE_SCHEMA='pokemon-sleep-pokemon-visual-evidence/1.0';
-export const POKEMON_VISUAL_EVIDENCE_VERSION='pokemon-visual-evidence-2026-08-15-b-species-ingredient-candidates';
+export const POKEMON_VISUAL_EVIDENCE_VERSION='pokemon-visual-evidence-2026-08-15-c-direct-image-basis';
+export const DIRECT_IMAGE_OBSERVATION_BASIS='DIRECT_IMAGE';
 export const PUBLIC_RELATION_MUST_NOT_GENERATE_PLAYER_OBSERVATION=true;
 export const DIRECT_EVIDENCE_KINDS=Object.freeze([
   'TYPE_VISUAL','BERRY_VISUAL','INGREDIENT_VISUAL','MAIN_SKILL_TEXT','SUBSKILL_TEXT',
@@ -24,10 +25,12 @@ function result(status,check,extra={}){
 function inspectDirectEvidence(evidence,expectedKind){
   if(!evidence)return result('REVIEW_REQUIRED',expectedKind,{reason:'DIRECT_EVIDENCE_MISSING',observed_value:null});
   if(evidence.kind!==expectedKind)return result('REVIEW_REQUIRED',expectedKind,{reason:'DIRECT_EVIDENCE_KIND_MISMATCH',observed_value:clean(evidence.value)});
+  if(evidence.observation_basis!==DIRECT_IMAGE_OBSERVATION_BASIS)return result('REVIEW_REQUIRED',expectedKind,{reason:'DIRECT_IMAGE_BASIS_REQUIRED',observed_value:clean(evidence.value),observation_basis:evidence.observation_basis||null});
+  if(evidence.inference_used!==false)return result('REVIEW_REQUIRED',expectedKind,{reason:'INFERENCE_FORBIDDEN_FOR_DIRECT_EVIDENCE',observed_value:clean(evidence.value),inference_used:evidence.inference_used??null});
   if(!clean(evidence.value))return result('REVIEW_REQUIRED',expectedKind,{reason:'DIRECT_EVIDENCE_VALUE_MISSING',observed_value:null});
   if(!clean(evidence.source_image_ref))return result('REVIEW_REQUIRED',expectedKind,{reason:'SOURCE_IMAGE_REF_MISSING',observed_value:clean(evidence.value)});
   if(!finiteConfidence(evidence.confidence))return result('REVIEW_REQUIRED',expectedKind,{reason:'CONFIDENCE_INVALID',observed_value:clean(evidence.value)});
-  return result('MATCH',expectedKind,{reason:'DIRECT_EVIDENCE_STRUCTURALLY_VALID',observed_value:clean(evidence.value),source_image_ref:clean(evidence.source_image_ref),confidence:Number(evidence.confidence)});
+  return result('MATCH',expectedKind,{reason:'DIRECT_EVIDENCE_STRUCTURALLY_VALID',observed_value:clean(evidence.value),source_image_ref:clean(evidence.source_image_ref),confidence:Number(evidence.confidence),observation_basis:DIRECT_IMAGE_OBSERVATION_BASIS,inference_used:false});
 }
 
 export function evaluateTypeBerryConsistency({type=null,berry=null}={}){
