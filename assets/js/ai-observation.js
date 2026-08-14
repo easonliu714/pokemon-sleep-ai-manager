@@ -1,7 +1,10 @@
+import {POKEMON_VISUAL_EVIDENCE_VERSION} from './pokemon-visual-evidence-contract.js';
+
 const UNKNOWN_VALUES=new Set(['','n/a','na','unknown','未知','不明','看不清楚','無法辨識','null','none','-']);
 const NUMBER_FIELDS=new Set(['level','sp','main_skill_level','helper_seconds','carry_limit','quantity','unlock_level','sleep_hours']);
 const SUBSKILL_LEVEL_MAP=new Map([[75,70],[100,80]]);
 const AUDIT_STATUSES=new Set(['user_confirmed_not_visible','not_observed_yet','missing','conflicting']);
+const VISUAL_KINDS=new Set(['TYPE_VISUAL','BERRY_VISUAL','INGREDIENT_VISUAL','MAIN_SKILL_TEXT','SUBSKILL_TEXT']);
 
 const clone=value=>JSON.parse(JSON.stringify(value));
 const cleanText=value=>typeof value==='string'?value.trim():value;
@@ -44,6 +47,35 @@ function normalizeAuditCandidates(value){
   }));
 }
 
+function normalizeDirectVisualEvidence(value,kind,{unlockLevel=null}={}){
+  if(!value||typeof value!=='object'||Array.isArray(value))return null;
+  const normalized=normalizeObject(value);
+  const output={
+    kind,
+    value:normalized.value??null,
+    source_image_ref:normalized.source_image_ref||null,
+    confidence:normalized.confidence==null?null:Number(normalized.confidence),
+  };
+  const level=Number(normalized.unlock_level??unlockLevel);
+  if(Number.isFinite(level))output.unlock_level=SUBSKILL_LEVEL_MAP.get(level)||level;
+  return output;
+}
+
+function normalizeVisualEvidence(value){
+  if(!value||typeof value!=='object'||Array.isArray(value))return null;
+  const ingredients=(Array.isArray(value.ingredients)?value.ingredients:[]).map(row=>normalizeDirectVisualEvidence(row,'INGREDIENT_VISUAL',{unlockLevel:row?.unlock_level})).filter(Boolean);
+  const subskills=(Array.isArray(value.subskills)?value.subskills:[]).map(row=>normalizeDirectVisualEvidence(row,'SUBSKILL_TEXT',{unlockLevel:row?.unlock_level})).filter(Boolean);
+  return {
+    contract_version:POKEMON_VISUAL_EVIDENCE_VERSION,
+    public_relation_may_generate_player_observation:false,
+    type:normalizeDirectVisualEvidence(value.type,'TYPE_VISUAL'),
+    berry:normalizeDirectVisualEvidence(value.berry,'BERRY_VISUAL'),
+    ingredients,
+    main_skill:normalizeDirectVisualEvidence(value.main_skill,'MAIN_SKILL_TEXT'),
+    subskills,
+  };
+}
+
 function normalizeObservation(item,index){
   const normalized=normalizeObject(item||{});
   normalized.incoming_ref=normalized.incoming_ref||`pokemon-image-${String(index+1).padStart(3,'0')}`;
@@ -64,13 +96,14 @@ function normalizeObservation(item,index){
   });
   normalized.audit_candidates=normalizeAuditCandidates(normalized.audit_candidates);
   normalized.evidence={source_image_refs:[],field_confidence:{},unreadable_fields:[],notes:null,...(normalized.evidence||{})};
+  normalized.visual_evidence=normalizeVisualEvidence(normalized.visual_evidence);
   delete normalized.action;
   delete normalized.pokemon_id;
   delete normalized.pokemon_instance_id;
   return normalized;
 }
 
-export const AI_OBSERVATION_PROMPT=`你是 Pokémon Sleep 圖片資料觀察器。請只輸出單一 JSON 物件，不輸出 Markdown、解釋或前後文字。\n\n重要規則：\n1. 你只記錄圖片中可見的事實，不判斷這是新成員、升級、更名或進化。\n2. requested_action 固定為 resolve_on_import。\n3. 不得自行建立 pokemon_id、pokemon_instance_id、instance_discriminator、insert、update 或 upsert。\n4. 只有提示詞已提供 target_pokemon_instance_id 或 target_update_token 時，才能原樣回傳；否則填 null。\n5. 看不清楚、未顯示或無法確認的欄位填 null，不可猜測；空值在更新中心代表保留既有值，不是清空。\n6. 食材等級只用 1、30、60；副技能等級只用 10、25、50、70、80。\n7. 畫面只顯示部分食材槽或副技能槽時，不得用物種公版候選補齊；在 audit_candidates 加入 slot_type、unlock_levels、status=user_confirmed_not_visible、confirmed_by_user=false。\n8. 遊戲畫面若出現「一起睡覺的時間」，必須以這個遊戲原文辨識：profile.sleep_time_text 保存畫面原文（例如 154小時3分），profile.sleep_hours 保存換算後的小時數。若畫面沒有顯示，兩者填 null；不得由等級、入手日期或其他欄位推算。\n9. 「一起睡覺的時間」與「進化所需一起睡覺的時間」屬同一語意家族：前者是目前累積值，後者是進化條件門檻，不得互相混填。\n10. 其他欄位也優先依遊戲畫面實際標題理解；JSON machine key 僅用於資料交換，不可反過來改寫畫面語意。\n11. 數值使用 JSON number，不使用含單位字串；只有 sleep_time_text 例外，因為它專門保存遊戲原文。\n12. schema_version 固定為 2.0-observation，source 固定為 ai_screenshot_observation。`;
+export const AI_OBSERVATION_PROMPT=`你是 Pokémon Sleep 圖片資料觀察器。請只輸出單一 JSON 物件，不輸出 Markdown、解釋或前後文字。\n\n重要規則：\n1. 你只記錄圖片中可見的事實，不判斷這是新成員、升級、更名或進化。\n2. requested_action 固定為 resolve_on_import。\n3. 不得自行建立 pokemon_id、pokemon_instance_id、instance_discriminator、insert、update 或 upsert。\n4. 只有提示詞已提供 target_pokemon_instance_id 或 target_update_token 時，才能原樣回傳；否則填 null。\n5. 看不清楚、未顯示或無法確認的欄位填 null，不可猜測；空值在更新中心代表保留既有值，不是清空。\n6. 食材等級只用 1、30、60；副技能等級只用 10、25、50、70、80。\n7. 畫面只顯示部分食材槽或副技能槽時，不得用物種公版候選補齊；在 audit_candidates 加入 slot_type、unlock_levels、status=user_confirmed_not_visible、confirmed_by_user=false。\n8. 遊戲畫面若出現「一起睡覺的時間」，必須以這個遊戲原文辨識：profile.sleep_time_text 保存畫面原文（例如 154小時3分），profile.sleep_hours 保存換算後的小時數。若畫面沒有顯示，兩者填 null；不得由等級、入手日期或其他欄位推算。\n9. 「一起睡覺的時間」與「進化所需一起睡覺的時間」屬同一語意家族：前者是目前累積值，後者是進化條件門檻，不得互相混填。\n10. 其他欄位也優先依遊戲畫面實際標題理解；JSON machine key 僅用於資料交換，不可反過來改寫畫面語意。\n11. 數值使用 JSON number，不使用含單位字串；只有 sleep_time_text 例外，因為它專門保存遊戲原文。\n12. schema_version 固定為 2.0-observation，source 固定為 ai_screenshot_observation。\n13. visual_evidence 是獨立的第二條辨識證據鏈，不得從 profile.type、profile.favorite_berry、profile.main_skill、ingredients 或 subskills 複製／反推。\n14. TYPE_VISUAL 只看屬性 icon；BERRY_VISUAL 只看樹果 icon。即使你知道某屬性通常對應哪顆樹果，也不得用其中一個生成另一個。\n15. INGREDIENT_VISUAL 只看該 Lv 食材槽的 icon；不得用物種可能食材候選反推 icon 名稱。每筆必須帶 unlock_level。\n16. MAIN_SKILL_TEXT 與 SUBSKILL_TEXT 只依畫面文字辨識；技能機率提升與技能等級提升等相似字樣不可互相補猜。副技能證據每筆必須帶 unlock_level。\n17. 每筆 direct visual/text evidence 必須包含 kind、value、source_image_ref、confidence；看不清楚就不要建立該 evidence object。\n18. visual_evidence.public_relation_may_generate_player_observation 固定為 false。Public Master 只能在平台端做一致性查核，不能替你補答案。\n19. profile 與 visual_evidence 必須各自從圖片讀取；平台之後會交叉比對，若不一致會阻止寫入 SQLite。`;
 
 export function buildObservationTemplate(){
   const now=new Date().toISOString();
@@ -88,6 +121,11 @@ export function buildObservationTemplate(){
       subskills:[{unlock_level:10,subskill_name:null},{unlock_level:25,subskill_name:null},{unlock_level:50,subskill_name:null},{unlock_level:70,subskill_name:null},{unlock_level:80,subskill_name:null}],
       audit_candidates:[],
       evidence:{source_image_refs:['image-001'],field_confidence:{},unreadable_fields:[],notes:null},
+      visual_evidence:{
+        contract_version:POKEMON_VISUAL_EVIDENCE_VERSION,
+        public_relation_may_generate_player_observation:false,
+        type:null,berry:null,ingredients:[],main_skill:null,subskills:[],
+      },
     }],
   };
 }
@@ -106,13 +144,24 @@ export function normalizeObservationPayload(input){
   return payload;
 }
 
+function validateDirectVisualEvidence(evidence,kind,label,errors,allowedLevels=null,sourceRefs=null){
+  if(evidence==null)return;
+  if(!evidence||typeof evidence!=='object'||Array.isArray(evidence)){errors.push(`${label} ${kind} evidence 格式錯誤`);return;}
+  if(!VISUAL_KINDS.has(evidence.kind)||evidence.kind!==kind)errors.push(`${label} ${kind} evidence kind 不合法`);
+  if(!evidence.value)errors.push(`${label} ${kind} evidence 缺少 value`);
+  if(!evidence.source_image_ref)errors.push(`${label} ${kind} evidence 缺少 source_image_ref`);
+  if(evidence.confidence==null||!Number.isFinite(Number(evidence.confidence))||Number(evidence.confidence)<0||Number(evidence.confidence)>1)errors.push(`${label} ${kind} evidence confidence 必須介於 0~1`);
+  if(allowedLevels&&!allowedLevels.includes(Number(evidence.unlock_level)))errors.push(`${label} ${kind} evidence unlock_level 不合法`);
+  if(sourceRefs&&evidence.source_image_ref&&!sourceRefs.has(evidence.source_image_ref))errors.push(`${label} ${kind} evidence source_image_ref 不在本 observation evidence.source_image_refs`);
+}
+
 export function validateObservationPayload(input){
   const errors=[],warnings=[];
   let payload;
   try{payload=normalizeObservationPayload(input);}catch(error){return {payload:null,errors:[error.message],warnings,summary:{}};}
   if(!payload.observations.length)errors.push('observations 必須至少包含一筆');
   const refs=new Set();
-  let auditCandidateCount=0;
+  let auditCandidateCount=0,visualEvidenceObservationCount=0;
   payload.observations.forEach((item,index)=>{
     const label=`#${index+1}`;
     if(refs.has(item.incoming_ref))errors.push(`${label} incoming_ref 重複：${item.incoming_ref}`);
@@ -128,6 +177,17 @@ export function validateObservationPayload(input){
       if(!AUDIT_STATUSES.has(candidate.status))errors.push(`${label} audit_candidates status 不合法`);
       if(candidate.status==='user_confirmed_not_visible'&&candidate.confirmed_by_user!==true)warnings.push(`${label} 尚有未顯示槽位等待用戶確認`);
     }
+    if(item.visual_evidence){
+      visualEvidenceObservationCount+=1;
+      if(item.visual_evidence.contract_version!==POKEMON_VISUAL_EVIDENCE_VERSION)errors.push(`${label} visual_evidence contract_version 不相容`);
+      if(item.visual_evidence.public_relation_may_generate_player_observation!==false)errors.push(`${label} Public Master 不得生成玩家 observation`);
+      const sourceRefs=new Set(item.evidence?.source_image_refs||[]);
+      validateDirectVisualEvidence(item.visual_evidence.type,'TYPE_VISUAL',label,errors,null,sourceRefs);
+      validateDirectVisualEvidence(item.visual_evidence.berry,'BERRY_VISUAL',label,errors,null,sourceRefs);
+      validateDirectVisualEvidence(item.visual_evidence.main_skill,'MAIN_SKILL_TEXT',label,errors,null,sourceRefs);
+      for(const row of item.visual_evidence.ingredients||[])validateDirectVisualEvidence(row,'INGREDIENT_VISUAL',label,errors,[1,30,60],sourceRefs);
+      for(const row of item.visual_evidence.subskills||[])validateDirectVisualEvidence(row,'SUBSKILL_TEXT',label,errors,[10,25,50,70,80],sourceRefs);
+    }
   });
-  return {payload,errors,warnings,summary:{observation_count:payload.observations.length,requires_identity_resolution:payload.observations.length,audit_candidate_count:auditCandidateCount,null_overwrite_policy:'preserve_existing'}};
+  return {payload,errors,warnings,summary:{observation_count:payload.observations.length,requires_identity_resolution:payload.observations.length,audit_candidate_count:auditCandidateCount,visual_evidence_observation_count:visualEvidenceObservationCount,null_overwrite_policy:'preserve_existing',public_relation_generates_player_observation:false}};
 }
