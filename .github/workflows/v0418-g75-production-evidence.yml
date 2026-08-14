@@ -13,6 +13,7 @@ on:
       - 'assets/js/version-authority.js'
       - 'service-worker.js'
       - 'scripts/v0418-g75-production-evidence-contract.mjs'
+      - 'scripts/v0423-predecessor-contract-runner.mjs'
       - '.github/workflows/v0418-g75-production-evidence.yml'
   pull_request:
     paths:
@@ -23,6 +24,7 @@ on:
       - 'assets/js/version-authority.js'
       - 'service-worker.js'
       - 'scripts/v0418-g75-production-evidence-contract.mjs'
+      - 'scripts/v0423-predecessor-contract-runner.mjs'
       - '.github/workflows/v0418-g75-production-evidence.yml'
   workflow_dispatch:
 
@@ -44,5 +46,6 @@ jobs:
           node --check assets/js/strategy-context-local.js
           node --check assets/js/war-room-strategy-context-ui.js
           node --check service-worker.js
+          node --check scripts/v0423-predecessor-contract-runner.mjs
       - name: G7.5 production evidence contract
-        run: node scripts/v0418-g75-production-evidence-contract.mjs
+        run: node scripts/v0423-predecessor-contract-runner.mjs scripts/v0418-g75-production-evidence-contract.mjs
