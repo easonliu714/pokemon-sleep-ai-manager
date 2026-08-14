@@ -14,6 +14,7 @@ import {
   PUBLIC_RECIPE_NAME_AUTHORITY_AUDIT,
 } from '../assets/js/public-recipe-current-authority.js';
 import {PUBLIC_RECIPE_ZH_TW_NAME_AUDIT} from '../assets/js/public-recipe-name-audit-v0425.js';
+import {PUBLIC_RECIPE_PROVENANCE,REVIEWED_RECIPE_MASTER_VERSION} from '../assets/js/public-recipe-provenance.js';
 
 const __filename=fileURLToPath(import.meta.url);
 const __dirname=path.dirname(__filename);
@@ -31,7 +32,10 @@ function collectJsFiles(directory){
 }
 function rel(file){return path.relative(root,file).replaceAll('\\','/');}
 function importTargets(source){
-  return [...source.matchAll(/(?:from\s+|import\s*)['"]([^'"]+)['"]/g)].map(match=>match[1]);
+  const out=[];
+  const pattern=/(?:from\s+|import\s*(?:\(\s*)?)['"]([^'"]+)['"]/g;
+  for(const match of source.matchAll(pattern))out.push(match[1]);
+  return out;
 }
 
 assert.equal(PUBLIC_RECIPE_MASTER_VERSION,'public-recipe-master-2026-08-14-c');
@@ -56,6 +60,7 @@ assert.equal(PUBLIC_RECIPE_ACTIVATION_ADDITIONS.length,2,'current activation add
 assert.equal(PREDECESSOR_RECIPE_MASTER.filter(row=>row.source_type==='current_reference_crosscheck').length,4,'base current-reference rows must remain 4');
 assert.equal(38+34+2+4,78,'current-name evidence partition must cover all 78 recipes');
 
+const currentSourceTypeCounts={};
 for(const row of PUBLIC_RECIPE_MASTER){
   assert.ok(String(row.recipe_id||'').trim(),`recipe_id missing`);
   assert.ok(String(row.recipe_name||'').trim(),`recipe_name missing:${row.recipe_id}`);
@@ -63,10 +68,26 @@ for(const row of PUBLIC_RECIPE_MASTER){
   assert.ok(String(row.source_name||'').trim(),`source_name missing:${row.recipe_id}`);
   assert.ok(String(row.source_ref||'').trim(),`source_ref missing:${row.recipe_id}`);
   assert.ok(String(row.verified_at||'').trim(),`verified_at missing:${row.recipe_id}`);
+  currentSourceTypeCounts[row.source_type]=(currentSourceTypeCounts[row.source_type]||0)+1;
 }
+assert.deepEqual(currentSourceTypeCounts,{current_reference_crosscheck:40,game_screenshot_verified:35,game_screenshot_reference_crosscheck:3});
 assert.equal(PUBLIC_RECIPE_NAME_AUTHORITY_AUDIT.recipe_count,78);
 assert.equal(PUBLIC_RECIPE_NAME_AUTHORITY_AUDIT.audited_migration_baseline_count,38);
 assert.equal(PUBLIC_RECIPE_NAME_AUTHORITY_AUDIT.migration_baseline_current_authority_count,0);
+
+assert.equal(REVIEWED_RECIPE_MASTER_VERSION,PUBLIC_RECIPE_MASTER_VERSION,'provenance must review the current recipe master');
+assert.equal(PUBLIC_RECIPE_PROVENANCE.length,78,'provenance must cover all current recipes');
+const provenanceById=new Map(PUBLIC_RECIPE_PROVENANCE.map(row=>[String(row.recipe_id),row]));
+assert.equal(provenanceById.size,78,'provenance recipe IDs must be unique');
+for(const recipe of PUBLIC_RECIPE_MASTER){
+  const provenance=provenanceById.get(String(recipe.recipe_id));
+  assert.ok(provenance,`missing current provenance:${recipe.recipe_id}`);
+  assert.equal(provenance.recipe_name_zh_tw,recipe.recipe_name,`provenance name drift:${recipe.recipe_id}`);
+  assert.equal(provenance.name_source_type,recipe.source_type,`provenance source type drift:${recipe.recipe_id}`);
+  assert.equal(provenance.name_source_name,recipe.source_name,`provenance source name drift:${recipe.recipe_id}`);
+  assert.equal(provenance.name_source_ref,recipe.source_ref,`provenance source ref drift:${recipe.recipe_id}`);
+  assert.equal(provenance.name_observed_at,recipe.verified_at,`provenance verified_at drift:${recipe.recipe_id}`);
+}
 
 const forbidden=[];
 for(const file of collectJsFiles(jsRoot)){
@@ -98,10 +119,12 @@ console.log(JSON.stringify({
   recipe_count:PUBLIC_RECIPE_MASTER.length,
   category_counts:categories,
   evidence_partition:{audited_predecessor_baseline:38,screenshot_name_overrides:34,activation_additions:2,base_current_reference_crosschecks:4,total:78},
+  current_source_type_counts:currentSourceTypeCounts,
   migration_baseline_current_authority_count:0,
   duplicate_recipe_ids:0,
   duplicate_recipe_names:0,
   review_required_current_names:0,
+  current_provenance_count:PUBLIC_RECIPE_PROVENANCE.length,
   forbidden_runtime_old_authority_imports:forbidden.length,
   sync_uses_current_authority:true,
   migrations_use_current_authority:true,
