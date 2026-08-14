@@ -17,6 +17,11 @@ import {
   resolvePublicRecipeName,
 } from '../assets/js/public-recipe-canonical-authority.js';
 import {
+  PUBLIC_RECIPE_MASTER as CURRENT_PUBLIC_RECIPE_MASTER,
+  PUBLIC_RECIPE_MASTER_VERSION as CURRENT_PUBLIC_RECIPE_MASTER_VERSION,
+  PUBLIC_RECIPE_CANONICAL_NAME_VERSION as CURRENT_PUBLIC_RECIPE_CANONICAL_NAME_VERSION,
+} from '../assets/js/public-recipe-current-authority.js';
+import {
   PUBLIC_RECIPE_PROVENANCE,
   PUBLIC_RECIPE_PROVENANCE_VERSION,
   REVIEWED_RECIPE_MASTER_VERSION,
@@ -29,18 +34,24 @@ function signature(recipe){return [...(recipe.ingredients||[])].map(row=>`${row.
 
 assert.equal(BASE_PUBLIC_RECIPE_MASTER_VERSION,'public-recipe-master-2026-08-09-a');
 assert.equal(PUBLIC_RECIPE_BASE_MASTER_VERSION,BASE_PUBLIC_RECIPE_MASTER_VERSION);
-assert.match(PUBLIC_RECIPE_MASTER_VERSION,/^public-recipe-master-2026-08-(?:09-b|11-[a-z]|12-[a-z]|13-[a-z])$/,'canonical recipe master successor version invalid');
-assert.match(PUBLIC_RECIPE_CANONICAL_NAME_VERSION,/^public-recipe-zh-tw-names-2026-08-(?:09-a|11-[a-z]|12-[a-z]|13-[a-z])$/,'canonical name successor version invalid');
-assert.ok(PUBLIC_RECIPE_MASTER.length>=76,'canonical successor may add evidence-backed recipes but may not remove historical 76');
+assert.match(PUBLIC_RECIPE_MASTER_VERSION,/^public-recipe-master-2026-08-(?:09-b|11-[a-z]|12-[a-z]|13-[a-z])$/,'canonical predecessor recipe master successor version invalid');
+assert.match(PUBLIC_RECIPE_CANONICAL_NAME_VERSION,/^public-recipe-zh-tw-names-2026-08-(?:09-a|11-[a-z]|12-[a-z]|13-[a-z])$/,'canonical predecessor name successor version invalid');
+assert.equal(CURRENT_PUBLIC_RECIPE_MASTER_VERSION,'public-recipe-master-2026-08-14-c');
+assert.equal(CURRENT_PUBLIC_RECIPE_CANONICAL_NAME_VERSION,'public-recipe-zh-tw-names-2026-08-14-b');
+assert.ok(PUBLIC_RECIPE_MASTER.length>=76,'canonical predecessor may add evidence-backed recipes but may not remove historical 76');
 assert.equal(BASE_PUBLIC_RECIPE_MASTER.length,76);
+assert.equal(CURRENT_PUBLIC_RECIPE_MASTER.length,78,'current authority must contain exactly 78 recipes');
 assert.ok(PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES.length>=33,'v0.4.3 33-name baseline must never be lost');
 assert.equal(PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS.length,2,'historical two conflict audit rows must remain traceable');
 
 const baseById=new Map(BASE_PUBLIC_RECIPE_MASTER.map(row=>[row.recipe_id,row]));
 const canonicalById=new Map(PUBLIC_RECIPE_MASTER.map(row=>[row.recipe_id,row]));
-assert.equal(baseById.size,76);assert.equal(canonicalById.size,PUBLIC_RECIPE_MASTER.length);
+const currentById=new Map(CURRENT_PUBLIC_RECIPE_MASTER.map(row=>[row.recipe_id,row]));
+assert.equal(baseById.size,76);assert.equal(canonicalById.size,PUBLIC_RECIPE_MASTER.length);assert.equal(currentById.size,78);
 for(const id of baseById.keys())assert.ok(canonicalById.has(id),`historical stable recipe ID disappeared: ${id}`);
-assert.equal(new Set(PUBLIC_RECIPE_MASTER.map(row=>row.recipe_id)).size,PUBLIC_RECIPE_MASTER.length,'canonical recipe IDs must remain unique');
+for(const id of canonicalById.keys())assert.ok(currentById.has(id),`predecessor recipe ID disappeared from current authority: ${id}`);
+assert.equal(new Set(PUBLIC_RECIPE_MASTER.map(row=>row.recipe_id)).size,PUBLIC_RECIPE_MASTER.length,'canonical predecessor recipe IDs must remain unique');
+assert.equal(new Set(CURRENT_PUBLIC_RECIPE_MASTER.map(row=>row.recipe_id)).size,78,'current recipe IDs must remain unique');
 const historicalOverrideIds=new Set(PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES.filter(row=>row.recipe_id!=='curry_dizzy_punch').map(row=>row.recipe_id));
 assert.equal(historicalOverrideIds.size,33,'the original v0.4.3 33-name baseline must remain exactly preserved');
 
@@ -65,10 +76,24 @@ assert.equal(conflictById.get('curry_parent_child')?.resolution,'CURRENT_PUBLIC_
 assert.equal(signature(canonicalById.get('curry_parent_child')),signature(baseById.get('curry_parent_child')));
 assert.equal(signature(canonicalById.get('curry_parent_child')),'特選蛋=8|特選蘋果=11|甜甜蜜=12|窩心洋芋=4');
 
-assert.match(PUBLIC_RECIPE_PROVENANCE_VERSION,/^public-recipe-provenance-2026-08-(?:09-b|11-[a-z]|12-[a-z]|13-[a-z])$/,'recipe provenance successor version invalid');
-assert.equal(REVIEWED_RECIPE_MASTER_VERSION,PUBLIC_RECIPE_MASTER_VERSION);assert.equal(PUBLIC_RECIPE_PROVENANCE.length,PUBLIC_RECIPE_MASTER.length);for(const row of PUBLIC_RECIPE_PROVENANCE)assert.equal(row.recipe_name_zh_tw,canonicalById.get(row.recipe_id)?.recipe_name,`provenance name drifted for ${row.recipe_id}`);
+assert.match(PUBLIC_RECIPE_PROVENANCE_VERSION,/^public-recipe-provenance-2026-08-(?:09-b|11-[a-z]|12-[a-z]|13-[a-z]|14-[a-z](?:-[a-z0-9-]+)?)$/,'recipe provenance successor version invalid');
+assert.equal(REVIEWED_RECIPE_MASTER_VERSION,CURRENT_PUBLIC_RECIPE_MASTER_VERSION);
+assert.equal(PUBLIC_RECIPE_PROVENANCE.length,CURRENT_PUBLIC_RECIPE_MASTER.length);
+for(const row of PUBLIC_RECIPE_PROVENANCE){
+  const current=currentById.get(row.recipe_id);assert.ok(current,`provenance recipe missing from current authority: ${row.recipe_id}`);
+  assert.equal(row.recipe_name_zh_tw,current.recipe_name,`provenance name drifted for ${row.recipe_id}`);
+  assert.equal(row.name_source_type,current.source_type,`provenance source type drifted for ${row.recipe_id}`);
+  assert.equal(row.name_source_ref,current.source_ref,`provenance source ref drifted for ${row.recipe_id}`);
+}
 const screenshotAliasRows=PUBLIC_RECIPE_ALIASES.filter(row=>row.source_type==='pre_v043_public_recipe_name_compatibility');assert.ok(screenshotAliasRows.length>=33);for(const recipeId of historicalOverrideIds)assert.ok(screenshotAliasRows.some(row=>row.recipe_id===recipeId),`historical legacy alias missing: ${recipeId}`);
 const versionAuthority=fs.readFileSync(path.join(root,'assets/js/version-authority.js'),'utf8');assert.match(versionAuthority,/app_version:\s*'v0\.4\.3'/,'historical v0.4.3 release marker must remain available to legacy contract');
 function collectJsFiles(directory){const out=[];for(const entry of fs.readdirSync(directory,{withFileTypes:true})){const full=path.join(directory,entry.name);if(entry.isDirectory())out.push(...collectJsFiles(full));else if(entry.isFile()&&entry.name.endsWith('.js'))out.push(full);}return out;}
-const directRawImports=[];for(const file of collectJsFiles(path.join(root,'assets/js'))){const relative=path.relative(root,file).replaceAll('\\','/');if(relative==='assets/js/public-recipe-canonical-authority.js')continue;const source=fs.readFileSync(file,'utf8');if(/from\s+['"]\.\/public-recipe-master\.js['"]/.test(source))directRawImports.push(relative);}assert.deepEqual(directRawImports,[],`Runtime consumers must use canonical recipe authority, direct raw imports: ${directRawImports.join(', ')}`);
-process.stdout.write(`${JSON.stringify({status:'PASS',gate:'R2.2_RECIPE_CANONICAL_ZH_TW_NAME_ALIAS_CONTRACT_AUDITED_SUCCESSOR',base_master_version:BASE_PUBLIC_RECIPE_MASTER_VERSION,canonical_master_version:PUBLIC_RECIPE_MASTER_VERSION,canonical_name_version:PUBLIC_RECIPE_CANONICAL_NAME_VERSION,active_recipe_count:PUBLIC_RECIPE_MASTER.length,historical_stable_recipe_id_count:baseById.size,current_recipe_id_count:canonicalById.size,original_v043_renamed_baseline:historicalOverrideIds.size,current_renamed_recipe_count:renamed,legacy_public_name_alias_count:screenshotAliasRows.length,historical_formula_conflict_audit_count:PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS.length,current_historical_formula_changes:formulaChanges,direct_runtime_raw_master_imports:directRawImports,historical_release_marker_preserved:true},null,2)}\n`);
+const directRawImports=[],directPredecessorImports=[];
+for(const file of collectJsFiles(path.join(root,'assets/js'))){
+  const relative=path.relative(root,file).replaceAll('\\','/');const source=fs.readFileSync(file,'utf8');
+  if(relative!=='assets/js/public-recipe-canonical-authority.js'&&/from\s+['"]\.\/public-recipe-master\.js['"]/.test(source))directRawImports.push(relative);
+  if(relative!=='assets/js/public-recipe-current-authority.js'&&/from\s+['"]\.\/public-recipe-canonical-authority\.js['"]/.test(source))directPredecessorImports.push(relative);
+}
+assert.deepEqual(directRawImports,[],`Runtime consumers must not import raw recipe master: ${directRawImports.join(', ')}`);
+assert.deepEqual(directPredecessorImports,[],`Runtime consumers must use current recipe authority, predecessor imports: ${directPredecessorImports.join(', ')}`);
+process.stdout.write(`${JSON.stringify({status:'PASS',gate:'R2.2_RECIPE_CANONICAL_ZH_TW_NAME_ALIAS_CONTRACT_AUDITED_SUCCESSOR',base_master_version:BASE_PUBLIC_RECIPE_MASTER_VERSION,predecessor_master_version:PUBLIC_RECIPE_MASTER_VERSION,current_master_version:CURRENT_PUBLIC_RECIPE_MASTER_VERSION,predecessor_name_version:PUBLIC_RECIPE_CANONICAL_NAME_VERSION,current_name_version:CURRENT_PUBLIC_RECIPE_CANONICAL_NAME_VERSION,active_recipe_count:CURRENT_PUBLIC_RECIPE_MASTER.length,historical_stable_recipe_id_count:baseById.size,current_recipe_id_count:currentById.size,original_v043_renamed_baseline:historicalOverrideIds.size,predecessor_renamed_recipe_count:renamed,legacy_public_name_alias_count:screenshotAliasRows.length,historical_formula_conflict_audit_count:PUBLIC_RECIPE_FORMULA_CONFLICT_REVIEWS.length,current_historical_formula_changes:formulaChanges,direct_runtime_raw_master_imports:directRawImports,direct_runtime_predecessor_imports:directPredecessorImports,historical_release_marker_preserved:true},null,2)}\n`);
