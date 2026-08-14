@@ -7,10 +7,12 @@ import {
   PUBLIC_RECIPE_MASTER,
   PUBLIC_RECIPE_ALIASES,
   PUBLIC_RECIPE_MASTER_VERSION,
+  PUBLIC_RECIPE_INGREDIENT_IDENTITY_VERSION,
   PUBLIC_RECIPE_NAME_AUTHORITY_AUDIT,
 } from '../assets/js/public-recipe-current-authority.js';
 import {PUBLIC_RECIPE_ZH_TW_NAME_AUDIT} from '../assets/js/public-recipe-name-audit-v0425.js';
 import {isRecipeAutomaticIdentityMatch,recipeAliasesForCanonical} from '../assets/js/public-recipe-alias-master.js';
+import {PUBLIC_INGREDIENT_IDENTITY_VERSION,PUBLIC_INGREDIENT_LEGACY_ALIASES} from '../assets/js/public-ingredient-identity.js';
 import {
   SUBSKILL_NUMERIC_MODIFIER_VERSION,
   SUBSKILL_HELP_SPEED_REDUCTION_CAP,
@@ -19,6 +21,7 @@ import {
 import {currentProductionAuthorityRegistry} from '../assets/js/production-authority-registry.js';
 
 assert.equal(PUBLIC_RECIPE_MASTER_VERSION,'public-recipe-master-2026-08-14-c');
+assert.equal(PUBLIC_RECIPE_INGREDIENT_IDENTITY_VERSION,`recipe-ingredient-identity@${PUBLIC_INGREDIENT_IDENTITY_VERSION}`);
 assert.equal(PUBLIC_RECIPE_MASTER.length,78);
 assert.equal(PUBLIC_RECIPE_ZH_TW_NAME_AUDIT.length,38);
 assert.equal(PUBLIC_RECIPE_NAME_AUTHORITY_AUDIT.migration_baseline_current_authority_count,0);
@@ -28,15 +31,20 @@ assert.equal(PUBLIC_RECIPE_NAME_AUTHORITY_AUDIT.player_rows_mutated,false);
 
 const previousById=new Map(PREVIOUS_RECIPE_MASTER.map(row=>[String(row.recipe_id),row]));
 const currentById=new Map(PUBLIC_RECIPE_MASTER.map(row=>[String(row.recipe_id),row]));
-let renamedCount=0;
+const canonicalIngredientName=name=>PUBLIC_INGREDIENT_LEGACY_ALIASES[String(name)]||String(name);
+const canonicalIngredientRows=recipe=>(recipe.ingredients||[]).map(row=>({...row,ingredient_name:canonicalIngredientName(row.ingredient_name)}));
+let renamedCount=0,ingredientIdentityNormalizedCount=0;
 for(const [id,current] of currentById){
   const previous=previousById.get(id);assert.ok(previous,`previous recipe missing: ${id}`);
   assert.equal(current.base_energy,previous.base_energy,`base energy changed: ${id}`);
   assert.equal(current.total_ingredients,previous.total_ingredients,`ingredient total changed: ${id}`);
-  assert.deepEqual(current.ingredients,previous.ingredients,`formula changed: ${id}`);
+  assert.deepEqual(current.ingredients,canonicalIngredientRows(previous),`formula changed outside reviewed ingredient identity normalization: ${id}`);
   if(current.recipe_name!==previous.recipe_name)renamedCount+=1;
+  ingredientIdentityNormalizedCount+=Number(current.ingredient_identity_canonicalized_count||0);
 }
 assert.equal(renamedCount,18,'v0.4.25 audit should correct exactly the verified stale display names');
+assert.equal(ingredientIdentityNormalizedCount,4,'current Recipe authority should canonicalize exactly four historical avocado relation labels');
+assert.equal(PUBLIC_RECIPE_MASTER.some(row=>(row.ingredients||[]).some(item=>item.ingredient_name==='特選酪梨')),false);
 
 const spicy=currentById.get('curry_spicy_leek'),spicyPrevious=previousById.get('curry_spicy_leek');
 assert.equal(spicy.recipe_name,'辣味蔥勁十足咖哩');
@@ -99,9 +107,10 @@ assert.match(syncSource,/public-recipe-current-authority\.js/);
 assert.match(syncSource,/player_rows_modified:false/);
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'V0425_RECIPE_NAME_SUBSKILL',recipe_count:78,audited_migration_baseline_count:38,
+  status:'PASS',gate:'V0425_RECIPE_NAME_SUBSKILL_SUCCESSOR_INGREDIENT_IDENTITY',recipe_count:78,audited_migration_baseline_count:38,
   corrected_name_count:renamedCount,spicy_leek_name:spicy.recipe_name,formula_mutated:false,
-  migration_baseline_current_authority_count:0,user_confirmed_display_evidence_local_only:true,
+  ingredient_identity_version:PUBLIC_RECIPE_INGREDIENT_IDENTITY_VERSION,ingredient_identity_normalized_count:ingredientIdentityNormalizedCount,
+  historical_formula_quantities_preserved:true,migration_baseline_current_authority_count:0,user_confirmed_display_evidence_local_only:true,
   subskill_numeric_registry_version:SUBSKILL_NUMERIC_MODIFIER_VERSION,helping_bonus_reduction:0.05,
   helping_speed_reductions:[0.07,0.14],subskill_help_speed_cap:SUBSKILL_HELP_SPEED_REDUCTION_CAP,
   ingredient_finder_s_multiplier:1.18,skill_trigger_m_multiplier:1.36,

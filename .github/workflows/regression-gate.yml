@@ -26,6 +26,9 @@ jobs:
       - name: Verify CI topology policy
         run: node scripts/ci-topology-policy-contract.mjs
 
+      - name: Verify Pokémon visual evidence consistency
+        run: node scripts/pokemon-visual-evidence-regression.mjs
+
       - name: Install regression runtimes
         run: |
           npm install --no-save --no-package-lock sql.js@1.13.0 fake-indexeddb@6.2.4 playwright@1.54.1
