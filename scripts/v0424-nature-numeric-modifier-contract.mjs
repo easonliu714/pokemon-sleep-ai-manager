@@ -42,10 +42,14 @@ assert.equal(unknown.numeric_activation,false);
 
 const registry=currentProductionAuthorityRegistry();
 const numeric=['berry_output_per_help','berry_energy_per_berry','favorite_berry_multiplier','ingredient_probability_per_help','ingredient_slot_distribution','main_skill_trigger_probability','main_skill_effect_value'];
-assert.equal(numeric.filter(name=>registry.rules[name]?.status==='ACTIVE_VERIFIED').length,3,'nature modifier evidence must not promote base production dimensions');
+const active=numeric.filter(name=>registry.rules[name]?.status==='ACTIVE_VERIFIED');
+const slotSuccessor=registry.rules.ingredient_slot_distribution?.status==='ACTIVE_VERIFIED';
+if(slotSuccessor){assert.equal(registry.rules.ingredient_slot_distribution.rule_version,'ingredient-slot-distribution-v1');assert.equal(registry.rules.ingredient_slot_distribution.runtime_numeric_activation,true);}
+assert.deepEqual(active,['berry_output_per_help','berry_energy_per_berry','favorite_berry_multiplier',...(slotSuccessor?['ingredient_slot_distribution']:[])],'Nature evidence must not promote any base Production dimension; only the governed E3B slot successor may extend the historical set');
 assert.equal(registry.numeric_rate_model_status,'NOT_YET_VERIFIED');
 assert.equal(registry.rules.ingredient_probability_per_help.status,'NOT_YET_VERIFIED');
 assert.equal(registry.rules.main_skill_trigger_probability.status,'NOT_YET_VERIFIED');
+assert.equal(registry.rules.main_skill_effect_value.status,'NOT_YET_VERIFIED');
 
 const contextResult={payload:{context_fingerprint:'strategy_context:v0424',goal_profile:{primary_goal:'max_snorlax_energy'},weekly_context:{week_start:'2026-08-10'},inventory_summary:[],recipe_gap_summary:[],deterministic_candidates:{},public_version_refs:{}},resolver:{cand_001:{pokemon_id:fixture.pokemon_id,species:fixture.species}}};
 const pack=buildStrategyOptimizationPack({strategyContextResult:contextResult,candidateScoring:{candidates:[fixture]},teamOptimization:{primary:{team_status:'READY',input_fingerprint:'team:v0424',slots:[{pokemon_id:fixture.pokemon_id}]}},productionRegistry:registry});
@@ -60,4 +64,4 @@ const serialized=JSON.stringify(pack.payload);
 assert.equal(serialized.includes(fixture.pokemon_id),false);
 assert.equal(serialized.includes('pokemon_id'),false);
 
-console.log(JSON.stringify({status:'PASS',gate:'V0424_G75E2A_NATURE_NUMERIC_MODIFIER',nature_numeric_registry_version:NATURE_NUMERIC_MODIFIER_VERSION,strategy_pack_version:STRATEGY_OPTIMIZATION_PACK_VERSION,successor_subskill_numeric:successorSubskillNumeric,speed_up_interval_multiplier:0.9,speed_down_interval_multiplier:1.075,ingredient_probability_pair:[1.2,0.8],skill_probability_pair:[1.2,0.8],energy_recovery_pair:[1.2,0.88],exp_gain_pair:[1.18,0.82],active_base_numeric_dimensions:'3/7',overall_numeric_model_status:registry.numeric_rate_model_status,unknown_nature_fail_closed:true,stable_ids_in_payload:false,sqlite_write:false,runtime_network_fetch:false,ai_numeric_authority:false},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V0424_G75E2A_NATURE_NUMERIC_MODIFIER',nature_numeric_registry_version:NATURE_NUMERIC_MODIFIER_VERSION,strategy_pack_version:STRATEGY_OPTIMIZATION_PACK_VERSION,successor_subskill_numeric:successorSubskillNumeric,speed_up_interval_multiplier:0.9,speed_down_interval_multiplier:1.075,ingredient_probability_pair:[1.2,0.8],skill_probability_pair:[1.2,0.8],energy_recovery_pair:[1.2,0.88],exp_gain_pair:[1.18,0.82],active_base_numeric_dimensions:`${active.length}/7`,ingredient_slot_successor:slotSuccessor,overall_numeric_model_status:registry.numeric_rate_model_status,unknown_nature_fail_closed:true,stable_ids_in_payload:false,sqlite_write:false,runtime_network_fetch:false,ai_numeric_authority:false},null,2));
