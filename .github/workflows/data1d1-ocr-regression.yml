@@ -1,0 +1,47 @@
+name: DATA.1D.1 OCR Regression
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/data1*.js'
+      - 'assets/js/data1d*.js'
+      - 'assets/js/bootstrap.js'
+      - 'assets/js/runtime-version.js'
+      - 'service-worker.js'
+      - 'scripts/data1d1-*.mjs'
+      - 'scripts/ci-data1d1-ocr-regression.mjs'
+      - 'scripts/ci-data1d1-workflow-consolidation-contract.mjs'
+      - '.github/workflows/data1d1-ocr-regression.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'assets/js/data1*.js'
+      - 'assets/js/data1d*.js'
+      - 'assets/js/bootstrap.js'
+      - 'assets/js/runtime-version.js'
+      - 'service-worker.js'
+      - 'scripts/data1d1-*.mjs'
+      - 'scripts/ci-data1d1-ocr-regression.mjs'
+      - 'scripts/ci-data1d1-workflow-consolidation-contract.mjs'
+      - '.github/workflows/data1d1-ocr-regression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: data1d1-ocr-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  data1d1-ocr-regression:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Replay DATA.1D.1 OCR behavioral gates
+        run: node scripts/ci-data1d1-ocr-regression.mjs
+      - name: Verify DATA.1D.1 workflow consolidation topology
+        run: node scripts/ci-data1d1-workflow-consolidation-contract.mjs

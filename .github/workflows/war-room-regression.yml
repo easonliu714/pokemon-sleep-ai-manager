@@ -1,0 +1,77 @@
+name: War Room Regression
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/war-room-*.js'
+      - 'assets/js/evaluation-*.js'
+      - 'assets/js/pokemon-evaluation*.js'
+      - 'assets/js/pokemon-candidate*.js'
+      - 'assets/js/pokemon-scoring*.js'
+      - 'assets/js/recipe-*.js'
+      - 'assets/js/weekly-*.js'
+      - 'assets/js/public-candy-master.js'
+      - 'assets/js/candy-inventory-ui.js'
+      - 'assets/js/resource-context.js'
+      - 'assets/js/external-strategy-analysis*.js'
+      - 'assets/js/version-authority.js'
+      - 'assets/js/schema.js'
+      - 'assets/js/migrations.js'
+      - 'assets/js/importer.js'
+      - 'assets/js/prompt-catalog.js'
+      - 'assets/js/backup-truth-restore.js'
+      - 'service-worker.js'
+      - 'scripts/war*.mjs'
+      - 'scripts/v04*.mjs'
+      - 'scripts/g7-recipe-portfolio-contention-contract.mjs'
+      - 'scripts/ci-war-room-regression.mjs'
+      - 'scripts/ci-war-room-workflow-consolidation-contract.mjs'
+      - '.github/workflows/war-room-regression.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'assets/js/war-room-*.js'
+      - 'assets/js/evaluation-*.js'
+      - 'assets/js/pokemon-evaluation*.js'
+      - 'assets/js/pokemon-candidate*.js'
+      - 'assets/js/pokemon-scoring*.js'
+      - 'assets/js/recipe-*.js'
+      - 'assets/js/weekly-*.js'
+      - 'assets/js/public-candy-master.js'
+      - 'assets/js/candy-inventory-ui.js'
+      - 'assets/js/resource-context.js'
+      - 'assets/js/external-strategy-analysis*.js'
+      - 'assets/js/version-authority.js'
+      - 'assets/js/schema.js'
+      - 'assets/js/migrations.js'
+      - 'assets/js/importer.js'
+      - 'assets/js/prompt-catalog.js'
+      - 'assets/js/backup-truth-restore.js'
+      - 'service-worker.js'
+      - 'scripts/war*.mjs'
+      - 'scripts/v04*.mjs'
+      - 'scripts/g7-recipe-portfolio-contention-contract.mjs'
+      - 'scripts/ci-war-room-regression.mjs'
+      - 'scripts/ci-war-room-workflow-consolidation-contract.mjs'
+      - '.github/workflows/war-room-regression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: war-room-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  war-room-regression:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Replay War Room behavioral and release contracts
+        run: node scripts/ci-war-room-regression.mjs
+      - name: Verify War Room workflow consolidation topology
+        run: node scripts/ci-war-room-workflow-consolidation-contract.mjs
