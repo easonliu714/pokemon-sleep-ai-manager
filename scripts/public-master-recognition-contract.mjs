@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {PUBLIC_INGREDIENT_NAMES} from '../assets/js/shared-master-data.js';
 import {PUBLIC_ITEM_MASTER} from '../assets/js/public-item-master.js';
-import {PUBLIC_RECIPE_MASTER} from '../assets/js/public-recipe-canonical-authority.js';
+import {PUBLIC_RECIPE_MASTER} from '../assets/js/public-recipe-current-authority.js';
 import {PUBLIC_RECIPE_MASTER as HISTORICAL_BASE_RECIPE_MASTER} from '../assets/js/public-recipe-master.js';
 import {
   PUBLIC_MASTER_RECOGNITION_REGISTRY,
@@ -18,6 +18,8 @@ import {
 const scenarios=['ingredients','items','candies','recipes'];
 assert.deepEqual(Object.keys(PUBLIC_MASTER_RECOGNITION_REGISTRY).sort(),[...scenarios].sort());
 assert.equal(PUBLIC_INGREDIENT_NAMES.length,19,'ingredient public authority count changed');
+assert.ok(PUBLIC_INGREDIENT_NAMES.includes('嫩亮酪梨'),'current avocado canonical missing');
+assert.equal(PUBLIC_INGREDIENT_NAMES.includes('特選酪梨'),false,'legacy avocado alias must not be current public authority');
 assert.equal(HISTORICAL_BASE_RECIPE_MASTER.length,76,'historical recipe baseline must remain 76');
 assert.ok([76,78].includes(PUBLIC_RECIPE_MASTER.length),'current canonical recipe authority must be historical 76 or the verified 78 successor');
 const historicalIds=new Set(HISTORICAL_BASE_RECIPE_MASTER.map(row=>row.recipe_id));
@@ -46,6 +48,8 @@ assert.deepEqual(ingredientSchema.properties.schema.enum,[PUBLIC_MASTER_RECOGNIT
 assert.deepEqual(ingredientSchema.properties.recognition_version.enum,[PUBLIC_MASTER_RECOGNITION_VERSION]);
 assert.equal(observationSchema.properties.canonical_key.additionalProperties,false);
 assert.equal(observationSchema.properties.canonical_key.properties.ingredient_name.enum.length,19);
+assert.ok(observationSchema.properties.canonical_key.properties.ingredient_name.enum.includes('嫩亮酪梨'));
+assert.equal(observationSchema.properties.canonical_key.properties.ingredient_name.enum.includes('特選酪梨'),false);
 assert.equal('ingredient_id' in observationSchema.properties.canonical_key.properties,false,'AI must not receive invented ingredient_id authority');
 assert.deepEqual(observationSchema.properties.status.enum,['MATCHED','AMBIGUOUS','UNMATCHED']);
 
@@ -62,7 +66,7 @@ const baseRecognition={
   observations:[
     {observation_id:'obs-1',status:'MATCHED',observed_text:'沉甸甸南瓜',observed_data:{quantity:12},canonical_key:{ingredient_name:'沉甸甸南瓜'},canonical_name:'沉甸甸南瓜',candidate_names:['沉甸甸南瓜'],source_image_ref:'image-004',confidence:0.99,reason:'exact'},
     {observation_id:'obs-2',status:'MATCHED',observed_text:'醒腦咖啡豆',observed_data:{quantity:11},canonical_key:{ingredient_name:'醒腦咖啡豆'},canonical_name:'醒腦咖啡豆',candidate_names:['醒腦咖啡豆'],source_image_ref:'image-004',confidence:0.99,reason:'exact'},
-    {observation_id:'obs-3',status:'UNMATCHED',observed_text:'未收錄測試食材',observed_data:{quantity:7},candidate_names:['特選酪梨'],source_image_ref:'image-004',confidence:0.91,reason:'not in current catalog'},
+    {observation_id:'obs-3',status:'UNMATCHED',observed_text:'未收錄測試食材',observed_data:{quantity:7},candidate_names:['嫩亮酪梨'],source_image_ref:'image-004',confidence:0.91,reason:'not in current catalog'},
   ],
 };
 
@@ -74,12 +78,13 @@ assert.equal(first.update_package.operations.length,2,'unknown item must not sil
 assert.deepEqual(first.update_package.operations.map(op=>op.key.ingredient_name),['沉甸甸南瓜','醒腦咖啡豆']);
 assert.equal(JSON.stringify(first.update_package).includes('未收錄測試食材'),false,'unmatched item leaked into executable update package');
 
-const confirmed=applyPublicMasterRecognitionResolution(baseRecognition,'ingredients','obs-3','MATCH','特選酪梨');
+assert.throws(()=>applyPublicMasterRecognitionResolution(baseRecognition,'ingredients','obs-3','MATCH','特選酪梨'),/公版候選不存在：特選酪梨/,'legacy alias must not be confirmable as current canonical');
+const confirmed=applyPublicMasterRecognitionResolution(baseRecognition,'ingredients','obs-3','MATCH','嫩亮酪梨');
 const afterConfirm=compilePublicMasterRecognitionToUpdatePackage(confirmed,'ingredients',{allowedImageRefs:['image-004']});
 assert.equal(afterConfirm.ok,true);
 assert.equal(afterConfirm.summary.matched_count,3);
 assert.equal(afterConfirm.summary.unresolved_count,0);
-assert.equal(afterConfirm.update_package.operations[2].key.ingredient_name,'特選酪梨');
+assert.equal(afterConfirm.update_package.operations[2].key.ingredient_name,'嫩亮酪梨');
 assert.equal(afterConfirm.update_package.operations[2].data.quantity,7);
 assert.equal(confirmed.observations[2].user_resolution.action,'USER_CONFIRMED_MATCH');
 
@@ -137,6 +142,8 @@ console.log(JSON.stringify({
   recognition_version:PUBLIC_MASTER_RECOGNITION_VERSION,
   registry_scenarios:scenarios,
   ingredient_catalog_count:snapshots.ingredients.row_count,
+  current_avocado_name:'嫩亮酪梨',
+  legacy_avocado_confirmable:false,
   item_catalog_count:snapshots.items.row_count,
   candy_catalog_count:snapshots.candies.row_count,
   historical_recipe_catalog_count:HISTORICAL_BASE_RECIPE_MASTER.length,
