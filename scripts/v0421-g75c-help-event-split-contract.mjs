@@ -18,10 +18,10 @@ import {projectMemberProductionEvidence,evaluateTeamObjective} from '../assets/j
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.21','v0.4.22','v0.4.22.1'].includes(appVersion),`unexpected G7.5C release/successor ${appVersion}`);
-if(['v0.4.22','v0.4.22.1'].includes(appVersion))assert.ok(version.includes("// app_version: 'v0.4.21'"),`${appVersion} must retain v0.4.21 lineage bridge`);
-if(appVersion==='v0.4.22.1')assert.ok(version.includes("// app_version: 'v0.4.22'"),'v0.4.22.1 must retain v0.4.22 lineage bridge');
-const baseOutputSuccessor=['v0.4.22','v0.4.22.1'].includes(appVersion);
+assert.ok(['v0.4.21','v0.4.22','v0.4.22.1','v0.4.23','v0.4.24'].includes(appVersion),`unexpected G7.5C release/successor ${appVersion}`);
+if(['v0.4.22','v0.4.22.1','v0.4.23','v0.4.24'].includes(appVersion))assert.ok(version.includes("// app_version: 'v0.4.21'"),`${appVersion} must retain v0.4.21 lineage bridge`);
+if(['v0.4.22.1','v0.4.23','v0.4.24'].includes(appVersion))assert.ok(version.includes("// app_version: 'v0.4.22'"),`${appVersion} must retain v0.4.22 lineage bridge`);
+const baseOutputSuccessor=['v0.4.22','v0.4.22.1','v0.4.23','v0.4.24'].includes(appVersion);
 assert.equal(HELP_EVENT_SPLIT_AUTHORITY_STATUS,'ACTIVE_VERIFIED_STRUCTURAL');
 assert.equal(BASE_BERRY_OUTPUT_NUMERIC_STATUS,'NOT_YET_VERIFIED','structural contract constant remains historical scope marker; runtime numeric authority is versioned separately');
 assert.ok(HELP_EVENT_SPLIT_CONTRACT_ID.includes('2026-08-13'));assert.ok(HELP_EVENT_SPLIT_CONTRACT_VERSION.includes('2026-08-13'));
