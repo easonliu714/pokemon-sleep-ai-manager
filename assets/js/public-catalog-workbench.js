@@ -8,7 +8,7 @@ import {saveIngredient,saveItem} from './manual-editor.js';
 import {renderRecipeUnifiedWorkbench,RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION} from './recipe-unified-player-workbench.js';
 
 const BUILD=globalThis.PokemonSleepVersionAuthority.app_build;
-const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]));
+const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const $=id=>document.getElementById(id);
 let installed=false,draining=false,requestedGeneration=0,completedGeneration=0,pendingView=null;
 const activeView=()=>document.querySelector('.view.active')?.id||'dashboard';
