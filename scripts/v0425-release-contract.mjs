@@ -10,11 +10,18 @@ const read=path=>fs.readFileSync(path,'utf8');
 const authoritySource=read('assets/js/version-authority.js');
 const sandbox={};sandbox.globalThis=sandbox;vm.runInNewContext(authoritySource,sandbox);
 const authority=sandbox.PokemonSleepVersionAuthority;
-assert.equal(authority.app_version,'v0.4.25');
-assert.equal(authority.app_build,'20260814-v0425-g75e2b-recipe-name-subskill');
-assert.equal(authority.cache_name,'pokemon-sleep-ai-v0.4.25-v0425-g75e2b-recipe-name-subskill');
-assert.ok(authoritySource.includes("// app_version: 'v0.4.24'"));
-assert.ok(authoritySource.includes("// app_build: '20260814-v0424-g75e2a-nature-numeric-modifier'"));
+assert.ok(['v0.4.25','v0.4.26'].includes(authority.app_version));
+if(authority.app_version==='v0.4.26'){
+  assert.equal(authority.app_build,'20260814-v0426-g75e3a-ingredient-rate-reference-boundary');
+  assert.equal(authority.cache_name,'pokemon-sleep-ai-v0.4.26-v0426-g75e3a-ingredient-rate-reference-boundary');
+  assert.ok(authoritySource.includes("// app_version: 'v0.4.25'"));
+  assert.ok(authoritySource.includes("// app_build: '20260814-v0425-g75e2b-recipe-name-subskill'"));
+}else{
+  assert.equal(authority.app_build,'20260814-v0425-g75e2b-recipe-name-subskill');
+  assert.equal(authority.cache_name,'pokemon-sleep-ai-v0.4.25-v0425-g75e2b-recipe-name-subskill');
+  assert.ok(authoritySource.includes("// app_version: 'v0.4.24'"));
+  assert.ok(authoritySource.includes("// app_build: '20260814-v0424-g75e2a-nature-numeric-modifier'"));
+}
 assert.equal(STRATEGY_OPTIMIZATION_PACK_VERSION,'strategy-optimization-pack-2026-08-14-c');
 
 assert.equal(PUBLIC_RECIPE_MASTER_VERSION,'public-recipe-master-2026-08-14-c');
