@@ -19,6 +19,7 @@ on:
       - 'scripts/v042*.mjs'
       - 'tests/v04221_recipe_level_energy_gate.mjs'
       - 'scripts/ci-production-evidence-regression.mjs'
+      - 'scripts/ci-production-workflow-consolidation-contract.mjs'
       - '.github/workflows/production-evidence-regression.yml'
   push:
     branches: [main]
@@ -39,6 +40,7 @@ on:
       - 'scripts/v042*.mjs'
       - 'tests/v04221_recipe_level_energy_gate.mjs'
       - 'scripts/ci-production-evidence-regression.mjs'
+      - 'scripts/ci-production-workflow-consolidation-contract.mjs'
       - '.github/workflows/production-evidence-regression.yml'
   workflow_dispatch:
 
@@ -59,3 +61,5 @@ jobs:
           node-version: '22'
       - name: Replay Production evidence and predecessor contracts
         run: node scripts/ci-production-evidence-regression.mjs
+      - name: Verify Production workflow consolidation topology
+        run: node scripts/ci-production-workflow-consolidation-contract.mjs
