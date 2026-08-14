@@ -7,7 +7,8 @@ const SOURCE_POLICY = Object.freeze({
   verified_at: '2026-08-15',
 });
 
-// Public type→berry knowledge is projection/consistency-only. It is public game knowledge
+// Public type→berry knowledge is projection-only.
+// The current successor meaning is projection/consistency-only: it is public game knowledge
 // and must never generate or overwrite player-owned Type/Berry observations.
 export const PUBLIC_BERRY_TYPES = Object.freeze([
   ['一般','柿仔果'],['火','蘋野果'],['水','橙橙果'],['電','葡萄果'],['草','金枕果'],['冰','莓莓果'],
