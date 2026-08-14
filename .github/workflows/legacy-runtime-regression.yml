@@ -14,6 +14,7 @@ on:
       - 'assets/js/v0389-*.js'
       - 'assets/js/v0390-*.js'
       - 'assets/js/public-catalog-workbench.js'
+      - 'assets/js/recipe-unified-player-workbench.js'
       - 'assets/js/public-recipe-master*.js'
       - 'service-worker.js'
       - 'service-worker-v0387.js'
@@ -24,6 +25,7 @@ on:
       - 'scripts/v0392-new-user-bootstrap-gate.mjs'
       - 'scripts/v03981-confirmation-dryrun-browser.mjs'
       - 'scripts/ci-legacy-runtime-regression.mjs'
+      - 'scripts/ci-legacy-runtime-workflow-consolidation-contract.mjs'
       - '.github/workflows/legacy-runtime-regression.yml'
   push:
     branches: [main]
@@ -39,6 +41,7 @@ on:
       - 'assets/js/v0389-*.js'
       - 'assets/js/v0390-*.js'
       - 'assets/js/public-catalog-workbench.js'
+      - 'assets/js/recipe-unified-player-workbench.js'
       - 'assets/js/public-recipe-master*.js'
       - 'service-worker.js'
       - 'service-worker-v0387.js'
@@ -49,6 +52,7 @@ on:
       - 'scripts/v0392-new-user-bootstrap-gate.mjs'
       - 'scripts/v03981-confirmation-dryrun-browser.mjs'
       - 'scripts/ci-legacy-runtime-regression.mjs'
+      - 'scripts/ci-legacy-runtime-workflow-consolidation-contract.mjs'
       - '.github/workflows/legacy-runtime-regression.yml'
   workflow_dispatch:
 
@@ -69,6 +73,8 @@ jobs:
           node-version: '22'
       - name: Replay legacy runtime safety contracts
         run: node scripts/ci-legacy-runtime-regression.mjs
+      - name: Verify legacy runtime workflow consolidation topology
+        run: node scripts/ci-legacy-runtime-workflow-consolidation-contract.mjs
 
   confirmation-browser:
     needs: core-runtime
