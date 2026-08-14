@@ -11,6 +11,7 @@ item_master = (root / 'assets/js/public-item-master.js').read_text(encoding='utf
 item_seed = (root / 'assets/js/public-empty-profile-master.js').read_text(encoding='utf-8')
 recipe_master = (root / 'assets/js/public-recipe-master.js').read_text(encoding='utf-8')
 recipe_canonical = (root / 'assets/js/public-recipe-canonical-authority.js').read_text(encoding='utf-8')
+recipe_current = (root / 'assets/js/public-recipe-current-authority.js').read_text(encoding='utf-8')
 legacy_recipe = (root / 'assets/js/v0383-catalog-ocr-review-contract.js').read_text(encoding='utf-8')
 shared_master = (root / 'assets/js/shared-master-data.js').read_text(encoding='utf-8')
 rescue = (root / 'assets/js/v0389-rescue-catalog-import.js').read_text(encoding='utf-8')
@@ -53,10 +54,11 @@ if recipe_workbench_path.exists():
         assert token in module, f'missing unified recipe delegation contract: {token}'
     for token in [
         'recipe_catalog_state', 'canonical-recipe-unlocked',
-        "from './public-recipe-canonical-authority.js'",
+        "from './public-recipe-current-authority.js'",
         "document.getElementById('recipeTable')", 'lockedRecipeTable',
     ]:
         assert token in recipe_workbench, f'missing unified recipe owner contract: {token}'
+    assert "from './public-recipe-canonical-authority.js'" not in recipe_workbench, 'unified recipe workbench must not bypass current recipe authority'
     assert 'INSERT INTO recipes' not in module, 'public catalog shell must not own a second recipe writer'
     assert 'renderRecipeCatalog()' not in module, 'legacy recipe renderer must be retired after delegation'
 else:
@@ -83,8 +85,8 @@ assert "import {PUBLIC_ITEM_MASTER,PUBLIC_ITEM_MASTER_VERSION} from './public-it
 assert 'effect_description_zh_tw=excluded.effect_description_zh_tw' in item_seed
 assert "VALUES('public_item_master_version'" in item_seed
 
-# Recipe base facts remain in public-recipe-master.js, while every runtime display/sync
-# consumer must go through the v0.4.3 canonical-name projection.
+# Recipe base facts remain in public-recipe-master.js. The predecessor canonical projection
+# is historical evidence only; runtime display/sync consumers must use current authority.
 assert 'export const PUBLIC_RECIPE_MASTER_VERSION=' in recipe_master
 assert 'export const PUBLIC_RECIPE_MASTER=' in recipe_master
 assert 'export const PUBLIC_RECIPE_ALIASES=' in recipe_master
@@ -92,8 +94,10 @@ assert 'export function applyPublicRecipeMaster' in recipe_master
 assert 'export const PUBLIC_RECIPE_CANONICAL_NAME_VERSION=' in recipe_canonical
 assert 'export const PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES=' in recipe_canonical
 assert "from './public-recipe-master.js'" in recipe_canonical
+assert "from './public-recipe-canonical-authority.js'" in recipe_current
 recipe_runtime_owner = recipe_workbench if recipe_workbench_path.exists() else module
-assert "from './public-recipe-canonical-authority.js'" in recipe_runtime_owner
+assert "from './public-recipe-current-authority.js'" in recipe_runtime_owner
+assert "from './public-recipe-canonical-authority.js'" not in recipe_runtime_owner
 assert "from './public-recipe-master.js'" not in recipe_runtime_owner
 assert 'PokemonSleepPublicRecipeRegistry' not in recipe_runtime_owner
 assert 'const RECIPES' not in shared_master
@@ -107,6 +111,7 @@ for forbidden in [
 ]:
     assert forbidden not in recipe_master, f'public recipe updater mutates player data: {forbidden}'
     assert forbidden not in recipe_canonical, f'canonical recipe projection mutates player data: {forbidden}'
+    assert forbidden not in recipe_current, f'current recipe projection mutates player data: {forbidden}'
 
 # Version audit must be local-first and only persist when schema/master changed.
 for token in [
@@ -155,7 +160,7 @@ print({
     'single_item_authority': True,
     'single_recipe_authority': True,
     'recipe_workbench_successor': recipe_workbench_path.exists(),
-    'recipe_runtime_authority': 'public-recipe-canonical-authority.js',
+    'recipe_runtime_authority': 'public-recipe-current-authority.js',
     'recipe_base_fact_authority': 'public-recipe-master.js',
     'version_audit': True,
     'unchanged_version_persist': False,
