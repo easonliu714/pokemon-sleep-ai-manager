@@ -25,6 +25,7 @@ on:
       - 'scripts/v04*.mjs'
       - 'scripts/g7-recipe-portfolio-contention-contract.mjs'
       - 'scripts/ci-war-room-regression.mjs'
+      - 'scripts/ci-war-room-workflow-consolidation-contract.mjs'
       - '.github/workflows/war-room-regression.yml'
   push:
     branches: [main]
@@ -51,6 +52,7 @@ on:
       - 'scripts/v04*.mjs'
       - 'scripts/g7-recipe-portfolio-contention-contract.mjs'
       - 'scripts/ci-war-room-regression.mjs'
+      - 'scripts/ci-war-room-workflow-consolidation-contract.mjs'
       - '.github/workflows/war-room-regression.yml'
   workflow_dispatch:
 
@@ -71,3 +73,5 @@ jobs:
           node-version: '24'
       - name: Replay War Room behavioral and release contracts
         run: node scripts/ci-war-room-regression.mjs
+      - name: Verify War Room workflow consolidation topology
+        run: node scripts/ci-war-room-workflow-consolidation-contract.mjs

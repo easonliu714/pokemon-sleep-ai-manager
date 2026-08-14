@@ -10,6 +10,7 @@ on:
       - 'service-worker.js'
       - 'scripts/data1d1-*.mjs'
       - 'scripts/ci-data1d1-ocr-regression.mjs'
+      - 'scripts/ci-data1d1-workflow-consolidation-contract.mjs'
       - '.github/workflows/data1d1-ocr-regression.yml'
   push:
     branches: [main]
@@ -21,6 +22,7 @@ on:
       - 'service-worker.js'
       - 'scripts/data1d1-*.mjs'
       - 'scripts/ci-data1d1-ocr-regression.mjs'
+      - 'scripts/ci-data1d1-workflow-consolidation-contract.mjs'
       - '.github/workflows/data1d1-ocr-regression.yml'
   workflow_dispatch:
 
@@ -41,3 +43,5 @@ jobs:
           node-version: '22'
       - name: Replay DATA.1D.1 OCR behavioral gates
         run: node scripts/ci-data1d1-ocr-regression.mjs
+      - name: Verify DATA.1D.1 workflow consolidation topology
+        run: node scripts/ci-data1d1-workflow-consolidation-contract.mjs
