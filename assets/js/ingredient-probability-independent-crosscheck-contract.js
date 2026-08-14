@@ -53,7 +53,9 @@ export function buildIndependentIngredientProbabilityCrosscheckAudit({rosterKeys
   const independenceStatus=independentSource?.independence_status||INDEPENDENT_CROSSCHECK_SOURCE_STATUS.INDEPENDENCE_NOT_YET_ESTABLISHED;
   const rows=roster.map(sourceKey=>{
     const independent=independentMap.get(sourceKey);
-    const mergedIndependent=independent?{...independent,independence_status:independent.independence_status||independenceStatus}:null;
+    // Source-level admission is authoritative. Individual rows may never self-assert
+    // independence and bypass the reviewed/pinned source-admission contract.
+    const mergedIndependent=independent?{...independent,independence_status:independenceStatus}:null;
     const result=compareIndependentIngredientProbability({primary:primaryMap.get(sourceKey)||null,independent:mergedIndependent});
     return freeze({source_key:sourceKey,status:result.status,crosscheck_accepted:result.crosscheck_accepted,activation_authority_granted:false,primary_decimal:result.primary_decimal??null,independent_decimal:result.independent_decimal??null});
   });
