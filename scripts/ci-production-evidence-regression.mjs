@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 
-export const PRODUCTION_EVIDENCE_REGRESSION_VERSION='production-evidence-regression-2026-08-14-a';
+export const PRODUCTION_EVIDENCE_REGRESSION_VERSION='production-evidence-regression-2026-08-14-b';
 
+// Production/G7 behavioral lineage only. Recipe v0.4.22.1 keeps its own
+// Recipe Authority workflow and is intentionally not retired by P1.
 export const PRODUCTION_BEHAVIORAL_CONTRACTS=Object.freeze([
   'scripts/v0414-g7-verified-energy-objective-contract.mjs',
   'scripts/v0415-g72-team-supply-mobile-ui-contract.mjs',
@@ -14,8 +16,6 @@ export const PRODUCTION_BEHAVIORAL_CONTRACTS=Object.freeze([
   'scripts/v0420-g75b-favorite-berry-multiplier-contract.mjs',
   'scripts/v0421-g75c-help-event-split-contract.mjs',
   'scripts/v0422-g75d-base-berry-output-contract.mjs',
-  'tests/v04221_recipe_level_energy_gate.mjs',
-  'scripts/v04221-recipe-formula-authority-audit.mjs',
   'scripts/v0423-production-modifier-contract.mjs',
   'scripts/v0424-nature-numeric-modifier-contract.mjs',
   'scripts/v0425-recipe-name-subskill-contract.mjs',
@@ -55,10 +55,23 @@ const PRODUCTION_RUNTIME_FILES=Object.freeze([
   'assets/js/pokemon-master-options.js',
 ]);
 
+function annotationSafe(value){
+  return String(value??'').replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A');
+}
+
 function run(command,args,{label=command,env=process.env}={}){
-  const result=spawnSync(command,args,{stdio:'inherit',env});
-  if(result.error)throw result.error;
-  assert.equal(result.status,0,`${label} failed with exit ${result.status}`);
+  const result=spawnSync(command,args,{encoding:'utf8',env});
+  if(result.stdout)process.stdout.write(result.stdout);
+  if(result.stderr)process.stderr.write(result.stderr);
+  if(result.error){
+    console.error(`::error title=${annotationSafe(label)}::${annotationSafe(result.error.message)}`);
+    throw result.error;
+  }
+  if(result.status!==0){
+    const detail=[result.stderr,result.stdout].filter(Boolean).join('\n').trim()||`exit ${result.status}`;
+    console.error(`::error title=${annotationSafe(label)}::${annotationSafe(detail)}`);
+    throw new Error(`${label} failed with exit ${result.status}`);
+  }
 }
 
 for(const path of [...PRODUCTION_RUNTIME_FILES,...PRODUCTION_BEHAVIORAL_CONTRACTS]){
@@ -88,6 +101,7 @@ console.log(JSON.stringify({
   version:PRODUCTION_EVIDENCE_REGRESSION_VERSION,
   behavioral_contract_count:PRODUCTION_BEHAVIORAL_CONTRACTS.length,
   runtime_syntax_count:PRODUCTION_RUNTIME_FILES.length,
+  recipe_authority_workflow_retired:false,
   production_authority_mutated:false,
   behavioral_contracts_removed:0,
   runtime_network_authority_added:false,
