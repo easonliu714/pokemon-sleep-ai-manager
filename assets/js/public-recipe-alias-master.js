@@ -2,9 +2,9 @@ import {
   PUBLIC_RECIPE_ALIASES as CANONICAL_COMPATIBILITY_ALIASES,
   PUBLIC_RECIPE_MASTER,
   PUBLIC_RECIPE_MASTER_VERSION,
-} from './public-recipe-canonical-authority.js';
+} from './public-recipe-current-authority.js';
 
-export const PUBLIC_RECIPE_ALIAS_VERSION='public-recipe-alias-2026-08-11-b';
+export const PUBLIC_RECIPE_ALIAS_VERSION='public-recipe-alias-2026-08-14-c';
 
 const canonicalById=new Map(PUBLIC_RECIPE_MASTER.map(row=>[String(row.recipe_id),row]));
 
@@ -21,7 +21,7 @@ export const PUBLIC_RECIPE_ALIASES=Object.freeze(CANONICAL_COMPATIBILITY_ALIASES
       recipe_name:String(recipe.recipe_name),
       verification_status:'REVIEWED_LEGACY_RECIPE_NAME_COMPATIBILITY',
       verified_at:recipe.verified_at||null,
-      source_ref:row.source_ref||'internal:public-recipe-canonical-authority',
+      source_ref:row.source_ref||'internal:public-recipe-current-authority',
       data_version:PUBLIC_RECIPE_MASTER_VERSION,
     });
   })
