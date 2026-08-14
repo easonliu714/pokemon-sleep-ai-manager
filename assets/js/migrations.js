@@ -1,6 +1,6 @@
 import {applySharedMasterSchema} from './shared-master-schema.js';
 import {applySharedMasterData,MASTER_DATA_VERSION} from './shared-master-data.js';
-import {PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-canonical-authority.js';
+import {PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-current-authority.js';
 import {syncPublicRecipeMaster} from './public-recipe-master-sync.js';
 import {applyPublicEmptyProfileMaster} from './public-empty-profile-master.js';
 import {PUBLIC_ITEM_MASTER_VERSION} from './public-item-master.js';
