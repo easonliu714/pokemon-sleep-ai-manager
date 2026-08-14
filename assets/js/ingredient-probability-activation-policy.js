@@ -34,7 +34,7 @@ export const INGREDIENT_PROBABILITY_KNOWN_SOURCE_EXCLUSIONS=Object.freeze([
     source_path:'common/src/types/pokemon/all-pokemon.ts',
     field:'ingredientPercentage',
     evidence_class:INGREDIENT_PROBABILITY_EVIDENCE_CLASS.SOURCE_DECLARED_SUSPICIOUS,
-    exclusion_reason:'SOURCE_COMMENT_DECLARIES_VALUE_SUSPICIOUS_AND_USED_TO_FIT_RP_MODEL',
+    exclusion_reason:'SOURCE_COMMENT_DECLARES_VALUE_SUSPICIOUS_AND_USED_TO_FIT_RP_MODEL',
     eligible_for_numeric_activation:false,
     requires_independent_replacement_evidence:true,
   }),
