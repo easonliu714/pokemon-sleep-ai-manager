@@ -26,6 +26,19 @@ jobs:
       - name: Verify CI topology policy
         run: node scripts/ci-topology-policy-contract.mjs
 
+      - name: Extract pinned species ingredient candidates
+        env:
+          ALLOW_PINNED_EVIDENCE_FETCH: '1'
+        run: node scripts/species-ingredient-candidate-source-extract.mjs
+
+      - name: Upload species ingredient candidate audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-species-ingredient-candidate-source-audit
+          path: artifacts/public-species-ingredient-candidate-source.json
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Verify Pokémon visual evidence consistency
         run: node scripts/pokemon-visual-evidence-regression.mjs
 
