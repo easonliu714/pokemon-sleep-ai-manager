@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {spawnSync} from 'node:child_process';
 
-export const LEGACY_RUNTIME_REGRESSION_VERSION='legacy-runtime-regression-2026-08-14-b';
+export const LEGACY_RUNTIME_REGRESSION_VERSION='legacy-runtime-regression-2026-08-14-c';
 let currentPhase='bootstrap';
 function annotationSafe(value){return String(value??'').replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A');}
 process.on('uncaughtException',error=>{
@@ -52,12 +52,16 @@ currentPhase='v0382-central-authority';
 
 currentPhase='boot-isolation-finalize';
 {
-  for(const path of ['assets/js/database.js','assets/js/app.js','assets/js/bootstrap.js','assets/js/v0383-catalog-ocr-review-contract.js','assets/js/public-catalog-workbench.js','assets/js/version-authority.js'])assert.equal(fs.existsSync(path),true,`${path} missing`);
-  const database=read('assets/js/database.js'),app=read('assets/js/app.js'),bootstrap=read('assets/js/bootstrap.js'),catalogContract=read('assets/js/v0383-catalog-ocr-review-contract.js'),catalog=read('assets/js/public-catalog-workbench.js');
+  for(const path of ['assets/js/database.js','assets/js/app.js','assets/js/bootstrap.js','assets/js/v0383-catalog-ocr-review-contract.js','assets/js/public-catalog-workbench.js','assets/js/recipe-unified-player-workbench.js','assets/js/version-authority.js'])assert.equal(fs.existsSync(path),true,`${path} missing`);
+  const database=read('assets/js/database.js'),app=read('assets/js/app.js'),bootstrap=read('assets/js/bootstrap.js'),catalogContract=read('assets/js/v0383-catalog-ocr-review-contract.js'),catalog=read('assets/js/public-catalog-workbench.js'),recipeWorkbench=read('assets/js/recipe-unified-player-workbench.js');
   assert.match(database,/BOOT_PERSIST_SKIPPED|boot_persist_skipped/);assert.match(database,/RESCUE_READY/);assert.match(database,/BOOTSTRAP_COMPLETE/);assert.match(database,/dispatchReady/);assert.match(database+bootstrap,/APP_READY/);
-  assert.match(catalogContract,/database_write_performed:false/);assert.match(catalogContract,/PokemonSleepPublicRecipeRegistry/);assert.match(catalog,/item_catalog_state/);assert.match(catalog,/recipe_catalog_state/);assert.match(app,/initializeDatabase/);assert.match(app,/setupG3Pages/);assert.match(app,/refresh/);assert.match(bootstrap,/PokemonSleepVersionAuthority|version-authority\.js/);
+  assert.match(catalogContract,/database_write_performed:false/);assert.match(catalogContract,/PokemonSleepPublicRecipeRegistry/);
+  assert.match(catalog,/item_catalog_state/);assert.match(catalog,/ingredient_catalog_state/);
+  assert.match(catalog,/renderRecipeUnifiedWorkbench/,'public catalog must delegate Recipe ownership to unified workbench');
+  assert.match(recipeWorkbench,/recipe_catalog_state/,'unified Recipe owner must keep governed recipe_catalog_state');
+  assert.match(app,/initializeDatabase/);assert.match(app,/setupG3Pages/);assert.match(app,/refresh/);assert.match(bootstrap,/PokemonSleepVersionAuthority|version-authority\.js/);
   for(const [path,source] of [['assets/js/database.js',database],['assets/js/app.js',app],['assets/js/bootstrap.js',bootstrap]]){assert.doesNotMatch(source,/const\s+APP_VERSION\s*=\s*['"]/);assert.doesNotMatch(source,/const\s+CACHE(?:_NAME)?\s*=\s*['"]/);}
-  console.log('PASS legacy boot-isolation/finalize contract');
+  console.log('PASS legacy boot-isolation/finalize contract with delegated Recipe ownership');
 }
 
 currentPhase='zero-sql-rescue';
@@ -81,4 +85,4 @@ currentPhase='worker-isolation-lifecycle';
 
 currentPhase='mutation-guard';
 run('git',['diff','--exit-code'],{label:'legacy-runtime mutation guard'});
-console.log(JSON.stringify({status:'PASS',gate:'LEGACY_RUNTIME_REGRESSION',version:LEGACY_RUNTIME_REGRESSION_VERSION,existing_contract_count:existingContracts.length,embedded_behavior_groups:4,player_data_write:false,release_authority_mutation:false},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'LEGACY_RUNTIME_REGRESSION',version:LEGACY_RUNTIME_REGRESSION_VERSION,existing_contract_count:existingContracts.length,embedded_behavior_groups:4,recipe_owner_successor_aware:true,player_data_write:false,release_authority_mutation:false},null,2));
