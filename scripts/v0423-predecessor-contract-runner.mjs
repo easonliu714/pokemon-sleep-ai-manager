@@ -14,6 +14,11 @@ if(current==='v0.4.23'){
     .replace("app_version: 'v0.4.23'","app_version: 'v0.4.22.1'")
     .replace("app_build: '20260814-v0423-g75e1-production-modifier-structural'","app_build: '20260813-v04221-recipe-formula-authority-audit'")
     .replace("cache_name: 'pokemon-sleep-ai-v0.4.23-v0423-g75e1-production-modifier-structural'","cache_name: 'pokemon-sleep-ai-v0.4.22.1-v04221-recipe-formula-authority-audit'");
+}else if(current==='v0.4.24'){
+  staged=staged
+    .replace("app_version: 'v0.4.24'","app_version: 'v0.4.22.1'")
+    .replace("app_build: '20260814-v0424-g75e2a-nature-numeric-modifier'","app_build: '20260813-v04221-recipe-formula-authority-audit'")
+    .replace("cache_name: 'pokemon-sleep-ai-v0.4.24-v0424-g75e2a-nature-numeric-modifier'","cache_name: 'pokemon-sleep-ai-v0.4.22.1-v04221-recipe-formula-authority-audit'");
 }
 
 try{
