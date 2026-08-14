@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 
-export const PRODUCTION_EVIDENCE_REGRESSION_VERSION='production-evidence-regression-2026-08-14-c';
+export const PRODUCTION_EVIDENCE_REGRESSION_VERSION='production-evidence-regression-2026-08-14-d';
 const PREDECESSOR_BRIDGE='scripts/v0423-predecessor-contract-runner.mjs';
 
 // Production/G7 behavioral lineage only. Recipe v0.4.22.1 keeps its own
@@ -33,10 +33,17 @@ export const PRODUCTION_BEHAVIORAL_CONTRACTS=Object.freeze([
   'scripts/v0428-g75e3c6-first-party-observation-contract.mjs',
 ]);
 
-// These historical contracts intentionally validate an older release identity.
-// Use the already-governed predecessor bridge instead of mutating their allowlists.
+// v0.4.16–v0.4.22 validate historical release identities but are designed to
+// tolerate governed runtime successors. Replay them through the existing
+// v0.4.27 -> v0.4.22.1 identity bridge instead of mutating historical allowlists.
 const IDENTITY_BRIDGED_CONTRACTS=new Set([
   'scripts/v0416-g73-production-team-search-contract.mjs',
+  'scripts/v0417-g74-ai-proposal-intake-contract.mjs',
+  'scripts/v0418-g75-production-evidence-contract.mjs',
+  'scripts/v0419-g75a-berry-strength-contract.mjs',
+  'scripts/v0420-g75b-favorite-berry-multiplier-contract.mjs',
+  'scripts/v0421-g75c-help-event-split-contract.mjs',
+  'scripts/v0422-g75d-base-berry-output-contract.mjs',
 ]);
 
 const PRODUCTION_RUNTIME_FILES=Object.freeze([
