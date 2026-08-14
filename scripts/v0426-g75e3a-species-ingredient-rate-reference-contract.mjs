@@ -50,8 +50,14 @@ assert.equal(conflict.effective_probability,null);
 
 const registry=currentProductionAuthorityRegistry();
 const numeric=['berry_output_per_help','berry_energy_per_berry','favorite_berry_multiplier','ingredient_probability_per_help','ingredient_slot_distribution','main_skill_trigger_probability','main_skill_effect_value'];
-assert.equal(numeric.filter(name=>registry.rules[name]?.status==='ACTIVE_VERIFIED').length,3);
+const active=numeric.filter(name=>registry.rules[name]?.status==='ACTIVE_VERIFIED');
+const slotSuccessor=registry.rules.ingredient_slot_distribution?.status==='ACTIVE_VERIFIED';
+if(slotSuccessor){assert.equal(registry.rules.ingredient_slot_distribution.rule_version,'ingredient-slot-distribution-v1');assert.equal(registry.rules.ingredient_slot_distribution.runtime_numeric_activation,true);}
+assert.deepEqual(active,['berry_output_per_help','berry_energy_per_berry','favorite_berry_multiplier',...(slotSuccessor?['ingredient_slot_distribution']:[])],'species-rate reference must never activate ingredient probability; only exact slot successor may extend active set');
 assert.equal(registry.rules.ingredient_probability_per_help.status,'NOT_YET_VERIFIED');
+assert.equal(registry.rules.ingredient_probability_per_help.runtime_numeric_activation,false);
+assert.equal(registry.rules.main_skill_trigger_probability.status,'NOT_YET_VERIFIED');
+assert.equal(registry.rules.main_skill_effect_value.status,'NOT_YET_VERIFIED');
 assert.equal(registry.numeric_rate_model_status,'NOT_YET_VERIFIED');
 
 const evidence=buildProductionEvidenceSnapshot({candidateFeatures:{candidates:[
@@ -60,10 +66,10 @@ const evidence=buildProductionEvidenceSnapshot({candidateFeatures:{candidates:[
   {species:'六尾',type:'冰',level:30,specialty:'樹果',helper_seconds:5600,nature:'勤奮',unlocked_subskills:[],unlocked_ingredients:[]},
   {species:'不存在物種',type:'火',level:30,specialty:'食材',helper_seconds:4000,nature:'勤奮',unlocked_subskills:[],unlocked_ingredients:[]},
 ]},weeklyContext:{favorite_berry_1:'蘋野果',favorite_berry_2:'金枕果',favorite_berry_3:'莓莓果'},productionRegistry:registry});
-assert.equal(evidence.schema,'pokemon-sleep-production-evidence-snapshot/1.4');
+assert.ok(['pokemon-sleep-production-evidence-snapshot/1.4','pokemon-sleep-production-evidence-snapshot/1.5'].includes(evidence.schema));
 assert.equal(evidence.summary.numeric_dimension_count,7);
-assert.equal(evidence.summary.active_numeric_dimension_count,3);
-assert.equal(evidence.summary.blocked_numeric_dimension_count,4);
+assert.equal(evidence.summary.active_numeric_dimension_count,3+(slotSuccessor?1:0));
+assert.equal(evidence.summary.blocked_numeric_dimension_count,4-(slotSuccessor?1:0));
 assert.equal(evidence.summary.species_base_ingredient_rate_reference_resolved_candidate_count,3);
 const referenceRow=evidence.rules.find(row=>row.dimension==='species_base_ingredient_rate_reference');
 assert.equal(referenceRow.coverage.observed_count,3);
@@ -73,9 +79,11 @@ const ingredientRow=evidence.rules.find(row=>row.dimension==='ingredient_probabi
 assert.equal(ingredientRow.runtime_numeric_activation,false);
 assert.equal(ingredientRow.coverage.observed_count,0);
 assert.deepEqual(ingredientRow.blocking_reasons,['SPECIES_BASE_INGREDIENT_RATE_ACTIVATION_MASTER_NOT_ACCEPTED']);
+if(slotSuccessor){const slotRow=evidence.rules.find(row=>row.dimension==='ingredient_slot_distribution');assert.equal(slotRow.runtime_numeric_activation,true);assert.equal(slotRow.authority_status,'ACTIVE_VERIFIED');}
 assert.equal(evidence.activation_decision,'HOLD_NUMERIC_MODEL_NOT_ACTIVE');
 assert.equal(evidence.safety.sqlite_write,false);
 assert.equal(evidence.safety.runtime_network_fetch,false);
 assert.equal(evidence.safety.ai_numeric_authority,false);
+assert.equal(evidence.safety.reference_values_activate_production,false);
 
-console.log(JSON.stringify({status:'PASS',gate:'V0426_G75E3A_SPECIES_INGREDIENT_RATE_REFERENCE_BOUNDARY',reference_version:ref.version,reference_row_count:ref.row_count,form_safe_vulpix:true,ingredient_finder_s_plus_m:1.54,numeric_dimensions_active:'3/7',ingredient_probability_authority:registry.rules.ingredient_probability_per_help.status,overall_numeric_model_status:registry.numeric_rate_model_status,reference_values_activate_model:false,missing_is_zero:false,runtime_network_fetch:false,ai_numeric_authority:false},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V0426_G75E3A_SPECIES_INGREDIENT_RATE_REFERENCE_BOUNDARY',reference_version:ref.version,reference_row_count:ref.row_count,form_safe_vulpix:true,ingredient_finder_s_plus_m:1.54,numeric_dimensions_active:`${active.length}/7`,ingredient_slot_successor:slotSuccessor,ingredient_probability_authority:registry.rules.ingredient_probability_per_help.status,overall_numeric_model_status:registry.numeric_rate_model_status,reference_values_activate_model:false,missing_is_zero:false,runtime_network_fetch:false,ai_numeric_authority:false},null,2));
