@@ -14,6 +14,7 @@ on:
       - 'assets/js/version-authority.js'
       - 'service-worker.js'
       - 'scripts/v0421-g75c-help-event-split-contract.mjs'
+      - 'scripts/v0423-predecessor-contract-runner.mjs'
       - '.github/workflows/v0421-g75c-help-event-split.yml'
   pull_request:
     paths:
@@ -25,6 +26,7 @@ on:
       - 'assets/js/version-authority.js'
       - 'service-worker.js'
       - 'scripts/v0421-g75c-help-event-split-contract.mjs'
+      - 'scripts/v0423-predecessor-contract-runner.mjs'
       - '.github/workflows/v0421-g75c-help-event-split.yml'
   workflow_dispatch:
 
@@ -48,5 +50,6 @@ jobs:
           node --check assets/js/team-objective-evaluator.js
           node --check service-worker.js
           node --check scripts/v0421-g75c-help-event-split-contract.mjs
+          node --check scripts/v0423-predecessor-contract-runner.mjs
       - name: Help event split governance contract
-        run: node scripts/v0421-g75c-help-event-split-contract.mjs
+        run: node scripts/v0423-predecessor-contract-runner.mjs scripts/v0421-g75c-help-event-split-contract.mjs

@@ -23,5 +23,6 @@ jobs:
           node --check assets/js/team-objective-evaluator.js
           node --check service-worker.js
           node --check scripts/v0419-g75a-berry-strength-contract.mjs
+          node --check scripts/v0423-predecessor-contract-runner.mjs
       - name: G7.5A berry strength numeric master contract
-        run: node scripts/v0419-g75a-berry-strength-contract.mjs
+        run: node scripts/v0423-predecessor-contract-runner.mjs scripts/v0419-g75a-berry-strength-contract.mjs

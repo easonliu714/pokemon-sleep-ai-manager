@@ -17,6 +17,7 @@ on:
       - 'scripts/version-authority-audit.mjs'
       - 'scripts/v04221-recipe-formula-authority-audit.mjs'
       - 'scripts/v04221-release-contract.mjs'
+      - 'scripts/v0423-predecessor-contract-runner.mjs'
       - '.github/workflows/v04221-recipe-formula-authority-audit.yml'
   pull_request:
     paths:
@@ -30,6 +31,7 @@ on:
       - 'scripts/version-authority-audit.mjs'
       - 'scripts/v04221-recipe-formula-authority-audit.mjs'
       - 'scripts/v04221-release-contract.mjs'
+      - 'scripts/v0423-predecessor-contract-runner.mjs'
       - '.github/workflows/v04221-recipe-formula-authority-audit.yml'
   workflow_dispatch:
 
@@ -52,9 +54,10 @@ jobs:
           node --check assets/js/public-master-recognition.js
           node --check scripts/v04221-recipe-formula-authority-audit.mjs
           node --check scripts/v04221-release-contract.mjs
+          node --check scripts/v0423-predecessor-contract-runner.mjs
       - name: Version authority audit
         run: node scripts/version-authority-audit.mjs
       - name: Full 78-recipe formula authority audit
         run: node scripts/v04221-recipe-formula-authority-audit.mjs
       - name: v0.4.22.1 release authority contract
-        run: node scripts/v04221-release-contract.mjs
+        run: node scripts/v0423-predecessor-contract-runner.mjs scripts/v04221-release-contract.mjs

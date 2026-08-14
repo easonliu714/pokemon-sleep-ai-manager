@@ -15,6 +15,7 @@ on:
       - 'assets/js/version-authority.js'
       - 'service-worker.js'
       - 'scripts/v0422-g75d-base-berry-output-contract.mjs'
+      - 'scripts/v0423-predecessor-contract-runner.mjs'
       - '.github/workflows/v0422-g75d-base-berry-output.yml'
   pull_request:
     paths:
@@ -27,6 +28,7 @@ on:
       - 'assets/js/version-authority.js'
       - 'service-worker.js'
       - 'scripts/v0422-g75d-base-berry-output-contract.mjs'
+      - 'scripts/v0423-predecessor-contract-runner.mjs'
       - '.github/workflows/v0422-g75d-base-berry-output.yml'
   workflow_dispatch:
 
@@ -50,5 +52,6 @@ jobs:
           node --check assets/js/strategy-optimization-pack.js
           node --check service-worker.js
           node --check scripts/v0422-g75d-base-berry-output-contract.mjs
+          node --check scripts/v0423-predecessor-contract-runner.mjs
       - name: Base Berry output numeric authority contract
-        run: node scripts/v0422-g75d-base-berry-output-contract.mjs
+        run: node scripts/v0423-predecessor-contract-runner.mjs scripts/v0422-g75d-base-berry-output-contract.mjs

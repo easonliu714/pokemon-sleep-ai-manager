@@ -16,3 +16,32 @@ export const SUBSKILLS=['樹果數量S','幫手獎勵','睡眠EXP獎勵','研究
 export const RATINGS=['S+','S','A','B','C','未評級'];
 export const STATUSES=['active','archived','sent_to_professor'];
 export function mergedOptions(base,currentValues=[]){return [...new Set([...base,...currentValues.filter(Boolean).map(String)])].sort((a,b)=>a.localeCompare(b,'zh-Hant'));}
+
+export const PRODUCTION_MODIFIER_STRUCTURAL_VERSION='pokemon-production-modifiers-2026-08-13-a';
+export const PRODUCTION_MODIFIER_STRUCTURAL_STATUS='ACTIVE_VERIFIED_STRUCTURAL';
+export const NATURE_PRODUCTION_DIMENSION_BY_EFFECT=Object.freeze({'無':null,'幫忙速度':'helper_interval_seconds','食材機率':'ingredient_probability_per_help','主技能發動機率':'main_skill_trigger_probability','活力回復量':'energy_recovery','EXP獲得量':'pokemon_exp_gain'});
+const modifier=(dimension,scope='INDIVIDUAL',numeric_status='NOT_YET_VERIFIED')=>Object.freeze({dimension,scope,numeric_status});
+export const SUBSKILL_PRODUCTION_MODIFIERS=Object.freeze({
+  '樹果數量S':modifier('berry_output_per_help','INDIVIDUAL','ACTIVE_VERIFIED_DELEGATED'),
+  '幫手獎勵':modifier('helper_interval_seconds','TEAM'),'幫忙速度S':modifier('helper_interval_seconds'),'幫忙速度M':modifier('helper_interval_seconds'),
+  '食材機率提升S':modifier('ingredient_probability_per_help'),'食材機率提升M':modifier('ingredient_probability_per_help'),
+  '技能機率提升S':modifier('main_skill_trigger_probability'),'技能機率提升M':modifier('main_skill_trigger_probability'),
+  '技能等級提升S':modifier('main_skill_level'),'技能等級提升M':modifier('main_skill_level'),
+  '持有上限提升S':modifier('carry_limit'),'持有上限提升M':modifier('carry_limit'),'持有上限提升L':modifier('carry_limit'),
+  '活力回復獎勵':modifier('energy_recovery','TEAM'),
+  '睡眠EXP獎勵':modifier('sleep_exp_gain','TEAM','NOT_NUMERIC_PRODUCTION'),'研究EXP獎勵':modifier('research_exp_gain','TEAM','NOT_NUMERIC_PRODUCTION'),'夢之碎片獎勵':modifier('dream_shard_gain','TEAM','NOT_NUMERIC_PRODUCTION'),
+});
+const normalized=value=>String(value??'').normalize('NFKC').trim();
+export function resolvePokemonProductionModifierProfile(candidate={}){
+  const modifiers=[],conflicts=[],nature=normalized(candidate.nature),effects=NATURES[nature];
+  if(!nature)conflicts.push('NATURE_MISSING');
+  else if(!effects)conflicts.push('UNKNOWN_NATURE');
+  else {
+    const bonus=normalized(effects[0]),penalty=normalized(effects[1]);
+    if(normalized(candidate.nature_bonus)&&normalized(candidate.nature_bonus)!==bonus)conflicts.push('NATURE_BONUS_MISMATCH');
+    if(normalized(candidate.nature_penalty)&&normalized(candidate.nature_penalty)!==penalty)conflicts.push('NATURE_PENALTY_MISMATCH');
+    for(const [source_name,direction] of [[bonus,'UP'],[penalty,'DOWN']]){const dimension=NATURE_PRODUCTION_DIMENSION_BY_EFFECT[source_name];if(dimension)modifiers.push(Object.freeze({source_type:'NATURE',source_name,direction,dimension,scope:'INDIVIDUAL',numeric_status:'NOT_YET_VERIFIED'}));}
+  }
+  for(const row of candidate.unlocked_subskills||[]){const source_name=normalized(row?.subskill_name??row),rule=SUBSKILL_PRODUCTION_MODIFIERS[source_name];if(!source_name)continue;if(!rule){conflicts.push(`UNKNOWN_SUBSKILL:${source_name}`);continue;}modifiers.push(Object.freeze({source_type:'SUBSKILL',source_name,unlock_level:Number(row?.unlock_level)||null,...rule}));}
+  return Object.freeze({schema:'pokemon-sleep-production-modifier-profile/1.0',registry_version:PRODUCTION_MODIFIER_STRUCTURAL_VERSION,status:conflicts.length?'REVIEW_REQUIRED':PRODUCTION_MODIFIER_STRUCTURAL_STATUS,modifiers:Object.freeze(modifiers),conflicts:Object.freeze(conflicts),numeric_activation:false,missing_is_zero:false});
+}

@@ -77,6 +77,12 @@ assert.ok(catalog.includes("import './recipe-level-energy-autofill.js'"),'recipe
 const autofill=read('assets/js/recipe-level-energy-autofill.js');
 assert.ok(autofill.includes('calculateRecipeEnergyById'),'recipe level energy autofill calculator missing');
 assert.ok(autofill.includes(".canonical-recipe-level"),'recipe level field binding missing');
+assert.ok(autofill.includes('function hydrateBlankEnergyFromLevel(level)'),'render hydration helper missing');
+assert.ok(autofill.includes("if(!energy||energy.value!=='')return null"),'render hydration must preserve observed current energy');
+assert.ok(autofill.includes("syncEnergyFromLevel(level,{dispatch:false,renderHydration:true})"),'render hydration must not dispatch draft input');
+assert.ok(autofill.includes("if(node.matches('.canonical-recipe-level'))hydrateBlankEnergyFromLevel(node)"),'dynamic recipe row hydration missing');
+assert.equal(/from ['"]\.\/database\.js['"]/.test(autofill),false,'autofill must not import database write path');
+assert.equal(/\b(?:run|persist|begin|commit|rollback|snapshot)\s*\(/.test(autofill),false,'autofill must remain write-free');
 
 console.log(JSON.stringify({
   status:'PASS',
@@ -93,4 +99,6 @@ console.log(JSON.stringify({
   recipe_level_max:RECIPE_LEVEL_MAX,
   runtime_formula_override_count:PUBLIC_RECIPE_FORMULA_OVERRIDES.length,
   ai_formula_mutation_allowed:PUBLIC_RECIPE_FORMULA_MUTATION_POLICY.ai_may_mutate_formula,
+  render_hydration_write_free:true,
+  render_hydration_preserves_observed_energy:true,
 },null,2));
