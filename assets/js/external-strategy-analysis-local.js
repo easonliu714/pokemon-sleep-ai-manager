@@ -11,7 +11,7 @@ import {buildLocalRecipeDiscoveryStockpile} from './recipe-discovery-stockpile-l
 import {buildStrategyAnalysisPack,buildEphemeralCandidateResolver,strategyAnalysisPackMarkdown,STRATEGY_ANALYSIS_PACK_VERSION,STRATEGY_ANALYSIS_PROMPT_VERSION} from './external-strategy-analysis-pack.js';
 import {sanitizeGoalProfileForExternal,assertNoStablePokemonIds,forbiddenKeyPaths,assertNoForbiddenKeyPaths,strategyAnalysisPrivacyManifest,STRATEGY_ANALYSIS_PRIVACY_VERSION} from './external-strategy-analysis-privacy.js';
 import {PUBLIC_CANDY_MASTER_VERSION} from './public-candy-master.js';
-import {PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-canonical-authority.js';
+import {PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-current-authority.js';
 import {PUBLIC_POKEMON_KNOWLEDGE_VERSION} from './public-pokemon-knowledge-master.js';
 import {PUBLIC_CAMP_BERRY_VERSION} from './public-camp-berry-master.js';
 import {MASTER_DATA_VERSION} from './shared-master-data.js';
