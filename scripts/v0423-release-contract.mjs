@@ -17,10 +17,14 @@ const authoritySource=read('assets/js/version-authority.js');
 const sandbox={};sandbox.globalThis=sandbox;
 vm.runInNewContext(authoritySource,sandbox,{filename:'assets/js/version-authority.js'});
 const authority=sandbox.PokemonSleepVersionAuthority;
-const natureNumericSuccessor=['v0.4.24','v0.4.25'].includes(authority.app_version);
-const subskillNumericSuccessor=authority.app_version==='v0.4.25';
-assert.ok(['v0.4.23','v0.4.24','v0.4.25'].includes(authority.app_version));
-if(authority.app_version==='v0.4.25'){
+const natureNumericSuccessor=['v0.4.24','v0.4.25','v0.4.26'].includes(authority.app_version);
+const subskillNumericSuccessor=['v0.4.25','v0.4.26'].includes(authority.app_version);
+assert.ok(['v0.4.23','v0.4.24','v0.4.25','v0.4.26'].includes(authority.app_version));
+if(authority.app_version==='v0.4.26'){
+  assert.equal(authority.app_build,'20260814-v0426-g75e3a-ingredient-rate-reference-boundary');
+  assert.equal(authority.cache_name,'pokemon-sleep-ai-v0.4.26-v0426-g75e3a-ingredient-rate-reference-boundary');
+  assert.ok(authoritySource.includes("// app_version: 'v0.4.25'"),'v0.4.25 predecessor lineage missing');
+}else if(authority.app_version==='v0.4.25'){
   assert.equal(authority.app_build,'20260814-v0425-g75e2b-recipe-name-subskill');
   assert.equal(authority.cache_name,'pokemon-sleep-ai-v0.4.25-v0425-g75e2b-recipe-name-subskill');
   assert.ok(authoritySource.includes("// app_version: 'v0.4.24'"),'v0.4.24 predecessor lineage missing');
