@@ -16,7 +16,7 @@ let profiles=[];
 let observer=null;
 let scheduled=false;
 
-const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[char]));
+const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const getFilters=()=>({
   berry:document.getElementById(IDS.berry)?.value||'',
   ingredient:document.getElementById(IDS.ingredient)?.value||'',
@@ -67,19 +67,20 @@ function ensureControls(){
   return true;
 }
 
-function safeRows(sql){
-  try{return rows(sql)}catch{return []}
+function queryRosterData(){
+  try{
+    return {
+      pokemonRows:rows("SELECT * FROM pokemon WHERE status='active'"),
+      ingredientRows:rows('SELECT * FROM pokemon_ingredients ORDER BY pokemon_id, unlock_level'),
+      subskillRows:rows('SELECT * FROM pokemon_subskills ORDER BY pokemon_id, unlock_level'),
+    };
+  }catch{return null;}
 }
 
 function loadProfiles(){
-  const pokemonRows=safeRows("SELECT * FROM pokemon WHERE status='active'");
-  if(!pokemonRows.length){profiles=[];return false;}
-  profiles=buildPokemonRosterFilterProfiles({
-    pokemonRows,
-    ingredientRows:safeRows('SELECT * FROM pokemon_ingredients ORDER BY pokemon_id, unlock_level'),
-    subskillRows:safeRows('SELECT * FROM pokemon_subskills ORDER BY pokemon_id, unlock_level'),
-    resolveMainSkillName:resolvePublicMainSkillName,
-  });
+  const data=queryRosterData();
+  if(!data)return false;
+  profiles=buildPokemonRosterFilterProfiles({...data,resolveMainSkillName:resolvePublicMainSkillName});
   return true;
 }
 
