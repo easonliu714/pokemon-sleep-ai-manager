@@ -1,0 +1,82 @@
+name: v0.4.28 G7.5E3C Probability Evidence Policy
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+      - 'fix/**'
+    paths:
+      - 'assets/js/ingredient-probability-activation-policy.js'
+      - 'assets/js/public-pokemon-species-form-roster-readiness.js'
+      - 'assets/js/public-species-ingredient-rate-reference.js'
+      - 'assets/js/ingredient-probability-reference-contract.js'
+      - 'assets/js/ingredient-slot-distribution-contract.js'
+      - 'assets/js/ingredient-production-evidence-contract.js'
+      - 'assets/js/production-authority-registry.js'
+      - 'assets/js/production-evidence-registry.js'
+      - 'assets/js/version-authority.js'
+      - 'scripts/v0428-g75e3c-probability-evidence-policy-contract.mjs'
+      - 'scripts/v0427-g75e3b-ingredient-slot-distribution-contract.mjs'
+      - 'scripts/v0427-release-contract.mjs'
+      - 'scripts/v0426-g75e3a-species-ingredient-rate-reference-contract.mjs'
+      - 'scripts/v04251-recipe-current-authority-lock-contract.mjs'
+      - '.github/workflows/v0428-g75e3c-probability-evidence-policy.yml'
+  pull_request:
+    paths:
+      - 'assets/js/ingredient-probability-activation-policy.js'
+      - 'assets/js/public-pokemon-species-form-roster-readiness.js'
+      - 'assets/js/public-species-ingredient-rate-reference.js'
+      - 'assets/js/ingredient-probability-reference-contract.js'
+      - 'assets/js/ingredient-slot-distribution-contract.js'
+      - 'assets/js/ingredient-production-evidence-contract.js'
+      - 'assets/js/production-authority-registry.js'
+      - 'assets/js/production-evidence-registry.js'
+      - 'assets/js/version-authority.js'
+      - 'scripts/v0428-g75e3c-probability-evidence-policy-contract.mjs'
+      - 'scripts/v0427-g75e3b-ingredient-slot-distribution-contract.mjs'
+      - 'scripts/v0427-release-contract.mjs'
+      - 'scripts/v0426-g75e3a-species-ingredient-rate-reference-contract.mjs'
+      - 'scripts/v04251-recipe-current-authority-lock-contract.mjs'
+      - '.github/workflows/v0428-g75e3c-probability-evidence-policy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probability-evidence-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check probability evidence policy
+        run: |
+          node --check assets/js/ingredient-probability-activation-policy.js
+          node --check assets/js/public-pokemon-species-form-roster-readiness.js
+          node --check scripts/v0428-g75e3c-probability-evidence-policy-contract.mjs
+      - name: Verify probability activation evidence policy
+        run: node scripts/v0428-g75e3c-probability-evidence-policy-contract.mjs
+      - name: Preserve v0.4.27 slot distribution release
+        run: |
+          node scripts/v0427-g75e3b-ingredient-slot-distribution-contract.mjs
+          node scripts/v0427-release-contract.mjs
+      - name: Preserve species-rate reference-only HOLD
+        run: node scripts/v0426-g75e3a-species-ingredient-rate-reference-contract.mjs
+      - name: Preserve Recipe 78 current authority
+        run: node scripts/v04251-recipe-current-authority-lock-contract.mjs
+      - name: Verify policy and roster boundary are read-only and local
+        run: |
+          node - <<'NODE'
+          const fs=require('node:fs');
+          for(const file of ['assets/js/ingredient-probability-activation-policy.js','assets/js/public-pokemon-species-form-roster-readiness.js']) {
+            const source=fs.readFileSync(file,'utf8');
+            for(const forbidden of ['fetch(', 'localStorage', 'sessionStorage', 'indexedDB', 'INSERT INTO', 'UPDATE ingredient_inventory', 'DELETE FROM', 'applyPayload(', 'dryRun(']) {
+              if(source.includes(forbidden)) throw new Error(`${file} contains forbidden path: ${forbidden}`);
+            }
+          }
+          NODE
+      - name: Verify repository not mutated
+        run: git diff --exit-code
