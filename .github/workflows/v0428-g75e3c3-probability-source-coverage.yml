@@ -1,0 +1,84 @@
+name: v0.4.28 G7.5E3C3 Probability Source Coverage
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+      - 'fix/**'
+    paths:
+      - 'scripts/v0428-g75e3c3-extract-neroli-probability-source.mjs'
+      - 'scripts/v0428-g75e3c3-probability-source-coverage-contract.mjs'
+      - 'assets/js/public-pokemon-species-form-roster.js'
+      - 'assets/js/public-pokemon-species-form-roster-readiness.js'
+      - 'assets/js/ingredient-probability-activation-policy.js'
+      - 'assets/js/production-authority-registry.js'
+      - 'assets/js/version-authority.js'
+      - 'scripts/v0428-g75e3c2-public-species-form-roster-contract.mjs'
+      - 'scripts/v0428-g75e3c-probability-evidence-policy-contract.mjs'
+      - 'scripts/v0427-release-contract.mjs'
+      - '.github/workflows/v0428-g75e3c3-probability-source-coverage.yml'
+  pull_request:
+    paths:
+      - 'scripts/v0428-g75e3c3-extract-neroli-probability-source.mjs'
+      - 'scripts/v0428-g75e3c3-probability-source-coverage-contract.mjs'
+      - 'assets/js/public-pokemon-species-form-roster.js'
+      - 'assets/js/public-pokemon-species-form-roster-readiness.js'
+      - 'assets/js/ingredient-probability-activation-policy.js'
+      - 'assets/js/production-authority-registry.js'
+      - 'assets/js/version-authority.js'
+      - 'scripts/v0428-g75e3c2-public-species-form-roster-contract.mjs'
+      - 'scripts/v0428-g75e3c-probability-evidence-policy-contract.mjs'
+      - 'scripts/v0427-release-contract.mjs'
+      - '.github/workflows/v0428-g75e3c3-probability-source-coverage.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pinned-source-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check evidence extractor and contract
+        run: |
+          node --check scripts/v0428-g75e3c3-extract-neroli-probability-source.mjs
+          node --check scripts/v0428-g75e3c3-probability-source-coverage-contract.mjs
+      - name: Extract pinned source evidence
+        env:
+          ALLOW_PINNED_EVIDENCE_FETCH: '1'
+        run: node scripts/v0428-g75e3c3-extract-neroli-probability-source.mjs --output=artifacts/v0428_g75e3c3_probability_source_coverage.json
+      - name: Verify 242-row source coverage remains non-activating
+        run: node scripts/v0428-g75e3c3-probability-source-coverage-contract.mjs --artifact=artifacts/v0428_g75e3c3_probability_source_coverage.json
+      - name: Preserve public roster denominator and probability admission policy
+        run: |
+          node scripts/v0428-g75e3c2-public-species-form-roster-contract.mjs
+          node scripts/v0428-g75e3c-probability-evidence-policy-contract.mjs
+      - name: Preserve v0.4.27 Production release boundary
+        run: node scripts/v0427-release-contract.mjs
+      - name: Verify extractor is CI-only and runtime remains network-free
+        run: |
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const runtimeFiles=['assets/js/public-pokemon-species-form-roster.js','assets/js/ingredient-probability-activation-policy.js','assets/js/production-authority-registry.js'];
+          for(const file of runtimeFiles){
+            const source=fs.readFileSync(file,'utf8');
+            if(source.includes('raw.githubusercontent.com')||source.includes('fetch(')) throw new Error(`${file} contains runtime source acquisition`);
+          }
+          const sw=fs.readFileSync('service-worker.js','utf8');
+          if(sw.includes('v0428-g75e3c3-extract-neroli-probability-source')) throw new Error('CI extractor must not be precached/runtime imported');
+          NODE
+      - name: Upload probability source coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: v0428-g75e3c3-probability-source-coverage
+          path: artifacts/v0428_g75e3c3_probability_source_coverage.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Verify repository mutation is artifact-only
+        run: |
+          git diff --exit-code -- . ':!artifacts/**'
