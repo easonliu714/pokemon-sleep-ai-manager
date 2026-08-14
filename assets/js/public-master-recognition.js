@@ -1,7 +1,7 @@
 import {MASTER_DATA_VERSION,PUBLIC_INGREDIENT_NAMES} from './shared-master-data.js';
 import {PUBLIC_ITEM_MASTER_VERSION,PUBLIC_ITEM_MASTER} from './public-item-master.js';
 import {PUBLIC_CANDY_MASTER_VERSION,buildPublicCandyMasterRows} from './public-candy-master.js';
-import {PUBLIC_RECIPE_MASTER_VERSION,PUBLIC_RECIPE_MASTER} from './public-recipe-canonical-authority.js';
+import {PUBLIC_RECIPE_MASTER_VERSION,PUBLIC_RECIPE_MASTER} from './public-recipe-current-authority.js';
 import {
   PUBLIC_RECIPE_ALIAS_VERSION,
   isRecipeAutomaticIdentityMatch,
