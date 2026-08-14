@@ -2,7 +2,7 @@ import {
   PUBLIC_RECIPE_MASTER,
   PUBLIC_RECIPE_MASTER_VERSION,
   PUBLIC_RECIPE_FORMULA_AUDIT_VERSION,
-} from './public-recipe-canonical-authority.js';
+} from './public-recipe-current-authority.js';
 
 export const PUBLIC_RECIPE_PROVENANCE_VERSION='public-recipe-provenance-2026-08-13-a';
 export const REVIEWED_RECIPE_MASTER_VERSION=PUBLIC_RECIPE_MASTER_VERSION;
