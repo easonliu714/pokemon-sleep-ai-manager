@@ -17,7 +17,8 @@ import {
   RECIPE_LEVEL_BONUS_PERCENT,
   calculateRecipeEnergyById,
 } from '../assets/js/recipe-level-energy-contract.js';
-import {PUBLIC_RECIPE_PROVENANCE_VERSION,recipeProvenanceCoverage} from '../assets/js/public-recipe-provenance.js';
+import {PUBLIC_RECIPE_PROVENANCE_VERSION,REVIEWED_RECIPE_MASTER_VERSION,recipeProvenanceCoverage} from '../assets/js/public-recipe-provenance.js';
+import {PUBLIC_RECIPE_MASTER_VERSION as CURRENT_PUBLIC_RECIPE_MASTER_VERSION} from '../assets/js/public-recipe-current-authority.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
 const authoritySource=read('assets/js/version-authority.js');
@@ -37,7 +38,8 @@ assert.ok(authoritySource.includes("// app_build: '20260813-v0422-g75d-base-berr
 assert.equal(PUBLIC_RECIPE_MASTER_VERSION,'public-recipe-master-2026-08-13-b');
 assert.equal(PUBLIC_RECIPE_FORMULA_AUDIT_VERSION,'public-recipe-formula-audit-2026-08-13-a');
 assert.equal(PUBLIC_RECIPE_LEVEL1_ENERGY_VERSION,'public-recipe-level1-energy-2026-08-13-a');
-assert.equal(PUBLIC_RECIPE_PROVENANCE_VERSION,'public-recipe-provenance-2026-08-13-a');
+assert.match(PUBLIC_RECIPE_PROVENANCE_VERSION,/^public-recipe-provenance-2026-08-(?:13-a|14-[a-z](?:-[a-z0-9-]+)?)$/,'recipe provenance successor version invalid');
+assert.equal(REVIEWED_RECIPE_MASTER_VERSION,CURRENT_PUBLIC_RECIPE_MASTER_VERSION,'provenance must review current recipe authority');
 assert.equal(PUBLIC_RECIPE_MASTER.length,78);
 assert.equal(PUBLIC_RECIPE_FORMULA_AUDIT.audited_recipe_count,78);
 assert.equal(PUBLIC_RECIPE_FORMULA_AUDIT.status,'FULL_CATALOG_REFERENCE_CROSSCHECKED');
@@ -65,12 +67,14 @@ assert.equal(calculateRecipeEnergyById('recipe_curry_015',20),2902);
 
 const coverage=recipeProvenanceCoverage();
 assert.equal(coverage.active_recipe_count,78);
+assert.equal(coverage.runtime_recipe_master_version,CURRENT_PUBLIC_RECIPE_MASTER_VERSION);
 assert.equal(coverage.formula_audit_version,PUBLIC_RECIPE_FORMULA_AUDIT_VERSION);
 
 const worker=read('service-worker.js');
 assert.ok(worker.includes("importScripts('./assets/js/version-authority.js')"));
 assert.ok(worker.includes('cache_name:CACHE'));
 assert.ok(worker.includes("'./assets/js/public-recipe-canonical-authority.js'"));
+assert.ok(worker.includes("'./assets/js/public-recipe-current-authority.js'"),'current recipe authority must be precached by successors');
 assert.ok(worker.includes("'./assets/js/public-recipe-provenance.js'"));
 const catalog=read('assets/js/public-catalog-workbench.js');
 assert.ok(catalog.includes("import './recipe-level-energy-autofill.js'"),'recipe level energy UI bootstrap missing');
@@ -86,12 +90,13 @@ assert.equal(/\b(?:run|persist|begin|commit|rollback|snapshot)\s*\(/.test(autofi
 
 console.log(JSON.stringify({
   status:'PASS',
-  gate:'V04221_RELEASE_AUTHORITY',
+  gate:'V04221_RELEASE_AUTHORITY_SUCCESSOR_AWARE',
   app_version:authority.app_version,
   app_build:authority.app_build,
   cache_name:authority.cache_name,
   predecessor:'v0.4.22',
-  recipe_master_version:PUBLIC_RECIPE_MASTER_VERSION,
+  formula_master_version:PUBLIC_RECIPE_MASTER_VERSION,
+  current_recipe_master_version:CURRENT_PUBLIC_RECIPE_MASTER_VERSION,
   formula_audit_version:PUBLIC_RECIPE_FORMULA_AUDIT_VERSION,
   level1_energy_version:PUBLIC_RECIPE_LEVEL1_ENERGY_VERSION,
   provenance_version:PUBLIC_RECIPE_PROVENANCE_VERSION,

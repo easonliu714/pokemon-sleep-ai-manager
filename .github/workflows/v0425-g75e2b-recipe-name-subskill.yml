@@ -5,39 +5,24 @@ on:
     branches:
       - main
       - 'feature/**'
+      - 'fix/**'
     paths:
-      - 'assets/js/version-authority.js'
-      - 'assets/js/public-recipe-name-audit-v0425.js'
-      - 'assets/js/public-recipe-current-authority.js'
-      - 'assets/js/public-recipe-alias-master.js'
-      - 'assets/js/public-recipe-master-sync.js'
-      - 'assets/js/recipe-display-name-evidence.js'
-      - 'assets/js/public-catalog-workbench.js'
-      - 'assets/js/pokemon-master-options.js'
-      - 'assets/js/strategy-optimization-pack.js'
-      - 'assets/js/production-authority-registry.js'
+      - 'assets/js/**'
       - 'service-worker.js'
       - 'scripts/v0423-production-modifier-contract.mjs'
       - 'scripts/v0424-nature-numeric-modifier-contract.mjs'
       - 'scripts/v0425-recipe-name-subskill-contract.mjs'
+      - 'scripts/v04251-recipe-current-authority-lock-contract.mjs'
       - 'scripts/v0425-release-contract.mjs'
       - '.github/workflows/v0425-g75e2b-recipe-name-subskill.yml'
   pull_request:
     paths:
-      - 'assets/js/version-authority.js'
-      - 'assets/js/public-recipe-name-audit-v0425.js'
-      - 'assets/js/public-recipe-current-authority.js'
-      - 'assets/js/public-recipe-alias-master.js'
-      - 'assets/js/public-recipe-master-sync.js'
-      - 'assets/js/recipe-display-name-evidence.js'
-      - 'assets/js/public-catalog-workbench.js'
-      - 'assets/js/pokemon-master-options.js'
-      - 'assets/js/strategy-optimization-pack.js'
-      - 'assets/js/production-authority-registry.js'
+      - 'assets/js/**'
       - 'service-worker.js'
       - 'scripts/v0423-production-modifier-contract.mjs'
       - 'scripts/v0424-nature-numeric-modifier-contract.mjs'
       - 'scripts/v0425-recipe-name-subskill-contract.mjs'
+      - 'scripts/v04251-recipe-current-authority-lock-contract.mjs'
       - 'scripts/v0425-release-contract.mjs'
       - '.github/workflows/v0425-g75e2b-recipe-name-subskill.yml'
   workflow_dispatch:
@@ -60,13 +45,23 @@ jobs:
           node --check assets/js/public-recipe-current-authority.js
           node --check assets/js/public-recipe-alias-master.js
           node --check assets/js/public-recipe-master-sync.js
+          node --check assets/js/public-recipe-provenance.js
           node --check assets/js/recipe-display-name-evidence.js
           node --check assets/js/public-catalog-workbench.js
+          node --check assets/js/recipe-unified-player-workbench.js
+          node --check assets/js/recipe-level-energy-contract.js
+          node --check assets/js/recipe-strategy-local.js
+          node --check assets/js/external-strategy-analysis-local.js
+          node --check assets/js/public-master-recognition.js
+          node --check assets/js/war-room-controlled-options.js
           node --check assets/js/pokemon-master-options.js
           node --check assets/js/strategy-optimization-pack.js
           node --check scripts/v0425-recipe-name-subskill-contract.mjs
+          node --check scripts/v04251-recipe-current-authority-lock-contract.mjs
           node --check scripts/v0425-release-contract.mjs
           node --check service-worker.js
+      - name: 78-of-78 current recipe authority lock contract
+        run: node scripts/v04251-recipe-current-authority-lock-contract.mjs
       - name: Recipe zh-TW name authority and subskill numeric contract
         run: node scripts/v0425-recipe-name-subskill-contract.mjs
       - name: Preserve v0.4.24 Nature numeric contract

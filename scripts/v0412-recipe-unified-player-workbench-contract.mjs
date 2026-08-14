@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {PUBLIC_RECIPE_MASTER,PUBLIC_RECIPE_MASTER_VERSION} from '../assets/js/public-recipe-canonical-authority.js';
+import {PUBLIC_RECIPE_MASTER,PUBLIC_RECIPE_MASTER_VERSION} from '../assets/js/public-recipe-current-authority.js';
 import {buildRecipeUnifiedWorkbenchProjection,RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION} from '../assets/js/recipe-unified-player-workbench.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
@@ -35,8 +35,8 @@ if(appVersion==='v0.4.11.4'){
   assert.ok(version.includes("// app_build: '20260811-v0412-recipe-unified-player-workbench'"));
 }
 assert.ok(version.includes("// app_build: '20260811-v04114-recipe-zh-tw-diagnostic-export'"));
-assert.ok(['public-recipe-master-2026-08-11-c','public-recipe-master-2026-08-12-a','public-recipe-master-2026-08-13-a','public-recipe-master-2026-08-13-b'].includes(PUBLIC_RECIPE_MASTER_VERSION));
-assert.ok([76,78].includes(PUBLIC_RECIPE_MASTER.length));
+assert.match(PUBLIC_RECIPE_MASTER_VERSION,/^public-recipe-master-2026-08-(?:11-c|12-[a-z]|13-[a-z]|14-[a-z])$/,'unexpected current Recipe Master successor');
+assert.equal(PUBLIC_RECIPE_MASTER.length,78,'current Recipe Workbench authority must expose exactly 78 recipes');
 assert.ok(['recipe-unified-player-workbench-2026-08-11-a','recipe-unified-player-workbench-2026-08-12-b-summary-cards'].includes(RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION),`unexpected Recipe Workbench successor: ${RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION}`);
 
 const total=PUBLIC_RECIPE_MASTER.length;
@@ -61,7 +61,9 @@ assert.equal(projection.dish_category,'咖哩／濃湯');
 assert.equal(projection.authority_source,'UPDATE_CENTER_JSON');
 
 const workbench=read('assets/js/recipe-unified-player-workbench.js');
-for(const token of ["from './public-recipe-canonical-authority.js'","from './ingredient-gap-engine.js'","from './weekly-context-store.js'",'currentWeeklyContext()','analyzeIngredientGaps','recipeWeeklyAuthoritySummary','lockedRecipeTable','weekly-recommended',"snapshot(`manual:recipe:${playerRecipeId}`)",'INSERT INTO recipes','INSERT INTO import_batches','INSERT INTO import_changes',"'manual_frontend_edit'",'draftById'])assert.ok(workbench.includes(token),`unified recipe workbench missing behavior token: ${token}`);
+for(const token of ["from './public-recipe-current-authority.js'","from './ingredient-gap-engine.js'","from './weekly-context-store.js'",'currentWeeklyContext()','analyzeIngredientGaps','recipeWeeklyAuthoritySummary','lockedRecipeTable','weekly-recommended',"snapshot(`manual:recipe:${playerRecipeId}`)",'INSERT INTO recipes','INSERT INTO import_batches','INSERT INTO import_changes',"'manual_frontend_edit'",'draftById'])assert.ok(workbench.includes(token),`unified recipe workbench missing behavior token: ${token}`);
+assert.equal(workbench.includes("from './public-recipe-canonical-authority.js'"),false,'unified workbench must not bypass current recipe authority');
+assert.equal(workbench.includes("from './public-recipe-master.js'"),false,'unified workbench must not bypass current recipe authority via raw base master');
 assert.ok(workbench.includes('INSERT INTO import_batches(update_id,schema_version,generated_at,imported_at,source,operation_count,result_json)'),'manual recipe audit must retain import_batches source column');
 for(const forbidden of ['INSERT INTO recipe_master','UPDATE recipe_master','DELETE FROM recipe_master','applyPayload(','dryRun(','Gemini','fetch('])assert.equal(workbench.includes(forbidden),false,`recipe workbench owns forbidden authority/path: ${forbidden}`);
 
@@ -83,4 +85,4 @@ assert.equal((ucImg.match(/applyPayload\(/g)||[]).length,1,'UC.IMG must retain e
 const migrations=read('assets/js/migrations.js');
 assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.12 Recipe Workbench lineage must remain schema-migration-free');
 
-console.log(JSON.stringify({status:'PASS',gate:'V0412_RECIPE_UNIFIED_PLAYER_WORKBENCH_BEHAVIOR_SUCCESSOR_AWARE',app_version:appVersion,v0412_or_successor:versionAtLeast(appVersion,'v0.4.12'),workbench_version:RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION,canonical_recipe_count:PUBLIC_RECIPE_MASTER.length,synthetic_unlocked_count:projection.unlocked_count,synthetic_locked_count:projection.locked_count,duplicate_recipe_ids:projection.duplicate_recipe_ids,unified_unlocked_table:true,separate_locked_table:true,weekly_recommendation_in_unified_rows:true,deterministic_shortage_analysis:true,public_master_read_only:true,player_recipe_writer_single_owner:true,unrelated_draft_inputs_preserved:true,android_horizontal_containment:true,first_offline_recipe_module_precached:true,sqlite_migration_added:false,uc_img_apply_bridge_count:1},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V0412_RECIPE_UNIFIED_PLAYER_WORKBENCH_BEHAVIOR_SUCCESSOR_AWARE',app_version:appVersion,v0412_or_successor:versionAtLeast(appVersion,'v0.4.12'),workbench_version:RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION,current_recipe_master_version:PUBLIC_RECIPE_MASTER_VERSION,current_recipe_count:PUBLIC_RECIPE_MASTER.length,synthetic_unlocked_count:projection.unlocked_count,synthetic_locked_count:projection.locked_count,duplicate_recipe_ids:projection.duplicate_recipe_ids,unified_unlocked_table:true,separate_locked_table:true,weekly_recommendation_in_unified_rows:true,deterministic_shortage_analysis:true,current_recipe_authority_required:true,public_master_read_only:true,player_recipe_writer_single_owner:true,unrelated_draft_inputs_preserved:true,android_horizontal_containment:true,first_offline_recipe_module_precached:true,sqlite_migration_added:false,uc_img_apply_bridge_count:1},null,2));

@@ -177,17 +177,17 @@ jobs:
           grep -q "PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-current-authority.js'" assets/js/migrations.js
           if test -f assets/js/recipe-unified-player-workbench.js; then
             grep -q "from './recipe-unified-player-workbench.js'" assets/js/public-catalog-workbench.js
-            grep -q "from './public-recipe-canonical-authority.js'" assets/js/recipe-unified-player-workbench.js
+            grep -q "from './public-recipe-current-authority.js'" assets/js/recipe-unified-player-workbench.js
             grep -q "recipe_catalog_state" assets/js/recipe-unified-player-workbench.js
-            if grep -q "from './public-recipe-master.js'" assets/js/recipe-unified-player-workbench.js; then
-              echo 'Unified Recipe Workbench bypassed projected recipe authority.' >&2
+            if grep -Eq "from './public-recipe-(master|canonical-authority)\.js'" assets/js/recipe-unified-player-workbench.js; then
+              echo 'Unified Recipe Workbench bypassed current recipe authority.' >&2
               exit 1
             fi
           else
-            grep -Eq "PUBLIC_RECIPE_MASTER.*PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-(canonical|current)-authority.js'" assets/js/public-catalog-workbench.js
+            grep -Eq "PUBLIC_RECIPE_MASTER.*PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-current-authority.js'" assets/js/public-catalog-workbench.js
           fi
-          if grep -q "from './public-recipe-master.js'" assets/js/public-catalog-workbench.js; then
-            echo 'Renderer shell bypassed projected recipe authority.' >&2
+          if grep -Eq "from './public-recipe-(master|canonical-authority)\.js'" assets/js/public-catalog-workbench.js; then
+            echo 'Renderer shell bypassed current recipe authority.' >&2
             exit 1
           fi
           python tests/test_g14_public_catalog_renderer_authority.py

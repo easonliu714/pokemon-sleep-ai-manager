@@ -1,5 +1,5 @@
 import {rows,run,persist,snapshot,begin,commit,rollback,isRescueReadonly} from './database.js';
-import {PUBLIC_RECIPE_MASTER,PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-canonical-authority.js';
+import {PUBLIC_RECIPE_MASTER,PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-current-authority.js';
 import {analyzeIngredientGaps,sortGapResults} from './ingredient-gap-engine.js';
 import {currentWeeklyContext} from './weekly-context-store.js';
 import {normalizeDishCategory} from './weekly-context-normalization.js';

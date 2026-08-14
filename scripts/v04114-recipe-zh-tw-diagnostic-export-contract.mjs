@@ -13,6 +13,11 @@ import {
   PUBLIC_RECIPE_FORMULA_AUDIT_VERSION,
   resolvePublicRecipeName,
 } from '../assets/js/public-recipe-canonical-authority.js';
+import {
+  PUBLIC_RECIPE_MASTER as CURRENT_PUBLIC_RECIPE_MASTER,
+  PUBLIC_RECIPE_MASTER_VERSION as CURRENT_PUBLIC_RECIPE_MASTER_VERSION,
+  PUBLIC_RECIPE_CANONICAL_NAME_VERSION as CURRENT_PUBLIC_RECIPE_CANONICAL_NAME_VERSION,
+} from '../assets/js/public-recipe-current-authority.js';
 import {PUBLIC_RECIPE_MASTER as RAW_PUBLIC_RECIPE_MASTER} from '../assets/js/public-recipe-master.js';
 import {PUBLIC_RECIPE_ALIAS_VERSION} from '../assets/js/public-recipe-alias-master.js';
 import {
@@ -24,7 +29,7 @@ import {
 } from '../assets/js/public-master-recognition.js';
 import {UC_IMG_DIAGNOSTIC_SCHEMA,buildUcImgDiagnosticBundle} from '../assets/js/uc-img-gemini-adapter.js';
 import {buildUcImgDiagnosticFilename,downloadUcImgDiagnosticJson} from '../assets/js/uc-img-diagnostic-export.js';
-import {PUBLIC_RECIPE_PROVENANCE,PUBLIC_RECIPE_PROVENANCE_VERSION} from '../assets/js/public-recipe-provenance.js';
+import {PUBLIC_RECIPE_PROVENANCE,PUBLIC_RECIPE_PROVENANCE_VERSION,REVIEWED_RECIPE_MASTER_VERSION} from '../assets/js/public-recipe-provenance.js';
 
 const __filename=fileURLToPath(import.meta.url);
 const root=path.resolve(path.dirname(__filename),'..');
@@ -33,10 +38,14 @@ const signature=recipe=>[...(recipe.ingredients||[])].map(row=>`${row.ingredient
 
 assert.ok(['public-recipe-master-2026-08-11-c','public-recipe-master-2026-08-12-a','public-recipe-master-2026-08-13-a','public-recipe-master-2026-08-13-b'].includes(PUBLIC_RECIPE_MASTER_VERSION));
 assert.ok(['public-recipe-zh-tw-names-2026-08-11-b','public-recipe-zh-tw-names-2026-08-12-a'].includes(PUBLIC_RECIPE_CANONICAL_NAME_VERSION));
+assert.equal(CURRENT_PUBLIC_RECIPE_MASTER_VERSION,'public-recipe-master-2026-08-14-c');
+assert.equal(CURRENT_PUBLIC_RECIPE_CANONICAL_NAME_VERSION,'public-recipe-zh-tw-names-2026-08-14-b');
 assert.ok(['public-recipe-alias-2026-08-11-b','public-recipe-alias-2026-08-14-c'].includes(PUBLIC_RECIPE_ALIAS_VERSION),'reviewed recipe alias registry successor not recognized');
-assert.ok(['public-recipe-provenance-2026-08-11-c','public-recipe-provenance-2026-08-12-d','public-recipe-provenance-2026-08-13-a'].includes(PUBLIC_RECIPE_PROVENANCE_VERSION));
+assert.match(PUBLIC_RECIPE_PROVENANCE_VERSION,/^public-recipe-provenance-2026-08-(?:11-c|12-d|13-a|14-[a-z](?:-[a-z0-9-]+)?)$/,'recipe provenance successor not recognized');
+assert.equal(REVIEWED_RECIPE_MASTER_VERSION,CURRENT_PUBLIC_RECIPE_MASTER_VERSION,'provenance must follow current recipe authority');
 assert.equal(RAW_PUBLIC_RECIPE_MASTER.length,76);
 assert.ok([76,78].includes(PUBLIC_RECIPE_MASTER.length));
+assert.equal(CURRENT_PUBLIC_RECIPE_MASTER.length,78);
 assert.equal(PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES.length,34,'33 v0.4.3 names + current-game 迷昏拳 resolution expected');
 
 const auditedFormulaAuthority=PUBLIC_RECIPE_FORMULA_AUDIT_VERSION==='public-recipe-formula-audit-2026-08-13-a';
@@ -48,9 +57,12 @@ if(auditedFormulaAuthority){
 
 const rawById=new Map(RAW_PUBLIC_RECIPE_MASTER.map(row=>[row.recipe_id,row]));
 const canonicalById=new Map(PUBLIC_RECIPE_MASTER.map(row=>[row.recipe_id,row]));
+const currentById=new Map(CURRENT_PUBLIC_RECIPE_MASTER.map(row=>[row.recipe_id,row]));
 for(const id of rawById.keys())assert.ok(canonicalById.has(id),`historical stable recipe ID disappeared: ${id}`);
+for(const id of canonicalById.keys())assert.ok(currentById.has(id),`predecessor recipe ID disappeared from current authority: ${id}`);
 assert.equal(canonicalById.size,PUBLIC_RECIPE_MASTER.length);
-assert.equal(new Set(PUBLIC_RECIPE_MASTER.map(row=>row.recipe_id)).size,PUBLIC_RECIPE_MASTER.length);
+assert.equal(currentById.size,78);
+assert.equal(new Set(CURRENT_PUBLIC_RECIPE_MASTER.map(row=>row.recipe_id)).size,78);
 const additions=PUBLIC_RECIPE_MASTER.filter(row=>!rawById.has(row.recipe_id));
 assert.ok([0,2].includes(additions.length),'successor may only add the explicitly activation-verified Aug-10 pair');
 if(additions.length){
@@ -63,13 +75,13 @@ const expectedCurrentNames=new Map([
   ['curry_dream_eater','絕對睡眠奶油咖哩'],['curry_solar_tomato','太陽之力番茄咖哩'],['curry_dizzy_punch','迷昏拳辣味咖哩'],
   ['recipe_salad_009','哞哞起司番茄沙拉'],['salad_tofu','濕潤豆腐沙拉'],['dessert_warm_milk','哞哞熱鮮奶'],['recipe_dessert_005','火花薑茶'],['recipe_dessert_004','手製勁爽汽水'],
 ]);
-for(const [id,name] of expectedCurrentNames)assert.equal(canonicalById.get(id)?.recipe_name,name,`current zh-TW canonical drifted: ${id}`);
+for(const [id,name] of expectedCurrentNames)assert.equal(currentById.get(id)?.recipe_name,name,`current zh-TW authority drifted: ${id}`);
 
 const snapshot=buildPublicMasterCatalogSnapshot('recipes');
-assert.equal(snapshot.data_version,PUBLIC_RECIPE_MASTER_VERSION);
+assert.equal(snapshot.data_version,CURRENT_PUBLIC_RECIPE_MASTER_VERSION);
 assert.equal(snapshot.identity_alias_version,PUBLIC_RECIPE_ALIAS_VERSION);
-assert.equal(snapshot.row_count,PUBLIC_RECIPE_MASTER.length);
-for(const [id,name] of expectedCurrentNames){const row=snapshot.rows.find(item=>item.recipe_id===id);assert.equal(row?.recipe_name,name,`Recognition catalog bypassed canonical recipe authority: ${id}`);}
+assert.equal(snapshot.row_count,78);
+for(const [id,name] of expectedCurrentNames){const row=snapshot.rows.find(item=>item.recipe_id===id);assert.equal(row?.recipe_name,name,`Recognition catalog bypassed current recipe authority: ${id}`);}
 assert.equal(snapshot.rows.some(row=>row.recipe_id==='curry_soft_corn'&&row.recipe_name==='玉米濃湯'),false);
 
 const legacySoftCorn=resolvePublicRecipeName('玉米濃湯');assert.equal(legacySoftCorn?.recipe_id,'curry_soft_corn');assert.equal(legacySoftCorn?.recipe_name,'柔軟玉米濃湯');assert.equal(legacySoftCorn?.resolution,'LEGACY_NAME_ALIAS_SAFE');
@@ -96,7 +108,8 @@ if(auditedFormulaAuthority){
   assert.equal(parentReview?.resolution,'OBSERVED_FORMULA_PROMOTED_TO_CURRENT_PUBLIC_AUTHORITY');
   assert.equal(PUBLIC_RECIPE_PROVENANCE.find(row=>row.recipe_id==='curry_parent_child')?.formula_evidence,'GAME_SCREENSHOT_VERIFIED');
 }
-assert.equal(PUBLIC_RECIPE_PROVENANCE.length,PUBLIC_RECIPE_MASTER.length);
+assert.equal(PUBLIC_RECIPE_PROVENANCE.length,CURRENT_PUBLIC_RECIPE_MASTER.length);
+for(const provenance of PUBLIC_RECIPE_PROVENANCE)assert.equal(provenance.recipe_name_zh_tw,currentById.get(provenance.recipe_id)?.recipe_name,`provenance/current name drift: ${provenance.recipe_id}`);
 
 const lockedObservation={observation_id:'locked-1',status:'UNMATCHED',observed_text:'4種食材的咖哩',observed_data:{unlocked:false},source_image_ref:'image-locked',confidence:0.99,reason:'LOCKED_UNKNOWN_RECIPE_SLOT'};
 assert.equal(isLockedUnknownRecipePlaceholder(lockedObservation),true);
@@ -119,4 +132,4 @@ await new Promise(resolve=>setTimeout(resolve,0));assert.equal(revoked,true);
 const uiSource=read('assets/js/unified-screenshot-update-center.js');assert.ok(uiSource.includes('匯出 AI 診斷包'));assert.equal(uiSource.includes('複製 AI 診斷包'),false);assert.ok(uiSource.includes('platform_authority:analysis.platform_authority||null'));assert.ok(uiSource.includes('downloadUcImgDiagnosticJson(bundle)'));
 const exportSource=read('assets/js/uc-img-diagnostic-export.js');for(const forbidden of ['localStorage','sessionStorage','indexedDB','api_key','screenshot_bytes'])assert.equal(exportSource.includes(forbidden),false);
 
-console.log(JSON.stringify({status:'PASS',gate:'V04114_RECIPE_ZH_TW_AUTHORITY_DIAGNOSTIC_EXPORT_SUCCESSOR_AWARE',diagnostic_schema:UC_IMG_DIAGNOSTIC_SCHEMA,recipe_master_version:PUBLIC_RECIPE_MASTER_VERSION,canonical_name_version:PUBLIC_RECIPE_CANONICAL_NAME_VERSION,alias_version:PUBLIC_RECIPE_ALIAS_VERSION,recipe_count:PUBLIC_RECIPE_MASTER.length,historical_recipe_count:RAW_PUBLIC_RECIPE_MASTER.length,evidence_backed_additions:additions.map(row=>row.recipe_id),current_zh_tw_name_overrides:PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES.length,explicit_historical_formula_changes:formulaChanges,formula_audit_version:auditedFormulaAuthority?PUBLIC_RECIPE_FORMULA_AUDIT_VERSION:null,locked_unknown_recipe_slot_review:false,weekly_platform_authority_diagnostic:true,diagnostic_json_download:true,screenshot_bytes_in_export:false,api_key_in_export:false,sqlite_in_export:false},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V04114_RECIPE_ZH_TW_AUTHORITY_DIAGNOSTIC_EXPORT_SUCCESSOR_AWARE',diagnostic_schema:UC_IMG_DIAGNOSTIC_SCHEMA,predecessor_recipe_master_version:PUBLIC_RECIPE_MASTER_VERSION,current_recipe_master_version:CURRENT_PUBLIC_RECIPE_MASTER_VERSION,predecessor_name_version:PUBLIC_RECIPE_CANONICAL_NAME_VERSION,current_name_version:CURRENT_PUBLIC_RECIPE_CANONICAL_NAME_VERSION,alias_version:PUBLIC_RECIPE_ALIAS_VERSION,recipe_count:CURRENT_PUBLIC_RECIPE_MASTER.length,historical_recipe_count:RAW_PUBLIC_RECIPE_MASTER.length,evidence_backed_additions:additions.map(row=>row.recipe_id),historical_screenshot_name_overrides:PUBLIC_RECIPE_ZH_TW_NAME_OVERRIDES.length,explicit_historical_formula_changes:formulaChanges,formula_audit_version:auditedFormulaAuthority?PUBLIC_RECIPE_FORMULA_AUDIT_VERSION:null,locked_unknown_recipe_slot_review:false,weekly_platform_authority_diagnostic:true,diagnostic_json_download:true,screenshot_bytes_in_export:false,api_key_in_export:false,sqlite_in_export:false},null,2));
