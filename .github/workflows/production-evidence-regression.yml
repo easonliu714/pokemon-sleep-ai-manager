@@ -1,0 +1,65 @@
+name: Production Evidence Regression
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/*production*.js'
+      - 'assets/js/*ingredient*.js'
+      - 'assets/js/*berry*.js'
+      - 'assets/js/pokemon-master-options.js'
+      - 'assets/js/pokemon-candidate-feature-projection.js'
+      - 'assets/js/pokemon-scoring-engine.js'
+      - 'assets/js/team-objective-evaluator.js'
+      - 'assets/js/bounded-team-search.js'
+      - 'assets/js/recipe-portfolio-contention*.js'
+      - 'assets/js/strategy-optimization*.js'
+      - 'assets/js/version-authority.js'
+      - 'service-worker.js'
+      - 'scripts/v041*.mjs'
+      - 'scripts/v042*.mjs'
+      - 'tests/v04221_recipe_level_energy_gate.mjs'
+      - 'scripts/ci-production-evidence-regression.mjs'
+      - 'scripts/ci-production-workflow-consolidation-contract.mjs'
+      - '.github/workflows/production-evidence-regression.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'assets/js/*production*.js'
+      - 'assets/js/*ingredient*.js'
+      - 'assets/js/*berry*.js'
+      - 'assets/js/pokemon-master-options.js'
+      - 'assets/js/pokemon-candidate-feature-projection.js'
+      - 'assets/js/pokemon-scoring-engine.js'
+      - 'assets/js/team-objective-evaluator.js'
+      - 'assets/js/bounded-team-search.js'
+      - 'assets/js/recipe-portfolio-contention*.js'
+      - 'assets/js/strategy-optimization*.js'
+      - 'assets/js/version-authority.js'
+      - 'service-worker.js'
+      - 'scripts/v041*.mjs'
+      - 'scripts/v042*.mjs'
+      - 'tests/v04221_recipe_level_energy_gate.mjs'
+      - 'scripts/ci-production-evidence-regression.mjs'
+      - 'scripts/ci-production-workflow-consolidation-contract.mjs'
+      - '.github/workflows/production-evidence-regression.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: production-evidence-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  production-evidence-regression:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Replay Production evidence and predecessor contracts
+        run: node scripts/ci-production-evidence-regression.mjs
+      - name: Verify Production workflow consolidation topology
+        run: node scripts/ci-production-workflow-consolidation-contract.mjs
