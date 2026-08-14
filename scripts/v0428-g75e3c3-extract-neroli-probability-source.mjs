@@ -35,7 +35,7 @@ function exportBlocks(text){
   const result=new Map();
   for(let i=0;i<starts.length;i++){
     const start=starts[i],end=i+1<starts.length?starts[i+1].index:text.length;
-    result.set(start.source_key,text.slice(start.index,end));
+    result.set(start.source_key,Object.freeze({source_key:start.source_key,index:start.index,block:text.slice(start.index,end)}));
   }
   return result;
 }
@@ -67,22 +67,86 @@ function qualityMarkers(comment){
 const sources={};
 for(const [path,spec] of Object.entries(SOURCE_SPECS))sources[path]=await fetchPinnedSource(path,spec);
 const blocksByPath=Object.fromEntries(Object.entries(sources).map(([path,row])=>[path,exportBlocks(row.text)]));
+const blockIndex=new Map();
+for(const [path,blocks] of Object.entries(blocksByPath)){
+  for(const [sourceKey,entry] of blocks){
+    if(blockIndex.has(sourceKey))throw new Error(`DUPLICATE_SOURCE_EXPORT_KEY:${sourceKey}`);
+    blockIndex.set(sourceKey,Object.freeze({path,...entry}));
+  }
+}
 const rosterKeys=new Set(PUBLIC_SPECIES_FORM_ROSTER_ROWS.map(row=>row.source_key));
 assert.equal(rosterKeys.size,242,'ROSTER_KEY_COUNT_NOT_242');
+
+const resolutionCache=new Map();
+function resolveSourceIngredientPercentage(sourceKey,stack=[]){
+  if(resolutionCache.has(sourceKey))return resolutionCache.get(sourceKey);
+  if(stack.includes(sourceKey))return Object.freeze({ok:false,reason:'INHERITANCE_CYCLE',lineage:Object.freeze([...stack,sourceKey])});
+  const entry=blockIndex.get(sourceKey);
+  if(!entry)return Object.freeze({ok:false,reason:'EXPORT_BLOCK_MISSING',lineage:Object.freeze([...stack,sourceKey])});
+  const source=sources[entry.path];
+  const explicit=/ingredientPercentage\s*:\s*([0-9]+(?:\.[0-9]+)?)/.exec(entry.block);
+  if(explicit){
+    const comment=nearIngredientComment(entry.block,explicit.index);
+    const result=Object.freeze({
+      ok:true,
+      percent:Number(explicit[1]),
+      value_origin:'EXPLICIT',
+      immediate_parent_source_key:null,
+      value_origin_source_key:sourceKey,
+      value_origin_source_path:entry.path,
+      value_origin_source_blob_sha:source.blob_sha,
+      value_source_line:lineNumber(source.text,entry.index+explicit.index),
+      declaration_source_path:entry.path,
+      declaration_line:lineNumber(source.text,entry.index),
+      source_comment:comment||null,
+      quality_markers:Object.freeze(qualityMarkers(comment)),
+      inheritance_lineage:Object.freeze([sourceKey]),
+    });
+    resolutionCache.set(sourceKey,result);
+    return result;
+  }
+  const inherited=/\b(?:evolvedPokemon|preEvolvedPokemon)\(\s*([A-Z0-9_]+)\s*,/.exec(entry.block);
+  if(!inherited){
+    const result=Object.freeze({ok:false,reason:'INGREDIENT_PERCENTAGE_MISSING_NO_PARENT_LINEAGE',lineage:Object.freeze([...stack,sourceKey])});
+    resolutionCache.set(sourceKey,result);
+    return result;
+  }
+  const parentKey=inherited[1];
+  const parent=resolveSourceIngredientPercentage(parentKey,[...stack,sourceKey]);
+  if(!parent.ok){
+    const result=Object.freeze({ok:false,reason:`PARENT_${parent.reason}`,parent_source_key:parentKey,lineage:Object.freeze([sourceKey,...(parent.lineage||[])])});
+    resolutionCache.set(sourceKey,result);
+    return result;
+  }
+  const result=Object.freeze({
+    ok:true,
+    percent:parent.percent,
+    value_origin:'INHERITED',
+    immediate_parent_source_key:parentKey,
+    value_origin_source_key:parent.value_origin_source_key,
+    value_origin_source_path:parent.value_origin_source_path,
+    value_origin_source_blob_sha:parent.value_origin_source_blob_sha,
+    value_source_line:parent.value_source_line,
+    declaration_source_path:entry.path,
+    declaration_line:lineNumber(source.text,entry.index),
+    source_comment:parent.source_comment,
+    quality_markers:parent.quality_markers,
+    inheritance_lineage:Object.freeze([sourceKey,...parent.inheritance_lineage]),
+  });
+  resolutionCache.set(sourceKey,result);
+  return result;
+}
 
 const rows=[];
 const missing=[];
 for(const rosterRow of PUBLIC_SPECIES_FORM_ROSTER_ROWS){
-  const source=sources[rosterRow.source_path];
-  const block=blocksByPath[rosterRow.source_path]?.get(rosterRow.source_key)||null;
-  if(!source||!block){missing.push({source_key:rosterRow.source_key,source_path:rosterRow.source_path,reason:source?'EXPORT_BLOCK_MISSING':'SOURCE_PATH_NOT_FETCHED'});continue;}
-  const fieldMatch=/ingredientPercentage\s*:\s*([0-9]+(?:\.[0-9]+)?)/.exec(block);
-  if(!fieldMatch){missing.push({source_key:rosterRow.source_key,source_path:rosterRow.source_path,reason:'INGREDIENT_PERCENTAGE_MISSING'});continue;}
-  const percent=Number(fieldMatch[1]);
-  const fieldIndex=fieldMatch.index;
-  const blockStart=source.text.indexOf(block);
-  const comment=nearIngredientComment(block,fieldIndex);
-  const markers=qualityMarkers(comment);
+  const declaration=blockIndex.get(rosterRow.source_key)||null;
+  if(!declaration){missing.push({source_key:rosterRow.source_key,source_path:rosterRow.source_path,reason:'EXPORT_BLOCK_MISSING'});continue;}
+  if(declaration.path!==rosterRow.source_path){missing.push({source_key:rosterRow.source_key,source_path:rosterRow.source_path,actual_source_path:declaration.path,reason:'ROSTER_SOURCE_PATH_MISMATCH'});continue;}
+  const resolved=resolveSourceIngredientPercentage(rosterRow.source_key);
+  if(!resolved.ok){missing.push({source_key:rosterRow.source_key,source_path:rosterRow.source_path,reason:resolved.reason,parent_source_key:resolved.parent_source_key||null,lineage:resolved.lineage||[]});continue;}
+  const percent=resolved.percent;
+  const markers=[...resolved.quality_markers];
   const sourceDeclaredSuspicious=markers.some(marker=>['SUSPICIOUS','FAKE','PLACEHOLDER','MODEL_FIT','GUESS','ESTIMATED'].includes(marker));
   const preliminaryEvidenceClass=sourceDeclaredSuspicious?INGREDIENT_PROBABILITY_EVIDENCE_CLASS.SOURCE_DECLARED_SUSPICIOUS:INGREDIENT_PROBABILITY_EVIDENCE_CLASS.COMMUNITY_RESEARCH_DERIVED;
   const policyDecision=evaluateIngredientProbabilityActivationRow({
@@ -102,11 +166,18 @@ for(const rosterRow of PUBLIC_SPECIES_FORM_ROSTER_ROWS){
     specialty_group:rosterRow.specialty_group,
     source_commit:PINNED_COMMIT,
     source_path:rosterRow.source_path,
-    source_blob_sha:source.blob_sha,
-    source_line:lineNumber(source.text,blockStart+fieldIndex),
+    source_blob_sha:sources[rosterRow.source_path].blob_sha,
+    declaration_line:resolved.declaration_line,
+    value_origin:resolved.value_origin,
+    immediate_parent_source_key:resolved.immediate_parent_source_key,
+    value_origin_source_key:resolved.value_origin_source_key,
+    value_origin_source_path:resolved.value_origin_source_path,
+    value_origin_source_blob_sha:resolved.value_origin_source_blob_sha,
+    source_line:resolved.value_source_line,
+    inheritance_lineage:resolved.inheritance_lineage,
     ingredient_percentage:percent,
     base_ingredient_probability:percent/100,
-    source_comment:comment||null,
+    source_comment:resolved.source_comment,
     quality_markers:Object.freeze(markers),
     preliminary_evidence_class:preliminaryEvidenceClass,
     independent_current_crosscheck_count:0,
@@ -117,16 +188,16 @@ for(const rosterRow of PUBLIC_SPECIES_FORM_ROSTER_ROWS){
   }));
 }
 
-const extractedKeys=new Set(rows.map(row=>row.source_key));
 const duplicateKeys=rows.map(row=>row.source_key).filter((key,index,array)=>array.indexOf(key)!==index);
 const unexpectedRows=rows.filter(row=>!rosterKeys.has(row.source_key));
 const flagged=rows.filter(row=>row.quality_markers.length>0);
+const inherited=rows.filter(row=>row.value_origin==='INHERITED');
 const excluded=rows.filter(row=>row.policy_status==='EXCLUDED_FROM_ACTIVATION');
 const reviewRequired=rows.filter(row=>row.policy_status==='REVIEW_REQUIRED');
 const ready=rows.filter(row=>row.policy_status==='ACTIVATION_ROW_EVIDENCE_READY');
 
 const payload={
-  schema:'pokemon-sleep-ingredient-probability-source-coverage-audit/1.0',
+  schema:'pokemon-sleep-ingredient-probability-source-coverage-audit/1.1',
   generated_at:new Date().toISOString(),
   roster_version:PUBLIC_SPECIES_FORM_ROSTER_VERSION,
   roster_count:PUBLIC_SPECIES_FORM_ROSTER_ROWS.length,
@@ -135,6 +206,8 @@ const payload={
   summary:Object.freeze({
     expected_roster_count:PUBLIC_SPECIES_FORM_ROSTER_ROWS.length,
     extracted_value_count:rows.length,
+    explicit_value_count:rows.length-inherited.length,
+    inherited_value_count:inherited.length,
     missing_value_count:missing.length,
     duplicate_source_key_count:new Set(duplicateKeys).size,
     unexpected_source_key_count:unexpectedRows.length,
@@ -147,13 +220,14 @@ const payload={
     activation_ready_coverage_ratio:PUBLIC_SPECIES_FORM_ROSTER_ROWS.length?ready.length/PUBLIC_SPECIES_FORM_ROSTER_ROWS.length:null,
   }),
   missing:Object.freeze(missing),
+  inherited_rows:Object.freeze(inherited.map(row=>({source_key:row.source_key,immediate_parent_source_key:row.immediate_parent_source_key,value_origin_source_key:row.value_origin_source_key,inheritance_lineage:row.inheritance_lineage,ingredient_percentage:row.ingredient_percentage}))),
   flagged_rows:Object.freeze(flagged.map(row=>({source_key:row.source_key,source_path:row.source_path,source_line:row.source_line,source_comment:row.source_comment,quality_markers:row.quality_markers,policy_status:row.policy_status,policy_reason:row.policy_reason}))),
   rows:Object.freeze(rows),
   activation_decision:'HOLD_SOURCE_VALUES_UNCROSSCHECKED',
-  safety:Object.freeze({runtime_network_fetch:false,player_data_write:false,sqlite_write:false,ai_numeric_authority:false,artifact_values_activate_runtime:false}),
+  safety:Object.freeze({runtime_network_fetch:false,player_data_write:false,sqlite_write:false,ai_numeric_authority:false,artifact_values_activate_runtime:false,inherited_values_require_explicit_source_lineage:true}),
 };
 
 fs.mkdirSync(new URL(`../${OUTPUT_PATH.substring(0,OUTPUT_PATH.lastIndexOf('/')+1)}`,import.meta.url),{recursive:true});
 fs.writeFileSync(new URL(`../${OUTPUT_PATH}`,import.meta.url),JSON.stringify(payload,null,2)+'\n','utf8');
-console.log(JSON.stringify({status:missing.length||duplicateKeys.length||unexpectedRows.length?'FAIL_SOURCE_COVERAGE':'PASS_SOURCE_COVERAGE',gate:'V0428_G75E3C3_PINNED_SOURCE_EXTRACTION',output:OUTPUT_PATH,...payload.summary,flagged_rows:payload.flagged_rows},null,2));
+console.log(JSON.stringify({status:missing.length||duplicateKeys.length||unexpectedRows.length?'FAIL_SOURCE_COVERAGE':'PASS_SOURCE_COVERAGE',gate:'V0428_G75E3C3_PINNED_SOURCE_EXTRACTION',output:OUTPUT_PATH,...payload.summary,missing:payload.missing,inherited_rows:payload.inherited_rows,flagged_rows:payload.flagged_rows},null,2));
 if(missing.length||duplicateKeys.length||unexpectedRows.length)process.exitCode=1;
