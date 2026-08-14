@@ -7,8 +7,13 @@ import {
   INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_VERSION,
   ingredientProductionDimensionEvidence,
 } from './ingredient-production-evidence-contract.js';
+import {
+  INGREDIENT_SLOT_DISTRIBUTION_CONTRACT_ID,
+  INGREDIENT_SLOT_DISTRIBUTION_CONTRACT_VERSION,
+  INGREDIENT_SLOT_DISTRIBUTION_AUTHORITY_STATUS,
+} from './ingredient-slot-distribution-contract.js';
 
-export const PRODUCTION_AUTHORITY_REGISTRY_VERSION='production-authority-registry-2026-08-14-e-ingredient-semantic-boundary';
+export const PRODUCTION_AUTHORITY_REGISTRY_VERSION='production-authority-registry-2026-08-14-f-ingredient-slot-distribution';
 
 const ingredientProbabilityEvidence=ingredientProductionDimensionEvidence('ingredient_probability_per_help');
 const ingredientSlotEvidence=ingredientProductionDimensionEvidence('ingredient_slot_distribution');
@@ -28,12 +33,15 @@ const RULES=Object.freeze({
     semantic_lifecycle:'PRODUCTION_TIME',runtime_numeric_activation:false,
   }),
   ingredient_slot_distribution:Object.freeze({
-    dimension:'ingredient_slot_distribution',status:'NOT_YET_VERIFIED',rule_version:null,
+    dimension:'ingredient_slot_distribution',status:INGREDIENT_SLOT_DISTRIBUTION_AUTHORITY_STATUS,
+    rule_version:INGREDIENT_SLOT_DISTRIBUTION_CONTRACT_VERSION,
     evidence_contract_id:INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_ID,
     evidence_contract_version:INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_VERSION,
-    source_refs:Object.freeze((ingredientSlotEvidence?.source_refs||[]).map(row=>row.source_id)),
-    missing_inputs:Object.freeze([...(ingredientSlotEvidence?.blockers||['verified_ingredient_slot_distribution_rule'])]),
-    semantic_lifecycle:'PRODUCTION_TIME',runtime_numeric_activation:false,
+    source_refs:Object.freeze([INGREDIENT_SLOT_DISTRIBUTION_CONTRACT_ID,...(ingredientSlotEvidence?.source_refs||[]).map(row=>row.source_id)]),
+    missing_inputs:Object.freeze([]),
+    semantic_lifecycle:'PRODUCTION_TIME',runtime_numeric_activation:true,
+    scope:'CONDITIONAL_ON_INGREDIENT_RESULT_HELP',
+    excluded_inputs:Object.freeze(['ingredient_probability_per_help','ingredient_combination_assignment_probability']),
   }),
   main_skill_trigger_probability:Object.freeze({dimension:'main_skill_trigger_probability',status:'NOT_YET_VERIFIED',rule_version:null,source_refs:Object.freeze([]),missing_inputs:Object.freeze(['verified_main_skill_trigger_rule'])}),
   main_skill_effect_value:Object.freeze({dimension:'main_skill_effect_value',status:'NOT_YET_VERIFIED',rule_version:null,source_refs:Object.freeze([]),missing_inputs:Object.freeze(['verified_main_skill_effect_value_rule'])}),
@@ -41,10 +49,11 @@ const RULES=Object.freeze({
 
 export function currentProductionAuthorityRegistry(){
   return Object.freeze({
-    schema:'pokemon-sleep-production-authority-registry/1.1',
+    schema:'pokemon-sleep-production-authority-registry/1.2',
     registry_version:PRODUCTION_AUTHORITY_REGISTRY_VERSION,
     ingredient_production_evidence_contract_id:INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_ID,
     ingredient_production_evidence_contract_version:INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_VERSION,
+    ingredient_slot_distribution_contract_id:INGREDIENT_SLOT_DISTRIBUTION_CONTRACT_ID,
     rules:RULES,
     numeric_rate_model_status:'NOT_YET_VERIFIED',
     active_verified_dimensions:Object.freeze(Object.values(RULES).filter(row=>row.status==='ACTIVE_VERIFIED').map(row=>row.dimension)),

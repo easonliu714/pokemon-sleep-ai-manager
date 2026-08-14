@@ -3,9 +3,14 @@ import {
   SPECIES_INGREDIENT_RATE_REFERENCE_STATUS,
 } from './public-species-ingredient-rate-reference.js';
 import {INGREDIENT_PROBABILITY_REFERENCE_CONTRACT_VERSION} from './ingredient-probability-reference-contract.js';
+import {
+  INGREDIENT_SLOT_DISTRIBUTION_CONTRACT_ID,
+  INGREDIENT_SLOT_DISTRIBUTION_CONTRACT_VERSION,
+  INGREDIENT_SLOT_DISTRIBUTION_AUTHORITY_STATUS,
+} from './ingredient-slot-distribution-contract.js';
 
-export const INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_ID='ingredient-production-evidence-boundary-2026-08-14-b';
-export const INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_VERSION='ingredient-production-evidence-contract-v1.1';
+export const INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_ID='ingredient-production-evidence-boundary-2026-08-14-c';
+export const INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_VERSION='ingredient-production-evidence-contract-v1.2';
 
 export const INGREDIENT_PRODUCTION_DIMENSIONS=Object.freeze({
   INGREDIENT_PROBABILITY_PER_HELP:'ingredient_probability_per_help',
@@ -46,13 +51,13 @@ export const INGREDIENT_PRODUCTION_EVIDENCE_SOURCES=freeze({
     ['REFERENCE_ONLY_NATURE_AND_SUBSKILL_COMPOSITION'],
     ['ACTIVE_VERIFIED_PRODUCTION_AUTHORITY'],
   ),
-  unlocked_slot_selection_reference:source(
-    'pokemon-sleep-verification-wiki-ingredient-slot-selection-2026-08-14',
-    'COMMUNITY_MECHANICS_REFERENCE',
-    'ポケモンスリープ攻略・検証 Wiki - 食材',
-    'https://wikiwiki.jp/poke_sleep/%E9%A3%9F%E6%9D%90',
-    ['REFERENCE_EQUAL_SELECTION_AMONG_CURRENTLY_UNLOCKED_INGREDIENT_SLOTS'],
-    ['LOCAL_GOVERNED_SLOT_DISTRIBUTION_CONTRACT','OFFICIAL_NUMERIC_PUBLICATION'],
+  verified_slot_distribution_contract:source(
+    INGREDIENT_SLOT_DISTRIBUTION_CONTRACT_ID,
+    'LOCAL_ACTIVE_VERIFIED_NUMERIC_CONTRACT',
+    'Ingredient Slot Distribution verified contract',
+    `internal:${INGREDIENT_SLOT_DISTRIBUTION_CONTRACT_VERSION}`,
+    ['PRODUCTION_TIME_EQUAL_SELECTION_AMONG_UNLOCKED_SLOTS','LEVEL_1_30_60_DETERMINISTIC_WEIGHTS'],
+    ['CATCH_TIME_INGREDIENT_COMBINATION_ASSIGNMENT'],
   ),
   catch_assignment_reference:source(
     'raenonx-ingredient-combination-assignment-2026-08-14',
@@ -82,43 +87,24 @@ export const INGREDIENT_PRODUCTION_SEMANTIC_BOUNDARY=freeze({
       'COMPLETE_CURRENT_SPECIES_FORM_ACTIVATION_COVERAGE_MISSING',
       'ACCEPTED_NUMERIC_EVIDENCE_POLICY_MISSING',
     ]),
-    activation_requirements:freeze([
-      'accepted_versioned_activation_master',
-      'complete_current_species_form_coverage',
-      'explicit_provenance_per_row',
-      'accepted_modifier_order_contract',
-      'fail_closed_unknown_or_ambiguous_form_fixture',
-      'no_runtime_network_fetch',
-    ]),
   }),
   ingredient_slot_distribution:freeze({
     dimension:INGREDIENT_PRODUCTION_DIMENSIONS.INGREDIENT_SLOT_DISTRIBUTION,
     lifecycle:'PRODUCTION_TIME',
-    semantic:'Conditional on an ingredient-result help, distribution used to choose among ingredient slots already unlocked for that individual at its current level.',
-    authority_status:'NOT_YET_VERIFIED',
-    runtime_numeric_activation:false,
+    semantic:'Conditional on an ingredient-result help, equal selection among ingredient slots already unlocked for that individual at its current level.',
+    authority_status:INGREDIENT_SLOT_DISTRIBUTION_AUTHORITY_STATUS,
+    rule_version:INGREDIENT_SLOT_DISTRIBUTION_CONTRACT_VERSION,
+    runtime_numeric_activation:true,
     source_refs:freeze([
-      INGREDIENT_PRODUCTION_EVIDENCE_SOURCES.unlocked_slot_selection_reference,
+      INGREDIENT_PRODUCTION_EVIDENCE_SOURCES.verified_slot_distribution_contract,
     ]),
-    reference_candidate_rule:'EQUAL_SELECTION_AMONG_CURRENTLY_UNLOCKED_INGREDIENT_SLOTS',
-    reference_candidate_weights:freeze({
+    verified_rule:'EQUAL_SELECTION_AMONG_CURRENTLY_UNLOCKED_INGREDIENT_SLOTS',
+    verified_weights:freeze({
       level_1:'1',
       level_30:'1/2_each_unlocked_slot',
       level_60:'1/3_each_unlocked_slot',
     }),
-    blockers:freeze([
-      'PLAYER_SLOT_IDENTITY_OBSERVED_BUT_PRODUCTION_WEIGHT_MISSING',
-      'LOCAL_GOVERNED_PRODUCTION_SLOT_SELECTION_CONTRACT_MISSING',
-      'INDEPENDENT_CURRENT_MECHANICS_CROSSCHECK_MISSING',
-    ]),
-    activation_requirements:freeze([
-      'governed_local_slot_selection_contract',
-      'independent_current_mechanics_crosscheck',
-      'level_1_30_60_deterministic_fixtures',
-      'duplicate_ingredient_name_slot_identity_fixture',
-      'locked_slot_exclusion_fixture',
-      'no_runtime_network_fetch',
-    ]),
+    blockers:freeze([]),
   }),
   ingredient_combination_assignment_probability:freeze({
     dimension:INGREDIENT_PRODUCTION_DIMENSIONS.INGREDIENT_COMBINATION_ASSIGNMENT_PROBABILITY,
@@ -139,15 +125,13 @@ export const INGREDIENT_PRODUCTION_SEMANTIC_BOUNDARY=freeze({
 
 export function ingredientProductionEvidenceBoundary(){
   return freeze({
-    schema:'pokemon-sleep-ingredient-production-evidence-boundary/1.1',
+    schema:'pokemon-sleep-ingredient-production-evidence-boundary/1.2',
     contract_id:INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_ID,
     contract_version:INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_VERSION,
     dimensions:INGREDIENT_PRODUCTION_SEMANTIC_BOUNDARY,
-    numeric_activation_count:0,
-    production_dimensions_hold:freeze([
-      INGREDIENT_PRODUCTION_DIMENSIONS.INGREDIENT_PROBABILITY_PER_HELP,
-      INGREDIENT_PRODUCTION_DIMENSIONS.INGREDIENT_SLOT_DISTRIBUTION,
-    ]),
+    numeric_activation_count:1,
+    production_dimensions_ready:freeze([INGREDIENT_PRODUCTION_DIMENSIONS.INGREDIENT_SLOT_DISTRIBUTION]),
+    production_dimensions_hold:freeze([INGREDIENT_PRODUCTION_DIMENSIONS.INGREDIENT_PROBABILITY_PER_HELP]),
     safety:freeze({
       missing_is_zero:false,
       player_data_write:false,

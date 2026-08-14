@@ -17,10 +17,14 @@ const authoritySource=read('assets/js/version-authority.js');
 const sandbox={};sandbox.globalThis=sandbox;
 vm.runInNewContext(authoritySource,sandbox,{filename:'assets/js/version-authority.js'});
 const authority=sandbox.PokemonSleepVersionAuthority;
-const natureNumericSuccessor=['v0.4.24','v0.4.25','v0.4.26'].includes(authority.app_version);
-const subskillNumericSuccessor=['v0.4.25','v0.4.26'].includes(authority.app_version);
-assert.ok(['v0.4.23','v0.4.24','v0.4.25','v0.4.26'].includes(authority.app_version));
-if(authority.app_version==='v0.4.26'){
+const natureNumericSuccessor=['v0.4.24','v0.4.25','v0.4.26','v0.4.27'].includes(authority.app_version);
+const subskillNumericSuccessor=['v0.4.25','v0.4.26','v0.4.27'].includes(authority.app_version);
+assert.ok(['v0.4.23','v0.4.24','v0.4.25','v0.4.26','v0.4.27'].includes(authority.app_version));
+if(authority.app_version==='v0.4.27'){
+  assert.equal(authority.app_build,'20260814-v0427-g75e3b-ingredient-slot-distribution');
+  assert.equal(authority.cache_name,'pokemon-sleep-ai-v0.4.27-v0427-g75e3b-ingredient-slot-distribution');
+  assert.ok(authoritySource.includes("// app_version: 'v0.4.26'"),'v0.4.26 predecessor lineage missing');
+}else if(authority.app_version==='v0.4.26'){
   assert.equal(authority.app_build,'20260814-v0426-g75e3a-ingredient-rate-reference-boundary');
   assert.equal(authority.cache_name,'pokemon-sleep-ai-v0.4.26-v0426-g75e3a-ingredient-rate-reference-boundary');
   assert.ok(authoritySource.includes("// app_version: 'v0.4.25'"),'v0.4.25 predecessor lineage missing');
@@ -41,9 +45,10 @@ assert.equal(authority.schema,'pokemon-sleep-version-authority/1.0');
 
 const registry=currentProductionAuthorityRegistry();
 assert.equal(registry.numeric_rate_model_status,'NOT_YET_VERIFIED');
-assert.deepEqual(registry.active_verified_dimensions,['berry_output_per_help','berry_energy_per_berry','favorite_berry_multiplier']);
-assert.equal(registry.active_verified_dimensions.length,3);
-for(const key of ['ingredient_probability_per_help','ingredient_slot_distribution','main_skill_trigger_probability','main_skill_effect_value'])assert.equal(registry.rules[key].status,'NOT_YET_VERIFIED');
+const slotSuccessor=registry.rules.ingredient_slot_distribution?.status==='ACTIVE_VERIFIED';
+if(slotSuccessor){assert.equal(registry.rules.ingredient_slot_distribution.rule_version,'ingredient-slot-distribution-v1');assert.equal(registry.rules.ingredient_slot_distribution.runtime_numeric_activation,true);}
+assert.deepEqual(registry.active_verified_dimensions,['berry_output_per_help','berry_energy_per_berry','favorite_berry_multiplier',...(slotSuccessor?['ingredient_slot_distribution']:[])]);
+for(const key of ['ingredient_probability_per_help','main_skill_trigger_probability','main_skill_effect_value'])assert.equal(registry.rules[key].status,'NOT_YET_VERIFIED');
 
 const candidate={
   pokemon_id:'private-player-pokemon-001',species:'測試物種',level:30,specialty:'樹果',helper_seconds:2200,favorite_berry_match:true,
@@ -93,6 +98,7 @@ assert.equal(outgoing.candidate_ref,'cand_001');
 assert.equal(outgoing.production_modifier_profile.numeric_activation,false);
 assert.equal(outgoing.production_modifier_profile.status,PRODUCTION_MODIFIER_STRUCTURAL_STATUS);
 assert.equal(outgoing.rate_statuses.berry,'NOT_YET_VERIFIED');
+assert.equal(outgoing.rate_statuses.ingredient,'NOT_YET_VERIFIED');
 const serialized=JSON.stringify(pack.payload);
 assert.equal(serialized.includes(candidate.pokemon_id),false,'stable Pokémon ID leaked into AI pack');
 assert.equal(serialized.includes('pokemon_id'),false,'pokemon_id key leaked into AI pack');
@@ -110,4 +116,4 @@ for(const file of ['assets/js/pokemon-master-options.js','assets/js/strategy-opt
   for(const forbidden of ['INSERT INTO','UPDATE pokemon','UPDATE ingredient_inventory','DELETE FROM','applyPayload(','dryRun(','fetch('])assert.equal(source.includes(forbidden),false,`${file} owns forbidden write/network path: ${forbidden}`);
 }
 
-console.log(JSON.stringify({status:'PASS',gate:'V0423_G75E1_STRUCTURAL_PRODUCTION_MODIFIER_RELEASE',app_version:authority.app_version,nature_numeric_successor:natureNumericSuccessor,subskill_numeric_successor:subskillNumericSuccessor,modifier_registry_version:PRODUCTION_MODIFIER_STRUCTURAL_VERSION,optimization_pack_version:STRATEGY_OPTIMIZATION_PACK_VERSION,active_numeric_dimension_count:registry.active_verified_dimensions.length,overall_numeric_model_status:registry.numeric_rate_model_status,nature_structural_routing:true,berry_finding_s_delegated:true,helping_bonus_team_scope:true,unknown_modifier_fail_closed:true,modifier_numeric_activation:false,candidate_ref_payload:true,stable_ids_in_payload:false,recipe_render_hydration_write_free:true,recipe_observed_energy_preserved:true,player_write:false,sqlite_write:false,runtime_network_fetch:false,ai_numeric_authority:false},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V0423_G75E1_STRUCTURAL_PRODUCTION_MODIFIER_RELEASE',app_version:authority.app_version,nature_numeric_successor:natureNumericSuccessor,subskill_numeric_successor:subskillNumericSuccessor,modifier_registry_version:PRODUCTION_MODIFIER_STRUCTURAL_VERSION,optimization_pack_version:STRATEGY_OPTIMIZATION_PACK_VERSION,active_numeric_dimension_count:registry.active_verified_dimensions.length,ingredient_slot_successor:slotSuccessor,overall_numeric_model_status:registry.numeric_rate_model_status,nature_structural_routing:true,berry_finding_s_delegated:true,helping_bonus_team_scope:true,unknown_modifier_fail_closed:true,modifier_numeric_activation:false,candidate_ref_payload:true,stable_ids_in_payload:false,recipe_render_hydration_write_free:true,recipe_observed_energy_preserved:true,player_write:false,sqlite_write:false,runtime_network_fetch:false,ai_numeric_authority:false},null,2));
