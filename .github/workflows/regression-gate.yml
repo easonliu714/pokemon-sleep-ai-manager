@@ -31,6 +31,9 @@ jobs:
       - name: Run regression gate
         run: node scripts/regression-gate.mjs
 
+      - name: Verify unlocked Pokémon roster filters
+        run: node scripts/pokemon-roster-filter-regression.mjs
+
       - name: Verify shared and personal data isolation
         run: node scripts/shared-personal-isolation.mjs
 
