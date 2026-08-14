@@ -17,6 +17,7 @@ on:
       - 'assets/js/version-authority.js'
       - 'service-worker.js'
       - 'scripts/v0416-g73-production-team-search-contract.mjs'
+      - 'scripts/v0423-predecessor-contract-runner.mjs'
       - '.github/workflows/v0416-g73-production-team-search.yml'
 
 jobs:
@@ -38,5 +39,6 @@ jobs:
           node --check assets/js/war-room-strategy-context-ui.js
           node --check assets/js/v0416-g73-ui.js
           node --check service-worker.js
+          node --check scripts/v0423-predecessor-contract-runner.mjs
       - name: G7.3 production authority and bounded search contract
-        run: node scripts/v0416-g73-production-team-search-contract.mjs
+        run: node scripts/v0423-predecessor-contract-runner.mjs scripts/v0416-g73-production-team-search-contract.mjs
