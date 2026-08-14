@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 
-export const PRODUCTION_EVIDENCE_REGRESSION_VERSION='production-evidence-regression-2026-08-14-b';
+export const PRODUCTION_EVIDENCE_REGRESSION_VERSION='production-evidence-regression-2026-08-14-c';
+const PREDECESSOR_BRIDGE='scripts/v0423-predecessor-contract-runner.mjs';
 
 // Production/G7 behavioral lineage only. Recipe v0.4.22.1 keeps its own
 // Recipe Authority workflow and is intentionally not retired by P1.
@@ -30,6 +31,12 @@ export const PRODUCTION_BEHAVIORAL_CONTRACTS=Object.freeze([
   'scripts/v0428-g75e3c4b-independent-snapshot-intake-gate.mjs',
   'scripts/v0428-g75e3c5-source-lineage-review-contract.mjs',
   'scripts/v0428-g75e3c6-first-party-observation-contract.mjs',
+]);
+
+// These historical contracts intentionally validate an older release identity.
+// Use the already-governed predecessor bridge instead of mutating their allowlists.
+const IDENTITY_BRIDGED_CONTRACTS=new Set([
+  'scripts/v0416-g73-production-team-search-contract.mjs',
 ]);
 
 const PRODUCTION_RUNTIME_FILES=Object.freeze([
@@ -74,13 +81,17 @@ function run(command,args,{label=command,env=process.env}={}){
   }
 }
 
-for(const path of [...PRODUCTION_RUNTIME_FILES,...PRODUCTION_BEHAVIORAL_CONTRACTS]){
+for(const path of [PREDECESSOR_BRIDGE,...PRODUCTION_RUNTIME_FILES,...PRODUCTION_BEHAVIORAL_CONTRACTS]){
   assert.equal(fs.existsSync(path),true,`Production regression dependency missing: ${path}`);
   run(process.execPath,['--check',path],{label:`syntax:${path}`});
 }
 
 for(const path of PRODUCTION_BEHAVIORAL_CONTRACTS){
-  run(process.execPath,[path],{label:`contract:${path}`});
+  if(IDENTITY_BRIDGED_CONTRACTS.has(path)){
+    run(process.execPath,[PREDECESSOR_BRIDGE,path],{label:`bridged-contract:${path}`});
+  }else{
+    run(process.execPath,[path],{label:`contract:${path}`});
+  }
 }
 
 const slotSource=fs.readFileSync('assets/js/ingredient-slot-distribution-contract.js','utf8');
@@ -100,6 +111,7 @@ console.log(JSON.stringify({
   gate:'PRODUCTION_EVIDENCE_REGRESSION',
   version:PRODUCTION_EVIDENCE_REGRESSION_VERSION,
   behavioral_contract_count:PRODUCTION_BEHAVIORAL_CONTRACTS.length,
+  identity_bridged_contract_count:IDENTITY_BRIDGED_CONTRACTS.size,
   runtime_syntax_count:PRODUCTION_RUNTIME_FILES.length,
   recipe_authority_workflow_retired:false,
   production_authority_mutated:false,
