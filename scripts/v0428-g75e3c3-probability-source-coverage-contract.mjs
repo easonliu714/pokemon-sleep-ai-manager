@@ -8,7 +8,7 @@ assert.ok(fs.existsSync(artifactPath),`SOURCE_COVERAGE_ARTIFACT_MISSING:${artifa
 const artifact=JSON.parse(fs.readFileSync(artifactPath,'utf8'));
 const roster=currentPublicSpeciesFormRoster();
 
-assert.equal(artifact.schema,'pokemon-sleep-ingredient-probability-source-coverage-audit/1.0');
+assert.equal(artifact.schema,'pokemon-sleep-ingredient-probability-source-coverage-audit/1.1');
 assert.equal(artifact.roster_version,PUBLIC_SPECIES_FORM_ROSTER_VERSION);
 assert.equal(artifact.roster_count,242);
 assert.equal(roster.row_count,242);
@@ -22,6 +22,8 @@ assert.deepEqual(Object.fromEntries(Object.entries(artifact.source_files).map(([
 });
 assert.equal(artifact.summary.expected_roster_count,242);
 assert.equal(artifact.summary.extracted_value_count,242);
+assert.equal(artifact.summary.explicit_value_count,235);
+assert.equal(artifact.summary.inherited_value_count,7);
 assert.equal(artifact.summary.missing_value_count,0);
 assert.equal(artifact.summary.duplicate_source_key_count,0);
 assert.equal(artifact.summary.unexpected_source_key_count,0);
@@ -33,6 +35,7 @@ assert.equal(artifact.summary.excluded_from_activation_count,1,'known Mew source
 assert.equal(artifact.summary.review_required_count,241);
 assert.equal(artifact.activation_decision,'HOLD_SOURCE_VALUES_UNCROSSCHECKED');
 for(const key of ['runtime_network_fetch','player_data_write','sqlite_write','ai_numeric_authority','artifact_values_activate_runtime'])assert.equal(artifact.safety[key],false,`unsafe artifact flag: ${key}`);
+assert.equal(artifact.safety.inherited_values_require_explicit_source_lineage,true);
 
 assert.equal(artifact.rows.length,242);
 const keys=artifact.rows.map(row=>row.source_key);
@@ -43,6 +46,35 @@ assert.ok(artifact.rows.every(row=>Number.isFinite(row.base_ingredient_probabili
 assert.ok(artifact.rows.every(row=>row.source_commit===artifact.source_commit));
 assert.ok(artifact.rows.every(row=>row.independent_current_crosscheck_count===0));
 assert.ok(artifact.rows.every(row=>row.eligible_for_numeric_activation===false));
+assert.ok(artifact.rows.every(row=>Number.isInteger(row.declaration_line)&&row.declaration_line>0));
+assert.ok(artifact.rows.every(row=>Number.isInteger(row.source_line)&&row.source_line>0));
+
+const expectedInherited={
+  WARTORTLE:['SQUIRTLE','SQUIRTLE'],
+  RATICATE:['RATTATA','RATTATA'],
+  DODRIO:['DODUO','DODUO'],
+  NINETALES_ALOLAN:['VULPIX_ALOLAN','VULPIX_ALOLAN'],
+  CROCONAW:['TOTODILE','TOTODILE'],
+  DRAGONAIR:['DRATINI','DRATINI'],
+  TOGEKISS:['TOGETIC','TOGETIC'],
+};
+assert.equal(artifact.inherited_rows.length,7);
+assert.deepEqual(artifact.inherited_rows.map(row=>row.source_key).sort(),Object.keys(expectedInherited).sort());
+for(const [key,[parent,origin]] of Object.entries(expectedInherited)){
+  const summaryRow=artifact.inherited_rows.find(row=>row.source_key===key);
+  const fullRow=artifact.rows.find(row=>row.source_key===key);
+  assert.ok(summaryRow&&fullRow,`inherited row missing ${key}`);
+  assert.equal(fullRow.value_origin,'INHERITED');
+  assert.equal(fullRow.immediate_parent_source_key,parent);
+  assert.equal(fullRow.value_origin_source_key,origin);
+  assert.deepEqual(fullRow.inheritance_lineage,[key,parent]);
+  assert.equal(summaryRow.immediate_parent_source_key,parent);
+  assert.equal(summaryRow.value_origin_source_key,origin);
+  assert.deepEqual(summaryRow.inheritance_lineage,[key,parent]);
+  assert.equal(fullRow.ingredient_percentage,artifact.rows.find(row=>row.source_key===parent).ingredient_percentage,`${key} inherited value must equal pinned parent source value`);
+}
+assert.equal(artifact.rows.filter(row=>row.value_origin==='EXPLICIT').length,235);
+assert.equal(artifact.rows.filter(row=>row.value_origin==='INHERITED').length,7);
 
 const mew=artifact.rows.find(row=>row.source_key==='MEW');
 assert.ok(mew,'MEW extraction row missing');
@@ -66,9 +98,9 @@ assert.equal(registry.rules.ingredient_probability_per_help.runtime_numeric_acti
 assert.equal(registry.numeric_rate_model_status,'NOT_YET_VERIFIED');
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'V0428_G75E3C3_PROBABILITY_SOURCE_COVERAGE',roster_count:242,source_value_coverage:'242/242',
+  status:'PASS',gate:'V0428_G75E3C3_PROBABILITY_SOURCE_COVERAGE',roster_count:242,source_value_coverage:'242/242',explicit_values:235,inherited_values:7,
   quality_flagged_row_count:artifact.summary.quality_flagged_row_count,excluded_from_activation_count:artifact.summary.excluded_from_activation_count,
   review_required_count:artifact.summary.review_required_count,activation_ready_count:artifact.summary.activation_row_evidence_ready_count,
-  mew_source_excluded:true,production_numeric_activation:'4/7',ingredient_probability_status:registry.rules.ingredient_probability_per_help.status,
+  mew_source_excluded:true,inherited_lineage_verified:true,production_numeric_activation:'4/7',ingredient_probability_status:registry.rules.ingredient_probability_per_help.status,
   activation_decision:artifact.activation_decision,runtime_values_activated:false,
 },null,2));
