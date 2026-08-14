@@ -19,11 +19,12 @@ const registry=currentProductionAuthorityRegistry();
 const boundary=ingredientProductionEvidenceBoundary();
 const reference=currentSpeciesIngredientRateReference();
 
-assert.equal(boundary.schema,'pokemon-sleep-ingredient-production-evidence-boundary/1.1');
+assert.equal(boundary.schema,'pokemon-sleep-ingredient-production-evidence-boundary/1.2');
 assert.equal(boundary.contract_id,INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_ID);
 assert.equal(boundary.contract_version,INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_VERSION);
-assert.equal(boundary.numeric_activation_count,0);
-assert.deepEqual(boundary.production_dimensions_hold,['ingredient_probability_per_help','ingredient_slot_distribution']);
+assert.equal(boundary.numeric_activation_count,1);
+assert.deepEqual(boundary.production_dimensions_ready,['ingredient_slot_distribution']);
+assert.deepEqual(boundary.production_dimensions_hold,['ingredient_probability_per_help']);
 for(const key of ['missing_is_zero','player_data_write','sqlite_write','runtime_network_fetch','ai_numeric_authority','reference_values_activate_production','catch_assignment_may_substitute_production_distribution'])assert.equal(boundary.safety[key],false,`unsafe boundary flag: ${key}`);
 
 const probability=INGREDIENT_PRODUCTION_SEMANTIC_BOUNDARY.ingredient_probability_per_help;
@@ -35,32 +36,33 @@ assert.equal(catchAssignment.lifecycle,'IDENTITY_GENERATION_TIME');
 assert.notEqual(probability.semantic,slotDistribution.semantic);
 assert.notEqual(slotDistribution.semantic,catchAssignment.semantic);
 assert.equal(probability.authority_status,'NOT_YET_VERIFIED');
-assert.equal(slotDistribution.authority_status,'NOT_YET_VERIFIED');
+assert.equal(slotDistribution.authority_status,'ACTIVE_VERIFIED');
 assert.equal(probability.runtime_numeric_activation,false);
-assert.equal(slotDistribution.runtime_numeric_activation,false);
+assert.equal(slotDistribution.runtime_numeric_activation,true);
+assert.equal(slotDistribution.rule_version,'ingredient-slot-distribution-v1');
 assert.equal(catchAssignment.production_model_eligible,false);
 assert.ok(catchAssignment.forbidden_substitutions.includes('ingredient_probability_per_help'));
 assert.ok(catchAssignment.forbidden_substitutions.includes('ingredient_slot_distribution'));
 assert.equal(isIngredientProductionDimensionActive('ingredient_probability_per_help'),false);
-assert.equal(isIngredientProductionDimensionActive('ingredient_slot_distribution'),false);
+assert.equal(isIngredientProductionDimensionActive('ingredient_slot_distribution'),true);
 assert.equal(isIngredientProductionDimensionActive('ingredient_combination_assignment_probability'),false);
 
-assert.equal(slotDistribution.reference_candidate_rule,'EQUAL_SELECTION_AMONG_CURRENTLY_UNLOCKED_INGREDIENT_SLOTS');
-assert.deepEqual(slotDistribution.reference_candidate_weights,{level_1:'1',level_30:'1/2_each_unlocked_slot',level_60:'1/3_each_unlocked_slot'});
-assert.ok(slotDistribution.blockers.includes('PLAYER_SLOT_IDENTITY_OBSERVED_BUT_PRODUCTION_WEIGHT_MISSING'));
-assert.ok(slotDistribution.blockers.includes('LOCAL_GOVERNED_PRODUCTION_SLOT_SELECTION_CONTRACT_MISSING'));
+assert.equal(slotDistribution.verified_rule,'EQUAL_SELECTION_AMONG_CURRENTLY_UNLOCKED_INGREDIENT_SLOTS');
+assert.deepEqual(slotDistribution.verified_weights,{level_1:'1',level_30:'1/2_each_unlocked_slot',level_60:'1/3_each_unlocked_slot'});
+assert.deepEqual(slotDistribution.blockers,[]);
 assert.ok(probability.blockers.includes('SPECIES_BASE_INGREDIENT_RATE_ACTIVATION_MASTER_NOT_ACCEPTED'));
 assert.ok(probability.blockers.includes('COMPLETE_CURRENT_SPECIES_FORM_ACTIVATION_COVERAGE_MISSING'));
 assert.ok(probability.blockers.includes('ACCEPTED_NUMERIC_EVIDENCE_POLICY_MISSING'));
 
 const sourceById=id=>Object.values(INGREDIENT_PRODUCTION_EVIDENCE_SOURCES).find(row=>row.source_id===id);
 const official=sourceById('pokemon-sleep-official-v3.5.0-ingredient-finding-chance-adjustment');
-const slotReference=sourceById('pokemon-sleep-verification-wiki-ingredient-slot-selection-2026-08-14');
+const verifiedSlotSource=sourceById('ingredient-slot-distribution-2026-08-14-a');
 const assignmentReference=sourceById('raenonx-ingredient-combination-assignment-2026-08-14');
 assert.equal(official.source_tier,'OFFICIAL_MECHANIC_EXISTENCE_ONLY');
 assert.ok(official.does_not_support.includes('EXACT_SPECIES_BASE_RATE'));
-assert.equal(slotReference.source_tier,'COMMUNITY_MECHANICS_REFERENCE');
-assert.ok(slotReference.does_not_support.includes('LOCAL_GOVERNED_SLOT_DISTRIBUTION_CONTRACT'));
+assert.equal(verifiedSlotSource.source_tier,'LOCAL_ACTIVE_VERIFIED_NUMERIC_CONTRACT');
+assert.ok(verifiedSlotSource.supports.includes('PRODUCTION_TIME_EQUAL_SELECTION_AMONG_UNLOCKED_SLOTS'));
+assert.ok(verifiedSlotSource.does_not_support.includes('CATCH_TIME_INGREDIENT_COMBINATION_ASSIGNMENT'));
 assert.equal(assignmentReference.source_tier,'COMMUNITY_FIRST_HAND_IDENTITY_GENERATION_RESEARCH');
 assert.ok(assignmentReference.does_not_support.includes('PER_HELP_INGREDIENT_SLOT_DISTRIBUTION'));
 
@@ -71,21 +73,24 @@ assert.equal(reference.policy.reference_values_may_activate_production_dimension
 
 const numeric=['berry_output_per_help','berry_energy_per_berry','favorite_berry_multiplier','ingredient_probability_per_help','ingredient_slot_distribution','main_skill_trigger_probability','main_skill_effect_value'];
 const active=numeric.filter(name=>registry.rules[name]?.status==='ACTIVE_VERIFIED');
-assert.deepEqual([...active].sort(),['berry_output_per_help','berry_energy_per_berry','favorite_berry_multiplier'].sort());
+assert.deepEqual(active,['berry_output_per_help','berry_energy_per_berry','favorite_berry_multiplier','ingredient_slot_distribution']);
 assert.equal(registry.numeric_rate_model_status,'NOT_YET_VERIFIED');
 assert.equal(registry.ai_numeric_authority,false);
 assert.equal(registry.ingredient_production_evidence_contract_id,INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_ID);
-for(const name of ['ingredient_probability_per_help','ingredient_slot_distribution']){
-  const row=registry.rules[name];
-  assert.equal(row.status,'NOT_YET_VERIFIED');
-  assert.equal(row.rule_version,null);
-  assert.equal(row.runtime_numeric_activation,false);
-  assert.equal(row.semantic_lifecycle,'PRODUCTION_TIME');
-  assert.equal(row.evidence_contract_id,INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_ID);
-  assert.equal(row.evidence_contract_version,INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_VERSION);
-  assert.ok(row.source_refs.length>0,`${name} evidence sources missing`);
-  assert.ok(row.missing_inputs.length>=3,`${name} activation blockers must be explicit`);
-}
+const probabilityRule=registry.rules.ingredient_probability_per_help;
+assert.equal(probabilityRule.status,'NOT_YET_VERIFIED');
+assert.equal(probabilityRule.rule_version,null);
+assert.equal(probabilityRule.runtime_numeric_activation,false);
+assert.equal(probabilityRule.semantic_lifecycle,'PRODUCTION_TIME');
+assert.equal(probabilityRule.evidence_contract_id,INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_ID);
+assert.ok(probabilityRule.missing_inputs.length>=3);
+const slotRule=registry.rules.ingredient_slot_distribution;
+assert.equal(slotRule.status,'ACTIVE_VERIFIED');
+assert.equal(slotRule.rule_version,'ingredient-slot-distribution-v1');
+assert.equal(slotRule.runtime_numeric_activation,true);
+assert.equal(slotRule.semantic_lifecycle,'PRODUCTION_TIME');
+assert.equal(slotRule.evidence_contract_id,INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_ID);
+assert.deepEqual(slotRule.missing_inputs,[]);
 
 const candidate={
   pokemon_id:'fixture-ingredient-01',species:'妙蛙種子',type:'草',level:60,specialty:'食材',helper_seconds:4400,
@@ -99,14 +104,16 @@ const candidate={
 };
 const member=projectMemberProductionEvidence(candidate,{productionRegistry:registry});
 assert.equal(member.ingredient_rate_status,'NOT_YET_VERIFIED');
-assert.equal(member.ingredient_per_hour_by_name,null,'observed slots/reference rates may not bypass authority');
+assert.equal(member.ingredient_per_hour_by_name,null,'ACTIVE slot distribution plus reference species rates may not bypass missing ingredient probability authority');
 
-const probabilityOnly={...registry,rules:{...registry.rules,ingredient_probability_per_help:{...registry.rules.ingredient_probability_per_help,status:'ACTIVE_VERIFIED'}}};
+const probabilityOnly={...registry,rules:{...registry.rules,
+  ingredient_probability_per_help:{...registry.rules.ingredient_probability_per_help,status:'ACTIVE_VERIFIED'},
+  ingredient_slot_distribution:{...registry.rules.ingredient_slot_distribution,status:'NOT_YET_VERIFIED',runtime_numeric_activation:false},
+}};
 const probabilityOnlyMember=projectMemberProductionEvidence(candidate,{productionRegistry:probabilityOnly});
 assert.equal(probabilityOnlyMember.ingredient_rate_status,'NOT_YET_VERIFIED');
 assert.equal(probabilityOnlyMember.ingredient_per_hour_by_name,null);
-const slotOnly={...registry,rules:{...registry.rules,ingredient_slot_distribution:{...registry.rules.ingredient_slot_distribution,status:'ACTIVE_VERIFIED'}}};
-const slotOnlyMember=projectMemberProductionEvidence(candidate,{productionRegistry:slotOnly});
+const slotOnlyMember=projectMemberProductionEvidence(candidate,{productionRegistry:registry});
 assert.equal(slotOnlyMember.ingredient_rate_status,'NOT_YET_VERIFIED');
 assert.equal(slotOnlyMember.ingredient_per_hour_by_name,null);
 
@@ -115,16 +122,17 @@ const snapshot=buildProductionEvidenceSnapshot({
   weeklyContext:{favorite_berry_1:'蘋野果',favorite_berry_2:'金枕果',favorite_berry_3:'莓莓果'},
   productionRegistry:registry,
 });
-assert.equal(snapshot.schema,'pokemon-sleep-production-evidence-snapshot/1.4');
+assert.equal(snapshot.schema,'pokemon-sleep-production-evidence-snapshot/1.5');
 assert.equal(snapshot.ingredient_production_evidence_contract_id,INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_ID);
 assert.equal(snapshot.ingredient_production_evidence_contract_version,INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_VERSION);
 assert.equal(snapshot.summary.rule_count,12);
 assert.equal(snapshot.summary.numeric_dimension_count,7);
-assert.equal(snapshot.summary.active_numeric_dimension_count,3);
-assert.equal(snapshot.summary.blocked_numeric_dimension_count,4);
+assert.equal(snapshot.summary.active_numeric_dimension_count,4);
+assert.equal(snapshot.summary.blocked_numeric_dimension_count,3);
 assert.equal(snapshot.activation_decision,'HOLD_NUMERIC_MODEL_NOT_ACTIVE');
 assert.equal(snapshot.safety.reference_values_activate_production,false);
 assert.equal(snapshot.safety.catch_assignment_may_substitute_production_distribution,false);
+assert.equal(snapshot.safety.ingredient_slot_distribution_implies_ingredient_hour,false);
 
 const speciesReferenceRow=snapshot.rules.find(row=>row.dimension==='species_base_ingredient_rate_reference');
 assert.ok(speciesReferenceRow,'#279 species reference evidence row must remain present');
@@ -136,8 +144,10 @@ assert.equal(probabilityRow.coverage.observed_count,0);
 assert.deepEqual(probabilityRow.blocking_reasons,['SPECIES_BASE_INGREDIENT_RATE_ACTIVATION_MASTER_NOT_ACCEPTED']);
 assert.equal(probabilityRow.evidence_contract_id,INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_ID);
 const slotRow=snapshot.rules.find(row=>row.dimension==='ingredient_slot_distribution');
-assert.equal(slotRow.runtime_numeric_activation,false);
-assert.deepEqual(slotRow.blocking_reasons,['PLAYER_SLOT_IDENTITY_OBSERVED_BUT_PRODUCTION_WEIGHT_MISSING']);
+assert.equal(slotRow.runtime_numeric_activation,true);
+assert.equal(slotRow.authority_status,'ACTIVE_VERIFIED');
+assert.equal(slotRow.evidence_status,'ACTIVE_VERIFIED_LOCAL_NUMERIC_CONTRACT');
+assert.deepEqual(slotRow.blocking_reasons,[]);
 assert.equal(slotRow.forbidden_evidence_substitution,'ingredient_combination_assignment_probability');
 assert.equal(slotRow.evidence_contract_id,INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_ID);
 
@@ -156,14 +166,14 @@ assert.ok(sw.includes("'./assets/js/ingredient-production-evidence-contract.js'"
 
 console.log(JSON.stringify({
   status:'PASS',
-  gate:'V0426_G75E3A_INGREDIENT_SEMANTIC_BOUNDARY_CLOSURE',
+  gate:'V0426_G75E3A_INGREDIENT_SEMANTIC_BOUNDARY_CLOSURE_SUCCESSOR_AWARE',
   contract_id:INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_ID,
   contract_version:INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_VERSION,
   semantic_dimensions:Object.values(INGREDIENT_PRODUCTION_DIMENSIONS),
   species_reference_status:reference.status,
   species_reference_complete_catalog:reference.complete_catalog,
   active_numeric_dimensions:active,
-  production_numeric_activation:'3/7',
+  production_numeric_activation:'4/7',
   ingredient_probability_status:registry.rules.ingredient_probability_per_help.status,
   ingredient_slot_distribution_status:registry.rules.ingredient_slot_distribution.status,
   catch_assignment_production_substitution:false,
