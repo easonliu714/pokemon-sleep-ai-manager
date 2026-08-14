@@ -31,8 +31,9 @@ assert.equal(reference.eligible_for_numeric_activation,false);
 
 const boundary=ingredientProductionEvidenceBoundary();
 assert.equal(boundary.contract_id,INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_ID);
-assert.equal(boundary.numeric_activation_count,0);
-assert.deepEqual(boundary.production_dimensions_hold,['ingredient_probability_per_help','ingredient_slot_distribution']);
+assert.equal(boundary.numeric_activation_count,1);
+assert.deepEqual(boundary.production_dimensions_ready,['ingredient_slot_distribution']);
+assert.deepEqual(boundary.production_dimensions_hold,['ingredient_probability_per_help']);
 assert.equal(boundary.safety.reference_values_activate_production,false);
 assert.equal(boundary.safety.catch_assignment_may_substitute_production_distribution,false);
 assert.equal(boundary.safety.runtime_network_fetch,false);
@@ -40,20 +41,23 @@ assert.equal(boundary.safety.ai_numeric_authority,false);
 
 const registry=currentProductionAuthorityRegistry();
 const numeric=['berry_output_per_help','berry_energy_per_berry','favorite_berry_multiplier','ingredient_probability_per_help','ingredient_slot_distribution','main_skill_trigger_probability','main_skill_effect_value'];
-assert.equal(numeric.filter(name=>registry.rules[name]?.status==='ACTIVE_VERIFIED').length,3);
+const active=numeric.filter(name=>registry.rules[name]?.status==='ACTIVE_VERIFIED');
+assert.deepEqual(active,['berry_output_per_help','berry_energy_per_berry','favorite_berry_multiplier','ingredient_slot_distribution']);
 assert.equal(registry.rules.ingredient_probability_per_help.status,'NOT_YET_VERIFIED');
 assert.equal(registry.rules.ingredient_probability_per_help.rule_version,null);
 assert.equal(registry.rules.ingredient_probability_per_help.runtime_numeric_activation,false);
 assert.equal(registry.rules.ingredient_probability_per_help.evidence_contract_id,INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_ID);
-assert.equal(registry.rules.ingredient_slot_distribution.status,'NOT_YET_VERIFIED');
-assert.equal(registry.rules.ingredient_slot_distribution.rule_version,null);
-assert.equal(registry.rules.ingredient_slot_distribution.runtime_numeric_activation,false);
+assert.equal(registry.rules.ingredient_slot_distribution.status,'ACTIVE_VERIFIED');
+assert.equal(registry.rules.ingredient_slot_distribution.rule_version,'ingredient-slot-distribution-v1');
+assert.equal(registry.rules.ingredient_slot_distribution.runtime_numeric_activation,true);
 assert.equal(registry.rules.ingredient_slot_distribution.evidence_contract_id,INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_ID);
+assert.equal(registry.rules.main_skill_trigger_probability.status,'NOT_YET_VERIFIED');
+assert.equal(registry.rules.main_skill_effect_value.status,'NOT_YET_VERIFIED');
 assert.equal(registry.numeric_rate_model_status,'NOT_YET_VERIFIED');
 
 console.log(JSON.stringify({
   status:'PASS',
-  gate:'V0426_RELEASE_CONTRACT_SEMANTIC_BOUNDARY_CLOSURE',
+  gate:'V0426_RELEASE_CONTRACT_SEMANTIC_BOUNDARY_SUCCESSOR_AWARE',
   app_version:version.app_version,
   app_build:version.app_build,
   cache_name:version.cache_name,
@@ -63,9 +67,10 @@ console.log(JSON.stringify({
   ingredient_semantic_contract_id:INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_ID,
   ingredient_semantic_numeric_activation:boundary.numeric_activation_count,
   catch_assignment_production_substitution:false,
-  active_base_numeric_dimensions:'3/7',
+  active_base_numeric_dimensions:`${active.length}/7`,
   ingredient_probability_authority:registry.rules.ingredient_probability_per_help.status,
   ingredient_slot_distribution_authority:registry.rules.ingredient_slot_distribution.status,
+  ingredient_hour_still_blocked:true,
   overall_numeric_model_status:registry.numeric_rate_model_status,
   service_worker_precache:true,
 },null,2));
