@@ -30,12 +30,13 @@ const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt
 const pct=value=>Number.isFinite(Number(value))?`${(Number(value)*100).toFixed(0)}%`:'—';
 const DIMENSION_LABEL=Object.freeze({
   helper_interval_seconds:'幫忙間隔',help_event_split:'幫忙事件分流',berry_identity_by_type:'屬性→樹果',weekly_favorite_berry_identity:'本週最愛樹果',
-  berry_energy_per_berry:'單顆樹果能量',favorite_berry_multiplier:'最愛樹果倍率',berry_output_per_help:'每次樹果幫忙量',
+  berry_energy_per_berry:'單顆樹果能量',favorite_berry_multiplier:'最愛樹果倍率',berry_output_per_help:'每次樹果幫忙量',species_base_ingredient_rate_reference:'物種食材率參考',
   ingredient_probability_per_help:'食材機率',ingredient_slot_distribution:'食材槽分布',main_skill_trigger_probability:'主技能觸發率',main_skill_effect_value:'主技能效果值',
 });
 const BLOCKER_LABEL=Object.freeze({
   BASE_BERRY_OUTPUT_PER_BERRY_RESULT_HELP_NUMERIC_CONTRACT_MISSING:'缺基礎樹果產量規則',
   SPECIES_BASE_INGREDIENT_RATE_LOCAL_MASTER_MISSING:'缺物種食材機率主檔',
+  SPECIES_BASE_INGREDIENT_RATE_ACTIVATION_MASTER_NOT_ACCEPTED:'已有參考值，尚未升格數值主檔',
   PLAYER_SLOT_IDENTITY_OBSERVED_BUT_PRODUCTION_WEIGHT_MISSING:'缺食材槽產出權重',
   SPECIES_BASE_SKILL_TRIGGER_RATE_LOCAL_MASTER_MISSING:'缺物種技能觸發率',
   DAILY_TRIGGER_COUNT_DYNAMIC_RULE:'缺每日動態觸發規則',
