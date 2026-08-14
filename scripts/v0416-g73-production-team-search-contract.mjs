@@ -22,7 +22,13 @@ assert.equal(registry.rules.helper_interval_seconds.status,'OBSERVED_INPUT');
 assert.equal(registry.rules.berry_energy_per_berry.status,['v0.4.19','v0.4.20','v0.4.21','v0.4.22','v0.4.22.1'].includes(appVersion)?'ACTIVE_VERIFIED':'NOT_YET_VERIFIED');
 if(['v0.4.20','v0.4.21','v0.4.22','v0.4.22.1'].includes(appVersion))assert.equal(registry.rules.favorite_berry_multiplier.status,'ACTIVE_VERIFIED');
 assert.equal(registry.rules.berry_output_per_help.status,baseOutputSuccessor?'ACTIVE_VERIFIED':'NOT_YET_VERIFIED');
-for(const key of ['ingredient_probability_per_help','ingredient_slot_distribution','main_skill_trigger_probability','main_skill_effect_value'])assert.equal(registry.rules[key].status,'NOT_YET_VERIFIED');
+for(const key of ['ingredient_probability_per_help','main_skill_trigger_probability','main_skill_effect_value'])assert.equal(registry.rules[key].status,'NOT_YET_VERIFIED');
+const slotRule=registry.rules.ingredient_slot_distribution;
+assert.ok(['NOT_YET_VERIFIED','ACTIVE_VERIFIED'].includes(slotRule.status),'ingredient slot distribution may only remain historical HOLD or use the governed E3B successor');
+if(slotRule.status==='ACTIVE_VERIFIED'){
+  assert.equal(slotRule.rule_version,'ingredient-slot-distribution-v1');
+  assert.equal(slotRule.runtime_numeric_activation,true);
+}
 
 const features={input_fingerprint:'features:g73',candidates:Array.from({length:5},(_,index)=>({
   pokemon_id:`p${index+1}`,species:`S${index+1}`,level:30,specialty:index===0?'樹果':'食材',helper_seconds:2500+index*100,favorite_berry_match:index===0,
@@ -104,4 +110,4 @@ for(const token of ['buildLocalOptimizationStrategyPreview','production_rate_mod
 const sw=read('service-worker.js');
 for(const asset of ['./assets/js/production-authority-registry.js','./assets/js/team-objective-evaluator.js','./assets/js/bounded-team-search.js','./assets/js/strategy-optimization-pack.js','./assets/js/strategy-optimization-ai-contract.js','./assets/js/v0416-g73-ui.js'])assert.ok(sw.includes(`'${asset}'`),`first-offline precache missing ${asset}`);
 
-console.log(JSON.stringify({status:'PASS',gate:'V0416_G73_PRODUCTION_TEAM_SEARCH_CONTRACT_SUCCESSOR_AWARE',app_version:appVersion,production_rate_model_status:registry.numeric_rate_model_status,numeric_objective_blocked_without_verified_rates:true,bounded_search_deterministic:true,hard_constraints_preserved:true,budget_stop_returns_best_found:true,global_optimum_claimed:false,optimization_pack_v2:true,stable_ids_in_payload:false,external_ai_prompt:true,ai_numeric_authority:false,deterministic_re_evaluation_required:true},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V0416_G73_PRODUCTION_TEAM_SEARCH_CONTRACT_SUCCESSOR_AWARE',app_version:appVersion,production_rate_model_status:registry.numeric_rate_model_status,numeric_objective_blocked_without_verified_rates:true,bounded_search_deterministic:true,hard_constraints_preserved:true,budget_stop_returns_best_found:true,global_optimum_claimed:false,optimization_pack_v2:true,stable_ids_in_payload:false,external_ai_prompt:true,ai_numeric_authority:false,deterministic_re_evaluation_required:true,ingredient_slot_successor:slotRule.status==='ACTIVE_VERIFIED'},null,2));
