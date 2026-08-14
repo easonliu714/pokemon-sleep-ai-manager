@@ -1,0 +1,80 @@
+name: v0.4.28 G7.5E3C4 Independent Probability Crosscheck
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+      - 'fix/**'
+    paths:
+      - 'assets/js/ingredient-probability-independent-crosscheck-contract.js'
+      - 'assets/js/ingredient-probability-independent-source-readiness.js'
+      - 'assets/js/ingredient-probability-activation-policy.js'
+      - 'assets/js/public-pokemon-species-form-roster.js'
+      - 'assets/js/production-authority-registry.js'
+      - 'assets/js/version-authority.js'
+      - 'scripts/v0428-g75e3c4-independent-crosscheck-contract.mjs'
+      - 'scripts/v0428-g75e3c3-probability-source-coverage-contract.mjs'
+      - 'scripts/v0428-g75e3c2-public-species-form-roster-contract.mjs'
+      - 'scripts/v0428-g75e3c-probability-evidence-policy-contract.mjs'
+      - 'scripts/v0427-release-contract.mjs'
+      - '.github/workflows/v0428-g75e3c4-independent-crosscheck-readiness.yml'
+  pull_request:
+    paths:
+      - 'assets/js/ingredient-probability-independent-crosscheck-contract.js'
+      - 'assets/js/ingredient-probability-independent-source-readiness.js'
+      - 'assets/js/ingredient-probability-activation-policy.js'
+      - 'assets/js/public-pokemon-species-form-roster.js'
+      - 'assets/js/production-authority-registry.js'
+      - 'assets/js/version-authority.js'
+      - 'scripts/v0428-g75e3c4-independent-crosscheck-contract.mjs'
+      - 'scripts/v0428-g75e3c3-probability-source-coverage-contract.mjs'
+      - 'scripts/v0428-g75e3c2-public-species-form-roster-contract.mjs'
+      - 'scripts/v0428-g75e3c-probability-evidence-policy-contract.mjs'
+      - 'scripts/v0427-release-contract.mjs'
+      - '.github/workflows/v0428-g75e3c4-independent-crosscheck-readiness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  independent-crosscheck-readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check independent crosscheck governance
+        run: |
+          node --check assets/js/ingredient-probability-independent-crosscheck-contract.js
+          node --check assets/js/ingredient-probability-independent-source-readiness.js
+          node --check scripts/v0428-g75e3c4-independent-crosscheck-contract.mjs
+      - name: Verify independent crosscheck readiness and exact comparison policy
+        run: node scripts/v0428-g75e3c4-independent-crosscheck-contract.mjs
+      - name: Preserve probability admission policy and public roster denominator
+        run: |
+          node scripts/v0428-g75e3c-probability-evidence-policy-contract.mjs
+          node scripts/v0428-g75e3c2-public-species-form-roster-contract.mjs
+      - name: Preserve v0.4.27 Production release boundary
+        run: node scripts/v0427-release-contract.mjs
+      - name: Verify governance modules are not runtime or PWA source adapters
+        run: |
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const files=['assets/js/ingredient-probability-independent-crosscheck-contract.js','assets/js/ingredient-probability-independent-source-readiness.js'];
+          for(const file of files){
+            const source=fs.readFileSync(file,'utf8');
+            for(const forbidden of ['fetch(', 'raw.githubusercontent.com', 'localStorage', 'sessionStorage', 'indexedDB', 'INSERT INTO', 'UPDATE ingredient_inventory', 'DELETE FROM', 'applyPayload(', 'dryRun(']) {
+              if(source.includes(forbidden)) throw new Error(`${file} contains forbidden runtime/write path: ${forbidden}`);
+            }
+          }
+          const sw=fs.readFileSync('service-worker.js','utf8');
+          for(const file of files){
+            const basename=file.split('/').at(-1);
+            if(sw.includes(basename)) throw new Error(`${basename} must remain governance-only until an accepted pinned independent source exists`);
+          }
+          NODE
+      - name: Verify repository not mutated
+        run: git diff --exit-code
