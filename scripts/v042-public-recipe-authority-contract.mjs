@@ -8,9 +8,11 @@ const __dirname=path.dirname(__filename);
 const root=path.resolve(__dirname,'..');
 
 // Historical v0.4.2 base-fact contract: formula identity remains owned here even
-// when a later release layers a canonical/current zh-TW name projection on top.
+// when a later release layers canonical/current zh-TW name and ingredient identity projections on top.
 const recipeModule=await import(pathToFileURL(path.join(root,'assets/js/public-recipe-master.js')).href);
+const ingredientIdentityModule=await import(pathToFileURL(path.join(root,'assets/js/public-ingredient-identity.js')).href);
 const {PUBLIC_RECIPE_MASTER,PUBLIC_RECIPE_ALIASES,PUBLIC_RECIPE_MASTER_VERSION}=recipeModule;
+const {inspectIngredientIdentity}=ingredientIdentityModule;
 
 function assert(condition,message){if(!condition)throw new Error(message);}
 function read(relative){return fs.readFileSync(path.join(root,relative),'utf8');}
@@ -70,6 +72,7 @@ assert(serviceWorkerSource.includes("'./assets/js/public-recipe-master-sync.js'"
 const ingredientLiteral=extractArrayLiteral(sharedSource,'const INGREDIENTS');
 const ingredientRows=vm.runInNewContext(`(${ingredientLiteral})`,Object.create(null),{timeout:1000});
 const ingredientNames=new Set(ingredientRows.map(String));
+let historicalIngredientAliasCount=0;
 for(const row of PUBLIC_RECIPE_MASTER){
   assert(row.recipe_id&&row.category&&row.recipe_name,'recipe_identity_incomplete');
   assert(Array.isArray(row.ingredients)&&row.ingredients.length>0,`recipe_ingredients_empty:${row.recipe_name}`);
@@ -77,10 +80,18 @@ for(const row of PUBLIC_RECIPE_MASTER){
   const total=row.ingredients.reduce((sum,item)=>sum+Number(item.quantity||0),0);
   assert(total===Number(row.total_ingredients),`total_ingredient_mismatch:${row.recipe_name}:${total}:${row.total_ingredients}`);
   for(const item of row.ingredients){
-    assert(ingredientNames.has(item.ingredient_name),`unknown_ingredient:${row.recipe_name}:${item.ingredient_name}`);
+    const identity=inspectIngredientIdentity(item.ingredient_name);
+    if(identity.status==='MATCH')assert(ingredientNames.has(identity.canonical_name),`unknown_current_ingredient:${row.recipe_name}:${item.ingredient_name}`);
+    else {
+      assert(identity.reason==='LEGACY_ALIAS_REQUIRES_SOURCE_REVIEW'&&identity.canonical_suggestion,`unknown_historical_ingredient:${row.recipe_name}:${item.ingredient_name}`);
+      assert(ingredientNames.has(identity.canonical_suggestion),`historical_alias_target_missing:${row.recipe_name}:${item.ingredient_name}`);
+      assert(identity.silent_rewrite_allowed===false,'historical alias must not authorize player-data rewrite');
+      historicalIngredientAliasCount+=1;
+    }
     assert(Number.isInteger(Number(item.quantity))&&Number(item.quantity)>0,`invalid_quantity:${row.recipe_name}:${item.ingredient_name}`);
   }
 }
+assert(historicalIngredientAliasCount===4,`expected four historical avocado relation labels, got ${historicalIngredientAliasCount}`);
 
 assertIngredients('忍者咖哩',{'品鮮蘑菇':5,'粗枝大蔥':12,'萌綠大豆':24,'豆製肉':9});
 assertIngredients('電光香料可樂',{'暖暖薑':20,'特選蘋果':35,'粗枝大蔥':20,'醒腦咖啡豆':12});
@@ -105,13 +116,16 @@ assert(coverage.alias_count===89,'coverage_alias_count');
 
 process.stdout.write(`${JSON.stringify({
   status:'PASS',
-  schema:'pokemon-sleep-public-recipe-authority-contract/1.3',
+  schema:'pokemon-sleep-public-recipe-authority-contract/1.4-successor-ingredient-identity',
   version:PUBLIC_RECIPE_MASTER_VERSION,
   recipe_count:PUBLIC_RECIPE_MASTER.length,
   alias_count:PUBLIC_RECIPE_ALIASES.length,
   alias_types:aliasTypes,
   categories,
   ingredient_relation_count:coverage.ingredient_relation_count,
+  historical_ingredient_alias_count:historicalIngredientAliasCount,
+  historical_ingredient_labels_preserved:true,
+  current_ingredient_alias_targets_verified:true,
   review_required:coverage.review_required,
   duplicate_runtime_authority:false,
   runtime_name_projection_forward_compatible:true,
