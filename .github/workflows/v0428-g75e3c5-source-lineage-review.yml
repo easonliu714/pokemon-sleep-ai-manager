@@ -1,0 +1,52 @@
+name: v0.4.28 G7.5E3C5 Source Lineage Review
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/ingredient-probability-independent-source-lineage-review.js'
+      - 'assets/js/ingredient-probability-independent-source-admission.js'
+      - 'assets/js/ingredient-probability-independent-crosscheck-contract.js'
+      - 'assets/js/ingredient-probability-independent-snapshot-contract.js'
+      - 'scripts/v0428-g75e3c5-source-lineage-review-contract.mjs'
+      - 'scripts/v0428-g75e3c4a-independent-source-admission-contract.mjs'
+      - 'scripts/v0428-g75e3c4-independent-crosscheck-contract.mjs'
+      - 'scripts/v0428-g75e3c4b-independent-snapshot-intake-gate.mjs'
+      - '.github/workflows/v0428-g75e3c5-source-lineage-review.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'assets/js/ingredient-probability-independent-source-lineage-review.js'
+      - 'assets/js/ingredient-probability-independent-source-admission.js'
+      - 'scripts/v0428-g75e3c5-source-lineage-review-contract.mjs'
+      - '.github/workflows/v0428-g75e3c5-source-lineage-review.yml'
+  workflow_dispatch:
+
+jobs:
+  source-lineage-review:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check lineage governance
+        run: |
+          node --check assets/js/ingredient-probability-independent-source-lineage-review.js
+          node --check assets/js/ingredient-probability-independent-source-admission.js
+          node --check scripts/v0428-g75e3c5-source-lineage-review-contract.mjs
+      - name: Verify E3C-5 source lineage review
+        run: node scripts/v0428-g75e3c5-source-lineage-review-contract.mjs
+      - name: Preserve E3C-4A source admission
+        run: node scripts/v0428-g75e3c4a-independent-source-admission-contract.mjs
+      - name: Preserve E3C-4B snapshot intake
+        run: node scripts/v0428-g75e3c4b-independent-snapshot-intake-gate.mjs
+      - name: Preserve E3C-4 crosscheck fail-closed semantics
+        run: node scripts/v0428-g75e3c4-independent-crosscheck-contract.mjs
+      - name: Verify governance modules remain runtime-network-free
+        shell: bash
+        run: |
+          ! grep -R --line-number -E 'fetch\(|XMLHttpRequest|localStorage|sessionStorage|indexedDB' \
+            assets/js/ingredient-probability-independent-source-lineage-review.js \
+            assets/js/ingredient-probability-independent-source-admission.js

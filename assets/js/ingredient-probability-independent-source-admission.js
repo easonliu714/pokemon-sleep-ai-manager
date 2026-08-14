@@ -24,6 +24,7 @@ const nonEmptyArray=value=>Array.isArray(value)&&value.map(text).filter(Boolean)
 export const INDEPENDENT_SOURCE_ADMISSION_REQUIREMENTS=Object.freeze([
   'HUMAN_REVIEWED_LINEAGE_INDEPENDENCE',
   'LINEAGE_EVIDENCE_REFS_NONEMPTY',
+  'NO_OVERLAP_WITH_PRIMARY_NUMERIC_LINEAGE_IN_ANY_DIRECTION',
   'PINNED_SNAPSHOT_HASH',
   'SNAPSHOT_SCOPE_DATE_OR_RELEASE_ID',
   'SOURCE_VERSION_OR_REVISION',
@@ -39,7 +40,7 @@ export const INDEPENDENT_SOURCE_ADMISSION_REQUIREMENTS=Object.freeze([
 export function evaluateIndependentIngredientProbabilitySourceAdmission(source={}){
   const sourceId=text(source.source_id);
   if(!sourceId)return freeze({status:INDEPENDENT_SOURCE_ADMISSION_STATUS.REVIEW_REQUIRED,reason:'SOURCE_ID_MISSING',independence_status:INDEPENDENT_CROSSCHECK_SOURCE_STATUS.INDEPENDENCE_NOT_YET_ESTABLISHED,may_count_as_independent_crosscheck:false});
-  if(source.derived_from_neroli_primary===true||source.mirror_of_neroli_primary===true)return freeze({status:INDEPENDENT_SOURCE_ADMISSION_STATUS.REJECTED_PRIMARY_LINEAGE,reason:'PRIMARY_LINEAGE_OR_MIRROR_CANNOT_BE_INDEPENDENT',independence_status:INDEPENDENT_CROSSCHECK_SOURCE_STATUS.DERIVED_OR_MIRROR_OF_PRIMARY,may_count_as_independent_crosscheck:false});
+  if(source.overlaps_primary_numeric_lineage===true||source.derived_from_neroli_primary===true||source.mirror_of_neroli_primary===true)return freeze({status:INDEPENDENT_SOURCE_ADMISSION_STATUS.REJECTED_PRIMARY_LINEAGE,reason:source.overlaps_primary_numeric_lineage===true?'OVERLAPPING_PRIMARY_NUMERIC_LINEAGE_CANNOT_BE_INDEPENDENT':'PRIMARY_LINEAGE_OR_MIRROR_CANNOT_BE_INDEPENDENT',independence_status:INDEPENDENT_CROSSCHECK_SOURCE_STATUS.DERIVED_OR_MIRROR_OF_PRIMARY,may_count_as_independent_crosscheck:false});
   if(source.ai_generated_numeric_source===true||source.untraceable_summary===true)return freeze({status:INDEPENDENT_SOURCE_ADMISSION_STATUS.REJECTED_AI_OR_UNTRACEABLE,reason:'AI_OR_UNTRACEABLE_NUMERIC_SOURCE_REJECTED',independence_status:INDEPENDENT_CROSSCHECK_SOURCE_STATUS.AI_OR_UNTRACEABLE_SUMMARY,may_count_as_independent_crosscheck:false});
   if(source.lineage_review_status!==INDEPENDENT_SOURCE_LINEAGE_REVIEW_STATUS.HUMAN_REVIEWED_ACCEPTED)return freeze({status:INDEPENDENT_SOURCE_ADMISSION_STATUS.REVIEW_REQUIRED,reason:'HUMAN_REVIEWED_LINEAGE_INDEPENDENCE_MISSING',independence_status:INDEPENDENT_CROSSCHECK_SOURCE_STATUS.INDEPENDENCE_NOT_YET_ESTABLISHED,may_count_as_independent_crosscheck:false});
   if(!nonEmptyArray(source.lineage_evidence_refs))return freeze({status:INDEPENDENT_SOURCE_ADMISSION_STATUS.REVIEW_REQUIRED,reason:'LINEAGE_EVIDENCE_REFS_MISSING',independence_status:INDEPENDENT_CROSSCHECK_SOURCE_STATUS.INDEPENDENCE_NOT_YET_ESTABLISHED,may_count_as_independent_crosscheck:false});
@@ -78,6 +79,8 @@ export function currentIndependentIngredientProbabilitySourceAdmissionContract()
     safety:freeze({
       self_asserted_independence_sufficient:false,
       same_primary_lineage_counts_as_independent:false,
+      upstream_primary_supplier_counts_as_independent:false,
+      downstream_transcription_counts_as_independent:false,
       partial_coverage_implies_complete:false,
       exact_match_implies_activation:false,
       ai_generated_numeric_source_allowed:false,
