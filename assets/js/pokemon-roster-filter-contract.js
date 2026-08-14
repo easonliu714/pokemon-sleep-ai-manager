@@ -59,7 +59,7 @@ export function buildPokemonRosterFacetOptions(profiles=[]){
   return Object.freeze({
     berries:Object.freeze(uniqueSorted(profiles.map(row=>row.berry))),
     ingredients:Object.freeze(uniqueSorted(profiles.flatMap(row=>row.ingredients))),
-    main_skills:Object.freeze(uniqueSorted(profiles.map(row=>row.main_skill)),
+    main_skills:Object.freeze(uniqueSorted(profiles.map(row=>row.main_skill))),
     subskills:Object.freeze(uniqueSorted(profiles.flatMap(row=>row.subskills))),
   });
 }
