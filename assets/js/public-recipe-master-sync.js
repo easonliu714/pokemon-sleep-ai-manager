@@ -2,7 +2,7 @@ import {
   PUBLIC_RECIPE_MASTER,
   PUBLIC_RECIPE_ALIASES,
   PUBLIC_RECIPE_MASTER_VERSION,
-} from './public-recipe-canonical-authority.js';
+} from './public-recipe-current-authority.js';
 
 function queryRows(db,sql,params=[]){
   const statement=db.prepare(sql);
