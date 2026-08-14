@@ -11,6 +11,7 @@ import {
 import { localIso } from './time-utils.js';
 import {buildSparseObservedPatch,isObservedWriteValue} from './data-preservation-policy.js';
 import {rebaseWeeklyManualOverrideForImport} from './weekly-context-manual-override.js';
+import {assertPokemonVisualUpdatePackageSafe} from './pokemon-visual-update-preflight.js';
 
 const KEYS = {
   account_capacity: ['capacity_key'],
@@ -221,6 +222,7 @@ function publicMasterExists(entity, key) {
 
 export function dryRun(payload) {
   validate(payload);
+  const visualPreflight=assertPokemonVisualUpdatePackageSafe(payload);
   if (scalar('SELECT COUNT(*) FROM import_batches WHERE update_id=?', [payload.update_id])) throw new Error(`update_id 已套用：${payload.update_id}`);
   const aliases = new Map();
   const changes = [];
@@ -278,12 +280,15 @@ export function dryRun(payload) {
     operation_count:changes.length,
     ready_count:changes.filter(item=>item.status==='ready').length,
     conflict_count:changes.filter(item=>item.status==='conflict').length,
+    visual_preflight:visualPreflight,
     audit_summary:{
       field_count:allFieldAudit.length,
       preserved_existing_count:allFieldAudit.filter(item=>item.decision==='preserve_existing_empty_incoming').length,
       explicit_clear_count:allFieldAudit.filter(item=>item.decision==='explicit_clear').length,
       non_empty_update_count:allFieldAudit.filter(item=>['update_non_empty','insert_non_empty'].includes(item.decision)).length,
       profile_confirmation_count:Array.isArray(payload.profile_audit_confirmations)?payload.profile_audit_confirmations.length:0,
+      visual_evidence_declared:visualPreflight.declared===true,
+      visual_evidence_status:visualPreflight.status,
     },
     changes,
   };
@@ -339,6 +344,7 @@ export async function applyPayload(payload) {
       status:'applied',
       scenario:payload.scenario||'general',
       audit_summary:preview.audit_summary,
+      pokemon_visual_preflight:preview.visual_preflight,
       profile_audit_confirmations:payload.profile_audit_confirmations||[],
       null_overwrite_policy:'preserve_existing_unless_clear_fields',
       explicit_zero_and_false_are_values:true,
@@ -347,6 +353,6 @@ export async function applyPayload(payload) {
     run('INSERT INTO import_batches(update_id,schema_version,generated_at,imported_at,source,operation_count,result_json) VALUES(?,?,?,?,?,?,?)',[payload.update_id,String(payload.schema_version),payload.generated_at,localIso(),payload.source||'',payload.operations.length,JSON.stringify(resultJson)]);
     commit();
     await persist();
-    return {operation_count:payload.operations.length,scenario:payload.scenario||'general',audit_summary:preview.audit_summary,weekly_manual_override_rebase:weeklyManualOverrideRebase};
+    return {operation_count:payload.operations.length,scenario:payload.scenario||'general',audit_summary:preview.audit_summary,visual_preflight:preview.visual_preflight,weekly_manual_override_rebase:weeklyManualOverrideRebase};
   } catch(error){rollback();throw error;}
 }
