@@ -5,9 +5,12 @@ import {
   PUBLIC_SPECIES_FORM_ZH_TW_IDENTITY_POLICY,
   PUBLIC_SPECIES_FORM_ZH_TW_IDENTITY_SOURCE,
   currentPublicSpeciesFormZhTwIdentityRows,
+} from '../assets/js/public-species-form-zh-tw-identity.js';
+import {
+  PUBLIC_SPECIES_FORM_ZH_TW_IDENTITY_RESOLVER_POLICY,
   resolvePublicSpeciesFormSourceKeys,
   publicSpeciesIngredientCandidatesForObservedName,
-} from '../assets/js/public-species-form-zh-tw-identity.js';
+} from '../assets/js/public-species-form-zh-tw-identity-resolver.js';
 
 const artifact=JSON.parse(fs.readFileSync('artifacts/public-species-form-zh-tw-identity-source.json','utf8'));
 const runtime=currentPublicSpeciesFormZhTwIdentityRows();
@@ -23,6 +26,8 @@ assert.deepEqual(artifact.duplicate_identity_names,[]);
 assert.equal(PUBLIC_SPECIES_FORM_ZH_TW_IDENTITY_SOURCE.pokeapi_commit,artifact.pokeapi_commit);
 assert.equal(PUBLIC_SPECIES_FORM_ZH_TW_IDENTITY_SOURCE.neroli_commit,artifact.neroli_commit);
 for(const flag of ['fuzzy_auto_match','ai_source_key_guess','private_player_data_used','public_identity_may_generate_player_species'])assert.equal(PUBLIC_SPECIES_FORM_ZH_TW_IDENTITY_POLICY[flag],false,`unsafe identity policy flag ${flag}`);
+assert.equal(PUBLIC_SPECIES_FORM_ZH_TW_IDENTITY_RESOLVER_POLICY.lookup_normalization,'NFKC_TRIM_ONLY');
+assert.equal(PUBLIC_SPECIES_FORM_ZH_TW_IDENTITY_RESOLVER_POLICY.normalization_is_fuzzy_match,false);
 
 const runtimeByName=new Map(runtime.map(row=>[row.display_name_zh_tw,row]));
 const covered=new Set();
@@ -33,8 +38,9 @@ for(const source of artifact.identities){
   assert.equal(actual.pokedex_number,source.pokedex_number,`dex drift: ${source.display_name_zh_tw}`);
   assert.equal(actual.identity_kind,source.form_override?'FORM':'BASE',`identity kind drift: ${source.display_name_zh_tw}`);
   const resolved=resolvePublicSpeciesFormSourceKeys(source.display_name_zh_tw);
-  assert.equal(resolved.status,'MATCH');
+  assert.equal(resolved.status,'MATCH',`exact resolver failed: ${source.display_name_zh_tw}`);
   assert.deepEqual(resolved.source_keys,source.source_keys);
+  assert.equal(resolved.canonical_display_name_zh_tw,source.display_name_zh_tw);
   for(const key of source.source_keys)covered.add(key);
 }
 assert.equal(covered.size,242,'all governed source keys must be reachable from exact public identity');
@@ -50,6 +56,12 @@ assert.deepEqual(resolvePublicSpeciesFormSourceKeys('烏波').source_keys,['WOOP
 assert.deepEqual(resolvePublicSpeciesFormSourceKeys('烏波（帕底亞的樣子）').source_keys,['WOOPER_PALDEAN']);
 assert.deepEqual(resolvePublicSpeciesFormSourceKeys('南瓜精').source_keys,['PUMPKABOO_JUMBO','PUMPKABOO_LARGE','PUMPKABOO_MEDIUM','PUMPKABOO_SMALL']);
 assert.deepEqual(resolvePublicSpeciesFormSourceKeys('顫弦蠑螈').source_keys,['TOXTRICITY_AMPED','TOXTRICITY_LOW_KEY']);
+// Canonical PokeAPI display text contains full-width Q; NFKC lookup normalization must not reject its own canonical identity.
+const mimikyu=resolvePublicSpeciesFormSourceKeys('謎擬Ｑ');
+assert.equal(mimikyu.status,'MATCH');
+assert.equal(mimikyu.canonical_display_name_zh_tw,'謎擬Ｑ');
+assert.deepEqual(mimikyu.source_keys,['MIMIKYU']);
+assert.deepEqual(resolvePublicSpeciesFormSourceKeys('謎擬Q').source_keys,['MIMIKYU'],'NFKC-equivalent lookup is not fuzzy matching');
 
 const dratini=publicSpeciesIngredientCandidatesForObservedName('迷你龍',60);
 assert.equal(dratini.status,'MATCHABLE_PUBLIC_CANDIDATES');
@@ -61,4 +73,4 @@ const unknown=publicSpeciesIngredientCandidatesForObservedName('不存在寶可�
 assert.equal(unknown.status,'REVIEW_REQUIRED');
 assert.equal(unknown.candidates,null);
 
-console.log(JSON.stringify({status:'PASS',gate:'PUBLIC_SPECIES_FORM_ZH_TW_IDENTITY_RUNTIME_PARITY',runtime_identity_rows:runtime.length,reachable_source_keys:covered.size,base_identity_count:artifact.base_identity_count,official_sleep_form_override_count:artifact.form_override_count,exact_name_only:true,fuzzy_auto_match:false,ai_source_key_guess:false,private_player_data_used:false},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'PUBLIC_SPECIES_FORM_ZH_TW_IDENTITY_RUNTIME_PARITY',runtime_identity_rows:runtime.length,reachable_source_keys:covered.size,base_identity_count:artifact.base_identity_count,official_sleep_form_override_count:artifact.form_override_count,exact_name_only:true,lookup_normalization:'NFKC_TRIM_ONLY',normalization_is_fuzzy_match:false,canonical_display_text_preserved:true,fuzzy_auto_match:false,ai_source_key_guess:false,private_player_data_used:false},null,2));
