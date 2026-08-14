@@ -1,5 +1,5 @@
 import {rows,isRescueReadonly} from './database.js';
-import {PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-canonical-authority.js';
+import {PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-current-authority.js';
 import {
   PUBLIC_RECIPE_PROVENANCE,
   PUBLIC_RECIPE_PROVENANCE_VERSION,
