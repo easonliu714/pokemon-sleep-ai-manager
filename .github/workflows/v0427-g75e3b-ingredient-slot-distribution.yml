@@ -69,9 +69,12 @@ jobs:
           node --check assets/js/production-authority-registry.js
           node --check assets/js/production-evidence-registry.js
           node --check scripts/v0427-g75e3b-ingredient-slot-distribution-contract.mjs
+          node --check scripts/v0427-release-contract.mjs
           node --check service-worker.js
       - name: Verify ingredient slot distribution
         run: node scripts/v0427-g75e3b-ingredient-slot-distribution-contract.mjs
+      - name: Verify v0.4.27 release authority
+        run: node scripts/v0427-release-contract.mjs
       - name: Preserve species ingredient-rate reference HOLD
         run: node scripts/v0426-g75e3a-species-ingredient-rate-reference-contract.mjs
       - name: Preserve candidate/scoring fail-closed contracts
@@ -80,9 +83,11 @@ jobs:
           node scripts/v042-pokemon-scoring-engine-contract.mjs
       - name: Preserve recipe and modifier contracts
         run: |
+          node scripts/v0423-production-modifier-contract.mjs
           node scripts/v0424-nature-numeric-modifier-contract.mjs
           node scripts/v0425-recipe-name-subskill-contract.mjs
           node scripts/v04251-recipe-current-authority-lock-contract.mjs
+          node scripts/v0426-release-contract.mjs
       - name: Verify no writes or runtime network in slot contract
         run: |
           node - <<'NODE'
