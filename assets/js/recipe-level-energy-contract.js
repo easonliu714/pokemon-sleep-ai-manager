@@ -1,4 +1,4 @@
-import {PUBLIC_RECIPE_MASTER} from './public-recipe-canonical-authority.js';
+import {PUBLIC_RECIPE_MASTER} from './public-recipe-current-authority.js';
 
 export const RECIPE_LEVEL_ENERGY_CONTRACT_VERSION='recipe-level-energy-contract-2026-08-13-a';
 export const RECIPE_LEVEL_MAX=70;
