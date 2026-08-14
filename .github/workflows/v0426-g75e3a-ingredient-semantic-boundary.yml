@@ -1,0 +1,112 @@
+name: v0.4.26 G7.5E3A Ingredient Semantic Boundary Closure
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+      - 'fix/**'
+    paths:
+      - 'assets/js/ingredient-production-evidence-contract.js'
+      - 'assets/js/public-species-ingredient-rate-reference.js'
+      - 'assets/js/ingredient-probability-reference-contract.js'
+      - 'assets/js/production-authority-registry.js'
+      - 'assets/js/production-evidence-registry.js'
+      - 'assets/js/team-objective-evaluator.js'
+      - 'assets/js/pokemon-candidate-feature-projection.js'
+      - 'assets/js/pokemon-scoring-engine.js'
+      - 'service-worker.js'
+      - 'scripts/v0426-g75e3a-species-ingredient-rate-reference-contract.mjs'
+      - 'scripts/v0426-g75e3a-ingredient-semantic-boundary-contract.mjs'
+      - 'scripts/v0426-release-contract.mjs'
+      - 'scripts/v042-pokemon-candidate-feature-contract.mjs'
+      - 'scripts/v042-pokemon-scoring-engine-contract.mjs'
+      - 'scripts/v0423-production-modifier-contract.mjs'
+      - 'scripts/v0424-nature-numeric-modifier-contract.mjs'
+      - 'scripts/v0425-recipe-name-subskill-contract.mjs'
+      - 'scripts/v04251-recipe-current-authority-lock-contract.mjs'
+      - '.github/workflows/v0426-g75e3a-ingredient-semantic-boundary.yml'
+  pull_request:
+    paths:
+      - 'assets/js/ingredient-production-evidence-contract.js'
+      - 'assets/js/public-species-ingredient-rate-reference.js'
+      - 'assets/js/ingredient-probability-reference-contract.js'
+      - 'assets/js/production-authority-registry.js'
+      - 'assets/js/production-evidence-registry.js'
+      - 'assets/js/team-objective-evaluator.js'
+      - 'assets/js/pokemon-candidate-feature-projection.js'
+      - 'assets/js/pokemon-scoring-engine.js'
+      - 'service-worker.js'
+      - 'scripts/v0426-g75e3a-species-ingredient-rate-reference-contract.mjs'
+      - 'scripts/v0426-g75e3a-ingredient-semantic-boundary-contract.mjs'
+      - 'scripts/v0426-release-contract.mjs'
+      - 'scripts/v042-pokemon-candidate-feature-contract.mjs'
+      - 'scripts/v042-pokemon-scoring-engine-contract.mjs'
+      - 'scripts/v0423-production-modifier-contract.mjs'
+      - 'scripts/v0424-nature-numeric-modifier-contract.mjs'
+      - 'scripts/v0425-recipe-name-subskill-contract.mjs'
+      - 'scripts/v04251-recipe-current-authority-lock-contract.mjs'
+      - '.github/workflows/v0426-g75e3a-ingredient-semantic-boundary.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ingredient-semantic-boundary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Syntax check semantic boundary runtime and contracts
+        run: |
+          node --check assets/js/ingredient-production-evidence-contract.js
+          node --check assets/js/production-authority-registry.js
+          node --check assets/js/production-evidence-registry.js
+          node --check assets/js/team-objective-evaluator.js
+          node --check scripts/v0426-g75e3a-ingredient-semantic-boundary-contract.mjs
+          node --check scripts/v0426-release-contract.mjs
+          node --check service-worker.js
+
+      - name: Ingredient semantic boundary closure
+        run: node scripts/v0426-g75e3a-ingredient-semantic-boundary-contract.mjs
+
+      - name: Preserve v0.4.26 species ingredient-rate reference boundary
+        run: node scripts/v0426-g75e3a-species-ingredient-rate-reference-contract.mjs
+
+      - name: Preserve v0.4.26 release authority
+        run: node scripts/v0426-release-contract.mjs
+
+      - name: Preserve Candidate Feature fact-only contract
+        run: node scripts/v042-pokemon-candidate-feature-contract.mjs
+
+      - name: Preserve evidence-gated scoring contract
+        run: node scripts/v042-pokemon-scoring-engine-contract.mjs
+
+      - name: Preserve Production 3-of-7 modifier boundary
+        run: node scripts/v0423-production-modifier-contract.mjs
+
+      - name: Preserve Nature numeric modifier contract
+        run: node scripts/v0424-nature-numeric-modifier-contract.mjs
+
+      - name: Preserve Recipe and Subskill contract
+        run: node scripts/v0425-recipe-name-subskill-contract.mjs
+
+      - name: Preserve 78-of-78 recipe current authority lock
+        run: node scripts/v04251-recipe-current-authority-lock-contract.mjs
+
+      - name: Verify semantic contract is local/read-only
+        run: |
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const source=fs.readFileSync('assets/js/ingredient-production-evidence-contract.js','utf8');
+          for(const forbidden of ['fetch(', 'localStorage', 'sessionStorage', 'indexedDB', 'INSERT INTO', 'UPDATE ', 'DELETE FROM', 'applyPayload(', 'dryRun(']) {
+            if(source.includes(forbidden)) throw new Error(`semantic evidence contract contains forbidden runtime/write path: ${forbidden}`);
+          }
+          NODE
+
+      - name: Verify contracts produced no repository mutation
+        run: git diff --exit-code
