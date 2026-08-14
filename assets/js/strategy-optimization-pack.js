@@ -2,7 +2,7 @@ import {DEFAULT_TEAM_SEARCH_BUDGET} from './bounded-team-search.js';
 import {currentProductionAuthorityRegistry} from './production-authority-registry.js';
 import {resolvePokemonProductionModifierProfile} from './pokemon-master-options.js';
 
-export const STRATEGY_OPTIMIZATION_PACK_VERSION='strategy-optimization-pack-2026-08-14-b';
+export const STRATEGY_OPTIMIZATION_PACK_VERSION='strategy-optimization-pack-2026-08-14-c';
 const text=value=>String(value??'').normalize('NFKC').trim();
 const num=value=>{const n=Number(value);return value===null||value===undefined||value===''||!Number.isFinite(n)?null:n;};
 const stable=value=>Array.isArray(value)?value.map(stable):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,stable(value[key])])):value;
