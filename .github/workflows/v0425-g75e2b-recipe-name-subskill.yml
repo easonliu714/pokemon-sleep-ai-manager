@@ -7,20 +7,7 @@ on:
       - 'feature/**'
       - 'fix/**'
     paths:
-      - 'assets/js/version-authority.js'
-      - 'assets/js/public-recipe-name-audit-v0425.js'
-      - 'assets/js/public-recipe-current-authority.js'
-      - 'assets/js/public-recipe-alias-master.js'
-      - 'assets/js/public-recipe-master-sync.js'
-      - 'assets/js/public-recipe-provenance.js'
-      - 'assets/js/recipe-display-name-evidence.js'
-      - 'assets/js/public-catalog-workbench.js'
-      - 'assets/js/recipe-unified-player-workbench.js'
-      - 'assets/js/recipe-level-energy-contract.js'
-      - 'assets/js/recipe-strategy-local.js'
-      - 'assets/js/pokemon-master-options.js'
-      - 'assets/js/strategy-optimization-pack.js'
-      - 'assets/js/production-authority-registry.js'
+      - 'assets/js/**'
       - 'service-worker.js'
       - 'scripts/v0423-production-modifier-contract.mjs'
       - 'scripts/v0424-nature-numeric-modifier-contract.mjs'
@@ -30,20 +17,7 @@ on:
       - '.github/workflows/v0425-g75e2b-recipe-name-subskill.yml'
   pull_request:
     paths:
-      - 'assets/js/version-authority.js'
-      - 'assets/js/public-recipe-name-audit-v0425.js'
-      - 'assets/js/public-recipe-current-authority.js'
-      - 'assets/js/public-recipe-alias-master.js'
-      - 'assets/js/public-recipe-master-sync.js'
-      - 'assets/js/public-recipe-provenance.js'
-      - 'assets/js/recipe-display-name-evidence.js'
-      - 'assets/js/public-catalog-workbench.js'
-      - 'assets/js/recipe-unified-player-workbench.js'
-      - 'assets/js/recipe-level-energy-contract.js'
-      - 'assets/js/recipe-strategy-local.js'
-      - 'assets/js/pokemon-master-options.js'
-      - 'assets/js/strategy-optimization-pack.js'
-      - 'assets/js/production-authority-registry.js'
+      - 'assets/js/**'
       - 'service-worker.js'
       - 'scripts/v0423-production-modifier-contract.mjs'
       - 'scripts/v0424-nature-numeric-modifier-contract.mjs'
@@ -77,6 +51,9 @@ jobs:
           node --check assets/js/recipe-unified-player-workbench.js
           node --check assets/js/recipe-level-energy-contract.js
           node --check assets/js/recipe-strategy-local.js
+          node --check assets/js/external-strategy-analysis-local.js
+          node --check assets/js/public-master-recognition.js
+          node --check assets/js/war-room-controlled-options.js
           node --check assets/js/pokemon-master-options.js
           node --check assets/js/strategy-optimization-pack.js
           node --check scripts/v0425-recipe-name-subskill-contract.mjs
