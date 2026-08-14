@@ -10,10 +10,10 @@ import {
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
-const successors=['v0.4.18','v0.4.19','v0.4.20','v0.4.21','v0.4.22','v0.4.22.1'];
+const successors=['v0.4.18','v0.4.19','v0.4.20','v0.4.21','v0.4.22','v0.4.22.1','v0.4.23','v0.4.24'];
 assert.ok(['v0.4.17.1',...successors].includes(appVersion),`unexpected G7.4 release/successor version ${appVersion}`);
 if(successors.includes(appVersion))assert.ok(version.includes("// app_version: 'v0.4.17.1'"),`${appVersion} must retain v0.4.17.1 lineage bridge`);
-if(appVersion==='v0.4.22.1')assert.ok(version.includes("// app_version: 'v0.4.22'"),'v0.4.22.1 must retain v0.4.22 lineage bridge');
+if(['v0.4.22.1','v0.4.23','v0.4.24'].includes(appVersion))assert.ok(version.includes("// app_version: 'v0.4.22'"),`${appVersion} must retain v0.4.22 lineage bridge`);
 
 const candidateRefs=['cand_001','cand_003','cand_004','cand_005','cand_006','cand_007','cand_008','cand_009','cand_010','cand_012','cand_014','cand_015','cand_016','cand_017','cand_019'];
 const candidates=candidateRefs.map((candidate_ref,index)=>({candidate_ref,species:`S${index+1}`,level:30,specialty:index%3===0?'樹果':index%3===1?'食材':'技能',helper_seconds:2500+index*50,unlocked_ingredients:[]}));
