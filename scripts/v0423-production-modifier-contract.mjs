@@ -37,5 +37,12 @@ assert.equal(unknown.status,'REVIEW_REQUIRED');
 assert.ok(unknown.conflicts.includes('UNKNOWN_SUBSKILL:UNKNOWN_SUBSKILL_FIXTURE'));
 const registry=currentProductionAuthorityRegistry();
 const numeric=['berry_output_per_help','berry_energy_per_berry','favorite_berry_multiplier','ingredient_probability_per_help','ingredient_slot_distribution','main_skill_trigger_probability','main_skill_effect_value'];
-assert.equal(numeric.filter(name=>registry.rules[name]?.status==='ACTIVE_VERIFIED').length,3);
-console.log(JSON.stringify({status:'PASS',gate:'V0423_PRODUCTION_MODIFIER_STRUCTURAL',app_version:appVersion,successor_nature_numeric:successorNatureNumeric,successor_subskill_numeric:successorSubskillNumeric,modifier_status:profile.status,numeric_activation:false,numeric_dimensions_active:'3/7',unknown_modifier_fail_closed:true},null,2));
+const active=numeric.filter(name=>registry.rules[name]?.status==='ACTIVE_VERIFIED');
+const slotSuccessor=registry.rules.ingredient_slot_distribution?.status==='ACTIVE_VERIFIED';
+if(slotSuccessor){assert.equal(registry.rules.ingredient_slot_distribution.rule_version,'ingredient-slot-distribution-v1');assert.equal(registry.rules.ingredient_slot_distribution.runtime_numeric_activation,true);}
+assert.deepEqual(active,['berry_output_per_help','berry_energy_per_berry','favorite_berry_multiplier',...(slotSuccessor?['ingredient_slot_distribution']:[])],'modifier structural/numeric evidence may not promote base dimensions; only exact E3B slot successor is allowed');
+assert.equal(registry.rules.ingredient_probability_per_help.status,'NOT_YET_VERIFIED');
+assert.equal(registry.rules.main_skill_trigger_probability.status,'NOT_YET_VERIFIED');
+assert.equal(registry.rules.main_skill_effect_value.status,'NOT_YET_VERIFIED');
+assert.equal(registry.numeric_rate_model_status,'NOT_YET_VERIFIED');
+console.log(JSON.stringify({status:'PASS',gate:'V0423_PRODUCTION_MODIFIER_STRUCTURAL',app_version:appVersion,successor_nature_numeric:successorNatureNumeric,successor_subskill_numeric:successorSubskillNumeric,modifier_status:profile.status,numeric_activation:false,numeric_dimensions_active:`${active.length}/7`,ingredient_slot_successor:slotSuccessor,unknown_modifier_fail_closed:true},null,2));
