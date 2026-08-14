@@ -73,4 +73,11 @@ const unknown=publicSpeciesIngredientCandidatesForObservedName('不存在寶可�
 assert.equal(unknown.status,'REVIEW_REQUIRED');
 assert.equal(unknown.candidates,null);
 
-console.log(JSON.stringify({status:'PASS',gate:'PUBLIC_SPECIES_FORM_ZH_TW_IDENTITY_RUNTIME_PARITY',runtime_identity_rows:runtime.length,reachable_source_keys:covered.size,base_identity_count:artifact.base_identity_count,official_sleep_form_override_count:artifact.form_override_count,exact_name_only:true,lookup_normalization:'NFKC_TRIM_ONLY',normalization_is_fuzzy_match:false,canonical_display_text_preserved:true,fuzzy_auto_match:false,ai_source_key_guess:false,private_player_data_used:false},null,2));
+const serviceWorker=fs.readFileSync('service-worker.js','utf8');
+for(const asset of [
+  './assets/js/public-species-ingredient-candidate-authority.js',
+  './assets/js/public-species-form-zh-tw-identity.js',
+  './assets/js/public-species-form-zh-tw-identity-resolver.js',
+])assert.ok(serviceWorker.includes(`'${asset}'`),`offline authority dependency missing from Service Worker: ${asset}`);
+
+console.log(JSON.stringify({status:'PASS',gate:'PUBLIC_SPECIES_FORM_ZH_TW_IDENTITY_RUNTIME_PARITY',runtime_identity_rows:runtime.length,reachable_source_keys:covered.size,base_identity_count:artifact.base_identity_count,official_sleep_form_override_count:artifact.form_override_count,exact_name_only:true,lookup_normalization:'NFKC_TRIM_ONLY',normalization_is_fuzzy_match:false,canonical_display_text_preserved:true,fuzzy_auto_match:false,ai_source_key_guess:false,private_player_data_used:false,pwa_offline_authority_dependencies:true},null,2));
