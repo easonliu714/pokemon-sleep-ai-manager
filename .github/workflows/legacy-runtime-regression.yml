@@ -1,0 +1,93 @@
+name: Legacy Runtime Regression
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/bootstrap.js'
+      - 'assets/js/version-authority.js'
+      - 'assets/js/storage.js'
+      - 'assets/js/database.js'
+      - 'assets/js/migrations.js'
+      - 'assets/js/sqlite-load-worker.js'
+      - 'assets/js/v0382-*.js'
+      - 'assets/js/v0383-*.js'
+      - 'assets/js/v0389-*.js'
+      - 'assets/js/v0390-*.js'
+      - 'assets/js/public-catalog-workbench.js'
+      - 'assets/js/public-recipe-master*.js'
+      - 'service-worker.js'
+      - 'service-worker-v0387.js'
+      - 'index.html'
+      - 'tests/v03751_version_authority_gate.mjs'
+      - 'tests/v0387-safe-boot-contract.test.mjs'
+      - 'tests/v0389-rescue-catalog-import-contract.test.mjs'
+      - 'scripts/v0392-new-user-bootstrap-gate.mjs'
+      - 'scripts/v03981-confirmation-dryrun-browser.mjs'
+      - 'scripts/ci-legacy-runtime-regression.mjs'
+      - '.github/workflows/legacy-runtime-regression.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'assets/js/bootstrap.js'
+      - 'assets/js/version-authority.js'
+      - 'assets/js/storage.js'
+      - 'assets/js/database.js'
+      - 'assets/js/migrations.js'
+      - 'assets/js/sqlite-load-worker.js'
+      - 'assets/js/v0382-*.js'
+      - 'assets/js/v0383-*.js'
+      - 'assets/js/v0389-*.js'
+      - 'assets/js/v0390-*.js'
+      - 'assets/js/public-catalog-workbench.js'
+      - 'assets/js/public-recipe-master*.js'
+      - 'service-worker.js'
+      - 'service-worker-v0387.js'
+      - 'index.html'
+      - 'tests/v03751_version_authority_gate.mjs'
+      - 'tests/v0387-safe-boot-contract.test.mjs'
+      - 'tests/v0389-rescue-catalog-import-contract.test.mjs'
+      - 'scripts/v0392-new-user-bootstrap-gate.mjs'
+      - 'scripts/v03981-confirmation-dryrun-browser.mjs'
+      - 'scripts/ci-legacy-runtime-regression.mjs'
+      - '.github/workflows/legacy-runtime-regression.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: legacy-runtime-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  core-runtime:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Replay legacy runtime safety contracts
+        run: node scripts/ci-legacy-runtime-regression.mjs
+
+  confirmation-browser:
+    needs: core-runtime
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser runtime
+        run: |
+          npm install --no-save --no-package-lock playwright@1.54.1
+          npx playwright install --with-deps chromium
+      - name: Start static server
+        run: |
+          python3 -m http.server 8080 >/tmp/pokemon-sleep-legacy-runtime-http.log 2>&1 &
+      - name: Verify confirmation-to-Dry-Run handshake in Chromium
+        run: node scripts/v03981-confirmation-dryrun-browser.mjs
+      - name: Print static server log on failure
+        if: failure()
+        run: cat /tmp/pokemon-sleep-legacy-runtime-http.log || true
