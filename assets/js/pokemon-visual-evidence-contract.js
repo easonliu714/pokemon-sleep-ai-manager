@@ -1,6 +1,6 @@
 import {BERRY_BY_TYPE,TYPES,MAIN_SKILLS,SUBSKILLS} from './pokemon-master-options.js';
 import {inspectIngredientIdentity} from './public-ingredient-identity.js';
-import {publicSpeciesIngredientCandidatesForObservedName} from './public-species-form-zh-tw-identity.js';
+import {publicSpeciesIngredientCandidatesForObservedName} from './public-species-form-zh-tw-identity-resolver.js';
 
 export const POKEMON_VISUAL_EVIDENCE_SCHEMA='pokemon-sleep-pokemon-visual-evidence/1.0';
 export const POKEMON_VISUAL_EVIDENCE_VERSION='pokemon-visual-evidence-2026-08-15-b-species-ingredient-candidates';
