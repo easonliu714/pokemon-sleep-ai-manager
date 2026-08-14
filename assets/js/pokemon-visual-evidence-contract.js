@@ -1,8 +1,9 @@
 import {BERRY_BY_TYPE,TYPES,MAIN_SKILLS,SUBSKILLS} from './pokemon-master-options.js';
 import {inspectIngredientIdentity} from './public-ingredient-identity.js';
+import {publicSpeciesIngredientCandidatesForObservedName} from './public-species-form-zh-tw-identity-resolver.js';
 
 export const POKEMON_VISUAL_EVIDENCE_SCHEMA='pokemon-sleep-pokemon-visual-evidence/1.0';
-export const POKEMON_VISUAL_EVIDENCE_VERSION='pokemon-visual-evidence-2026-08-15-a';
+export const POKEMON_VISUAL_EVIDENCE_VERSION='pokemon-visual-evidence-2026-08-15-b-species-ingredient-candidates';
 export const PUBLIC_RELATION_MUST_NOT_GENERATE_PLAYER_OBSERVATION=true;
 export const DIRECT_EVIDENCE_KINDS=Object.freeze([
   'TYPE_VISUAL','BERRY_VISUAL','INGREDIENT_VISUAL','MAIN_SKILL_TEXT','SUBSKILL_TEXT',
@@ -61,7 +62,7 @@ function normalizeCandidateSet(candidates){
   return new Set(candidates.map(clean).filter(Boolean));
 }
 
-export function evaluateIngredientEvidence(evidence,{species=null,speciesIngredientCandidates=null}={}){
+export function evaluateIngredientEvidence(evidence,{species=null,speciesIngredientCandidates=null,speciesIngredientResolver=publicSpeciesIngredientCandidatesForObservedName}={}){
   const direct=inspectDirectEvidence(evidence,'INGREDIENT_VISUAL');
   if(direct.status!=='MATCH')return result('REVIEW_REQUIRED','INGREDIENT_IDENTITY',{reason:direct.reason,direct_evidence:direct,auto_rewrite_player_observation:false});
   const identity=inspectIngredientIdentity(direct.observed_value);
@@ -69,20 +70,34 @@ export function evaluateIngredientEvidence(evidence,{species=null,speciesIngredi
     reason:identity.reason,direct_evidence:direct,identity,canonical_suggestion:identity.canonical_suggestion||null,
     auto_rewrite_player_observation:false,
   });
-  const candidateSet=normalizeCandidateSet(speciesIngredientCandidates);
+  const unlockLevel=Number(evidence?.unlock_level);
+  if(![1,30,60].includes(unlockLevel))return result('REVIEW_REQUIRED','SPECIES_INGREDIENT_RELATION',{
+    reason:'INGREDIENT_SLOT_LEVEL_INVALID',species:clean(species)||null,unlock_level:Number.isFinite(unlockLevel)?unlockLevel:null,
+    observed_ingredient:identity.canonical_name,direct_evidence:direct,identity,auto_rewrite_player_observation:false,
+  });
+  let candidateResolution=null,candidateSet=normalizeCandidateSet(speciesIngredientCandidates);
+  if(!candidateSet&&typeof speciesIngredientResolver==='function'){
+    candidateResolution=speciesIngredientResolver(clean(species),unlockLevel);
+    if(candidateResolution?.status==='MATCHABLE_PUBLIC_CANDIDATES')candidateSet=normalizeCandidateSet(candidateResolution.candidates);
+    else return result('REVIEW_REQUIRED','SPECIES_INGREDIENT_RELATION',{
+      reason:candidateResolution?.reason||'SPECIES_INGREDIENT_PUBLIC_AUTHORITY_UNRESOLVED',species:clean(species)||null,unlock_level:unlockLevel,
+      observed_ingredient:identity.canonical_name,direct_evidence:direct,identity,species_identity:candidateResolution?.identity||null,
+      public_relation_used_as:'CONSISTENCY_CHECK_ONLY',auto_rewrite_player_observation:false,
+    });
+  }
   if(!candidateSet)return result('NOT_CHECKABLE','SPECIES_INGREDIENT_RELATION',{
-    reason:'SPECIES_INGREDIENT_PUBLIC_AUTHORITY_MISSING',species:clean(species)||null,observed_ingredient:identity.canonical_name,
+    reason:'SPECIES_INGREDIENT_PUBLIC_AUTHORITY_MISSING',species:clean(species)||null,unlock_level:unlockLevel,observed_ingredient:identity.canonical_name,
     direct_evidence:direct,identity,public_relation_used_as:'CONSISTENCY_CHECK_ONLY',auto_rewrite_player_observation:false,
   });
   if(!candidateSet.has(identity.canonical_name))return result('CONFLICT','SPECIES_INGREDIENT_RELATION',{
-    reason:'SPECIES_INGREDIENT_VISUAL_CONFLICT',species:clean(species)||null,observed_ingredient:identity.canonical_name,
-    allowed_candidates:Object.freeze([...candidateSet]),direct_evidence:direct,identity,
+    reason:'SPECIES_INGREDIENT_VISUAL_CONFLICT',species:clean(species)||null,unlock_level:unlockLevel,observed_ingredient:identity.canonical_name,
+    allowed_candidates:Object.freeze([...candidateSet]),direct_evidence:direct,identity,species_identity:candidateResolution?.identity||null,
     public_relation_used_as:'CONSISTENCY_CHECK_ONLY',auto_rewrite_player_observation:false,
   });
   return result('MATCH','SPECIES_INGREDIENT_RELATION',{
-    reason:'DIRECT_INGREDIENT_VISUAL_CONSISTENT_WITH_PUBLIC_CANDIDATES',species:clean(species)||null,
+    reason:'DIRECT_INGREDIENT_VISUAL_CONSISTENT_WITH_PUBLIC_CANDIDATES',species:clean(species)||null,unlock_level:unlockLevel,
     observed_ingredient:identity.canonical_name,allowed_candidates:Object.freeze([...candidateSet]),direct_evidence:direct,identity,
-    public_relation_used_as:'CONSISTENCY_CHECK_ONLY',auto_rewrite_player_observation:false,
+    species_identity:candidateResolution?.identity||null,public_relation_used_as:'CONSISTENCY_CHECK_ONLY',auto_rewrite_player_observation:false,
   });
 }
 
@@ -108,9 +123,12 @@ export function evaluatePokemonVisualEvidence(input={},options={}){
   const checks=[];
   checks.push(evaluateTypeBerryConsistency({type:input.type,berry:input.berry}));
   const species=clean(input.species)||null;
-  const resolver=typeof options.speciesIngredientCandidates==='function'?options.speciesIngredientCandidates:null;
-  const candidates=resolver?resolver(species):options.speciesIngredientCandidates||null;
-  for(const row of input.ingredients||[])checks.push(evaluateIngredientEvidence(row,{species,speciesIngredientCandidates:candidates}));
+  const injected=options.speciesIngredientCandidates;
+  const publicResolver=typeof options.speciesIngredientResolver==='function'?options.speciesIngredientResolver:publicSpeciesIngredientCandidatesForObservedName;
+  for(const row of input.ingredients||[]){
+    const candidates=typeof injected==='function'?injected(species,Number(row?.unlock_level),row):Array.isArray(injected)?injected:null;
+    checks.push(evaluateIngredientEvidence(row,{species,speciesIngredientCandidates:candidates,speciesIngredientResolver:publicResolver}));
+  }
   if(input.main_skill)checks.push(evaluateSkillTextEvidence(input.main_skill,'MAIN_SKILL_TEXT'));
   for(const row of input.subskills||[])checks.push(evaluateSkillTextEvidence(row,'SUBSKILL_TEXT'));
   const status=aggregateStatus(checks);

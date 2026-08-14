@@ -26,6 +26,35 @@ jobs:
       - name: Verify CI topology policy
         run: node scripts/ci-topology-policy-contract.mjs
 
+      - name: Verify species ingredient candidate boundary
+        run: node scripts/species-ingredient-candidate-source-extract-contract.mjs
+
+      - name: Extract pinned species ingredient candidates
+        env:
+          ALLOW_PINNED_EVIDENCE_FETCH: '1'
+        run: node scripts/species-ingredient-candidate-source-extract.mjs
+
+      - name: Verify runtime candidate parity
+        run: node scripts/species-ingredient-candidate-runtime-parity.mjs
+
+      - name: Extract pinned zh-TW species/form identities
+        env:
+          ALLOW_PINNED_EVIDENCE_FETCH: '1'
+        run: node scripts/species-form-zh-tw-identity-source-extract.mjs
+
+      - name: Verify zh-TW species/form identity runtime parity
+        run: node scripts/species-form-zh-tw-identity-runtime-parity.mjs
+
+      - name: Upload species authority audits
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-species-ingredient-and-identity-source-audit
+          path: |
+            artifacts/public-species-ingredient-candidate-source.json
+            artifacts/public-species-form-zh-tw-identity-source.json
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Verify Pokémon visual evidence consistency
         run: node scripts/pokemon-visual-evidence-regression.mjs
 
