@@ -33,7 +33,7 @@ const signature=recipe=>[...(recipe.ingredients||[])].map(row=>`${row.ingredient
 
 assert.ok(['public-recipe-master-2026-08-11-c','public-recipe-master-2026-08-12-a','public-recipe-master-2026-08-13-a','public-recipe-master-2026-08-13-b'].includes(PUBLIC_RECIPE_MASTER_VERSION));
 assert.ok(['public-recipe-zh-tw-names-2026-08-11-b','public-recipe-zh-tw-names-2026-08-12-a'].includes(PUBLIC_RECIPE_CANONICAL_NAME_VERSION));
-assert.equal(PUBLIC_RECIPE_ALIAS_VERSION,'public-recipe-alias-2026-08-11-b');
+assert.ok(['public-recipe-alias-2026-08-11-b','public-recipe-alias-2026-08-14-c'].includes(PUBLIC_RECIPE_ALIAS_VERSION),'reviewed recipe alias registry successor not recognized');
 assert.ok(['public-recipe-provenance-2026-08-11-c','public-recipe-provenance-2026-08-12-d','public-recipe-provenance-2026-08-13-a'].includes(PUBLIC_RECIPE_PROVENANCE_VERSION));
 assert.equal(RAW_PUBLIC_RECIPE_MASTER.length,76);
 assert.ok([76,78].includes(PUBLIC_RECIPE_MASTER.length));

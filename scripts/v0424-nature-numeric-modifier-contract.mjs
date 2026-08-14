@@ -9,7 +9,8 @@ import {buildStrategyOptimizationPack,STRATEGY_OPTIMIZATION_PACK_VERSION} from '
 
 const fixture={pokemon_id:'private-fixture-001',species:'測試物種',level:30,specialty:'食材',helper_seconds:2400,nature:'固執',nature_bonus:'幫忙速度',nature_penalty:'食材機率',unlocked_subskills:[]};
 const profile=resolvePokemonProductionModifierProfile(fixture);
-assert.equal(profile.schema,'pokemon-sleep-production-modifier-profile/1.1');
+const successorSubskillNumeric=profile.schema==='pokemon-sleep-production-modifier-profile/1.2';
+assert.equal(profile.schema,successorSubskillNumeric?'pokemon-sleep-production-modifier-profile/1.2':'pokemon-sleep-production-modifier-profile/1.1');
 assert.equal(profile.nature_numeric_registry_version,NATURE_NUMERIC_MODIFIER_VERSION);
 assert.equal(profile.numeric_activation,false,'modifier authority must not activate the global numeric production model');
 assert.equal(profile.modifier_numeric_authority_active,true);
@@ -48,10 +49,10 @@ assert.equal(registry.rules.main_skill_trigger_probability.status,'NOT_YET_VERIF
 
 const contextResult={payload:{context_fingerprint:'strategy_context:v0424',goal_profile:{primary_goal:'max_snorlax_energy'},weekly_context:{week_start:'2026-08-10'},inventory_summary:[],recipe_gap_summary:[],deterministic_candidates:{},public_version_refs:{}},resolver:{cand_001:{pokemon_id:fixture.pokemon_id,species:fixture.species}}};
 const pack=buildStrategyOptimizationPack({strategyContextResult:contextResult,candidateScoring:{candidates:[fixture]},teamOptimization:{primary:{team_status:'READY',input_fingerprint:'team:v0424',slots:[{pokemon_id:fixture.pokemon_id}]}},productionRegistry:registry});
-assert.equal(STRATEGY_OPTIMIZATION_PACK_VERSION,'strategy-optimization-pack-2026-08-14-b');
+assert.ok(['strategy-optimization-pack-2026-08-14-b','strategy-optimization-pack-2026-08-14-c'].includes(STRATEGY_OPTIMIZATION_PACK_VERSION));
 const outgoing=pack.payload.candidate_production_readiness[0];
 assert.equal(outgoing.candidate_ref,'cand_001');
-assert.equal(outgoing.production_modifier_profile.schema,'pokemon-sleep-production-modifier-profile/1.1');
+assert.equal(outgoing.production_modifier_profile.schema,profile.schema);
 assert.equal(outgoing.production_modifier_profile.verified_numeric_modifier_count,2);
 assert.equal(outgoing.rate_statuses.ingredient,'NOT_YET_VERIFIED');
 assert.equal(outgoing.rate_statuses.skill,'NOT_YET_VERIFIED');
@@ -59,4 +60,4 @@ const serialized=JSON.stringify(pack.payload);
 assert.equal(serialized.includes(fixture.pokemon_id),false);
 assert.equal(serialized.includes('pokemon_id'),false);
 
-console.log(JSON.stringify({status:'PASS',gate:'V0424_G75E2A_NATURE_NUMERIC_MODIFIER',nature_numeric_registry_version:NATURE_NUMERIC_MODIFIER_VERSION,strategy_pack_version:STRATEGY_OPTIMIZATION_PACK_VERSION,speed_up_interval_multiplier:0.9,speed_down_interval_multiplier:1.075,ingredient_probability_pair:[1.2,0.8],skill_probability_pair:[1.2,0.8],energy_recovery_pair:[1.2,0.88],exp_gain_pair:[1.18,0.82],active_base_numeric_dimensions:'3/7',overall_numeric_model_status:registry.numeric_rate_model_status,unknown_nature_fail_closed:true,stable_ids_in_payload:false,sqlite_write:false,runtime_network_fetch:false,ai_numeric_authority:false},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V0424_G75E2A_NATURE_NUMERIC_MODIFIER',nature_numeric_registry_version:NATURE_NUMERIC_MODIFIER_VERSION,strategy_pack_version:STRATEGY_OPTIMIZATION_PACK_VERSION,successor_subskill_numeric:successorSubskillNumeric,speed_up_interval_multiplier:0.9,speed_down_interval_multiplier:1.075,ingredient_probability_pair:[1.2,0.8],skill_probability_pair:[1.2,0.8],energy_recovery_pair:[1.2,0.88],exp_gain_pair:[1.18,0.82],active_base_numeric_dimensions:'3/7',overall_numeric_model_status:registry.numeric_rate_model_status,unknown_nature_fail_closed:true,stable_ids_in_payload:false,sqlite_write:false,runtime_network_fetch:false,ai_numeric_authority:false},null,2));

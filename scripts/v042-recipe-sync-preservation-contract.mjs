@@ -3,7 +3,7 @@ import initSqlJs from 'sql.js';
 import {DDL,SEED_SQL} from '../assets/js/schema.js';
 import {applySharedMasterSchema} from '../assets/js/shared-master-schema.js';
 import {syncPublicRecipeMaster} from '../assets/js/public-recipe-master-sync.js';
-import {PUBLIC_RECIPE_MASTER_VERSION} from '../assets/js/public-recipe-canonical-authority.js';
+import {PUBLIC_RECIPE_MASTER_VERSION} from '../assets/js/public-recipe-current-authority.js';
 
 const SQL=await initSqlJs({locateFile:file=>path.resolve('node_modules/sql.js/dist',file)});
 const db=new SQL.Database();
@@ -86,14 +86,14 @@ assert(syncReport?.preserved_unrecognized_master_rows?.some(row=>row.recipe_id==
 
 console.log(JSON.stringify({
   status:'PASS',
-  schema:'pokemon-sleep-recipe-sync-preservation-contract/1.1',
+  schema:'pokemon-sleep-recipe-sync-preservation-contract/1.2',
   master_version:PUBLIC_RECIPE_MASTER_VERSION,
   player_rows_before:JSON.parse(playerBefore).length,
   player_rows_after:query('SELECT * FROM recipes').length,
   player_rows_modified:false,
   legacy_hash_retired:true,
   v042_player_names_preserved:true,
-  v043_master_names_projected:true,
+  current_master_names_projected:true,
   unrecognized_master_preserved:true,
   legacy_player_projection_resolved:true,
   second_sync_idempotent:true,

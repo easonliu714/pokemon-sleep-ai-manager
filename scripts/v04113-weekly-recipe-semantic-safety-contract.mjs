@@ -67,7 +67,7 @@ assert.equal(internalResult.platform_authority.provider_original_week_start,'202
 assert.ok(capturedRequest.prompt.includes('current_week_start=2026-08-10'));
 assert.deepEqual(capturedRequest.responseJsonSchema.properties.generated_at.enum,[weeklyAuthority.generated_at]);
 
-assert.match(PUBLIC_RECIPE_ALIAS_VERSION,/^public-recipe-alias-2026-08-11-[a-z]+$/,'approved recipe alias registry must remain versioned');
+assert.match(PUBLIC_RECIPE_ALIAS_VERSION,/^public-recipe-alias-2026-08-(?:11|14)-[a-z]+$/,'approved recipe alias registry must remain versioned across current successor');
 assert.ok(PUBLIC_RECIPE_ALIASES.length>=3,'v0.4.11.3 reviewed alias capability must not regress');
 const aliasSerialized=JSON.stringify(PUBLIC_RECIPE_ALIASES);
 for(const forbidden of ['recipe_level','current_energy','player_record','pokemon_instance'])assert.equal(aliasSerialized.includes(forbidden),false,`public alias registry leaked ${forbidden}`);
