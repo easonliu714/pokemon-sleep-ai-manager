@@ -22,9 +22,9 @@ import {buildStrategyOptimizationPack} from '../assets/js/strategy-optimization-
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
-assert.ok(['v0.4.22','v0.4.22.1'].includes(appVersion),`unexpected G7.5D release/successor ${appVersion}`);
+assert.ok(['v0.4.22','v0.4.22.1','v0.4.23','v0.4.24'].includes(appVersion),`unexpected G7.5D release/successor ${appVersion}`);
 assert.ok(version.includes("// app_version: 'v0.4.21'"));
-if(appVersion==='v0.4.22.1')assert.ok(version.includes("// app_version: 'v0.4.22'"),'v0.4.22.1 must retain v0.4.22 lineage bridge');
+if(['v0.4.22.1','v0.4.23','v0.4.24'].includes(appVersion))assert.ok(version.includes("// app_version: 'v0.4.22'"),`${appVersion} must retain v0.4.22 lineage bridge`);
 assert.equal(BASE_BERRY_OUTPUT_AUTHORITY_STATUS,'ACTIVE_VERIFIED');
 assert.equal(BASE_BERRY_OUTPUT_SCOPE,'REGULAR_BERRY_RESULT_HELP_PRE_EVENT_PRE_EXPERT');
 assert.equal(BERRY_SPECIALTY_BASE_OUTPUT,2);
