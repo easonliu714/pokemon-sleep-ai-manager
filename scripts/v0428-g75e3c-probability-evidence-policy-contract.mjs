@@ -10,6 +10,12 @@ import {
   evaluateIngredientProbabilityActivationRow,
   evaluateIngredientProbabilityActivationMaster,
 } from '../assets/js/ingredient-probability-activation-policy.js';
+import {
+  PUBLIC_SPECIES_FORM_ROSTER_READINESS_ID,
+  PUBLIC_SPECIES_FORM_ROSTER_READINESS_VERSION,
+  PUBLIC_SPECIES_FORM_ROSTER_AUTHORITY_STATUS,
+  currentPublicSpeciesFormRosterReadiness,
+} from '../assets/js/public-pokemon-species-form-roster-readiness.js';
 import {currentProductionAuthorityRegistry} from '../assets/js/production-authority-registry.js';
 import {currentSpeciesIngredientRateReference} from '../assets/js/public-species-ingredient-rate-reference.js';
 
@@ -31,6 +37,23 @@ for(const required of [
   'NATURE_AND_SUBSKILL_COMPOSITION_ORDER_CONTRACT_ACCEPTED','UNKNOWN_OR_AMBIGUOUS_FORM_FAILS_CLOSED','NO_RUNTIME_NETWORK_FETCH','NO_PLAYER_OR_SQLITE_WRITE','NO_AI_NUMERIC_AUTHORITY',
 ])assert.ok(policy.requirements.includes(required),`activation requirement missing: ${required}`);
 
+const roster=currentPublicSpeciesFormRosterReadiness();
+assert.equal(roster.schema,'pokemon-sleep-public-species-form-roster-readiness/1.0');
+assert.equal(roster.readiness_id,PUBLIC_SPECIES_FORM_ROSTER_READINESS_ID);
+assert.equal(roster.readiness_version,PUBLIC_SPECIES_FORM_ROSTER_READINESS_VERSION);
+assert.equal(roster.authority_status,PUBLIC_SPECIES_FORM_ROSTER_AUTHORITY_STATUS);
+assert.equal(roster.authority_status,'NOT_YET_AVAILABLE');
+assert.equal(roster.expected_current_species_form_count,null);
+assert.equal(roster.activation_coverage_denominator_ready,false);
+assert.equal(roster.current_public_roster_master,null);
+assert.equal(roster.blocker,'VERSIONED_COMPLETE_PUBLIC_SPECIES_FORM_MASTER_MISSING');
+for(const required of ['VERSIONED_STATIC_PUBLIC_SPECIES_FORM_MASTER','CURRENT_GAME_ROSTER_SCOPE_DATE_OR_RELEASE_ID','FORM_SAFE_CANONICAL_ID_PER_ROW','TYPE_OR_FORM_DISAMBIGUATION_FOR_SHARED_SPECIES_NAMES','DETERMINISTIC_ROW_COUNT_AND_UNIQUE_CANONICAL_ID_GATE','NO_PLAYER_ROSTER_DERIVATION'])assert.ok(roster.activation_requirements.includes(required),`roster requirement missing: ${required}`);
+const nonAuthorityById=new Map(roster.non_authorities.map(row=>[row.source_id,row]));
+assert.equal(nonAuthorityById.get('player-pokemon-table').may_define_activation_coverage_denominator,false);
+assert.equal(nonAuthorityById.get('public-empty-profile-core-pokemon').may_define_activation_coverage_denominator,false);
+assert.equal(nonAuthorityById.get('public-evolution-master').may_define_activation_coverage_denominator,false);
+for(const key of ['player_roster_may_define_public_catalog','empty_seed_may_define_zero_catalog','partial_evolution_routes_may_define_complete_catalog','missing_species_or_forms_may_be_ai_inferred','runtime_network_fetch','player_data_write','sqlite_write','ai_numeric_authority'])assert.equal(roster.safety[key],false,`unsafe roster flag ${key}`);
+
 assert.equal(INGREDIENT_PROBABILITY_KNOWN_SOURCE_EXCLUSIONS.length>=1,true);
 const mew=INGREDIENT_PROBABILITY_KNOWN_SOURCE_EXCLUSIONS.find(row=>row.source_key==='MEW');
 assert.ok(mew,'Mew source-declared suspicious row must be explicitly excluded');
@@ -39,6 +62,7 @@ assert.equal(mew.source_commit,INGREDIENT_PROBABILITY_PINNED_SOURCE_COMMIT);
 assert.equal(mew.source_path,'common/src/types/pokemon/all-pokemon.ts');
 assert.equal(mew.field,'ingredientPercentage');
 assert.equal(mew.evidence_class,INGREDIENT_PROBABILITY_EVIDENCE_CLASS.SOURCE_DECLARED_SUSPICIOUS);
+assert.equal(mew.exclusion_reason,'SOURCE_COMMENT_DECLARES_VALUE_SUSPICIOUS_AND_USED_TO_FIT_RP_MODEL');
 assert.equal(mew.eligible_for_numeric_activation,false);
 assert.equal(mew.requires_independent_replacement_evidence,true);
 
@@ -67,6 +91,10 @@ assert.equal(evaluateIngredientProbabilityActivationRow({...readyFixture,base_in
 assert.equal(evaluateIngredientProbabilityActivationRow({...readyFixture,evidence_class:INGREDIENT_PROBABILITY_EVIDENCE_CLASS.MODEL_FIT_OR_PLACEHOLDER}).reason,'NUMERIC_EVIDENCE_CLASS_NOT_ACCEPTED');
 assert.equal(evaluateIngredientProbabilityActivationRow({...readyFixture,unresolved_numeric_conflict:true}).reason,'UNRESOLVED_NUMERIC_EVIDENCE_CONFLICT');
 
+const unknownDenominator=evaluateIngredientProbabilityActivationMaster({rows:[readyFixture],expected_current_species_form_count:roster.expected_current_species_form_count});
+assert.equal(unknownDenominator.expected_current_species_form_count,null);
+assert.equal(unknownDenominator.complete_current_species_form_coverage,false);
+assert.equal(unknownDenominator.activation_decision,'HOLD_ACTIVATION_MASTER_INCOMPLETE_OR_UNRESOLVED','unknown public roster denominator must fail closed');
 const incomplete=evaluateIngredientProbabilityActivationMaster({rows:[readyFixture],expected_current_species_form_count:2});
 assert.equal(incomplete.ready_row_count,1);
 assert.equal(incomplete.complete_current_species_form_coverage,false);
@@ -76,13 +104,15 @@ assert.equal(containsExcluded.ready_row_count,1);
 assert.equal(containsExcluded.excluded_row_count,1);
 assert.equal(containsExcluded.complete_current_species_form_coverage,false);
 assert.equal(containsExcluded.activation_decision,'HOLD_ACTIVATION_MASTER_INCOMPLETE_OR_UNRESOLVED');
-const readyMaster=evaluateIngredientProbabilityActivationMaster({rows:[readyFixture,{...readyFixture,source_key:'IVYSAUR',canonical_species_form_id:'pokedex:2|form:default|type:草'}],expected_current_species_form_count:2});
-assert.equal(readyMaster.ready_row_count,2);
-assert.equal(readyMaster.review_required_row_count,0);
-assert.equal(readyMaster.excluded_row_count,0);
-assert.equal(readyMaster.complete_current_species_form_coverage,true);
-assert.equal(readyMaster.activation_decision,'READY_FOR_EXPLICIT_AUTHORITY_PROMOTION');
-for(const key of ['missing_is_zero','infer_from_specialty','source_declared_suspicious_values_activate','model_fit_or_placeholder_values_activate','runtime_network_fetch','player_data_write','sqlite_write','ai_numeric_authority'])assert.equal(readyMaster.safety[key],false);
+const syntheticReadyMaster=evaluateIngredientProbabilityActivationMaster({rows:[readyFixture,{...readyFixture,source_key:'IVYSAUR',canonical_species_form_id:'pokedex:2|form:default|type:草'}],expected_current_species_form_count:2});
+assert.equal(syntheticReadyMaster.ready_row_count,2);
+assert.equal(syntheticReadyMaster.review_required_row_count,0);
+assert.equal(syntheticReadyMaster.excluded_row_count,0);
+assert.equal(syntheticReadyMaster.complete_current_species_form_coverage,true);
+assert.equal(syntheticReadyMaster.activation_decision,'READY_FOR_EXPLICIT_AUTHORITY_PROMOTION');
+for(const key of ['missing_is_zero','infer_from_specialty','source_declared_suspicious_values_activate','model_fit_or_placeholder_values_activate','runtime_network_fetch','player_data_write','sqlite_write','ai_numeric_authority'])assert.equal(syntheticReadyMaster.safety[key],false);
+// Synthetic master readiness proves the evaluator contract only. Current project activation remains blocked by the missing authoritative roster denominator above.
+assert.equal(roster.activation_coverage_denominator_ready,false);
 
 const registry=currentProductionAuthorityRegistry();
 const numeric=['berry_output_per_help','berry_energy_per_berry','favorite_berry_multiplier','ingredient_probability_per_help','ingredient_slot_distribution','main_skill_trigger_probability','main_skill_effect_value'];
@@ -97,13 +127,17 @@ assert.equal(reference.status,'REFERENCE_ONLY_COMMUNITY_DERIVED');
 assert.equal(reference.complete_catalog,false);
 assert.equal(reference.eligible_for_numeric_activation,false);
 
-const source=read('assets/js/ingredient-probability-activation-policy.js');
-for(const forbidden of ['fetch(', 'localStorage', 'sessionStorage', 'indexedDB', 'INSERT INTO', 'UPDATE ingredient_inventory', 'DELETE FROM', 'applyPayload(', 'dryRun('])assert.equal(source.includes(forbidden),false,`probability activation policy owns forbidden path: ${forbidden}`);
+for(const file of ['assets/js/ingredient-probability-activation-policy.js','assets/js/public-pokemon-species-form-roster-readiness.js']){
+  const source=read(file);
+  for(const forbidden of ['fetch(', 'localStorage', 'sessionStorage', 'indexedDB', 'INSERT INTO', 'UPDATE ingredient_inventory', 'DELETE FROM', 'applyPayload(', 'dryRun('])assert.equal(source.includes(forbidden),false,`${file} owns forbidden path: ${forbidden}`);
+}
 
 console.log(JSON.stringify({
   status:'PASS',gate:'V0428_G75E3C_PROBABILITY_ACTIVATION_EVIDENCE_POLICY',policy_id:INGREDIENT_PROBABILITY_ACTIVATION_POLICY_ID,
   pinned_source_commit:INGREDIENT_PROBABILITY_PINNED_SOURCE_COMMIT,known_source_exclusion_count:INGREDIENT_PROBABILITY_KNOWN_SOURCE_EXCLUSIONS.length,
   mew_source_declared_suspicious_excluded:true,complete_master_requires_all_rows_ready:true,independent_current_crosscheck_required:true,
+  public_species_form_roster_authority_status:roster.authority_status,public_roster_denominator_ready:roster.activation_coverage_denominator_ready,
+  player_roster_may_define_coverage:false,partial_evolution_master_may_define_coverage:false,
   active_numeric_dimensions:active,production_numeric_activation:'4/7',ingredient_probability_status:registry.rules.ingredient_probability_per_help.status,
   species_reference_status:reference.status,overall_numeric_model_status:registry.numeric_rate_model_status,missing_is_zero:false,runtime_network_fetch:false,ai_numeric_authority:false,
 },null,2));
