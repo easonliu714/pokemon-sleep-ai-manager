@@ -15,6 +15,7 @@ on:
       - 'assets/js/pokemon-scoring-engine.js'
       - 'service-worker.js'
       - 'scripts/v0418-g75-production-evidence-contract.mjs'
+      - 'scripts/v0423-predecessor-contract-runner.mjs'
       - 'scripts/v042-pokemon-candidate-feature-contract.mjs'
       - 'scripts/v042-pokemon-scoring-engine-contract.mjs'
       - 'scripts/v0423-production-modifier-contract.mjs'
@@ -33,6 +34,7 @@ on:
       - 'assets/js/pokemon-scoring-engine.js'
       - 'service-worker.js'
       - 'scripts/v0418-g75-production-evidence-contract.mjs'
+      - 'scripts/v0423-predecessor-contract-runner.mjs'
       - 'scripts/v042-pokemon-candidate-feature-contract.mjs'
       - 'scripts/v042-pokemon-scoring-engine-contract.mjs'
       - 'scripts/v0423-production-modifier-contract.mjs'
@@ -68,7 +70,7 @@ jobs:
         run: node scripts/v0426-g75e3a-ingredient-production-evidence-contract.mjs
 
       - name: Preserve G7.5 Production Evidence base contract
-        run: node scripts/v0418-g75-production-evidence-contract.mjs
+        run: node scripts/v0423-predecessor-contract-runner.mjs scripts/v0418-g75-production-evidence-contract.mjs
 
       - name: Preserve Candidate Feature fact-only contract
         run: node scripts/v042-pokemon-candidate-feature-contract.mjs
