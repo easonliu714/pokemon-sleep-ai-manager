@@ -34,6 +34,9 @@ jobs:
           ALLOW_PINNED_EVIDENCE_FETCH: '1'
         run: node scripts/species-ingredient-candidate-source-extract.mjs
 
+      - name: Verify runtime candidate parity
+        run: node scripts/species-ingredient-candidate-runtime-parity.mjs
+
       - name: Upload species ingredient candidate audit
         uses: actions/upload-artifact@v4
         with:
