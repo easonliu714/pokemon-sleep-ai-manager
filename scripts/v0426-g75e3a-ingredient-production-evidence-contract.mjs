@@ -4,6 +4,7 @@ import {
   INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_ID,
   INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_VERSION,
   INGREDIENT_PRODUCTION_DIMENSIONS,
+  INGREDIENT_PRODUCTION_EVIDENCE_SOURCES,
   INGREDIENT_PRODUCTION_SEMANTIC_BOUNDARY,
   ingredientProductionEvidenceBoundary,
   isIngredientProductionDimensionActive,
@@ -21,10 +22,7 @@ assert.equal(INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_VERSION,'ingredient-product
 assert.equal(boundary.schema,'pokemon-sleep-ingredient-production-evidence-boundary/1.0');
 assert.equal(boundary.numeric_activation_count,0);
 assert.deepEqual(boundary.production_dimensions_ready,[]);
-assert.deepEqual(boundary.production_dimensions_hold,[
-  'ingredient_probability_per_help',
-  'ingredient_slot_distribution',
-]);
+assert.deepEqual(boundary.production_dimensions_hold,['ingredient_probability_per_help','ingredient_slot_distribution']);
 assert.equal(boundary.safety.missing_is_zero,false);
 assert.equal(boundary.safety.ai_numeric_authority,false);
 assert.equal(boundary.safety.runtime_network_fetch,false);
@@ -50,11 +48,11 @@ assert.equal(isIngredientProductionDimensionActive('ingredient_probability_per_h
 assert.equal(isIngredientProductionDimensionActive('ingredient_slot_distribution'),false);
 assert.equal(isIngredientProductionDimensionActive('ingredient_combination_assignment_probability'),false);
 
-const sourceById=id=>Object.values((await import('../assets/js/ingredient-production-evidence-contract.js')).INGREDIENT_PRODUCTION_EVIDENCE_SOURCES).find(row=>row.source_id===id);
-const official=await sourceById('pokemon-sleep-official-v3.5.0-ingredient-finding-chance-adjustment');
-const rates=await sourceById('raenonx-production-rates-current-reference-2026-08-14');
-const slotReference=await sourceById('pokemon-sleep-verification-wiki-ingredient-slot-selection-2026-08-14');
-const catchAssignment=await sourceById('raenonx-ingredient-combination-assignment-2026-08-14');
+const sourceById=id=>Object.values(INGREDIENT_PRODUCTION_EVIDENCE_SOURCES).find(row=>row.source_id===id);
+const official=sourceById('pokemon-sleep-official-v3.5.0-ingredient-finding-chance-adjustment');
+const rates=sourceById('raenonx-production-rates-current-reference-2026-08-14');
+const slotReference=sourceById('pokemon-sleep-verification-wiki-ingredient-slot-selection-2026-08-14');
+const catchAssignment=sourceById('raenonx-ingredient-combination-assignment-2026-08-14');
 assert.equal(official.source_tier,'OFFICIAL_MECHANIC_EXISTENCE_ONLY');
 assert.ok(official.does_not_support.includes('EXACT_SPECIES_BASE_RATE'));
 assert.equal(rates.source_tier,'COMMUNITY_FIRST_HAND_REFERENCE_NUMERIC');
@@ -68,7 +66,7 @@ assert.deepEqual(slotDistribution.reference_candidate_weights,{level_1:'1',level
 
 const numericDimensions=['berry_output_per_help','berry_energy_per_berry','favorite_berry_multiplier','ingredient_probability_per_help','ingredient_slot_distribution','main_skill_trigger_probability','main_skill_effect_value'];
 const activeNumeric=numericDimensions.filter(name=>registry.rules[name]?.status==='ACTIVE_VERIFIED');
-assert.deepEqual(activeNumeric.sort(),['berry_energy_per_berry','berry_output_per_help','favorite_berry_multiplier'].sort());
+assert.deepEqual([...activeNumeric].sort(),['berry_energy_per_berry','berry_output_per_help','favorite_berry_multiplier'].sort());
 assert.equal(registry.numeric_rate_model_status,'NOT_YET_VERIFIED');
 assert.equal(registry.ai_numeric_authority,false);
 for(const name of ['ingredient_probability_per_help','ingredient_slot_distribution']){
@@ -133,19 +131,11 @@ assert.ok(evaluatorSource.includes("ingredient_per_hour_by_name:null"));
 assert.ok(evaluatorSource.includes("verified(productionRegistry,'ingredient_probability_per_help')&&verified(productionRegistry,'ingredient_slot_distribution')"));
 
 console.log(JSON.stringify({
-  status:'PASS',
-  gate:'V0426_G75E3A_INGREDIENT_PRODUCTION_EVIDENCE_BOUNDARY',
-  contract_id:INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_ID,
-  contract_version:INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_VERSION,
-  semantic_dimensions:Object.values(INGREDIENT_PRODUCTION_DIMENSIONS),
-  active_numeric_dimensions:activeNumeric,
-  production_numeric_activation:'3/7',
-  ingredient_probability_status:registry.rules.ingredient_probability_per_help.status,
+  status:'PASS',gate:'V0426_G75E3A_INGREDIENT_PRODUCTION_EVIDENCE_BOUNDARY',
+  contract_id:INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_ID,contract_version:INGREDIENT_PRODUCTION_EVIDENCE_CONTRACT_VERSION,
+  semantic_dimensions:Object.values(INGREDIENT_PRODUCTION_DIMENSIONS),active_numeric_dimensions:activeNumeric,
+  production_numeric_activation:'3/7',ingredient_probability_status:registry.rules.ingredient_probability_per_help.status,
   ingredient_slot_distribution_status:registry.rules.ingredient_slot_distribution.status,
-  catch_assignment_production_substitution:false,
-  observed_slots_generate_hourly_rate:false,
-  single_dimension_activation_generates_hourly_rate:false,
-  missing_is_zero:false,
-  runtime_network_fetch:false,
-  ai_numeric_authority:false,
+  catch_assignment_production_substitution:false,observed_slots_generate_hourly_rate:false,
+  single_dimension_activation_generates_hourly_rate:false,missing_is_zero:false,runtime_network_fetch:false,ai_numeric_authority:false,
 },null,2));
