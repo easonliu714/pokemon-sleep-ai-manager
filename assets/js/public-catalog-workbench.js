@@ -2,12 +2,13 @@ import './version-authority.js';
 import './v0415-ui-polish.js';
 import './recipe-level-energy-autofill.js';
 import {rows,isRescueReadonly} from './database.js';
-import {PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-canonical-authority.js';
+import {PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-current-authority.js';
+import {applyConfirmedRecipeDisplayNames} from './recipe-display-name-evidence.js';
 import {saveIngredient,saveItem} from './manual-editor.js';
 import {renderRecipeUnifiedWorkbench,RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION} from './recipe-unified-player-workbench.js';
 
 const BUILD=globalThis.PokemonSleepVersionAuthority.app_build;
-const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]));
 const $=id=>document.getElementById(id);
 let installed=false,draining=false,requestedGeneration=0,completedGeneration=0,pendingView=null;
 const activeView=()=>document.querySelector('.view.active')?.id||'dashboard';
@@ -28,7 +29,7 @@ function renderView(view){
     let recipeProjection=null;
     if(view==='ingredients')renderIngredientCatalog();
     else if(view==='items')renderItemCatalog();
-    else recipeProjection=renderRecipeUnifiedWorkbench();
+    else {recipeProjection=renderRecipeUnifiedWorkbench();applyConfirmedRecipeDisplayNames();}
     progress('PUBLIC_CATALOG_RENDER_COMPLETED',`${view}公版資料載入完成`,'completed',{
       view,generation:requestedGeneration,
       recipe_master_version:view==='recipes'?PUBLIC_RECIPE_MASTER_VERSION:undefined,
