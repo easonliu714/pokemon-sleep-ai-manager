@@ -1,0 +1,63 @@
+name: v0.4.24 G7.5E2A Nature Numeric Modifier Contract
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+    paths:
+      - 'assets/js/version-authority.js'
+      - 'assets/js/pokemon-master-options.js'
+      - 'assets/js/strategy-optimization-pack.js'
+      - 'assets/js/production-authority-registry.js'
+      - 'service-worker.js'
+      - 'scripts/v0423-production-modifier-contract.mjs'
+      - 'scripts/v0423-release-contract.mjs'
+      - 'scripts/v0424-nature-numeric-modifier-contract.mjs'
+      - 'scripts/v0424-release-contract.mjs'
+      - '.github/workflows/v0424-g75e2a-nature-numeric-modifier.yml'
+  pull_request:
+    paths:
+      - 'assets/js/version-authority.js'
+      - 'assets/js/pokemon-master-options.js'
+      - 'assets/js/strategy-optimization-pack.js'
+      - 'assets/js/production-authority-registry.js'
+      - 'service-worker.js'
+      - 'scripts/v0423-production-modifier-contract.mjs'
+      - 'scripts/v0423-release-contract.mjs'
+      - 'scripts/v0424-nature-numeric-modifier-contract.mjs'
+      - 'scripts/v0424-release-contract.mjs'
+      - '.github/workflows/v0424-g75e2a-nature-numeric-modifier.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check v0.4.24 runtime and contracts
+        run: |
+          node --check assets/js/version-authority.js
+          node --check assets/js/pokemon-master-options.js
+          node --check assets/js/strategy-optimization-pack.js
+          node --check scripts/v0423-production-modifier-contract.mjs
+          node --check scripts/v0423-release-contract.mjs
+          node --check scripts/v0424-nature-numeric-modifier-contract.mjs
+          node --check scripts/v0424-release-contract.mjs
+          node --check service-worker.js
+      - name: Nature numeric modifier contract
+        run: node scripts/v0424-nature-numeric-modifier-contract.mjs
+      - name: Preserve v0.4.23 structural modifier contract
+        run: node scripts/v0423-production-modifier-contract.mjs
+      - name: Preserve evidence-gated scoring algorithm contract
+        run: node scripts/v042-pokemon-scoring-engine-contract.mjs
+      - name: Preserve v0.4.23 release and privacy contract
+        run: node scripts/v0423-release-contract.mjs
+      - name: v0.4.24 release authority contract
+        run: node scripts/v0424-release-contract.mjs
