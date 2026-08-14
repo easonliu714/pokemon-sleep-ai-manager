@@ -11,9 +11,16 @@ import {
 const versionSource=fs.readFileSync(new URL('../assets/js/version-authority.js',import.meta.url),'utf8');
 const sandbox={};sandbox.globalThis=sandbox;vm.createContext(sandbox);vm.runInContext(versionSource,sandbox);
 const version=sandbox.PokemonSleepVersionAuthority;
-assert.equal(version.app_version,'v0.4.26');
-assert.equal(version.app_build,'20260814-v0426-g75e3a-ingredient-rate-reference-boundary');
-assert.equal(version.cache_name,'pokemon-sleep-ai-v0.4.26-v0426-g75e3a-ingredient-rate-reference-boundary');
+assert.ok(['v0.4.26','v0.4.27'].includes(version.app_version));
+if(version.app_version==='v0.4.27'){
+  assert.equal(version.app_build,'20260814-v0427-g75e3b-ingredient-slot-distribution');
+  assert.equal(version.cache_name,'pokemon-sleep-ai-v0.4.27-v0427-g75e3b-ingredient-slot-distribution');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.26'"));
+  assert.ok(versionSource.includes("// app_build: '20260814-v0426-g75e3a-ingredient-rate-reference-boundary'"));
+}else{
+  assert.equal(version.app_build,'20260814-v0426-g75e3a-ingredient-rate-reference-boundary');
+  assert.equal(version.cache_name,'pokemon-sleep-ai-v0.4.26-v0426-g75e3a-ingredient-rate-reference-boundary');
+}
 assert.equal(version.schema,'pokemon-sleep-version-authority/1.0');
 
 const sw=fs.readFileSync(new URL('../service-worker.js',import.meta.url),'utf8');
@@ -21,6 +28,7 @@ for(const asset of [
   './assets/js/public-species-ingredient-rate-reference.js',
   './assets/js/ingredient-probability-reference-contract.js',
   './assets/js/ingredient-production-evidence-contract.js',
+  ...(version.app_version==='v0.4.27'?['./assets/js/ingredient-slot-distribution-contract.js']:[]),
 ])assert.ok(sw.includes(`'${asset}'`),`service worker must precache ${asset}`);
 assert.ok(sw.includes("importScripts('./assets/js/version-authority.js')"));
 
