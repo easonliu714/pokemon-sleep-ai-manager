@@ -89,12 +89,18 @@ function filterContext(filters={}){
 function natureEvidence(profile,dimensions){
   const pokemon=profile.pokemon,nature=text(pokemon.nature),effects=NATURES[nature];
   if(!effects)return [];
-  const canonicalBonus=text(effects[0]),observedBonus=text(pokemon.nature_bonus);
-  if(observedBonus&&observedBonus!==canonicalBonus)return [{kind:'review',label:'性格資料待核對',weight:0}];
+  const canonicalBonus=text(effects[0]),canonicalPenalty=text(effects[1]);
+  const observedBonus=text(pokemon.nature_bonus),observedPenalty=text(pokemon.nature_penalty);
+  if((observedBonus&&observedBonus!==canonicalBonus)||(observedPenalty&&observedPenalty!==canonicalPenalty)){
+    return [{kind:'review',label:'性格資料待核對',weight:0}];
+  }
   const dimensionByEffect={幫忙速度:'helper_interval_seconds',食材機率:'ingredient_probability_per_help',主技能發動機率:'main_skill_trigger_probability'};
-  const dimension=dimensionByEffect[canonicalBonus];
-  if(!dimension||!dimensions.has(dimension))return [];
-  return [{kind:'nature',label:`性格加成：${canonicalBonus}↑`,dimension,weight:dimension==='helper_interval_seconds'?2:4}];
+  const result=[];
+  const bonusDimension=dimensionByEffect[canonicalBonus];
+  if(bonusDimension&&dimensions.has(bonusDimension))result.push({kind:'nature',label:`性格加成：${canonicalBonus}↑`,dimension:bonusDimension,weight:bonusDimension==='helper_interval_seconds'?2:4});
+  const penaltyDimension=dimensionByEffect[canonicalPenalty];
+  if(penaltyDimension&&dimensions.has(penaltyDimension))result.push({kind:'penalty',label:`性格降低：${canonicalPenalty}↓`,dimension:penaltyDimension,weight:penaltyDimension==='helper_interval_seconds'?-2:-4});
+  return result;
 }
 
 function subskillEvidence(profile,dimensions){
@@ -135,10 +141,6 @@ export function rankRosterFilterMatches(profiles=[],filters={}){
     evidence:recommendationEvidenceForProfile(profile,filters),
   })).sort((a,b)=>{
     if(b.evidence.score!==a.evidence.score)return b.evidence.score-a.evidence.score;
-    const ai=Number(a.profile.pokemon.ai_score),bi=Number(b.profile.pokemon.ai_score);
-    const aHas=Number.isFinite(ai),bHas=Number.isFinite(bi);
-    if(aHas!==bHas)return bHas-aHas;
-    if(aHas&&bi!==ai)return bi-ai;
     const ratingDiff=ratingRank(a.profile.pokemon.rating)-ratingRank(b.profile.pokemon.rating);
     if(ratingDiff)return ratingDiff;
     const levelDiff=levelOf(b.profile.pokemon)-levelOf(a.profile.pokemon);
