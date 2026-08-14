@@ -53,7 +53,7 @@ const p1=profiles.find(row=>row.pokemon_id==='P1');
 const p2=profiles.find(row=>row.pokemon_id==='P2');
 const p3=profiles.find(row=>row.pokemon_id==='P3');
 assert.deepEqual(p1.ingredients,['醒腦咖啡豆']);
-assert.deepEqual(p1.subskills.sort(),['幫忙速度S','食材機率提升S'].sort());
+assert.deepEqual([...p1.subskills].sort(),['幫忙速度S','食材機率提升S'].sort());
 assert.equal(p1.main_skill,'食材獲取S（固定）');
 
 const facets=buildPokemonRosterFacetOptions(profiles);
