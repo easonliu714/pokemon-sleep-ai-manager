@@ -27,7 +27,9 @@ assert.equal(source.includes('UPDATE '),false,'extractor must not mutate player/
 const workflow=fs.readFileSync('.github/workflows/regression-gate.yml','utf8');
 assert.ok(workflow.includes('node scripts/species-ingredient-candidate-source-extract.mjs'));
 assert.ok(workflow.includes("ALLOW_PINNED_EVIDENCE_FETCH: '1'"));
-assert.ok(workflow.includes('public-species-ingredient-candidate-source-audit'));
+assert.ok(workflow.includes('public-species-ingredient-and-identity-source-audit'));
+assert.ok(workflow.includes('artifacts/public-species-ingredient-candidate-source.json'));
+assert.ok(workflow.includes('artifacts/public-species-form-zh-tw-identity-source.json'));
 
 console.log(JSON.stringify({
   status:'PASS',
@@ -35,6 +37,7 @@ console.log(JSON.stringify({
   governed_roster_rows:242,
   current_canonical_ingredients:19,
   pinned_source_files:4,
+  combined_source_artifact_upload:true,
   hidden_rate_authority:false,
   production_slot_distribution_authority:false,
   player_slot_generation:false,
