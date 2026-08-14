@@ -1,5 +1,5 @@
 import {rows,isDatabaseReady,isRescueReadonly} from './database.js';
-import {PUBLIC_RECIPE_MASTER,PUBLIC_RECIPE_ALIASES} from './public-recipe-canonical-authority.js';
+import {PUBLIC_RECIPE_MASTER,PUBLIC_RECIPE_ALIASES} from './public-recipe-current-authority.js';
 import {PUBLIC_MAIN_SKILL_MASTER} from './public-pokemon-knowledge-master.js';
 
 export const WAR_ROOM_CONTROLLED_OPTIONS_VERSION='war-room-controlled-options-2026-08-09-a';
