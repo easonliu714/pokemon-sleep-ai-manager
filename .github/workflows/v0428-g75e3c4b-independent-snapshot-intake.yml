@@ -1,0 +1,80 @@
+name: v0.4.28 G7.5E3C4B Independent Snapshot Intake
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+      - 'fix/**'
+    paths:
+      - 'assets/js/ingredient-probability-independent-snapshot-contract.js'
+      - 'assets/js/ingredient-probability-independent-source-admission.js'
+      - 'assets/js/ingredient-probability-independent-crosscheck-contract.js'
+      - 'assets/js/ingredient-probability-independent-source-readiness.js'
+      - 'assets/js/ingredient-probability-activation-policy.js'
+      - 'assets/js/public-pokemon-species-form-roster.js'
+      - 'assets/js/production-authority-registry.js'
+      - 'assets/js/version-authority.js'
+      - 'scripts/v0428-g75e3c4b-independent-snapshot-intake-gate.mjs'
+      - 'scripts/v0428-g75e3c4a-independent-source-admission-contract.mjs'
+      - 'scripts/v0428-g75e3c4-independent-crosscheck-contract.mjs'
+      - 'scripts/v0428-g75e3c2-public-species-form-roster-contract.mjs'
+      - 'scripts/v0427-release-contract.mjs'
+      - '.github/workflows/v0428-g75e3c4b-independent-snapshot-intake.yml'
+  pull_request:
+    paths:
+      - 'assets/js/ingredient-probability-independent-snapshot-contract.js'
+      - 'assets/js/ingredient-probability-independent-source-admission.js'
+      - 'assets/js/ingredient-probability-independent-crosscheck-contract.js'
+      - 'assets/js/ingredient-probability-independent-source-readiness.js'
+      - 'assets/js/ingredient-probability-activation-policy.js'
+      - 'assets/js/public-pokemon-species-form-roster.js'
+      - 'assets/js/production-authority-registry.js'
+      - 'assets/js/version-authority.js'
+      - 'scripts/v0428-g75e3c4b-independent-snapshot-intake-gate.mjs'
+      - 'scripts/v0428-g75e3c4a-independent-source-admission-contract.mjs'
+      - 'scripts/v0428-g75e3c4-independent-crosscheck-contract.mjs'
+      - 'scripts/v0428-g75e3c2-public-species-form-roster-contract.mjs'
+      - 'scripts/v0427-release-contract.mjs'
+      - '.github/workflows/v0428-g75e3c4b-independent-snapshot-intake.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  independent-snapshot-intake:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check independent snapshot intake
+        run: |
+          node --check assets/js/ingredient-probability-independent-snapshot-contract.js
+          node --check scripts/v0428-g75e3c4b-independent-snapshot-intake-gate.mjs
+      - name: Verify independent snapshot intake contract
+        run: node scripts/v0428-g75e3c4b-independent-snapshot-intake-gate.mjs
+      - name: Preserve source admission and crosscheck governance
+        run: |
+          node scripts/v0428-g75e3c4a-independent-source-admission-contract.mjs
+          node scripts/v0428-g75e3c4-independent-crosscheck-contract.mjs
+      - name: Preserve roster and v0.4.27 Production boundary
+        run: |
+          node scripts/v0428-g75e3c2-public-species-form-roster-contract.mjs
+          node scripts/v0427-release-contract.mjs
+      - name: Verify snapshot intake remains governance-only
+        run: |
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const file='assets/js/ingredient-probability-independent-snapshot-contract.js';
+          const source=fs.readFileSync(file,'utf8');
+          for(const forbidden of ['fetch(', 'raw.githubusercontent.com', 'localStorage', 'sessionStorage', 'indexedDB', 'INSERT INTO', 'UPDATE ingredient_inventory', 'DELETE FROM', 'applyPayload(', 'dryRun(']) {
+            if(source.includes(forbidden)) throw new Error(`${file} contains forbidden runtime/write path: ${forbidden}`);
+          }
+          const sw=fs.readFileSync('service-worker.js','utf8');
+          if(sw.includes('ingredient-probability-independent-snapshot-contract.js')) throw new Error('snapshot intake governance must not be PWA precached before an accepted source exists');
+          NODE
+      - name: Verify repository not mutated
+        run: git diff --exit-code
