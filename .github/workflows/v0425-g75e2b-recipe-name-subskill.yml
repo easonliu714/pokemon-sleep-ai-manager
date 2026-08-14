@@ -1,0 +1,79 @@
+name: v0.4.25 G7.5E2B Recipe Name + Subskill Numeric Contract
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+    paths:
+      - 'assets/js/version-authority.js'
+      - 'assets/js/public-recipe-name-audit-v0425.js'
+      - 'assets/js/public-recipe-current-authority.js'
+      - 'assets/js/public-recipe-alias-master.js'
+      - 'assets/js/public-recipe-master-sync.js'
+      - 'assets/js/recipe-display-name-evidence.js'
+      - 'assets/js/public-catalog-workbench.js'
+      - 'assets/js/pokemon-master-options.js'
+      - 'assets/js/strategy-optimization-pack.js'
+      - 'assets/js/production-authority-registry.js'
+      - 'service-worker.js'
+      - 'scripts/v0423-production-modifier-contract.mjs'
+      - 'scripts/v0424-nature-numeric-modifier-contract.mjs'
+      - 'scripts/v0425-recipe-name-subskill-contract.mjs'
+      - 'scripts/v0425-release-contract.mjs'
+      - '.github/workflows/v0425-g75e2b-recipe-name-subskill.yml'
+  pull_request:
+    paths:
+      - 'assets/js/version-authority.js'
+      - 'assets/js/public-recipe-name-audit-v0425.js'
+      - 'assets/js/public-recipe-current-authority.js'
+      - 'assets/js/public-recipe-alias-master.js'
+      - 'assets/js/public-recipe-master-sync.js'
+      - 'assets/js/recipe-display-name-evidence.js'
+      - 'assets/js/public-catalog-workbench.js'
+      - 'assets/js/pokemon-master-options.js'
+      - 'assets/js/strategy-optimization-pack.js'
+      - 'assets/js/production-authority-registry.js'
+      - 'service-worker.js'
+      - 'scripts/v0423-production-modifier-contract.mjs'
+      - 'scripts/v0424-nature-numeric-modifier-contract.mjs'
+      - 'scripts/v0425-recipe-name-subskill-contract.mjs'
+      - 'scripts/v0425-release-contract.mjs'
+      - '.github/workflows/v0425-g75e2b-recipe-name-subskill.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check v0.4.25 runtime and contracts
+        run: |
+          node --check assets/js/version-authority.js
+          node --check assets/js/public-recipe-name-audit-v0425.js
+          node --check assets/js/public-recipe-current-authority.js
+          node --check assets/js/public-recipe-alias-master.js
+          node --check assets/js/public-recipe-master-sync.js
+          node --check assets/js/recipe-display-name-evidence.js
+          node --check assets/js/public-catalog-workbench.js
+          node --check assets/js/pokemon-master-options.js
+          node --check assets/js/strategy-optimization-pack.js
+          node --check scripts/v0425-recipe-name-subskill-contract.mjs
+          node --check scripts/v0425-release-contract.mjs
+          node --check service-worker.js
+      - name: Recipe zh-TW name authority and subskill numeric contract
+        run: node scripts/v0425-recipe-name-subskill-contract.mjs
+      - name: Preserve v0.4.24 Nature numeric contract
+        run: node scripts/v0424-nature-numeric-modifier-contract.mjs
+      - name: Preserve v0.4.23 structural modifier contract
+        run: node scripts/v0423-production-modifier-contract.mjs
+      - name: Preserve evidence-gated scoring algorithm contract
+        run: node scripts/v042-pokemon-scoring-engine-contract.mjs
+      - name: v0.4.25 release authority contract
+        run: node scripts/v0425-release-contract.mjs
