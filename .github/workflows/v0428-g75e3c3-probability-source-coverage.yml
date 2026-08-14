@@ -51,7 +51,15 @@ jobs:
       - name: Extract pinned source evidence
         env:
           ALLOW_PINNED_EVIDENCE_FETCH: '1'
-        run: node scripts/v0428-g75e3c3-extract-neroli-probability-source.mjs --output=artifacts/v0428_g75e3c3_probability_source_coverage.json
+        run: |
+          set +e
+          node scripts/v0428-g75e3c3-extract-neroli-probability-source.mjs --output=artifacts/v0428_g75e3c3_probability_source_coverage.json
+          code=$?
+          if [ -f artifacts/v0428_g75e3c3_probability_source_coverage.json ]; then
+            echo '=== SOURCE COVERAGE MISSING ROWS ==='
+            node -e "const a=require('./artifacts/v0428_g75e3c3_probability_source_coverage.json'); console.log(JSON.stringify(a.missing,null,2));"
+          fi
+          exit $code
       - name: Verify 242-row source coverage remains non-activating
         run: node scripts/v0428-g75e3c3-probability-source-coverage-contract.mjs --artifact=artifacts/v0428_g75e3c3_probability_source_coverage.json
       - name: Preserve public roster denominator and probability admission policy
@@ -73,12 +81,14 @@ jobs:
           if(sw.includes('v0428-g75e3c3-extract-neroli-probability-source')) throw new Error('CI extractor must not be precached/runtime imported');
           NODE
       - name: Upload probability source coverage artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: v0428-g75e3c3-probability-source-coverage
           path: artifacts/v0428_g75e3c3_probability_source_coverage.json
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
       - name: Verify repository mutation is artifact-only
+        if: success()
         run: |
           git diff --exit-code -- . ':!artifacts/**'
