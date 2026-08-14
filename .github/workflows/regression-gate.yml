@@ -42,6 +42,9 @@ jobs:
           ALLOW_PINNED_EVIDENCE_FETCH: '1'
         run: node scripts/species-form-zh-tw-identity-source-extract.mjs
 
+      - name: Verify zh-TW species/form identity runtime parity
+        run: node scripts/species-form-zh-tw-identity-runtime-parity.mjs
+
       - name: Upload species authority audits
         uses: actions/upload-artifact@v4
         with:
