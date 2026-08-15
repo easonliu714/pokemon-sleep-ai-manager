@@ -3,16 +3,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 
-export const CI_TOPOLOGY_POLICY_VERSION='ci-topology-policy-2026-08-14-a';
+export const CI_TOPOLOGY_POLICY_VERSION='ci-topology-policy-2026-08-15-b-p5-retirement';
 const WORKFLOW_DIR='.github/workflows';
 
 // Main-tree workflow files are the topology authority. GitHub Actions may keep
 // registry identities after their YAML has been retired; registry history must
 // never be used to recreate a workflow on main.
 const APPROVED_MAIN_WORKFLOWS=Object.freeze([
-  'data-evo1-observed-evolution-coverage.yml',
   'data1d1-ocr-regression.yml',
-  'debug-trace-manager-regression.yml',
   'deploy-pages.yml',
   'g13-ocr-ai-regression.yml',
   'g14-backup-truth-restore.yml',
@@ -28,10 +26,6 @@ const APPROVED_MAIN_WORKFLOWS=Object.freeze([
   'regression-gate.yml',
   'tech2d-android-import-regression.yml',
   'uc-img-a.yml',
-  'v0396-general-json-audit.yml',
-  'v0397-profile-completeness.yml',
-  'v0398-update-center-multiscenario.yml',
-  'v0399-human-readable-diff-review.yml',
   'v04133-shared-gemini-transport-diagnostic.yml',
   'v04134-recipe-pot-scenario-contract.yml',
   'v04135-account-capacity-apply-not-null.yml',
@@ -72,6 +66,12 @@ const GRANDFATHERED_VERSION_SPECIFIC_WORKFLOWS=Object.freeze(
 const REGISTRY_STALE_NO_MAIN_FILE=Object.freeze([
   'v0393-release-authority-generator.yml',
   'v0393-post-migration-startup-gate.yml',
+  'debug-trace-manager-regression.yml',
+  'v0396-general-json-audit.yml',
+  'v0397-profile-completeness.yml',
+  'v0398-update-center-multiscenario.yml',
+  'v0399-human-readable-diff-review.yml',
+  'data-evo1-observed-evolution-coverage.yml',
 ]);
 
 const TOPOLOGY_CONTRACTS=Object.freeze([
@@ -81,6 +81,7 @@ const TOPOLOGY_CONTRACTS=Object.freeze([
   'scripts/ci-legacy-runtime-workflow-consolidation-contract.mjs',
   'scripts/ci-data1d1-workflow-consolidation-contract.mjs',
   'scripts/ci-war-room-workflow-consolidation-contract.mjs',
+  'scripts/ci-p5-wrapper-parity-contract.mjs',
 ]);
 
 function annotationSafe(value){
@@ -159,6 +160,7 @@ console.log(JSON.stringify({
   version_specific_workflow_count:actualVersionSpecific.length,
   protected_independent_workflow_count:PROTECTED_INDEPENDENT_WORKFLOWS.length,
   retired_wrapper_contracts_replayed:TOPOLOGY_CONTRACTS.length,
+  p5_retired_wrapper_count:6,
   registry_stale_no_main_file_count:REGISTRY_STALE_NO_MAIN_FILE.length,
   actions_registry_is_authoritative:false,
   main_tree_is_topology_authority:true,
