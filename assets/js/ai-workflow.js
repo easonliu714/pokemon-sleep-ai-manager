@@ -1,8 +1,14 @@
 import {AI_OBSERVATION_PROMPT,buildObservationTemplate,normalizeObservationPayload,validateObservationPayload} from './ai-observation.js';
 import {isWeeklyContextPayload,prepareWeeklyContextPayloadForImporter,validateWeeklyContextImportPayload} from './weekly-context-import-contract.js';
 import {UPDATE_PACKAGE_REQUIRED_ROOT,legacyUpdatePackageEnvelopeGuidance} from './update-package-contract.js';
+import {
+  FIRST_PARTY_OBSERVATION_UPDATE_ENTITY,
+  FIRST_PARTY_OBSERVATION_UPDATE_SCENARIO,
+  validateFirstPartyIngredientObservationUpdatePackage,
+  validateFirstPartyIngredientObservationUpdateOperation,
+} from './ingredient-probability-first-party-observation-update.js';
 
-const ALLOWED_ENTITIES=new Set(['pokemon','pokemon_ingredients','pokemon_subskills','pokemon_identity_evidence','pokemon_evolution_history','ingredient_inventory','item_inventory','candy_inventory','account_capacity','discarded_pokemon','recipes','recipe_ingredients','weekly_plan','weekly_context','weekly_strategy','settings']);
+const ALLOWED_ENTITIES=new Set(['pokemon','pokemon_ingredients','pokemon_subskills','pokemon_identity_evidence','pokemon_evolution_history','ingredient_inventory','item_inventory','candy_inventory','account_capacity','discarded_pokemon','recipes','recipe_ingredients','weekly_plan','weekly_context','weekly_strategy','settings','ingredient_probability_observations']);
 const ALLOWED_ACTIONS=new Set(['insert','update','upsert','archive','discarded','delete']);
 const LEVELS={pokemon_ingredients:new Set([1,30,60]),pokemon_subskills:new Set([10,25,50,70,80])};
 const LEGACY_SUBSKILL_LEVELS=new Map([[75,70],[100,80]]);
@@ -12,6 +18,7 @@ const SCENARIO_ENTITIES=Object.freeze({
   candy_inventory_update:new Set(['candy_inventory']),
   recipe_status_update:new Set(['recipes','account_capacity']),
   weekly_context_update:new Set(['weekly_context']),
+  [FIRST_PARTY_OBSERVATION_UPDATE_SCENARIO]:new Set([FIRST_PARTY_OBSERVATION_UPDATE_ENTITY]),
   recipes:new Set(['recipes','recipe_ingredients']),
   ingredients:new Set(['ingredient_inventory','account_capacity']),
   items:new Set(['item_inventory','account_capacity']),
@@ -33,8 +40,13 @@ export {normalizeObservationPayload,validateObservationPayload};
 export {UPDATE_PACKAGE_REQUIRED_ROOT};
 
 function validNonNegativeInteger(value){return Number.isInteger(value)&&value>=0;}
-function validateScenarioValue(operation,label,errors){
+function validateScenarioValue(operation,label,errors,warnings){
   const data=operation.data||{};
+  if(operation.entity===FIRST_PARTY_OBSERVATION_UPDATE_ENTITY){
+    const validation=validateFirstPartyIngredientObservationUpdateOperation(operation);
+    errors.push(...validation.errors.map(message=>`${label} ${message}`));
+    warnings.push(...validation.warnings.map(message=>`${label} ${message}`));
+  }
   if(operation.entity==='ingredient_inventory'&&hasOwn(data,'quantity')&&!isEmpty(data.quantity)&&!validNonNegativeInteger(data.quantity))errors.push(`${label} ingredient quantity 必須為 0 以上整數`);
   if(['item_inventory','candy_inventory'].includes(operation.entity)){
     for(const field of ['quantity','safe_reserve'])if(hasOwn(data,field)&&!isEmpty(data[field])&&!validNonNegativeInteger(data[field]))errors.push(`${label} ${operation.entity==='candy_inventory'?'candy':'item'} ${field} 必須為 0 以上整數`);
@@ -111,10 +123,16 @@ function validateUpdatePackage(payload){
       if(value===0)explicitZeroCount+=1;
       if(value===false)explicitFalseCount+=1;
     }
-    validateScenarioValue(operation,label,errors);
+    validateScenarioValue(operation,label,errors,warnings);
     const confidence=operation.evidence?.confidence;
     if(confidence!=null&&(typeof confidence!=='number'||confidence<0||confidence>1))errors.push(`${label} confidence 必須介於 0 到 1`);
   });
+  const hasFirstPartyObservation=payload.operations.some(operation=>operation?.entity===FIRST_PARTY_OBSERVATION_UPDATE_ENTITY);
+  if(hasFirstPartyObservation||payload.scenario===FIRST_PARTY_OBSERVATION_UPDATE_SCENARIO){
+    const validation=validateFirstPartyIngredientObservationUpdatePackage(payload);
+    errors.push(...validation.errors);
+    warnings.push(...validation.warnings);
+  }
   payload.operations.forEach((operation,index)=>{if(['pokemon_ingredients','pokemon_subskills'].includes(operation.entity)){const id=operation.key?.pokemon_id;if(id&&!pokemonIds.has(id))warnings.push(`#${index+1} 關聯個體 ${id} 未在同一更新包中出現；將依現有資料庫判定`);}});
   if(emptyFieldCount)warnings.push(`偵測到 ${emptyFieldCount} 個空值欄位；預設不覆蓋資料庫既有非空值。只有 clear_fields 明確列出的欄位才會清空。`);
   const confirmations=Array.isArray(payload.profile_audit_confirmations)?payload.profile_audit_confirmations:[];
@@ -122,7 +140,7 @@ function validateUpdatePackage(payload){
     if(item?.status==='user_confirmed_not_visible'&&item.confirmed_by_user!==true)errors.push(`profile_audit_confirmations #${index+1} 尚未由使用者確認`);
   });
   const counts={};for(const operation of payload.operations)counts[operation.entity]=(counts[operation.entity]||0)+1;
-  return {errors,warnings,review,summary:{scenario:payload.scenario||'general',operation_count:payload.operations.length,entity_counts:counts,review_required_count:review.length,empty_field_count:emptyFieldCount,explicit_zero_count:explicitZeroCount,explicit_false_count:explicitFalseCount,profile_confirmation_count:confirmations.length,null_overwrite_policy:'preserve_existing_unless_clear_fields'}};
+  return {errors:[...new Set(errors)],warnings:[...new Set(warnings)],review,summary:{scenario:payload.scenario||'general',operation_count:payload.operations.length,entity_counts:counts,review_required_count:review.length,empty_field_count:emptyFieldCount,explicit_zero_count:explicitZeroCount,explicit_false_count:explicitFalseCount,profile_confirmation_count:confirmations.length,null_overwrite_policy:'preserve_existing_unless_clear_fields'}};
 }
 
 export function validateWorkflow(payload){

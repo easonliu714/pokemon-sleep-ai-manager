@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 
-export const PRODUCTION_EVIDENCE_REGRESSION_VERSION='production-evidence-regression-2026-08-14-d';
+export const PRODUCTION_EVIDENCE_REGRESSION_VERSION='production-evidence-regression-2026-08-15-e-e3c6b';
 const PREDECESSOR_BRIDGE='scripts/v0423-predecessor-contract-runner.mjs';
 
 // Production/G7 behavioral lineage only. Recipe v0.4.22.1 keeps its own
@@ -31,6 +31,7 @@ export const PRODUCTION_BEHAVIORAL_CONTRACTS=Object.freeze([
   'scripts/v0428-g75e3c4b-independent-snapshot-intake-gate.mjs',
   'scripts/v0428-g75e3c5-source-lineage-review-contract.mjs',
   'scripts/v0428-g75e3c6-first-party-observation-contract.mjs',
+  'scripts/v0428-g75e3c6b-first-party-observation-update-contract.mjs',
 ]);
 
 // v0.4.16–v0.4.22 validate historical release identities but are designed to
@@ -61,6 +62,8 @@ const PRODUCTION_RUNTIME_FILES=Object.freeze([
   'assets/js/ingredient-probability-independent-snapshot-contract.js',
   'assets/js/ingredient-probability-independent-source-lineage-review.js',
   'assets/js/ingredient-probability-first-party-observation-contract.js',
+  'assets/js/ingredient-probability-first-party-observation-update.js',
+  'assets/js/ingredient-probability-first-party-observation-ui.js',
   'assets/js/public-species-ingredient-rate-reference.js',
   'assets/js/public-berry-strength-master.js',
   'assets/js/favorite-berry-multiplier-contract.js',
@@ -110,6 +113,12 @@ const observationSource=fs.readFileSync('assets/js/ingredient-probability-first-
 for(const forbidden of ['fetch(', 'XMLHttpRequest', 'localStorage', 'sessionStorage', 'indexedDB']){
   assert.equal(observationSource.includes(forbidden),false,`first-party observation contract contains forbidden path: ${forbidden}`);
 }
+const observationUpdateSource=fs.readFileSync('assets/js/ingredient-probability-first-party-observation-update.js','utf8');
+for(const forbidden of ['fetch(', 'XMLHttpRequest', 'localStorage', 'sessionStorage']){
+  assert.equal(observationUpdateSource.includes(forbidden),false,`first-party observation update adapter contains forbidden remote/storage side channel: ${forbidden}`);
+}
+assert.ok(observationUpdateSource.includes("sample_sufficiency_for_activation:'NOT_DEFINED'"),'E3C-6B must not invent a sufficiency threshold');
+assert.ok(observationUpdateSource.includes("activation_authority_granted:false"),'E3C-6B aggregate must not activate Ingredient Probability');
 
 run('git',['diff','--exit-code'],{label:'repository mutation guard'});
 
@@ -124,4 +133,6 @@ console.log(JSON.stringify({
   production_authority_mutated:false,
   behavioral_contracts_removed:0,
   runtime_network_authority_added:false,
+  first_party_observation_capture_persistent_local_only:true,
+  first_party_observation_activation_authority:false,
 },null,2));

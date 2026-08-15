@@ -12,6 +12,13 @@ import { localIso } from './time-utils.js';
 import {buildSparseObservedPatch,isObservedWriteValue} from './data-preservation-policy.js';
 import {rebaseWeeklyManualOverrideForImport} from './weekly-context-manual-override.js';
 import {assertPokemonVisualUpdatePackageSafe} from './pokemon-visual-update-preflight.js';
+import {
+  FIRST_PARTY_OBSERVATION_UPDATE_ENTITY,
+  FIRST_PARTY_OBSERVATION_UPDATE_SCENARIO,
+  prepareFirstPartyIngredientObservationStorageData,
+  validateFirstPartyIngredientObservationUpdatePackage,
+  validateFirstPartyIngredientObservationUpdateOperation,
+} from './ingredient-probability-first-party-observation-update.js';
 
 const KEYS = {
   account_capacity: ['capacity_key'],
@@ -30,6 +37,7 @@ const KEYS = {
   settings: ['key'],
   recipes: ['recipe_id'],
   recipe_ingredients: ['recipe_id', 'ingredient_name'],
+  ingredient_probability_observations: ['observation_id'],
 };
 
 const ACTIONS = new Set(['insert', 'update', 'upsert', 'archive', 'discarded', 'delete']);
@@ -64,6 +72,10 @@ function validateProfileAudit(payload) {
 function validateEntityValues(operation, index) {
   const data = operation.data || {};
   const label = `操作 ${index}`;
+  if (operation.entity === FIRST_PARTY_OBSERVATION_UPDATE_ENTITY) {
+    const validation=validateFirstPartyIngredientObservationUpdateOperation(operation);
+    if(validation.errors.length)throw new Error(`${label}：${validation.errors.join('；')}`);
+  }
   if (operation.entity === 'ingredient_inventory' && hasOwn(data, 'quantity') && isMeaningful(data.quantity) && !validNonNegativeInteger(data.quantity)) {
     throw new Error(`${label}：quantity 必須為 0 以上整數`);
   }
@@ -87,6 +99,11 @@ function validate(payload) {
   if (!Array.isArray(payload.operations)) throw new Error('operations 必須是陣列');
   if (payload.operations.length > 5000) throw new Error('單包最多 5000 operations');
   validateProfileAudit(payload);
+  const hasFirstPartyObservation=payload.operations.some(operation=>operation?.entity===FIRST_PARTY_OBSERVATION_UPDATE_ENTITY);
+  if(hasFirstPartyObservation||payload.scenario===FIRST_PARTY_OBSERVATION_UPDATE_SCENARIO){
+    const validation=validateFirstPartyIngredientObservationUpdatePackage(payload);
+    if(validation.errors.length)throw new Error(`E3C-6B first-party observation 更新包驗證失敗：${validation.errors.join('；')}`);
+  }
 
   payload.operations.forEach((operation, index) => {
     if (!KEYS[operation.entity]) throw new Error(`操作 ${index}：不支援 entity`);
@@ -134,6 +151,9 @@ function sparseData(operation) {
 }
 
 function managedData(operation, key, before, inputData, payload) {
+  if(operation.entity===FIRST_PARTY_OBSERVATION_UPDATE_ENTITY){
+    return prepareFirstPartyIngredientObservationStorageData(operation,payload,localIso());
+  }
   const data = { ...inputData };
   const hasPlayerChange = Object.keys(inputData).some((field) => !['updated_at', 'source_update_id'].includes(field));
   // account_capacity.updated_at is NOT NULL; screenshot/public-master operations carry observed capacity only, so the importer owns the persistence timestamp.

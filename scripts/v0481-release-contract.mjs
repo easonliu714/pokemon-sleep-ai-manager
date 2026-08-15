@@ -26,7 +26,9 @@ for(const token of ['camp-berry-scroll','overflow-x:auto','touch-action:pan-x pa
 assert.ok(sw.includes("importScripts('./assets/js/version-authority.js')"));
 assert.ok(sw.includes("url.pathname.endsWith('.js')"),'runtime JS must remain on the network-first/cache-write path');
 assert.ok(sw.includes('caches.open(CACHE).then(cache=>cache.put(event.request,copy))'),'successful runtime JS load must be cached for supported offline reopen');
-assert.equal(read('assets/js/migrations.js').includes('VALUES(10,'),false,'v0.4.8.1 behavior must remain migration-10 free');
+const migrations=read('assets/js/migrations.js');
+assert.equal(migrations.includes('weekly-context-manual-override'),false,'v0.4.8.1 Weekly Manual Override must remain migration-free');
+assert.ok(migrations.includes('applyIngredientProbabilityObservationMigration'),'later E3C-6B local evidence migration may coexist without changing v0.4.8.1 migration ownership');
 
 console.log(JSON.stringify({
   status:'PASS',gate:'V0.4.8.1_RELEASE_HISTORICAL_CONTRACT',current_app_version:app,

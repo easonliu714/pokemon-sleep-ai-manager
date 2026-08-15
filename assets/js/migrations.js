@@ -8,6 +8,8 @@ import {applyCanonicalRegistry,CANONICAL_REGISTRY_VERSION} from './canonical-reg
 import {applyPublicPokemonKnowledgeSchema,applyPublicPokemonKnowledgeData,PUBLIC_POKEMON_KNOWLEDGE_VERSION} from './public-pokemon-knowledge-master.js';
 import {applyPublicCandyMasterSchema,syncPublicCandyMaster,PUBLIC_CANDY_MASTER_VERSION} from './public-candy-master.js';
 
+export const E3C6B_SCHEMA_MIGRATION_VERSION=11;
+
 function rows(db,sql,params=[]){const statement=db.prepare(sql);statement.bind(params);const output=[];while(statement.step())output.push(statement.getAsObject());statement.free();return output;}
 function scalar(db,sql,params=[]){const result=rows(db,sql,params);return result.length?Object.values(result[0])[0]:null;}
 function hasMigration(db,version){return Number(scalar(db,'SELECT COUNT(*) FROM schema_migrations WHERE version=?',[version])||0)>0;}
@@ -78,6 +80,61 @@ export function applyCandyInventoryMigration(db){
   db.run(`CREATE INDEX IF NOT EXISTS idx_candy_inventory_updated ON candy_inventory(updated_at)`);
   db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(9,datetime('now'))`);
 }
+
+// Compatibility note: historical v0.4.8–v0.4.9 contracts intentionally preserve
+// migration 10 as their "no new migration" sentinel. E3C-6B therefore uses 11;
+// schema_migrations does not require contiguous numeric versions.
+export function applyIngredientProbabilityObservationMigration(db){
+  db.run(`CREATE TABLE IF NOT EXISTS ingredient_probability_observations(
+    observation_id TEXT PRIMARY KEY,
+    observation_source TEXT NOT NULL,
+    observation_mode TEXT NOT NULL,
+    source_key TEXT NOT NULL,
+    canonical_species_form_id TEXT NOT NULL,
+    species_form_identity_confirmed INTEGER NOT NULL DEFAULT 0,
+    player_private_identity_included INTEGER NOT NULL DEFAULT 0,
+    observation_evidence_refs TEXT NOT NULL DEFAULT '[]',
+    level INTEGER NOT NULL,
+    ingredient_slots TEXT NOT NULL DEFAULT '[]',
+    individual_ingredient_rate_modifier_state TEXT NOT NULL,
+    environment_ingredient_rate_modifier_state TEXT NOT NULL,
+    inventory_empty_at_window_start INTEGER NOT NULL DEFAULT 0,
+    collection_before_inventory_overflow_confirmed INTEGER NOT NULL DEFAULT 0,
+    sneaky_snacking_or_overflow_observed INTEGER NOT NULL DEFAULT 0,
+    helper_whistle_used INTEGER NOT NULL DEFAULT 0,
+    external_extra_help_effect_used INTEGER NOT NULL DEFAULT 0,
+    non_help_item_contamination INTEGER NOT NULL DEFAULT 0,
+    collection_counts_complete INTEGER NOT NULL DEFAULT 0,
+    external_rate_value_used_to_reconstruct_events INTEGER NOT NULL DEFAULT 0,
+    berry_items_collected INTEGER,
+    ingredient_items_collected INTEGER,
+    berry_items_per_help INTEGER,
+    berry_items_per_help_authority TEXT,
+    inventory_items_before_collection INTEGER,
+    inventory_capacity INTEGER,
+    capture_input_method TEXT NOT NULL,
+    contract_id TEXT NOT NULL,
+    contract_version TEXT NOT NULL,
+    status TEXT NOT NULL,
+    blockers TEXT NOT NULL DEFAULT '[]',
+    eligible_for_statistical_aggregation INTEGER NOT NULL DEFAULT 0,
+    berry_help_event_count INTEGER,
+    ingredient_help_event_count INTEGER,
+    total_help_event_count INTEGER,
+    ingredient_event_fraction REAL,
+    statistical_semantics TEXT,
+    base_rate_normalization_applied INTEGER NOT NULL DEFAULT 0,
+    activation_authority_granted INTEGER NOT NULL DEFAULT 0,
+    independent_source_admission_granted INTEGER NOT NULL DEFAULT 0,
+    safety TEXT NOT NULL DEFAULT '{}',
+    captured_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    source_update_id TEXT
+  )`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_ingredient_probability_observations_aggregate ON ingredient_probability_observations(status,eligible_for_statistical_aggregation,source_key,captured_at)`);
+  db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(${E3C6B_SCHEMA_MIGRATION_VERSION},datetime('now'))`);
+}
+
 export function applyStandardCatalogCompatibilityMigration(db){
   applySharedMasterSchema(db);
   const changed=addColumnIfMissing(db,'item_master','effect_description_zh_tw','TEXT');
@@ -119,7 +176,7 @@ export function auditAndSyncPublicMasters(db,{force=false}={}){
 }
 
 export function applyFreshDatabaseBootstrap(db){
-  applySharedMasterSchema(db);applyPublicPokemonKnowledgeSchema(db);applyCandyInventoryMigration(db);applyPublicCandyMasterSchema(db);
+  applySharedMasterSchema(db);applyPublicPokemonKnowledgeSchema(db);applyCandyInventoryMigration(db);applyIngredientProbabilityObservationMigration(db);applyPublicCandyMasterSchema(db);
   applyIdentityMigration(db);applyGameDataMigration(db);applyPersonalRecipeMigration(db);applyCompletePokemonDetailMigration(db);applyWarRoomStrategySnapshotMigration(db);applyStandardCatalogCompatibilityMigration(db);
   db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(4,datetime('now'))`);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(6,datetime('now'))`);
   const publicMaster=auditAndSyncPublicMasters(db,{force:true});
@@ -136,6 +193,7 @@ export function applyAllMigrations(db){
   if(!hasMigration(db,7)){applyCompletePokemonDetailMigration(db);databaseChanged=true;}
   if(!hasMigration(db,8)){applyWarRoomStrategySnapshotMigration(db);databaseChanged=true;}
   if(!hasMigration(db,9)){applyCandyInventoryMigration(db);databaseChanged=true;}
+  if(!hasMigration(db,E3C6B_SCHEMA_MIGRATION_VERSION)){applyIngredientProbabilityObservationMigration(db);databaseChanged=true;}
   if(applyStandardCatalogCompatibilityMigration(db))databaseChanged=true;
   const publicMaster=auditAndSyncPublicMasters(db);
   return {database_changed:databaseChanged||publicMaster.updated,public_master:publicMaster};

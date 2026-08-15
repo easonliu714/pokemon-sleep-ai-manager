@@ -96,6 +96,55 @@ CREATE TABLE IF NOT EXISTS pokemon_evaluation_snapshot(
 CREATE INDEX IF NOT EXISTS idx_pokemon_evaluation_snapshot_current ON pokemon_evaluation_snapshot(pokemon_id,stale_at,evaluated_at);
 CREATE INDEX IF NOT EXISTS idx_pokemon_evaluation_snapshot_fingerprint ON pokemon_evaluation_snapshot(input_fingerprint);
 CREATE TABLE IF NOT EXISTS collection_targets(target_id TEXT PRIMARY KEY,species TEXT NOT NULL,target_type TEXT,priority TEXT,camp TEXT,desired_traits TEXT,capture_strategy TEXT,status TEXT,notes TEXT,updated_at TEXT NOT NULL);
+-- E3C-6B: private raw first-party observations live only in the player's local SQLite.
+-- No pokemon_id / player identity column exists by design; aggregate export is separately de-identified.
+CREATE TABLE IF NOT EXISTS ingredient_probability_observations(
+  observation_id TEXT PRIMARY KEY,
+  observation_source TEXT NOT NULL,
+  observation_mode TEXT NOT NULL,
+  source_key TEXT NOT NULL,
+  canonical_species_form_id TEXT NOT NULL,
+  species_form_identity_confirmed INTEGER NOT NULL DEFAULT 0,
+  player_private_identity_included INTEGER NOT NULL DEFAULT 0,
+  observation_evidence_refs TEXT NOT NULL DEFAULT '[]',
+  level INTEGER NOT NULL,
+  ingredient_slots TEXT NOT NULL DEFAULT '[]',
+  individual_ingredient_rate_modifier_state TEXT NOT NULL,
+  environment_ingredient_rate_modifier_state TEXT NOT NULL,
+  inventory_empty_at_window_start INTEGER NOT NULL DEFAULT 0,
+  collection_before_inventory_overflow_confirmed INTEGER NOT NULL DEFAULT 0,
+  sneaky_snacking_or_overflow_observed INTEGER NOT NULL DEFAULT 0,
+  helper_whistle_used INTEGER NOT NULL DEFAULT 0,
+  external_extra_help_effect_used INTEGER NOT NULL DEFAULT 0,
+  non_help_item_contamination INTEGER NOT NULL DEFAULT 0,
+  collection_counts_complete INTEGER NOT NULL DEFAULT 0,
+  external_rate_value_used_to_reconstruct_events INTEGER NOT NULL DEFAULT 0,
+  berry_items_collected INTEGER,
+  ingredient_items_collected INTEGER,
+  berry_items_per_help INTEGER,
+  berry_items_per_help_authority TEXT,
+  inventory_items_before_collection INTEGER,
+  inventory_capacity INTEGER,
+  capture_input_method TEXT NOT NULL,
+  contract_id TEXT NOT NULL,
+  contract_version TEXT NOT NULL,
+  status TEXT NOT NULL,
+  blockers TEXT NOT NULL DEFAULT '[]',
+  eligible_for_statistical_aggregation INTEGER NOT NULL DEFAULT 0,
+  berry_help_event_count INTEGER,
+  ingredient_help_event_count INTEGER,
+  total_help_event_count INTEGER,
+  ingredient_event_fraction REAL,
+  statistical_semantics TEXT,
+  base_rate_normalization_applied INTEGER NOT NULL DEFAULT 0,
+  activation_authority_granted INTEGER NOT NULL DEFAULT 0,
+  independent_source_admission_granted INTEGER NOT NULL DEFAULT 0,
+  safety TEXT NOT NULL DEFAULT '{}',
+  captured_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  source_update_id TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_ingredient_probability_observations_aggregate ON ingredient_probability_observations(status,eligible_for_statistical_aggregation,source_key,captured_at);
 CREATE TABLE IF NOT EXISTS import_batches(update_id TEXT PRIMARY KEY,schema_version TEXT NOT NULL,generated_at TEXT NOT NULL,imported_at TEXT NOT NULL,source TEXT,operation_count INTEGER NOT NULL,result_json TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS import_changes(id INTEGER PRIMARY KEY AUTOINCREMENT,update_id TEXT NOT NULL,operation_index INTEGER NOT NULL,entity TEXT NOT NULL,action TEXT NOT NULL,key_json TEXT NOT NULL,before_json TEXT,after_json TEXT,status TEXT NOT NULL,message TEXT);
 `;
