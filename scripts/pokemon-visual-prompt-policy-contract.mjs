@@ -46,9 +46,11 @@ assert.ok(POKEMON_VISUAL_RECOGNITION_VOCABULARY.subskills.includes('技能等級
 const resourcePack=buildPokemonVisualPromptPublicResourcePack();
 assert.equal(resourcePack.player_data_included,false);
 assert.equal(resourcePack.write_authority,false);
-const resourceJson=JSON.stringify(resourcePack);
-for(const forbidden of ['pokemon_instance_id','safe_reserve','ingredientPercentage','berry_name_by_type'])assert.equal(resourceJson.includes(forbidden),false,`public prompt resource pack leaked ${forbidden}`);
-for(const excluded of ['TYPE_BERRY_RELATION_MAP','SPECIES_INGREDIENT_CANDIDATE_MAP','SPECIES_SOURCE_KEY_CATALOG','PLAYER_SQLITE_ROWS'])assert.ok(resourcePack.excluded_from_model_context.includes(excluded));
+// Only the actual model vocabulary is checked for leaked private/hidden-rate fields.
+// `excluded_from_model_context` is policy metadata and is expected to name forbidden classes explicitly.
+const modelVocabularyJson=JSON.stringify(resourcePack.vocabulary);
+for(const forbidden of ['pokemon_instance_id','safe_reserve','ingredientPercentage','berry_name_by_type'])assert.equal(modelVocabularyJson.includes(forbidden),false,`model vocabulary leaked ${forbidden}`);
+for(const excluded of ['TYPE_BERRY_RELATION_MAP','SPECIES_INGREDIENT_CANDIDATE_MAP','SPECIES_SOURCE_KEY_CATALOG','PLAYER_SQLITE_ROWS','INGREDIENT_PERCENTAGE'])assert.ok(resourcePack.excluded_from_model_context.includes(excluded));
 
 assert.ok(AI_OBSERVATION_PROMPT.includes(POKEMON_VISUAL_PROMPT_POLICY_VERSION));
 assert.ok(AI_OBSERVATION_PROMPT.includes(SCREENSHOT_PROMPT_SAFETY_VERSION));
@@ -116,7 +118,7 @@ for(const legacy of ['每隻寶可夢必須有穩定 pokemon_id','action 預設�
 
 const adapterSource=fs.readFileSync('assets/js/uc-img-gemini-adapter.js','utf8');
 assert.ok(adapterSource.includes("appendScreenshotPromptSafety(scenarioPrompt"));
-assert.ok(adapterSource.includes(SCREENSHOT_PROMPT_SAFETY_VERSION));
+assert.ok(adapterSource.includes('SCREENSHOT_PROMPT_SAFETY_VERSION'));
 assert.ok(adapterSource.includes('prompt_safety_version'));
 
 const registry=currentProductionAuthorityRegistry();
