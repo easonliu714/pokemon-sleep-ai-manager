@@ -7,11 +7,11 @@ export const BERRIES=Object.values(BERRY_BY_TYPE);
 export const INGREDIENTS=[...PUBLIC_INGREDIENT_CANONICAL_NAMES];
 export const NATURE_EFFECTS=['無','幫忙速度','食材機率','食材發現率','主技能發動機率','活力回復量','EXP獲得量'];
 export const NATURES={
-  '勤奮':['無','無'],'怕寂寞':['幫忙速度','活力回復量'],'固執':['幫忙速度','食材發現率'],'頑皮':['幫忙速度','主技能發動機率'],'勇敢':['幫忙速度','EXP獲得量'],
-  '大膽':['活力回復量','幫忙速度'],'坦率':['無','無'],'淘氣':['活力回復量','食材發現率'],'樂天':['活力回復量','主技能發動機率'],'悠閒':['活力回復量','EXP獲得量'],
-  '內斂':['食材發現率','幫忙速度'],'慢吞吞':['食材發現率','活力回復量'],'害羞':['無','無'],'馬虎':['食材發現率','主技能發動機率'],'冷靜':['食材發現率','EXP獲得量'],
-  '溫和':['主技能發動機率','幫忙速度'],'溫順':['主技能發動機率','活力回復量'],'慎重':['主技能發動機率','食材發現率'],'浮躁':['無','無'],'自大':['主技能發動機率','EXP獲得量'],
-  '膽小':['EXP獲得量','幫忙速度'],'急躁':['EXP獲得量','活力回復量'],'爽朗':['EXP獲得量','食材發現率'],'天真':['EXP獲得量','主技能發動機率'],'認真':['無','無']
+  '勤奮':['無','無'],'怕寂寞':['幫忙速度','活力回復量'],'固執':['幫忙速度','食材機率'],'頑皮':['幫忙速度','主技能發動機率'],'勇敢':['幫忙速度','EXP獲得量'],
+  '大膽':['活力回復量','幫忙速度'],'坦率':['無','無'],'淘氣':['活力回復量','食材機率'],'樂天':['活力回復量','主技能發動機率'],'悠閒':['活力回復量','EXP獲得量'],
+  '內斂':['食材機率','幫忙速度'],'慢吞吞':['食材機率','活力回復量'],'害羞':['無','無'],'馬虎':['食材機率','主技能發動機率'],'冷靜':['食材機率','EXP獲得量'],
+  '溫和':['主技能發動機率','幫忙速度'],'溫順':['主技能發動機率','活力回復量'],'慎重':['主技能發動機率','食材機率'],'浮躁':['無','無'],'自大':['主技能發動機率','EXP獲得量'],
+  '膽小':['EXP獲得量','幫忙速度'],'急躁':['EXP獲得量','活力回復量'],'爽朗':['EXP獲得量','食材機率'],'天真':['EXP獲得量','主技能發動機率'],'認真':['無','無']
 };
 export const MAIN_SKILLS=[
   '活力全體療癒S','活力療癒S','活力填充S','能量填充S','能量填充M','料理成功率提升S','食材獲取S','幫手支援S','樹果數量S','夢之碎片獲取S','夢之碎片獲取M','揮指','流星群（樹果速增）','樹果速增','治癒波動','夢魘',
@@ -68,9 +68,9 @@ export const SUBSKILL_PRODUCTION_MODIFIERS=Object.freeze({
   '睡眠EXP獎勵':modifier('sleep_exp_gain','TEAM','NOT_NUMERIC_PRODUCTION'),'研究EXP獎勵':modifier('research_exp_gain','TEAM','NOT_NUMERIC_PRODUCTION'),'夢之碎片獎勵':modifier('dream_shard_gain','TEAM','NOT_NUMERIC_PRODUCTION'),
 });
 const normalized=value=>String(value??'').normalize('NFKC').trim();
-const normalizedNatureEffect=value=>{
+const semanticNatureEffect=value=>{
   const effect=normalized(value);
-  return effect==='食材機率'?'食材發現率':effect;
+  return effect==='食材發現率'?'食材機率':effect;
 };
 function natureModifier(source_name,direction,dimension){
   const numeric=NATURE_NUMERIC_MODIFIERS[source_name]?.[direction]||null;
@@ -102,9 +102,9 @@ export function resolvePokemonProductionModifierProfile(candidate={}){
   if(!nature)conflicts.push('NATURE_MISSING');
   else if(!effects)conflicts.push('UNKNOWN_NATURE');
   else {
-    const bonus=normalizedNatureEffect(effects[0]),penalty=normalizedNatureEffect(effects[1]);
-    if(normalized(candidate.nature_bonus)&&normalizedNatureEffect(candidate.nature_bonus)!==bonus)conflicts.push('NATURE_BONUS_MISMATCH');
-    if(normalized(candidate.nature_penalty)&&normalizedNatureEffect(candidate.nature_penalty)!==penalty)conflicts.push('NATURE_PENALTY_MISMATCH');
+    const bonus=semanticNatureEffect(effects[0]),penalty=semanticNatureEffect(effects[1]);
+    if(normalized(candidate.nature_bonus)&&semanticNatureEffect(candidate.nature_bonus)!==bonus)conflicts.push('NATURE_BONUS_MISMATCH');
+    if(normalized(candidate.nature_penalty)&&semanticNatureEffect(candidate.nature_penalty)!==penalty)conflicts.push('NATURE_PENALTY_MISMATCH');
     for(const [source_name,direction] of [[bonus,'UP'],[penalty,'DOWN']]){const dimension=NATURE_PRODUCTION_DIMENSION_BY_EFFECT[source_name];if(dimension)modifiers.push(natureModifier(source_name,direction,dimension));}
   }
   for(const row of candidate.unlocked_subskills||[]){const source_name=normalized(row?.subskill_name??row),rule=SUBSKILL_PRODUCTION_MODIFIERS[source_name];if(!source_name)continue;if(!rule){conflicts.push(`UNKNOWN_SUBSKILL:${source_name}`);continue;}modifiers.push(subskillModifier(source_name,row,rule));}
