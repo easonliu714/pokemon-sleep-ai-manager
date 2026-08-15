@@ -34,8 +34,11 @@ on:
       - 'scripts/war3a-candy-inventory-contract.mjs'
       - 'scripts/data-evo1-observed-evolution-coverage-contract.mjs'
       - 'scripts/ci-p5-public-knowledge-successor-contract.mjs'
+      - 'scripts/ci-p5-wrapper-parity-contract.mjs'
+      - 'scripts/ci-topology-policy-contract.mjs'
       - 'scripts/ci-historical-release-regression.mjs'
       - 'scripts/ci-workflow-consolidation-contract.mjs'
+      - 'docs/CI_TOPOLOGY_POLICY.md'
       - '.github/workflows/historical-release-regression.yml'
   workflow_dispatch:
 
