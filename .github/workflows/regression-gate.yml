@@ -61,6 +61,9 @@ jobs:
       - name: Verify Pokémon visual evidence consistency
         run: node scripts/pokemon-visual-evidence-regression.mjs
 
+      - name: Verify direct observation display vocabulary
+        run: node scripts/direct-observation-display-vocabulary-regression.mjs
+
       - name: Verify fresh 75 Pokémon visual re-audit compiler
         run: node scripts/pokemon-75-visual-reaudit-compiler-regression.mjs
 
