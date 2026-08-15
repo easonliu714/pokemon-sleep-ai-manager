@@ -1,3 +1,4 @@
+# P5 side-by-side parity sentinel; retain this wrapper unchanged until the retirement PR.
 name: V0.3.97 Profile Completeness
 
 on:
