@@ -34,6 +34,7 @@ assert.equal(payload.source,FIRST_PARTY_OBSERVATION_UPDATE_SOURCE);
 assert.equal(payload.production_boundary.production_active_dimensions,'4/7');
 assert.equal(payload.production_boundary.ingredient_probability_per_help,'OBSERVED_PARTIAL_ONLY');
 assert.equal(payload.production_boundary.runtime_numeric_activation,false);
+assert.equal(payload.production_boundary.sample_sufficiency_for_activation,'NOT_DEFINED');
 assert.equal(payload.operations.length,1);
 const op=payload.operations[0];
 assert.equal(op.entity,FIRST_PARTY_OBSERVATION_UPDATE_ENTITY);
@@ -72,6 +73,12 @@ assert.ok(validateFirstPartyIngredientObservationUpdateOperation(tampered).error
 const privateTampered=structuredClone(payload.operations[0]);
 privateTampered.data.pokemon_id='pkm-private-001';
 assert.ok(validateFirstPartyIngredientObservationUpdateOperation(privateTampered).errors.some(message=>message.includes('私人 identity')),'private player identity must not enter Update Package');
+const clearTampered=structuredClone(payload.operations[0]);
+clearTampered.clear_fields=['ingredient_items_collected'];
+assert.ok(validateFirstPartyIngredientObservationUpdateOperation(clearTampered).errors.some(message=>message.includes('禁止 clear_fields')),'raw observation must not support destructive clear semantics');
+const boundaryTampered=structuredClone(payload);
+boundaryTampered.production_boundary.runtime_numeric_activation=true;
+assert.ok(validateFirstPartyIngredientObservationUpdatePackage(boundaryTampered).errors.some(message=>message.includes('runtime_numeric_activation')),'Update Package must never self-authorize Production activation');
 
 const aggregate=buildDeidentifiedFirstPartyIngredientAggregate([
   {...storage,status:'ACCEPTED_RAW_OBSERVATION',eligible_for_statistical_aggregation:1},
@@ -102,18 +109,25 @@ const schema=fs.readFileSync('assets/js/schema.js','utf8');
 const migrations=fs.readFileSync('assets/js/migrations.js','utf8');
 const workflow=fs.readFileSync('assets/js/ai-workflow.js','utf8');
 const ui=fs.readFileSync('assets/js/ingredient-probability-first-party-observation-ui.js','utf8');
+const bootstrap=fs.readFileSync('assets/js/bootstrap.js','utf8');
 const sw=fs.readFileSync('service-worker.js','utf8');
+const version=fs.readFileSync('assets/js/version-authority.js','utf8');
 for(const token of ['ingredient_probability_observations','prepareFirstPartyIngredientObservationStorageData'])assert.ok(importer.includes(token),`Importer missing E3C-6B guard: ${token}`);
 assert.ok(schema.includes('CREATE TABLE IF NOT EXISTS ingredient_probability_observations'),'fresh schema missing observation table');
 assert.ok(migrations.includes('applyIngredientProbabilityObservationMigration'),'migration path missing observation table');
 for(const token of [FIRST_PARTY_OBSERVATION_UPDATE_SCENARIO,FIRST_PARTY_OBSERVATION_UPDATE_ENTITY,'validateFirstPartyIngredientObservationUpdateOperation'])assert.ok(workflow.includes(token),`AI workflow missing manual observation scenario guard: ${token}`);
 for(const token of ['手動輸入','不使用 OCR','pokemon_id 不會進 Update Package','下載去識別聚合 JSON'])assert.ok(ui.includes(token),`mobile capture UI missing safety copy: ${token}`);
-for(const path of ['ingredient-probability-first-party-observation-update.js','ingredient-probability-first-party-observation-ui.js'])assert.ok(sw.includes(path),`PWA cache missing E3C-6B module: ${path}`);
+for(const path of ['ingredient-probability-first-party-observation-contract.js','ingredient-probability-first-party-observation-update.js','ingredient-probability-first-party-observation-ui.js'])assert.ok(bootstrap.includes(path),`online startup probe missing E3C-6B module: ${path}`);
+assert.ok(sw.includes("url.pathname.endsWith('.js')"),'service worker must network-first/cache JavaScript modules after a successful online startup');
+assert.ok(sw.includes('caches.open(CACHE).then(cache=>cache.put(event.request,copy))'),'service worker must retain fetched JavaScript in the active cache for later offline use');
+assert.ok(version.includes("app_build: '20260815-v0427-e3c6b-first-party-observation-capture'"),'E3C-6B build authority missing');
+assert.ok(version.includes("cache_name: 'pokemon-sleep-ai-v0.4.27-e3c6b-first-party-observation-capture'"),'E3C-6B cache rotation missing');
 
 console.log(JSON.stringify({
   status:'PASS',gate:'V0428_G75E3C6B_FIRST_PARTY_OBSERVATION_UPDATE',
   accepted_update_package:true,rejected_observation_retained_not_aggregated:true,derived_fields_revalidated:true,
   private_identity_forbidden:true,deidentified_aggregate_only:true,manual_typed_counts_only:true,ocr_event_counts:false,
+  destructive_clear_forbidden:true,self_activation_forbidden:true,offline_after_successful_online_start:true,
   sample_sufficiency_for_activation:'NOT_DEFINED',ingredient_probability_status:registry.rules.ingredient_probability_per_help.status,
   production_numeric_activation:'4/7',activation_authority_granted:false,
 },null,2));
