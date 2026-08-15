@@ -13,7 +13,7 @@ permissions:
 jobs:
   regression-gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,8 +23,34 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Verify CI topology policy
         run: node scripts/ci-topology-policy-contract.mjs
+
+      - name: Verify P5 wrapper side-by-side parity topology
+        run: node scripts/ci-p5-wrapper-parity-contract.mjs
+
+      - name: Verify Debug Trace Manager predecessor contract
+        run: |
+          node scripts/debug-trace-manager-regression.mjs
+          node scripts/identity-dedup-recipe-guard-regression.mjs
+
+      - name: Install P5 Python contract dependency
+        run: python -m pip install --disable-pip-version-check pytest
+
+      - name: Verify General JSON / Profile Completeness / Update Center predecessor contracts
+        run: >-
+          python -m pytest -q
+          tests/test_v0396_general_json_audit_contract.py
+          tests/test_v0397_profile_completeness_contract.py
+          tests/test_v0398_update_center_multiscenario_contract.py
+
+      - name: Verify P5 core Update Center / human review successor contract
+        run: node scripts/ci-p5-core-update-review-successor-contract.mjs
 
       - name: Verify species ingredient candidate boundary
         run: node scripts/species-ingredient-candidate-source-extract-contract.mjs
