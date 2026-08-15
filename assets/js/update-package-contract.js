@@ -3,7 +3,7 @@ export const UPDATE_PACKAGE_SOURCE='ai_screenshot_analysis';
 export const UPDATE_PACKAGE_REQUIRED_ROOT=Object.freeze(['schema_version','update_id','generated_at','source','operations']);
 export const UPDATE_PACKAGE_PROMPT_ROOT=Object.freeze([...UPDATE_PACKAGE_REQUIRED_ROOT,'scenario']);
 export const UPDATE_PACKAGE_ACTIONS=Object.freeze(['upsert']);
-export const UPDATE_PACKAGE_KEY_CONTRACT_VERSION='update-package-key-contract-2026-08-11-a';
+export const UPDATE_PACKAGE_KEY_CONTRACT_VERSION='update-package-key-contract-2026-08-15-b-e3c6b';
 
 const clone=value=>JSON.parse(JSON.stringify(value));
 const isoCompact=value=>String(value).replace(/[-:TZ.]/g,'').slice(0,14);
@@ -18,6 +18,7 @@ const ENTITY_KEY_JSON_PROPERTIES=Object.freeze({
   recipes:Object.freeze({recipe_id:{type:'string'},recipe_name:{type:'string'}}),
   discarded_pokemon:Object.freeze({discard_id:{type:'string'}}),
   weekly_context:Object.freeze({context_id:{type:'string'}}),
+  ingredient_probability_observations:Object.freeze({observation_id:{type:'string',description:'Platform-generated local first-party observation identifier. It is not a player Pokémon identity.'}}),
 });
 
 export function buildOperationKeyJsonSchema(entities=[]){
