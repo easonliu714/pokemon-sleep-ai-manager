@@ -29,7 +29,13 @@ const managedSource=importer.slice(managedStart,managedEnd);
 const fixedIso='2026-08-12T07:40:00.000Z';
 const hasOwn=(object,key)=>Object.prototype.hasOwnProperty.call(object||{},key);
 const rows=()=>{throw new Error('account_capacity managedData must not require recipe DB lookup');};
-const managedData=Function('hasOwn','localIso','rows',`${managedSource}; return managedData;`)(hasOwn,()=>fixedIso,rows);
+// Successor-aware dependency injection: this historical contract executes only
+// the account_capacity branch, so later entity-specific adapters must remain unreachable.
+const prepareFirstPartyIngredientObservationStorageData=()=>{throw new Error('account_capacity managedData must not enter E3C-6B adapter');};
+const managedData=Function(
+  'hasOwn','localIso','rows','FIRST_PARTY_OBSERVATION_UPDATE_ENTITY','prepareFirstPartyIngredientObservationStorageData',
+  `${managedSource}; return managedData;`,
+)(hasOwn,()=>fixedIso,rows,'ingredient_probability_observations',prepareFirstPartyIngredientObservationStorageData);
 
 const insertData=managedData({entity:'account_capacity'},{capacity_key:'pot'},null,{total_capacity:57},{update_id:'TEST-CAP'});
 assert.deepEqual(insertData,{total_capacity:57,updated_at:fixedIso});
@@ -82,6 +88,7 @@ console.log(JSON.stringify({
   gate:'V0.4.13.5_ACCOUNT_CAPACITY_APPLY_NOT_NULL_SUCCESSOR_AWARE',
   app_version:appVersion,
   historical_behavior_compatible:true,
+  successor_dependency_isolation:true,
   schema_updated_at_not_null:true,
   sparse_compiler_payload:true,
   importer_managed_timestamp:true,
