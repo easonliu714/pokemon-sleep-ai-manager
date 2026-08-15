@@ -39,6 +39,32 @@ Current topology meta-contracts replayed by the global policy:
 - `ci-legacy-runtime-workflow-consolidation-contract.mjs`
 - `ci-data1d1-workflow-consolidation-contract.mjs`
 - `ci-war-room-workflow-consolidation-contract.mjs`
+- `ci-p5-wrapper-parity-contract.mjs`
+
+## P5 core / Update Center / public-knowledge convergence
+P5 uses a two-PR retirement protocol so predecessor evidence is never deleted before replacement parity exists.
+
+P5A parity proof:
+- PR: `#316`
+- fixed head: `00d1a3920e792f1db4218c8ba3fde1d1a6484c41`
+- merge SHA: `62cb13599e7956c0e2ca9d60872d53d6783ba036`
+- six predecessor workflows and both successor domain runners executed on the same PR head;
+- 16 triggered PR workflows completed successfully;
+- post-merge main push completed 10 workflows with zero failures.
+
+P5B retires these six wrapper files only after that proof:
+- `debug-trace-manager-regression.yml`
+- `v0396-general-json-audit.yml`
+- `v0397-profile-completeness.yml`
+- `v0398-update-center-multiscenario.yml`
+- `v0399-human-readable-diff-review.yml`
+- `data-evo1-observed-evolution-coverage.yml`
+
+Their behaviors remain executable in:
+- `regression-gate.yml` for Debug Trace, General JSON, Profile Completeness, Update Center multiscenario, and human-readable review;
+- `historical-release-regression.yml` for Public Pokémon Knowledge / Evolution / Candy historical coverage.
+
+P5 topology target is therefore **33 → 27 workflow YAML files**, with `behavioral_contracts_removed=0`. Core trigger coverage is widened to every PR/push on `main`; historical public-knowledge trigger coverage is the union of the retired evolution/public paths. Both successors remain read-only and repository-non-mutating.
 
 ## Release mutation policy
 Test/regression workflows are not release writers.
@@ -52,14 +78,14 @@ Main workflows must not:
 Deployment-specific GitHub Pages permissions such as `pages: write` / `id-token: write` are a separate deployment boundary and are not repository-content mutation authority.
 
 ## Version-specific workflow policy
-The small set of version-specific workflows still tracked after P0–P3 cleanup is grandfathered as the current baseline. It is not a template for future growth.
+The small set of version-specific workflows still tracked after P0–P5 cleanup is grandfathered as the current baseline. It is not a template for future growth.
 
 Any additional `v*.yml` standalone workflow causes the topology contract to fail until the PR either:
 1. moves the new behavior into an existing consolidated/domain runner; or
 2. explicitly updates the topology baseline and documents why an independent workflow is required.
 
 ## Registry-stale workflow identities
-Known examples such as the old v0.3.93 release/startup workflow identities may remain visible through GitHub Actions even though no corresponding YAML exists on `main`. These are classified `REGISTRY_STALE_NO_MAIN_FILE`. Main-tree truth wins; do not recreate them to make registry counts match.
+Known examples such as the old v0.3.93 release/startup workflow identities and the six P5-retired wrapper identities may remain visible through GitHub Actions even though no corresponding YAML exists on `main`. These are classified `REGISTRY_STALE_NO_MAIN_FILE`. Main-tree truth wins; do not recreate them to make registry counts match.
 
 ## Change procedure
 For any CI topology change:
