@@ -28,7 +28,8 @@ assert.equal(approved.operations[0].review_required,false,'approved review must 
 await storage.clearAllStorage();
 await database.initializeDatabase();
 
-assert.equal(database.scalar('SELECT COUNT(*) FROM schema_migrations WHERE version=10'),1,'E3C-6B local observation migration must be applied');
+assert.equal(database.scalar('SELECT COUNT(*) FROM schema_migrations WHERE version=10'),0,'migration 10 remains reserved for historical compatibility');
+assert.equal(database.scalar('SELECT COUNT(*) FROM schema_migrations WHERE version=11'),1,'E3C-6B local observation migration 11 must be applied');
 assert.ok(database.scalar("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ingredient_probability_observations'")>0,'E3C-6B observation table must exist');
 const observationColumns=database.rows('PRAGMA table_info("ingredient_probability_observations")').map(row=>row.name);
 for(const forbidden of ['pokemon_id','pokemon_instance_id','nickname','identity_fingerprint','player_name','account_id'])assert.equal(observationColumns.includes(forbidden),false,`private player identity column forbidden: ${forbidden}`);
@@ -165,7 +166,8 @@ assert.equal(database.scalar('SELECT quantity FROM ingredient_inventory WHERE in
 assert.equal(database.scalar('SELECT COUNT(*) FROM ingredient_probability_observations'),2,'restore must preserve E3C-6B local observations');
 assert.equal(database.rows('PRAGMA integrity_check')[0].integrity_check,'ok');
 assert.equal(database.scalar('SELECT COUNT(*) FROM schema_migrations WHERE version IN (1,2,3,4,5)'),5,'restore must retain/reapply migrations');
-assert.equal(database.scalar('SELECT COUNT(*) FROM schema_migrations WHERE version=10'),1,'restore must retain/reapply E3C-6B migration');
+assert.equal(database.scalar('SELECT COUNT(*) FROM schema_migrations WHERE version=10'),0,'restore must keep migration 10 reserved');
+assert.equal(database.scalar('SELECT COUNT(*) FROM schema_migrations WHERE version=11'),1,'restore must retain/reapply E3C-6B migration 11');
 assert.ok(database.scalar("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='recipe_master'")>0,'restore must retain shared knowledge schema');
 
 const rollbackPayload={
@@ -209,4 +211,4 @@ assert.match(appSource,/pokemon-sleep:update-applied/,'successful apply must not
 assert.match(appSource,/snapshot\('before-restore'\)/,'restore must snapshot current database first');
 assert.match(appSource,/replaceDatabase\(/,'restore must call replaceDatabase');
 
-console.log('PASS update center + E3C-6B: validation, migration 10, local private observation dry-run/snapshot/apply, deterministic re-validation, rejected evidence exclusion, de-identified aggregate, duplicate/tamper/self-activation guards, rollback, JSON backup, backup/restore, shared data, integrity_check');
+console.log('PASS update center + E3C-6B: validation, reserved migration 10, migration 11, local private observation dry-run/snapshot/apply, deterministic re-validation, rejected evidence exclusion, de-identified aggregate, duplicate/tamper/self-activation guards, rollback, JSON backup, backup/restore, shared data, integrity_check');
