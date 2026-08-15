@@ -29,8 +29,13 @@ def test_profile_confirmation_changes_sync_to_main_update_center_payload():
     assert 'workflow_validation_completed' in audit
     assert 'dry_run_eligibility_changed' in audit
     assert '全部採納目前辨識結果' in audit
-    assert 'state.payload = JSON.parse(await file.text())' in app
+    # Successor-aware: selected-file JSON and local deterministic producers may
+    # share one canonical loader, but it must still own payload/validation/reset.
+    assert 'function loadUpdatePayload(payload)' in app
+    assert 'state.payload = payload' in app
+    assert 'state.preview = null' in app
     assert 'state.workflow = validateWorkflow(state.payload)' in app
+    assert 'loadUpdatePayload(JSON.parse(await file.text()))' in app
     assert "$('dryRunBtn').disabled = Boolean(result.errors.length || result.review.length)" in app
 
 
