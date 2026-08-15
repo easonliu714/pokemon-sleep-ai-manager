@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
+export const HISTORICAL_RELEASE_CONSOLIDATION_BASELINE='historical-release-regression-2026-08-11-a';
+
 const retiredWorkflows=[
   '.github/workflows/v0485-compact-camp-table.yml',
   '.github/workflows/v0463-weekly-ai-type-repair.yml',
@@ -35,16 +37,22 @@ for(const path of contracts)assert.equal(fs.existsSync(path),true,`historical co
 
 const runner=fs.readFileSync('scripts/ci-historical-release-regression.mjs','utf8');
 const workflow=fs.readFileSync('.github/workflows/historical-release-regression.yml','utf8');
-assert.ok(runner.includes("HISTORICAL_RELEASE_REGRESSION_VERSION='historical-release-regression-2026-08-11-a'"));
-for(const path of contracts)assert.ok(runner.includes(path),`consolidated runner lost contract: ${path}`);
+const versionMatch=runner.match(/HISTORICAL_RELEASE_REGRESSION_VERSION='([^']+)'/);
+assert.ok(versionMatch,'historical regression version declaration missing');
+assert.match(versionMatch[1],/^historical-release-regression-\d{4}-\d{2}-\d{2}-[a-z](?:-[a-z0-9-]+)?$/,'historical regression successor version family invalid');
+for(const path of contracts)assert.ok(runner.includes(path),`consolidated runner lost predecessor contract: ${path}`);
 assert.ok(workflow.includes('concurrency:'));
 assert.ok(workflow.includes('cancel-in-progress: true'));
 assert.ok(workflow.includes('jsdom@26.1.0'),'DOM hotfix regression dependency must remain covered');
 assert.ok(workflow.includes('node scripts/ci-historical-release-regression.mjs'));
+assert.doesNotMatch(workflow,/contents\s*:\s*write/i,'historical regression must remain read-only');
+assert.doesNotMatch(workflow,/(?:^|\s)git\s+(?:push|commit)(?:\s|$)/im,'historical regression must not mutate repository history');
 
 console.log(JSON.stringify({
   status:'PASS',gate:'CI_WORKFLOW_CONSOLIDATION',
-  regression_version:'historical-release-regression-2026-08-11-a',
+  baseline_regression_version:HISTORICAL_RELEASE_CONSOLIDATION_BASELINE,
+  current_regression_version:versionMatch[1],
+  successor_version_allowed:true,
   retired_workflow_count:retiredWorkflows.length,
   replacement_workflow_count:1,
   net_workflow_reduction:retiredWorkflows.length-1,

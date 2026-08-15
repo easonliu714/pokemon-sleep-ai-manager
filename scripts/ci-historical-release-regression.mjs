@@ -1,12 +1,16 @@
 import {spawnSync} from 'node:child_process';
 
-export const HISTORICAL_RELEASE_REGRESSION_VERSION='historical-release-regression-2026-08-11-a';
+export const HISTORICAL_RELEASE_REGRESSION_VERSION='historical-release-regression-2026-08-15-b-p5-parity';
 
 export const HISTORICAL_RELEASE_CONTRACTS=Object.freeze([
+  'scripts/ci-p5-public-knowledge-successor-contract.mjs',
+  'scripts/data-evo1-observed-evolution-coverage-contract.mjs',
   'scripts/v0485-release-contract.mjs',
   'scripts/v0484-release-contract.mjs',
   'scripts/v0483-release-contract.mjs',
+  'scripts/v0482-release-contract.mjs',
   'scripts/v0481-live-followup-contract.mjs',
+  'scripts/war3a-candy-inventory-contract.mjs',
   'scripts/v0463-release-contract.mjs',
   'scripts/v0463-weekly-ai-type-repair-contract.mjs',
   'scripts/v0462-release-contract.mjs',
@@ -37,5 +41,7 @@ console.log(JSON.stringify({
   contract_count:HISTORICAL_RELEASE_CONTRACTS.length,
   contracts:HISTORICAL_RELEASE_CONTRACTS,
   workflow_wrappers_replaced:6,
+  p5_side_by_side_predecessor_count:6,
+  p5_retirement_performed:false,
   behavioral_contracts_removed:0,
 },null,2));
