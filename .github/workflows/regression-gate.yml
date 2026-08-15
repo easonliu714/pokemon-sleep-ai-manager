@@ -55,6 +55,9 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Verify visual prompt hallucination policy
+        run: node scripts/pokemon-visual-prompt-policy-contract.mjs
+
       - name: Verify Pokémon visual evidence consistency
         run: node scripts/pokemon-visual-evidence-regression.mjs
 
