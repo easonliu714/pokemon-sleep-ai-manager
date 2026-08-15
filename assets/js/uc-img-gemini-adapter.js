@@ -2,6 +2,7 @@ import {executeWithProjectPool} from './ai-project-pool-runtime.js';
 import {buildUpdatePackageJsonSchema} from './update-package-contract.js';
 import {buildPublicMasterRecognitionJsonSchema,supportsPublicMasterRecognition} from './public-master-recognition.js';
 import {isUcImgOwnedMemoryBlob} from './uc-img-image-runtime.js';
+import {SCREENSHOT_PROMPT_SAFETY_VERSION,appendScreenshotPromptSafety} from './pokemon-visual-prompt-policy.js';
 import {
   applyUcImgWeeklyPlatformAuthority,
   buildUcImgWeeklyPlatformAuthority,
@@ -9,7 +10,7 @@ import {
   constrainUcImgWeeklyJsonSchema,
 } from './uc-img-weekly-platform-authority.js';
 
-export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-08-12-b-shared-transport-diagnostic';
+export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-08-15-c-prompt-safety-contract';
 export const UC_IMG_DIAGNOSTIC_SCHEMA='pokemon-sleep-uc-img-ai-diagnostic/1.1';
 
 const clean=value=>String(value??'').trim();
@@ -69,8 +70,9 @@ export async function analyzeUcImgScenarioWithGemini({scenarioKey,config,entries
   const platformAuthority=scenarioKey==='weekly'?buildUcImgWeeklyPlatformAuthority(platformNow||new Date()):null;
   const images=await prepareGeminiImages(entries,fileMap);
   const responseJsonSchema=buildUcImgGeminiSchema(config,scenarioKey,{platformAuthority});
-  const effectivePrompt=platformAuthority?`${prompt}${buildUcImgWeeklyPlatformPromptInstruction(platformAuthority)}`:prompt;
-  const trace=(event,details={})=>onTrace(event,{scenario_key:scenarioKey,scenario:config?.scenario||null,adapter_version:UC_IMG_GEMINI_ADAPTER_VERSION,...details});
+  const scenarioPrompt=platformAuthority?`${prompt}${buildUcImgWeeklyPlatformPromptInstruction(platformAuthority)}`:prompt;
+  const effectivePrompt=appendScreenshotPromptSafety(scenarioPrompt,{scenario:config?.scenario||scenarioKey});
+  const trace=(event,details={})=>onTrace(event,{scenario_key:scenarioKey,scenario:config?.scenario||null,adapter_version:UC_IMG_GEMINI_ADAPTER_VERSION,prompt_safety_version:SCREENSHOT_PROMPT_SAFETY_VERSION,...details});
   const outcome=await execute({projects:poolData.projects,model,prompt:effectivePrompt,images,responseJsonSchema,onTrace:trace});
   if(Array.isArray(outcome?.projects)){
     try{poolData.projects=outcome.projects;}catch{}
@@ -95,6 +97,7 @@ export async function analyzeUcImgScenarioWithGemini({scenarioKey,config,entries
   }:null;
   return {
     adapter_version:UC_IMG_GEMINI_ADAPTER_VERSION,
+    prompt_safety_version:SCREENSHOT_PROMPT_SAFETY_VERSION,
     payload,
     raw_json:JSON.stringify(payload,null,2),
     raw_provider_text:parsed.text,
@@ -176,6 +179,7 @@ export function buildUcImgDiagnosticBundle({appVersion=null,session,scenarioKey,
     schema:UC_IMG_DIAGNOSTIC_SCHEMA,
     app_version:appVersion||null,
     adapter_version:UC_IMG_GEMINI_ADAPTER_VERSION,
+    prompt_safety_version:providerMeta?.prompt_safety_version||SCREENSHOT_PROMPT_SAFETY_VERSION,
     session_id:session?.session_id||null,
     scenario_key:scenarioKey||null,
     scenario:config?.scenario||null,

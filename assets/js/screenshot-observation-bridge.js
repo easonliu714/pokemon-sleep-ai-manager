@@ -1,4 +1,5 @@
 import {normalizeObservationPayload,validateObservationPayload} from './ai-observation.js';
+import {POKEMON_VISUAL_PROMPT_POLICY_VERSION} from './pokemon-visual-prompt-policy.js';
 import {
   buildPokemonVisualEvidenceManifest,
   evaluatePokemonVisualUpdateManifest,
@@ -32,6 +33,8 @@ function mergeDirectEvidence(target,source,kind){
     kind,value:null,
     source_image_ref:target.source_image_ref||source.source_image_ref||null,
     confidence:Math.min(Number(target.confidence||0),Number(source.confidence||0)),
+    observation_basis:null,
+    inference_used:null,
     merge_conflict:true,
     conflicting_values:[...new Set([targetValue,sourceValue].filter(Boolean))],
     supporting_source_image_refs:[...new Set([target.source_image_ref,source.source_image_ref].filter(Boolean))],
@@ -52,8 +55,10 @@ function mergeVisualEvidence(target,source){
   if(!target&&!source)return null;
   if(!target)return clone(source);
   if(!source)return clone(target);
+  const policyVersion=target.prompt_policy_version&&source.prompt_policy_version&&target.prompt_policy_version===source.prompt_policy_version?target.prompt_policy_version:null;
   return {
-    contract_version:source.contract_version||target.contract_version,
+    contract_version:source.contract_version===target.contract_version?target.contract_version:null,
+    prompt_policy_version:policyVersion,
     public_relation_may_generate_player_observation:false,
     type:mergeDirectEvidence(target.type,source.type,'TYPE_VISUAL'),
     berry:mergeDirectEvidence(target.berry,source.berry,'BERRY_VISUAL'),
@@ -78,13 +83,24 @@ function visualManifestRow(observation){
   };
 }
 
+function platformSpeciesContext(group){
+  const species=clean(group?.canonical_species);
+  const targetPokemonInstanceId=group?.target_pokemon_instance_id||group?.identity?.target_pokemon_instance_id||null;
+  const currentSpeciesId=group?.current_species_id||group?.identity?.current_species_id||null;
+  if(!species||(!targetPokemonInstanceId&&!currentSpeciesId))return {species:null,basis:null};
+  return {species,basis:'PLATFORM_PROVIDED_CONTEXT'};
+}
+
 export function buildObservationFromScreenshotGroup(group,{ocrObservation=null,aiObservation=null}={}){
-  const sources=[ocrObservation,aiObservation].filter(Boolean).map(item=>normalizeObservationPayload({schema_version:'2.0-observation',observations:[item]}).observations[0]);
+  const sources=[ocrObservation,aiObservation].filter(Boolean).map(item=>normalizeObservationPayload({schema_version:'2.0-observation',prompt_policy_version:item?.visual_evidence?.prompt_policy_version||null,observations:[item]}).observations[0]);
+  const platformSpecies=platformSpeciesContext(group);
+  const targetPokemonInstanceId=group?.target_pokemon_instance_id||group?.identity?.target_pokemon_instance_id||null;
+  const currentSpeciesId=group?.current_species_id||group?.identity?.current_species_id||null;
   const base=sources.shift()||{
     incoming_ref:`screenshot-group:${group.group_key}`,
     requested_action:'resolve_on_import',
-    identity:{target_pokemon_instance_id:null,target_update_token:null,capture_species_id:null,current_species_id:null,registered_date:null,instance_discriminator:null},
-    profile:{species:group.header?.name||null,level:group.header?.level??null,sp:group.header?.sp??null},
+    identity:{target_pokemon_instance_id:targetPokemonInstanceId,target_update_token:null,capture_species_id:null,current_species_id:currentSpeciesId,registered_date:null,instance_discriminator:null},
+    profile:{species:platformSpecies.species,species_observation_basis:platformSpecies.basis,header_name_text:group.header?.name||null,level:group.header?.level??null,sp:group.header?.sp??null},
     ingredients:[],subskills:[],
     evidence:{source_image_refs:group.images?.map(item=>item.path||item.name).filter(Boolean)||[],field_confidence:{},unreadable_fields:[],notes:null},
     visual_evidence:null,
@@ -100,14 +116,20 @@ export function buildObservationFromScreenshotGroup(group,{ocrObservation=null,a
   }
   base.incoming_ref=`screenshot-group:${group.group_key}`;
   base.requested_action='resolve_on_import';
-  base.profile={...(base.profile||{}),species:base.profile?.species||group.header?.name||null,level:base.profile?.level??group.header?.level??null,sp:base.profile?.sp??group.header?.sp??null};
+  base.profile={
+    ...(base.profile||{}),
+    header_name_text:base.profile?.header_name_text||group.header?.name||null,
+    level:base.profile?.level??group.header?.level??null,
+    sp:base.profile?.sp??group.header?.sp??null,
+  };
+  if(!base.profile.species&&platformSpecies.species){base.profile.species=platformSpecies.species;base.profile.species_observation_basis=platformSpecies.basis;}
   base.evidence=mergeEvidence(base.evidence,{source_image_refs:group.images?.map(item=>item.path||item.name).filter(Boolean)||[]});
   return base;
 }
 
 export function buildObservationPayloadFromScreenshotGroups(groups,resultsByGroup={}){
   const observations=(groups||[]).map(group=>buildObservationFromScreenshotGroup(group,resultsByGroup[group.group_key]||{}));
-  const payload=normalizeObservationPayload({schema_version:'2.0-observation',source:'ai_screenshot_observation',observations});
+  const payload=normalizeObservationPayload({schema_version:'2.0-observation',prompt_policy_version:POKEMON_VISUAL_PROMPT_POLICY_VERSION,source:'ai_screenshot_observation',observations});
   const validation=validateObservationPayload(payload);
   const visualRows=payload.observations.map(visualManifestRow).filter(Boolean);
   const visualManifest=buildPokemonVisualEvidenceManifest(visualRows);
