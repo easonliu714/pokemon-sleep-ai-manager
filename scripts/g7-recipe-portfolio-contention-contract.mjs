@@ -118,7 +118,8 @@ assert.ok(discovery.includes('REFERENCE_ONLY_NOT_CANONICAL_FORMULA'),'Discovery 
 const sw=read('service-worker.js');
 for(const asset of ['recipe-portfolio-contention.js','recipe-portfolio-contention-local.js','war-room-cooking-planner-ui.js','war-room-cooking-planner-bootstrap.js'])assert.ok(sw.includes(asset),`G7 offline precache missing ${asset}`);
 const migrations=read('assets/js/migrations.js');
-assert.equal(migrations.includes('VALUES(10,'),false,'G7.1 must remain migration-free');
+assert.equal(migrations.includes('recipe-portfolio-contention'),false,'G7.1 must not own a SQLite migration');
+assert.ok(migrations.includes('applyIngredientProbabilityObservationMigration'),'later E3C-6B local evidence migration may coexist without changing G7.1 migration ownership');
 
 console.log(JSON.stringify({
   status:'PASS',gate:'G7_1_RECIPE_PORTFOLIO_RESOURCE_CONTENTION_EXTENSION_AWARE',app_version:appVersion,release_promoted:versionAtLeast(appVersion,'v0.4.13'),
