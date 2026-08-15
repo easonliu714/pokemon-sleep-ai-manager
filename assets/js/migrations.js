@@ -8,6 +8,8 @@ import {applyCanonicalRegistry,CANONICAL_REGISTRY_VERSION} from './canonical-reg
 import {applyPublicPokemonKnowledgeSchema,applyPublicPokemonKnowledgeData,PUBLIC_POKEMON_KNOWLEDGE_VERSION} from './public-pokemon-knowledge-master.js';
 import {applyPublicCandyMasterSchema,syncPublicCandyMaster,PUBLIC_CANDY_MASTER_VERSION} from './public-candy-master.js';
 
+export const E3C6B_SCHEMA_MIGRATION_VERSION=11;
+
 function rows(db,sql,params=[]){const statement=db.prepare(sql);statement.bind(params);const output=[];while(statement.step())output.push(statement.getAsObject());statement.free();return output;}
 function scalar(db,sql,params=[]){const result=rows(db,sql,params);return result.length?Object.values(result[0])[0]:null;}
 function hasMigration(db,version){return Number(scalar(db,'SELECT COUNT(*) FROM schema_migrations WHERE version=?',[version])||0)>0;}
@@ -79,8 +81,9 @@ export function applyCandyInventoryMigration(db){
   db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(9,datetime('now'))`);
 }
 
-// E3C-6B: migration 10 is local/private evidence storage only. It deliberately
-// has no player identity column and cannot activate ingredient probability.
+// Compatibility note: historical v0.4.8–v0.4.9 contracts intentionally preserve
+// migration 10 as their "no new migration" sentinel. E3C-6B therefore uses 11;
+// schema_migrations does not require contiguous numeric versions.
 export function applyIngredientProbabilityObservationMigration(db){
   db.run(`CREATE TABLE IF NOT EXISTS ingredient_probability_observations(
     observation_id TEXT PRIMARY KEY,
@@ -129,7 +132,7 @@ export function applyIngredientProbabilityObservationMigration(db){
     source_update_id TEXT
   )`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_ingredient_probability_observations_aggregate ON ingredient_probability_observations(status,eligible_for_statistical_aggregation,source_key,captured_at)`);
-  db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(10,datetime('now'))`);
+  db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(${E3C6B_SCHEMA_MIGRATION_VERSION},datetime('now'))`);
 }
 
 export function applyStandardCatalogCompatibilityMigration(db){
@@ -190,7 +193,7 @@ export function applyAllMigrations(db){
   if(!hasMigration(db,7)){applyCompletePokemonDetailMigration(db);databaseChanged=true;}
   if(!hasMigration(db,8)){applyWarRoomStrategySnapshotMigration(db);databaseChanged=true;}
   if(!hasMigration(db,9)){applyCandyInventoryMigration(db);databaseChanged=true;}
-  if(!hasMigration(db,10)){applyIngredientProbabilityObservationMigration(db);databaseChanged=true;}
+  if(!hasMigration(db,E3C6B_SCHEMA_MIGRATION_VERSION)){applyIngredientProbabilityObservationMigration(db);databaseChanged=true;}
   if(applyStandardCatalogCompatibilityMigration(db))databaseChanged=true;
   const publicMaster=auditAndSyncPublicMasters(db);
   return {database_changed:databaseChanged||publicMaster.updated,public_master:publicMaster};
