@@ -1,6 +1,6 @@
 # Pokémon Sleep 寶可夢截圖 → Observation v2（外部 AI）
 
-Prompt policy：`pokemon-visual-prompt-policy-2026-08-15-a`  
+Prompt policy：`pokemon-visual-prompt-policy-2026-08-15-b-partial-visibility`  
 Visual evidence contract：`pokemon-visual-evidence-2026-08-15-c-direct-image-basis`
 
 > 建議優先從 Pokémon Sleep AI Manager 的 Prompt Catalog 複製最新版提示詞。此檔是可攜式外部模型版本；若版本號與平台不同，以平台最新版為準。
@@ -18,6 +18,17 @@ Visual evidence contract：`pokemon-visual-evidence-2026-08-15-c-direct-image-ba
 - stable identity、Public Master consistency、MATCH / CONFLICT / REVIEW_REQUIRED 與 SQLite Apply 都由平台處理。
 
 `requested_action` 固定為 `resolve_on_import`。
+
+## Partial visibility / 遮擋 / 裁切：必須 fail closed
+
+只要欄位被浮動卡片、彈窗、底部操作列、畫面邊界或裁切遮住，導致只剩文字／數字片段，就不得把片段當完整值：
+
+- 不得補回被遮住的前綴、單位或上下文。
+- 不得用其他截圖、遊戲常識、Public Master 或模型記憶猜完整值。
+- 該欄位填 `null`，並加入 `evidence.unreadable_fields`；若輸出 schema 有 `uncertain_fields`，也要加入。
+- 時間、時長、數量與倍率尤其嚴格。若完整欄位左側被遮住，只剩 `12分54秒`，不得直接推成 `helper_seconds=774`；應輸出 `helper_seconds=null`。
+
+UI 區段標題不是欄位值。`食材`、`幫忙能力`、`主技能／副技能`、`能力詳情`、`持有上限` 等標題不得填成 `specialty`、技能、食材或其他 profile 值；只有標題旁明確對應的值才可記錄。
 
 ## 只允許直接圖片 Evidence
 
@@ -44,6 +55,10 @@ Visual evidence contract：`pokemon-visual-evidence-2026-08-15-c-direct-image-ba
 - Ingredient icon → Species
 - 公版食材候選 → Ingredient icon
 - 可編輯頁首名稱／暱稱 → canonical species
+- 可編輯頁首名稱 → nickname
+- Partial text fragment → complete field value
+- Partial duration → helper seconds
+- Section heading → profile value
 - profile 欄位 → visual evidence
 - 一筆 visual evidence → 另一筆 visual evidence
 - JSON operation／舊資料 → visual evidence
@@ -51,14 +66,16 @@ Visual evidence contract：`pokemon-visual-evidence-2026-08-15-c-direct-image-ba
 
 即使兩個直接觀測互相矛盾，也要各自照圖片輸出；**不要自行修正成符合遊戲規則**。平台會做 consistency check。
 
-## 可編輯頁首名稱不是 species Evidence
+## 可編輯頁首名稱不是 species / nickname Evidence
 
 若寶可夢頁首名稱旁有鉛筆／編輯 affordance：
 
 - 原文放 `profile.header_name_text`。
 - 不論它看起來是不是官方物種名，都不得因此填 `profile.species`。
+- 也不得只因頁首文字與物種名相同，就填 `profile.nickname`。
 - 只有畫面另有明確、**非可編輯**的物種標籤時，才能填 `profile.species`，並設 `profile.species_observation_basis="DIRECT_NON_EDITABLE_SPECIES_LABEL"`。
-- 否則 `profile.species=null`。
+- 只有畫面另有明確「暱稱」欄位／語意時，才能填 `profile.nickname`。
+- 否則 `profile.species=null`、`profile.nickname=null`。
 
 若平台在提示詞中明確提供既有 identity context，才可原樣使用該 context；不要自行產生。
 
@@ -93,13 +110,15 @@ Subskill：樹果數量S、幫手獎勵、睡眠EXP獎勵、研究EXP獎勵、�
 - `特選蘋果` vs `好眠番茄`：不能只靠紅色判斷，必須看 icon 形狀／細節；解析度不足就 null。
 - `技能機率提升M` vs `技能等級提升M`：逐字辨識，不能看共同字元猜。
 - `嫩亮酪梨` 是 current canonical；若圖片不足以確認，不要自行從 legacy 名稱正名成它。
+- `食材` 區段標題 vs `specialty=食材`：區段標題永遠不能當專長值。
+- 被浮動卡片遮住的 `每X小時Y分Z秒`：缺任何可見前綴都不得換算 `helper_seconds`。
 
 ## JSON 格式
 
 ```json
 {
   "schema_version": "2.0-observation",
-  "prompt_policy_version": "pokemon-visual-prompt-policy-2026-08-15-a",
+  "prompt_policy_version": "pokemon-visual-prompt-policy-2026-08-15-b-partial-visibility",
   "update_id": "UPD-YYYYMMDDHHMMSS-XXXX",
   "generated_at": "ISO-8601",
   "source": "ai_screenshot_observation",
@@ -161,7 +180,7 @@ Subskill：樹果數量S、幫手獎勵、睡眠EXP獎勵、研究EXP獎勵、�
       },
       "visual_evidence": {
         "contract_version": "pokemon-visual-evidence-2026-08-15-c-direct-image-basis",
-        "prompt_policy_version": "pokemon-visual-prompt-policy-2026-08-15-a",
+        "prompt_policy_version": "pokemon-visual-prompt-policy-2026-08-15-b-partial-visibility",
         "public_relation_may_generate_player_observation": false,
         "type": null,
         "berry": null,
