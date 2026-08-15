@@ -332,6 +332,17 @@ function renderWorkflow() {
   $('dryRunBtn').disabled = Boolean(result.errors.length || result.review.length);
 }
 
+// Local deterministic producers (for example E3C-6B manual observation capture)
+// feed the same Update Center state as a selected JSON file without DataTransfer/file spoofing.
+function loadUpdatePayload(payload) {
+  state.payload = payload;
+  state.preview = null;
+  state.workflow = validateWorkflow(state.payload);
+  $('importSummary').textContent = '尚未執行 Dry Run。';
+  $('applyBtn').disabled = true;
+  renderWorkflow();
+}
+
 function setupEventHandlers() {
   ['pokemonSearch', 'ratingFilter', 'specialtyFilter'].forEach((id) => {
     $(id).oninput = renderPokemon;
@@ -341,16 +352,19 @@ function setupEventHandlers() {
     try {
       const file = event.target.files[0];
       if (!file) return;
-      state.payload = JSON.parse(await file.text());
-      state.preview = null;
-      state.workflow = validateWorkflow(state.payload);
-      $('importSummary').textContent = '尚未執行 Dry Run。';
-      $('applyBtn').disabled = true;
-      renderWorkflow();
+      loadUpdatePayload(JSON.parse(await file.text()));
     } catch (error) {
       alert(`JSON 格式錯誤：${error.message}`);
     }
   };
+
+  globalThis.addEventListener('pokemon-sleep:local-update-package-ready', (event) => {
+    const payload=event?.detail?.payload;
+    if(!payload)return;
+    loadUpdatePayload(payload);
+    if($('jsonFile'))$('jsonFile').value='';
+    $('workflowIssues').classList.remove('hidden');
+  });
 
   $('validateJsonBtn').onclick = () => {
     if (!state.payload) return alert('請先選擇 JSON');
@@ -396,10 +410,12 @@ function setupEventHandlers() {
   $('applyBtn').onclick = async () => {
     if (!confirm('確定套用更新？')) return;
     try {
-      const result = await applyPayload(state.payload);
+      const appliedPayload=state.payload;
+      const result = await applyPayload(appliedPayload);
       alert(`更新完成，共 ${result.operation_count} 筆`);
       $('applyBtn').disabled = true;
       await refresh();
+      globalThis.dispatchEvent(new CustomEvent('pokemon-sleep:update-applied',{detail:{payload:appliedPayload,result}}));
     } catch (error) {
       alert(`套用失敗：${error.message}`);
     }
@@ -431,6 +447,7 @@ function setupEventHandlers() {
       'weekly_context',
       'weekly_strategy',
       'collection_targets',
+      'ingredient_probability_observations',
       'import_batches',
       'import_changes',
     ];
