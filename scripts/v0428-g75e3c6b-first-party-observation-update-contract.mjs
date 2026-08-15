@@ -120,14 +120,15 @@ for(const token of ['手動輸入','不使用 OCR','pokemon_id 不會進 Update 
 for(const path of ['ingredient-probability-first-party-observation-contract.js','ingredient-probability-first-party-observation-update.js','ingredient-probability-first-party-observation-ui.js'])assert.ok(bootstrap.includes(path),`online startup probe missing E3C-6B module: ${path}`);
 assert.ok(sw.includes("url.pathname.endsWith('.js')"),'service worker must network-first/cache JavaScript modules after a successful online startup');
 assert.ok(sw.includes('caches.open(CACHE).then(cache=>cache.put(event.request,copy))'),'service worker must retain fetched JavaScript in the active cache for later offline use');
-assert.ok(version.includes("app_build: '20260815-v0427-e3c6b-first-party-observation-capture'"),'E3C-6B build authority missing');
-assert.ok(version.includes("cache_name: 'pokemon-sleep-ai-v0.4.27-v0427-e3c6b-first-party-observation-capture'"),'E3C-6B cache rotation missing');
+assert.ok(version.includes("app_version: 'v0.4.27'"),'E3C-6B must preserve v0.4.27 semantic release authority while Ingredient Probability remains HOLD');
+assert.ok(version.includes("app_build: '20260814-v0427-g75e3b-ingredient-slot-distribution'"),'E3C-6B capture capability must not rewrite the existing Production release build authority');
+assert.ok(version.includes("cache_name: 'pokemon-sleep-ai-v0.4.27-v0427-g75e3b-ingredient-slot-distribution'"),'E3C-6B must preserve current cache authority; JS network-first caching supplies the new module after online startup');
 
 console.log(JSON.stringify({
   status:'PASS',gate:'V0428_G75E3C6B_FIRST_PARTY_OBSERVATION_UPDATE',
   accepted_update_package:true,rejected_observation_retained_not_aggregated:true,derived_fields_revalidated:true,
   private_identity_forbidden:true,deidentified_aggregate_only:true,manual_typed_counts_only:true,ocr_event_counts:false,
   destructive_clear_forbidden:true,self_activation_forbidden:true,offline_after_successful_online_start:true,
-  sample_sufficiency_for_activation:'NOT_DEFINED',ingredient_probability_status:registry.rules.ingredient_probability_per_help.status,
+  release_authority_mutated:false,sample_sufficiency_for_activation:'NOT_DEFINED',ingredient_probability_status:registry.rules.ingredient_probability_per_help.status,
   production_numeric_activation:'4/7',activation_authority_granted:false,
 },null,2));
