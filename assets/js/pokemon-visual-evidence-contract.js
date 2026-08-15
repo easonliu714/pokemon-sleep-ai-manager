@@ -11,11 +11,11 @@ export const DIRECT_EVIDENCE_KINDS=Object.freeze([
 ]);
 export const CONSISTENCY_STATUSES=Object.freeze(['MATCH','CONFLICT','REVIEW_REQUIRED','NOT_CHECKABLE']);
 
-const typeSet=new Set(TYPES);
-const berrySet=new Set(Object.values(BERRY_BY_TYPE));
-const mainSkillSet=new Set(MAIN_SKILLS);
-const subskillSet=new Set(SUBSKILLS);
 const clean=value=>String(value??'').normalize('NFKC').trim();
+const typeSet=new Set(TYPES.map(clean));
+const berrySet=new Set(Object.values(BERRY_BY_TYPE).map(clean));
+const mainSkillSet=new Set(MAIN_SKILLS.map(clean));
+const subskillSet=new Set(SUBSKILLS.map(clean));
 const finiteConfidence=value=>Number.isFinite(Number(value))&&Number(value)>=0&&Number(value)<=1;
 
 function result(status,check,extra={}){
@@ -45,7 +45,7 @@ export function evaluateTypeBerryConsistency({type=null,berry=null}={}){
     reason:!typeSet.has(observedType)?'UNKNOWN_TYPE_VISUAL':'UNKNOWN_BERRY_VISUAL',type_evidence:typeDirect,berry_evidence:berryDirect,
     public_relation_used_as:'CONSISTENCY_CHECK_ONLY',auto_rewrite_player_observation:false,
   });
-  const expectedBerry=BERRY_BY_TYPE[observedType]||null;
+  const expectedBerry=clean(BERRY_BY_TYPE[observedType]||null);
   if(!expectedBerry)return result('NOT_CHECKABLE','TYPE_BERRY_RELATION',{
     reason:'PUBLIC_TYPE_BERRY_RELATION_MISSING',type_evidence:typeDirect,berry_evidence:berryDirect,
     public_relation_used_as:'CONSISTENCY_CHECK_ONLY',auto_rewrite_player_observation:false,
