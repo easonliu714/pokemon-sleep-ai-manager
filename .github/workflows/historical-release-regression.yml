@@ -21,9 +21,19 @@ on:
       - 'assets/js/team-optimizer*.js'
       - 'assets/js/war-room-team-optimizer*.js'
       - 'assets/js/war-room-recipe-discovery-ui.js'
+      - 'assets/js/public-pokemon-knowledge-master.js'
+      - 'assets/js/public-pokemon-knowledge-coverage.js'
+      - 'assets/js/v03993-public-knowledge-coverage-ui.js'
+      - 'assets/js/public-candy-master.js'
+      - 'assets/js/shared-master-data.js'
+      - 'assets/js/v03993-projection-integrity.js'
+      - 'assets/js/migrations.js'
       - 'service-worker.js'
       - 'scripts/v04*.mjs'
       - 'scripts/war2b-*.mjs'
+      - 'scripts/war3a-candy-inventory-contract.mjs'
+      - 'scripts/data-evo1-observed-evolution-coverage-contract.mjs'
+      - 'scripts/ci-p5-public-knowledge-successor-contract.mjs'
       - 'scripts/ci-historical-release-regression.mjs'
       - 'scripts/ci-workflow-consolidation-contract.mjs'
       - '.github/workflows/historical-release-regression.yml'
@@ -54,6 +64,8 @@ jobs:
         run: |
           node --check scripts/ci-historical-release-regression.mjs
           node --check scripts/ci-workflow-consolidation-contract.mjs
+          node --check scripts/ci-p5-public-knowledge-successor-contract.mjs
+          node --check scripts/data-evo1-observed-evolution-coverage-contract.mjs
       - name: Verify no tracked test mutation
         shell: bash
         run: test -z "$(git status --porcelain --untracked-files=no)"
