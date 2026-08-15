@@ -23,6 +23,7 @@ const sameNumber=(left,right)=>{
 };
 const jsonEqual=(left,right)=>JSON.stringify(left??null)===JSON.stringify(right??null);
 const safeArray=value=>Array.isArray(value)?value:[];
+const validIso=value=>Boolean(text(value))&&Number.isFinite(Date.parse(value));
 
 const RAW_FIELDS=Object.freeze([
   'observation_id','observation_source','observation_mode','source_key','canonical_species_form_id',
@@ -70,10 +71,12 @@ export function validateFirstPartyIngredientObservationUpdateOperation(operation
   const data=operation?.data||{};
   if(operation.entity!==FIRST_PARTY_OBSERVATION_UPDATE_ENTITY)errors.push(`entity 必須是 ${FIRST_PARTY_OBSERVATION_UPDATE_ENTITY}`);
   if(operation.action!=='upsert')errors.push('first-party ingredient observation 只允許 upsert');
+  if(safeArray(operation.clear_fields).length)errors.push('first-party ingredient observation 禁止 clear_fields；原始觀測只能以新 observation_id 保存');
   const keyId=text(operation?.key?.observation_id),dataId=text(data.observation_id);
   if(!keyId)errors.push('key.observation_id 必填');
   if(!dataId)errors.push('data.observation_id 必填');
   if(keyId&&dataId&&keyId!==dataId)errors.push('key.observation_id 與 data.observation_id 必須一致');
+  if(!validIso(data.captured_at))errors.push('data.captured_at 必須是有效 ISO 日期時間');
   if(text(data.capture_input_method)!==FIRST_PARTY_OBSERVATION_CAPTURE_INPUT_METHOD)errors.push(`capture_input_method 必須是 ${FIRST_PARTY_OBSERVATION_CAPTURE_INPUT_METHOD}`);
   if(operation.review_required===true)errors.push('觀測 status=REVIEW_REQUIRED 與 Update Center operation.review_required 是不同語意；本 entity 必須先 deterministic 驗證後再安全保存');
   if(text(operation?.evidence?.source_type)!==FIRST_PARTY_OBSERVATION_OPERATION_EVIDENCE_TYPE)errors.push(`evidence.source_type 必須是 ${FIRST_PARTY_OBSERVATION_OPERATION_EVIDENCE_TYPE}`);
@@ -106,6 +109,10 @@ export function validateFirstPartyIngredientObservationUpdatePackage(payload={})
   const errors=[],warnings=[];
   if(payload.scenario!==FIRST_PARTY_OBSERVATION_UPDATE_SCENARIO)errors.push(`scenario 必須是 ${FIRST_PARTY_OBSERVATION_UPDATE_SCENARIO}`);
   if(payload.source!==FIRST_PARTY_OBSERVATION_UPDATE_SOURCE)errors.push(`source 必須是 ${FIRST_PARTY_OBSERVATION_UPDATE_SOURCE}`);
+  if(payload?.production_boundary?.ingredient_probability_per_help!=='OBSERVED_PARTIAL_ONLY')errors.push('production_boundary.ingredient_probability_per_help 必須維持 OBSERVED_PARTIAL_ONLY');
+  if(payload?.production_boundary?.runtime_numeric_activation!==false)errors.push('production_boundary.runtime_numeric_activation 必須是 false');
+  if(payload?.production_boundary?.production_active_dimensions!=='4/7')errors.push('production_boundary.production_active_dimensions 必須維持 4/7');
+  if(payload?.production_boundary?.sample_sufficiency_for_activation!=='NOT_DEFINED')errors.push('sample_sufficiency_for_activation 必須維持 NOT_DEFINED');
   const operations=Array.isArray(payload.operations)?payload.operations:[];
   if(!operations.length)errors.push('first-party observation Update Package 至少需要 1 筆 operation');
   for(const [index,operation] of operations.entries()){
@@ -118,6 +125,8 @@ export function validateFirstPartyIngredientObservationUpdatePackage(payload={})
 
 export function buildFirstPartyIngredientObservationUpdatePackage(input={},options={}){
   const generatedAt=options.generatedAt||new Date().toISOString();
+  const capturedAt=options.capturedAt||generatedAt;
+  if(!validIso(generatedAt)||!validIso(capturedAt))throw new Error('generated_at_and_captured_at_must_be_valid_iso');
   const record=buildFirstPartyIngredientObservationRecord(input);
   const observationId=text(record.observation_id);
   if(!observationId)throw new Error('observation_id_required');
@@ -146,7 +155,7 @@ export function buildFirstPartyIngredientObservationUpdatePackage(input={},optio
       entity:FIRST_PARTY_OBSERVATION_UPDATE_ENTITY,
       action:'upsert',
       key:{observation_id:observationId},
-      data:{...clone(record),captured_at:options.capturedAt||generatedAt},
+      data:{...clone(record),captured_at:capturedAt},
       clear_fields:[],
       evidence:{
         source_type:FIRST_PARTY_OBSERVATION_OPERATION_EVIDENCE_TYPE,
