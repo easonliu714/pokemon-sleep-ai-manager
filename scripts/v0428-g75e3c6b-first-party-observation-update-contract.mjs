@@ -121,7 +121,7 @@ for(const path of ['ingredient-probability-first-party-observation-contract.js',
 assert.ok(sw.includes("url.pathname.endsWith('.js')"),'service worker must network-first/cache JavaScript modules after a successful online startup');
 assert.ok(sw.includes('caches.open(CACHE).then(cache=>cache.put(event.request,copy))'),'service worker must retain fetched JavaScript in the active cache for later offline use');
 assert.ok(version.includes("app_build: '20260815-v0427-e3c6b-first-party-observation-capture'"),'E3C-6B build authority missing');
-assert.ok(version.includes("cache_name: 'pokemon-sleep-ai-v0.4.27-e3c6b-first-party-observation-capture'"),'E3C-6B cache rotation missing');
+assert.ok(version.includes("cache_name: 'pokemon-sleep-ai-v0.4.27-v0427-e3c6b-first-party-observation-capture'"),'E3C-6B cache rotation missing');
 
 console.log(JSON.stringify({
   status:'PASS',gate:'V0428_G75E3C6B_FIRST_PARTY_OBSERVATION_UPDATE',
