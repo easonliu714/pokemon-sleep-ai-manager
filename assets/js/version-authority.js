@@ -2,7 +2,7 @@
   const authority = Object.freeze({
     app_version: 'v0.4.27',
     app_build: '20260815-v0427-e3c6b-first-party-observation-capture',
-    cache_name: 'pokemon-sleep-ai-v0.4.27-e3c6b-first-party-observation-capture',
+    cache_name: 'pokemon-sleep-ai-v0.4.27-v0427-e3c6b-first-party-observation-capture',
     schema: 'pokemon-sleep-version-authority/1.0',
   });
   Object.defineProperty(scope, 'PokemonSleepVersionAuthority', {
