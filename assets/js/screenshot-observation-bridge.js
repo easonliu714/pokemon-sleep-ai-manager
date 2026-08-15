@@ -7,15 +7,88 @@ import {
 
 const clone=value=>JSON.parse(JSON.stringify(value));
 const clean=value=>String(value??'').normalize('NFKC').trim();
+const meaningful=value=>value!==null&&value!==undefined&&clean(value)!=='';
+const comparable=value=>typeof value==='string'?clean(value):value;
+const sourceRefs=evidence=>[...(evidence?.source_image_refs||[])].filter(Boolean);
+
+function mergeConflictMaps(target={},source={}){
+  const output=clone(target||{});
+  for(const [field,row] of Object.entries(source||{})){
+    const current=output[field]||{};
+    output[field]={
+      values:[...new Set([...(current.values||[]),...(row?.values||[])].filter(meaningful).map(value=>typeof value==='string'?clean(value):value))],
+      source_image_refs:[...new Set([...(current.source_image_refs||[]),...(row?.source_image_refs||[])].filter(Boolean))],
+      status:'CONFLICT',
+      resolution_required:true,
+    };
+  }
+  return output;
+}
 
 function mergeEvidence(target,source){
   const refs=new Set([...(target?.source_image_refs||[]),...(source?.source_image_refs||[])]);
   return {
+    ...(target||{}),
+    ...(source||{}),
     source_image_refs:[...refs],
     field_confidence:{...(target?.field_confidence||{}),...(source?.field_confidence||{})},
     unreadable_fields:[...new Set([...(target?.unreadable_fields||[]),...(source?.unreadable_fields||[])])],
+    field_conflicts:mergeConflictMaps(target?.field_conflicts,source?.field_conflicts),
     notes:[target?.notes,source?.notes].filter(Boolean).join(' | ')||null
   };
+}
+
+function recordScalarConflict(conflicts,field,targetValue,sourceValue,targetEvidence,sourceEvidence){
+  const current=conflicts[field]||{};
+  conflicts[field]={
+    values:[...new Set([...(current.values||[]),targetValue,sourceValue].filter(meaningful).map(value=>typeof value==='string'?clean(value):value))],
+    source_image_refs:[...new Set([...(current.source_image_refs||[]),...sourceRefs(targetEvidence),...sourceRefs(sourceEvidence)].filter(Boolean))],
+    status:'CONFLICT',
+    resolution_required:true,
+  };
+}
+
+function mergeScalarObject(target={},source={},targetEvidence=null,sourceEvidence=null,{ignoreKeys=[]}={}){
+  const output={...(target||{})};
+  const conflicts={};
+  const ignored=new Set(ignoreKeys);
+  for(const key of new Set([...Object.keys(target||{}),...Object.keys(source||{})])){
+    if(ignored.has(key))continue;
+    const a=target?.[key],b=source?.[key];
+    if(!meaningful(b))continue;
+    if(!meaningful(a)){output[key]=clone(b);continue;}
+    if(Object.is(comparable(a),comparable(b)))continue;
+    output[key]=null;
+    recordScalarConflict(conflicts,key,a,b,targetEvidence,sourceEvidence);
+  }
+  return {output,conflicts};
+}
+
+function mergeSlotRows(targetRows=[],sourceRows=[],kind,targetEvidence=null,sourceEvidence=null){
+  const levels=new Set([...targetRows,...sourceRows].map(row=>Number(row?.unlock_level)).filter(Number.isFinite));
+  const conflicts={};
+  const rows=[...levels].sort((a,b)=>a-b).map(level=>{
+    const target=targetRows.find(row=>Number(row?.unlock_level)===level)||{};
+    const source=sourceRows.find(row=>Number(row?.unlock_level)===level)||{};
+    const {output,rowConflicts}=(()=>{
+      const merged={unlock_level:level,...target};
+      const local={};
+      for(const key of new Set([...Object.keys(target),...Object.keys(source)])){
+        if(key==='unlock_level')continue;
+        const a=target[key],b=source[key];
+        if(!meaningful(b))continue;
+        if(!meaningful(a)){merged[key]=clone(b);continue;}
+        if(Object.is(comparable(a),comparable(b)))continue;
+        merged[key]=null;
+        const path=`${kind}.${level}.${key}`;
+        recordScalarConflict(local,path,a,b,targetEvidence,sourceEvidence);
+      }
+      return {output:merged,rowConflicts:local};
+    })();
+    Object.assign(conflicts,mergeConflictMaps(conflicts,rowConflicts));
+    return output;
+  });
+  return {rows,conflicts};
 }
 
 function mergeDirectEvidence(target,source,kind){
@@ -102,27 +175,49 @@ export function buildObservationFromScreenshotGroup(group,{ocrObservation=null,a
     identity:{target_pokemon_instance_id:targetPokemonInstanceId,target_update_token:null,capture_species_id:null,current_species_id:currentSpeciesId,registered_date:null,instance_discriminator:null},
     profile:{species:platformSpecies.species,species_observation_basis:platformSpecies.basis,header_name_text:group.header?.name||null,level:group.header?.level??null,sp:group.header?.sp??null},
     ingredients:[],subskills:[],
-    evidence:{source_image_refs:group.images?.map(item=>item.path||item.name).filter(Boolean)||[],field_confidence:{},unreadable_fields:[],notes:null},
+    evidence:{source_image_refs:group.images?.map(item=>item.path||item.name).filter(Boolean)||[],field_confidence:{},unreadable_fields:[],field_conflicts:{},notes:null},
     visual_evidence:null,
   };
+  base.evidence=mergeEvidence(base.evidence,{field_conflicts:{}});
   for(const source of sources){
-    base.profile={...(base.profile||{}),...(source.profile||{})};
-    base.identity={...(base.identity||{}),...(source.identity||{})};
-    base.progression={...(base.progression||{}),...(source.progression||{})};
-    if(source.ingredients?.length)base.ingredients=clone(source.ingredients);
-    if(source.subskills?.length)base.subskills=clone(source.subskills);
+    const profileMerge=mergeScalarObject(base.profile,source.profile,base.evidence,source.evidence,{ignoreKeys:['species','species_observation_basis']});
+    base.profile=profileMerge.output;
+    const progressionMerge=mergeScalarObject(base.progression||{},source.progression||{},base.evidence,source.evidence);
+    base.progression=progressionMerge.output;
+    const ingredientMerge=mergeSlotRows(base.ingredients||[],source.ingredients||[],'ingredients',base.evidence,source.evidence);
+    base.ingredients=ingredientMerge.rows;
+    const subskillMerge=mergeSlotRows(base.subskills||[],source.subskills||[],'subskills',base.evidence,source.evidence);
+    base.subskills=subskillMerge.rows;
     base.evidence=mergeEvidence(base.evidence,source.evidence);
+    base.evidence.field_conflicts=mergeConflictMaps(base.evidence.field_conflicts,{
+      ...profileMerge.conflicts,
+      ...progressionMerge.conflicts,
+      ...ingredientMerge.conflicts,
+      ...subskillMerge.conflicts,
+    });
     base.visual_evidence=mergeVisualEvidence(base.visual_evidence,source.visual_evidence);
   }
   base.incoming_ref=`screenshot-group:${group.group_key}`;
   base.requested_action='resolve_on_import';
+  base.identity={
+    ...(base.identity||{}),
+    target_pokemon_instance_id:targetPokemonInstanceId||base.identity?.target_pokemon_instance_id||null,
+    current_species_id:currentSpeciesId||base.identity?.current_species_id||null,
+    instance_discriminator:null,
+  };
   base.profile={
     ...(base.profile||{}),
     header_name_text:base.profile?.header_name_text||group.header?.name||null,
     level:base.profile?.level??group.header?.level??null,
     sp:base.profile?.sp??group.header?.sp??null,
   };
-  if(!base.profile.species&&platformSpecies.species){base.profile.species=platformSpecies.species;base.profile.species_observation_basis=platformSpecies.basis;}
+  if(platformSpecies.species){
+    base.profile.species=platformSpecies.species;
+    base.profile.species_observation_basis=platformSpecies.basis;
+  }else{
+    base.profile.species=null;
+    base.profile.species_observation_basis=null;
+  }
   base.evidence=mergeEvidence(base.evidence,{source_image_refs:group.images?.map(item=>item.path||item.name).filter(Boolean)||[]});
   return base;
 }
