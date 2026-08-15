@@ -1,10 +1,20 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-export const CI_P5_WRAPPER_PARITY_VERSION='ci-p5-wrapper-parity-2026-08-15-a';
+export const CI_P5_WRAPPER_PARITY_VERSION='ci-p5-wrapper-retirement-2026-08-15-b';
+export const P5_SIDE_BY_SIDE_PARITY_PROOF=Object.freeze({
+  pr:316,
+  fixed_head:'00d1a3920e792f1db4218c8ba3fde1d1a6484c41',
+  merge_sha:'62cb13599e7956c0e2ca9d60872d53d6783ba036',
+  triggered_workflows:16,
+  predecessor_workflows:6,
+  predecessor_and_successor_all_green:true,
+  main_push_success:10,
+  main_push_failure:0,
+});
 
 const WORKFLOW_DIR='.github/workflows';
-const PREDECESSORS=Object.freeze([
+const RETIRED_PREDECESSORS=Object.freeze([
   'debug-trace-manager-regression.yml',
   'v0396-general-json-audit.yml',
   'v0397-profile-completeness.yml',
@@ -17,7 +27,9 @@ const HISTORICAL_SUCCESSOR='.github/workflows/historical-release-regression.yml'
 const HISTORICAL_RUNNER='scripts/ci-historical-release-regression.mjs';
 const read=path=>fs.readFileSync(path,'utf8');
 
-for(const name of PREDECESSORS)assert.equal(fs.existsSync(`${WORKFLOW_DIR}/${name}`),true,`P5 parity phase requires predecessor wrapper to remain present: ${name}`);
+for(const name of RETIRED_PREDECESSORS){
+  assert.equal(fs.existsSync(`${WORKFLOW_DIR}/${name}`),false,`P5 retired wrapper reappeared: ${name}`);
+}
 
 const core=read(CORE_SUCCESSOR);
 const historical=read(HISTORICAL_SUCCESSOR);
@@ -35,7 +47,7 @@ for(const token of [
   'tests/test_v0398_update_center_multiscenario_contract.py',
   'node scripts/ci-p5-core-update-review-successor-contract.mjs',
   'node scripts/ci-p5-wrapper-parity-contract.mjs',
-])assert.ok(core.includes(token),`core successor missing predecessor behavior reference: ${token}`);
+])assert.ok(core.includes(token),`core successor lost retired-wrapper behavior reference: ${token}`);
 
 assert.doesNotMatch(historical,/contents\s*:\s*write/i,'historical successor must remain read-only');
 assert.doesNotMatch(historical,/(?:^|\s)git\s+(?:push|commit)(?:\s|$)/im,'historical successor must not mutate repository history');
@@ -47,29 +59,34 @@ for(const pathToken of [
   "'assets/js/migrations.js'",
   "'scripts/data-evo1-observed-evolution-coverage-contract.mjs'",
   "'scripts/ci-p5-public-knowledge-successor-contract.mjs'",
-])assert.ok(historical.includes(pathToken),`historical successor trigger union missing: ${pathToken}`);
+])assert.ok(historical.includes(pathToken),`historical successor trigger union lost retired-wrapper path: ${pathToken}`);
 for(const contract of [
   'scripts/ci-p5-public-knowledge-successor-contract.mjs',
   'scripts/data-evo1-observed-evolution-coverage-contract.mjs',
   'scripts/v0482-release-contract.mjs',
   'scripts/v0483-release-contract.mjs',
   'scripts/war3a-candy-inventory-contract.mjs',
-])assert.ok(historicalRunner.includes(contract),`historical successor runner missing predecessor behavior: ${contract}`);
+])assert.ok(historicalRunner.includes(contract),`historical successor lost retired-wrapper behavior: ${contract}`);
 
 const actual=fs.readdirSync(WORKFLOW_DIR).filter(name=>/\.ya?ml$/i.test(name));
-assert.equal(actual.length,33,'P5 parity phase must not retire wrappers before side-by-side CI passes');
+assert.equal(actual.length,27,'P5 retirement topology must be exactly 27 workflow YAML files');
+assert.equal(P5_SIDE_BY_SIDE_PARITY_PROOF.predecessor_and_successor_all_green,true,'P5 retirement requires recorded side-by-side parity proof');
+assert.equal(P5_SIDE_BY_SIDE_PARITY_PROOF.main_push_failure,0,'P5A main-push must have zero failures before retirement');
 
 console.log(JSON.stringify({
   status:'PASS',
-  gate:'CI_P5_WRAPPER_SIDE_BY_SIDE_PARITY',
+  gate:'CI_P5_WRAPPER_RETIREMENT',
   version:CI_P5_WRAPPER_PARITY_VERSION,
-  predecessor_workflow_count:PREDECESSORS.length,
-  predecessor_workflows:PREDECESSORS,
+  parity_proof:P5_SIDE_BY_SIDE_PARITY_PROOF,
+  retired_workflow_count:RETIRED_PREDECESSORS.length,
+  retired_workflows:RETIRED_PREDECESSORS,
   core_successor:'regression-gate.yml',
   historical_successor:'historical-release-regression.yml',
-  workflow_count_before_retirement:actual.length,
+  workflow_count_before_retirement:33,
+  workflow_count_after_retirement:actual.length,
+  net_workflow_reduction:6,
   trigger_policy:'CORE_ALWAYS_ON_MAIN_PR_PUSH_AND_HISTORICAL_UNION_PATHS',
   permissions:'READ_ONLY',
   repository_mutation:false,
-  side_by_side_parity_ready:true,
+  behavioral_contracts_removed:0,
 },null,2));
