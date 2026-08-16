@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 
-export const CI_TOPOLOGY_POLICY_VERSION='ci-topology-policy-2026-08-15-b-p5-retirement';
+export const CI_TOPOLOGY_POLICY_VERSION='ci-topology-policy-2026-08-16-a-p6a1-parity';
 const WORKFLOW_DIR='.github/workflows';
 
 // Main-tree workflow files are the topology authority. GitHub Actions may keep
@@ -82,6 +82,7 @@ const TOPOLOGY_CONTRACTS=Object.freeze([
   'scripts/ci-data1d1-workflow-consolidation-contract.mjs',
   'scripts/ci-war-room-workflow-consolidation-contract.mjs',
   'scripts/ci-p5-wrapper-parity-contract.mjs',
+  'scripts/ci-p6a-ucimg-wrapper-parity-contract.mjs',
 ]);
 
 function annotationSafe(value){
@@ -161,6 +162,8 @@ console.log(JSON.stringify({
   protected_independent_workflow_count:PROTECTED_INDEPENDENT_WORKFLOWS.length,
   retired_wrapper_contracts_replayed:TOPOLOGY_CONTRACTS.length,
   p5_retired_wrapper_count:6,
+  p6a_parity_predecessor_count:4,
+  p6a_retirement_allowed:false,
   registry_stale_no_main_file_count:REGISTRY_STALE_NO_MAIN_FILE.length,
   actions_registry_is_authoritative:false,
   main_tree_is_topology_authority:true,
