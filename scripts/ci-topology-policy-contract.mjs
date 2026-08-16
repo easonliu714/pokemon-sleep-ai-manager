@@ -3,15 +3,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 
-export const CI_TOPOLOGY_POLICY_VERSION='ci-topology-policy-2026-08-16-f-p7-retirement';
+export const CI_TOPOLOGY_POLICY_VERSION='ci-topology-policy-2026-08-16-g-p8a-parity';
 const WORKFLOW_DIR='.github/workflows';
 
 const APPROVED_MAIN_WORKFLOWS=Object.freeze([
+  'data-boundary-regression.yml',
   'deploy-pages.yml',
   'g14-backup-truth-restore.yml',
   'g14-data-consistency-multicapture.yml',
   'g14-full75-recovery.yml',
   'g14-public-catalog-renderer-authority.yml',
+  'g14-safety-regression.yml',
   'historical-release-regression.yml',
   'js-syntax-check.yml',
   'legacy-runtime-regression.yml',
@@ -44,6 +46,8 @@ const PROTECTED_INDEPENDENT_WORKFLOWS=Object.freeze([
   'g14-data-consistency-multicapture.yml',
   'g14-full75-recovery.yml',
   'g14-public-catalog-renderer-authority.yml',
+  'g14-safety-regression.yml',
+  'data-boundary-regression.yml',
 ]);
 
 const GRANDFATHERED_VERSION_SPECIFIC_WORKFLOWS=Object.freeze(
@@ -83,6 +87,7 @@ const TOPOLOGY_CONTRACTS=Object.freeze([
   'scripts/ci-p6a-ucimg-wrapper-parity-contract.mjs',
   'scripts/ci-p6b-screenshot-pipeline-parity-contract.mjs',
   'scripts/ci-p7-recipe-regression-parity-contract.mjs',
+  'scripts/ci-p8-safety-boundary-parity-contract.mjs',
 ]);
 
 function annotationSafe(value){
@@ -144,6 +149,11 @@ console.log(JSON.stringify({
   p6b_retirement_complete:true,
   p7_retired_wrapper_count:4,
   p7_retirement_complete:true,
+  p8_parity_predecessor_count:8,
+  p8_new_successor_count:2,
+  p8_expected_final_workflow_count:12,
+  p8_js_syntax_retirement_decision:'RETAIN_INDEPENDENT_ISSUES_WRITE_AND_EXHAUSTIVE_ASSETS_JS_BOUNDARY',
+  p8_retirement_allowed:false,
   registry_stale_no_main_file_count:REGISTRY_STALE_NO_MAIN_FILE.length,
   actions_registry_is_authoritative:false,
   main_tree_is_topology_authority:true,
