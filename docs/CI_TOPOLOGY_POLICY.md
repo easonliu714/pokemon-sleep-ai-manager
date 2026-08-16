@@ -24,6 +24,7 @@ The policy intentionally preserves independently visible high-value boundaries i
 - Production evidence regression
 - Legacy runtime regression
 - Screenshot Pipeline Regression with independent local OCR, OCR/AI bridge, and UC.IMG jobs
+- Recipe Regression during P7 parity
 - War Room regression
 - G14 Backup / FULL75 / Data Consistency / Public Catalog
 
@@ -40,64 +41,50 @@ Current topology meta-contracts replayed by the global policy:
 - `ci-p5-wrapper-parity-contract.mjs`
 - `ci-p6a-ucimg-wrapper-parity-contract.mjs`
 - `ci-p6b-screenshot-pipeline-parity-contract.mjs`
+- `ci-p7-recipe-regression-parity-contract.mjs`
 
 ## P5 core / Update Center / public-knowledge convergence
-P5 uses a two-PR retirement protocol so predecessor evidence is never deleted before replacement parity exists.
+P5 used a two-PR retirement protocol. P5A fixed head `00d1a3920e792f1db4218c8ba3fde1d1a6484c41` in PR #316 proved side-by-side parity; P5B then retired six wrappers. Historical topology milestone: **33 → 27**, `behavioral_contracts_removed=0`.
 
-P5A parity proof:
-- PR: `#316`
-- fixed head: `00d1a3920e792f1db4218c8ba3fde1d1a6484c41`
-- merge SHA: `62cb13599e7956c0e2ca9d60872d53d6783ba036`
-- six predecessor workflows and both successor domain runners executed on the same PR head;
-- 16 triggered PR workflows completed successfully;
-- post-merge main push completed 10 workflows with zero failures.
+## P6 Screenshot / OCR / UC.IMG convergence
+P6 also used parity-before-retirement.
 
-P5B retired six wrappers only after that proof. Their behaviors remain in `regression-gate.yml` and `historical-release-regression.yml`. P5 topology result was **33 → 27**, `behavioral_contracts_removed=0`; later phases may reduce the current count below that historical milestone.
+P6A:
+- PR #322 fixed head `1876a56f92142f29b015b7085f751041e8a9380a`; 15/15 PR workflows PASS; main 15 success / 0 failure.
+- PR #323 retired four v0.4.13.x wrappers after proof.
+- topology **27 → 23**, behavior loss 0.
 
-## P6A Screenshot / OCR / UC.IMG convergence
-P6A used the same parity-before-retirement protocol.
+P6B:
+- PR #324 fixed head `807191569ad29ee27022e95ef685efde1ac32808`; 13/13 PR workflows PASS; all three candidate successor jobs PASS; main 13 success / 0 failure.
+- PR #325 retired `data1d1-ocr-regression.yml`, `g13-ocr-ai-regression.yml`, and `uc-img-a.yml` after proof.
+- final topology **23 → 21** with `screenshot-pipeline-regression.yml` preserving three independent jobs: `local-ocr`, `ocr-ai-bridge`, and `uc-img-update-center`.
+- `behavioral_contracts_removed=0`.
 
-P6A-1 parity proof:
-- PR: `#322`
-- fixed head: `1876a56f92142f29b015b7085f751041e8a9380a`
-- merge SHA: `bd84d2b9e4cd7797ef71c7ccd304f8de0c65ebb8`
-- 15/15 triggered PR workflows PASS;
-- post-merge main push: 15 success / 0 failure / 0 queued / 0 in-progress.
+## P7 Recipe authority consolidation
+P7 follows the same two-stage protocol. P7A is parity only; no predecessor is retired.
 
-P6A-2 retired:
-- `v04133-shared-gemini-transport-diagnostic.yml`
-- `v04134-recipe-pot-scenario-contract.yml`
-- `v04135-account-capacity-apply-not-null.yml`
-- `v04136-pot-manual-authority-alignment.yml`
+P7A predecessors:
+- `v042-recipe-authority-audit.yml`
+- `v04221-recipe-formula-authority-audit.yml`
+- `v043-r21-recipe-zh-tw-evidence-audit.yml`
+- `v043-release-integration.yml`
 
-P6A topology result was **27 → 23**, `behavioral_contracts_removed=0`. The exact v0.4.13.x behavioral scripts first moved into `uc-img-a.yml` and, after P6B, remain preserved in the UC.IMG job of `screenshot-pipeline-regression.yml`.
+Candidate successor: `recipe-regression.yml`, with four explicit independent jobs:
+- `base-current-authority` — v0.4.2 single/current recipe authority, provenance, strategy projection, player-state preservation, and related evidence-gated contracts;
+- `formula-energy-parity` — version authority, full 78-recipe formula audit, level/energy authority, and predecessor release replay;
+- `zh-tw-evidence` — synthetic/privacy-safe screenshot evidence, canonical zh-TW naming, FULL50 reconciliation, selector/team contracts, G14 renderer authority, and existing-player preservation;
+- `release-integration` — unified workbench predecessor replay, controlled selector/team contracts, v0.4.2 historical compatibility, v0.4.3 release integration, private-source guard, and non-mutation check.
 
-## P6B Screenshot pipeline domain-runner convergence
-P6B replaces the three screenshot-domain workflow files with one domain workflow while preserving independent job boundaries.
+During P7A:
+- workflow YAML count temporarily becomes **21 → 22** because the four predecessors remain tracked;
+- `recipe-regression.yml` deliberately widens trigger coverage to all pull requests and preserves push coverage across `main`, `hotfix/**`, `feature/**`, plus `workflow_dispatch`;
+- all predecessor behavioral commands remain present in the successor;
+- fixed-head predecessor triggering uses a no-side-effect `scripts/v042-p7-parity-marker.mjs`, explicit formula-wrapper PR widening, and a comment-only governed R2.6 change for the zh-TW wrapper;
+- all workflows remain read-only/repository-non-mutating;
+- Production numeric authority is unchanged;
+- retirement is forbidden until all four predecessor workflows plus all four successor jobs are green on the same fixed PR head, followed by a fully terminal main push with zero failures/queued/in-progress jobs.
 
-### P6B-1 — side-by-side parity
-- PR: `#324`
-- fixed head: `807191569ad29ee27022e95ef685efde1ac32808`
-- merge SHA: `fd9adc9894787e4b4b75e08dcab521005e468887`
-- 13/13 triggered PR workflows PASS;
-- predecessor workflows `data1d1-ocr-regression.yml`, `g13-ocr-ai-regression.yml`, and `uc-img-a.yml` all executed on the same fixed head as `screenshot-pipeline-regression.yml`;
-- the successor's three jobs (`local-ocr`, `ocr-ai-bridge`, `uc-img-update-center`) each completed successfully;
-- post-merge main push: 13 success / 0 failure / 0 queued / 0 in-progress.
-
-### P6B-2 — controlled retirement
-Only after that proof, retire:
-- `data1d1-ocr-regression.yml`
-- `g13-ocr-ai-regression.yml`
-- `uc-img-a.yml`
-
-Behavior is not deleted. `screenshot-pipeline-regression.yml` keeps three independent jobs:
-- `local-ocr` runs the DATA.1D.1 runner and historical consolidation contract;
-- `ocr-ai-bridge` keeps G13 core-on-push/full-on-PR behavior plus syntax and repository-non-mutation checks;
-- `uc-img-update-center` retains UC.IMG/Gemini/Update Center contracts, including all P6A-retired v0.4.13.x behavior.
-
-Trigger coverage is preserved or deliberately widened to all pull requests, pushes to `main`, pushes to `hotfix/**`, and `workflow_dispatch`. The successor remains `contents: read`, contains no `git commit`/`git push`, and does not mutate player SQLite data.
-
-P6B final topology result is **23 → 21 workflow YAML files** relative to the P6A baseline (temporary parity topology 24 → 21 at retirement), with `behavioral_contracts_removed=0`.
+Only after that evidence may P7B retire the four version wrappers. Expected topology is **22 → 18** at retirement, equivalently **21 → 18** relative to the P6B baseline, with `behavioral_contracts_removed=0`.
 
 ## Release mutation policy
 Test/regression workflows are not release writers.
@@ -111,14 +98,10 @@ Main workflows must not:
 Deployment-specific GitHub Pages permissions such as `pages: write` / `id-token: write` are a separate deployment boundary and are not repository-content mutation authority.
 
 ## Version-specific workflow policy
-The small set of version-specific workflows still tracked after P0–P6B cleanup is grandfathered as the current baseline. It is not a template for future growth.
-
-Any additional `v*.yml` standalone workflow causes the topology contract to fail until the PR either:
-1. moves the new behavior into an existing consolidated/domain runner; or
-2. explicitly updates the topology baseline and documents why an independent workflow is required.
+The version-specific workflows still tracked during P7A are grandfathered only as predecessor evidence. They are not a template for future growth. Any additional `v*.yml` standalone workflow fails topology policy unless explicitly justified as an independent safety boundary.
 
 ## Registry-stale workflow identities
-Known retired workflow identities may remain visible through GitHub Actions even though no corresponding YAML exists on `main`. This includes the old v0.3.93 identities, the P5-retired wrappers, the P6A-retired v0.4.13.x wrappers, and after P6B the retired DATA.1D.1/G13/UC.IMG workflow identities. These are classified `REGISTRY_STALE_NO_MAIN_FILE`. Main-tree truth wins; do not recreate them to make registry counts match.
+Retired identities may remain visible in GitHub Actions even though their YAML no longer exists on `main`. These are `REGISTRY_STALE_NO_MAIN_FILE`; main-tree truth wins.
 
 ## Change procedure
 For any CI topology change:
