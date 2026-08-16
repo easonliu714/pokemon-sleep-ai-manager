@@ -118,7 +118,8 @@ jobs:
           grep -q 'src="./assets/js/full75-recovery-workbench.js"' index.html
           ! grep -q 'full75-recovery-workbench.js?v=' index.html
           grep -q 'assets/js/version-authority.js' service-worker.js
-          ! grep -R "PRIVATE-ABILITY-FULL75-REFRESH" assets .github docs --exclude='g14-full75-recovery.yml' --exclude='g14-safety-regression.yml'
+          private_marker='PRIVATE-ABILITY-''FULL75-REFRESH'
+          ! grep -R "$private_marker" assets .github docs --exclude='g14-full75-recovery.yml'
 
   public-catalog-authority:
     runs-on: ubuntu-latest
