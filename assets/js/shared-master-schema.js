@@ -53,7 +53,7 @@ export function applySharedMasterSchema(db){
 
   const ingredientUnlockProjection=hasColumn(db,'ingredient_inventory','unlocked');
   db.run('DROP VIEW IF EXISTS ingredient_catalog_state');
-  db.run(ingredientUnlockProjection?`CREATE VIEW ingredient_catalog_state AS
+  db.run(ingredientUnlockProjection?`CREATE VIEW IF NOT EXISTS ingredient_catalog_state AS
     SELECT m.ingredient_name,
            COALESCE(i.quantity,0) AS quantity,
            i.unlocked AS stored_unlocked,
@@ -72,7 +72,7 @@ export function applySharedMasterSchema(db){
            i.updated_at,
            m.data_version
       FROM ingredient_master m
-      LEFT JOIN ingredient_inventory i ON i.ingredient_name=m.ingredient_name`:`CREATE VIEW ingredient_catalog_state AS
+      LEFT JOIN ingredient_inventory i ON i.ingredient_name=m.ingredient_name`:`CREATE VIEW IF NOT EXISTS ingredient_catalog_state AS
     SELECT m.ingredient_name,
            COALESCE(i.quantity,0) AS quantity,
            NULL AS stored_unlocked,
