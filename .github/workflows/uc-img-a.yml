@@ -47,6 +47,7 @@ on:
       - 'scripts/v04135-account-capacity-apply-not-null-contract.mjs'
       - 'scripts/v04136-pot-manual-authority-alignment-contract.mjs'
       - 'scripts/ci-p6a-ucimg-wrapper-parity-contract.mjs'
+      - 'scripts/ci-p6b-screenshot-pipeline-parity-contract.mjs'
       - 'scripts/uc-img-root-contract.mjs'
       - 'scripts/uc-img-a-contract.mjs'
       - 'scripts/uc-img-internal-gemini-contract.mjs'
@@ -69,6 +70,7 @@ on:
       - 'scripts/v0410-release-contract.mjs'
       - 'scripts/v0491-release-contract.mjs'
       - 'scripts/war3c-external-strategy-analysis-pack-contract.mjs'
+      - '.github/workflows/screenshot-pipeline-regression.yml'
       - '.github/workflows/uc-img-a.yml'
   push:
     branches:
@@ -119,6 +121,7 @@ on:
       - 'scripts/v04135-account-capacity-apply-not-null-contract.mjs'
       - 'scripts/v04136-pot-manual-authority-alignment-contract.mjs'
       - 'scripts/ci-p6a-ucimg-wrapper-parity-contract.mjs'
+      - 'scripts/ci-p6b-screenshot-pipeline-parity-contract.mjs'
       - 'scripts/uc-img-root-contract.mjs'
       - 'scripts/uc-img-a-contract.mjs'
       - 'scripts/uc-img-internal-gemini-contract.mjs'
@@ -141,6 +144,7 @@ on:
       - 'scripts/v0410-release-contract.mjs'
       - 'scripts/v0491-release-contract.mjs'
       - 'scripts/war3c-external-strategy-analysis-pack-contract.mjs'
+      - '.github/workflows/screenshot-pipeline-regression.yml'
       - '.github/workflows/uc-img-a.yml'
   workflow_dispatch:
 
@@ -193,6 +197,8 @@ jobs:
         run: node scripts/v0412-recipe-unified-player-workbench-contract.mjs
       - name: Verify P6A wrapper retirement proof
         run: node scripts/ci-p6a-ucimg-wrapper-parity-contract.mjs
+      - name: Verify P6B screenshot pipeline parity configuration
+        run: node scripts/ci-p6b-screenshot-pipeline-parity-contract.mjs
       - name: Verify current and historical release contracts
         run: |
           CURRENT_VERSION="$(sed -n "s/^[[:space:]]*app_version: '\([^']*\)',/\1/p" assets/js/version-authority.js | head -n1)"
@@ -253,6 +259,7 @@ jobs:
           node --check scripts/v04135-account-capacity-apply-not-null-contract.mjs
           node --check scripts/v04136-pot-manual-authority-alignment-contract.mjs
           node --check scripts/ci-p6a-ucimg-wrapper-parity-contract.mjs
+          node --check scripts/ci-p6b-screenshot-pipeline-parity-contract.mjs
           node --check scripts/public-master-recognition-contract.mjs
           node --check scripts/v04111-uc-img-session-timestamp-contract.mjs
           node --check scripts/v04112-android-eager-image-bytes-contract.mjs
