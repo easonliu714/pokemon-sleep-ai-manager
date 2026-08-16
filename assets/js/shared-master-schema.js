@@ -1,3 +1,8 @@
+function hasColumn(db,table,column){
+  const statement=db.prepare(`PRAGMA table_info("${table}")`);const names=[];
+  while(statement.step())names.push(statement.getAsObject().name);statement.free();return names.includes(column);
+}
+
 export function applySharedMasterSchema(db){
   db.run(`CREATE TABLE IF NOT EXISTS berry_master(
     type_name TEXT PRIMARY KEY,
@@ -46,9 +51,37 @@ export function applySharedMasterSchema(db){
   )`);
   db.run('CREATE INDEX IF NOT EXISTS idx_recipe_master_category ON recipe_master(category,base_energy DESC)');
 
-  db.run(`CREATE VIEW IF NOT EXISTS ingredient_catalog_state AS
+  const ingredientUnlockProjection=hasColumn(db,'ingredient_inventory','unlocked');
+  db.run('DROP VIEW IF EXISTS ingredient_catalog_state');
+  db.run(ingredientUnlockProjection?`CREATE VIEW ingredient_catalog_state AS
     SELECT m.ingredient_name,
            COALESCE(i.quantity,0) AS quantity,
+           i.unlocked AS stored_unlocked,
+           CASE
+             WHEN i.ingredient_name IS NULL THEN NULL
+             WHEN COALESCE(i.quantity,0)>0 THEN 1
+             ELSE i.unlocked
+           END AS unlocked,
+           CASE
+             WHEN i.ingredient_name IS NULL THEN 'NO_PLAYER_RECORD'
+             WHEN COALESCE(i.quantity,0)>0 OR i.unlocked=1 THEN 'UNLOCKED'
+             WHEN i.unlocked=0 THEN 'NOT_UNLOCKED'
+             ELSE 'UNKNOWN'
+           END AS unlock_state,
+           CASE WHEN i.ingredient_name IS NULL THEN 0 ELSE 1 END AS player_record_exists,
+           i.updated_at,
+           m.data_version
+      FROM ingredient_master m
+      LEFT JOIN ingredient_inventory i ON i.ingredient_name=m.ingredient_name`:`CREATE VIEW ingredient_catalog_state AS
+    SELECT m.ingredient_name,
+           COALESCE(i.quantity,0) AS quantity,
+           NULL AS stored_unlocked,
+           CASE WHEN i.ingredient_name IS NOT NULL AND COALESCE(i.quantity,0)>0 THEN 1 ELSE NULL END AS unlocked,
+           CASE
+             WHEN i.ingredient_name IS NULL THEN 'NO_PLAYER_RECORD'
+             WHEN COALESCE(i.quantity,0)>0 THEN 'UNLOCKED'
+             ELSE 'UNKNOWN'
+           END AS unlock_state,
            CASE WHEN i.ingredient_name IS NULL THEN 0 ELSE 1 END AS player_record_exists,
            i.updated_at,
            m.data_version
