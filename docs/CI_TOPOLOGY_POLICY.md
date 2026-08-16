@@ -15,18 +15,17 @@ A new standalone workflow requires an intentional amendment to `scripts/ci-topol
 ## Protected independent workflows
 The policy intentionally preserves independently visible high-value boundaries including:
 - Frontend/browser regression
-- JavaScript syntax
-- Private Data Guard
+- JavaScript syntax / failure-notification boundary
 - Android import
 - GitHub Pages deploy
-- Public empty-player-profile safety
 - Historical release regression
 - Production evidence regression
 - Legacy runtime regression
 - Screenshot Pipeline Regression with independent local OCR, OCR/AI bridge, and UC.IMG jobs
 - Recipe Regression with independent authority/formula/evidence/release jobs
 - War Room regression
-- G14 Backup / FULL75 / Data Consistency / Public Catalog
+- G14 Safety Regression during P8 parity
+- Data Boundary Regression during P8 parity
 
 ## Historical behavioral contracts
 Retiring a workflow wrapper does not authorize deletion of its behavioral script/test. Consolidation contracts must continue proving that the behavioral evidence remains present and is replayed by the replacement runner.
@@ -42,6 +41,7 @@ Current topology meta-contracts replayed by the global policy:
 - `ci-p6a-ucimg-wrapper-parity-contract.mjs`
 - `ci-p6b-screenshot-pipeline-parity-contract.mjs`
 - `ci-p7-recipe-regression-parity-contract.mjs`
+- `ci-p8-safety-boundary-parity-contract.mjs`
 
 ## P5 core / Update Center / public-knowledge convergence
 P5 used a two-PR retirement protocol. P5A fixed head `00d1a3920e792f1db4218c8ba3fde1d1a6484c41` in PR #316 proved side-by-side parity; P5B then retired six wrappers. Historical topology milestone: **33 → 27**, `behavioral_contracts_removed=0`.
@@ -61,37 +61,76 @@ P6B:
 - `behavioral_contracts_removed=0`.
 
 ## P7 Recipe authority consolidation
-P7 follows the same two-stage parity-before-retirement protocol.
+P7 used the same two-stage protocol.
 
-### P7A — side-by-side parity proof
-- PR: `#326`
-- final fixed head: `e872fe42692fb176c3ed3e03e8218d741609a627`
-- merge SHA: `681b5f53b80c1317a49edf881df5333d1747fb46`
-- 17/17 triggered PR workflows PASS;
-- all four predecessor recipe wrappers executed successfully on the same fixed head;
-- `recipe-regression.yml` executed all four independent jobs successfully: `base-current-authority`, `formula-energy-parity`, `zh-tw-evidence`, `release-integration`;
-- post-merge main push: 16 success / 0 failure / 0 queued / 0 in-progress.
+P7A:
+- PR #326 final fixed head `e872fe42692fb176c3ed3e03e8218d741609a627`;
+- 17/17 PR workflows PASS;
+- all four predecessor recipe wrappers and four successor jobs PASS;
+- merge `681b5f53b80c1317a49edf881df5333d1747fb46`;
+- post-merge main 16 success / 0 failure.
 
-P7A predecessors:
-- `v042-recipe-authority-audit.yml`
-- `v04221-recipe-formula-authority-audit.yml`
-- `v043-r21-recipe-zh-tw-evidence-audit.yml`
-- `v043-release-integration.yml`
+P7B:
+- PR #327 final fixed head `61ec5eaa397bd33f0ddca86b7f7088096b4570e9`;
+- 13/13 PR workflows PASS;
+- merge `04ba6441d07a5581cda76ceb634c11f97bf3cafc`;
+- post-merge main 13 terminal workflows / zero failure, queued, in-progress, or cancelled;
+- retired four recipe authority wrappers only after parity;
+- final topology **21 → 18** with `recipe-regression.yml` preserving four independent jobs;
+- `behavioral_contracts_removed=0`, Production numeric authority unchanged.
 
-### P7B — controlled retirement
-PR #327 retires the four wrappers only after the P7A proof above. Behavioral ownership remains in `recipe-regression.yml` under four independently visible jobs:
-- `base-current-authority` — v0.4.2 single/current recipe authority, provenance, strategy projection, player-state preservation, and related evidence-gated contracts;
-- `formula-energy-parity` — version authority, full 78-recipe formula audit, level/energy authority, and predecessor release replay;
-- `zh-tw-evidence` — synthetic/privacy-safe screenshot evidence, canonical zh-TW naming, FULL50 reconciliation, selector/team contracts, G14 renderer authority, and existing-player preservation;
-- `release-integration` — unified workbench predecessor replay, controlled selector/team contracts, v0.4.2 historical compatibility, v0.4.3 release integration, private-source guard, and non-mutation check.
+## P8 Safety-boundary workflow-file convergence
+P8A is side-by-side parity only. The P7 final main-tree topology starts at **18**. Two new candidate safety-domain workflows are temporarily added while all eight planned predecessors remain tracked, so parity topology is **18 → 20**.
 
-The temporary P7A no-op trigger marker is removed during P7B, and the R2.6 comment-only trigger change is restored. Trigger coverage remains deliberately widened in the successor to all pull requests, pushes to `main`, `hotfix/**`, `feature/**`, and `workflow_dispatch`.
+### G14 candidate successor
+`g14-safety-regression.yml` preserves four independently visible jobs:
+- `backup-truth-restore`
+- `data-consistency-multicapture`
+- `full75-recovery`
+- `public-catalog-authority`
 
-P7 topology target/result on P7B merge is **21 → 18 workflow YAML files** relative to the P6B baseline (temporary parity topology 22 → 18 at retirement), with:
-- `behavioral_contracts_removed=0`;
-- Production numeric authority unchanged;
-- all retained test CI read-only and repository-non-mutating;
-- no player SQLite mutation.
+Predecessors retained during P8A:
+- `g14-backup-truth-restore.yml`
+- `g14-data-consistency-multicapture.yml`
+- `g14-full75-recovery.yml`
+- `g14-public-catalog-renderer-authority.yml`
+
+The successor preserves all-PR coverage and push-to-main coverage. The old backup workflow's exact `feat/v0377a-backup-truth-restore-verification` listener is deliberately widened to `feat/**` rather than retaining a stale implementation branch identity. Jobs remain independent; no fail-fast mega-job is introduced.
+
+### Data-boundary candidate successor
+`data-boundary-regression.yml` preserves two independent jobs:
+- `private-data-guard` — exact tracked-private-artifact rejection, including full-history checkout;
+- `empty-player-public-pages` — exact public/private separation and zero-state view contract.
+
+Predecessors retained during P8A:
+- `privacy-guard.yml`
+- `public-pages-empty-profile.yml`
+
+The successor preserves all-PR and push-to-main coverage, remains `contents: read`, and does not weaken private-data or empty-profile separation.
+
+### v0.4.8 wrapper classification
+The remaining version wrappers are classified by exact behavioral contents rather than their labels:
+- `v0481-live-followup.yml`
+- `v0484-touch-first-camp-containment.yml`
+
+Both are historical/public-knowledge/weekly-context/camp-containment regression wrappers. Their exact behavioral contracts are absorbed into `historical-release-regression.yml` / `ci-historical-release-regression.mjs`, including v0.4.8.1 release semantics, LIVE follow-up behavior, v0.4.8 historical release behavior, typed event effects, candy inventory, weekly AI type repair, weekly-context integration, and the original syntax checks. A comment-only change to the already-governed `v0481-live-followup-contract.mjs` forces both predecessors onto the P8A fixed parity head without changing behavior.
+
+### Standalone JavaScript syntax evaluation
+P8 explicitly evaluated retirement of `js-syntax-check.yml` and **does not retire it**. It remains an independent boundary because it owns both:
+- exhaustive `find assets/js -type f -name '*.js'` syntax coverage; and
+- an `issues: write` failure-notification behavior that creates/updates a syntax failure issue.
+
+Moving only the syntax loop into a read-only domain runner would lose notification behavior; moving `issues: write` into a broad regression runner would unnecessarily widen write permissions. Since the preferred final target is a band rather than a forced numeric minimum, keeping this boundary is the safer result.
+
+### P8A retirement gate
+No workflow may be retired until the same fixed PR head proves all eight predecessors plus all successors green, followed by a fully terminal main push with zero failure / queued / in-progress jobs. All new P8 safety-domain workflows remain read-only and repository-non-mutating.
+
+If P8A parity passes, P8B may retire exactly eight predecessors:
+- four G14 workflows;
+- `privacy-guard.yml` and `public-pages-empty-profile.yml`;
+- `v0481-live-followup.yml` and `v0484-touch-first-camp-containment.yml`.
+
+Expected P8 final topology: **20 → 12** at retirement, equivalently **18 → 12** relative to the P7 baseline. This is inside the preferred 11–14 band with `behavioral_contracts_removed=0`; no additional syntax retirement is required.
 
 ## Release mutation policy
 Test/regression workflows are not release writers.
@@ -102,13 +141,13 @@ Main workflows must not:
 - run `git commit`;
 - reintroduce old version-named `fix/`, `feature/`, or `hotfix/` branch listeners.
 
-Deployment-specific GitHub Pages permissions such as `pages: write` / `id-token: write` are a separate deployment boundary and are not repository-content mutation authority.
+`js-syntax-check.yml` retains `issues: write` only for its existing failure-notification boundary; it does not receive repository `contents: write`. Deployment-specific GitHub Pages permissions such as `pages: write` / `id-token: write` are a separate deployment boundary and are not repository-content mutation authority.
 
 ## Version-specific workflow policy
-After P7 retirement, only version-specific workflows explicitly retained by topology policy remain grandfathered. They are not a template for future growth. Any additional `v*.yml` standalone workflow fails topology policy unless explicitly justified as an independent safety boundary.
+During P8A, `v0481-live-followup.yml` and `v0484-touch-first-camp-containment.yml` are grandfathered only as fixed-head predecessor evidence. They are not a template for future growth and become retirement candidates only after parity proof.
 
 ## Registry-stale workflow identities
-Retired identities may remain visible in GitHub Actions even though their YAML no longer exists on `main`. These are `REGISTRY_STALE_NO_MAIN_FILE`; main-tree truth wins. This includes P5, P6A, P6B, and P7 retired workflow identities.
+Retired identities may remain visible in GitHub Actions even though their YAML no longer exists on `main`. These are `REGISTRY_STALE_NO_MAIN_FILE`; main-tree truth wins.
 
 ## Change procedure
 For any CI topology change:

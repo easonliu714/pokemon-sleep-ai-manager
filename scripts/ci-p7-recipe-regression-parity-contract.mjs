@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-export const CI_P7_RECIPE_REGRESSION_PARITY_VERSION='ci-p7-recipe-regression-retirement-2026-08-16-c';
+export const CI_P7_RECIPE_REGRESSION_PARITY_VERSION='ci-p7-recipe-regression-retirement-2026-08-16-d-successor-aware';
 export const P7_SIDE_BY_SIDE_PARITY_PROOF=Object.freeze({
   pr:326,
   fixed_head:'e872fe42692fb176c3ed3e03e8218d741609a627',
@@ -14,10 +14,13 @@ export const P7_SIDE_BY_SIDE_PARITY_PROOF=Object.freeze({
   main_push_failure:0,
   main_push_queued:0,
   main_push_in_progress:0,
+  workflow_count_after_p7_retirement:18,
 });
 
 const WORKFLOW_DIR='.github/workflows';
 const SUCCESSOR='.github/workflows/recipe-regression.yml';
+const P8_G14_PARITY_SUCCESSOR='.github/workflows/g14-safety-regression.yml';
+const P8_DATA_PARITY_SUCCESSOR='.github/workflows/data-boundary-regression.yml';
 const RETIRED_PREDECESSORS=Object.freeze([
   'v042-recipe-authority-audit.yml',
   'v04221-recipe-formula-authority-audit.yml',
@@ -30,7 +33,7 @@ for(const name of RETIRED_PREDECESSORS){
   assert.equal(fs.existsSync(`${WORKFLOW_DIR}/${name}`),false,`P7 retired recipe wrapper reappeared: ${name}`);
 }
 assert.equal(fs.existsSync(SUCCESSOR),true,'P7 recipe-regression successor missing');
-assert.equal(fs.existsSync('scripts/v042-p7-parity-marker.mjs'),false,'P7A no-op trigger marker must be removed after controlled retirement');
+assert.equal(fs.existsSync('scripts/v042-p7-parity-marker.mjs'),false,'P7A no-op trigger marker must remain removed after controlled retirement');
 
 const successor=read(SUCCESSOR);
 assert.doesNotMatch(successor,/contents\s*:\s*write/i,'P7 successor must remain read-only');
@@ -79,7 +82,12 @@ assert.equal(P7_SIDE_BY_SIDE_PARITY_PROOF.main_push_queued,0,'P7A main push must
 assert.equal(P7_SIDE_BY_SIDE_PARITY_PROOF.main_push_in_progress,0,'P7A main push must have zero in-progress workflows before retirement');
 
 const actual=fs.readdirSync(WORKFLOW_DIR).filter(name=>/\.ya?ml$/i.test(name));
-assert.equal(actual.length,18,'P7 retirement topology must be exactly 18 workflow YAML files');
+const p8Parity=fs.existsSync(P8_G14_PARITY_SUCCESSOR)&&fs.existsSync(P8_DATA_PARITY_SUCCESSOR);
+if(p8Parity){
+  assert.equal(actual.length,20,'P8 side-by-side parity may temporarily add exactly two safety successor workflows above the P7-retired baseline');
+}else{
+  assert.ok(actual.length<=P7_SIDE_BY_SIDE_PARITY_PROOF.workflow_count_after_p7_retirement,'later controlled convergence must not increase workflow count above the P7-retired baseline');
+}
 
 console.log(JSON.stringify({
   status:'PASS',
@@ -93,7 +101,9 @@ console.log(JSON.stringify({
   successor_jobs:['base-current-authority','formula-energy-parity','zh-tw-evidence','release-integration'],
   workflow_count_before_parity:21,
   workflow_count_during_parity:22,
-  workflow_count_after_retirement:actual.length,
+  workflow_count_after_p7_retirement:P7_SIDE_BY_SIDE_PARITY_PROOF.workflow_count_after_p7_retirement,
+  current_workflow_count:actual.length,
+  p8_parity_successors_present:p8Parity,
   net_workflow_reduction_from_p6b_baseline:3,
   trigger_policy:'PRESERVE_OR_WIDEN_UNION_ALL_PR_MAIN_HOTFIX_FEATURE_MANUAL',
   permissions:'READ_ONLY',
