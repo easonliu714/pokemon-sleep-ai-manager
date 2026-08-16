@@ -7,7 +7,9 @@ import {currentProductionAuthorityRegistry} from '../assets/js/production-author
 const source=fs.readFileSync('assets/js/version-authority.js','utf8');
 const sandbox={};sandbox.globalThis=sandbox;vm.runInNewContext(source,sandbox);
 const appVersion=sandbox.PokemonSleepVersionAuthority?.app_version||null;
-const successorNatureNumeric=['v0.4.24','v0.4.25','v0.4.26','v0.4.27'].includes(appVersion);
+// v0.4.27.1/.2 are local inventory semantic hotfixes only; they inherit the
+// same verified nature numeric successor behavior as v0.4.27.
+const successorNatureNumeric=['v0.4.24','v0.4.25','v0.4.26','v0.4.27','v0.4.27.1','v0.4.27.2'].includes(appVersion);
 
 const candidate={nature:'固執',nature_bonus:'幫忙速度',nature_penalty:'食材機率',unlocked_subskills:[{unlock_level:10,subskill_name:'樹果數量S'},{unlock_level:25,subskill_name:'幫手獎勵'},{unlock_level:50,subskill_name:'食材機率提升M'}]};
 const profile=resolvePokemonProductionModifierProfile(candidate);
