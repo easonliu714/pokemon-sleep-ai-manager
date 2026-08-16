@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-export const G13_WORKFLOW_CONSOLIDATION_VERSION='g13-workflow-consolidation-2026-08-14-b';
+export const G13_WORKFLOW_CONSOLIDATION_VERSION='g13-workflow-consolidation-2026-08-16-c-p6b-successor';
 const retired=Object.freeze([
   '.github/workflows/g13-2c-ocr-isolation-secret-redaction.yml',
   '.github/workflows/g13-2d-duplicate-finalize-live-debug.yml',
@@ -18,9 +18,9 @@ const retired=Object.freeze([
   '.github/workflows/g13-2h-sequential-advanced-ai-review.yml',
   '.github/workflows/g13-2i-progressive-ai-review-bootstrap.yml',
   '.github/workflows/g13-2l-direct-minimal-review.yml',
+  '.github/workflows/g13-ocr-ai-regression.yml',
 ]);
 for(const path of retired)assert.equal(fs.existsSync(path),false,`retired G13 workflow still exists: ${path}`);
-assert.equal(fs.existsSync('.github/workflows/g13-ocr-ai-regression.yml'),true);
 const gates=Object.freeze([
   'tests/g13_2c_ocr_isolation_secret_redaction_gate.mjs',
   'tests/g13_2d_duplicate_finalize_live_debug_gate.mjs',
@@ -39,8 +39,11 @@ const gates=Object.freeze([
   'tests/g13_2l_direct_minimal_review_gate.mjs',
 ]);
 for(const path of gates)assert.equal(fs.existsSync(path),true,`G13 behavioral gate missing: ${path}`);
-const runner=fs.readFileSync('scripts/ci-g13-ocr-ai-regression.mjs','utf8');const workflow=fs.readFileSync('.github/workflows/g13-ocr-ai-regression.yml','utf8');
+const runner=fs.readFileSync('scripts/ci-g13-ocr-ai-regression.mjs','utf8');
+const workflowPath='.github/workflows/screenshot-pipeline-regression.yml';
+assert.equal(fs.existsSync(workflowPath),true,'screenshot pipeline successor missing for G13');
+const workflow=fs.readFileSync(workflowPath,'utf8');
 for(const path of gates)assert.ok(runner.includes(path),`G13 runner lost gate: ${path}`);
-for(const token of ['concurrency:','cancel-in-progress: true','--core','node scripts/ci-g13-ocr-ai-regression.mjs'])assert.ok(workflow.includes(token),`G13 consolidated workflow missing ${token}`);
+for(const token of ['ocr-ai-bridge:','concurrency:','cancel-in-progress: true','--core','node scripts/ci-g13-ocr-ai-regression.mjs'])assert.ok(workflow.includes(token),`G13 screenshot successor missing ${token}`);
 for(const path of ['assets/js/android-import-file-picker.js','assets/js/unified-import-analysis-workbench.js','assets/js/two-stage-forced-ocr-entry.js'])assert.ok(workflow.includes(path),`G13.5 syntax contract lost: ${path}`);
-console.log(JSON.stringify({status:'PASS',gate:'CI_G13_WORKFLOW_CONSOLIDATION',version:G13_WORKFLOW_CONSOLIDATION_VERSION,retired_workflow_count:retired.length,replacement_workflow_count:1,net_workflow_reduction:retired.length-1,preserved_behavioral_gate_count:gates.length,behavioral_gates_removed:0},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'CI_G13_WORKFLOW_CONSOLIDATION',version:G13_WORKFLOW_CONSOLIDATION_VERSION,retired_workflow_count:retired.length,replacement_workflow_count:1,replacement_workflow:'screenshot-pipeline-regression.yml',replacement_job:'ocr-ai-bridge',preserved_behavioral_gate_count:gates.length,behavioral_gates_removed:0},null,2));
