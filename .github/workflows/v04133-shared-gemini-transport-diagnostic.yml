@@ -1,6 +1,18 @@
 name: v0.4.13.3 Shared Gemini Transport Diagnostic
 
 on:
+  pull_request:
+    paths:
+      - 'assets/js/ai-project-pool-runtime.js'
+      - 'assets/js/uc-img-gemini-adapter.js'
+      - 'assets/js/unified-screenshot-update-center.js'
+      - 'assets/js/version-authority.js'
+      - 'scripts/uc-img-internal-gemini-contract.mjs'
+      - 'scripts/v04114-recipe-zh-tw-diagnostic-export-contract.mjs'
+      - 'scripts/v04133-shared-gemini-transport-diagnostic-contract.mjs'
+      - 'scripts/ci-p6a-ucimg-wrapper-parity-contract.mjs'
+      - '.github/workflows/uc-img-a.yml'
+      - '.github/workflows/v04133-shared-gemini-transport-diagnostic.yml'
   push:
     branches: ["main"]
     paths:
