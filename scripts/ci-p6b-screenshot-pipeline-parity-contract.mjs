@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-export const CI_P6B_SCREENSHOT_PIPELINE_PARITY_VERSION='ci-p6b-screenshot-pipeline-retirement-2026-08-16-b';
+export const CI_P6B_SCREENSHOT_PIPELINE_PARITY_VERSION='ci-p6b-screenshot-pipeline-retirement-2026-08-16-c-successor-aware';
 export const P6B_SIDE_BY_SIDE_PARITY_PROOF=Object.freeze({
   pr:324,
   fixed_head:'807191569ad29ee27022e95ef685efde1ac32808',
@@ -14,10 +14,12 @@ export const P6B_SIDE_BY_SIDE_PARITY_PROOF=Object.freeze({
   main_push_failure:0,
   main_push_queued:0,
   main_push_in_progress:0,
+  workflow_count_after_p6b_retirement:21,
 });
 
 const WORKFLOW_DIR='.github/workflows';
 const SUCCESSOR='.github/workflows/screenshot-pipeline-regression.yml';
+const P7_PARITY_SUCCESSOR='.github/workflows/recipe-regression.yml';
 const RETIRED_PREDECESSORS=Object.freeze([
   'data1d1-ocr-regression.yml',
   'g13-ocr-ai-regression.yml',
@@ -70,7 +72,11 @@ assert.equal(P6B_SIDE_BY_SIDE_PARITY_PROOF.main_push_queued,0,'P6B-1 main push m
 assert.equal(P6B_SIDE_BY_SIDE_PARITY_PROOF.main_push_in_progress,0,'P6B-1 main push must have zero in-progress workflows before retirement');
 
 const actual=fs.readdirSync(WORKFLOW_DIR).filter(name=>/\.ya?ml$/i.test(name));
-assert.equal(actual.length,21,'P6B retirement topology must be exactly 21 workflow YAML files');
+if(fs.existsSync(P7_PARITY_SUCCESSOR)){
+  assert.equal(actual.length,22,'P7 side-by-side parity may temporarily add exactly one recipe successor above the P6B-retired baseline');
+}else{
+  assert.ok(actual.length<=P6B_SIDE_BY_SIDE_PARITY_PROOF.workflow_count_after_p6b_retirement,'later convergence must not exceed the P6B-retired workflow baseline');
+}
 
 console.log(JSON.stringify({
   status:'PASS',
@@ -84,7 +90,9 @@ console.log(JSON.stringify({
   successor_jobs:['local-ocr','ocr-ai-bridge','uc-img-update-center'],
   workflow_count_before_parity:23,
   workflow_count_during_parity:24,
-  workflow_count_after_retirement:actual.length,
+  workflow_count_after_p6b_retirement:P6B_SIDE_BY_SIDE_PARITY_PROOF.workflow_count_after_p6b_retirement,
+  current_workflow_count:actual.length,
+  p7_parity_successor_present:fs.existsSync(P7_PARITY_SUCCESSOR),
   net_workflow_reduction_from_p6a_baseline:2,
   trigger_policy:'PRESERVE_OR_WIDEN_UNION_ALL_PR_MAIN_HOTFIX_MANUAL',
   permissions:'READ_ONLY',
