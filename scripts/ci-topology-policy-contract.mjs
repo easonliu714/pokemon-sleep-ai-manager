@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 
-export const CI_TOPOLOGY_POLICY_VERSION='ci-topology-policy-2026-08-16-a-p6a1-parity';
+export const CI_TOPOLOGY_POLICY_VERSION='ci-topology-policy-2026-08-16-b-p6a-retirement';
 const WORKFLOW_DIR='.github/workflows';
 
 // Main-tree workflow files are the topology authority. GitHub Actions may keep
@@ -26,10 +26,6 @@ const APPROVED_MAIN_WORKFLOWS=Object.freeze([
   'regression-gate.yml',
   'tech2d-android-import-regression.yml',
   'uc-img-a.yml',
-  'v04133-shared-gemini-transport-diagnostic.yml',
-  'v04134-recipe-pot-scenario-contract.yml',
-  'v04135-account-capacity-apply-not-null.yml',
-  'v04136-pot-manual-authority-alignment.yml',
   'v042-recipe-authority-audit.yml',
   'v04221-recipe-formula-authority-audit.yml',
   'v043-r21-recipe-zh-tw-evidence-audit.yml',
@@ -72,6 +68,10 @@ const REGISTRY_STALE_NO_MAIN_FILE=Object.freeze([
   'v0398-update-center-multiscenario.yml',
   'v0399-human-readable-diff-review.yml',
   'data-evo1-observed-evolution-coverage.yml',
+  'v04133-shared-gemini-transport-diagnostic.yml',
+  'v04134-recipe-pot-scenario-contract.yml',
+  'v04135-account-capacity-apply-not-null.yml',
+  'v04136-pot-manual-authority-alignment.yml',
 ]);
 
 const TOPOLOGY_CONTRACTS=Object.freeze([
@@ -122,19 +122,9 @@ for(const name of REGISTRY_STALE_NO_MAIN_FILE){
 
 for(const name of actualWorkflowFiles){
   const source=fs.readFileSync(path.join(WORKFLOW_DIR,name),'utf8');
-
-  // Test/regression topology is read-only. Pages deployment may use pages/id-token
-  // write scopes, but contents:write is not permitted anywhere in main workflows.
   assert.doesNotMatch(source,/contents\s*:\s*write/i,`${name} requests forbidden contents:write`);
-
-  // Old release-mutator workflows were retired in P2. CI must never mutate and
-  // push repository release/version state from a test workflow again.
   assert.doesNotMatch(source,/(?:^|\s)git\s+push(?:\s|$)/im,`${name} contains forbidden git push`);
   assert.doesNotMatch(source,/(?:^|\s)git\s+commit(?:\s|$)/im,`${name} contains forbidden git commit`);
-
-  // Historical hotfix/feature branch listeners caused stale workflow identities
-  // and version replay risk. Current CI may target main or workflow_dispatch,
-  // not old version-named implementation branches.
   assert.doesNotMatch(source,/(?:fix|feature|hotfix)\/v\d/i,`${name} listens to a stale version implementation branch`);
 }
 
@@ -162,8 +152,8 @@ console.log(JSON.stringify({
   protected_independent_workflow_count:PROTECTED_INDEPENDENT_WORKFLOWS.length,
   retired_wrapper_contracts_replayed:TOPOLOGY_CONTRACTS.length,
   p5_retired_wrapper_count:6,
-  p6a_parity_predecessor_count:4,
-  p6a_retirement_allowed:false,
+  p6a_retired_wrapper_count:4,
+  p6a_retirement_complete:true,
   registry_stale_no_main_file_count:REGISTRY_STALE_NO_MAIN_FILE.length,
   actions_registry_is_authoritative:false,
   main_tree_is_topology_authority:true,
