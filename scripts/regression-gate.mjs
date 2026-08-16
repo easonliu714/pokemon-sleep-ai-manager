@@ -7,12 +7,12 @@ import {createRequire} from 'node:module';
 import initSqlJs from 'sql.js';
 import {DDL,SEED_SQL} from '../assets/js/schema.js';
 import {applyAllMigrations,E3C6B_SCHEMA_MIGRATION_VERSION} from '../assets/js/migrations.js';
-import {INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION} from '../assets/js/ingredient-inventory-integrity-contract.js';
+import {INGREDIENT_INVENTORY_IDENTITY_MIGRATION_VERSION,INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION} from '../assets/js/ingredient-inventory-integrity-contract.js';
 
 const root=new URL('../',import.meta.url);
 const text=async path=>readFile(new URL(path,root),'utf8');
 const require=createRequire(import.meta.url);
-const EXPECTED_SCHEMA_MIGRATIONS=Object.freeze([1,2,3,4,5,6,7,8,9,E3C6B_SCHEMA_MIGRATION_VERSION,INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION]);
+const EXPECTED_SCHEMA_MIGRATIONS=Object.freeze([1,2,3,4,5,6,7,8,9,E3C6B_SCHEMA_MIGRATION_VERSION,INGREDIENT_INVENTORY_IDENTITY_MIGRATION_VERSION,INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION]);
 
 function queryRows(db,sql){const statement=db.prepare(sql);const output=[];while(statement.step())output.push(statement.getAsObject());statement.free();return output;}
 function scalar(db,sql){const result=queryRows(db,sql);return result.length?Object.values(result[0])[0]:null;}
@@ -25,7 +25,7 @@ async function syntaxGate(){
 }
 
 async function migrationStaticGate(){
-  const schema=await text('assets/js/schema.js');const database=await text('assets/js/database.js');const migrations=await text('assets/js/migrations.js');const canonical=await text('assets/js/canonical-registry.js');
+  const schema=await text('assets/js/schema.js');const database=await text('assets/js/database.js');const migrations=await text('assets/js/migrations.js');const canonical=await text('assets/js/canonical-registry.js');const ingredientIntegrity=await text('assets/js/ingredient-inventory-integrity-contract.js');
   for(const field of ['recipe_level','current_energy','updated_at','notes'])assert.match(migrations,new RegExp(`addColumnIfMissing\\(db,'recipes','${field}'`),`missing recipe migration field: ${field}`);
   for(const version of [1,2,3,4,5,6,7,8,9])assert.match(`${schema}\n${migrations}\n${canonical}`,new RegExp(`schema_migrations[^\\n]*${version}|VALUES\\(${version},`),`migration ${version} is not registered`);
   const initialization=functionBlock(database,'export async function initializeDatabase()','export function requestForcedDatabaseLoad');
@@ -39,10 +39,14 @@ async function migrationStaticGate(){
   assert.match(migrations,/strategy_goal_profile/u,'strategy goal profile migration missing');
   assert.match(migrations,/pokemon_evaluation_snapshot/u,'evaluation snapshot migration missing');
   assert.match(migrations,/CREATE TABLE IF NOT EXISTS candy_inventory/u,'candy inventory migration missing');
-  assert.match(migrations,/applyIngredientInventoryIdentityMigration\(db\)/u,'ingredient inventory integrity migration missing');
+  assert.match(migrations,/applyIngredientInventoryIdentityMigration\(db\)/u,'ingredient inventory integrity migration lifecycle missing');
+  assert.match(schema,/ingredient_inventory\(ingredient_name TEXT PRIMARY KEY,quantity INTEGER NOT NULL DEFAULT 0,unlocked INTEGER/u,'fresh schema missing ingredient unlock state');
+  assert.match(ingredientIntegrity,/INGREDIENT_INVENTORY_IDENTITY_MIGRATION_VERSION=12/u,'migration 12 identity authority missing');
+  assert.match(ingredientIntegrity,/INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION=13/u,'migration 13 unlock authority missing');
+  assert.match(ingredientIntegrity,/ALTER TABLE ingredient_inventory ADD COLUMN unlocked INTEGER/u,'legacy unlock migration missing');
   assert.match(canonical,/CREATE TABLE IF NOT EXISTS canonical_term/u,'canonical term table missing');
   assert.match(canonical,/CREATE TABLE IF NOT EXISTS canonical_term_alias/u,'canonical alias table missing');
-  console.log('PASS migration structure: schema versions 1-9 + reserved gap 10 + migrations 11/12 and lifecycle hooks');
+  console.log('PASS migration structure: schema versions 1-9 + reserved gap 10 + migrations 11/12/13 and lifecycle hooks');
 }
 
 async function migrationFixtureGate(){
@@ -51,7 +55,7 @@ async function migrationFixtureGate(){
   assert.equal(scalar(fresh,'PRAGMA integrity_check'),'ok','fresh DB integrity check failed');
   assert.deepEqual(queryRows(fresh,'SELECT version FROM schema_migrations ORDER BY version').map(row=>row.version),EXPECTED_SCHEMA_MIGRATIONS);
   assert.equal(scalar(fresh,'SELECT COUNT(*) FROM pokemon'),0,'public master must not seed Pokémon');
-  assert.equal(scalar(fresh,'SELECT COUNT(*) FROM ingredient_inventory'),0,'public master must not seed ingredient quantities');
+  assert.equal(scalar(fresh,'SELECT COUNT(*) FROM ingredient_inventory'),0,'public master must not seed ingredient quantities or unlocks');
   assert.equal(scalar(fresh,'SELECT COUNT(*) FROM item_inventory'),0,'public master must not seed item quantities');
   assert.equal(scalar(fresh,'SELECT COUNT(*) FROM candy_inventory'),0,'public master must not seed candy quantities');
   assert.equal(scalar(fresh,'SELECT COUNT(*) FROM recipes'),0,'public master must not seed recipe unlock state');
@@ -62,11 +66,13 @@ async function migrationFixtureGate(){
   assert.ok(scalar(fresh,'SELECT COUNT(*) FROM recipe_catalog_state')>0,'recipe public catalog missing');
   assert.ok(scalar(fresh,'SELECT COUNT(*) FROM candy_catalog_state')>0,'candy public catalog missing');
   assert.ok(scalar(fresh,"SELECT COUNT(*) FROM candy_catalog_state WHERE player_record_exists=1")===0,'fresh candy public catalog must not fabricate player records');
+  assert.equal(scalar(fresh,"SELECT COUNT(*) FROM ingredient_catalog_state WHERE unlock_state<>'NO_PLAYER_RECORD'"),0,'fresh ingredient catalog must not fabricate player unlock state');
   assert.ok(scalar(fresh,'SELECT COUNT(*) FROM canonical_term')>0,'canonical registry is empty');
   assert.ok(scalar(fresh,"SELECT COUNT(*) FROM canonical_term WHERE entity_type='candy' AND is_active=1")>0,'canonical candy terms missing');
   assert.equal(scalar(fresh,"SELECT canonical_name_zh_tw FROM canonical_term_alias a JOIN canonical_term t ON t.term_id=a.term_id WHERE a.alias_text='辣味香草'"),'火辣香草','safe ingredient alias mismatch');
   for(const field of ['recipe_level','current_energy','updated_at','notes'])assert.ok(queryRows(fresh,"PRAGMA table_info('recipes')").some(row=>row.name===field),`fresh DB missing recipes.${field}`);
   for(const field of ['sleep_hours','sleep_time_text','evolution_sleep_hours_required','source_image_refs_json'])assert.ok(queryRows(fresh,"PRAGMA table_info('pokemon')").some(row=>row.name===field),`fresh DB missing pokemon.${field}`);
+  assert.ok(queryRows(fresh,"PRAGMA table_info('ingredient_inventory')").some(row=>row.name==='unlocked'),'fresh DB missing ingredient_inventory.unlocked');
 
   const legacy=new SQL.Database();
   legacy.run(`
@@ -84,7 +90,8 @@ async function migrationFixtureGate(){
   `);
   const before={pokemon:scalar(legacy,'SELECT COUNT(*) FROM pokemon'),recipes:scalar(legacy,'SELECT COUNT(*) FROM recipes'),ingredients:scalar(legacy,'SELECT COUNT(*) FROM recipe_ingredients')};
   legacy.run(DDL);
-  legacy.run(`INSERT OR REPLACE INTO ingredient_inventory(ingredient_name,quantity,updated_at,source_update_id) VALUES('特選酪梨',7,'2026-08-15T00:00:00','legacy-avocado');`);
+  legacy.run(`INSERT OR REPLACE INTO ingredient_inventory(ingredient_name,quantity,unlocked,updated_at,source_update_id) VALUES('特選酪梨',7,NULL,'2026-08-15T00:00:00','legacy-avocado');`);
+  legacy.run(`INSERT OR REPLACE INTO ingredient_inventory(ingredient_name,quantity,unlocked,updated_at,source_update_id) VALUES('窩心洋芋',0,NULL,'2026-08-15T00:00:00','legacy-zero');`);
   applyAllMigrations(legacy);const exported=legacy.export();legacy.close();
   const restored=new SQL.Database(exported);assert.equal(scalar(restored,'PRAGMA integrity_check'),'ok','restored legacy DB integrity check failed');applyAllMigrations(restored);assert.equal(scalar(restored,'PRAGMA integrity_check'),'ok','post-restore migration integrity check failed');
   const after={pokemon:scalar(restored,'SELECT COUNT(*) FROM pokemon'),recipes:scalar(restored,'SELECT COUNT(*) FROM recipes'),ingredients:scalar(restored,'SELECT COUNT(*) FROM recipe_ingredients')};
@@ -99,9 +106,11 @@ async function migrationFixtureGate(){
   assert.equal(scalar(restored,"SELECT COUNT(*) FROM ingredient_master WHERE ingredient_name='特選酪梨'"),0,'legacy avocado master row remains');
   assert.equal(scalar(restored,"SELECT COUNT(*) FROM ingredient_inventory WHERE ingredient_name='特選酪梨'"),0,'legacy avocado inventory row remains');
   assert.equal(scalar(restored,"SELECT quantity FROM ingredient_inventory WHERE ingredient_name='嫩亮酪梨'"),7,'legacy avocado quantity was not re-keyed to canonical name');
+  assert.equal(scalar(restored,"SELECT unlocked FROM ingredient_inventory WHERE ingredient_name='嫩亮酪梨'"),1,'positive legacy inventory must prove unlock');
+  assert.equal(scalar(restored,"SELECT unlocked FROM ingredient_inventory WHERE ingredient_name='窩心洋芋'"),null,'legacy zero inventory must remain unlock UNKNOWN');
   assert.deepEqual(queryRows(restored,'SELECT version FROM schema_migrations ORDER BY version').map(row=>row.version),EXPECTED_SCHEMA_MIGRATIONS);
   restored.close();fresh.close();
-  console.log(`PASS SQLite fixtures: fresh integrity=ok; canonical migration=6; detail observation migration=7; strategy snapshot migration=8; candy inventory migration=9; first-party observation migration=${E3C6B_SCHEMA_MIGRATION_VERSION}; ingredient inventory integrity migration=${INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION}; legacy restore integrity=ok; personal rows ${JSON.stringify(before)} preserved`);
+  console.log(`PASS SQLite fixtures: fresh integrity=ok; canonical migration=6; detail observation migration=7; strategy snapshot migration=8; candy inventory migration=9; first-party observation migration=${E3C6B_SCHEMA_MIGRATION_VERSION}; ingredient identity migration=${INGREDIENT_INVENTORY_IDENTITY_MIGRATION_VERSION}; ingredient unlock migration=${INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION}; legacy zero remains UNKNOWN; personal rows ${JSON.stringify(before)} preserved`);
 }
 
 async function knowledgeGate(){
@@ -109,6 +118,7 @@ async function knowledgeGate(){
   const expected={草:'金枕果',飛行:'椰木果',龍:'番荔果',毒:'零餘果'};for(const [type,berry] of Object.entries(expected))assert.ok(master.includes(`['${type}','${berry}']`),`berry mapping mismatch: ${type}→${berry}`);
   assert.match(app,/\$\('recipeTable'\)/,'legacy application compatibility must keep recipeTable');
   assert.match(catalog,/ingredient_catalog_state/u,'ingredient catalog view not used');
+  assert.match(catalog,/canonical-ingredient-unlock/u,'ingredient catalog must expose unlock-state editor');
   assert.match(catalog,/item_catalog_state/u,'item public catalog view not used');
   const unifiedUrl=new URL('assets/js/recipe-unified-player-workbench.js',root);
   let unified=null;try{unified=await readFile(unifiedUrl,'utf8');}catch{}
@@ -127,7 +137,7 @@ async function knowledgeGate(){
   }
   assert.match(candy,/PUBLIC_CANDY_MASTER_VERSION/u,'Candy Master authority missing');
   assert.doesNotMatch(candy,/\bquantity\s*:/u,'Public Candy Master must not contain player quantity fields');
-  console.log(`PASS knowledge UI: ${unified?'unified unlocked + locked recipe workbench':'personal/reference recipe tables'}; Candy Master contains no player quantity`);
+  console.log(`PASS knowledge UI: ${unified?'unified unlocked + locked recipe workbench':'personal/reference recipe tables'}; ingredient unlock state is explicit; Candy Master contains no player quantity`);
 }
 
 async function serviceWorkerGate(){
