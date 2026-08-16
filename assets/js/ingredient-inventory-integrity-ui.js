@@ -82,7 +82,13 @@ function commitResolution(panel,state,item,resolution){
   }
   if(resolution==='CONFIRMED_EXHAUSTED'&&!confirm(`確認「${item.ingredient_name}」目前已用罄，將以明確 quantity=0 覆蓋既有 ${item.previous_quantity}？`))return;
   if(resolution==='PRESERVE_EXISTING_NOT_CAPTURED'&&!confirm(`確認本次完整庫存截圖沒有拍到「${item.ingredient_name}」，保留既有數量 ${item.previous_quantity}？`))return;
-  const refs=[...new Set([...imageRefs(),...(state.compiled.operations||[]).flatMap(operation=>[operation?.evidence?.source_image_ref,...(operation?.evidence?.source_image_refs||[])]).filter(Boolean))];
+  const refs=[...new Set([
+    ...imageRefs(),
+    ...(state.compiled.operations||[]).flatMap(operation=>[
+      operation?.evidence?.source_image_ref,
+      ...(operation?.evidence?.source_image_refs||[]),
+    ]),
+  ].filter(Boolean))];
   const confirmations=mergedConfirmations(state,item.ingredient_name,resolution,item.previous_quantity);
   const payload=applyIngredientAbsenceConfirmations(state.compiled,confirmations,{sourceImageRefs:refs});
   state.textarea.value=JSON.stringify(payload,null,2);state.textarea.dispatchEvent(new Event('input',{bubbles:true}));
