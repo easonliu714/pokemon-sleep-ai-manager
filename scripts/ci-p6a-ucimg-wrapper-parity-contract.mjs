@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-export const CI_P6A_UCIMG_WRAPPER_PARITY_VERSION='ci-p6a-ucimg-wrapper-retirement-2026-08-16-b';
+export const CI_P6A_UCIMG_WRAPPER_PARITY_VERSION='ci-p6a-ucimg-wrapper-retirement-2026-08-16-c-successor-aware';
 export const P6A_SIDE_BY_SIDE_PARITY_PROOF=Object.freeze({
   pr:322,
   fixed_head:'1876a56f92142f29b015b7085f751041e8a9380a',
@@ -13,10 +13,12 @@ export const P6A_SIDE_BY_SIDE_PARITY_PROOF=Object.freeze({
   main_push_failure:0,
   main_push_queued:0,
   main_push_in_progress:0,
+  workflow_count_after_p6a_retirement:23,
 });
 
 const WORKFLOW_DIR='.github/workflows';
 const SUCCESSOR='.github/workflows/uc-img-a.yml';
+const P6B_PARITY_SUCCESSOR='.github/workflows/screenshot-pipeline-regression.yml';
 const RETIRED_PREDECESSORS=Object.freeze([
   'v04133-shared-gemini-transport-diagnostic.yml',
   'v04134-recipe-pot-scenario-contract.yml',
@@ -28,7 +30,7 @@ const read=path=>fs.readFileSync(path,'utf8');
 for(const name of RETIRED_PREDECESSORS){
   assert.equal(fs.existsSync(`${WORKFLOW_DIR}/${name}`),false,`P6A retired wrapper reappeared: ${name}`);
 }
-assert.equal(fs.existsSync(SUCCESSOR),true,'P6A UC.IMG successor missing');
+assert.equal(fs.existsSync(SUCCESSOR),true,'P6A UC.IMG successor missing during P6B parity stage');
 
 const successor=read(SUCCESSOR);
 assert.doesNotMatch(successor,/contents\s*:\s*write/i,'P6A successor must remain read-only');
@@ -75,7 +77,11 @@ assert.equal(P6A_SIDE_BY_SIDE_PARITY_PROOF.main_push_queued,0,'P6A-1 main push m
 assert.equal(P6A_SIDE_BY_SIDE_PARITY_PROOF.main_push_in_progress,0,'P6A-1 main push must have zero in-progress workflows before retirement');
 
 const actual=fs.readdirSync(WORKFLOW_DIR).filter(name=>/\.ya?ml$/i.test(name));
-assert.equal(actual.length,23,'P6A retirement topology must be exactly 23 workflow YAML files');
+if(fs.existsSync(P6B_PARITY_SUCCESSOR)){
+  assert.equal(actual.length,24,'P6B side-by-side parity may temporarily add exactly one successor workflow above the P6A-retired baseline');
+}else{
+  assert.ok(actual.length<=P6A_SIDE_BY_SIDE_PARITY_PROOF.workflow_count_after_p6a_retirement,'later convergence must not exceed the P6A-retired workflow baseline');
+}
 
 console.log(JSON.stringify({
   status:'PASS',
@@ -87,8 +93,10 @@ console.log(JSON.stringify({
   retired_workflows:RETIRED_PREDECESSORS,
   successor_workflow:'uc-img-a.yml',
   workflow_count_before_retirement:27,
-  workflow_count_after_retirement:actual.length,
-  net_workflow_reduction:4,
+  workflow_count_after_p6a_retirement:P6A_SIDE_BY_SIDE_PARITY_PROOF.workflow_count_after_p6a_retirement,
+  current_workflow_count:actual.length,
+  p6b_parity_successor_present:fs.existsSync(P6B_PARITY_SUCCESSOR),
+  net_workflow_reduction_at_p6a:4,
   trigger_policy:'PRESERVE_OR_WIDEN_UNION_PR_MAIN_HOTFIX_MANUAL',
   permissions:'READ_ONLY',
   repository_mutation:false,

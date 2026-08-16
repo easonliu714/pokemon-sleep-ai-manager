@@ -28,6 +28,7 @@ The policy intentionally preserves independently visible high-value boundaries i
 - War Room regression
 - G14 Backup / FULL75 / Data Consistency / Public Catalog
 - UC.IMG unified screenshot update center
+- Screenshot Pipeline Regression during P6B parity
 
 ## Historical behavioral contracts
 Retiring a workflow wrapper does not authorize deletion of its behavioral script/test. Consolidation contracts must continue proving that the behavioral evidence remains present and is replayed by the replacement runner.
@@ -41,6 +42,7 @@ Current topology meta-contracts replayed by the global policy:
 - `ci-war-room-workflow-consolidation-contract.mjs`
 - `ci-p5-wrapper-parity-contract.mjs`
 - `ci-p6a-ucimg-wrapper-parity-contract.mjs`
+- `ci-p6b-screenshot-pipeline-parity-contract.mjs`
 
 ## P5 core / Update Center / public-knowledge convergence
 P5 uses a two-PR retirement protocol so predecessor evidence is never deleted before replacement parity exists.
@@ -93,6 +95,30 @@ Their behavioral ownership remains in `uc-img-a.yml`, which continues to run the
 Trigger coverage is preserved or widened by the UC.IMG successor across pull requests, pushes to `main`, pushes to `hotfix/**`, and `workflow_dispatch`. Relevant predecessor code/script paths remain in the successor path union. DATA.1D.1 remains the local OCR boundary and G13 remains the OCR/AI bridge boundary.
 
 P6A topology result is **27 → 23 workflow YAML files**, with `behavioral_contracts_removed=0`. All retained test workflows remain read-only and repository-non-mutating.
+
+## P6B Screenshot pipeline domain-runner parity
+P6B evaluates replacing the three remaining screenshot-domain workflow files with one `screenshot-pipeline-regression.yml` while preserving independent safety-domain jobs.
+
+P6B-1 is side-by-side parity only. The three predecessors remain tracked:
+- `data1d1-ocr-regression.yml`
+- `g13-ocr-ai-regression.yml`
+- `uc-img-a.yml`
+
+The candidate successor is `screenshot-pipeline-regression.yml` with three independent jobs:
+- `local-ocr` — DATA.1D.1 local OCR behavioral gates;
+- `ocr-ai-bridge` — G13 OCR/AI bridge gates;
+- `uc-img-update-center` — UC.IMG / Gemini / Update Center gates, including the P6A-retired wrapper behavior.
+
+During P6B-1:
+- workflow YAML count temporarily becomes **23 → 24** because no predecessor is retired yet;
+- all three predecessors and the successor must execute on the same fixed PR head;
+- trigger coverage is deliberately widened to all pull requests because G13 already had all-PR coverage; push coverage includes `main` and `hotfix/**`, plus `workflow_dispatch`;
+- the three successor jobs remain independent rather than one opaque mega-job;
+- behavioral scripts remain unchanged/executable;
+- all retained test CI remains `contents: read` and repository-non-mutating;
+- retirement is forbidden until fixed-head predecessor + successor CI is all green and the post-merge main push has zero new failures, queued jobs, or in-progress jobs.
+
+Only after that proof may P6B-2 retire the three predecessor workflow files. The expected final P6B topology is **24 → 21** (equivalently **23 → 21** relative to the P6A baseline), with `behavioral_contracts_removed=0`.
 
 ## Release mutation policy
 Test/regression workflows are not release writers.
