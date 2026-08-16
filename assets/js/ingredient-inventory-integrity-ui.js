@@ -111,7 +111,7 @@ function gateAction(event){
 function schedule(){if(scheduled)return;scheduled=true;setTimeout(render,0);}
 function boot(){
   ensureStyle();document.addEventListener('click',gateAction,true);document.addEventListener('input',event=>{if(event.target?.matches?.('#ucImgA .uc-img-response'))schedule();},true);document.addEventListener('change',event=>{if(event.target?.matches?.('#ucImgA .uc-img-coverage,#ucImgA .uc-img-classify'))schedule();},true);window.addEventListener('pokemon-sleep:data-changed',schedule);
-  const observer=new MutationObserver(schedule);observer.observe(document.documentElement,{subtree:true,childList:true});schedule();
+  const observer=new MutationObserver(()=>{const panel=ingredientPanel();if(panel&&!panel.querySelector(`.${REVIEW_CLASS}`))schedule();});observer.observe(document.documentElement,{subtree:true,childList:true});schedule();
 }
 if(typeof document!=='undefined'){if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();}
 
