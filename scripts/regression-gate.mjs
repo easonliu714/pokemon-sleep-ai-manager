@@ -84,7 +84,6 @@ async function migrationFixtureGate(){
   `);
   const before={pokemon:scalar(legacy,'SELECT COUNT(*) FROM pokemon'),recipes:scalar(legacy,'SELECT COUNT(*) FROM recipes'),ingredients:scalar(legacy,'SELECT COUNT(*) FROM recipe_ingredients')};
   legacy.run(DDL);
-  legacy.run(`INSERT OR REPLACE INTO ingredient_master(ingredient_name,source_type,source_name,source_ref,verified_at,data_version) VALUES('特選酪梨','legacy','legacy',NULL,'2026-08-09','legacy-avocado');`);
   legacy.run(`INSERT OR REPLACE INTO ingredient_inventory(ingredient_name,quantity,updated_at,source_update_id) VALUES('特選酪梨',7,'2026-08-15T00:00:00','legacy-avocado');`);
   applyAllMigrations(legacy);const exported=legacy.export();legacy.close();
   const restored=new SQL.Database(exported);assert.equal(scalar(restored,'PRAGMA integrity_check'),'ok','restored legacy DB integrity check failed');applyAllMigrations(restored);assert.equal(scalar(restored,'PRAGMA integrity_check'),'ok','post-restore migration integrity check failed');
