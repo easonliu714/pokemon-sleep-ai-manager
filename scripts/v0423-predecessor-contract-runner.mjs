@@ -30,22 +30,23 @@ if(current==='v0.4.23'){
     .replace("app_build: '20260814-v0426-g75e3a-ingredient-rate-reference-boundary'","app_build: '20260813-v04221-recipe-formula-authority-audit'")
     .replace("cache_name: 'pokemon-sleep-ai-v0.4.26-v0426-g75e3a-ingredient-rate-reference-boundary'","cache_name: 'pokemon-sleep-ai-v0.4.22.1-v04221-recipe-formula-authority-audit'");
 }else if(current==='v0.4.27'){
-  // v0.4.27 adds one governed numeric successor dimension. Historical
-  // predecessor contracts still execute against current runtime modules, but
-  // use the v0.4.22.1 release identity bridge so version assertions remain
-  // historical while behavioral successor assertions remain live.
   staged=staged
     .replace("app_version: 'v0.4.27'","app_version: 'v0.4.22.1'")
     .replace("app_build: '20260814-v0427-g75e3b-ingredient-slot-distribution'","app_build: '20260813-v04221-recipe-formula-authority-audit'")
     .replace("cache_name: 'pokemon-sleep-ai-v0.4.27-v0427-g75e3b-ingredient-slot-distribution'","cache_name: 'pokemon-sleep-ai-v0.4.22.1-v04221-recipe-formula-authority-audit'");
 }else if(current==='v0.4.27.1'){
-  // v0.4.27.1 is a data-integrity/UI hotfix only. Production numeric
-  // authority remains identical to v0.4.27, so predecessor contracts replay
-  // through the same v0.4.22.1 historical identity bridge.
   staged=staged
     .replace("app_version: 'v0.4.27.1'","app_version: 'v0.4.22.1'")
     .replace("app_build: '20260816-v04271-ingredient-inventory-integrity-hotfix'","app_build: '20260813-v04221-recipe-formula-authority-audit'")
     .replace("cache_name: 'pokemon-sleep-ai-v0.4.27.1-v04271-ingredient-inventory-integrity-hotfix'","cache_name: 'pokemon-sleep-ai-v0.4.22.1-v04221-recipe-formula-authority-audit'");
+}else if(current==='v0.4.27.2'){
+  // v0.4.27.2 changes only local ingredient unlock semantics. Production
+  // numeric authority is unchanged, so historical production contracts use
+  // the same v0.4.22.1 identity bridge.
+  staged=staged
+    .replace("app_version: 'v0.4.27.2'","app_version: 'v0.4.22.1'")
+    .replace("app_build: '20260816-v04272-ingredient-unlock-semantics-hotfix'","app_build: '20260813-v04221-recipe-formula-authority-audit'")
+    .replace("cache_name: 'pokemon-sleep-ai-v0.4.27.2-v04272-ingredient-unlock-semantics-hotfix'","cache_name: 'pokemon-sleep-ai-v0.4.22.1-v04221-recipe-formula-authority-audit'");
 }
 
 try{
