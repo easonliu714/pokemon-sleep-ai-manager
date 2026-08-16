@@ -1,11 +1,23 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-export const CI_P6A_UCIMG_WRAPPER_PARITY_VERSION='ci-p6a-ucimg-wrapper-parity-2026-08-16-a';
+export const CI_P6A_UCIMG_WRAPPER_PARITY_VERSION='ci-p6a-ucimg-wrapper-retirement-2026-08-16-b';
+export const P6A_SIDE_BY_SIDE_PARITY_PROOF=Object.freeze({
+  pr:322,
+  fixed_head:'1876a56f92142f29b015b7085f751041e8a9380a',
+  merge_sha:'bd84d2b9e4cd7797ef71c7ccd304f8de0c65ebb8',
+  triggered_pr_workflows:15,
+  predecessor_workflows:4,
+  predecessor_and_successor_all_green:true,
+  main_push_success:15,
+  main_push_failure:0,
+  main_push_queued:0,
+  main_push_in_progress:0,
+});
 
 const WORKFLOW_DIR='.github/workflows';
 const SUCCESSOR='.github/workflows/uc-img-a.yml';
-const PREDECESSORS=Object.freeze([
+const RETIRED_PREDECESSORS=Object.freeze([
   'v04133-shared-gemini-transport-diagnostic.yml',
   'v04134-recipe-pot-scenario-contract.yml',
   'v04135-account-capacity-apply-not-null.yml',
@@ -13,8 +25,8 @@ const PREDECESSORS=Object.freeze([
 ]);
 const read=path=>fs.readFileSync(path,'utf8');
 
-for(const name of PREDECESSORS){
-  assert.equal(fs.existsSync(`${WORKFLOW_DIR}/${name}`),true,`P6A parity predecessor missing before side-by-side proof: ${name}`);
+for(const name of RETIRED_PREDECESSORS){
+  assert.equal(fs.existsSync(`${WORKFLOW_DIR}/${name}`),false,`P6A retired wrapper reappeared: ${name}`);
 }
 assert.equal(fs.existsSync(SUCCESSOR),true,'P6A UC.IMG successor missing');
 
@@ -55,32 +67,31 @@ for(const command of [
   'node scripts/v04136-pot-manual-authority-alignment-contract.mjs',
   'node --check assets/js/weekly-context-ui-bridge.js',
   'node scripts/ci-p6a-ucimg-wrapper-parity-contract.mjs',
-])assert.ok(successor.includes(command),`P6A successor lost predecessor behavior: ${command}`);
+])assert.ok(successor.includes(command),`P6A successor lost retired-wrapper behavior: ${command}`);
 
-for(const name of PREDECESSORS){
-  const predecessor=read(`${WORKFLOW_DIR}/${name}`);
-  assert.match(predecessor,/pull_request:/m,`${name} must participate in P6A side-by-side PR parity`);
-  assert.ok(predecessor.includes("'scripts/ci-p6a-ucimg-wrapper-parity-contract.mjs'"),`${name} PR trigger must include P6A parity contract`);
-  assert.ok(predecessor.includes("'.github/workflows/uc-img-a.yml'"),`${name} PR trigger must include successor workflow changes`);
-  assert.doesNotMatch(predecessor,/contents\s*:\s*write/i,`${name} must remain read-only during parity`);
-}
+assert.equal(P6A_SIDE_BY_SIDE_PARITY_PROOF.predecessor_and_successor_all_green,true,'P6A retirement requires recorded side-by-side parity proof');
+assert.equal(P6A_SIDE_BY_SIDE_PARITY_PROOF.main_push_failure,0,'P6A-1 main push must have zero failures before retirement');
+assert.equal(P6A_SIDE_BY_SIDE_PARITY_PROOF.main_push_queued,0,'P6A-1 main push must have zero queued workflows before retirement');
+assert.equal(P6A_SIDE_BY_SIDE_PARITY_PROOF.main_push_in_progress,0,'P6A-1 main push must have zero in-progress workflows before retirement');
 
 const actual=fs.readdirSync(WORKFLOW_DIR).filter(name=>/\.ya?ml$/i.test(name));
-assert.equal(actual.length,27,'P6A-1 parity stage must not retire workflows before side-by-side proof');
+assert.equal(actual.length,23,'P6A retirement topology must be exactly 23 workflow YAML files');
 
 console.log(JSON.stringify({
   status:'PASS',
-  gate:'CI_P6A_UCIMG_WRAPPER_PARITY_CONFIGURATION',
+  gate:'CI_P6A_UCIMG_WRAPPER_RETIREMENT',
   version:CI_P6A_UCIMG_WRAPPER_PARITY_VERSION,
-  phase:'P6A_1_SIDE_BY_SIDE_PARITY',
-  predecessor_workflows:PREDECESSORS,
-  predecessor_count:PREDECESSORS.length,
+  phase:'P6A_2_CONTROLLED_RETIREMENT',
+  parity_proof:P6A_SIDE_BY_SIDE_PARITY_PROOF,
+  retired_workflow_count:RETIRED_PREDECESSORS.length,
+  retired_workflows:RETIRED_PREDECESSORS,
   successor_workflow:'uc-img-a.yml',
-  workflow_count:actual.length,
+  workflow_count_before_retirement:27,
+  workflow_count_after_retirement:actual.length,
+  net_workflow_reduction:4,
   trigger_policy:'PRESERVE_OR_WIDEN_UNION_PR_MAIN_HOTFIX_MANUAL',
   permissions:'READ_ONLY',
   repository_mutation:false,
   behavioral_contracts_removed:0,
-  retirement_allowed:false,
-  retirement_gate:'REQUIRES_FIXED_HEAD_PREDECESSOR_AND_SUCCESSOR_ALL_GREEN_PLUS_POST_MERGE_MAIN_ZERO_FAILURE',
+  retirement_allowed:true,
 },null,2));
