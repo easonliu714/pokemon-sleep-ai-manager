@@ -1,11 +1,24 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-export const CI_P7_RECIPE_REGRESSION_PARITY_VERSION='ci-p7-recipe-regression-parity-2026-08-16-b';
+export const CI_P7_RECIPE_REGRESSION_PARITY_VERSION='ci-p7-recipe-regression-retirement-2026-08-16-c';
+export const P7_SIDE_BY_SIDE_PARITY_PROOF=Object.freeze({
+  pr:326,
+  fixed_head:'e872fe42692fb176c3ed3e03e8218d741609a627',
+  merge_sha:'681b5f53b80c1317a49edf881df5333d1747fb46',
+  triggered_pr_workflows:17,
+  predecessor_workflows:4,
+  successor_jobs:4,
+  predecessor_and_successor_all_green:true,
+  main_push_success:16,
+  main_push_failure:0,
+  main_push_queued:0,
+  main_push_in_progress:0,
+});
 
 const WORKFLOW_DIR='.github/workflows';
 const SUCCESSOR='.github/workflows/recipe-regression.yml';
-const PREDECESSORS=Object.freeze([
+const RETIRED_PREDECESSORS=Object.freeze([
   'v042-recipe-authority-audit.yml',
   'v04221-recipe-formula-authority-audit.yml',
   'v043-r21-recipe-zh-tw-evidence-audit.yml',
@@ -13,11 +26,11 @@ const PREDECESSORS=Object.freeze([
 ]);
 const read=path=>fs.readFileSync(path,'utf8');
 
-for(const name of PREDECESSORS){
-  assert.equal(fs.existsSync(`${WORKFLOW_DIR}/${name}`),true,`P7 parity predecessor missing before side-by-side proof: ${name}`);
-  assert.doesNotMatch(read(`${WORKFLOW_DIR}/${name}`),/contents\s*:\s*write/i,`${name} must remain read-only during P7 parity`);
+for(const name of RETIRED_PREDECESSORS){
+  assert.equal(fs.existsSync(`${WORKFLOW_DIR}/${name}`),false,`P7 retired recipe wrapper reappeared: ${name}`);
 }
 assert.equal(fs.existsSync(SUCCESSOR),true,'P7 recipe-regression successor missing');
+assert.equal(fs.existsSync('scripts/v042-p7-parity-marker.mjs'),false,'P7A no-op trigger marker must be removed after controlled retirement');
 
 const successor=read(SUCCESSOR);
 assert.doesNotMatch(successor,/contents\s*:\s*write/i,'P7 successor must remain read-only');
@@ -30,7 +43,7 @@ for(const branchToken of ['- main',"- 'hotfix/**'","- 'feature/**'"]){
 assert.match(successor,/workflow_dispatch:/m,'P7 successor must preserve manual dispatch');
 
 for(const job of ['base-current-authority:','formula-energy-parity:','zh-tw-evidence:','release-integration:']){
-  assert.ok(successor.includes(job),`P7 successor must keep explicit recipe safety job boundary: ${job}`);
+  assert.ok(successor.includes(job),`P7 successor lost explicit recipe safety job boundary: ${job}`);
 }
 
 for(const command of [
@@ -58,44 +71,34 @@ for(const command of [
   'node scripts/personal-weekly-recommendation-regression.mjs',
   'node scripts/v043-release-integration-contract.mjs',
   'node scripts/ci-p7-recipe-regression-parity-contract.mjs',
-])assert.ok(successor.includes(command),`P7 successor lost predecessor behavior: ${command}`);
+])assert.ok(successor.includes(command),`P7 successor lost retired-wrapper behavior: ${command}`);
 
-// Fixed-head trigger proof. We avoid semantic changes to historical wrappers:
-// v042/release are triggered by a dedicated v042-* marker; formula wrapper is
-// explicitly widened to the successor/parity files; zh-TW evidence is triggered
-// by a comment-only change to its already-governed R2.6 contract.
-assert.equal(fs.existsSync('scripts/v042-p7-parity-marker.mjs'),true,'P7 v042 parity marker missing');
-const v042=read(`${WORKFLOW_DIR}/v042-recipe-authority-audit.yml`);
-const formula=read(`${WORKFLOW_DIR}/v04221-recipe-formula-authority-audit.yml`);
-const zhTw=read(`${WORKFLOW_DIR}/v043-r21-recipe-zh-tw-evidence-audit.yml`);
-const release=read(`${WORKFLOW_DIR}/v043-release-integration.yml`);
-assert.ok(v042.includes("'scripts/v042-*.mjs'"),'v042 wrapper must include parity marker glob');
-assert.ok(release.includes("'scripts/v042-*.mjs'"),'v043 release wrapper must include parity marker glob');
-assert.ok(formula.includes("'scripts/ci-p7-recipe-regression-parity-contract.mjs'"),'formula wrapper PR trigger must include P7 parity contract');
-assert.ok(formula.includes("'.github/workflows/recipe-regression.yml'"),'formula wrapper PR trigger must include recipe successor');
-assert.ok(zhTw.includes("'scripts/v043-r26-team-ux-contract.mjs'"),'zh-TW wrapper must govern R2.6 parity trigger path');
-assert.ok(read('scripts/v043-r26-team-ux-contract.mjs').includes('P7A parity trigger'),'R2.6 comment-only parity trigger marker missing');
+assert.equal(P7_SIDE_BY_SIDE_PARITY_PROOF.predecessor_and_successor_all_green,true,'P7 retirement requires recorded fixed-head side-by-side parity');
+assert.equal(P7_SIDE_BY_SIDE_PARITY_PROOF.main_push_failure,0,'P7A main push must have zero failures before retirement');
+assert.equal(P7_SIDE_BY_SIDE_PARITY_PROOF.main_push_queued,0,'P7A main push must have zero queued workflows before retirement');
+assert.equal(P7_SIDE_BY_SIDE_PARITY_PROOF.main_push_in_progress,0,'P7A main push must have zero in-progress workflows before retirement');
 
 const actual=fs.readdirSync(WORKFLOW_DIR).filter(name=>/\.ya?ml$/i.test(name));
-assert.equal(actual.length,22,'P7A parity stage must keep 21 current workflows plus one recipe successor');
+assert.equal(actual.length,18,'P7 retirement topology must be exactly 18 workflow YAML files');
 
 console.log(JSON.stringify({
   status:'PASS',
-  gate:'CI_P7_RECIPE_REGRESSION_PARITY_CONFIGURATION',
+  gate:'CI_P7_RECIPE_REGRESSION_RETIREMENT',
   version:CI_P7_RECIPE_REGRESSION_PARITY_VERSION,
-  phase:'P7A_SIDE_BY_SIDE_PARITY',
-  predecessor_workflows:PREDECESSORS,
-  predecessor_count:PREDECESSORS.length,
+  phase:'P7B_CONTROLLED_RETIREMENT',
+  parity_proof:P7_SIDE_BY_SIDE_PARITY_PROOF,
+  retired_workflow_count:RETIRED_PREDECESSORS.length,
+  retired_workflows:RETIRED_PREDECESSORS,
   successor_workflow:'recipe-regression.yml',
   successor_jobs:['base-current-authority','formula-energy-parity','zh-tw-evidence','release-integration'],
   workflow_count_before_parity:21,
-  workflow_count_during_parity:actual.length,
-  fixed_head_predecessor_trigger_strategy:'V042_GLOB_MARKER_PLUS_FORMULA_WORKFLOW_WIDENING_PLUS_R26_COMMENT_ONLY_TRIGGER',
+  workflow_count_during_parity:22,
+  workflow_count_after_retirement:actual.length,
+  net_workflow_reduction_from_p6b_baseline:3,
   trigger_policy:'PRESERVE_OR_WIDEN_UNION_ALL_PR_MAIN_HOTFIX_FEATURE_MANUAL',
   permissions:'READ_ONLY',
   repository_mutation:false,
   behavioral_contracts_removed:0,
   production_numeric_authority_changed:false,
-  retirement_allowed:false,
-  retirement_gate:'REQUIRES_FIXED_HEAD_ALL_FOUR_PREDECESSORS_AND_SUCCESSOR_ALL_GREEN_PLUS_POST_MERGE_MAIN_ZERO_FAILURE',
+  retirement_allowed:true,
 },null,2));
