@@ -99,7 +99,10 @@ jobs:
           npx playwright install --with-deps chromium
 
       - name: Run regression gate
-        run: node scripts/regression-gate.mjs
+        run: |
+          node scripts/regression-gate.mjs
+          node scripts/ingredient-inventory-integrity-regression.mjs
+          node scripts/v04271-release-contract.mjs
 
       - name: Verify unlocked Pokémon roster filters
         run: node scripts/pokemon-roster-filter-regression.mjs

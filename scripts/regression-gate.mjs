@@ -7,11 +7,12 @@ import {createRequire} from 'node:module';
 import initSqlJs from 'sql.js';
 import {DDL,SEED_SQL} from '../assets/js/schema.js';
 import {applyAllMigrations,E3C6B_SCHEMA_MIGRATION_VERSION} from '../assets/js/migrations.js';
+import {INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION} from '../assets/js/ingredient-inventory-integrity-contract.js';
 
 const root=new URL('../',import.meta.url);
 const text=async path=>readFile(new URL(path,root),'utf8');
 const require=createRequire(import.meta.url);
-const EXPECTED_SCHEMA_MIGRATIONS=Object.freeze([1,2,3,4,5,6,7,8,9,E3C6B_SCHEMA_MIGRATION_VERSION]);
+const EXPECTED_SCHEMA_MIGRATIONS=Object.freeze([1,2,3,4,5,6,7,8,9,E3C6B_SCHEMA_MIGRATION_VERSION,INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION]);
 
 function queryRows(db,sql){const statement=db.prepare(sql);const output=[];while(statement.step())output.push(statement.getAsObject());statement.free();return output;}
 function scalar(db,sql){const result=queryRows(db,sql);return result.length?Object.values(result[0])[0]:null;}
@@ -38,9 +39,10 @@ async function migrationStaticGate(){
   assert.match(migrations,/strategy_goal_profile/u,'strategy goal profile migration missing');
   assert.match(migrations,/pokemon_evaluation_snapshot/u,'evaluation snapshot migration missing');
   assert.match(migrations,/CREATE TABLE IF NOT EXISTS candy_inventory/u,'candy inventory migration missing');
+  assert.match(migrations,/applyIngredientInventoryIdentityMigration\(db\)/u,'ingredient inventory integrity migration missing');
   assert.match(canonical,/CREATE TABLE IF NOT EXISTS canonical_term/u,'canonical term table missing');
   assert.match(canonical,/CREATE TABLE IF NOT EXISTS canonical_term_alias/u,'canonical alias table missing');
-  console.log('PASS migration structure: schema versions 1-9 and lifecycle hooks');
+  console.log('PASS migration structure: schema versions 1-9 + reserved gap 10 + migrations 11/12 and lifecycle hooks');
 }
 
 async function migrationFixtureGate(){
@@ -81,7 +83,9 @@ async function migrationFixtureGate(){
     INSERT INTO recipe_ingredients VALUES('PERSONAL-001','甜甜蜜',12);
   `);
   const before={pokemon:scalar(legacy,'SELECT COUNT(*) FROM pokemon'),recipes:scalar(legacy,'SELECT COUNT(*) FROM recipes'),ingredients:scalar(legacy,'SELECT COUNT(*) FROM recipe_ingredients')};
-  legacy.run(DDL);applyAllMigrations(legacy);const exported=legacy.export();legacy.close();
+  legacy.run(DDL);
+  legacy.run(`INSERT OR REPLACE INTO ingredient_inventory(ingredient_name,quantity,updated_at,source_update_id) VALUES('特選酪梨',7,'2026-08-15T00:00:00','legacy-avocado');`);
+  applyAllMigrations(legacy);const exported=legacy.export();legacy.close();
   const restored=new SQL.Database(exported);assert.equal(scalar(restored,'PRAGMA integrity_check'),'ok','restored legacy DB integrity check failed');applyAllMigrations(restored);assert.equal(scalar(restored,'PRAGMA integrity_check'),'ok','post-restore migration integrity check failed');
   const after={pokemon:scalar(restored,'SELECT COUNT(*) FROM pokemon'),recipes:scalar(restored,'SELECT COUNT(*) FROM recipes'),ingredients:scalar(restored,'SELECT COUNT(*) FROM recipe_ingredients')};
   assert.deepEqual(after,before,'personal row counts changed during migration/restore');
@@ -92,9 +96,12 @@ async function migrationFixtureGate(){
   assert.equal(scalar(restored,"SELECT COUNT(*) FROM pokemon_subskills WHERE unlock_level IN (70,80)"),2,'migrated subskill levels missing');
   assert.equal(scalar(restored,'SELECT COUNT(*) FROM candy_inventory'),0,'legacy migration must not seed candy inventory');
   assert.ok(scalar(restored,'SELECT COUNT(*) FROM candy_master')>0,'legacy migration must install public Candy Master');
+  assert.equal(scalar(restored,"SELECT COUNT(*) FROM ingredient_master WHERE ingredient_name='特選酪梨'"),0,'legacy avocado master row remains');
+  assert.equal(scalar(restored,"SELECT COUNT(*) FROM ingredient_inventory WHERE ingredient_name='特選酪梨'"),0,'legacy avocado inventory row remains');
+  assert.equal(scalar(restored,"SELECT quantity FROM ingredient_inventory WHERE ingredient_name='嫩亮酪梨'"),7,'legacy avocado quantity was not re-keyed to canonical name');
   assert.deepEqual(queryRows(restored,'SELECT version FROM schema_migrations ORDER BY version').map(row=>row.version),EXPECTED_SCHEMA_MIGRATIONS);
   restored.close();fresh.close();
-  console.log(`PASS SQLite fixtures: fresh integrity=ok; canonical migration=6; detail observation migration=7; strategy snapshot migration=8; candy inventory migration=9; first-party observation migration=${E3C6B_SCHEMA_MIGRATION_VERSION}; legacy restore integrity=ok; personal rows ${JSON.stringify(before)} preserved`);
+  console.log(`PASS SQLite fixtures: fresh integrity=ok; canonical migration=6; detail observation migration=7; strategy snapshot migration=8; candy inventory migration=9; first-party observation migration=${E3C6B_SCHEMA_MIGRATION_VERSION}; ingredient inventory integrity migration=${INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION}; legacy restore integrity=ok; personal rows ${JSON.stringify(before)} preserved`);
 }
 
 async function knowledgeGate(){
@@ -128,7 +135,8 @@ async function serviceWorkerGate(){
   const assets=['shared-master-schema.js','shared-master-data.js','public-empty-profile-master.js','public-item-master.js','canonical-registry.js','public-catalog-workbench.js','shared-knowledge-ui.js'];
   try{await readFile(new URL('assets/js/recipe-unified-player-workbench.js',root),'utf8');assets.push('recipe-unified-player-workbench.js');}catch{}
   for(const asset of assets)assert.ok(sw.includes(asset),`service-worker cache missing ${asset}`);
-  assert.match(sw,/skipWaiting\(\)/,'service worker must call skipWaiting');assert.match(sw,/clients\.claim\(\)/,'service worker must claim clients');assert.match(sw,/keys\.filter\(\(key\) => key !== CACHE\)/,'service worker must delete stale caches');console.log('PASS service worker: canonical/public catalog modules cached and stale caches removed');
+  const index=await text('index.html');assert.match(index,/ingredient-inventory-integrity-ui\.js/u,'ingredient inventory integrity UI is not loaded by app shell');
+  assert.match(sw,/skipWaiting\(\)/,'service worker must call skipWaiting');assert.match(sw,/clients\.claim\(\)/,'service worker must claim clients');assert.match(sw,/keys\.filter\(\(key\) => key !== CACHE\)/,'service worker must delete stale caches');console.log('PASS service worker: canonical/public catalog modules cached; integrity UI loads during online startup and JS network-first cache remains active');
 }
 
 function annotationEscape(value){return String(value??'').replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A');}
