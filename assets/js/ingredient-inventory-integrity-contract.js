@@ -51,7 +51,8 @@ function allowedResolutions(reviewKind){
  * Migration 12 corrects a legacy canonical-name residue without ever summing
  * two player quantities. Migration 13 is then applied by the same lifecycle
  * entry point so existing v0.4.27.1 databases that already contain migration
- * 12 still receive the unlock-state semantic migration.
+ * 12 still receive the unlock-state semantic migration without overwriting
+ * the original migration-12 conflict/audit evidence.
  */
 export function applyIngredientInventoryIdentityMigration(db){
   db.run(`CREATE TABLE IF NOT EXISTS ingredient_inventory_identity_archive(
@@ -65,34 +66,39 @@ export function applyIngredientInventoryIdentityMigration(db){
     reason TEXT NOT NULL,
     archived_at TEXT NOT NULL
   )`);
+  const identityAlreadyApplied=Number(dbScalar(db,'SELECT COUNT(*) FROM schema_migrations WHERE version=?',[INGREDIENT_INVENTORY_IDENTITY_MIGRATION_VERSION])||0)>0;
   const audit=[];
-  for(const [legacyName,canonicalName] of Object.entries(LEGACY_INGREDIENT_IDENTITY_RENAMES)){
-    const legacy=dbRows(db,'SELECT * FROM ingredient_inventory WHERE ingredient_name=?',[legacyName])[0]||null;
-    const canonical=dbRows(db,'SELECT * FROM ingredient_inventory WHERE ingredient_name=?',[canonicalName])[0]||null;
-    if(legacy&&!canonical){
-      db.run('UPDATE ingredient_inventory SET ingredient_name=? WHERE ingredient_name=?',[canonicalName,legacyName]);
-      audit.push({legacy_name:legacyName,canonical_name:canonicalName,action:'REKEYED_LEGACY_ONLY',quantity:Number(legacy.quantity||0),review_required:false});
-    }else if(legacy&&canonical){
-      const sameQuantity=Number(legacy.quantity||0)===Number(canonical.quantity||0);
-      const reason=sameQuantity?'LEGACY_DUPLICATE_SAME_VALUE':'LEGACY_CANONICAL_CONFLICT_CANONICAL_WINS_NO_SUM';
-      const archiveId=`ingredient-identity-v12-${legacyName}-${canonicalName}`;
-      db.run(`INSERT OR REPLACE INTO ingredient_inventory_identity_archive(
-        archive_id,legacy_name,canonical_name,legacy_quantity,canonical_quantity,
-        legacy_updated_at,legacy_source_update_id,reason,archived_at
-      ) VALUES(?,?,?,?,?,?,?,?,datetime('now'))`,[
-        archiveId,legacyName,canonicalName,Number(legacy.quantity||0),Number(canonical.quantity||0),
-        legacy.updated_at||null,legacy.source_update_id||null,reason,
-      ]);
-      db.run('DELETE FROM ingredient_inventory WHERE ingredient_name=?',[legacyName]);
-      audit.push({legacy_name:legacyName,canonical_name:canonicalName,action:reason,legacy_quantity:Number(legacy.quantity||0),canonical_quantity:Number(canonical.quantity||0),review_required:!sameQuantity});
+  if(!identityAlreadyApplied){
+    for(const [legacyName,canonicalName] of Object.entries(LEGACY_INGREDIENT_IDENTITY_RENAMES)){
+      const legacy=dbRows(db,'SELECT * FROM ingredient_inventory WHERE ingredient_name=?',[legacyName])[0]||null;
+      const canonical=dbRows(db,'SELECT * FROM ingredient_inventory WHERE ingredient_name=?',[canonicalName])[0]||null;
+      if(legacy&&!canonical){
+        db.run('UPDATE ingredient_inventory SET ingredient_name=? WHERE ingredient_name=?',[canonicalName,legacyName]);
+        audit.push({legacy_name:legacyName,canonical_name:canonicalName,action:'REKEYED_LEGACY_ONLY',quantity:Number(legacy.quantity||0),review_required:false});
+      }else if(legacy&&canonical){
+        const sameQuantity=Number(legacy.quantity||0)===Number(canonical.quantity||0);
+        const reason=sameQuantity?'LEGACY_DUPLICATE_SAME_VALUE':'LEGACY_CANONICAL_CONFLICT_CANONICAL_WINS_NO_SUM';
+        const archiveId=`ingredient-identity-v12-${legacyName}-${canonicalName}`;
+        db.run(`INSERT OR REPLACE INTO ingredient_inventory_identity_archive(
+          archive_id,legacy_name,canonical_name,legacy_quantity,canonical_quantity,
+          legacy_updated_at,legacy_source_update_id,reason,archived_at
+        ) VALUES(?,?,?,?,?,?,?,?,datetime('now'))`,[
+          archiveId,legacyName,canonicalName,Number(legacy.quantity||0),Number(canonical.quantity||0),
+          legacy.updated_at||null,legacy.source_update_id||null,reason,
+        ]);
+        db.run('DELETE FROM ingredient_inventory WHERE ingredient_name=?',[legacyName]);
+        audit.push({legacy_name:legacyName,canonical_name:canonicalName,action:reason,legacy_quantity:Number(legacy.quantity||0),canonical_quantity:Number(canonical.quantity||0),review_required:!sameQuantity});
+      }
+      db.run('DELETE FROM ingredient_master WHERE ingredient_name=?',[legacyName]);
     }
-    db.run('DELETE FROM ingredient_master WHERE ingredient_name=?',[legacyName]);
+    db.run(`INSERT OR REPLACE INTO settings(key,value_json,updated_at)
+      VALUES('ingredient_inventory_identity_migration_v12',?,datetime('now'))`,[JSON.stringify({version:'ingredient-inventory-integrity-2026-08-16-a',audit,review_required:audit.some(item=>item.review_required===true)})]);
+    db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(${INGREDIENT_INVENTORY_IDENTITY_MIGRATION_VERSION},datetime('now'))`);
   }
-  db.run(`INSERT OR REPLACE INTO settings(key,value_json,updated_at)
-    VALUES('ingredient_inventory_identity_migration_v12',?,datetime('now'))`,[JSON.stringify({version:'ingredient-inventory-integrity-2026-08-16-a',audit,review_required:audit.some(item=>item.review_required===true)})]);
-  db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(${INGREDIENT_INVENTORY_IDENTITY_MIGRATION_VERSION},datetime('now'))`);
   const unlock=applyIngredientUnlockStateMigration(db);
-  return {changed:audit.length>0||unlock.changed,audit,review_required:audit.some(item=>item.review_required===true),unlock};
+  const priorIdentityRaw=dbRows(db,"SELECT value_json FROM settings WHERE key='ingredient_inventory_identity_migration_v12'")[0]?.value_json||null;
+  let priorIdentity=null;try{priorIdentity=priorIdentityRaw?JSON.parse(priorIdentityRaw):null;}catch{}
+  return {changed:audit.length>0||unlock.changed,audit:identityAlreadyApplied?(priorIdentity?.audit||[]):audit,review_required:identityAlreadyApplied?priorIdentity?.review_required===true:audit.some(item=>item.review_required===true),identity_already_applied:identityAlreadyApplied,unlock};
 }
 
 /**
