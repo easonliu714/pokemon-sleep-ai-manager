@@ -6,11 +6,12 @@ import {spawnSync} from 'node:child_process';
 import {createRequire} from 'node:module';
 import initSqlJs from 'sql.js';
 import {DDL,SEED_SQL} from '../assets/js/schema.js';
-import {applyAllMigrations} from '../assets/js/migrations.js';
+import {applyAllMigrations,E3C6B_SCHEMA_MIGRATION_VERSION} from '../assets/js/migrations.js';
 
 const root=new URL('../',import.meta.url);
 const text=async path=>readFile(new URL(path,root),'utf8');
 const require=createRequire(import.meta.url);
+const EXPECTED_SCHEMA_MIGRATIONS=Object.freeze([1,2,3,4,5,6,7,8,9,E3C6B_SCHEMA_MIGRATION_VERSION]);
 
 function queryRows(db,sql){const statement=db.prepare(sql);const output=[];while(statement.step())output.push(statement.getAsObject());statement.free();return output;}
 function scalar(db,sql){const result=queryRows(db,sql);return result.length?Object.values(result[0])[0]:null;}
@@ -46,7 +47,7 @@ async function migrationFixtureGate(){
   const SQL=await initSqlJs({locateFile:file=>join(dirname(require.resolve('sql.js')),file)});
   const fresh=new SQL.Database();fresh.run(DDL);fresh.run(SEED_SQL);applyAllMigrations(fresh);
   assert.equal(scalar(fresh,'PRAGMA integrity_check'),'ok','fresh DB integrity check failed');
-  assert.deepEqual(queryRows(fresh,'SELECT version FROM schema_migrations ORDER BY version').map(row=>row.version),[1,2,3,4,5,6,7,8,9]);
+  assert.deepEqual(queryRows(fresh,'SELECT version FROM schema_migrations ORDER BY version').map(row=>row.version),EXPECTED_SCHEMA_MIGRATIONS);
   assert.equal(scalar(fresh,'SELECT COUNT(*) FROM pokemon'),0,'public master must not seed Pokémon');
   assert.equal(scalar(fresh,'SELECT COUNT(*) FROM ingredient_inventory'),0,'public master must not seed ingredient quantities');
   assert.equal(scalar(fresh,'SELECT COUNT(*) FROM item_inventory'),0,'public master must not seed item quantities');
@@ -91,9 +92,9 @@ async function migrationFixtureGate(){
   assert.equal(scalar(restored,"SELECT COUNT(*) FROM pokemon_subskills WHERE unlock_level IN (70,80)"),2,'migrated subskill levels missing');
   assert.equal(scalar(restored,'SELECT COUNT(*) FROM candy_inventory'),0,'legacy migration must not seed candy inventory');
   assert.ok(scalar(restored,'SELECT COUNT(*) FROM candy_master')>0,'legacy migration must install public Candy Master');
-  assert.deepEqual(queryRows(restored,'SELECT version FROM schema_migrations ORDER BY version').map(row=>row.version),[1,2,3,4,5,6,7,8,9]);
+  assert.deepEqual(queryRows(restored,'SELECT version FROM schema_migrations ORDER BY version').map(row=>row.version),EXPECTED_SCHEMA_MIGRATIONS);
   restored.close();fresh.close();
-  console.log(`PASS SQLite fixtures: fresh integrity=ok; canonical migration=6; detail observation migration=7; strategy snapshot migration=8; candy inventory migration=9; legacy restore integrity=ok; personal rows ${JSON.stringify(before)} preserved`);
+  console.log(`PASS SQLite fixtures: fresh integrity=ok; canonical migration=6; detail observation migration=7; strategy snapshot migration=8; candy inventory migration=9; first-party observation migration=${E3C6B_SCHEMA_MIGRATION_VERSION}; legacy restore integrity=ok; personal rows ${JSON.stringify(before)} preserved`);
 }
 
 async function knowledgeGate(){
