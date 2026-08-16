@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-export const PRODUCTION_WORKFLOW_CONSOLIDATION_VERSION='production-workflow-consolidation-2026-08-14-a';
+export const PRODUCTION_WORKFLOW_CONSOLIDATION_VERSION='production-workflow-consolidation-2026-08-16-b-p7-successor';
 
 const retiredWorkflows=Object.freeze([
   '.github/workflows/v0414-g7-verified-energy-objective.yml',
@@ -60,11 +60,12 @@ for(const path of preservedContracts)assert.equal(fs.existsSync(path),true,`Prod
 const replacement='.github/workflows/production-evidence-regression.yml';
 const runnerPath='scripts/ci-production-evidence-regression.mjs';
 const predecessorBridge='scripts/v0423-predecessor-contract-runner.mjs';
-const recipeAuthority='.github/workflows/v04221-recipe-formula-authority-audit.yml';
+const recipeAuthority='.github/workflows/recipe-regression.yml';
 for(const path of [replacement,runnerPath,predecessorBridge,recipeAuthority])assert.equal(fs.existsSync(path),true,`required preserved path missing: ${path}`);
 
 const runner=fs.readFileSync(runnerPath,'utf8');
 const workflow=fs.readFileSync(replacement,'utf8');
+const recipeWorkflow=fs.readFileSync(recipeAuthority,'utf8');
 for(const path of preservedContracts)assert.ok(runner.includes(path),`Production consolidated runner lost contract: ${path}`);
 for(const token of [
   'concurrency:',
@@ -75,7 +76,13 @@ for(const token of [
 ])assert.ok(workflow.includes(token),`Production replacement workflow missing: ${token}`);
 
 assert.ok(runner.includes(predecessorBridge),'Production regression lost governed predecessor identity bridge');
-assert.ok(!retiredWorkflows.includes(recipeAuthority),'Recipe authority workflow must not be retired by Production consolidation');
+assert.ok(!retiredWorkflows.includes(recipeAuthority),'Recipe authority successor must not be retired by Production consolidation');
+for(const token of [
+  'formula-energy-parity:',
+  'node scripts/version-authority-audit.mjs',
+  'node scripts/v04221-recipe-formula-authority-audit.mjs',
+  'node scripts/v0423-predecessor-contract-runner.mjs scripts/v04221-release-contract.mjs',
+])assert.ok(recipeWorkflow.includes(token),`P7 recipe successor lost Production-adjacent recipe authority boundary: ${token}`);
 
 console.log(JSON.stringify({
   status:'PASS',
@@ -86,6 +93,9 @@ console.log(JSON.stringify({
   net_workflow_reduction:retiredWorkflows.length-1,
   preserved_behavioral_contract_count:preservedContracts.length,
   behavioral_contracts_removed:0,
+  recipe_authority_workflow:'recipe-regression.yml',
+  recipe_authority_job:'formula-energy-parity',
   recipe_authority_workflow_retired:false,
+  production_numeric_authority_changed:false,
   predecessor_identity_bridge_preserved:true,
 },null,2));
