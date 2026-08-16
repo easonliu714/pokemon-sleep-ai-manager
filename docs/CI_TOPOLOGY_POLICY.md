@@ -24,7 +24,7 @@ The policy intentionally preserves independently visible high-value boundaries i
 - Production evidence regression
 - Legacy runtime regression
 - Screenshot Pipeline Regression with independent local OCR, OCR/AI bridge, and UC.IMG jobs
-- Recipe Regression during P7 parity
+- Recipe Regression with independent authority/formula/evidence/release jobs
 - War Room regression
 - G14 Backup / FULL75 / Data Consistency / Public Catalog
 
@@ -61,7 +61,16 @@ P6B:
 - `behavioral_contracts_removed=0`.
 
 ## P7 Recipe authority consolidation
-P7 follows the same two-stage protocol. P7A is parity only; no predecessor is retired.
+P7 follows the same two-stage parity-before-retirement protocol.
+
+### P7A — side-by-side parity proof
+- PR: `#326`
+- final fixed head: `e872fe42692fb176c3ed3e03e8218d741609a627`
+- merge SHA: `681b5f53b80c1317a49edf881df5333d1747fb46`
+- 17/17 triggered PR workflows PASS;
+- all four predecessor recipe wrappers executed successfully on the same fixed head;
+- `recipe-regression.yml` executed all four independent jobs successfully: `base-current-authority`, `formula-energy-parity`, `zh-tw-evidence`, `release-integration`;
+- post-merge main push: 16 success / 0 failure / 0 queued / 0 in-progress.
 
 P7A predecessors:
 - `v042-recipe-authority-audit.yml`
@@ -69,22 +78,20 @@ P7A predecessors:
 - `v043-r21-recipe-zh-tw-evidence-audit.yml`
 - `v043-release-integration.yml`
 
-Candidate successor: `recipe-regression.yml`, with four explicit independent jobs:
+### P7B — controlled retirement
+PR #327 retires the four wrappers only after the P7A proof above. Behavioral ownership remains in `recipe-regression.yml` under four independently visible jobs:
 - `base-current-authority` — v0.4.2 single/current recipe authority, provenance, strategy projection, player-state preservation, and related evidence-gated contracts;
 - `formula-energy-parity` — version authority, full 78-recipe formula audit, level/energy authority, and predecessor release replay;
 - `zh-tw-evidence` — synthetic/privacy-safe screenshot evidence, canonical zh-TW naming, FULL50 reconciliation, selector/team contracts, G14 renderer authority, and existing-player preservation;
 - `release-integration` — unified workbench predecessor replay, controlled selector/team contracts, v0.4.2 historical compatibility, v0.4.3 release integration, private-source guard, and non-mutation check.
 
-During P7A:
-- workflow YAML count temporarily becomes **21 → 22** because the four predecessors remain tracked;
-- `recipe-regression.yml` deliberately widens trigger coverage to all pull requests and preserves push coverage across `main`, `hotfix/**`, `feature/**`, plus `workflow_dispatch`;
-- all predecessor behavioral commands remain present in the successor;
-- fixed-head predecessor triggering uses a no-side-effect `scripts/v042-p7-parity-marker.mjs`, explicit formula-wrapper PR widening, and a comment-only governed R2.6 change for the zh-TW wrapper;
-- all workflows remain read-only/repository-non-mutating;
-- Production numeric authority is unchanged;
-- retirement is forbidden until all four predecessor workflows plus all four successor jobs are green on the same fixed PR head, followed by a fully terminal main push with zero failures/queued/in-progress jobs.
+The temporary P7A no-op trigger marker is removed during P7B, and the R2.6 comment-only trigger change is restored. Trigger coverage remains deliberately widened in the successor to all pull requests, pushes to `main`, `hotfix/**`, `feature/**`, and `workflow_dispatch`.
 
-Only after that evidence may P7B retire the four version wrappers. Expected topology is **22 → 18** at retirement, equivalently **21 → 18** relative to the P6B baseline, with `behavioral_contracts_removed=0`.
+P7 topology target/result on P7B merge is **21 → 18 workflow YAML files** relative to the P6B baseline (temporary parity topology 22 → 18 at retirement), with:
+- `behavioral_contracts_removed=0`;
+- Production numeric authority unchanged;
+- all retained test CI read-only and repository-non-mutating;
+- no player SQLite mutation.
 
 ## Release mutation policy
 Test/regression workflows are not release writers.
@@ -98,10 +105,10 @@ Main workflows must not:
 Deployment-specific GitHub Pages permissions such as `pages: write` / `id-token: write` are a separate deployment boundary and are not repository-content mutation authority.
 
 ## Version-specific workflow policy
-The version-specific workflows still tracked during P7A are grandfathered only as predecessor evidence. They are not a template for future growth. Any additional `v*.yml` standalone workflow fails topology policy unless explicitly justified as an independent safety boundary.
+After P7 retirement, only version-specific workflows explicitly retained by topology policy remain grandfathered. They are not a template for future growth. Any additional `v*.yml` standalone workflow fails topology policy unless explicitly justified as an independent safety boundary.
 
 ## Registry-stale workflow identities
-Retired identities may remain visible in GitHub Actions even though their YAML no longer exists on `main`. These are `REGISTRY_STALE_NO_MAIN_FILE`; main-tree truth wins.
+Retired identities may remain visible in GitHub Actions even though their YAML no longer exists on `main`. These are `REGISTRY_STALE_NO_MAIN_FILE`; main-tree truth wins. This includes P5, P6A, P6B, and P7 retired workflow identities.
 
 ## Change procedure
 For any CI topology change:
