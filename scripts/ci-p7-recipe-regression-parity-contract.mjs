@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-export const CI_P7_RECIPE_REGRESSION_PARITY_VERSION='ci-p7-recipe-regression-retirement-2026-08-16-d-successor-aware';
+export const CI_P7_RECIPE_REGRESSION_PARITY_VERSION='ci-p7-recipe-regression-retirement-2026-08-16-e-p8-retirement-aware';
 export const P7_SIDE_BY_SIDE_PARITY_PROOF=Object.freeze({
   pr:326,
   fixed_head:'e872fe42692fb176c3ed3e03e8218d741609a627',
@@ -19,8 +19,18 @@ export const P7_SIDE_BY_SIDE_PARITY_PROOF=Object.freeze({
 
 const WORKFLOW_DIR='.github/workflows';
 const SUCCESSOR='.github/workflows/recipe-regression.yml';
-const P8_G14_PARITY_SUCCESSOR='.github/workflows/g14-safety-regression.yml';
-const P8_DATA_PARITY_SUCCESSOR='.github/workflows/data-boundary-regression.yml';
+const P8_G14_SUCCESSOR='.github/workflows/g14-safety-regression.yml';
+const P8_DATA_SUCCESSOR='.github/workflows/data-boundary-regression.yml';
+const P8_PREDECESSORS=Object.freeze([
+  'g14-backup-truth-restore.yml',
+  'g14-data-consistency-multicapture.yml',
+  'g14-full75-recovery.yml',
+  'g14-public-catalog-renderer-authority.yml',
+  'privacy-guard.yml',
+  'public-pages-empty-profile.yml',
+  'v0481-live-followup.yml',
+  'v0484-touch-first-camp-containment.yml',
+]);
 const RETIRED_PREDECESSORS=Object.freeze([
   'v042-recipe-authority-audit.yml',
   'v04221-recipe-formula-authority-audit.yml',
@@ -82,8 +92,12 @@ assert.equal(P7_SIDE_BY_SIDE_PARITY_PROOF.main_push_queued,0,'P7A main push must
 assert.equal(P7_SIDE_BY_SIDE_PARITY_PROOF.main_push_in_progress,0,'P7A main push must have zero in-progress workflows before retirement');
 
 const actual=fs.readdirSync(WORKFLOW_DIR).filter(name=>/\.ya?ml$/i.test(name));
-const p8Parity=fs.existsSync(P8_G14_PARITY_SUCCESSOR)&&fs.existsSync(P8_DATA_PARITY_SUCCESSOR);
-if(p8Parity){
+const p8SuccessorsPresent=fs.existsSync(P8_G14_SUCCESSOR)&&fs.existsSync(P8_DATA_SUCCESSOR);
+const p8PredecessorPresentCount=P8_PREDECESSORS.filter(name=>fs.existsSync(`${WORKFLOW_DIR}/${name}`)).length;
+const p8SideBySide=p8SuccessorsPresent&&p8PredecessorPresentCount===P8_PREDECESSORS.length;
+const p8Retired=p8SuccessorsPresent&&p8PredecessorPresentCount===0;
+assert.ok(!p8SuccessorsPresent||p8SideBySide||p8Retired,'P8 safety topology must not be partially retired');
+if(p8SideBySide){
   assert.equal(actual.length,20,'P8 side-by-side parity may temporarily add exactly two safety successor workflows above the P7-retired baseline');
 }else{
   assert.ok(actual.length<=P7_SIDE_BY_SIDE_PARITY_PROOF.workflow_count_after_p7_retirement,'later controlled convergence must not increase workflow count above the P7-retired baseline');
@@ -103,7 +117,10 @@ console.log(JSON.stringify({
   workflow_count_during_parity:22,
   workflow_count_after_p7_retirement:P7_SIDE_BY_SIDE_PARITY_PROOF.workflow_count_after_p7_retirement,
   current_workflow_count:actual.length,
-  p8_parity_successors_present:p8Parity,
+  p8_successors_present:p8SuccessorsPresent,
+  p8_predecessor_present_count:p8PredecessorPresentCount,
+  p8_side_by_side_parity:p8SideBySide,
+  p8_controlled_retirement_complete:p8Retired,
   net_workflow_reduction_from_p6b_baseline:3,
   trigger_policy:'PRESERVE_OR_WIDEN_UNION_ALL_PR_MAIN_HOTFIX_FEATURE_MANUAL',
   permissions:'READ_ONLY',
