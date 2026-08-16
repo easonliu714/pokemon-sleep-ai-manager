@@ -1,0 +1,146 @@
+name: G14 Safety Regression
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'feat/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: g14-safety-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backup-truth-restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static contract gate
+        run: python tests/test_g14_backup_truth_restore.py
+      - name: JavaScript syntax
+        run: node --check assets/js/backup-truth-restore.js
+
+  data-consistency-multicapture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: node --check assets/js/data-consistency-multicapture.js
+      - name: Contract assertions
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const js=fs.readFileSync('assets/js/data-consistency-multicapture.js','utf8');
+          const index=fs.readFileSync('index.html','utf8');
+          const sw=fs.readFileSync('service-worker.js','utf8');
+          const bootstrap=fs.readFileSync('assets/js/bootstrap.js','utf8');
+          const doc=fs.readFileSync('docs/DATA_CONSISTENCY_MULTICAPTURE_CONTRACT.md','utf8').toLowerCase();
+          const required=[
+            ['capture groups',/activeGroupId/],
+            ['patch semantics',/patchPokemon/],
+            ['no empty child replacement',/if\(draft\.subskills\.length\)/],
+            ['ingredient preservation',/if\(draft\.ingredients\.length\)/],
+            ['data changed event',/pokemon-sleep:data-changed/],
+            ['immediate refresh',/refreshPokemonUi/],
+            ['object string guard',/object Object/],
+            ['snapshot',/before_multicapture_confirmation/],
+            ['transaction',/begin\(\).*commit\(\)/s],
+            ['history source refs',/source_refs/],
+          ];
+          for(const [name,re] of required)if(!re.test(js))throw new Error(`missing ${name}`);
+          if(!index.includes('data-consistency-multicapture.js'))throw new Error('index missing module');
+          if(!sw.includes('data-consistency-multicapture.js'))throw new Error('SW missing precache');
+          if(!bootstrap.includes("APP_VERSION = 'v0.3.78'"))throw new Error('wrong version authority');
+          if(!sw.includes('pokemon-sleep-ai-v0.3.78-v0377c-data-consistency-multicapture'))throw new Error('wrong cache');
+          for(const re of [/missing.{0,20}clear/s,/empty child array/s,/immediate ui refresh/s])if(!re.test(doc))throw new Error(`contract phrase missing: ${re}`);
+          console.log('G14 data consistency contract PASS');
+          NODE
+
+  full75-recovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: |
+          node --check assets/js/full75-recovery-contract.js
+          node --check assets/js/full75-recovery-engine.js
+          node --check assets/js/full75-recovery-workbench.js
+          node --check assets/js/general-update-field-audit-ui.js
+          node --check assets/js/version-authority.js
+      - name: Verify immutable historical FULL75 counts
+        run: |
+          grep -q "total: 821" assets/js/full75-recovery-contract.js
+          grep -q "pokemon_upsert: 75" assets/js/full75-recovery-contract.js
+          grep -q "pokemon_archive: 5" assets/js/full75-recovery-contract.js
+          grep -q "pokemon_subskills: 369" assets/js/full75-recovery-contract.js
+          grep -q "pokemon_ingredients: 222" assets/js/full75-recovery-contract.js
+          grep -q "pokemon_identity_evidence: 150" assets/js/full75-recovery-contract.js
+      - name: Verify retired compatibility boundary
+        run: |
+          grep -q "review_required" assets/js/full75-recovery-engine.js
+          grep -q "confirmed_independent" assets/js/full75-recovery-engine.js
+          grep -q "target_pokemon_id" assets/js/full75-recovery-engine.js
+          grep -q "dryRun" assets/js/full75-recovery-engine.js
+          grep -q "verifyAppliedPackage" assets/js/full75-recovery-engine.js
+          grep -q "throw new Error(RETIRED_MESSAGE)" assets/js/full75-recovery-engine.js
+          ! grep -q "import .*applyPayload" assets/js/full75-recovery-engine.js
+          grep -q "dedicated_ui_present: false" assets/js/full75-recovery-workbench.js
+          grep -q "dedicated_apply_enabled: false" assets/js/full75-recovery-workbench.js
+          grep -q "dedicated_forward_control_present: false" assets/js/full75-recovery-workbench.js
+          grep -q "general_update_center_required: true" assets/js/full75-recovery-workbench.js
+          grep -q "legacy_json_compatibility_retained: true" assets/js/full75-recovery-workbench.js
+          grep -q "blank_values_preserve_existing: true" assets/js/full75-recovery-workbench.js
+          ! grep -q "full75RecoveryWorkbench" assets/js/full75-recovery-workbench.js
+          ! grep -q "full75RecoveryFile" assets/js/full75-recovery-workbench.js
+          ! grep -q "full75ForwardBtn" assets/js/full75-recovery-workbench.js
+          ! grep -q "document.createElement" assets/js/full75-recovery-workbench.js
+          grep -q "preserve_existing_empty_incoming" assets/js/importer.js
+          grep -q "accepted_current_observation" assets/js/ai-workflow.js
+      - name: Verify browser compatibility anchor
+        run: |
+          grep -q 'src="./assets/js/full75-recovery-workbench.js"' index.html
+          ! grep -q 'full75-recovery-workbench.js?v=' index.html
+          grep -q 'assets/js/version-authority.js' service-worker.js
+          ! grep -R "PRIVATE-ABILITY-FULL75-REFRESH" assets .github docs --exclude='g14-full75-recovery.yml' --exclude='g14-safety-regression.yml'
+
+  public-catalog-authority:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: node --check assets/js/public-catalog-workbench.js
+      - name: Renderer authority contract
+        run: python tests/test_g14_public_catalog_renderer_authority.py
+
+  parity-configuration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify P8 side-by-side parity configuration
+        run: node scripts/ci-p8-safety-boundary-parity-contract.mjs
