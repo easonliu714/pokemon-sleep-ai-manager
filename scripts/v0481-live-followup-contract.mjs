@@ -1,4 +1,3 @@
-// P8A parity trigger: no behavioral change; forces both v0.4.8 predecessor wrappers onto the fixed parity head.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
