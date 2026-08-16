@@ -65,29 +65,34 @@ Their behaviors remain executable in:
 - `regression-gate.yml` for Debug Trace, General JSON, Profile Completeness, Update Center multiscenario, and human-readable review;
 - `historical-release-regression.yml` for Public Pokémon Knowledge / Evolution / Candy historical coverage.
 
-P5 topology target is therefore **33 → 27 workflow YAML files**, with `behavioral_contracts_removed=0`. Core trigger coverage is widened to every PR/push on `main`; historical public-knowledge trigger coverage is the union of the retired evolution/public paths. Both successors remain read-only and repository-non-mutating.
+P5 topology result is **33 → 27 workflow YAML files**, with `behavioral_contracts_removed=0`. Later convergence phases may reduce the current count below 27; the P5 contract therefore preserves the historical 27-workflow milestone without blocking successor phases.
 
 ## P6A Screenshot / OCR / UC.IMG convergence
-P6A also uses parity-before-retirement. Stage P6A-1 keeps all four predecessor wrappers while the UC.IMG domain runner executes the same behavioral contracts on the same fixed PR head.
+P6A uses the same two-stage parity-before-retirement protocol.
 
-P6A-1 predecessors:
+P6A-1 parity proof:
+- PR: `#322`
+- fixed head: `1876a56f92142f29b015b7085f751041e8a9380a`
+- merge SHA: `bd84d2b9e4cd7797ef71c7ccd304f8de0c65ebb8`
+- 15/15 triggered PR workflows completed successfully;
+- all four predecessor wrappers and the `uc-img-a.yml` successor ran on the same fixed PR head;
+- post-merge main push completed 15 workflows with zero failures, zero queued, and zero in-progress workflows before retirement began.
+
+P6A-2 retires these four wrapper files only after that proof:
 - `v04133-shared-gemini-transport-diagnostic.yml`
 - `v04134-recipe-pot-scenario-contract.yml`
 - `v04135-account-capacity-apply-not-null.yml`
 - `v04136-pot-manual-authority-alignment.yml`
 
-Successor ownership is `uc-img-a.yml` because these wrappers govern shared Gemini transport/diagnostics, recipe-pot screenshot scenario handling, account-capacity Update Center apply semantics, and weekly-context/pot manual authority alignment. DATA.1D.1 remains the local OCR boundary and G13 remains the OCR/AI bridge boundary; P6A does not move unrelated behavior merely to distribute wrappers across runners.
+Their behavioral ownership remains in `uc-img-a.yml`, which continues to run the exact predecessor scripts for:
+- shared Gemini transport and diagnostic export;
+- recipe status / pot-capacity screenshot scenario handling;
+- account-capacity Apply NOT NULL semantics;
+- weekly-context / pot manual authority alignment.
 
-During P6A-1:
-- workflow YAML count remains **27**;
-- all four predecessor wrappers remain tracked;
-- predecessor PR triggers are temporarily widened so all four can execute side-by-side with UC.IMG on the same PR head;
-- UC.IMG preserves or widens the predecessor trigger union across PR, `main`, `hotfix/**`, and `workflow_dispatch`;
-- all behavioral scripts remain executable;
-- all workflows remain `contents: read` and repository-non-mutating;
-- retirement is forbidden until fixed-head predecessor + successor CI is all green and the subsequent main push has zero new failures.
+Trigger coverage is preserved or widened by the UC.IMG successor across pull requests, pushes to `main`, pushes to `hotfix/**`, and `workflow_dispatch`. Relevant predecessor code/script paths remain in the successor path union. DATA.1D.1 remains the local OCR boundary and G13 remains the OCR/AI bridge boundary.
 
-Only after that evidence is recorded may P6A-2 retire the four version wrappers, reducing the main-tree workflow topology from **27 → 23** with `behavioral_contracts_removed=0`.
+P6A topology result is **27 → 23 workflow YAML files**, with `behavioral_contracts_removed=0`. All retained test workflows remain read-only and repository-non-mutating.
 
 ## Release mutation policy
 Test/regression workflows are not release writers.
@@ -101,14 +106,14 @@ Main workflows must not:
 Deployment-specific GitHub Pages permissions such as `pages: write` / `id-token: write` are a separate deployment boundary and are not repository-content mutation authority.
 
 ## Version-specific workflow policy
-The small set of version-specific workflows still tracked after P0–P5 cleanup is grandfathered as the current baseline. It is not a template for future growth.
+The small set of version-specific workflows still tracked after P0–P6A cleanup is grandfathered as the current baseline. It is not a template for future growth.
 
 Any additional `v*.yml` standalone workflow causes the topology contract to fail until the PR either:
 1. moves the new behavior into an existing consolidated/domain runner; or
 2. explicitly updates the topology baseline and documents why an independent workflow is required.
 
 ## Registry-stale workflow identities
-Known examples such as the old v0.3.93 release/startup workflow identities and the six P5-retired wrapper identities may remain visible through GitHub Actions even though no corresponding YAML exists on `main`. These are classified `REGISTRY_STALE_NO_MAIN_FILE`. Main-tree truth wins; do not recreate them to make registry counts match.
+Known retired workflow identities may remain visible through GitHub Actions even though no corresponding YAML exists on `main`. This includes the old v0.3.93 identities, the six P5-retired wrappers, and the four P6A-retired v0.4.13.x wrappers. These are classified `REGISTRY_STALE_NO_MAIN_FILE`. Main-tree truth wins; do not recreate them to make registry counts match.
 
 ## Change procedure
 For any CI topology change:

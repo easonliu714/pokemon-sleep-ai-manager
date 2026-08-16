@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-export const CI_P5_WRAPPER_PARITY_VERSION='ci-p5-wrapper-retirement-2026-08-15-b';
+export const CI_P5_WRAPPER_PARITY_VERSION='ci-p5-wrapper-retirement-2026-08-16-c-successor-aware';
 export const P5_SIDE_BY_SIDE_PARITY_PROOF=Object.freeze({
   pr:316,
   fixed_head:'00d1a3920e792f1db4218c8ba3fde1d1a6484c41',
@@ -11,6 +11,7 @@ export const P5_SIDE_BY_SIDE_PARITY_PROOF=Object.freeze({
   predecessor_and_successor_all_green:true,
   main_push_success:10,
   main_push_failure:0,
+  workflow_count_after_p5_retirement:27,
 });
 
 const WORKFLOW_DIR='.github/workflows';
@@ -35,7 +36,6 @@ const core=read(CORE_SUCCESSOR);
 const historical=read(HISTORICAL_SUCCESSOR);
 const historicalRunner=read(HISTORICAL_RUNNER);
 
-// Core successor deliberately widens trigger coverage: every main PR/push runs it.
 assert.match(core,/pull_request:\s*\n\s*branches:\s*\[main\]/m,'core successor must run for every PR to main');
 assert.match(core,/push:\s*\n\s*branches:\s*\[main\]/m,'core successor must run for every push to main');
 assert.doesNotMatch(core,/contents\s*:\s*write/i,'core successor must remain read-only');
@@ -69,7 +69,7 @@ for(const contract of [
 ])assert.ok(historicalRunner.includes(contract),`historical successor lost retired-wrapper behavior: ${contract}`);
 
 const actual=fs.readdirSync(WORKFLOW_DIR).filter(name=>/\.ya?ml$/i.test(name));
-assert.equal(actual.length,27,'P5 retirement topology must be exactly 27 workflow YAML files');
+assert.ok(actual.length<=P5_SIDE_BY_SIDE_PARITY_PROOF.workflow_count_after_p5_retirement,'later CI convergence must not increase workflow count above the P5-retired baseline');
 assert.equal(P5_SIDE_BY_SIDE_PARITY_PROOF.predecessor_and_successor_all_green,true,'P5 retirement requires recorded side-by-side parity proof');
 assert.equal(P5_SIDE_BY_SIDE_PARITY_PROOF.main_push_failure,0,'P5A main-push must have zero failures before retirement');
 
@@ -83,8 +83,9 @@ console.log(JSON.stringify({
   core_successor:'regression-gate.yml',
   historical_successor:'historical-release-regression.yml',
   workflow_count_before_retirement:33,
-  workflow_count_after_retirement:actual.length,
-  net_workflow_reduction:6,
+  workflow_count_after_p5_retirement:P5_SIDE_BY_SIDE_PARITY_PROOF.workflow_count_after_p5_retirement,
+  current_workflow_count:actual.length,
+  net_workflow_reduction_at_p5:6,
   trigger_policy:'CORE_ALWAYS_ON_MAIN_PR_PUSH_AND_HISTORICAL_UNION_PATHS',
   permissions:'READ_ONLY',
   repository_mutation:false,

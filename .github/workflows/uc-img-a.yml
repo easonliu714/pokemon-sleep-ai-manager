@@ -69,10 +69,6 @@ on:
       - 'scripts/v0410-release-contract.mjs'
       - 'scripts/v0491-release-contract.mjs'
       - 'scripts/war3c-external-strategy-analysis-pack-contract.mjs'
-      - '.github/workflows/v04133-shared-gemini-transport-diagnostic.yml'
-      - '.github/workflows/v04134-recipe-pot-scenario-contract.yml'
-      - '.github/workflows/v04135-account-capacity-apply-not-null.yml'
-      - '.github/workflows/v04136-pot-manual-authority-alignment.yml'
       - '.github/workflows/uc-img-a.yml'
   push:
     branches:
@@ -145,10 +141,6 @@ on:
       - 'scripts/v0410-release-contract.mjs'
       - 'scripts/v0491-release-contract.mjs'
       - 'scripts/war3c-external-strategy-analysis-pack-contract.mjs'
-      - '.github/workflows/v04133-shared-gemini-transport-diagnostic.yml'
-      - '.github/workflows/v04134-recipe-pot-scenario-contract.yml'
-      - '.github/workflows/v04135-account-capacity-apply-not-null.yml'
-      - '.github/workflows/v04136-pot-manual-authority-alignment.yml'
       - '.github/workflows/uc-img-a.yml'
   workflow_dispatch:
 
@@ -199,7 +191,7 @@ jobs:
         run: node scripts/v04114-recipe-zh-tw-diagnostic-export-contract.mjs
       - name: Verify v0.4.12 Recipe Unified Player Workbench behavior
         run: node scripts/v0412-recipe-unified-player-workbench-contract.mjs
-      - name: Verify P6A predecessor/successor parity configuration
+      - name: Verify P6A wrapper retirement proof
         run: node scripts/ci-p6a-ucimg-wrapper-parity-contract.mjs
       - name: Verify current and historical release contracts
         run: |
