@@ -23,6 +23,8 @@ on:
       - 'assets/js/ai-workflow.js'
       - 'assets/js/version-authority.js'
       - 'scripts/v04135-account-capacity-apply-not-null-contract.mjs'
+      - 'scripts/ci-p6a-ucimg-wrapper-parity-contract.mjs'
+      - '.github/workflows/uc-img-a.yml'
       - '.github/workflows/v04135-account-capacity-apply-not-null.yml'
   workflow_dispatch:
 

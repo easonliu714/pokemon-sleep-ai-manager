@@ -40,6 +40,7 @@ Current topology meta-contracts replayed by the global policy:
 - `ci-data1d1-workflow-consolidation-contract.mjs`
 - `ci-war-room-workflow-consolidation-contract.mjs`
 - `ci-p5-wrapper-parity-contract.mjs`
+- `ci-p6a-ucimg-wrapper-parity-contract.mjs`
 
 ## P5 core / Update Center / public-knowledge convergence
 P5 uses a two-PR retirement protocol so predecessor evidence is never deleted before replacement parity exists.
@@ -65,6 +66,28 @@ Their behaviors remain executable in:
 - `historical-release-regression.yml` for Public Pokémon Knowledge / Evolution / Candy historical coverage.
 
 P5 topology target is therefore **33 → 27 workflow YAML files**, with `behavioral_contracts_removed=0`. Core trigger coverage is widened to every PR/push on `main`; historical public-knowledge trigger coverage is the union of the retired evolution/public paths. Both successors remain read-only and repository-non-mutating.
+
+## P6A Screenshot / OCR / UC.IMG convergence
+P6A also uses parity-before-retirement. Stage P6A-1 keeps all four predecessor wrappers while the UC.IMG domain runner executes the same behavioral contracts on the same fixed PR head.
+
+P6A-1 predecessors:
+- `v04133-shared-gemini-transport-diagnostic.yml`
+- `v04134-recipe-pot-scenario-contract.yml`
+- `v04135-account-capacity-apply-not-null.yml`
+- `v04136-pot-manual-authority-alignment.yml`
+
+Successor ownership is `uc-img-a.yml` because these wrappers govern shared Gemini transport/diagnostics, recipe-pot screenshot scenario handling, account-capacity Update Center apply semantics, and weekly-context/pot manual authority alignment. DATA.1D.1 remains the local OCR boundary and G13 remains the OCR/AI bridge boundary; P6A does not move unrelated behavior merely to distribute wrappers across runners.
+
+During P6A-1:
+- workflow YAML count remains **27**;
+- all four predecessor wrappers remain tracked;
+- predecessor PR triggers are temporarily widened so all four can execute side-by-side with UC.IMG on the same PR head;
+- UC.IMG preserves or widens the predecessor trigger union across PR, `main`, `hotfix/**`, and `workflow_dispatch`;
+- all behavioral scripts remain executable;
+- all workflows remain `contents: read` and repository-non-mutating;
+- retirement is forbidden until fixed-head predecessor + successor CI is all green and the subsequent main push has zero new failures.
+
+Only after that evidence is recorded may P6A-2 retire the four version wrappers, reducing the main-tree workflow topology from **27 → 23** with `behavioral_contracts_removed=0`.
 
 ## Release mutation policy
 Test/regression workflows are not release writers.
