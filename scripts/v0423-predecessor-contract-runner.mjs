@@ -38,6 +38,14 @@ if(current==='v0.4.23'){
     .replace("app_version: 'v0.4.27'","app_version: 'v0.4.22.1'")
     .replace("app_build: '20260814-v0427-g75e3b-ingredient-slot-distribution'","app_build: '20260813-v04221-recipe-formula-authority-audit'")
     .replace("cache_name: 'pokemon-sleep-ai-v0.4.27-v0427-g75e3b-ingredient-slot-distribution'","cache_name: 'pokemon-sleep-ai-v0.4.22.1-v04221-recipe-formula-authority-audit'");
+}else if(current==='v0.4.27.1'){
+  // v0.4.27.1 is a data-integrity/UI hotfix only. Production numeric
+  // authority remains identical to v0.4.27, so predecessor contracts replay
+  // through the same v0.4.22.1 historical identity bridge.
+  staged=staged
+    .replace("app_version: 'v0.4.27.1'","app_version: 'v0.4.22.1'")
+    .replace("app_build: '20260816-v04271-ingredient-inventory-integrity-hotfix'","app_build: '20260813-v04221-recipe-formula-authority-audit'")
+    .replace("cache_name: 'pokemon-sleep-ai-v0.4.27.1-v04271-ingredient-inventory-integrity-hotfix'","cache_name: 'pokemon-sleep-ai-v0.4.22.1-v04221-recipe-formula-authority-audit'");
 }
 
 try{
