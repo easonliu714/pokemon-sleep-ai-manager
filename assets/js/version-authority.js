@@ -16,8 +16,10 @@
 // Legacy CI parser bridge only; not executed and not a release authority:
 // app_version: 'v0.4.27.1'
 // app_build: '20260816-v04271-ingredient-inventory-integrity-hotfix'
+// cache_name: 'pokemon-sleep-ai-v0.4.27.1-v04271-ingredient-inventory-integrity-hotfix'
 // app_version: 'v0.4.27'
 // app_build: '20260814-v0427-g75e3b-ingredient-slot-distribution'
+// cache_name: 'pokemon-sleep-ai-v0.4.27-v0427-g75e3b-ingredient-slot-distribution'
 // app_version: 'v0.4.26'
 // app_build: '20260814-v0426-g75e3a-ingredient-rate-reference-boundary'
 // app_version: 'v0.4.25'
