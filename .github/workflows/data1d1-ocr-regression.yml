@@ -11,6 +11,8 @@ on:
       - 'scripts/data1d1-*.mjs'
       - 'scripts/ci-data1d1-ocr-regression.mjs'
       - 'scripts/ci-data1d1-workflow-consolidation-contract.mjs'
+      - 'scripts/ci-p6b-screenshot-pipeline-parity-contract.mjs'
+      - '.github/workflows/screenshot-pipeline-regression.yml'
       - '.github/workflows/data1d1-ocr-regression.yml'
   push:
     branches: [main]
@@ -23,6 +25,8 @@ on:
       - 'scripts/data1d1-*.mjs'
       - 'scripts/ci-data1d1-ocr-regression.mjs'
       - 'scripts/ci-data1d1-workflow-consolidation-contract.mjs'
+      - 'scripts/ci-p6b-screenshot-pipeline-parity-contract.mjs'
+      - '.github/workflows/screenshot-pipeline-regression.yml'
       - '.github/workflows/data1d1-ocr-regression.yml'
   workflow_dispatch:
 
