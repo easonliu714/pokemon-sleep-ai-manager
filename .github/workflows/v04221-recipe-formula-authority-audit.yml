@@ -32,6 +32,8 @@ on:
       - 'scripts/v04221-recipe-formula-authority-audit.mjs'
       - 'scripts/v04221-release-contract.mjs'
       - 'scripts/v0423-predecessor-contract-runner.mjs'
+      - 'scripts/ci-p7-recipe-regression-parity-contract.mjs'
+      - '.github/workflows/recipe-regression.yml'
       - '.github/workflows/v04221-recipe-formula-authority-audit.yml'
   workflow_dispatch:
 
