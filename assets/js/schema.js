@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS pokemon_history(history_id INTEGER PRIMARY KEY AUTOIN
 CREATE TABLE IF NOT EXISTS pokemon_evolution_history(evolution_id TEXT PRIMARY KEY,pokemon_instance_id TEXT NOT NULL,from_species TEXT,to_species TEXT NOT NULL,evolved_at TEXT,source_image_ref TEXT,confidence REAL,source_update_id TEXT);
 CREATE TABLE IF NOT EXISTS pokemon_identity_evidence(evidence_id TEXT PRIMARY KEY,pokemon_instance_id TEXT NOT NULL,evidence_type TEXT NOT NULL,evidence_value TEXT,source_image_ref TEXT,confidence REAL,observed_at TEXT,source_update_id TEXT);
 CREATE TABLE IF NOT EXISTS discarded_pokemon(discard_id TEXT PRIMARY KEY,species TEXT NOT NULL,observed_json TEXT,reason TEXT NOT NULL,discarded_at TEXT NOT NULL,source_update_id TEXT);
-CREATE TABLE IF NOT EXISTS ingredient_inventory(ingredient_name TEXT PRIMARY KEY,quantity INTEGER NOT NULL DEFAULT 0,updated_at TEXT NOT NULL,source_update_id TEXT);
+CREATE TABLE IF NOT EXISTS ingredient_inventory(ingredient_name TEXT PRIMARY KEY,quantity INTEGER NOT NULL DEFAULT 0,unlocked INTEGER,updated_at TEXT NOT NULL,source_update_id TEXT);
 CREATE TABLE IF NOT EXISTS item_inventory(item_name TEXT PRIMARY KEY,quantity INTEGER NOT NULL DEFAULT 0,safe_reserve INTEGER NOT NULL DEFAULT 0,recommendation TEXT,updated_at TEXT NOT NULL,source_update_id TEXT);
 CREATE TABLE IF NOT EXISTS candy_inventory(candy_id TEXT PRIMARY KEY,quantity INTEGER NOT NULL DEFAULT 0,safe_reserve INTEGER NOT NULL DEFAULT 0,updated_at TEXT NOT NULL,source_update_id TEXT);
 CREATE TABLE IF NOT EXISTS recipes(recipe_id TEXT PRIMARY KEY,category TEXT NOT NULL,recipe_name TEXT NOT NULL UNIQUE,unlocked INTEGER NOT NULL DEFAULT 0,total_ingredients INTEGER NOT NULL DEFAULT 0,source TEXT);
