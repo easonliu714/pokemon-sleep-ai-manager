@@ -32,13 +32,17 @@ on:
       - 'scripts/v04*.mjs'
       - 'scripts/war2b-*.mjs'
       - 'scripts/war3a-candy-inventory-contract.mjs'
+      - 'scripts/war3b-typed-event-effect-registry-contract.mjs'
       - 'scripts/data-evo1-observed-evolution-coverage-contract.mjs'
       - 'scripts/ci-p5-public-knowledge-successor-contract.mjs'
       - 'scripts/ci-p5-wrapper-parity-contract.mjs'
+      - 'scripts/ci-p8-safety-boundary-parity-contract.mjs'
       - 'scripts/ci-topology-policy-contract.mjs'
       - 'scripts/ci-historical-release-regression.mjs'
       - 'scripts/ci-workflow-consolidation-contract.mjs'
       - 'docs/CI_TOPOLOGY_POLICY.md'
+      - '.github/workflows/g14-safety-regression.yml'
+      - '.github/workflows/data-boundary-regression.yml'
       - '.github/workflows/historical-release-regression.yml'
   workflow_dispatch:
 
@@ -63,12 +67,27 @@ jobs:
         run: npm install --no-save --no-package-lock jsdom@26.1.0
       - name: Run consolidated historical release contracts
         run: node scripts/ci-historical-release-regression.mjs
+      - name: Preserve v0.4.8 wrapper syntax contracts
+        run: |
+          node --check assets/js/version-authority.js
+          node --check assets/js/weekly-context-manual-override.js
+          node --check assets/js/weekly-context-store.js
+          node --check assets/js/weekly-context-ui-bridge.js
+          node --check assets/js/camp-berry-knowledge-ui.js
+          node --check scripts/v0481-live-followup-contract.mjs
+          node --check scripts/v0481-release-contract.mjs
+          node --check scripts/v048-release-contract.mjs
+          node --check scripts/v0484-release-contract.mjs
+          node --check scripts/v0483-release-contract.mjs
+      - name: Verify P8 side-by-side parity configuration
+        run: node scripts/ci-p8-safety-boundary-parity-contract.mjs
       - name: Verify consolidation runner syntax
         run: |
           node --check scripts/ci-historical-release-regression.mjs
           node --check scripts/ci-workflow-consolidation-contract.mjs
           node --check scripts/ci-p5-public-knowledge-successor-contract.mjs
           node --check scripts/data-evo1-observed-evolution-coverage-contract.mjs
+          node --check scripts/ci-p8-safety-boundary-parity-contract.mjs
       - name: Verify no tracked test mutation
         shell: bash
         run: test -z "$(git status --porcelain --untracked-files=no)"
