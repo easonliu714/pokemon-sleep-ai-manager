@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 
-export const CI_TOPOLOGY_POLICY_VERSION='ci-topology-policy-2026-08-16-e-p7a-parity';
+export const CI_TOPOLOGY_POLICY_VERSION='ci-topology-policy-2026-08-16-f-p7-retirement';
 const WORKFLOW_DIR='.github/workflows';
 
 const APPROVED_MAIN_WORKFLOWS=Object.freeze([
@@ -22,10 +22,6 @@ const APPROVED_MAIN_WORKFLOWS=Object.freeze([
   'regression-gate.yml',
   'screenshot-pipeline-regression.yml',
   'tech2d-android-import-regression.yml',
-  'v042-recipe-authority-audit.yml',
-  'v04221-recipe-formula-authority-audit.yml',
-  'v043-r21-recipe-zh-tw-evidence-audit.yml',
-  'v043-release-integration.yml',
   'v0481-live-followup.yml',
   'v0484-touch-first-camp-containment.yml',
   'war-room-regression.yml',
@@ -70,6 +66,10 @@ const REGISTRY_STALE_NO_MAIN_FILE=Object.freeze([
   'data1d1-ocr-regression.yml',
   'g13-ocr-ai-regression.yml',
   'uc-img-a.yml',
+  'v042-recipe-authority-audit.yml',
+  'v04221-recipe-formula-authority-audit.yml',
+  'v043-r21-recipe-zh-tw-evidence-audit.yml',
+  'v043-release-integration.yml',
 ]);
 
 const TOPOLOGY_CONTRACTS=Object.freeze([
@@ -142,9 +142,8 @@ console.log(JSON.stringify({
   p6a_retirement_complete:true,
   p6b_retired_domain_workflow_count:3,
   p6b_retirement_complete:true,
-  p7_parity_predecessor_count:4,
-  p7_parity_successor_count:1,
-  p7_retirement_allowed:false,
+  p7_retired_wrapper_count:4,
+  p7_retirement_complete:true,
   registry_stale_no_main_file_count:REGISTRY_STALE_NO_MAIN_FILE.length,
   actions_registry_is_authoritative:false,
   main_tree_is_topology_authority:true,
