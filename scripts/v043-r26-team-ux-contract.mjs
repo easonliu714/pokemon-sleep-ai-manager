@@ -1,3 +1,4 @@
+// P7A parity trigger: no behavioral change; keeps the historical v0.4.3 authority wrapper on the fixed parity head.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
