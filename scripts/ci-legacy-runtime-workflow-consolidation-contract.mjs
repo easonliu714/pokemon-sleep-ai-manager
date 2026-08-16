@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-export const LEGACY_RUNTIME_WORKFLOW_CONSOLIDATION_VERSION='legacy-runtime-workflow-consolidation-2026-08-15-b-p5-ownership';
+export const LEGACY_RUNTIME_WORKFLOW_CONSOLIDATION_VERSION='legacy-runtime-workflow-consolidation-2026-08-16-c-p8-successor-aware';
 
 const retiredWorkflows=Object.freeze([
   '.github/workflows/v03751-version-authority-gate.yml',
@@ -36,18 +36,28 @@ const preservedBehavioralContracts=Object.freeze([
   'scripts/ci-legacy-runtime-regression.mjs',
 ]);
 
-// These workflows remain outside both the original P2 retirement and the later
-// P5 parity-proven wrapper retirement. Their independent safety boundaries stay protected.
+// Independent boundaries that remain live after P8 controlled retirement.
 const protectedNonRuntimeWorkflows=Object.freeze([
-  '.github/workflows/privacy-guard.yml',
   '.github/workflows/regression-gate.yml',
   '.github/workflows/tech2d-android-import-regression.yml',
   '.github/workflows/deploy-pages.yml',
+  '.github/workflows/production-evidence-regression.yml',
+  '.github/workflows/g14-safety-regression.yml',
+  '.github/workflows/data-boundary-regression.yml',
+  '.github/workflows/historical-release-regression.yml',
+]);
+
+// P8 proved these independent workflow identities equivalent on one fixed head,
+// then transferred their behavior to explicit successor job boundaries.
+const p8RetiredSafetyWorkflows=Object.freeze([
   '.github/workflows/g14-backup-truth-restore.yml',
   '.github/workflows/g14-full75-recovery.yml',
   '.github/workflows/g14-data-consistency-multicapture.yml',
   '.github/workflows/g14-public-catalog-renderer-authority.yml',
-  '.github/workflows/production-evidence-regression.yml',
+  '.github/workflows/privacy-guard.yml',
+  '.github/workflows/public-pages-empty-profile.yml',
+  '.github/workflows/v0481-live-followup.yml',
+  '.github/workflows/v0484-touch-first-camp-containment.yml',
 ]);
 
 // P2 originally protected these wrappers from accidental deletion. P5 later
@@ -71,11 +81,13 @@ const registryStaleNoMainFile=Object.freeze([
   '.github/workflows/v0393-release-authority-generator.yml',
   '.github/workflows/v0393-post-migration-startup-gate.yml',
   ...p5RetiredCoreWrappers,
+  ...p8RetiredSafetyWorkflows,
 ]);
 
 for(const path of retiredWorkflows)assert.equal(fs.existsSync(path),false,`retired legacy runtime workflow still exists: ${path}`);
 for(const path of preservedBehavioralContracts)assert.equal(fs.existsSync(path),true,`legacy runtime behavioral contract missing: ${path}`);
-for(const path of protectedNonRuntimeWorkflows)assert.equal(fs.existsSync(path),true,`P2/P5 deleted protected independent workflow: ${path}`);
+for(const path of protectedNonRuntimeWorkflows)assert.equal(fs.existsSync(path),true,`P2/P5/P8 deleted protected successor boundary: ${path}`);
+for(const path of p8RetiredSafetyWorkflows)assert.equal(fs.existsSync(path),false,`P8-retired safety predecessor reappeared: ${path}`);
 for(const path of p5RetiredCoreWrappers)assert.equal(fs.existsSync(path),false,`P5-retired core wrapper reappeared: ${path}`);
 for(const path of registryStaleNoMainFile)assert.equal(fs.existsSync(path),false,`registry-stale workflow unexpectedly reappeared on main: ${path}`);
 
@@ -84,6 +96,9 @@ assert.equal(fs.existsSync(replacementPath),true,'Legacy Runtime Regression work
 const replacement=fs.readFileSync(replacementPath,'utf8');
 const runner=fs.readFileSync('scripts/ci-legacy-runtime-regression.mjs','utf8');
 const coreSuccessor=fs.readFileSync('.github/workflows/regression-gate.yml','utf8');
+const g14Successor=fs.readFileSync('.github/workflows/g14-safety-regression.yml','utf8');
+const dataSuccessor=fs.readFileSync('.github/workflows/data-boundary-regression.yml','utf8');
+const historicalSuccessor=fs.readFileSync('.github/workflows/historical-release-regression.yml','utf8');
 for(const token of [
   'concurrency:',
   'cancel-in-progress: true',
@@ -99,6 +114,9 @@ for(const path of preservedBehavioralContracts.filter(path=>path!=='scripts/v039
 }
 assert.ok(replacement.includes('scripts/v03981-confirmation-dryrun-browser.mjs'),'Legacy Runtime replacement lost Chromium confirmation contract');
 for(const token of p5CoreBehaviorTokens)assert.ok(coreSuccessor.includes(token),`P5 core successor lost P2-protected behavior: ${token}`);
+for(const job of ['backup-truth-restore:','data-consistency-multicapture:','full75-recovery:','public-catalog-authority:'])assert.ok(g14Successor.includes(job),`P8 G14 successor lost safety job: ${job}`);
+for(const job of ['private-data-guard:','empty-player-public-pages:'])assert.ok(dataSuccessor.includes(job),`P8 data-boundary successor lost safety job: ${job}`);
+for(const token of ['scripts/v0481-live-followup-contract.mjs','scripts/v0484-release-contract.mjs'])assert.ok(historicalSuccessor.includes(token),`P8 historical successor lost v0.4.8 behavior reference: ${token}`);
 
 // Old release mutators intentionally are not replayed. Current Version Authority
 // is read/validated only; CI topology cleanup must never rotate old releases.
@@ -119,5 +137,7 @@ console.log(JSON.stringify({
   protected_nonruntime_workflow_count:protectedNonRuntimeWorkflows.length,
   p5_transferred_core_wrapper_count:p5RetiredCoreWrappers.length,
   p5_core_successor_behavior_count:p5CoreBehaviorTokens.length,
+  p8_retired_safety_workflow_count:p8RetiredSafetyWorkflows.length,
+  p8_successor_boundaries_verified:true,
   registry_stale_no_main_file_count:registryStaleNoMainFile.length,
 },null,2));

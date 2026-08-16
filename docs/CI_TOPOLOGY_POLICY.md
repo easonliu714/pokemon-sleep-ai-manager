@@ -12,23 +12,25 @@ A new feature, fix or evidence contract should add its behavioral test to an exi
 
 A new standalone workflow requires an intentional amendment to `scripts/ci-topology-policy-contract.mjs` in the same PR and a documented reason that it represents a genuinely independent safety/runtime boundary that should remain separately visible. Version numbers, roadmap phase names, or the existence of a new script are not sufficient justification.
 
-## Protected independent workflows
-The policy intentionally preserves independently visible high-value boundaries including:
-- Frontend/browser regression
-- JavaScript syntax / failure-notification boundary
-- Android import
-- GitHub Pages deploy
-- Historical release regression
-- Production evidence regression
-- Legacy runtime regression
-- Screenshot Pipeline Regression with independent local OCR, OCR/AI bridge, and UC.IMG jobs
-- Recipe Regression with independent authority/formula/evidence/release jobs
-- War Room regression
-- G14 Safety Regression during P8 parity
-- Data Boundary Regression during P8 parity
+## Final protected domain workflows
+After P5–P8 convergence, the intended main-tree topology is 12 workflow YAML files:
+- `regression-gate.yml` — core frontend/browser and global topology policy
+- `js-syntax-check.yml` — exhaustive JS syntax + failure issue notification boundary
+- `tech2d-android-import-regression.yml` — Android/file-picker boundary
+- `deploy-pages.yml` — deployment boundary
+- `data-boundary-regression.yml` — private-data guard + empty-player public-pages safety
+- `historical-release-regression.yml` — predecessor/release compatibility and historical wrapper behavior
+- `production-evidence-regression.yml` — numeric-authority safety boundary
+- `legacy-runtime-regression.yml` — PWA/runtime migration compatibility
+- `screenshot-pipeline-regression.yml` — local OCR + OCR/AI bridge + UC.IMG jobs
+- `recipe-regression.yml` — recipe authority/formula/evidence/release jobs
+- `war-room-regression.yml` — strategy/optimization domain
+- `g14-safety-regression.yml` — backup/data-consistency/FULL75/public-catalog jobs
+
+This 12-workflow topology is inside the preferred **11–14** band. The band is not itself the safety proof; the safety proof remains zero behavioral-contract loss, preserved/widened triggers, permission isolation, and parity-before-retirement.
 
 ## Historical behavioral contracts
-Retiring a workflow wrapper does not authorize deletion of its behavioral script/test. Consolidation contracts must continue proving that the behavioral evidence remains present and is replayed by the replacement runner.
+Retiring a workflow wrapper does not authorize deletion of its behavioral script/test. Consolidation contracts continue proving that behavioral evidence remains present and is replayed by replacement runners.
 
 Current topology meta-contracts replayed by the global policy:
 - `ci-workflow-consolidation-contract.mjs`
@@ -57,7 +59,7 @@ P6A:
 P6B:
 - PR #324 fixed head `807191569ad29ee27022e95ef685efde1ac32808`; 13/13 PR workflows PASS; all three candidate successor jobs PASS; main 13 success / 0 failure.
 - PR #325 retired `data1d1-ocr-regression.yml`, `g13-ocr-ai-regression.yml`, and `uc-img-a.yml` after proof.
-- final topology **23 → 21** with `screenshot-pipeline-regression.yml` preserving three independent jobs: `local-ocr`, `ocr-ai-bridge`, and `uc-img-update-center`.
+- final topology **23 → 21** with `screenshot-pipeline-regression.yml` preserving three independent jobs.
 - `behavioral_contracts_removed=0`.
 
 ## P7 Recipe authority consolidation
@@ -80,57 +82,56 @@ P7B:
 - `behavioral_contracts_removed=0`, Production numeric authority unchanged.
 
 ## P8 Safety-boundary workflow-file convergence
-P8A is side-by-side parity only. The P7 final main-tree topology starts at **18**. Two new candidate safety-domain workflows are temporarily added while all eight planned predecessors remain tracked, so parity topology is **18 → 20**.
+P8 completes the convergence into the preferred target band.
 
-### G14 candidate successor
+### P8A — side-by-side parity proof
+- PR: `#328`
+- final fixed head: `9e000d2a989e67c0e644018641c07bc1406b810c`
+- merge SHA: `5282362e895fdf62e43f84bb5038db02693cd8a8`
+- 16/16 triggered PR workflows PASS;
+- all eight planned predecessors ran successfully on the same fixed head as their successors;
+- new `g14-safety-regression.yml` and `data-boundary-regression.yml` successors passed, while existing `historical-release-regression.yml` replayed the v0.4.8 wrapper behavior;
+- an initial parity head exposed a test-self-reference in the FULL75 private-marker grep because the new successor embedded the same literal. The successor was corrected to construct the marker from split shell fragments, preserving the exact privacy guard without weakening it;
+- post-merge main push completed **14 success / 0 failure / 0 queued / 0 in-progress / 0 cancelled** before P8B began.
+
+### G14 successor
 `g14-safety-regression.yml` preserves four independently visible jobs:
 - `backup-truth-restore`
 - `data-consistency-multicapture`
 - `full75-recovery`
 - `public-catalog-authority`
 
-Predecessors retained during P8A:
+The old exact `feat/v0377a-backup-truth-restore-verification` listener is deliberately widened to `feat/**`, avoiding reintroduction of a stale implementation-branch identity while preserving that branch family coverage.
+
+### Data-boundary successor
+`data-boundary-regression.yml` preserves two independent jobs:
+- `private-data-guard` — tracked-private-artifact rejection with full-history checkout;
+- `empty-player-public-pages` — public/private separation and zero-state public-master rendering.
+
+### v0.4.8 wrapper successor
+`historical-release-regression.yml` / `ci-historical-release-regression.mjs` preserve the exact v0.4.8.1 / v0.4.8.4 behavior: release contracts, LIVE follow-up, typed event effects, candy inventory, weekly AI type repair, weekly-context integration, camp containment, and original syntax checks. The temporary comment-only P8A trigger is removed in P8B.
+
+### Standalone JavaScript syntax decision
+`js-syntax-check.yml` is intentionally **retained**. It owns both exhaustive `find assets/js -type f -name '*.js'` syntax coverage and an independent `issues: write` failure-notification behavior. Folding it into a read-only domain runner would either lose the notification contract or unnecessarily widen write permission. The preferred 11–14 band is met without doing so.
+
+### P8B — controlled retirement
+Only after the P8A proof, retire exactly eight predecessor workflow files:
 - `g14-backup-truth-restore.yml`
 - `g14-data-consistency-multicapture.yml`
 - `g14-full75-recovery.yml`
 - `g14-public-catalog-renderer-authority.yml`
-
-The successor preserves all-PR coverage and push-to-main coverage. The old backup workflow's exact `feat/v0377a-backup-truth-restore-verification` listener is deliberately widened to `feat/**` rather than retaining a stale implementation branch identity. Jobs remain independent; no fail-fast mega-job is introduced.
-
-### Data-boundary candidate successor
-`data-boundary-regression.yml` preserves two independent jobs:
-- `private-data-guard` — exact tracked-private-artifact rejection, including full-history checkout;
-- `empty-player-public-pages` — exact public/private separation and zero-state view contract.
-
-Predecessors retained during P8A:
 - `privacy-guard.yml`
 - `public-pages-empty-profile.yml`
-
-The successor preserves all-PR and push-to-main coverage, remains `contents: read`, and does not weaken private-data or empty-profile separation.
-
-### v0.4.8 wrapper classification
-The remaining version wrappers are classified by exact behavioral contents rather than their labels:
 - `v0481-live-followup.yml`
 - `v0484-touch-first-camp-containment.yml`
 
-Both are historical/public-knowledge/weekly-context/camp-containment regression wrappers. Their exact behavioral contracts are absorbed into `historical-release-regression.yml` / `ci-historical-release-regression.mjs`, including v0.4.8.1 release semantics, LIVE follow-up behavior, v0.4.8 historical release behavior, typed event effects, candy inventory, weekly AI type repair, weekly-context integration, and the original syntax checks. A comment-only change to the already-governed `v0481-live-followup-contract.mjs` forces both predecessors onto the P8A fixed parity head without changing behavior.
-
-### Standalone JavaScript syntax evaluation
-P8 explicitly evaluated retirement of `js-syntax-check.yml` and **does not retire it**. It remains an independent boundary because it owns both:
-- exhaustive `find assets/js -type f -name '*.js'` syntax coverage; and
-- an `issues: write` failure-notification behavior that creates/updates a syntax failure issue.
-
-Moving only the syntax loop into a read-only domain runner would lose notification behavior; moving `issues: write` into a broad regression runner would unnecessarily widen write permissions. Since the preferred final target is a band rather than a forced numeric minimum, keeping this boundary is the safer result.
-
-### P8A retirement gate
-No workflow may be retired until the same fixed PR head proves all eight predecessors plus all successors green, followed by a fully terminal main push with zero failure / queued / in-progress jobs. All new P8 safety-domain workflows remain read-only and repository-non-mutating.
-
-If P8A parity passes, P8B may retire exactly eight predecessors:
-- four G14 workflows;
-- `privacy-guard.yml` and `public-pages-empty-profile.yml`;
-- `v0481-live-followup.yml` and `v0484-touch-first-camp-containment.yml`.
-
-Expected P8 final topology: **20 → 12** at retirement, equivalently **18 → 12** relative to the P7 baseline. This is inside the preferred 11–14 band with `behavioral_contracts_removed=0`; no additional syntax retirement is required.
+P8 final topology is **18 → 12 workflow YAML files** relative to the P7 baseline (temporary parity topology 20 → 12 at retirement), with:
+- `behavioral_contracts_removed=0`;
+- target band 11–14 satisfied;
+- test workflows read-only except the pre-existing syntax `issues: write` notification boundary;
+- no repository-content mutation authority introduced;
+- no player SQLite mutation;
+- Production numeric authority unchanged.
 
 ## Release mutation policy
 Test/regression workflows are not release writers.
@@ -144,13 +145,13 @@ Main workflows must not:
 `js-syntax-check.yml` retains `issues: write` only for its existing failure-notification boundary; it does not receive repository `contents: write`. Deployment-specific GitHub Pages permissions such as `pages: write` / `id-token: write` are a separate deployment boundary and are not repository-content mutation authority.
 
 ## Version-specific workflow policy
-During P8A, `v0481-live-followup.yml` and `v0484-touch-first-camp-containment.yml` are grandfathered only as fixed-head predecessor evidence. They are not a template for future growth and become retirement candidates only after parity proof.
+After P8 retirement there are no version-specific workflow YAML files in the approved main-tree topology. Historical version strings and behavioral scripts remain evidence/fixtures, not workflow identities. Any future `v*.yml` standalone workflow fails topology policy unless explicitly justified as an independent safety boundary.
 
 ## Registry-stale workflow identities
-Retired identities may remain visible in GitHub Actions even though their YAML no longer exists on `main`. These are `REGISTRY_STALE_NO_MAIN_FILE`; main-tree truth wins.
+Retired workflow identities may remain visible through GitHub Actions even though corresponding YAML files no longer exist on `main`. They are classified `REGISTRY_STALE_NO_MAIN_FILE`; main-tree YAML is authoritative and retired identities must not be recreated to make Actions registry counts match.
 
 ## Change procedure
-For any CI topology change:
+For any future CI topology change:
 1. preserve or add the behavioral contract first;
 2. prove replacement parity before retiring a wrapper;
 3. retire wrappers in a controlled change rather than deleting evidence;

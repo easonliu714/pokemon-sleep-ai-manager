@@ -3,51 +3,37 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 
-export const CI_TOPOLOGY_POLICY_VERSION='ci-topology-policy-2026-08-16-g-p8a-parity';
+export const CI_TOPOLOGY_POLICY_VERSION='ci-topology-policy-2026-08-16-h-p8-retirement';
 const WORKFLOW_DIR='.github/workflows';
 
 const APPROVED_MAIN_WORKFLOWS=Object.freeze([
   'data-boundary-regression.yml',
   'deploy-pages.yml',
-  'g14-backup-truth-restore.yml',
-  'g14-data-consistency-multicapture.yml',
-  'g14-full75-recovery.yml',
-  'g14-public-catalog-renderer-authority.yml',
   'g14-safety-regression.yml',
   'historical-release-regression.yml',
   'js-syntax-check.yml',
   'legacy-runtime-regression.yml',
-  'privacy-guard.yml',
   'production-evidence-regression.yml',
-  'public-pages-empty-profile.yml',
   'recipe-regression.yml',
   'regression-gate.yml',
   'screenshot-pipeline-regression.yml',
   'tech2d-android-import-regression.yml',
-  'v0481-live-followup.yml',
-  'v0484-touch-first-camp-containment.yml',
   'war-room-regression.yml',
 ]);
 
 const PROTECTED_INDEPENDENT_WORKFLOWS=Object.freeze([
   'regression-gate.yml',
   'js-syntax-check.yml',
-  'privacy-guard.yml',
   'tech2d-android-import-regression.yml',
   'deploy-pages.yml',
-  'public-pages-empty-profile.yml',
+  'data-boundary-regression.yml',
   'historical-release-regression.yml',
   'production-evidence-regression.yml',
   'legacy-runtime-regression.yml',
   'screenshot-pipeline-regression.yml',
   'recipe-regression.yml',
   'war-room-regression.yml',
-  'g14-backup-truth-restore.yml',
-  'g14-data-consistency-multicapture.yml',
-  'g14-full75-recovery.yml',
-  'g14-public-catalog-renderer-authority.yml',
   'g14-safety-regression.yml',
-  'data-boundary-regression.yml',
 ]);
 
 const GRANDFATHERED_VERSION_SPECIFIC_WORKFLOWS=Object.freeze(
@@ -74,6 +60,14 @@ const REGISTRY_STALE_NO_MAIN_FILE=Object.freeze([
   'v04221-recipe-formula-authority-audit.yml',
   'v043-r21-recipe-zh-tw-evidence-audit.yml',
   'v043-release-integration.yml',
+  'g14-backup-truth-restore.yml',
+  'g14-data-consistency-multicapture.yml',
+  'g14-full75-recovery.yml',
+  'g14-public-catalog-renderer-authority.yml',
+  'privacy-guard.yml',
+  'public-pages-empty-profile.yml',
+  'v0481-live-followup.yml',
+  'v0484-touch-first-camp-containment.yml',
 ]);
 
 const TOPOLOGY_CONTRACTS=Object.freeze([
@@ -139,6 +133,8 @@ console.log(JSON.stringify({
   version:CI_TOPOLOGY_POLICY_VERSION,
   main_workflow_file_count:actualWorkflowFiles.length,
   approved_main_workflow_file_count:APPROVED_MAIN_WORKFLOWS.length,
+  target_band:'11-14',
+  target_band_met:actualWorkflowFiles.length>=11&&actualWorkflowFiles.length<=14,
   version_specific_workflow_count:actualVersionSpecific.length,
   protected_independent_workflow_count:PROTECTED_INDEPENDENT_WORKFLOWS.length,
   retired_wrapper_contracts_replayed:TOPOLOGY_CONTRACTS.length,
@@ -149,11 +145,9 @@ console.log(JSON.stringify({
   p6b_retirement_complete:true,
   p7_retired_wrapper_count:4,
   p7_retirement_complete:true,
-  p8_parity_predecessor_count:8,
-  p8_new_successor_count:2,
-  p8_expected_final_workflow_count:12,
+  p8_retired_workflow_count:8,
+  p8_retirement_complete:true,
   p8_js_syntax_retirement_decision:'RETAIN_INDEPENDENT_ISSUES_WRITE_AND_EXHAUSTIVE_ASSETS_JS_BOUNDARY',
-  p8_retirement_allowed:false,
   registry_stale_no_main_file_count:REGISTRY_STALE_NO_MAIN_FILE.length,
   actions_registry_is_authoritative:false,
   main_tree_is_topology_authority:true,

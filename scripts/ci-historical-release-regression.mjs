@@ -1,6 +1,6 @@
 import {spawnSync} from 'node:child_process';
 
-export const HISTORICAL_RELEASE_REGRESSION_VERSION='historical-release-regression-2026-08-16-c-p8-parity';
+export const HISTORICAL_RELEASE_REGRESSION_VERSION='historical-release-regression-2026-08-16-d-p8-retired';
 
 export const HISTORICAL_RELEASE_CONTRACTS=Object.freeze([
   'scripts/ci-p5-public-knowledge-successor-contract.mjs',
@@ -47,6 +47,6 @@ console.log(JSON.stringify({
   p5_side_by_side_predecessor_count:6,
   p8_v048_side_by_side_predecessor_count:2,
   p5_retirement_performed:true,
-  p8_v048_retirement_performed:false,
+  p8_v048_retirement_performed:true,
   behavioral_contracts_removed:0,
 },null,2));
