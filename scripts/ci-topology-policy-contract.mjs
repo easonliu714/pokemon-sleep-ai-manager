@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 
-export const CI_TOPOLOGY_POLICY_VERSION='ci-topology-policy-2026-08-16-b-p6a-retirement';
+export const CI_TOPOLOGY_POLICY_VERSION='ci-topology-policy-2026-08-16-c-p6b1-parity';
 const WORKFLOW_DIR='.github/workflows';
 
 // Main-tree workflow files are the topology authority. GitHub Actions may keep
@@ -24,6 +24,7 @@ const APPROVED_MAIN_WORKFLOWS=Object.freeze([
   'production-evidence-regression.yml',
   'public-pages-empty-profile.yml',
   'regression-gate.yml',
+  'screenshot-pipeline-regression.yml',
   'tech2d-android-import-regression.yml',
   'uc-img-a.yml',
   'v042-recipe-authority-audit.yml',
@@ -47,6 +48,7 @@ const PROTECTED_INDEPENDENT_WORKFLOWS=Object.freeze([
   'legacy-runtime-regression.yml',
   'data1d1-ocr-regression.yml',
   'g13-ocr-ai-regression.yml',
+  'screenshot-pipeline-regression.yml',
   'war-room-regression.yml',
   'g14-backup-truth-restore.yml',
   'g14-data-consistency-multicapture.yml',
@@ -83,6 +85,7 @@ const TOPOLOGY_CONTRACTS=Object.freeze([
   'scripts/ci-war-room-workflow-consolidation-contract.mjs',
   'scripts/ci-p5-wrapper-parity-contract.mjs',
   'scripts/ci-p6a-ucimg-wrapper-parity-contract.mjs',
+  'scripts/ci-p6b-screenshot-pipeline-parity-contract.mjs',
 ]);
 
 function annotationSafe(value){
@@ -154,6 +157,9 @@ console.log(JSON.stringify({
   p5_retired_wrapper_count:6,
   p6a_retired_wrapper_count:4,
   p6a_retirement_complete:true,
+  p6b_parity_predecessor_count:3,
+  p6b_parity_successor_count:1,
+  p6b_retirement_allowed:false,
   registry_stale_no_main_file_count:REGISTRY_STALE_NO_MAIN_FILE.length,
   actions_registry_is_authoritative:false,
   main_tree_is_topology_authority:true,
