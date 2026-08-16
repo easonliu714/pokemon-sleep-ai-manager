@@ -3,16 +3,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 
-export const CI_TOPOLOGY_POLICY_VERSION='ci-topology-policy-2026-08-16-c-p6b1-parity';
+export const CI_TOPOLOGY_POLICY_VERSION='ci-topology-policy-2026-08-16-d-p6b-retirement';
 const WORKFLOW_DIR='.github/workflows';
 
-// Main-tree workflow files are the topology authority. GitHub Actions may keep
-// registry identities after their YAML has been retired; registry history must
-// never be used to recreate a workflow on main.
 const APPROVED_MAIN_WORKFLOWS=Object.freeze([
-  'data1d1-ocr-regression.yml',
   'deploy-pages.yml',
-  'g13-ocr-ai-regression.yml',
   'g14-backup-truth-restore.yml',
   'g14-data-consistency-multicapture.yml',
   'g14-full75-recovery.yml',
@@ -26,7 +21,6 @@ const APPROVED_MAIN_WORKFLOWS=Object.freeze([
   'regression-gate.yml',
   'screenshot-pipeline-regression.yml',
   'tech2d-android-import-regression.yml',
-  'uc-img-a.yml',
   'v042-recipe-authority-audit.yml',
   'v04221-recipe-formula-authority-audit.yml',
   'v043-r21-recipe-zh-tw-evidence-audit.yml',
@@ -46,15 +40,12 @@ const PROTECTED_INDEPENDENT_WORKFLOWS=Object.freeze([
   'historical-release-regression.yml',
   'production-evidence-regression.yml',
   'legacy-runtime-regression.yml',
-  'data1d1-ocr-regression.yml',
-  'g13-ocr-ai-regression.yml',
   'screenshot-pipeline-regression.yml',
   'war-room-regression.yml',
   'g14-backup-truth-restore.yml',
   'g14-data-consistency-multicapture.yml',
   'g14-full75-recovery.yml',
   'g14-public-catalog-renderer-authority.yml',
-  'uc-img-a.yml',
 ]);
 
 const GRANDFATHERED_VERSION_SPECIFIC_WORKFLOWS=Object.freeze(
@@ -74,6 +65,9 @@ const REGISTRY_STALE_NO_MAIN_FILE=Object.freeze([
   'v04134-recipe-pot-scenario-contract.yml',
   'v04135-account-capacity-apply-not-null.yml',
   'v04136-pot-manual-authority-alignment.yml',
+  'data1d1-ocr-regression.yml',
+  'g13-ocr-ai-regression.yml',
+  'uc-img-a.yml',
 ]);
 
 const TOPOLOGY_CONTRACTS=Object.freeze([
@@ -106,22 +100,12 @@ function replayTopologyContract(contract){
 }
 
 assert.equal(fs.existsSync(WORKFLOW_DIR),true,'workflow directory missing');
-const actualWorkflowFiles=fs.readdirSync(WORKFLOW_DIR)
-  .filter(name=>/\.ya?ml$/i.test(name))
-  .sort();
+const actualWorkflowFiles=fs.readdirSync(WORKFLOW_DIR).filter(name=>/\.ya?ml$/i.test(name)).sort();
 const approvedWorkflowFiles=[...APPROVED_MAIN_WORKFLOWS].sort();
-assert.deepEqual(
-  actualWorkflowFiles,
-  approvedWorkflowFiles,
-  'main workflow topology changed: new standalone workflows require explicit CI topology policy review; retired workflows must not silently reappear',
-);
+assert.deepEqual(actualWorkflowFiles,approvedWorkflowFiles,'main workflow topology changed: new standalone workflows require explicit CI topology policy review; retired workflows must not silently reappear');
 
-for(const name of PROTECTED_INDEPENDENT_WORKFLOWS){
-  assert.ok(actualWorkflowFiles.includes(name),`protected independent workflow missing: ${name}`);
-}
-for(const name of REGISTRY_STALE_NO_MAIN_FILE){
-  assert.equal(actualWorkflowFiles.includes(name),false,`Actions-registry stale workflow reappeared on main: ${name}`);
-}
+for(const name of PROTECTED_INDEPENDENT_WORKFLOWS)assert.ok(actualWorkflowFiles.includes(name),`protected independent workflow missing: ${name}`);
+for(const name of REGISTRY_STALE_NO_MAIN_FILE)assert.equal(actualWorkflowFiles.includes(name),false,`Actions-registry stale workflow reappeared on main: ${name}`);
 
 for(const name of actualWorkflowFiles){
   const source=fs.readFileSync(path.join(WORKFLOW_DIR,name),'utf8');
@@ -133,11 +117,7 @@ for(const name of actualWorkflowFiles){
 
 const actualVersionSpecific=actualWorkflowFiles.filter(name=>/^v\d/i.test(name)).sort();
 const grandfathered=[...GRANDFATHERED_VERSION_SPECIFIC_WORKFLOWS].sort();
-assert.deepEqual(
-  actualVersionSpecific,
-  grandfathered,
-  'new version-specific standalone workflow detected; add behavior to an existing consolidated/domain runner by default, or explicitly amend CI topology policy with a documented independent safety-boundary justification',
-);
+assert.deepEqual(actualVersionSpecific,grandfathered,'new version-specific standalone workflow detected; add behavior to an existing consolidated/domain runner by default, or explicitly amend CI topology policy with a documented independent safety-boundary justification');
 
 for(const contract of TOPOLOGY_CONTRACTS)replayTopologyContract(contract);
 
@@ -157,9 +137,8 @@ console.log(JSON.stringify({
   p5_retired_wrapper_count:6,
   p6a_retired_wrapper_count:4,
   p6a_retirement_complete:true,
-  p6b_parity_predecessor_count:3,
-  p6b_parity_successor_count:1,
-  p6b_retirement_allowed:false,
+  p6b_retired_domain_workflow_count:3,
+  p6b_retirement_complete:true,
   registry_stale_no_main_file_count:REGISTRY_STALE_NO_MAIN_FILE.length,
   actions_registry_is_authoritative:false,
   main_tree_is_topology_authority:true,
