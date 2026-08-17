@@ -10,6 +10,7 @@ import {buildLocalTeamOptimization} from './team-optimizer-local.js';
 import {buildLocalRecipePortfolioContention} from './recipe-portfolio-contention-local.js';
 import {currentProductionAuthorityRegistry} from './production-authority-registry.js';
 import {buildProductionEvidenceSnapshot} from './production-evidence-registry.js';
+import {auditIngredientProbabilityStatisticalReadiness,currentIngredientProbabilityStatisticalReadinessPolicy} from './ingredient-probability-statistical-readiness.js';
 import {evaluateTeamObjective} from './team-objective-evaluator.js';
 import {buildStrategyOptimizationPack} from './strategy-optimization-pack.js';
 import {buildExternalOptimizationPrompt,normalizeOptimizationAiResponse,intakeOptimizationAiResponse} from './strategy-optimization-ai-contract.js';
@@ -49,13 +50,29 @@ export function buildLocalOptimizationStrategyPreview({includeEventText=false,ca
   };
 }
 
+export function buildLocalIngredientProbabilityStatisticalReadiness({referenceRows=[],policy=null}={}){
+  if(isRescueReadonly())return {schema:'pokemon-sleep-ingredient-probability-statistical-readiness-audit/1.0',status:'PLAYER_DATA_UNAVAILABLE',accepted_observation_count:0,rejected_observation_count:0,group_count:0,ready_group_count:0,review_required_group_count:0,hold_group_count:0,groups:[],activation_authority_granted:false,runtime_numeric_activation:false,production_active_dimensions:'4/7',production_promotion_allowed:false,safety:{raw_player_observations_exported:false,evidence_refs_exported:false,sqlite_write:false,runtime_network_fetch:false,ai_numeric_authority:false}};
+  let observations=[];
+  try{
+    observations=rows(`SELECT source_key,canonical_species_form_id,status,eligible_for_statistical_aggregation,ingredient_help_event_count,total_help_event_count,statistical_semantics FROM ingredient_probability_observations ORDER BY source_key,captured_at`);
+  }catch{
+    observations=[];
+  }
+  return auditIngredientProbabilityStatisticalReadiness({
+    observations,
+    reference_rows:Array.isArray(referenceRows)?referenceRows:[],
+    policy:policy||currentIngredientProbabilityStatisticalReadinessPolicy(),
+  });
+}
+
 export function buildLocalProductionEvidenceSnapshot(){
-  if(isRescueReadonly())return {schema:'pokemon-sleep-production-evidence-snapshot/1.0',activation_decision:'PLAYER_DATA_UNAVAILABLE',rules:[],summary:{},safety:{player_data_write:false,sqlite_write:false,runtime_network_fetch:false,ai_numeric_authority:false}};
-  return buildProductionEvidenceSnapshot({
+  if(isRescueReadonly())return {schema:'pokemon-sleep-production-evidence-snapshot/1.0',activation_decision:'PLAYER_DATA_UNAVAILABLE',rules:[],summary:{},ingredient_probability_statistical_readiness:buildLocalIngredientProbabilityStatisticalReadiness(),safety:{player_data_write:false,sqlite_write:false,runtime_network_fetch:false,ai_numeric_authority:false}};
+  const snapshot=buildProductionEvidenceSnapshot({
     candidateFeatures:buildLocalPokemonCandidateScoring(),
     weeklyContext:currentEffectiveWeeklyContext(),
     productionRegistry:currentProductionAuthorityRegistry(),
   });
+  return {...snapshot,ingredient_probability_statistical_readiness:buildLocalIngredientProbabilityStatisticalReadiness()};
 }
 
 export function normalizeLocalStrategyResponse(input,preview){
