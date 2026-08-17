@@ -112,6 +112,50 @@ try {
     if (!runtime.navTargets.includes(view)) failures.push(`缺少導覽 view：${view}`);
   }
 
+  const pe7LegacyGuard = await page.evaluate(async () => {
+    const form = document.createElement('form');
+    form.id = 'pe7LegacyEventAuditFixture';
+    form.innerHTML = '<label id="pe7LegacyEventNameLabel"><span>活動名稱</span><input name="event_name"></label><label id="pe7LegacyEventEffectsLabel"><span>活動效果</span><textarea name="event_effects"></textarea></label>';
+    document.body.append(form);
+    const eventName = form.elements.namedItem('event_name');
+    const eventEffects = form.elements.namedItem('event_effects');
+    const legacyName = '寶可夢動畫合作週';
+    const legacyEffects = '{"recipe_final_energy_multiplier":1.25,"extra_tasty_multiplier":2.5,"sunday_extra_tasty_multiplier":3.75}';
+    eventName.value = legacyName;
+    eventEffects.value = legacyEffects;
+    const moduleUrl = new URL('assets/js/public-event-authority-ui-guard.js', document.baseURI).href;
+    const guard = await import(moduleUrl);
+    const guardedCount = guard.applyLegacyPlayerEventObservationGuard(form);
+    const nameLabel = document.getElementById('pe7LegacyEventNameLabel');
+    const effectsLabel = document.getElementById('pe7LegacyEventEffectsLabel');
+    const result = {
+      guardedCount,
+      nameValuePreserved: eventName.value === legacyName,
+      effectsValuePreserved: eventEffects.value === legacyEffects,
+      nameDisabled: eventName.disabled,
+      effectsDisabled: eventEffects.disabled,
+      nameAuthority: eventName.dataset.authoritySource || null,
+      effectsAuthority: eventEffects.dataset.authoritySource || null,
+      nameHidden: nameLabel.hidden,
+      effectsHidden: effectsLabel.hidden,
+      nameDisplay: getComputedStyle(nameLabel).display,
+      effectsDisplay: getComputedStyle(effectsLabel).display,
+      nameAuditMarker: nameLabel.dataset.legacyPlayerEventObservation || null,
+      effectsAuditMarker: effectsLabel.dataset.legacyPlayerEventObservation || null,
+    };
+    form.remove();
+    return result;
+  });
+  console.log('BROWSER_GATE_STAGE pe7_legacy_event_guard_verified');
+
+  const auditOnly = 'LEGACY_PLAYER_OBSERVATION_AUDIT_ONLY';
+  if (pe7LegacyGuard.guardedCount !== 2) failures.push(`PE7 legacy event guard 數量異常：${pe7LegacyGuard.guardedCount}`);
+  if (!pe7LegacyGuard.nameValuePreserved || !pe7LegacyGuard.effectsValuePreserved) failures.push('PE7 guard 不得清空或改寫 legacy audit observation');
+  if (!pe7LegacyGuard.nameDisabled || !pe7LegacyGuard.effectsDisabled) failures.push('PE7 legacy event 欄位必須永久 disabled');
+  if (pe7LegacyGuard.nameAuthority !== auditOnly || pe7LegacyGuard.effectsAuthority !== auditOnly) failures.push('PE7 legacy event authority 必須是 audit-only');
+  if (!pe7LegacyGuard.nameHidden || !pe7LegacyGuard.effectsHidden || pe7LegacyGuard.nameDisplay !== 'none' || pe7LegacyGuard.effectsDisplay !== 'none') failures.push('PE7 legacy event 欄位必須從正常 Weekly UI 完全隱藏');
+  if (pe7LegacyGuard.nameAuditMarker !== '1' || pe7LegacyGuard.effectsAuditMarker !== '1') failures.push('PE7 legacy event wrapper 缺少 audit marker');
+
   await page.click('nav [data-view="recipes"]', { timeout: 10_000 });
   await page.waitForFunction(
     () => document.getElementById('recipes')?.classList.contains('active'),
@@ -140,6 +184,7 @@ try {
     baseUrl,
     expectedAuthority,
     runtime,
+    pe7LegacyGuard,
     recipeState,
     observed,
     failures,
