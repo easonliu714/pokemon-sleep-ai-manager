@@ -53,12 +53,14 @@ jobs:
         run: node scripts/ci-p5-core-update-review-successor-contract.mjs
 
       - name: Verify species ingredient candidate boundary
-        run: node scripts/species-ingredient-candidate-source-extract-contract.mjs
+        run: |
+          node scripts/pinned-evidence-fetch-resilience-contract.mjs
+          node scripts/species-ingredient-candidate-source-extract-contract.mjs
 
       - name: Extract pinned species ingredient candidates
         env:
           ALLOW_PINNED_EVIDENCE_FETCH: '1'
-        run: node scripts/species-ingredient-candidate-source-extract.mjs
+        run: node --import ./scripts/pinned-evidence-fetch-resilience-preload.mjs scripts/species-ingredient-candidate-source-extract.mjs
 
       - name: Verify runtime candidate parity
         run: node scripts/species-ingredient-candidate-runtime-parity.mjs
@@ -66,7 +68,7 @@ jobs:
       - name: Extract pinned zh-TW species/form identities
         env:
           ALLOW_PINNED_EVIDENCE_FETCH: '1'
-        run: node scripts/species-form-zh-tw-identity-source-extract.mjs
+        run: node --import ./scripts/pinned-evidence-fetch-resilience-preload.mjs scripts/species-form-zh-tw-identity-source-extract.mjs
 
       - name: Verify zh-TW species/form identity runtime parity
         run: node scripts/species-form-zh-tw-identity-runtime-parity.mjs
