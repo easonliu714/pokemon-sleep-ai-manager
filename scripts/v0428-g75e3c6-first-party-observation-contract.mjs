@@ -109,7 +109,10 @@ assert.equal(mixed.groups[0].total_help_event_count,30,'invalid batch must not c
 
 const lineage=currentIngredientProbabilitySourceLineageReview();
 assert.equal(lineage.accepted_independent_source_count,0);
-assert.equal(lineage.status,'HOLD_NEED_NEW_INDEPENDENT_SOURCE_CANDIDATE');
+assert.ok([
+  'HOLD_NEED_NEW_INDEPENDENT_SOURCE_CANDIDATE',
+  'HOLD_REVIEW_REQUIRED_SOURCE_CANDIDATE_PRESENT',
+].includes(lineage.status),'E3C-6 predecessor must preserve an external-source HOLD while accepted independent source count is zero');
 const roster=currentPublicSpeciesFormRoster();
 assert.equal(roster.row_count,242);
 const registry=currentProductionAuthorityRegistry();
@@ -131,6 +134,7 @@ console.log(JSON.stringify({
   sample_sufficiency_for_activation:'NOT_DEFINED',
   independent_source_admission_granted:false,
   accepted_external_independent_sources:lineage.accepted_independent_source_count,
+  successor_external_hold_reason_refinement_supported:true,
   production_numeric_activation:'4/7',
   ingredient_probability_status:registry.rules.ingredient_probability_per_help.status,
   activation_authority_granted:false,
