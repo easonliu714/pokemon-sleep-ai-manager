@@ -13,7 +13,7 @@ const read=path=>fs.readFileSync(path,'utf8');
 const versionSource=read('assets/js/version-authority.js');
 const sandbox={};sandbox.globalThis=sandbox;vm.createContext(sandbox);vm.runInContext(versionSource,sandbox);
 const authority=sandbox.PokemonSleepVersionAuthority;
-assert.ok(['v0.4.27.1','v0.4.27.2','v0.4.27.3'].includes(authority.app_version),`unexpected v0.4.27.1 successor ${authority.app_version}`);
+assert.ok(['v0.4.27.1','v0.4.27.2','v0.4.27.3','v0.4.27.4'].includes(authority.app_version),`unexpected v0.4.27.1 successor ${authority.app_version}`);
 if(authority.app_version!=='v0.4.27.1'){
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.1'"),`${authority.app_version} must retain v0.4.27.1 lineage`);
   assert.ok(versionSource.includes("// app_build: '20260816-v04271-ingredient-inventory-integrity-hotfix'"));
