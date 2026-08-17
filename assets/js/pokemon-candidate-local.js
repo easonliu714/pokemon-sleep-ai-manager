@@ -4,7 +4,7 @@ import {buildLocalRecipeStrategyProjection} from './recipe-strategy-local.js';
 import {currentEvaluationMasterVersions} from './pokemon-evaluation-store.js';
 import {projectPokemonCandidateFeatures} from './pokemon-candidate-feature-projection.js';
 import {scorePokemonCandidateFeatures} from './pokemon-scoring-engine.js';
-import {currentWeeklyContext} from './weekly-context-store.js';
+import {currentEffectiveWeeklyContext} from './effective-weekly-context.js';
 
 function detailsForPokemon(pokemonRows){
   return pokemonRows.map(row=>({
@@ -21,7 +21,7 @@ export function buildLocalPokemonCandidateFeatures(){
     candidates:[],missing_inputs:['player_database'],numeric_scores_generated:false,player_data_write:false,
   };
   const pokemon=rows("SELECT * FROM pokemon WHERE status='active' ORDER BY pokemon_id");
-  const weeklyContext=currentWeeklyContext(),goalProfile=getActiveStrategyGoalProfile(),recipeStrategyProjection=buildLocalRecipeStrategyProjection();
+  const weeklyContext=currentEffectiveWeeklyContext(),goalProfile=getActiveStrategyGoalProfile(),recipeStrategyProjection=buildLocalRecipeStrategyProjection();
   const collectionTargets=rows("SELECT * FROM collection_targets WHERE status='active' ORDER BY priority,species,target_id");
   return {
     ...projectPokemonCandidateFeatures({
