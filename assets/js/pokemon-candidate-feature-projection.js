@@ -1,6 +1,7 @@
 import {weeklyContextStrategyFingerprintInput} from './weekly-context-normalization.js';
+import {canonicalBerryName} from './public-berry-strength-master.js';
 
-export const POKEMON_CANDIDATE_FEATURE_VERSION='pokemon-candidate-features-2026-08-09-b';
+export const POKEMON_CANDIDATE_FEATURE_VERSION='pokemon-candidate-features-2026-08-17-c-berry-canonical-projection';
 export const CURRENT_READINESS_SLOT_BRIDGE_VERSION='current-readiness-slot-bridge-2026-08-10-a';
 
 const text=value=>String(value??'').normalize('NFKC').trim();
@@ -93,7 +94,7 @@ export function projectPokemonCandidateFeatures({
   const details=detailMap(pokemonDetails),targets=collectionBySpecies(collectionTargets),constraints=goalProfile?.hard_constraints||{};
   const currentUnlocksOnly=constraints.current_unlocks_only!==false;
   const demand=ingredientDemand(recipeStrategyProjection),totalDemand=Object.values(demand).reduce((sum,value)=>sum+value,0);
-  const favoriteBerries=new Set([weeklyContext.favorite_berry_1,weeklyContext.favorite_berry_2,weeklyContext.favorite_berry_3].map(text).filter(Boolean));
+  const favoriteBerries=new Set([weeklyContext.favorite_berry_1,weeklyContext.favorite_berry_2,weeklyContext.favorite_berry_3].map(canonicalBerryName).filter(Boolean));
   const mustInclude=new Set(list(constraints.must_include_pokemon)),requiredRoles=new Set(list(constraints.must_include_role)),nightTargets=new Set(list(constraints.sleep_evolution_member_at_night));
   const frequencies=speciesFrequency(pokemon),rows=[];
   for(const raw of [...pokemon].sort((a,b)=>text(a.pokemon_id).localeCompare(text(b.pokemon_id)))){
@@ -109,11 +110,12 @@ export function projectPokemonCandidateFeatures({
     if(nightMatch.ambiguous)extraReview.push('ambiguous_legacy_night_target_species');
     const hardStatus=hard.failed_constraints.length?'FAIL':extraReview.length?'REVIEW':'PASS';
     const speciesTargets=targets.get(species)||[];
+    const favoriteBerry=canonicalBerryName(raw.favorite_berry);
     const feature={
       pokemon_id:pokemonId,pokemon_instance_id:text(raw.pokemon_instance_id)||null,species,level,sp:num(raw.sp),specialty:text(raw.specialty)||null,type:text(raw.type)||null,
       nature:text(raw.nature)||null,nature_bonus:text(raw.nature_bonus)||null,nature_penalty:text(raw.nature_penalty)||null,main_skill:text(raw.main_skill)||null,main_skill_level:num(raw.main_skill_level),
-      helper_seconds:num(raw.helper_seconds),carry_limit:num(raw.carry_limit),favorite_berry:text(raw.favorite_berry)||null,
-      favorite_berry_match:raw.favorite_berry?favoriteBerries.has(text(raw.favorite_berry)):null,
+      helper_seconds:num(raw.helper_seconds),carry_limit:num(raw.carry_limit),favorite_berry:favoriteBerry||null,
+      favorite_berry_match:favoriteBerry?favoriteBerries.has(favoriteBerry):null,
       unlocked_ingredients:ingredients,unlocked_subskills:subskills,...slotCounts,weekly_ingredient_overlap:overlap,
       weekly_ingredient_demand_covered:coveredDemand,weekly_ingredient_demand_total:totalDemand,weekly_ingredient_demand_coverage:totalDemand?coveredDemand/totalDemand:null,
       profile_completeness:completeness,identity_confidence:num(raw.identity_confidence),identity_review_required:Number(raw.identity_review_required||0)===1,
