@@ -2,14 +2,25 @@ import {localWeekStart} from './evaluation-week.js';
 import {normalizeDishCategory,parseWeeklyEventEffects,serializeWeeklyEventEffects,validateWeeklyEventEffects} from './weekly-context-normalization.js';
 import {WEEKLY_EVENT_EFFECT_KEYS,normalizeUnknownWeeklyEffects} from './weekly-event-effect-registry.js';
 
-export const WEEKLY_CONTEXT_IMPORT_CONTRACT_VERSION='weekly-context-import-contract-2026-08-10-b';
+export const WEEKLY_CONTEXT_IMPORT_CONTRACT_VERSION='weekly-context-import-contract-2026-08-17-c-semantic-intake';
 export const WEEKLY_CONTEXT_AUTHORITY='UPDATE_CENTER_JSON';
 export const WEEKLY_EVENT_ALLOWED_KEYS=Object.freeze([...WEEKLY_EVENT_EFFECT_KEYS]);
+export const WEEKLY_CONTEXT_SEMANTIC_FIELDS=Object.freeze(['camp','dish_category','favorite_berry_1','favorite_berry_2','favorite_berry_3','event_name','event_effects','base_notes']);
 const EVENT_KEYS=new Set(WEEKLY_EVENT_ALLOWED_KEYS);
 const dateKey=value=>/^\d{4}-\d{2}-\d{2}$/.test(String(value||''));
 const iso=value=>{try{return Boolean(value)&&Number.isFinite(new Date(value).getTime());}catch{return false;}};
 const clone=value=>JSON.parse(JSON.stringify(value));
 const reviewAccepted=operation=>operation?.user_audit?.accepted_current_observation===true||operation?.review_resolution==='accepted_current_observation';
+const semanticMeaningful=value=>{
+  if(value===null||value===undefined||value==='')return false;
+  if(Array.isArray(value))return value.length>0;
+  if(typeof value==='object')return Object.keys(value).length>0;
+  return String(value).trim()!=='';
+};
+
+export function weeklyContextSemanticFields(data={}){
+  return WEEKLY_CONTEXT_SEMANTIC_FIELDS.filter(field=>semanticMeaningful(data?.[field]));
+}
 
 export function isWeeklyContextPayload(payload){
   if(payload?.scenario==='weekly_context_update')return true;
@@ -96,6 +107,8 @@ export function validateWeeklyContextImportPayload(payload,{now=new Date(),requi
   if(weekStart&&String(operation.key?.context_id||'')!==`weekly_context_${weekStart}_import`)issues.push(`key.context_id 必須為 weekly_context_${weekStart}_import`);
   if(!iso(candidate?.generated_at))issues.push('generated_at 必須為有效 ISO 日期時間');
   if(!iso(data.updated_at))issues.push('data.updated_at 必須為有效 ISO 日期時間');
+  const semanticFields=weeklyContextSemanticFields(data);
+  if(!semanticFields.length)issues.push('weekly_context operation 沒有任何可觀測本週語意欄位；只含 week_start / updated_at 的 platform-only payload 不可套用，請重新分析營地／活動截圖');
   if(data.dish_category){
     const category=normalizeDishCategory(data.dish_category);
     if(!['咖哩／濃湯','沙拉','甜點／飲料'].includes(category))issues.push(`dish_category 不支援：${data.dish_category}`);
@@ -122,6 +135,7 @@ export function validateWeeklyContextImportPayload(payload,{now=new Date(),requi
     normalized_payload:candidate,
     week_start:weekStart||null,
     current_week_start:currentEpoch,
+    semantic_fields:Object.freeze(semanticFields),
     authority:candidate?.context_authority||null,
   });
 }
