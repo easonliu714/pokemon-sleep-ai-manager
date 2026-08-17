@@ -52,7 +52,9 @@ assert.ok(ucImgAuthorityDate&&ucImgAuthorityDate>='2026-08-11',`unexpected UC.IM
 const adapterDate=UC_IMG_GEMINI_ADAPTER_VERSION.match(/^uc-img-gemini-(\d{4}-\d{2}-\d{2})-/)?.[1]||null;
 assert.ok(adapterDate&&adapterDate>='2026-08-11',`unexpected Gemini adapter successor: ${UC_IMG_GEMINI_ADAPTER_VERSION}`);
 assert.equal(PUBLIC_MASTER_RECOGNITION_SCHEMA,'pokemon-sleep-public-master-recognition/1.0');
-assert.match(PUBLIC_MASTER_RECOGNITION_VERSION,/^public-master-recognition-2026-08-(?:11-(?:a|b-recipe-canonical)|12-[a-z0-9-]+)$/,'Public Master recognition successor version invalid');
+const historicalRecognitionVersion=/^public-master-recognition-2026-08-(?:11-(?:a|b-recipe-canonical)|12-[a-z0-9-]+)$/;
+const currentLockedPlaceholderVersion='public-master-recognition-2026-08-17-d-locked-placeholder';
+assert.ok(historicalRecognitionVersion.test(PUBLIC_MASTER_RECOGNITION_VERSION)||PUBLIC_MASTER_RECOGNITION_VERSION===currentLockedPlaceholderVersion,'Public Master recognition successor version invalid');
 assert.deepEqual(Object.keys(PUBLIC_MASTER_RECOGNITION_REGISTRY).sort(),['candies','ingredients','items','recipes']);
 assert.deepEqual(PUBLIC_MASTER_RECOGNITION_REGISTRY.ingredients.canonical_key_fields,['ingredient_name']);
 assert.deepEqual(PUBLIC_MASTER_RECOGNITION_REGISTRY.items.canonical_key_fields,['item_name']);
