@@ -23,7 +23,13 @@ assert.ok(adapter.includes('currentIngredientProbabilityStatisticalReadinessPoli
 assert.ok(adapter.includes('referenceRows=[]'),'independent reference rows must be an explicit future input, not inferred');
 assert.ok(adapter.includes("ORDER BY source_key,captured_at"),'local observations should be deterministically ordered');
 
-assert.ok(strategySource.includes('ingredient_probability_statistical_readiness:buildLocalIngredientProbabilityStatisticalReadiness()'),'Production snapshot must expose local statistical readiness');
+const legacyInlineAttachment=strategySource.includes('ingredient_probability_statistical_readiness:buildLocalIngredientProbabilityStatisticalReadiness()');
+const successorSingleAuditAttachment=strategySource.includes('const readiness=buildLocalIngredientProbabilityStatisticalReadiness()')&&strategySource.includes('ingredient_probability_statistical_readiness:readiness');
+assert.equal(legacyInlineAttachment||successorSingleAuditAttachment,true,'Production snapshot must expose local statistical readiness');
+if(successorSingleAuditAttachment){
+  assert.ok(strategySource.includes('buildLocalIngredientProbabilitySufficiencyEvidencePack({readiness})'),'E3C-7C1 successor must reuse the same readiness audit for the sufficiency pack');
+  assert.ok(strategySource.includes('ingredient_probability_sufficiency_evidence_pack:sufficiencyPack'),'E3C-7C1 successor must attach the sufficiency pack to Production snapshot');
+}
 assert.ok(uiSource.includes('E3C-7 食材機率 Statistical Readiness'));
 assert.ok(uiSource.includes('Readiness ≠ Production Activation'));
 assert.ok(uiSource.includes('目前尚未核准統計充分性門檻'));
@@ -52,6 +58,7 @@ console.log(JSON.stringify({
   raw_evidence_refs_read:false,
   player_identity_read:false,
   local_readiness_attached_to_production_snapshot:true,
+  snapshot_attachment_mode:successorSingleAuditAttachment?'SINGLE_AUDIT_REUSED_BY_READINESS_AND_SUFFICIENCY_PACK':'LEGACY_INLINE_READINESS',
   mobile_group_preview_limit:6,
   governed_thresholds_defined:false,
   production_numeric_activation:'4/7',
