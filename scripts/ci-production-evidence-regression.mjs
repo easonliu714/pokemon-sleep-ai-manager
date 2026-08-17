@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 
-export const PRODUCTION_EVIDENCE_REGRESSION_VERSION='production-evidence-regression-2026-08-17-i-e3c7c1-sufficiency-pack';
+export const PRODUCTION_EVIDENCE_REGRESSION_VERSION='production-evidence-regression-2026-08-17-j-e3c7c2-lineage-reconciliation';
 const PREDECESSOR_BRIDGE='scripts/v0423-predecessor-contract-runner.mjs';
 const V04275_PRODUCTION_BRIDGE='scripts/v04275-production-contract-runner.mjs';
 
@@ -34,6 +34,7 @@ export const PRODUCTION_BEHAVIORAL_CONTRACTS=Object.freeze([
   'scripts/v0428-g75e3c7-statistical-readiness-contract.mjs',
   'scripts/v0428-g75e3c7b-local-readiness-ui-contract.mjs',
   'scripts/v0428-g75e3c7c1-sufficiency-evidence-pack-contract.mjs',
+  'scripts/v0428-g75e3c7c2-independent-source-lineage-reconciliation-contract.mjs',
 ]);
 
 const IDENTITY_BRIDGED_CONTRACTS=new Set([
@@ -60,6 +61,7 @@ const PRODUCTION_RUNTIME_FILES=Object.freeze([
   'assets/js/ingredient-probability-activation-policy.js',
   'assets/js/ingredient-probability-independent-crosscheck-contract.js',
   'assets/js/ingredient-probability-independent-source-admission.js',
+  'assets/js/ingredient-probability-independent-source-readiness.js',
   'assets/js/ingredient-probability-independent-snapshot-contract.js',
   'assets/js/ingredient-probability-independent-source-lineage-review.js',
   'assets/js/ingredient-probability-first-party-observation-contract.js',
@@ -107,6 +109,16 @@ assert.ok(readinessSource.includes("policy_authority_status:'NOT_YET_DEFINED'"),
 assert.ok(readinessSource.includes('threshold_invented:false'),'E3C-7 must declare that no threshold is invented');
 assert.ok(readinessSource.includes('activation_authority_granted:false'),'E3C-7 readiness must not self-activate Ingredient Probability');
 assert.ok(readinessSource.includes("production_active_dimensions:'4/7'"),'E3C-7 must preserve Production 4/7 while readiness only is implemented');
+const sourceAdmissionSource=fs.readFileSync('assets/js/ingredient-probability-independent-source-admission.js','utf8');
+assert.ok(sourceAdmissionSource.includes('fork_or_mirror_of_primary_numeric_lineage'),'E3C-7C2 generic primary-fork rejection missing');
+assert.ok(sourceAdmissionSource.includes('repository_or_domain_difference_proves_independence:false'),'E3C-7C2 must not infer independence from repository/domain difference');
+const sourceLineageSource=fs.readFileSync('assets/js/ingredient-probability-independent-source-lineage-review.js','utf8');
+assert.ok(sourceLineageSource.includes("source_id:'SLEEPAPI_GITHUB_FORK'"),'E3C-7C2 SleepAPI fork review missing');
+assert.ok(sourceLineageSource.includes('PARENT=nerolis-lab/nerolis-lab'),'E3C-7C2 SleepAPI fork parent evidence missing');
+const independentReadinessSource=fs.readFileSync('assets/js/ingredient-probability-independent-source-readiness.js','utf8');
+assert.ok(independentReadinessSource.includes('currentIngredientProbabilitySourceLineageReview'),'E3C-7C2 readiness must derive from reviewed lineage authority');
+assert.ok(independentReadinessSource.includes('lineage_review_reconciled:true'),'E3C-7C2 readiness reconciliation marker missing');
+assert.ok(independentReadinessSource.includes('stale_pre_lineage_review_candidate_status_allowed:false'),'E3C-7C2 stale pre-review statuses must be forbidden');
 const strategyLocalSource=fs.readFileSync('assets/js/strategy-context-local.js','utf8');
 assert.ok(strategyLocalSource.includes('ingredient_probability_statistical_readiness:readiness'),'E3C-7B readiness must be attached to local Production Evidence snapshot');
 assert.ok(strategyLocalSource.includes('ingredient_probability_sufficiency_evidence_pack:sufficiencyPack'),'E3C-7C1 sufficiency pack must be attached to local Production Evidence snapshot');
@@ -121,4 +133,4 @@ assert.ok(sufficiencySource.includes('source_keys_included:false'));
 assert.ok(sufficiencySource.includes('raw_observations_included:false'));
 
 run('git',['diff','--exit-code'],{label:'repository mutation guard'});
-console.log(JSON.stringify({status:'PASS',gate:'PRODUCTION_EVIDENCE_REGRESSION',version:PRODUCTION_EVIDENCE_REGRESSION_VERSION,behavioral_contract_count:PRODUCTION_BEHAVIORAL_CONTRACTS.length,identity_bridged_contract_count:IDENTITY_BRIDGED_CONTRACTS.size,v04275_production_successor_bridge:true,runtime_syntax_count:PRODUCTION_RUNTIME_FILES.length,recipe_authority_workflow_retired:false,production_authority_mutated:false,behavioral_contracts_removed:0,runtime_network_authority_added:false,first_party_observation_capture_persistent_local_only:true,first_party_observation_activation_authority:false,e3c7_statistical_readiness_audit:true,e3c7_local_readiness_ui:true,e3c7_sufficiency_evidence_pack:true,e3c7_governed_thresholds_defined:false,e3c7_threshold_recommendation_authority:false,e3c7_activation_authority:false},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'PRODUCTION_EVIDENCE_REGRESSION',version:PRODUCTION_EVIDENCE_REGRESSION_VERSION,behavioral_contract_count:PRODUCTION_BEHAVIORAL_CONTRACTS.length,identity_bridged_contract_count:IDENTITY_BRIDGED_CONTRACTS.size,v04275_production_successor_bridge:true,runtime_syntax_count:PRODUCTION_RUNTIME_FILES.length,recipe_authority_workflow_retired:false,production_authority_mutated:false,behavioral_contracts_removed:0,runtime_network_authority_added:false,first_party_observation_capture_persistent_local_only:true,first_party_observation_activation_authority:false,e3c7_statistical_readiness_audit:true,e3c7_local_readiness_ui:true,e3c7_sufficiency_evidence_pack:true,e3c7_independent_source_lineage_reconciliation:true,e3c7_sleepapi_primary_fork_rejected:true,e3c7_stale_source_readiness_status_allowed:false,e3c7_governed_thresholds_defined:false,e3c7_threshold_recommendation_authority:false,e3c7_activation_authority:false},null,2));

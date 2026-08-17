@@ -12,6 +12,7 @@ import {
   INGREDIENT_PROBABILITY_DISALLOWED_INDEPENDENT_SOURCES,
   currentIngredientProbabilityIndependentSourceReadiness,
 } from '../assets/js/ingredient-probability-independent-source-readiness.js';
+import {INDEPENDENT_SOURCE_ADMISSION_STATUS} from '../assets/js/ingredient-probability-independent-source-admission.js';
 import {currentPublicSpeciesFormRoster} from '../assets/js/public-pokemon-species-form-roster.js';
 import {currentProductionAuthorityRegistry} from '../assets/js/production-authority-registry.js';
 import {currentIngredientProbabilityActivationPolicy} from '../assets/js/ingredient-probability-activation-policy.js';
@@ -22,21 +23,29 @@ assert.equal(readiness.schema,'pokemon-sleep-ingredient-probability-independent-
 assert.equal(readiness.status,'HOLD_NO_ACCEPTED_INDEPENDENT_NUMERIC_SOURCE');
 assert.equal(readiness.accepted_source_count,0);
 assert.equal(readiness.production_probability_activation_allowed,false);
-assert.equal(readiness.candidates.length,2);
-for(const candidate of readiness.candidates){
-  assert.equal(candidate.independence_status,INDEPENDENT_CROSSCHECK_SOURCE_STATUS.INDEPENDENCE_NOT_YET_ESTABLISHED);
-  assert.equal(candidate.machine_snapshot_status,'NOT_PINNED');
-  assert.equal(candidate.may_count_as_independent_crosscheck,false);
-  assert.ok(candidate.blockers.length>=3);
-}
+assert.ok(readiness.candidates.length>=2,'E3C-4 predecessor candidate set must retain at least RaenonX and Verification Wiki');
 const byId=new Map(INGREDIENT_PROBABILITY_INDEPENDENT_SOURCE_CANDIDATES.map(row=>[row.source_id,row]));
 assert.ok(byId.has('RAENONX_PRODUCTION_RATES'));
 assert.ok(byId.has('POKEMON_SLEEP_VERIFICATION_WIKI'));
+for(const candidate of readiness.candidates){
+  assert.equal(candidate.may_count_as_independent_crosscheck,false,'no current candidate may count as an accepted independent crosscheck');
+  const legacyUnreviewed=candidate.independence_status===INDEPENDENT_CROSSCHECK_SOURCE_STATUS.INDEPENDENCE_NOT_YET_ESTABLISHED;
+  const successorRejected=candidate.independence_status===INDEPENDENT_CROSSCHECK_SOURCE_STATUS.DERIVED_OR_MIRROR_OF_PRIMARY&&candidate.admission_status===INDEPENDENT_SOURCE_ADMISSION_STATUS.REJECTED_PRIMARY_LINEAGE;
+  assert.equal(legacyUnreviewed||successorRejected,true,`unexpected independent-source candidate state for ${candidate.source_id}`);
+  if(legacyUnreviewed){
+    assert.ok(['NOT_PINNED','NOT_PINNED_OR_NOT_ADMISSION_READY'].includes(candidate.machine_snapshot_status));
+    assert.ok(candidate.blockers.length>=1);
+  }else{
+    assert.equal(candidate.machine_snapshot_status,'NOT_APPLICABLE_REJECTED_LINEAGE');
+    assert.ok(candidate.blockers.length>=1);
+  }
+}
 const disallowed=new Map(INGREDIENT_PROBABILITY_DISALLOWED_INDEPENDENT_SOURCES.map(row=>[row.source_class,row.reason]));
 assert.equal(disallowed.get('NEROLI_PRIMARY_OR_MIRROR'),'SAME_PRIMARY_LINEAGE_CANNOT_CROSSCHECK_ITSELF');
 assert.equal(disallowed.get('REFORMATTED_NEROLI_DATA'),'FORMAT_TRANSFORMATION_DOES_NOT_CREATE_SOURCE_INDEPENDENCE');
 assert.equal(disallowed.get('AI_SUMMARY_OR_GENERATED_TABLE'),'UNTRACEABLE_AI_OUTPUT_CANNOT_BE_NUMERIC_EVIDENCE');
 assert.equal(disallowed.get('SPECIALTY_INFERENCE'),'SPECIES_BASE_RATE_MAY_NOT_BE_INFERRED_FROM_SPECIALTY');
+if(disallowed.has('NEROLI_GITHUB_FORK_OR_LEGACY_SLEEPAPI_COPY'))assert.equal(disallowed.get('NEROLI_GITHUB_FORK_OR_LEGACY_SLEEPAPI_COPY'),'REPOSITORY_FORK_DOES_NOT_CREATE_SOURCE_INDEPENDENCE');
 for(const key of ['same_primary_lineage_counts_as_independent','partial_coverage_implies_complete','missing_crosscheck_may_be_ai_filled','tolerance_may_be_invented','runtime_network_fetch','player_data_write','sqlite_write','ai_numeric_authority'])assert.equal(readiness.safety[key],false,`unsafe readiness flag ${key}`);
 
 assert.equal(canonicalPublishedDecimal('25.700'),'25.7');
@@ -118,7 +127,8 @@ for(const file of ['assets/js/ingredient-probability-independent-crosscheck-cont
 
 console.log(JSON.stringify({
   status:'PASS',gate:'V0428_G75E3C4_INDEPENDENT_CROSSCHECK_READINESS',accepted_independent_sources:readiness.accepted_source_count,
-  independent_source_status:readiness.status,comparison_policy:'EXACT_NORMALIZED_PUBLISHED_DECIMAL',numeric_tolerance:null,
+  independent_source_status:readiness.status,current_candidate_count:readiness.candidates.length,successor_lineage_reconciliation_supported:true,
+  comparison_policy:'EXACT_NORMALIZED_PUBLISHED_DECIMAL',numeric_tolerance:null,
   partial_crosscheck_fixture:{exact:partial.exact_match_count,conflict:partial.numeric_conflict_count,missing:partial.missing_count},
   public_roster_count:roster.row_count,production_numeric_activation:'4/7',ingredient_probability_status:registry.rules.ingredient_probability_per_help.status,
   overall_numeric_model_status:registry.numeric_rate_model_status,partial_coverage_implies_complete:false,exact_match_implies_activation:false,

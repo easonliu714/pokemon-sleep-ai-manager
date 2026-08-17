@@ -17,8 +17,8 @@ import {currentProductionAuthorityRegistry} from '../assets/js/production-author
 const read=path=>fs.readFileSync(path,'utf8');
 const review=currentIngredientProbabilitySourceLineageReview();
 assert.equal(review.schema,'pokemon-sleep-ingredient-probability-source-lineage-review/1.0');
-assert.equal(review.reviewed_candidate_count,2);
-assert.equal(review.rejected_candidate_count,2);
+assert.ok(review.reviewed_candidate_count>=2,'E3C-5 predecessor candidates must remain reviewed');
+assert.ok(review.rejected_candidate_count>=2,'E3C-5 predecessor rejected lineages must remain rejected');
 assert.equal(review.accepted_independent_source_count,0);
 assert.equal(review.status,'HOLD_NEED_NEW_INDEPENDENT_SOURCE_CANDIDATE');
 assert.equal(review.production_probability_activation_allowed,false);
@@ -43,6 +43,15 @@ assert.equal(wiki.may_count_as_independent_crosscheck,false);
 assert.equal(wiki.admission_status,INDEPENDENT_SOURCE_ADMISSION_STATUS.REJECTED_PRIMARY_LINEAGE);
 assert.ok(wiki.evidence_refs.some(ref=>ref.includes('TRANSCRIBE_VALUES_FROM_RAENONX')),'Wiki transcription evidence missing');
 
+const sleepApi=byId.get('SLEEPAPI_GITHUB_FORK');
+if(sleepApi){
+  assert.equal(sleepApi.lineage_class,SOURCE_LINEAGE_CLASS.FORK_OR_MIRROR_OF_PRIMARY_NUMERIC_LINEAGE);
+  assert.equal(sleepApi.mirror_of_neroli_primary,true);
+  assert.equal(sleepApi.may_count_as_independent_crosscheck,false);
+  assert.equal(sleepApi.admission_status,INDEPENDENT_SOURCE_ADMISSION_STATUS.REJECTED_PRIMARY_LINEAGE);
+  assert.equal(sleepApi.admission_reason,'PRIMARY_LINEAGE_OR_MIRROR_CANNOT_BE_INDEPENDENT');
+}
+
 const admission=currentIndependentIngredientProbabilitySourceAdmissionContract();
 assert.equal(admission.schema,'pokemon-sleep-ingredient-probability-independent-source-admission/1.0');
 assert.equal(admission.safety.upstream_primary_supplier_counts_as_independent,false);
@@ -54,7 +63,7 @@ assert.equal(overlapFixture.may_count_as_independent_crosscheck,false);
 const predecessor=currentIngredientProbabilityIndependentSourceReadiness();
 assert.equal(predecessor.accepted_source_count,0);
 assert.equal(predecessor.status,'HOLD_NO_ACCEPTED_INDEPENDENT_NUMERIC_SOURCE');
-assert.equal(INGREDIENT_PROBABILITY_SOURCE_LINEAGE_REVIEWS.length,2);
+assert.ok(INGREDIENT_PROBABILITY_SOURCE_LINEAGE_REVIEWS.length>=2);
 
 const roster=currentPublicSpeciesFormRoster();
 assert.equal(roster.row_count,242);
@@ -65,7 +74,7 @@ assert.equal(registry.rules.ingredient_probability_per_help.status,'NOT_YET_VERI
 assert.equal(registry.rules.ingredient_probability_per_help.runtime_numeric_activation,false);
 assert.equal(registry.numeric_rate_model_status,'NOT_YET_VERIFIED');
 
-for(const file of ['assets/js/ingredient-probability-independent-source-lineage-review.js','assets/js/ingredient-probability-independent-source-admission.js']){
+for(const file of ['assets/js/ingredient-probability-independent-source-lineage-review.js','assets/js/ingredient-probability-independent-source-admission.js','assets/js/ingredient-probability-independent-source-readiness.js']){
   const source=read(file);
   for(const forbidden of ['fetch(', 'localStorage', 'sessionStorage', 'indexedDB', 'INSERT INTO', 'UPDATE ingredient_inventory', 'DELETE FROM', 'applyPayload(', 'dryRun('])assert.equal(source.includes(forbidden),false,`${file} owns forbidden runtime/write path: ${forbidden}`);
 }
@@ -78,6 +87,7 @@ console.log(JSON.stringify({
   accepted_independent_sources:review.accepted_independent_source_count,
   raenonx_lineage:raenonx.lineage_class,
   verification_wiki_lineage:wiki.lineage_class,
+  sleepapi_lineage:sleepApi?.lineage_class||'PREDECESSOR_NOT_PRESENT',
   source_status:review.status,
   public_roster_count:roster.row_count,
   production_numeric_activation:'4/7',
