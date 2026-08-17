@@ -105,6 +105,7 @@ jobs:
           node scripts/v04275-predecessor-release-contract-runner.mjs
           node scripts/v04273-weekly-recipe-semantic-intake-contract.mjs
           node scripts/v04275-public-event-master-contract.mjs
+          node scripts/v04275-pe6-strategy-event-provenance-contract.mjs
 
       - name: Verify unlocked Pokémon roster filters
         run: node scripts/pokemon-roster-filter-regression.mjs

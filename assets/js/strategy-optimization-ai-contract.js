@@ -1,5 +1,6 @@
 export const STRATEGY_OPTIMIZATION_AI_CONTRACT_VERSION='strategy-optimization-ai-2026-08-12-b-response-schema';
 export const STRATEGY_OPTIMIZATION_AI_INTAKE_VERSION='strategy-optimization-ai-intake-2026-08-12-a';
+export const STRATEGY_OPTIMIZATION_EVENT_AUTHORITY_POLICY_VERSION='strategy-optimization-event-authority-2026-08-17-a';
 
 const text=(value,max=800)=>String(value??'').normalize('NFKC').trim().slice(0,max);
 const uniq=(values,max=20)=>[...new Set((Array.isArray(values)?values:[]).map(value=>text(value,120)).filter(Boolean))].slice(0,max);
@@ -22,11 +23,11 @@ export const STRATEGY_OPTIMIZATION_AI_RESPONSE_SCHEMA=Object.freeze({
   required:['context_fingerprint','strategy_summary','team_proposals','warnings','missing_inputs'],
 });
 
-export const STRATEGY_OPTIMIZATION_AI_SYSTEM_INSTRUCTION=`你是 Pokémon Sleep 隊伍搜尋的候選提案器，不是數值計算 Authority。只可依 Strategy Optimization Pack 中的 candidate_ref、recipe_id、observed facts 與 authority status 提出值得由平台重新計算的 5 人隊伍。不得自行捏造 ingredient/hour、berry/hour、skill trigger、料理能量、庫存或任何缺少的數值；NOT_YET_VERIFIED 必須視為未知。必選、排除、保留 slot 與其他 Hard Constraints 不得違反。你可以提出多組不同 trade-off 的隊伍，但每組都只是 proposal，最終分數必須由 deterministic evaluator 重算。回傳只能符合指定 JSON Schema。`;
+export const STRATEGY_OPTIMIZATION_AI_SYSTEM_INSTRUCTION=`你是 Pokémon Sleep 隊伍搜尋的候選提案器，不是數值計算 Authority。只可依 Strategy Optimization Pack 中的 candidate_ref、recipe_id、observed facts 與 authority status 提出值得由平台重新計算的 5 人隊伍。不得自行捏造 ingredient/hour、berry/hour、skill trigger、料理能量、庫存或任何缺少的數值；NOT_YET_VERIFIED 必須視為未知。必選、排除、保留 slot 與其他 Hard Constraints 不得違反。你可以提出多組不同 trade-off 的隊伍，但每組都只是 proposal，最終分數必須由 deterministic evaluator 重算。活動權威規則：weekly_context.event_name 只代表活動 identity，不是數值 Authority；只有 public_event_authority.deterministic_effects 可作為 deterministic event effects。若 public_event_authority.authority_status 為 PARTIAL_VERIFIED／REVIEW_REQUIRED／PUBLIC_EVENT_MASTER_UNAVAILABLE，或 deterministic_effects 為空，不得依活動名稱、模型記憶、外部知識或 legacy 玩家活動資料自行補入任何倍率；必須將缺少的活動數值視為未知，並在 warnings 或 missing_inputs 中說明。回傳只能符合指定 JSON Schema。`;
 
 export function buildExternalOptimizationPrompt(payload){
   const expectedFingerprint=text(payload?.context_fingerprint,240);
-  return `${STRATEGY_OPTIMIZATION_AI_SYSTEM_INSTRUCTION}\n\n請分析以下 Strategy Optimization Pack，最多提出 6 組候選隊伍。若 production rate 尚未 verified，請把結論限制在定性替換策略與需要補齊的資料，不得輸出假精度數值。\n\n重要回傳契約：\n1. 必須只輸出單一 JSON object，不要 Markdown code fence。\n2. 不得自行重新命名欄位；隊伍成員必須放在 team_proposals[].candidate_refs。\n3. context_fingerprint 必須原樣回傳為 ${expectedFingerprint||'(payload.context_fingerprint)'}；不得自行產生新的 fingerprint。\n4. Response Contract Version：${STRATEGY_OPTIMIZATION_AI_CONTRACT_VERSION}\n5. Response JSON Schema：\n${JSON.stringify(STRATEGY_OPTIMIZATION_AI_RESPONSE_SCHEMA,null,2)}\n\nStrategy Optimization Pack：\n${JSON.stringify(payload,null,2)}`;
+  return `${STRATEGY_OPTIMIZATION_AI_SYSTEM_INSTRUCTION}\n\n請分析以下 Strategy Optimization Pack，最多提出 6 組候選隊伍。若 production rate 尚未 verified，請把結論限制在定性替換策略與需要補齊的資料，不得輸出假精度數值。Public Event Master provenance 以 public_event_authority 與 public_version_refs 為準；event_name 本身不得被用來推導未列出的活動效果。\n\n重要回傳契約：\n1. 必須只輸出單一 JSON object，不要 Markdown code fence。\n2. 不得自行重新命名欄位；隊伍成員必須放在 team_proposals[].candidate_refs。\n3. context_fingerprint 必須原樣回傳為 ${expectedFingerprint||'(payload.context_fingerprint)'}；不得自行產生新的 fingerprint。\n4. Response Contract Version：${STRATEGY_OPTIMIZATION_AI_CONTRACT_VERSION}\n5. Response JSON Schema：\n${JSON.stringify(STRATEGY_OPTIMIZATION_AI_RESPONSE_SCHEMA,null,2)}\n\nStrategy Optimization Pack：\n${JSON.stringify(payload,null,2)}`;
 }
 
 export function normalizeOptimizationAiResponse(input,{validCandidateRefs=[],validRecipeIds=[]}={}){
