@@ -19,10 +19,11 @@ const successorVersions=[
   'uc-img-gemini-2026-08-12-a-pot-capacity-authority',
   'uc-img-gemini-2026-08-12-b-shared-transport-diagnostic',
   'uc-img-gemini-2026-08-15-c-prompt-safety-contract',
+  'uc-img-gemini-2026-08-17-d-live-recovery-schema',
 ];
 assert.ok(successorVersions.includes(UC_IMG_GEMINI_ADAPTER_VERSION));
-const potCapacityAdapter=['uc-img-gemini-2026-08-12-a-pot-capacity-authority','uc-img-gemini-2026-08-12-b-shared-transport-diagnostic','uc-img-gemini-2026-08-15-c-prompt-safety-contract'].includes(UC_IMG_GEMINI_ADAPTER_VERSION);
-const promptSafetyAdapter=UC_IMG_GEMINI_ADAPTER_VERSION==='uc-img-gemini-2026-08-15-c-prompt-safety-contract';
+const potCapacityAdapter=!['uc-img-gemini-2026-08-11-b-public-master-recognition'].includes(UC_IMG_GEMINI_ADAPTER_VERSION);
+const promptSafetyAdapter=['uc-img-gemini-2026-08-15-c-prompt-safety-contract','uc-img-gemini-2026-08-17-d-live-recovery-schema'].includes(UC_IMG_GEMINI_ADAPTER_VERSION);
 const schema=buildUcImgGeminiSchema(UC_IMG_A_SCENARIOS.ingredients,'ingredients');
 assert.deepEqual(schema.properties.schema.enum,[PUBLIC_MASTER_RECOGNITION_SCHEMA]);assert.deepEqual(schema.properties.authority.enum,['ingredient_master']);assert.deepEqual(schema.properties.scenario.enum,['ingredient_inventory_update']);assert.deepEqual(schema.properties.observations.items.properties.status.enum,['MATCHED','AMBIGUOUS','UNMATCHED']);assert.equal(schema.properties.observations.items.properties.canonical_key.properties.ingredient_name.enum.length,19);assert.equal('ingredient_id' in schema.properties.observations.items.properties.canonical_key.properties,false);assert.equal('capacity_observations' in schema.properties,false,'ingredient recognition must not inherit recipe pot-capacity observations');
 
@@ -33,6 +34,11 @@ if(potCapacityAdapter){
   assert.deepEqual(cap.capacity_key.enum,['pot']);assert.equal(cap.total_capacity.minimum,1);assert.deepEqual(cap.observation_context.enum,['RECIPE_SCREEN_BASE_POT_CAPACITY']);
 }
 const weeklySchema=buildUcImgGeminiSchema(UC_IMG_A_SCENARIOS.weekly,'weekly');assert.deepEqual(weeklySchema.properties.schema_version.enum,['1.1']);assert.deepEqual(weeklySchema.properties.scenario.enum,['weekly_context_update']);assert.equal('capacity_observations' in weeklySchema.properties,false,'Weekly recognition must not gain base-pot authority');
+if(UC_IMG_GEMINI_ADAPTER_VERSION==='uc-img-gemini-2026-08-17-d-live-recovery-schema'){
+  const weeklyData=weeklySchema.properties.operations.items.properties.data.properties;
+  for(const key of ['camp','dish_category','event_name','event_effects','base_notes'])assert.ok(weeklyData[key],`live semantic schema missing ${key}`);
+  assert.equal('pot_size' in weeklyData,false,'Internal Weekly schema must not reclaim account pot authority');
+}
 
 const multiBody=buildGeminiGenerateBody({prompt:'multi',images:[{imageRef:'image-001',fileName:'ingredient-1.png',data:'AQ==',mimeType:'image/png'},{imageRef:'image-002',fileName:'ingredient-2.jpg',data:'Ag==',mimeType:'image/jpeg'}],responseJsonSchema:schema});
 assert.equal(multiBody.contents[0].parts.length,5,'prompt + two image-ref labels + two images');assert.match(multiBody.contents[0].parts[1].text,/image_ref=image-001/);assert.match(multiBody.contents[0].parts[1].text,/file=ingredient-1\.png/);assert.equal(multiBody.contents[0].parts[2].inlineData.mimeType,'image/png');assert.match(multiBody.contents[0].parts[3].text,/image_ref=image-002/);assert.match(multiBody.contents[0].parts[3].text,/file=ingredient-2\.jpg/);assert.equal(multiBody.contents[0].parts[4].inlineData.mimeType,'image/jpeg');assert.equal(multiBody.generationConfig.responseMimeType,'application/json');assert.deepEqual(multiBody.generationConfig.responseJsonSchema,schema);
