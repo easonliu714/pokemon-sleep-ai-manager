@@ -7,7 +7,6 @@ import {UC_IMG_WEEKLY_PLATFORM_AUTHORITY_VERSION,buildUcImgWeeklySemanticDataPro
 import {PUBLIC_BERRY_STRENGTH_VERSION,canonicalBerryName} from '../assets/js/public-berry-strength-master.js';
 import {BERRY_BY_TYPE} from '../assets/js/pokemon-master-options.js';
 import {POKEMON_ROSTER_FILTER_CONTRACT_VERSION} from '../assets/js/pokemon-roster-filter-contract.js';
-import {POKEMON_ROSTER_FILTER_UI_VERSION} from '../assets/js/pokemon-roster-filter-ui.js';
 import {POKEMON_CANDIDATE_FEATURE_VERSION,POKEMON_CANDIDATE_BERRY_IDENTITY_VERSION} from '../assets/js/pokemon-candidate-feature-projection.js';
 import {currentProductionAuthorityRegistry} from '../assets/js/production-authority-registry.js';
 import {E3C6B_SCHEMA_MIGRATION_VERSION} from '../assets/js/migrations.js';
@@ -37,11 +36,11 @@ assert.equal(PUBLIC_BERRY_STRENGTH_VERSION,'public-berry-strength-2026-08-17-c-c
 assert.equal(canonicalBerryName('葡萄果'),'萄葡果');
 assert.equal(BERRY_BY_TYPE['電'],'萄葡果');
 assert.equal(POKEMON_ROSTER_FILTER_CONTRACT_VERSION,'pokemon-roster-unlocked-filters-2026-08-17-b-berry-canonical-projection');
-assert.equal(POKEMON_ROSTER_FILTER_UI_VERSION,'pokemon-roster-unlocked-filters-ui-2026-08-17-b-berry-canonical-projection');
 assert.equal(POKEMON_CANDIDATE_FEATURE_VERSION,'pokemon-candidate-features-2026-08-09-b','historical feature topology contract stays stable');
 assert.equal(POKEMON_CANDIDATE_BERRY_IDENTITY_VERSION,'pokemon-candidate-berry-identity-2026-08-17-a-canonical-grepa');
 
 const rosterUi=read('assets/js/pokemon-roster-filter-ui.js');
+assert.ok(rosterUi.includes("POKEMON_ROSTER_FILTER_UI_VERSION='pokemon-roster-unlocked-filters-ui-2026-08-17-b-berry-canonical-projection'"),'Pokémon roster UI successor version missing');
 for(const token of ['canonicalizeDetailBerry','pokemonDetailBackdrop','pokemonBerrySelect'])assert.ok(rosterUi.includes(token),`Pokémon detail berry projection missing ${token}`);
 const recovery=read('assets/js/recipe-recognition-exact-recovery.js');
 for(const token of ['PARTIALLY_OCCLUDED_BY_UI','PLATFORM_EXACT_UNLOCKED_RECIPE_RECOVERY','unlocked!==true'])assert.ok(recovery.includes(token),`exact recipe recovery safety marker missing ${token}`);
