@@ -25,13 +25,16 @@ const versionSource=read('assets/js/version-authority.js');
 const sandbox={};sandbox.globalThis=sandbox;vm.createContext(sandbox);vm.runInContext(versionSource,sandbox);
 const version=sandbox.PokemonSleepVersionAuthority;
 assert.equal(version.app_version,'v0.4.27.5');
-assert.equal(version.app_build,'20260817-v04275-public-event-master');
-assert.equal(version.cache_name,'pokemon-sleep-ai-v0.4.27.5-v04275-public-event-master');
+assert.equal(version.app_build,'20260817-v04275-pe7-legacy-event-ui-hotfix');
+assert.equal(version.cache_name,'pokemon-sleep-ai-v0.4.27.5-v04275-pe7-legacy-event-ui-hotfix');
 for(const token of [
+  "// app_version: 'v0.4.27.5'",
+  "// app_build: '20260817-v04275-public-event-master'",
+  "// cache_name: 'pokemon-sleep-ai-v0.4.27.5-v04275-public-event-master'",
   "// app_version: 'v0.4.27.4'",
   "// app_build: '20260817-v04274-live-s2-s4-hotfix'",
   "// cache_name: 'pokemon-sleep-ai-v0.4.27.4-v04274-live-s2-s4-hotfix'",
-])assert.ok(versionSource.includes(token),`v0.4.27.4 lineage missing ${token}`);
+])assert.ok(versionSource.includes(token),`release lineage missing ${token}`);
 
 assert.equal(PUBLIC_EVENT_MANIFEST_SCHEMA,'pokemon-sleep-public-event-manifest/1.0');
 assert.equal(PUBLIC_EVENT_MASTER_SCHEMA,'pokemon-sleep-public-event-master/1.0');
@@ -137,10 +140,19 @@ for(const file of ['recipe-strategy-local.js','pokemon-candidate-local.js','stra
   assert.ok(text.includes("from './effective-weekly-context.js'"),`${file} must consume Effective Weekly Context`);
 }
 const ui=source('public-event-authority-ui-guard.js');
-// Validate the actual source-level implementation markers. dataset.publicEventAuthority
-// renders data-public-event-authority at runtime, while the visible authority label is
-// intentionally human-readable as "Public Event Master" rather than an enum token.
-for(const token of ['LEGACY_PLAYER_OBSERVATION_AUDIT_ONLY','Public Event Master：','panel.dataset.publicEventAuthority','effective.public_event_authority_status'])assert.ok(ui.includes(token),`Public Event UI authority guard missing ${token}`);
+for(const token of [
+  'LEGACY_PLAYER_OBSERVATION_AUDIT_ONLY',
+  'Public Event Master：',
+  'panel.dataset.publicEventAuthority',
+  'effective.public_event_authority_status',
+  'applyLegacyPlayerEventObservationGuard',
+  "setProperty('display','none','important')",
+  "node.disabled=true",
+  'MutationObserver',
+])assert.ok(ui.includes(token),`Public Event UI authority guard missing ${token}`);
+assert.equal(ui.includes("node.value=''"),false,'PE7 concealment must not erase legacy player audit observations');
+const browserGate=read('scripts/browser-runtime-gate.mjs');
+for(const token of ['pe7LegacyGuard','nameValuePreserved','effectsValuePreserved','LEGACY_PLAYER_OBSERVATION_AUDIT_ONLY'])assert.ok(browserGate.includes(token),`PE7 browser gate missing ${token}`);
 const bootstrap=source('public-event-master-bootstrap.js');
 assert.ok(bootstrap.includes('pokemon-sleep:database-ready'),'Public Event manifest refresh must start after SQLite ready');
 assert.ok(bootstrap.includes('public-event-boundary-crossed'),'Public Event boundary must reproject current week');
@@ -159,6 +171,7 @@ console.log(JSON.stringify({
   status:'PASS',
   gate:'V0.4.27.5_PUBLIC_EVENT_MASTER_PLAYER_WEEKLY_SPLIT',
   app_version:version.app_version,
+  app_build:version.app_build,
   public_event_master_version:payload.master_version,
   public_event_authority:PUBLIC_EVENT_AUTHORITY_VERSION,
   initial_event_status:atStart.event_authority_status,
@@ -168,6 +181,8 @@ console.log(JSON.stringify({
   contradictory_effects_fail_closed:true,
   unknown_effects_review_required:true,
   legacy_player_event_deterministic_authority:false,
+  legacy_player_event_ui_hidden:true,
+  legacy_player_event_value_preserved:true,
   public_refresh_player_write:false,
   offline_cache_preserved:true,
   production_numeric_authority:'4/7_HOLD_INGREDIENT_PROBABILITY',

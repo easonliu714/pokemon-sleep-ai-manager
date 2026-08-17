@@ -1,11 +1,14 @@
 import {isDatabaseReady,isRescueReadonly} from './database.js';
 import {currentEffectiveWeeklyContext} from './effective-weekly-context.js';
 
-export const PUBLIC_EVENT_AUTHORITY_UI_GUARD_VERSION='public-event-authority-ui-guard-2026-08-17-a';
+export const PUBLIC_EVENT_AUTHORITY_UI_GUARD_VERSION='public-event-authority-ui-guard-2026-08-17-b-pe7-legacy-hide';
+export const LEGACY_PLAYER_EVENT_OBSERVATION_AUTHORITY='LEGACY_PLAYER_OBSERVATION_AUDIT_ONLY';
 
 let applying=false;
+const observedForms=new WeakSet();
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const q=(form,name)=>form?.querySelector(`[name="${CSS.escape(name)}"]`);
+const legacyEventFieldNames=Object.freeze(['event_name','event_effects']);
 
 function ensurePanel(form){
   let panel=form.querySelector('[data-public-event-authority]');
@@ -20,17 +23,48 @@ function ensurePanel(form){
   }
   return panel;
 }
-function lockLegacyEventObservation(form){
-  for(const name of ['event_name','event_effects']){
+
+export function applyLegacyPlayerEventObservationGuard(form){
+  let guarded=0;
+  for(const name of legacyEventFieldNames){
     const node=q(form,name);if(!node)continue;
     node.disabled=true;
-    node.dataset.authoritySource='LEGACY_PLAYER_OBSERVATION_AUDIT_ONLY';
-    const label=node.closest('label');
-    if(label){label.hidden=true;label.dataset.legacyPlayerEventObservation='1';}
+    node.tabIndex=-1;
+    node.dataset.authoritySource=LEGACY_PLAYER_EVENT_OBSERVATION_AUTHORITY;
+    node.setAttribute('aria-hidden','true');
+    const wrapper=node.closest('label')||node;
+    wrapper.hidden=true;
+    wrapper.dataset.legacyPlayerEventObservation='1';
+    wrapper.classList?.add('public-event-legacy-audit-field');
+    wrapper.style?.setProperty('display','none','important');
+    wrapper.setAttribute?.('aria-hidden','true');
+    guarded+=1;
   }
-  const legacyRegistry=form.querySelector('[data-weekly-effect-registry]');
-  if(legacyRegistry){legacyRegistry.hidden=true;legacyRegistry.dataset.legacyPlayerEventRegistry='1';}
+  const legacyRegistry=form?.querySelector?.('[data-weekly-effect-registry]');
+  if(legacyRegistry){
+    legacyRegistry.hidden=true;
+    legacyRegistry.dataset.legacyPlayerEventRegistry='1';
+    legacyRegistry.style?.setProperty('display','none','important');
+    legacyRegistry.setAttribute?.('aria-hidden','true');
+  }
+  return guarded;
 }
+
+function installLegacyEventDisabledReassertion(form){
+  if(observedForms.has(form)||typeof MutationObserver==='undefined')return;
+  observedForms.add(form);
+  const observer=new MutationObserver(records=>{
+    for(const record of records){
+      const node=record.target;
+      if(record.type!=='attributes'||record.attributeName!=='disabled')continue;
+      if(!legacyEventFieldNames.includes(node?.name)||node.disabled)continue;
+      schedule(0);
+      break;
+    }
+  });
+  observer.observe(form,{subtree:true,attributes:true,attributeFilter:['disabled']});
+}
+
 function renderPanel(form,effective){
   const panel=ensurePanel(form);
   const events=Array.isArray(effective.public_event_active_events)?effective.public_event_active_events:[];
@@ -51,8 +85,11 @@ function apply(){
   if(applying||!isDatabaseReady()||isRescueReadonly())return;
   const form=document.getElementById('weeklyContextForm');if(!form)return;
   applying=true;
-  try{lockLegacyEventObservation(form);renderPanel(form,currentEffectiveWeeklyContext());}
-  finally{applying=false;}
+  try{
+    applyLegacyPlayerEventObservationGuard(form);
+    installLegacyEventDisabledReassertion(form);
+    renderPanel(form,currentEffectiveWeeklyContext());
+  }finally{applying=false;}
 }
 function schedule(delay=25){setTimeout(apply,delay);}
 function install(){
@@ -62,4 +99,4 @@ function install(){
   globalThis.addEventListener?.('pokemon-sleep:data-changed',event=>{if(['weekly_context','public_event_master'].includes(event.detail?.entity))schedule();});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>schedule(60),{once:true});else schedule(60);
 }
-install();
+if(typeof document!=='undefined')install();
