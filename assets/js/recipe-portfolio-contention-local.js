@@ -3,8 +3,9 @@ import {buildLocalRecipeStrategyProjection} from './recipe-strategy-local.js';
 import {buildLocalPokemonCandidateScoring} from './pokemon-candidate-local.js';
 import {optimizeTeam} from './team-optimizer.js';
 import {getActiveStrategyGoalProfile} from './strategy-goal-store.js';
-import {currentWeeklyContext} from './weekly-context-store.js';
+import {currentEffectiveWeeklyContext} from './effective-weekly-context.js';
 import {projectRecipePortfolioContention,RECIPE_PORTFOLIO_CONTENTION_VERSION} from './recipe-portfolio-contention.js';
+import {resolveRecipePortfolioEnergyContext} from './recipe-portfolio-event-authority.js';
 import {projectTeamSupplyReadiness,TEAM_SUPPLY_RATE_STATUS} from './team-supply-readiness.js';
 
 function enrichRecipePlayerEnergy(strategy){
@@ -58,7 +59,7 @@ export function buildLocalRecipePortfolioContention({objective='unlock_recipes',
     summary:Object.freeze({individually_ready_count:0,simulation_candidate_count:0,alternative_count:0}),contention:null,alternatives:Object.freeze([]),team_supply:null,
     missing_inputs:Object.freeze(['player_database']),player_data_write:false,inventory_mutation:false,public_master_write:false,gemini_used:false,
   });
-  const week=currentWeeklyContext(),goalProfile=getActiveStrategyGoalProfile(),hard=goalProfile?.hard_constraints||{};
+  const week=currentEffectiveWeeklyContext(),goalProfile=getActiveStrategyGoalProfile(),hard=goalProfile?.hard_constraints||{};
   const baseStrategy=buildLocalRecipeStrategyProjection({ingredientSafeReserve:hard.ingredient_safe_reserve||{},requireVerifiedMaster:Boolean(hard.require_verified_master),sortMode:'unlock_recipes'});
   if(baseStrategy.projection_status!=='READY')return Object.freeze({
     schema:'pokemon-sleep-recipe-portfolio-contention/1.1',planner_version:RECIPE_PORTFOLIO_CONTENTION_VERSION,
@@ -68,12 +69,7 @@ export function buildLocalRecipePortfolioContention({objective='unlock_recipes',
   });
   const strategy=enrichRecipePlayerEnergy(baseStrategy);
   const inventory=rows('SELECT ingredient_name,quantity FROM ingredient_inventory ORDER BY ingredient_name');
-  const energyContext=Object.freeze({
-    recipe_final_energy_multiplier:Number.isFinite(Number(week.recipe_final_energy_multiplier))&&Number(week.recipe_final_energy_multiplier)>0?Number(week.recipe_final_energy_multiplier):1,
-    multiplier_source:week.recipe_final_energy_multiplier!=null?'WEEKLY_EVENT_ACTIVE_VERIFIED':'DEFAULT_IDENTITY',
-    event_effect_registry_version:week.event_effect_registry_version||null,
-    event_effect_strategy_fingerprint:week.event_effect_strategy_fingerprint||null,
-  });
+  const energyContext=resolveRecipePortfolioEnergyContext(week);
   const result=projectRecipePortfolioContention({recipeStrategy:strategy,inventory,ingredientSafeReserve:hard.ingredient_safe_reserve||{},energyContext,objective,maxMeals,maxAlternatives,beamWidth});
   const teamSupply=teamSupplyProjection(strategy,goalProfile);
   return Object.freeze({
@@ -83,10 +79,16 @@ export function buildLocalRecipePortfolioContention({objective='unlock_recipes',
     team_supply:teamSupply,
     weekly_context:Object.freeze({
       context_id:week.context_id||null,week_start:week.week_start||null,dish_category:week.dish_category||null,pot_size:week.pot_size??null,
-      authority_source:week.authority_source||'MISSING',authority_update_id:week.authority_update_id||null,
-      recipe_final_energy_multiplier:energyContext.recipe_final_energy_multiplier,
+      authority_source:week.player_weekly_authority_source||week.authority_source||'MISSING',authority_update_id:week.authority_update_id||null,
+      event_authority_source:energyContext.event_authority_source,
+      public_event_master_version:energyContext.public_event_master_version,
+      public_event_authority_version:energyContext.public_event_authority_version,
+      public_event_authority_status:energyContext.public_event_authority_status,
+      recipe_final_energy_multiplier:energyContext.deterministic_event_effect_available?energyContext.recipe_final_energy_multiplier:null,
       energy_multiplier_source:energyContext.multiplier_source,
+      deterministic_event_effect_available:energyContext.deterministic_event_effect_available,
       event_effect_strategy_fingerprint:energyContext.event_effect_strategy_fingerprint,
+      legacy_player_event_deterministic_authority:false,
     }),
   });
 }
