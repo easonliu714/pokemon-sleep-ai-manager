@@ -1,8 +1,8 @@
 (function installVersionAuthority(scope) {
   const authority = Object.freeze({
-    app_version: 'v0.4.27.3',
-    app_build: '20260817-v04273-weekly-recipe-semantic-intake-hotfix',
-    cache_name: 'pokemon-sleep-ai-v0.4.27.3-v04273-weekly-recipe-semantic-intake-hotfix',
+    app_version: 'v0.4.27.4',
+    app_build: '20260817-v04274-live-s2-s4-hotfix',
+    cache_name: 'pokemon-sleep-ai-v0.4.27.4-v04274-live-s2-s4-hotfix',
     schema: 'pokemon-sleep-version-authority/1.0',
   });
   Object.defineProperty(scope, 'PokemonSleepVersionAuthority', {
@@ -14,6 +14,9 @@
 })(globalThis);
 
 // Legacy CI parser bridge only; not executed and not a release authority:
+// app_version: 'v0.4.27.3'
+// app_build: '20260817-v04273-weekly-recipe-semantic-intake-hotfix'
+// cache_name: 'pokemon-sleep-ai-v0.4.27.3-v04273-weekly-recipe-semantic-intake-hotfix'
 // app_version: 'v0.4.27.2'
 // app_build: '20260816-v04272-ingredient-unlock-semantics-hotfix'
 // cache_name: 'pokemon-sleep-ai-v0.4.27.2-v04272-ingredient-unlock-semantics-hotfix'
