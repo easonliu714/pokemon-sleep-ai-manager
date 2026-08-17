@@ -20,7 +20,10 @@ import {currentIngredientProbabilityActivationPolicy} from '../assets/js/ingredi
 const read=path=>fs.readFileSync(path,'utf8');
 const readiness=currentIngredientProbabilityIndependentSourceReadiness();
 assert.equal(readiness.schema,'pokemon-sleep-ingredient-probability-independent-source-readiness/1.0');
-assert.equal(readiness.status,'HOLD_NO_ACCEPTED_INDEPENDENT_NUMERIC_SOURCE');
+assert.ok([
+  'HOLD_NO_ACCEPTED_INDEPENDENT_NUMERIC_SOURCE',
+  'HOLD_REVIEW_REQUIRED_SOURCE_CANDIDATE_PRESENT',
+].includes(readiness.status),'E3C-4 predecessor must remain HOLD while accepted independent source count is zero');
 assert.equal(readiness.accepted_source_count,0);
 assert.equal(readiness.production_probability_activation_allowed,false);
 assert.ok(readiness.candidates.length>=2,'E3C-4 predecessor candidate set must retain at least RaenonX and Verification Wiki');
@@ -127,7 +130,7 @@ for(const file of ['assets/js/ingredient-probability-independent-crosscheck-cont
 
 console.log(JSON.stringify({
   status:'PASS',gate:'V0428_G75E3C4_INDEPENDENT_CROSSCHECK_READINESS',accepted_independent_sources:readiness.accepted_source_count,
-  independent_source_status:readiness.status,current_candidate_count:readiness.candidates.length,successor_lineage_reconciliation_supported:true,
+  independent_source_status:readiness.status,current_candidate_count:readiness.candidates.length,successor_lineage_reconciliation_supported:true,successor_hold_reason_refinement_supported:true,
   comparison_policy:'EXACT_NORMALIZED_PUBLISHED_DECIMAL',numeric_tolerance:null,
   partial_crosscheck_fixture:{exact:partial.exact_match_count,conflict:partial.numeric_conflict_count,missing:partial.missing_count},
   public_roster_count:roster.row_count,production_numeric_activation:'4/7',ingredient_probability_status:registry.rules.ingredient_probability_per_help.status,
