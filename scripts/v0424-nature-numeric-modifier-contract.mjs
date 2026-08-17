@@ -53,7 +53,7 @@ assert.equal(registry.rules.main_skill_effect_value.status,'NOT_YET_VERIFIED');
 
 const contextResult={payload:{context_fingerprint:'strategy_context:v0424',goal_profile:{primary_goal:'max_snorlax_energy'},weekly_context:{week_start:'2026-08-10'},inventory_summary:[],recipe_gap_summary:[],deterministic_candidates:{},public_version_refs:{}},resolver:{cand_001:{pokemon_id:fixture.pokemon_id,species:fixture.species}}};
 const pack=buildStrategyOptimizationPack({strategyContextResult:contextResult,candidateScoring:{candidates:[fixture]},teamOptimization:{primary:{team_status:'READY',input_fingerprint:'team:v0424',slots:[{pokemon_id:fixture.pokemon_id}]}},productionRegistry:registry});
-assert.ok(['strategy-optimization-pack-2026-08-14-b','strategy-optimization-pack-2026-08-14-c'].includes(STRATEGY_OPTIMIZATION_PACK_VERSION));
+assert.ok(['strategy-optimization-pack-2026-08-14-b','strategy-optimization-pack-2026-08-14-c','strategy-optimization-pack-2026-08-17-d-public-event-provenance'].includes(STRATEGY_OPTIMIZATION_PACK_VERSION));
 const outgoing=pack.payload.candidate_production_readiness[0];
 assert.equal(outgoing.candidate_ref,'cand_001');
 assert.equal(outgoing.production_modifier_profile.schema,profile.schema);
