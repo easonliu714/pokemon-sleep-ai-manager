@@ -1,9 +1,9 @@
 import {rows,isDatabaseReady,isRescueReadonly} from './database.js';
-import {currentWeeklyContext} from './weekly-context-store.js';
+import {currentEffectiveWeeklyContext} from './effective-weekly-context.js';
 import {normalizeDishCategory} from './weekly-context-normalization.js';
 import {analyzeIngredientGaps,sortGapResults} from './ingredient-gap-engine.js';
 
-export const CURRENT_WEEK_RECIPE_RECOMMENDATION_VERSION='current-week-recipe-recommendation-2026-08-10-b';
+export const CURRENT_WEEK_RECIPE_RECOMMENDATION_VERSION='current-week-recipe-recommendation-2026-08-17-c-effective-context';
 let applying=false;
 function inventory(){return rows('SELECT ingredient_name,quantity FROM ingredient_inventory');}
 function personalAnalysis(inv){
@@ -38,10 +38,10 @@ function apply(){
   if(!personalTable&&!referenceTable)return;
   applying=true;
   try{
-    const week=currentWeeklyContext(),category=normalizeDishCategory(week.dish_category),inv=inventory();
+    const week=currentEffectiveWeeklyContext(),category=normalizeDishCategory(week.dish_category),inv=inventory();
     patchTable(personalTable,recommendedNames(personalAnalysis(inv),category),2);
     patchTable(referenceTable,recommendedNames(referenceAnalysis(inv),category),2);
-    for(const table of [personalTable,referenceTable])if(table){table.dataset.weeklyContextWeek=week.week_start||'';table.dataset.weeklyDishCategory=category||'';table.dataset.weeklyContextAuthority=week.authority_source||'MISSING';}
+    for(const table of [personalTable,referenceTable])if(table){table.dataset.weeklyContextWeek=week.week_start||'';table.dataset.weeklyDishCategory=category||'';table.dataset.weeklyContextAuthority=week.player_weekly_authority_source||week.authority_source||'MISSING';table.dataset.publicEventAuthority=week.public_event_authority_status||'PUBLIC_EVENT_MASTER_UNAVAILABLE';}
   }finally{applying=false;}
 }
 function schedule(delay=20){setTimeout(apply,delay);}
@@ -49,7 +49,7 @@ function install(){
   document.addEventListener('click',event=>{if(event.target.closest?.('[data-view="recipes"]'))schedule(40);},true);
   document.addEventListener('pokemon-sleep-data-refreshed',()=>schedule(40));
   globalThis.addEventListener?.('pokemon-sleep:database-ready',()=>schedule(40));
-  globalThis.addEventListener?.('pokemon-sleep:data-changed',event=>{if(event.detail?.entity==='weekly_context')schedule(40);});
+  globalThis.addEventListener?.('pokemon-sleep:data-changed',event=>{if(['weekly_context','public_event_master'].includes(event.detail?.entity))schedule(40);});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>schedule(60),{once:true});else schedule(60);
 }
 install();

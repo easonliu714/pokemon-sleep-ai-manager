@@ -19,14 +19,24 @@ assert.equal(atLeast(app,'v0.4.8'),true,'current release must preserve v0.4.8 Ty
 if(app==='v0.4.8'){
   assert.equal(build,'20260810-v048-typed-event-effect-registry');
   assert.equal(cache,'pokemon-sleep-ai-v0.4.8-v048-typed-event-effect-registry');
+  assert.equal(WEEKLY_EVENT_EFFECT_REGISTRY_VERSION,'weekly-event-effect-registry-2026-08-10-a');
+}else{
+  assert.ok([
+    'weekly-event-effect-registry-2026-08-10-a',
+    'weekly-event-effect-registry-2026-08-17-b-public-event-master',
+  ].includes(WEEKLY_EVENT_EFFECT_REGISTRY_VERSION),`unexpected Typed Event Registry successor ${WEEKLY_EVENT_EFFECT_REGISTRY_VERSION}`);
 }
-assert.equal(WEEKLY_EVENT_EFFECT_REGISTRY_VERSION,'weekly-event-effect-registry-2026-08-10-a');
 assert.equal(weeklyEventEffectDefinition('meal_category_forced')?.value_type,'boolean');
 assert.equal(weeklyEventEffectDefinition('meal_category_forced')?.rule_status,WEEKLY_EVENT_RULE_STATUS.ACTIVE_VERIFIED);
 assert.equal(weeklyEventEffectDefinition('recipe_final_energy_multiplier')?.rule_status,WEEKLY_EVENT_RULE_STATUS.ACTIVE_VERIFIED);
 assert.equal(weeklyEventEffectDefinition('sunday_pot_multiplier')?.rule_status,WEEKLY_EVENT_RULE_STATUS.ACTIVE_VERIFIED);
 assert.equal(weeklyEventEffectDefinition('extra_tasty_multiplier')?.rule_status,WEEKLY_EVENT_RULE_STATUS.FEATURE_ONLY);
 assert.equal(weeklyEventEffectDefinition('unknown_effects')?.rule_status,WEEKLY_EVENT_RULE_STATUS.REVIEW_REQUIRED);
+if(WEEKLY_EVENT_EFFECT_REGISTRY_VERSION==='weekly-event-effect-registry-2026-08-17-b-public-event-master'){
+  for(const key of ['drowsy_power_multiplier','sleep_exp_multiplier','research_exp_multiplier','dream_shards_multiplier','pokemon_candy_multiplier','main_skill_trigger_multiplier','main_skill_level_bonus','ingredient_help_quantity_bonus']){
+    assert.equal(weeklyEventEffectDefinition(key)?.rule_status,WEEKLY_EVENT_RULE_STATUS.FEATURE_ONLY,`${key} must remain FEATURE_ONLY until a dedicated deterministic contract is verified`);
+  }
+}
 
 const projected=projectWeeklyEventEffects({recipe_final_energy_multiplier:1.5,sunday_pot_multiplier:2,limited_feature:'功能',unknown_effects:[{source_text:'尚未建模活動效果'}]});
 assert.deepEqual(Object.keys(projected.deterministic_effects).sort(),['recipe_final_energy_multiplier','sunday_pot_multiplier']);

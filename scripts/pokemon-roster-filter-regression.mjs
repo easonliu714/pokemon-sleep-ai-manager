@@ -37,7 +37,13 @@ const subskillRows=[
   {pokemon_id:'ARCHIVE',unlock_level:10,subskill_name:'食材機率提升M',is_unlocked:1},
 ];
 
-assert.equal(POKEMON_ROSTER_FILTER_CONTRACT_VERSION,'pokemon-roster-unlocked-filters-2026-08-14-a');
+// The roster contract gained canonical berry projection in the v0.4.27.4
+// successor. Preserve the historical contract identity while explicitly
+// admitting the verified canonical-projection successor.
+assert.ok([
+  'pokemon-roster-unlocked-filters-2026-08-14-a',
+  'pokemon-roster-unlocked-filters-2026-08-17-b-berry-canonical-projection',
+].includes(POKEMON_ROSTER_FILTER_CONTRACT_VERSION),`unexpected roster filter contract successor ${POKEMON_ROSTER_FILTER_CONTRACT_VERSION}`);
 assert.equal(ingredientSlotUnlocked(pokemonRows[0],ingredientRows[0]),true);
 assert.equal(ingredientSlotUnlocked(pokemonRows[0],ingredientRows[1]),false,'Lv25 must not expose Lv30 ingredient');
 assert.equal(subskillSlotUnlocked(pokemonRows[0],subskillRows[0]),true);
@@ -55,9 +61,10 @@ const p3=profiles.find(row=>row.pokemon_id==='P3');
 assert.deepEqual(p1.ingredients,['醒腦咖啡豆']);
 assert.deepEqual([...p1.subskills].sort(),['幫忙速度S','食材機率提升S'].sort());
 assert.equal(p1.main_skill,'食材獲取S(固定)');
+assert.equal(p3.berry,'萄葡果','legacy 葡萄果 observation must project to canonical 莓果 identity');
 
 const facets=buildPokemonRosterFacetOptions(profiles);
-assert.deepEqual(facets.berries,['橙橙果','葡萄果','金枕果'].sort((a,b)=>a.localeCompare(b,'zh-Hant')));
+assert.deepEqual(facets.berries,['橙橙果','萄葡果','金枕果'].sort((a,b)=>a.localeCompare(b,'zh-Hant')));
 assert.ok(facets.ingredients.includes('醒腦咖啡豆'));
 assert.ok(facets.ingredients.includes('萌綠玉米'));
 assert.ok(!facets.ingredients.includes('放鬆可可'),'locked ingredient must not become a filter option');
@@ -65,6 +72,8 @@ assert.ok(!facets.ingredients.includes('美味尾巴'),'archived roster data mus
 assert.equal(facets.ingredients.filter(value=>value==='醒腦咖啡豆').length,1,'facet values must be deduplicated');
 assert.ok(!facets.subskills.includes('技能機率提升M'),'locked subskill must not become a filter option');
 assert.ok(facets.subskills.includes('食材機率提升M'));
+assert.equal(profileMatchesRosterFilters(p3,{berry:'萄葡果'}),true,'canonical berry filter must match canonicalized roster profile');
+assert.equal(profileMatchesRosterFilters(p3,{berry:'葡萄果'}),true,'legacy berry alias must remain filter-compatible');
 
 const coffee={ingredient:'醒腦咖啡豆'};
 assert.equal(profileMatchesRosterFilters(p1,coffee),true);
@@ -103,6 +112,8 @@ console.log(JSON.stringify({
   subskill_options:facets.subskills.length,
   coffee_matches:rankedCoffee.length,
   coffee_first_recommendation:rankedCoffee[0].profile.pokemon_id,
+  canonical_grepa:'萄葡果',
+  legacy_grepa_alias_filter_compatible:true,
   locked_values_excluded:true,
   deduplicated:true,
   production_rate_estimated:false,

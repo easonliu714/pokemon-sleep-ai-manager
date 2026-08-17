@@ -25,7 +25,10 @@ const CURRENT_WEEK=localWeekStart(NOW);
 const NOW_ISO=NOW.toISOString();
 const clone=value=>JSON.parse(JSON.stringify(value));
 
-assert.equal(WEEKLY_EVENT_EFFECT_REGISTRY_VERSION,'weekly-event-effect-registry-2026-08-10-a');
+assert.ok([
+  'weekly-event-effect-registry-2026-08-10-a',
+  'weekly-event-effect-registry-2026-08-17-b-public-event-master',
+].includes(WEEKLY_EVENT_EFFECT_REGISTRY_VERSION),`unexpected typed event registry successor ${WEEKLY_EVENT_EFFECT_REGISTRY_VERSION}`);
 assert.equal(new Set(WEEKLY_EVENT_EFFECT_KEYS).size,WEEKLY_EVENT_EFFECT_KEYS.length,'event registry keys must be unique');
 assert.equal(WEEKLY_EVENT_EFFECT_REGISTRY.length,WEEKLY_EVENT_EFFECT_KEYS.length);
 for(const row of WEEKLY_EVENT_EFFECT_REGISTRY){
@@ -38,6 +41,11 @@ for(const key of ['meal_category_forced','recipe_final_energy_multiplier','sunda
 }
 for(const key of ['extra_tasty_multiplier','sunday_extra_tasty_multiplier','boosted_pokemon_types','limited_feature']){
   assert.equal(WEEKLY_EVENT_EFFECT_REGISTRY.find(row=>row.effect_key===key)?.rule_status,'FEATURE_ONLY',`${key} must not silently become deterministic`);
+}
+if(WEEKLY_EVENT_EFFECT_REGISTRY_VERSION==='weekly-event-effect-registry-2026-08-17-b-public-event-master'){
+  for(const key of ['drowsy_power_multiplier','sleep_exp_multiplier','research_exp_multiplier','dream_shards_multiplier','pokemon_candy_multiplier','main_skill_trigger_multiplier','main_skill_level_bonus','ingredient_help_quantity_bonus']){
+    assert.equal(WEEKLY_EVENT_EFFECT_REGISTRY.find(row=>row.effect_key===key)?.rule_status,'FEATURE_ONLY',`${key} must remain FEATURE_ONLY until a dedicated Production contract is verified`);
+  }
 }
 assert.equal(WEEKLY_EVENT_EFFECT_REGISTRY.find(row=>row.effect_key==='unknown_effects')?.rule_status,'REVIEW_REQUIRED');
 

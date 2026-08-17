@@ -102,12 +102,9 @@ jobs:
         run: |
           node scripts/regression-gate.mjs
           node scripts/ingredient-inventory-integrity-regression.mjs
-          node scripts/v04271-release-contract.mjs
-          node scripts/v04272-release-contract.mjs
+          node scripts/v04275-predecessor-release-contract-runner.mjs
           node scripts/v04273-weekly-recipe-semantic-intake-contract.mjs
-          node scripts/v04273-release-contract.mjs
-          node scripts/v04274-live-s2-s4-regression.mjs
-          node scripts/v04274-release-contract.mjs
+          node scripts/v04275-public-event-master-contract.mjs
 
       - name: Verify unlocked Pokémon roster filters
         run: node scripts/pokemon-roster-filter-regression.mjs

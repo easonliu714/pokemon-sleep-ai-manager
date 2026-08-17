@@ -48,7 +48,12 @@ assert.ok(shared.includes('recipeWeeklyAuthoritySummary'));
 assert.equal(shared.includes("SELECT * FROM weekly_context ORDER BY updated_at DESC LIMIT 1"),false);
 const recommendation=read('assets/js/current-week-recipe-recommendation-bridge.js');
 assert.ok(recommendation.includes('normalizeDishCategory'));
-assert.ok(recommendation.includes('currentWeeklyContext()'));
+if(versionAtLeast(currentVersion,'v0.4.27.5')){
+  assert.ok(recommendation.includes('currentEffectiveWeeklyContext()'),'v0.4.27.5+ recipe recommendation must consume Effective Weekly Context');
+  assert.ok(recommendation.includes("from './effective-weekly-context.js'"),'v0.4.27.5+ recommendation must import Effective Weekly Context authority');
+}else{
+  assert.ok(recommendation.includes('currentWeeklyContext()'));
+}
 const updateUi=read('assets/js/weekly-context-update-center-bridge.js');
 for(const token of ['沒有 .json 附件？直接貼上 AI 回覆','JSON.parse(raw)','SELECT berry_name FROM berry_master','不在公版樹果名稱中'])assert.ok(updateUi.includes(token));
 assert.equal(updateUi.includes('applyPayload('),false);
@@ -72,6 +77,6 @@ console.log(JSON.stringify({
   status:'PASS',gate:'V0.4.6.2_RELEASE_CONTRACT',current_app_version:currentVersion,
   historical_behavior_compatible:true,exact_release_authority_enforced:currentVersion==='v0.4.6.2',
   event_input_contract:'NESTED_OBJECT',event_storage_contract:'SQLITE_TEXT_AFTER_NORMALIZATION',legacy_string_compatible:true,
-  canonical_dish_aliases:true,current_week_recipe_authority:true,raw_json_paste:true,berry_vocabulary_gate:true,
+  canonical_dish_aliases:true,current_week_recipe_authority:true,effective_weekly_context_successor:versionAtLeast(currentVersion,'v0.4.27.5'),raw_json_paste:true,berry_vocabulary_gate:true,
   sqlite_migration_added:false,gemini_dependency:false,direct_paste_apply:false,
 },null,2));

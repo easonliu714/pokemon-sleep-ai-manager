@@ -8,6 +8,7 @@ import {applyCanonicalRegistry,CANONICAL_REGISTRY_VERSION} from './canonical-reg
 import {applyPublicPokemonKnowledgeSchema,applyPublicPokemonKnowledgeData,PUBLIC_POKEMON_KNOWLEDGE_VERSION} from './public-pokemon-knowledge-master.js';
 import {applyPublicCandyMasterSchema,syncPublicCandyMaster,PUBLIC_CANDY_MASTER_VERSION} from './public-candy-master.js';
 import {applyIngredientInventoryIdentityMigration,INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION} from './ingredient-inventory-integrity-contract.js';
+import {applyPublicEventMasterSchemaMigration,PUBLIC_EVENT_MASTER_SCHEMA_MIGRATION_VERSION} from './public-event-master-schema.js';
 
 export const E3C6B_SCHEMA_MIGRATION_VERSION=11;
 
@@ -178,7 +179,7 @@ export function auditAndSyncPublicMasters(db,{force=false}={}){
 
 export function applyFreshDatabaseBootstrap(db){
   applySharedMasterSchema(db);applyPublicPokemonKnowledgeSchema(db);applyCandyInventoryMigration(db);applyIngredientProbabilityObservationMigration(db);applyPublicCandyMasterSchema(db);
-  applyIdentityMigration(db);applyGameDataMigration(db);applyPersonalRecipeMigration(db);applyCompletePokemonDetailMigration(db);applyWarRoomStrategySnapshotMigration(db);applyIngredientInventoryIdentityMigration(db);applyStandardCatalogCompatibilityMigration(db);
+  applyIdentityMigration(db);applyGameDataMigration(db);applyPersonalRecipeMigration(db);applyCompletePokemonDetailMigration(db);applyWarRoomStrategySnapshotMigration(db);applyIngredientInventoryIdentityMigration(db);applyPublicEventMasterSchemaMigration(db);applyStandardCatalogCompatibilityMigration(db);
   db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(4,datetime('now'))`);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(6,datetime('now'))`);
   const publicMaster=auditAndSyncPublicMasters(db,{force:true});
   return {database_changed:true,public_master:publicMaster};
@@ -196,6 +197,7 @@ export function applyAllMigrations(db){
   if(!hasMigration(db,9)){applyCandyInventoryMigration(db);databaseChanged=true;}
   if(!hasMigration(db,E3C6B_SCHEMA_MIGRATION_VERSION)){applyIngredientProbabilityObservationMigration(db);databaseChanged=true;}
   if(!hasMigration(db,INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION)){applyIngredientInventoryIdentityMigration(db);databaseChanged=true;}
+  if(!hasMigration(db,PUBLIC_EVENT_MASTER_SCHEMA_MIGRATION_VERSION)){applyPublicEventMasterSchemaMigration(db);databaseChanged=true;}
   if(applyStandardCatalogCompatibilityMigration(db))databaseChanged=true;
   const publicMaster=auditAndSyncPublicMasters(db);
   return {database_changed:databaseChanged||publicMaster.updated,public_master:publicMaster};

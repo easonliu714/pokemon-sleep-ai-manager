@@ -17,6 +17,7 @@ import {PUBLIC_BERRY_STRENGTH_VERSION,berryNameForType,resolveBerryStrength} fro
 import {MASTER_DATA_VERSION} from '../assets/js/shared-master-data.js';
 import {E3C6B_SCHEMA_MIGRATION_VERSION} from '../assets/js/migrations.js';
 import {INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION} from '../assets/js/ingredient-inventory-integrity-contract.js';
+import {currentProductionAuthorityRegistry} from '../assets/js/production-authority-registry.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
 const versionSource=read('assets/js/version-authority.js');
@@ -62,9 +63,13 @@ assert.throws(()=>applyUcImgWeeklyPlatformAuthority(weeklyPlatformOnly,weeklyAut
 assert.equal(E3C6B_SCHEMA_MIGRATION_VERSION,11);
 assert.equal(INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION,13);
 const migrations=read('assets/js/migrations.js');assert.equal(migrations.includes('VALUES(10,'),false,'migration 10 must remain historical sentinel');
-const production=read('assets/js/production-authority-registry.js');
-for(const token of ['ingredient_probability_per_help','NOT_YET_VERIFIED','4/7'])assert.ok(production.includes(token),`Production 4/7 HOLD boundary missing ${token}`);
+const productionSource=read('assets/js/production-authority-registry.js');
+for(const token of ['ingredient_probability_per_help','NOT_YET_VERIFIED'])assert.ok(productionSource.includes(token),`Production HOLD boundary missing ${token}`);
+const production=currentProductionAuthorityRegistry();
+assert.equal(production.active_verified_dimensions.length,4,'Production active numeric dimension count must remain 4/7');
+assert.equal(production.rules.ingredient_probability_per_help.status,'NOT_YET_VERIFIED');
+assert.equal(production.numeric_rate_model_status,'NOT_YET_VERIFIED');
 const sw=read('service-worker.js');for(const token of ['pokemon-sleep-ai-v0.4.27.2-v04272-ingredient-unlock-semantics-hotfix','public-camp-berry-master.js','uc-img-weekly-platform-authority.js','public-master-recognition.js','public-berry-strength-master.js','shared-master-data.js'])assert.ok(sw.includes(token),`PWA cache contract missing ${token}`);
 const workflows=fs.readdirSync('.github/workflows').filter(name=>/\.ya?ml$/.test(name));assert.equal(workflows.length,12,'v0.4.27.3 successor must not change consolidated workflow topology');
 
-console.log(JSON.stringify({status:'PASS',gate:'V0.4.27.3_RELEASE_CONTRACT_SUCCESSOR_AWARE',app_version:authority.app_version,canonical_grepa:'萄葡果',locked_recipe_placeholder_review_required:false,weekly_platform_only_fail_closed:true,schema_migration_added:false,production_numeric_authority:'4/7_HOLD_INGREDIENT_PROBABILITY',workflow_count:workflows.length,android_pwa_live_validation_required:true},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V0.4.27.3_RELEASE_CONTRACT_SUCCESSOR_AWARE',app_version:authority.app_version,canonical_grepa:'萄葡果',locked_recipe_placeholder_review_required:false,weekly_platform_only_fail_closed:true,schema_migration_added:false,production_numeric_authority:`${production.active_verified_dimensions.length}/7_HOLD_INGREDIENT_PROBABILITY`,workflow_count:workflows.length,android_pwa_live_validation_required:true},null,2));

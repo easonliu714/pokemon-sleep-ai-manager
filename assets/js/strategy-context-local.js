@@ -5,7 +5,7 @@ import {buildLocalRecipeStrategyProjection} from './recipe-strategy-local.js';
 import {currentEvaluationMasterVersions} from './pokemon-evaluation-store.js';
 import {buildStrategyContextPackage} from './strategy-context-package.js';
 import {normalizeGeminiStrategyResponse} from './strategy-gemini-contract.js';
-import {currentWeeklyContext} from './weekly-context-store.js';
+import {currentEffectiveWeeklyContext} from './effective-weekly-context.js';
 import {buildLocalTeamOptimization} from './team-optimizer-local.js';
 import {buildLocalRecipePortfolioContention} from './recipe-portfolio-contention-local.js';
 import {currentProductionAuthorityRegistry} from './production-authority-registry.js';
@@ -16,7 +16,7 @@ import {buildExternalOptimizationPrompt,normalizeOptimizationAiResponse,intakeOp
 
 export function buildLocalStrategyContextPreview({includeEventText=false,candidateLimit=20,recipeLimit=10}={}){
   if(isRescueReadonly())return {status:'PLAYER_DATA_UNAVAILABLE',payload:null,resolver:{},privacy_manifest:{raw_sqlite_in_payload:false,api_key_in_payload:false},missing_inputs:['player_database']};
-  const weeklyContext=currentWeeklyContext(),goalProfile=getActiveStrategyGoalProfile();
+  const weeklyContext=currentEffectiveWeeklyContext(),goalProfile=getActiveStrategyGoalProfile();
   const candidateScoring=buildLocalPokemonCandidateScoring(),recipeStrategy=buildLocalRecipeStrategyProjection();
   const currentTeamPokemonIds=rows("SELECT pokemon_id FROM pokemon WHERE status='active' AND is_main=1 ORDER BY pokemon_id").map(row=>row.pokemon_id);
   const packageResult=buildStrategyContextPackage({
@@ -27,7 +27,7 @@ export function buildLocalStrategyContextPreview({includeEventText=false,candida
   if(!goalProfile)missing_inputs.push('active_goal_profile');
   if(!weeklyContext.context_id)missing_inputs.push('weekly_context');
   if(!currentTeamPokemonIds.length)missing_inputs.push('current_team_selection');
-  return {...packageResult,status:'READY',missing_inputs,weekly_context_authority:weeklyContext.authority_source||'MISSING'};
+  return {...packageResult,status:'READY',missing_inputs,weekly_context_authority:weeklyContext.player_weekly_authority_source||weeklyContext.authority_source||'MISSING',public_event_authority:weeklyContext.public_event_authority_status||'PUBLIC_EVENT_MASTER_UNAVAILABLE'};
 }
 
 export function buildLocalOptimizationStrategyPreview({includeEventText=false,candidateLimit=20,recipeLimit=12,searchBudget={}}={}){
@@ -53,7 +53,7 @@ export function buildLocalProductionEvidenceSnapshot(){
   if(isRescueReadonly())return {schema:'pokemon-sleep-production-evidence-snapshot/1.0',activation_decision:'PLAYER_DATA_UNAVAILABLE',rules:[],summary:{},safety:{player_data_write:false,sqlite_write:false,runtime_network_fetch:false,ai_numeric_authority:false}};
   return buildProductionEvidenceSnapshot({
     candidateFeatures:buildLocalPokemonCandidateScoring(),
-    weeklyContext:currentWeeklyContext(),
+    weeklyContext:currentEffectiveWeeklyContext(),
     productionRegistry:currentProductionAuthorityRegistry(),
   });
 }

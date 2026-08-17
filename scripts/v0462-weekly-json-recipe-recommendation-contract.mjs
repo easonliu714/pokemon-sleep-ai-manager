@@ -137,7 +137,9 @@ assert.ok(shared.includes('recipeWeeklyAuthoritySummary'));
 assert.equal(shared.includes("SELECT * FROM weekly_context ORDER BY updated_at DESC LIMIT 1"),false,'recipe recommendation must not bypass Current Weekly Context authority');
 const recommendation=read('assets/js/current-week-recipe-recommendation-bridge.js');
 assert.ok(recommendation.includes('normalizeDishCategory'));
-assert.ok(recommendation.includes('currentWeeklyContext()'));
+const recommendationUsesLegacyCurrent=recommendation.includes('currentWeeklyContext()');
+const recommendationUsesEffective=recommendation.includes('currentEffectiveWeeklyContext()')&&recommendation.includes("from './effective-weekly-context.js'");
+assert.ok(recommendationUsesLegacyCurrent||recommendationUsesEffective,'recipe recommendation must consume current weekly authority directly or through Effective Weekly Context successor');
 
 const updateUi=read('assets/js/weekly-context-update-center-bridge.js');
 for(const token of ['沒有 .json 附件？直接貼上 AI 回覆','weeklyJsonPasteText','weeklyJsonLoadPasteBtn','DataTransfer','SELECT berry_name FROM berry_master','levenshtein','不在公版樹果名稱中'])assert.ok(updateUi.includes(token),`Update Center robustness missing: ${token}`);
@@ -163,6 +165,6 @@ console.log(JSON.stringify({
   template_event_effects:'NESTED_OBJECT',sqlite_event_effects:'TEXT_AFTER_IMPORT_NORMALIZATION',
   modern_nested_object_pass:true,legacy_v046_string_payload_pass:true,legacy_context_id_repair:true,legacy_authority_repair:true,
   workflow_current_week_fixture:LIVE_WEEK,iso_event_boundaries:true,rich_event_keys:true,unknown_event_key_fail_closed:true,partial_berry_trio_fail_closed:true,
-  canonical_dish_aliases:true,recipe_consumer_current_week_authority:true,berry_runtime_vocabulary_gate:true,raw_json_paste_uses_existing_flow:true,
+  canonical_dish_aliases:true,recipe_consumer_current_week_authority:true,effective_weekly_context_successor:recommendationUsesEffective,berry_runtime_vocabulary_gate:true,raw_json_paste_uses_existing_flow:true,
   sqlite_migration_added:false,gemini_dependency:false,
 },null,2));

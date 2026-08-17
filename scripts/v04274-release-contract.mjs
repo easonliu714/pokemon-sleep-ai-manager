@@ -16,9 +16,15 @@ const read=path=>fs.readFileSync(path,'utf8');
 const versionSource=read('assets/js/version-authority.js');
 const sandbox={};sandbox.globalThis=sandbox;vm.createContext(sandbox);vm.runInContext(versionSource,sandbox);
 const authority=sandbox.PokemonSleepVersionAuthority;
-assert.equal(authority.app_version,'v0.4.27.4');
-assert.equal(authority.app_build,'20260817-v04274-live-s2-s4-hotfix');
-assert.equal(authority.cache_name,'pokemon-sleep-ai-v0.4.27.4-v04274-live-s2-s4-hotfix');
+assert.ok(['v0.4.27.4','v0.4.27.5'].includes(authority.app_version),`unexpected v0.4.27.4 successor ${authority.app_version}`);
+if(authority.app_version==='v0.4.27.4'){
+  assert.equal(authority.app_build,'20260817-v04274-live-s2-s4-hotfix');
+  assert.equal(authority.cache_name,'pokemon-sleep-ai-v0.4.27.4-v04274-live-s2-s4-hotfix');
+}else{
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.4'"));
+  assert.ok(versionSource.includes("// app_build: '20260817-v04274-live-s2-s4-hotfix'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.4-v04274-live-s2-s4-hotfix'"));
+}
 for(const token of [
   "// app_version: 'v0.4.27.3'",
   "// app_build: '20260817-v04273-weekly-recipe-semantic-intake-hotfix'",
@@ -65,7 +71,7 @@ for(const token of [
   "'./assets/js/public-berry-strength-master.js'",
 ])assert.ok(sw.includes(token),`v0.4.27.4 PWA cache contract missing ${token}`);
 const predecessor=read('scripts/v0423-predecessor-contract-runner.mjs');assert.ok(predecessor.includes("current==='v0.4.27.4'"),'historical Production bridge missing v0.4.27.4');
-const workflows=fs.readdirSync('.github/workflows').filter(name=>/\.ya?ml$/.test(name));assert.equal(workflows.length,12,'v0.4.27.4 must not alter consolidated workflow topology');
+const workflows=fs.readdirSync('.github/workflows').filter(name=>/\.ya?ml$/.test(name));assert.equal(workflows.length,12,'v0.4.27.4 successor must not alter consolidated workflow topology');
 
 console.log(JSON.stringify({
   status:'PASS',
