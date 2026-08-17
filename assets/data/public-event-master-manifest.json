@@ -2,7 +2,7 @@
   "schema": "pokemon-sleep-public-event-manifest/1.0",
   "master_version": "public-event-master-tw-2026-08-17-a",
   "payload_path": "./assets/data/public-event-master.json",
-  "payload_sha256": "59b095e9fa69ea9bddbb3fab800d44207e048cfa89334dd804ca792f48fca358",
+  "payload_sha256": "46bd9a3cbb0fa780f119c881fd9219cdae06ae6bbe43765ab7feea95878ec185",
   "locale": "zh-TW",
   "region": "TW",
   "generated_at": "2026-08-17T12:01:00+08:00",
