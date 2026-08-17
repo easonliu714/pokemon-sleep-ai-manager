@@ -55,12 +55,12 @@ if(current==='v0.4.23'){
     .replace("app_build: '20260817-v04274-live-s2-s4-hotfix'","app_build: '20260813-v04221-recipe-formula-authority-audit'")
     .replace("cache_name: 'pokemon-sleep-ai-v0.4.27.4-v04274-live-s2-s4-hotfix'","cache_name: 'pokemon-sleep-ai-v0.4.22.1-v04221-recipe-formula-authority-audit'");
 }else if(current==='v0.4.27.5'){
-  // Public Event Master changes Weekly event authority and cache topology only.
+  // Public Event Master and PE7 only change Weekly event authority/UI/cache topology.
   // Production numeric authority remains unchanged at 4/7.
   staged=staged
     .replace("app_version: 'v0.4.27.5'","app_version: 'v0.4.22.1'")
-    .replace("app_build: '20260817-v04275-public-event-master'","app_build: '20260813-v04221-recipe-formula-authority-audit'")
-    .replace("cache_name: 'pokemon-sleep-ai-v0.4.27.5-v04275-public-event-master'","cache_name: 'pokemon-sleep-ai-v0.4.22.1-v04221-recipe-formula-authority-audit'");
+    .replace("app_build: '20260817-v04275-pe7-legacy-event-ui-hotfix'","app_build: '20260813-v04221-recipe-formula-authority-audit'")
+    .replace("cache_name: 'pokemon-sleep-ai-v0.4.27.5-v04275-pe7-legacy-event-ui-hotfix'","cache_name: 'pokemon-sleep-ai-v0.4.22.1-v04221-recipe-formula-authority-audit'");
 }
 
 try{
