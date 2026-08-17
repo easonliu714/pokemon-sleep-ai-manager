@@ -60,6 +60,7 @@ jobs:
       - name: Extract pinned species ingredient candidates
         env:
           ALLOW_PINNED_EVIDENCE_FETCH: '1'
+          PINNED_EVIDENCE_GITHUB_TOKEN: ${{ github.token }}
         run: node --import ./scripts/pinned-evidence-fetch-resilience-preload.mjs scripts/species-ingredient-candidate-source-extract.mjs
 
       - name: Verify runtime candidate parity
@@ -68,6 +69,7 @@ jobs:
       - name: Extract pinned zh-TW species/form identities
         env:
           ALLOW_PINNED_EVIDENCE_FETCH: '1'
+          PINNED_EVIDENCE_GITHUB_TOKEN: ${{ github.token }}
         run: node --import ./scripts/pinned-evidence-fetch-resilience-preload.mjs scripts/species-form-zh-tw-identity-source-extract.mjs
 
       - name: Verify zh-TW species/form identity runtime parity
