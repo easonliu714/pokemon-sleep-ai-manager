@@ -2,12 +2,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 
-export const PRODUCTION_EVIDENCE_REGRESSION_VERSION='production-evidence-regression-2026-08-17-h-e3c7b-local-readiness-ui';
+export const PRODUCTION_EVIDENCE_REGRESSION_VERSION='production-evidence-regression-2026-08-17-i-e3c7c1-sufficiency-pack';
 const PREDECESSOR_BRIDGE='scripts/v0423-predecessor-contract-runner.mjs';
 const V04275_PRODUCTION_BRIDGE='scripts/v04275-production-contract-runner.mjs';
 
-// Production/G7 behavioral lineage only. Recipe v0.4.22.1 keeps its own
-// Recipe Authority workflow and is intentionally not retired by P1.
 export const PRODUCTION_BEHAVIORAL_CONTRACTS=Object.freeze([
   'scripts/v0414-g7-verified-energy-objective-contract.mjs',
   'scripts/v0415-g72-team-supply-mobile-ui-contract.mjs',
@@ -35,11 +33,9 @@ export const PRODUCTION_BEHAVIORAL_CONTRACTS=Object.freeze([
   'scripts/v0428-g75e3c6b-first-party-observation-update-contract.mjs',
   'scripts/v0428-g75e3c7-statistical-readiness-contract.mjs',
   'scripts/v0428-g75e3c7b-local-readiness-ui-contract.mjs',
+  'scripts/v0428-g75e3c7c1-sufficiency-evidence-pack-contract.mjs',
 ]);
 
-// v0.4.16–v0.4.22 validate historical release identities but are designed to
-// tolerate governed runtime successors. Replay them through the existing
-// v0.4.27.x -> v0.4.22.1 identity bridge instead of mutating historical allowlists.
 const IDENTITY_BRIDGED_CONTRACTS=new Set([
   'scripts/v0416-g73-production-team-search-contract.mjs',
   'scripts/v0417-g74-ai-proposal-intake-contract.mjs',
@@ -70,6 +66,7 @@ const PRODUCTION_RUNTIME_FILES=Object.freeze([
   'assets/js/ingredient-probability-first-party-observation-update.js',
   'assets/js/ingredient-probability-first-party-observation-ui.js',
   'assets/js/ingredient-probability-statistical-readiness.js',
+  'assets/js/ingredient-probability-sufficiency-evidence-pack.js',
   'assets/js/public-species-ingredient-rate-reference.js',
   'assets/js/public-berry-strength-master.js',
   'assets/js/favorite-berry-multiplier-contract.js',
@@ -111,10 +108,17 @@ assert.ok(readinessSource.includes('threshold_invented:false'),'E3C-7 must decla
 assert.ok(readinessSource.includes('activation_authority_granted:false'),'E3C-7 readiness must not self-activate Ingredient Probability');
 assert.ok(readinessSource.includes("production_active_dimensions:'4/7'"),'E3C-7 must preserve Production 4/7 while readiness only is implemented');
 const strategyLocalSource=fs.readFileSync('assets/js/strategy-context-local.js','utf8');
-assert.ok(strategyLocalSource.includes('ingredient_probability_statistical_readiness:buildLocalIngredientProbabilityStatisticalReadiness()'),'E3C-7B readiness must be attached to local Production Evidence snapshot');
+assert.ok(strategyLocalSource.includes('ingredient_probability_statistical_readiness:readiness'),'E3C-7B readiness must be attached to local Production Evidence snapshot');
+assert.ok(strategyLocalSource.includes('ingredient_probability_sufficiency_evidence_pack:sufficiencyPack'),'E3C-7C1 sufficiency pack must be attached to local Production Evidence snapshot');
 const productionUiSource=fs.readFileSync('assets/js/production-evidence-ui.js','utf8');
 assert.ok(productionUiSource.includes('Readiness ≠ Production Activation'),'E3C-7B UI must distinguish readiness from activation');
 assert.ok(productionUiSource.includes('目前尚未核准統計充分性門檻'),'E3C-7B UI must state that production sufficiency thresholds are not governed yet');
+const sufficiencySource=fs.readFileSync('assets/js/ingredient-probability-sufficiency-evidence-pack.js','utf8');
+for(const forbidden of ['fetch(', 'XMLHttpRequest', 'localStorage', 'sessionStorage', 'indexedDB', 'INSERT INTO', 'UPDATE ', 'DELETE FROM', 'applyPayload(', 'dryRun('])assert.equal(sufficiencySource.includes(forbidden),false,`E3C-7C1 pack contains forbidden authority/write path: ${forbidden}`);
+assert.ok(sufficiencySource.includes('threshold_candidate_values'));
+assert.ok(sufficiencySource.includes('threshold_recommendation_authority:false'));
+assert.ok(sufficiencySource.includes('source_keys_included:false'));
+assert.ok(sufficiencySource.includes('raw_observations_included:false'));
 
 run('git',['diff','--exit-code'],{label:'repository mutation guard'});
-console.log(JSON.stringify({status:'PASS',gate:'PRODUCTION_EVIDENCE_REGRESSION',version:PRODUCTION_EVIDENCE_REGRESSION_VERSION,behavioral_contract_count:PRODUCTION_BEHAVIORAL_CONTRACTS.length,identity_bridged_contract_count:IDENTITY_BRIDGED_CONTRACTS.size,v04275_production_successor_bridge:true,runtime_syntax_count:PRODUCTION_RUNTIME_FILES.length,recipe_authority_workflow_retired:false,production_authority_mutated:false,behavioral_contracts_removed:0,runtime_network_authority_added:false,first_party_observation_capture_persistent_local_only:true,first_party_observation_activation_authority:false,e3c7_statistical_readiness_audit:true,e3c7_local_readiness_ui:true,e3c7_governed_thresholds_defined:false,e3c7_activation_authority:false},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'PRODUCTION_EVIDENCE_REGRESSION',version:PRODUCTION_EVIDENCE_REGRESSION_VERSION,behavioral_contract_count:PRODUCTION_BEHAVIORAL_CONTRACTS.length,identity_bridged_contract_count:IDENTITY_BRIDGED_CONTRACTS.size,v04275_production_successor_bridge:true,runtime_syntax_count:PRODUCTION_RUNTIME_FILES.length,recipe_authority_workflow_retired:false,production_authority_mutated:false,behavioral_contracts_removed:0,runtime_network_authority_added:false,first_party_observation_capture_persistent_local_only:true,first_party_observation_activation_authority:false,e3c7_statistical_readiness_audit:true,e3c7_local_readiness_ui:true,e3c7_sufficiency_evidence_pack:true,e3c7_governed_thresholds_defined:false,e3c7_threshold_recommendation_authority:false,e3c7_activation_authority:false},null,2));
