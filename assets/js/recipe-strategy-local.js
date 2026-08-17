@@ -6,7 +6,7 @@ import {
 } from './public-recipe-provenance.js';
 import {projectRecipeStrategy} from './recipe-strategy-projection.js';
 import {getActiveStrategyGoalProfile} from './strategy-goal-store.js';
-import {currentWeeklyContext} from './weekly-context-store.js';
+import {currentEffectiveWeeklyContext} from './effective-weekly-context.js';
 
 export function buildLocalRecipeStrategyProjection({
   potSize=undefined,
@@ -34,7 +34,7 @@ export function buildLocalRecipeStrategyProjection({
     };
   }
 
-  const week=currentWeeklyContext();
+  const week=currentEffectiveWeeklyContext();
   const goalProfile=getActiveStrategyGoalProfile();
   const hardConstraints=goalProfile?.hard_constraints||{};
   const effectiveReserve=ingredientSafeReserve===undefined?(hardConstraints.ingredient_safe_reserve||{}):ingredientSafeReserve;
@@ -72,9 +72,11 @@ export function buildLocalRecipeStrategyProjection({
     weekly_context_id:week.context_id||null,
     weekly_context_week_start:week.week_start||null,
     weekly_context_status:week.context_status||null,
-    weekly_context_authority:week.authority_source||'MISSING',
+    weekly_context_authority:week.player_weekly_authority_source||week.authority_source||'MISSING',
     weekly_context_update_id:week.authority_update_id||null,
     weekly_context_updated_at:week.updated_at||null,
+    public_event_master_version:week.public_event_master_version||null,
+    public_event_authority_status:week.public_event_authority_status||'PUBLIC_EVENT_MASTER_UNAVAILABLE',
   };
 }
 
@@ -94,5 +96,7 @@ if(typeof window!=='undefined'){
     import('./war-room-candidate-feature-bootstrap.js'),
     import('./war-room-strategy-context-bootstrap.js'),
     import('./war-room-strategy-analysis-pack-ui.js'),
-  ]).catch(error=>console.warn('War Room / weekly integration UI bootstrap deferred',error)));
+    import('./public-event-master-bootstrap.js'),
+    import('./public-event-authority-ui-guard.js'),
+  ]).catch(error=>console.warn('War Room / weekly / public-event integration UI bootstrap deferred',error)));
 }
