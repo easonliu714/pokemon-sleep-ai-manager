@@ -37,7 +37,12 @@ const successorManualOverride=store.includes('MANUAL_OVERRIDE')||weeklyUi.includ
 if(successorManualOverride){assert.ok(store.includes('authority_revision'));assert.ok(weeklyUi.includes('更新中心 JSON 為初始權威來源'));}else assert.ok(weeklyUi.includes('JSON 已提供的欄位仍保持優先'));
 const importContract=read('assets/js/weekly-context-import-contract.js');for(const token of ['context_authority 必須為','不可使用上週／未來週 JSON','favorite_berry_1~3 必須全部三欄一起提供'])assert.ok(importContract.includes(token));assert.ok(importContract.includes('event_effects'));
 const updateUi=read('assets/js/weekly-context-update-center-bridge.js');for(const token of ['Weekly Context JSON Contract','Authority Chain','validateWeeklyContextImportPayload','blockInvalidWeeklyAction'])assert.ok(updateUi.includes(token));
-const consumer=read('assets/js/weekly-context-consumer-banner.js');for(const token of ['本頁 Weekly Context 唯一來源：［本週環境］','recipeWeeklyContextAuthority','warroomWeeklyContextAuthority'])assert.ok(consumer.includes(token));
+const consumer=read('assets/js/weekly-context-consumer-banner.js');
+for(const token of ['recipeWeeklyContextAuthority','warroomWeeklyContextAuthority'])assert.ok(consumer.includes(token));
+if(atLeast(app,'v0.4.27.5')){
+  for(const token of ['本頁 Effective Weekly Context','玩家週環境 Authority：','活動 Authority：','Public Event Master','currentEffectiveWeeklyContext'])assert.ok(consumer.includes(token),`Effective Weekly banner successor missing ${token}`);
+  assert.equal(consumer.includes('本頁 Weekly Context 唯一來源：［本週環境］'),false,'v0.4.27.5+ must not claim Player Weekly is sole event authority');
+}else assert.ok(consumer.includes('本頁 Weekly Context 唯一來源：［本週環境］'));
 const effectiveWeeklySuccessorFiles=new Set(['assets/js/recipe-strategy-local.js','assets/js/pokemon-candidate-local.js','assets/js/strategy-context-local.js','assets/js/current-week-recipe-recommendation-bridge.js']);
 for(const file of ['assets/js/recipe-strategy-local.js','assets/js/pokemon-candidate-local.js','assets/js/recipe-discovery-stockpile-local.js','assets/js/strategy-context-local.js','assets/js/evaluation-lifecycle.js','assets/js/current-week-recipe-recommendation-bridge.js','assets/js/shared-knowledge-ui.js']){
   const source=read(file);
