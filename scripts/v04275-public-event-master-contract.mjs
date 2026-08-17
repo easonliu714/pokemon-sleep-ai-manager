@@ -137,7 +137,10 @@ for(const file of ['recipe-strategy-local.js','pokemon-candidate-local.js','stra
   assert.ok(text.includes("from './effective-weekly-context.js'"),`${file} must consume Effective Weekly Context`);
 }
 const ui=source('public-event-authority-ui-guard.js');
-for(const token of ['LEGACY_PLAYER_OBSERVATION_AUDIT_ONLY','PUBLIC_EVENT_MASTER','data-public-event-authority'])assert.ok(ui.includes(token),`Public Event UI authority guard missing ${token}`);
+// Validate the actual source-level implementation markers. dataset.publicEventAuthority
+// renders data-public-event-authority at runtime, while the visible authority label is
+// intentionally human-readable as "Public Event Master" rather than an enum token.
+for(const token of ['LEGACY_PLAYER_OBSERVATION_AUDIT_ONLY','Public Event Master：','panel.dataset.publicEventAuthority','effective.public_event_authority_status'])assert.ok(ui.includes(token),`Public Event UI authority guard missing ${token}`);
 const bootstrap=source('public-event-master-bootstrap.js');
 assert.ok(bootstrap.includes('pokemon-sleep:database-ready'),'Public Event manifest refresh must start after SQLite ready');
 assert.ok(bootstrap.includes('public-event-boundary-crossed'),'Public Event boundary must reproject current week');
