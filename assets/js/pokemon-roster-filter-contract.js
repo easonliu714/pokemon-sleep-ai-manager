@@ -2,8 +2,9 @@ import {
   NATURES,
   SUBSKILL_PRODUCTION_MODIFIERS,
 } from './pokemon-master-options.js';
+import {canonicalBerryName} from './public-berry-strength-master.js';
 
-export const POKEMON_ROSTER_FILTER_CONTRACT_VERSION='pokemon-roster-unlocked-filters-2026-08-14-a';
+export const POKEMON_ROSTER_FILTER_CONTRACT_VERSION='pokemon-roster-unlocked-filters-2026-08-17-b-berry-canonical-projection';
 
 const text=value=>String(value??'').normalize('NFKC').trim();
 const uniqueSorted=values=>[...new Set(values.map(text).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
@@ -45,7 +46,7 @@ export function buildPokemonRosterFilterProfiles({pokemonRows=[],ingredientRows=
     return Object.freeze({
       pokemon,
       pokemon_id:id,
-      berry:text(pokemon.favorite_berry),
+      berry:canonicalBerryName(pokemon.favorite_berry),
       main_skill:resolvedMainSkill,
       ingredients:Object.freeze(uniqueSorted(unlockedIngredients.map(row=>row.ingredient_name))),
       subskills:Object.freeze(uniqueSorted(unlockedSubskills.map(row=>row.subskill_name))),
@@ -57,7 +58,7 @@ export function buildPokemonRosterFilterProfiles({pokemonRows=[],ingredientRows=
 
 export function buildPokemonRosterFacetOptions(profiles=[]){
   return Object.freeze({
-    berries:Object.freeze(uniqueSorted(profiles.map(row=>row.berry))),
+    berries:Object.freeze(uniqueSorted(profiles.map(row=>canonicalBerryName(row.berry)))),
     ingredients:Object.freeze(uniqueSorted(profiles.flatMap(row=>row.ingredients))),
     main_skills:Object.freeze(uniqueSorted(profiles.map(row=>row.main_skill))),
     subskills:Object.freeze(uniqueSorted(profiles.flatMap(row=>row.subskills))),
@@ -65,8 +66,8 @@ export function buildPokemonRosterFacetOptions(profiles=[]){
 }
 
 export function profileMatchesRosterFilters(profile,filters={}){
-  const berry=text(filters.berry),ingredient=text(filters.ingredient),mainSkill=text(filters.main_skill),subskill=text(filters.subskill);
-  return (!berry||profile.berry===berry)
+  const berry=canonicalBerryName(filters.berry),ingredient=text(filters.ingredient),mainSkill=text(filters.main_skill),subskill=text(filters.subskill);
+  return (!berry||canonicalBerryName(profile.berry)===berry)
     &&(!ingredient||profile.ingredients.includes(ingredient))
     &&(!mainSkill||profile.main_skill===mainSkill)
     &&(!subskill||profile.subskills.includes(subskill));
@@ -75,7 +76,7 @@ export function profileMatchesRosterFilters(profile,filters={}){
 function filterContext(filters={}){
   const dimensions=new Set(),contexts=[];
   if(text(filters.ingredient)){dimensions.add('ingredient_probability_per_help');dimensions.add('helper_interval_seconds');contexts.push('INGREDIENT');}
-  if(text(filters.berry)){dimensions.add('berry_output_per_help');dimensions.add('helper_interval_seconds');contexts.push('BERRY');}
+  if(canonicalBerryName(filters.berry)){dimensions.add('berry_output_per_help');dimensions.add('helper_interval_seconds');contexts.push('BERRY');}
   if(text(filters.main_skill)){dimensions.add('main_skill_trigger_probability');dimensions.add('main_skill_level');dimensions.add('helper_interval_seconds');contexts.push('MAIN_SKILL');}
   const selectedSubskill=text(filters.subskill);
   if(selectedSubskill){
@@ -150,5 +151,5 @@ export function rankRosterFilterMatches(profiles=[],filters={}){
 }
 
 export function rosterFilterHasRecommendationContext(filters={}){
-  return Boolean(text(filters.berry)||text(filters.ingredient)||text(filters.main_skill)||text(filters.subskill));
+  return Boolean(canonicalBerryName(filters.berry)||text(filters.ingredient)||text(filters.main_skill)||text(filters.subskill));
 }
