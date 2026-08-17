@@ -1,4 +1,4 @@
-export const STRATEGY_CONTEXT_PACKAGE_VERSION='strategy-context-2026-08-09-a';
+export const STRATEGY_CONTEXT_PACKAGE_VERSION='strategy-context-2026-08-17-b-public-event-provenance';
 
 const text=value=>String(value??'').normalize('NFKC').trim();
 const num=value=>{const n=Number(value);return value===null||value===undefined||value===''||!Number.isFinite(n)?null:n;};
@@ -75,6 +75,24 @@ function inventorySummary(recipes){
   }
   return [...map.values()].sort((a,b)=>a.ingredient_name.localeCompare(b.ingredient_name,'zh-Hant'));
 }
+function publicEventAuthorityPayload(weeklyContext={}){
+  const deterministicEffects=stable(weeklyContext.strategy_event_effects||{});
+  return stable({
+    source:text(weeklyContext.event_authority_source)||'PUBLIC_EVENT_MASTER',
+    master_version:text(weeklyContext.public_event_master_version)||null,
+    authority_version:text(weeklyContext.public_event_authority_version)||null,
+    authority_status:text(weeklyContext.public_event_authority_status)||'PUBLIC_EVENT_MASTER_UNAVAILABLE',
+    active_event_count:num(weeklyContext.public_event_active_count)??0,
+    event_name:text(weeklyContext.event_name)||null,
+    deterministic_effects:deterministicEffects,
+    deterministic_effect_count:Object.keys(deterministicEffects).length,
+    review_required:Boolean(weeklyContext.event_effect_review_required),
+    review_effect_count:Array.isArray(weeklyContext.review_event_effects)?weeklyContext.review_event_effects.length:0,
+    conflict_count:Array.isArray(weeklyContext.public_event_effect_conflicts)?weeklyContext.public_event_effect_conflicts.length:0,
+    event_name_is_numeric_authority:false,
+    legacy_player_event_deterministic_authority:false,
+  });
+}
 
 export function buildStrategyContextPackage({
   weeklyContext={},goalProfile=null,candidateScoring={},recipeStrategy={},masterVersions={},currentTeamPokemonIds=[],includeEventText=false,candidateLimit=20,recipeLimit=10,
@@ -82,13 +100,20 @@ export function buildStrategyContextPackage({
   const candidates=candidateRows(candidateScoring,candidateLimit),refs=buildCandidateRefs(candidates),constraints=minimizeConstraints(goalProfile,refs.byIdentity);
   const recipes=(recipeStrategy?.candidates||[]).slice(0,Math.max(1,Math.min(30,Number(recipeLimit)||10))).map(recipePayload);
   const teamRefs=uniq((currentTeamPokemonIds||[]).map(value=>refs.byIdentity.get(text(value))).filter(Boolean));
+  const publicEventAuthority=publicEventAuthorityPayload(weeklyContext);
+  const publicVersionRefs=stable({
+    ...(masterVersions||{}),
+    public_event_master_version:publicEventAuthority.master_version,
+    public_event_authority_version:publicEventAuthority.authority_version,
+  });
   const payload=stable({
     schema:'pokemon-sleep-strategy-context/1.0',package_version:STRATEGY_CONTEXT_PACKAGE_VERSION,
     weekly_context:{week_start:text(weeklyContext.week_start)||null,camp:text(weeklyContext.camp)||null,dish_category:text(weeklyContext.dish_category)||null,favorite_berries:uniq([weeklyContext.favorite_berry_1,weeklyContext.favorite_berry_2,weeklyContext.favorite_berry_3]),pot_size:num(weeklyContext.pot_size),event_name:text(weeklyContext.event_name)||null,event_effects:includeEventText?boundedString(weeklyContext.event_effects,1200):null},
+    public_event_authority:publicEventAuthority,
     goal_profile:goalProfile?{primary_goal:text(goalProfile.primary_goal),secondary_goals:cleanArray(goalProfile.secondary_goals,8),weights:stable(goalProfile.weights||{}),hard_constraints:constraints.value}:null,
     current_team:teamRefs,candidate_pokemon:refs.rows.map(({candidate_ref,row})=>candidatePayload(candidate_ref,row)),recipe_gap_summary:recipes,inventory_summary:inventorySummary(recipes),
     deterministic_candidates:{feature_fingerprint:candidateScoring?.feature_fingerprint||candidateScoring?.feature_projection?.input_fingerprint||null,scoring_engine_version:candidateScoring?.scoring_engine_version||null,scoring_rule_registry_version:candidateScoring?.scoring_rule_registry_version||null,recipe_strategy_fingerprint:recipeStrategy?.input_fingerprint||null},
-    public_version_refs:stable(masterVersions||{}),
+    public_version_refs:publicVersionRefs,
   });
   const context_fingerprint=`strategy_context:${hash(JSON.stringify(payload))}`;
   return {
