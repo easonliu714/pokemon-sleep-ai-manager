@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 
-export const PRODUCTION_EVIDENCE_REGRESSION_VERSION='production-evidence-regression-2026-08-17-f-v04275-public-event-successor';
+export const PRODUCTION_EVIDENCE_REGRESSION_VERSION='production-evidence-regression-2026-08-17-g-e3c7-statistical-readiness';
 const PREDECESSOR_BRIDGE='scripts/v0423-predecessor-contract-runner.mjs';
 const V04275_PRODUCTION_BRIDGE='scripts/v04275-production-contract-runner.mjs';
 
@@ -33,6 +33,7 @@ export const PRODUCTION_BEHAVIORAL_CONTRACTS=Object.freeze([
   'scripts/v0428-g75e3c5-source-lineage-review-contract.mjs',
   'scripts/v0428-g75e3c6-first-party-observation-contract.mjs',
   'scripts/v0428-g75e3c6b-first-party-observation-update-contract.mjs',
+  'scripts/v0428-g75e3c7-statistical-readiness-contract.mjs',
 ]);
 
 // v0.4.16–v0.4.22 validate historical release identities but are designed to
@@ -65,6 +66,7 @@ const PRODUCTION_RUNTIME_FILES=Object.freeze([
   'assets/js/ingredient-probability-first-party-observation-contract.js',
   'assets/js/ingredient-probability-first-party-observation-update.js',
   'assets/js/ingredient-probability-first-party-observation-ui.js',
+  'assets/js/ingredient-probability-statistical-readiness.js',
   'assets/js/public-species-ingredient-rate-reference.js',
   'assets/js/public-berry-strength-master.js',
   'assets/js/favorite-berry-multiplier-contract.js',
@@ -99,6 +101,12 @@ const observationUpdateSource=fs.readFileSync('assets/js/ingredient-probability-
 for(const forbidden of ['fetch(', 'XMLHttpRequest', 'localStorage', 'sessionStorage'])assert.equal(observationUpdateSource.includes(forbidden),false,`first-party observation update adapter contains forbidden remote/storage side channel: ${forbidden}`);
 assert.ok(observationUpdateSource.includes("sample_sufficiency_for_activation:'NOT_DEFINED'"),'E3C-6B must not invent a sufficiency threshold');
 assert.ok(observationUpdateSource.includes("activation_authority_granted:false"),'E3C-6B aggregate must not activate Ingredient Probability');
+const readinessSource=fs.readFileSync('assets/js/ingredient-probability-statistical-readiness.js','utf8');
+for(const forbidden of ['fetch(', 'XMLHttpRequest', 'localStorage', 'sessionStorage', 'indexedDB', 'INSERT INTO', 'UPDATE ', 'DELETE FROM', 'applyPayload(', 'dryRun('])assert.equal(readinessSource.includes(forbidden),false,`E3C-7 readiness contains forbidden authority path: ${forbidden}`);
+assert.ok(readinessSource.includes("policy_authority_status:'NOT_YET_DEFINED'"),'E3C-7 current policy must remain undefined until governed thresholds are accepted');
+assert.ok(readinessSource.includes('threshold_invented:false'),'E3C-7 must declare that no threshold is invented');
+assert.ok(readinessSource.includes('activation_authority_granted:false'),'E3C-7 readiness must not self-activate Ingredient Probability');
+assert.ok(readinessSource.includes("production_active_dimensions:'4/7'"),'E3C-7 must preserve Production 4/7 while readiness only is implemented');
 
 run('git',['diff','--exit-code'],{label:'repository mutation guard'});
-console.log(JSON.stringify({status:'PASS',gate:'PRODUCTION_EVIDENCE_REGRESSION',version:PRODUCTION_EVIDENCE_REGRESSION_VERSION,behavioral_contract_count:PRODUCTION_BEHAVIORAL_CONTRACTS.length,identity_bridged_contract_count:IDENTITY_BRIDGED_CONTRACTS.size,v04275_production_successor_bridge:true,runtime_syntax_count:PRODUCTION_RUNTIME_FILES.length,recipe_authority_workflow_retired:false,production_authority_mutated:false,behavioral_contracts_removed:0,runtime_network_authority_added:false,first_party_observation_capture_persistent_local_only:true,first_party_observation_activation_authority:false},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'PRODUCTION_EVIDENCE_REGRESSION',version:PRODUCTION_EVIDENCE_REGRESSION_VERSION,behavioral_contract_count:PRODUCTION_BEHAVIORAL_CONTRACTS.length,identity_bridged_contract_count:IDENTITY_BRIDGED_CONTRACTS.size,v04275_production_successor_bridge:true,runtime_syntax_count:PRODUCTION_RUNTIME_FILES.length,recipe_authority_workflow_retired:false,production_authority_mutated:false,behavioral_contracts_removed:0,runtime_network_authority_added:false,first_party_observation_capture_persistent_local_only:true,first_party_observation_activation_authority:false,e3c7_statistical_readiness_audit:true,e3c7_governed_thresholds_defined:false,e3c7_activation_authority:false},null,2));
