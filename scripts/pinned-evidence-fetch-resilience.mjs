@@ -1,6 +1,6 @@
-export const PINNED_EVIDENCE_FETCH_RESILIENCE_VERSION='pinned-evidence-fetch-resilience-2026-08-17-a';
+export const PINNED_EVIDENCE_FETCH_RESILIENCE_VERSION='pinned-evidence-fetch-resilience-2026-08-17-b-github-contents-api';
 export const DEFAULT_PRIMARY_ATTEMPTS=2;
-export const DEFAULT_MIRROR_ATTEMPTS=2;
+export const DEFAULT_API_ATTEMPTS=2;
 export const DEFAULT_BACKOFF_MS=350;
 export const MAX_RETRY_AFTER_MS=2000;
 
@@ -25,11 +25,27 @@ function backoffMs(response,attemptIndex,baseMs){
   return Math.min(MAX_RETRY_AFTER_MS,Math.max(0,baseMs)*(2**attemptIndex));
 }
 
-export function pinnedMirrorUrl(rawUrl){
+function pinnedRawParts(rawUrl){
   const match=String(rawUrl||'').match(PINNED_RAW_GITHUB);
   if(!match)return null;
   const [,owner,repo,commit,filePath]=match;
-  return `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${commit}/${filePath}`;
+  return {owner,repo,commit,filePath};
+}
+
+export function pinnedGitHubContentsApiUrl(rawUrl){
+  const parts=pinnedRawParts(rawUrl);
+  if(!parts)return null;
+  const path=parts.filePath.split('/').map(segment=>encodeURIComponent(segment)).join('/');
+  return `https://api.github.com/repos/${encodeURIComponent(parts.owner)}/${encodeURIComponent(parts.repo)}/contents/${path}?ref=${parts.commit}`;
+}
+
+function apiRequestInit(originalInit={},githubToken=null){
+  const headers=new Headers(originalInit?.headers||{});
+  headers.set('Accept','application/vnd.github+json');
+  headers.set('X-GitHub-Api-Version','2022-11-28');
+  headers.set('User-Agent','pokemon-sleep-ai-manager-ci');
+  if(githubToken)headers.set('Authorization',`Bearer ${githubToken}`);
+  return {...originalInit,method:'GET',headers};
 }
 
 async function boundedFetch(url,init,{fetchImpl,sleepFn,attempts,baseBackoffMs,onRetry,transport}){
@@ -57,32 +73,54 @@ async function boundedFetch(url,init,{fetchImpl,sleepFn,attempts,baseBackoffMs,o
   throw lastError||new Error(`PINNED_EVIDENCE_TRANSPORT_FAILED:${transport}`);
 }
 
+function syntheticFailureResponse(status,message){
+  return new Response(String(message||''),{status,headers:{'content-type':'text/plain; charset=utf-8','x-pinned-evidence-transport':'GITHUB_CONTENTS_API'}});
+}
+
+async function decodeContentsApiResponse(response){
+  if(!response?.ok)return response;
+  let payload=null;
+  try{payload=await response.json();}
+  catch(error){return syntheticFailureResponse(502,`PINNED_CONTENTS_API_JSON_INVALID:${error?.message||String(error)}`);}
+  if(payload?.type!=='file'||payload?.encoding!=='base64'||typeof payload?.content!=='string'||!payload.content.trim()){
+    return syntheticFailureResponse(502,'PINNED_CONTENTS_API_FILE_PAYLOAD_INVALID');
+  }
+  let text='';
+  try{text=Buffer.from(payload.content.replace(/\s/g,''),'base64').toString('utf8');}
+  catch(error){return syntheticFailureResponse(502,`PINNED_CONTENTS_API_BASE64_INVALID:${error?.message||String(error)}`);}
+  return new Response(text,{status:200,headers:{'content-type':'text/plain; charset=utf-8','x-pinned-evidence-transport':'GITHUB_CONTENTS_API','x-pinned-evidence-api-blob-sha':String(payload.sha||'')}});
+}
+
 export function createPinnedEvidenceFetch({
   fetchImpl=globalThis.fetch?.bind(globalThis),
   sleepFn=wait,
   primaryAttempts=DEFAULT_PRIMARY_ATTEMPTS,
-  mirrorAttempts=DEFAULT_MIRROR_ATTEMPTS,
+  apiAttempts=DEFAULT_API_ATTEMPTS,
   baseBackoffMs=DEFAULT_BACKOFF_MS,
+  githubToken=process?.env?.PINNED_EVIDENCE_GITHUB_TOKEN||null,
   onRetry=null,
   onFallback=null,
 }={}){
   if(typeof fetchImpl!=='function')throw new Error('PINNED_EVIDENCE_FETCH_IMPL_REQUIRED');
   return async function resilientPinnedEvidenceFetch(input,init){
     const url=typeof input==='string'?input:input?.url;
-    const mirror=pinnedMirrorUrl(url);
-    if(!mirror)return fetchImpl(input,init);
+    const apiUrl=pinnedGitHubContentsApiUrl(url);
+    const method=String(init?.method||(typeof input==='string'?'GET':input?.method||'GET')).toUpperCase();
+    if(!apiUrl||method!=='GET')return fetchImpl(input,init);
 
     let primaryResponse=null;
     try{
       primaryResponse=await boundedFetch(url,init,{fetchImpl,sleepFn,attempts:Math.max(1,primaryAttempts),baseBackoffMs,onRetry,transport:'RAW_GITHUB'});
     }catch(error){
-      onFallback?.({from:'RAW_GITHUB',to:'JSDELIVR_PINNED_COMMIT',url,mirror_url:mirror,reason:'NETWORK_ERROR',error:String(error?.message||error)});
-      return boundedFetch(mirror,init,{fetchImpl,sleepFn,attempts:Math.max(1,mirrorAttempts),baseBackoffMs,onRetry,transport:'JSDELIVR_PINNED_COMMIT'});
+      onFallback?.({from:'RAW_GITHUB',to:'GITHUB_CONTENTS_API',url,api_url:apiUrl,reason:'NETWORK_ERROR',error:String(error?.message||error)});
+      const apiResponse=await boundedFetch(apiUrl,apiRequestInit(init,githubToken),{fetchImpl,sleepFn,attempts:Math.max(1,apiAttempts),baseBackoffMs,onRetry,transport:'GITHUB_CONTENTS_API'});
+      return decodeContentsApiResponse(apiResponse);
     }
 
     if(primaryResponse?.ok||!RETRYABLE_HTTP_STATUS.has(Number(primaryResponse?.status)))return primaryResponse;
-    onFallback?.({from:'RAW_GITHUB',to:'JSDELIVR_PINNED_COMMIT',url,mirror_url:mirror,reason:`HTTP_${primaryResponse.status}`});
-    return boundedFetch(mirror,init,{fetchImpl,sleepFn,attempts:Math.max(1,mirrorAttempts),baseBackoffMs,onRetry,transport:'JSDELIVR_PINNED_COMMIT'});
+    onFallback?.({from:'RAW_GITHUB',to:'GITHUB_CONTENTS_API',url,api_url:apiUrl,reason:`HTTP_${primaryResponse.status}`});
+    const apiResponse=await boundedFetch(apiUrl,apiRequestInit(init,githubToken),{fetchImpl,sleepFn,attempts:Math.max(1,apiAttempts),baseBackoffMs,onRetry,transport:'GITHUB_CONTENTS_API'});
+    return decodeContentsApiResponse(apiResponse);
   };
 }
 
