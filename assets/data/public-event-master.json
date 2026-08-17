@@ -1,0 +1,50 @@
+{
+  "schema": "pokemon-sleep-public-event-master/1.0",
+  "master_version": "public-event-master-tw-2026-08-17-a",
+  "locale": "zh-TW",
+  "region": "TW",
+  "generated_at": "2026-08-17T12:01:00+08:00",
+  "registry_version": "weekly-event-effect-registry-2026-08-10-a",
+  "events": [
+    {
+      "event_id": "pokemon_horizons_special_collaboration_2026",
+      "title": "Pokémon Horizons 特別合作活動",
+      "locale": "zh-TW",
+      "region": "GLOBAL",
+      "start_at": "2026-08-17T04:00:00+08:00",
+      "end_at": "2026-08-24T04:00:00+08:00",
+      "camp_scope": ["*"],
+      "effects": {},
+      "phases": [],
+      "missions": [],
+      "rewards": [],
+      "limited_mechanics": [],
+      "authority_status": "PARTIAL_VERIFIED",
+      "source": {
+        "source_type": "OFFICIAL_ANNOUNCEMENT",
+        "source_name": "Pokémon Sleep 官方網站：Third Anniversary Announcement 1: Special Collaboration Event",
+        "source_ref": "https://www.pokemonsleep.net/en/news/343231343531373437313438343331333833/",
+        "verified_at": "2026-08-17T12:01:00+08:00",
+        "note": "官方已確認 2026 年 8 月的特別合作活動與船長帽皮卡丘、小鍛匠／巧鍛匠／巨鍛匠；精確期間由 Serebii 交叉核對，官方詳細 bonus 公告尚待接收。"
+      },
+      "field_provenance": {
+        "identity": {
+          "status": "VERIFIED",
+          "authority": "OFFICIAL_POKEMON_SLEEP",
+          "source_ref": "https://www.pokemonsleep.net/en/news/343231343531373437313438343331333833/"
+        },
+        "period": {
+          "status": "SECONDARY_CROSSCHECK_PENDING_OFFICIAL_DETAIL",
+          "authority": "SEREBII_DISCOVERY",
+          "source_ref": "https://www.serebii.net/news/2026/20-July-2026.shtml",
+          "observed": "2026-08-17 through 2026-08-24"
+        },
+        "event_effects": {
+          "status": "NOT_YET_VERIFIED",
+          "deterministic_authority": false,
+          "note": "未取得官方詳細 bonus 明文前保持空物件；不得以第三方或 AI 猜補倍率。"
+        }
+      }
+    }
+  ]
+}
