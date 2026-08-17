@@ -1,10 +1,21 @@
 import {localWeekStart} from './evaluation-week.js';
 import {buildUpdatePackageId} from './update-package-contract.js';
 
-export const UC_IMG_WEEKLY_PLATFORM_AUTHORITY_VERSION='uc-img-weekly-platform-authority-2026-08-17-b-semantic-intake';
+export const UC_IMG_WEEKLY_PLATFORM_AUTHORITY_VERSION='uc-img-weekly-platform-authority-2026-08-17-c-semantic-intake-gate';
 
 const clone=value=>JSON.parse(JSON.stringify(value));
 const clean=value=>String(value??'').trim();
+const WEEKLY_SEMANTIC_FIELDS=Object.freeze(['camp','dish_category','favorite_berry_1','favorite_berry_2','favorite_berry_3','event_name','event_effects','pot_size','base_notes']);
+const semanticMeaningful=value=>{
+  if(value===null||value===undefined||value==='')return false;
+  if(Array.isArray(value))return value.length>0;
+  if(typeof value==='object')return Object.keys(value).length>0;
+  return clean(value)!=='';
+};
+
+export function ucImgWeeklySemanticFields(data={}){
+  return WEEKLY_SEMANTIC_FIELDS.filter(field=>semanticMeaningful(data?.[field]));
+}
 
 export function buildUcImgWeeklyPlatformAuthority(now=new Date()){
   const point=now instanceof Date?new Date(now.getTime()):new Date(now);
@@ -60,10 +71,17 @@ export function applyUcImgWeeklyPlatformAuthority(payload,authority){
   if(operation){
     operation.key={...(operation.key||{}),context_id:authority.context_id};
     operation.data={...(operation.data||{}),week_start:authority.week_start,updated_at:authority.updated_at};
+    const semanticFields=ucImgWeeklySemanticFields(operation.data);
+    if(!semanticFields.length){
+      const error=new Error('UC_IMG_WEEKLY_SEMANTIC_INTAKE_EMPTY');
+      error.code='UC_IMG_WEEKLY_SEMANTIC_INTAKE_EMPTY';
+      error.details={scenario:'weekly_context_update',reason:'platform_only_payload',required_any_of:[...WEEKLY_SEMANTIC_FIELDS]};
+      throw error;
+    }
   }
   return copy;
 }
 
 export function buildUcImgWeeklyPlatformPromptInstruction(authority){
-  return `\n\nInternal Gemini 平台時間 Authority（這些欄位不是 OCR／AI 推測值，必須逐字使用）：\n- current_week_start=${clean(authority.week_start)}\n- key.context_id=${clean(authority.context_id)}\n- generated_at=${clean(authority.generated_at)}\n- data.updated_at=${clean(authority.updated_at)}\n- update_id=${clean(authority.update_id)}\n- context_authority=${clean(authority.context_authority)}\nAI 只負責從圖片辨識 camp、dish_category、favorite_berry_1~3、event_name、event_effects、pot_size、base_notes 等可觀測本週事實。不得自行推算或改寫上述平台時間欄位。\n\n重要的 semantic-intake 規則：\n1. 必須逐張檢查本情境全部圖片。只要圖片中能直接看見任何本週語意事實，就必須輸出對應欄位；不得只回傳 week_start / updated_at 等平台時間欄位。\n2. 固定三樹果營地雖可由 Public Camp Berry Master 投影 favorite_berry_1~3，但畫面若能讀到 camp，仍必須輸出 data.camp；不得因樹果是固定公版資料而把整張營地畫面略過。\n3. 活動畫面可見的名稱、期間、營地範圍、料理倍率、主技能／睡眠 EXP／睡意之力等效果都必須依 weekly event contract 寫入已知欄位；無法對應既有欄位的可見效果放 event_effects.unknown_effects 並 review_required=true，不能整段省略。\n4. 若本次圖片確實完全沒有任何可支援的本週語意欄位，才允許省略；有可見內容卻回傳 platform-only weekly operation 視為分析不完整，平台會 fail closed。`;
+  return `\n\nInternal Gemini 平台時間 Authority（這些欄位不是 OCR／AI 推測值，必須逐字使用）：\n- current_week_start=${clean(authority.week_start)}\n- key.context_id=${clean(authority.context_id)}\n- generated_at=${clean(authority.generated_at)}\n- data.updated_at=${clean(authority.updated_at)}\n- update_id=${clean(authority.update_id)}\n- context_authority=${clean(authority.context_authority)}\nAI 只負責從圖片辨識 camp、dish_category、favorite_berry_1~3、event_name、event_effects、pot_size、base_notes 等可觀測本週事實。不得自行推算或改寫上述平台時間欄位。\n\n重要的 semantic-intake 規則：\n1. 必須逐張檢查本情境全部圖片。只要圖片中能直接看見任何本週語意事實，就必須輸出對應欄位；不得只回傳 week_start / updated_at 等平台時間欄位。\n2. 固定三樹果營地雖可由 Public Camp Berry Master 投影 favorite_berry_1~3，但畫面若能讀到 camp，仍必須輸出 data.camp；不得因樹果是固定公版資料而把整張營地畫面略過。\n3. 活動畫面可見的名稱、期間、營地範圍、料理倍率、主技能／睡眠 EXP／睡意之力等效果都必須依 weekly event contract 寫入已知欄位；無法對應既有欄位的可見效果放 event_effects.unknown_effects 並 review_required=true，不能整段省略。\n4. 有可見內容卻回傳 platform-only weekly operation 視為分析不完整，平台會 fail closed 並要求重新分析。`;
 }
