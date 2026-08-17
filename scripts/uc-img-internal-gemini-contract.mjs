@@ -5,6 +5,7 @@ import {UC_IMG_GEMINI_ADAPTER_VERSION,UC_IMG_DIAGNOSTIC_SCHEMA,analyzeUcImgScena
 import {SCREENSHOT_PROMPT_SAFETY_VERSION} from '../assets/js/pokemon-visual-prompt-policy.js';
 import {UC_IMG_A_SCENARIOS,createScreenshotUpdateSession,addScreenshotEntry,assignScreenshotScenario,setScenarioAiMode,serializableScreenshotSession,buildScreenshotScenarioPrompt,validateScreenshotScenarioPayload} from '../assets/js/unified-screenshot-update-center.js';
 import {PUBLIC_MASTER_RECOGNITION_SCHEMA,PUBLIC_MASTER_RECOGNITION_VERSION,buildPublicMasterCatalogSnapshot} from '../assets/js/public-master-recognition.js';
+import {buildUcImgWeeklyPlatformAuthority} from '../assets/js/uc-img-weekly-platform-authority.js';
 
 const iso='2026-08-11T03:20:00.000Z';
 const snapshot=buildPublicMasterCatalogSnapshot('ingredients');
@@ -33,7 +34,8 @@ if(potCapacityAdapter){
   const cap=recipeSchema.properties.capacity_observations.items.properties;
   assert.deepEqual(cap.capacity_key.enum,['pot']);assert.equal(cap.total_capacity.minimum,1);assert.deepEqual(cap.observation_context.enum,['RECIPE_SCREEN_BASE_POT_CAPACITY']);
 }
-const weeklySchema=buildUcImgGeminiSchema(UC_IMG_A_SCENARIOS.weekly,'weekly');assert.deepEqual(weeklySchema.properties.schema_version.enum,['1.1']);assert.deepEqual(weeklySchema.properties.scenario.enum,['weekly_context_update']);assert.equal('capacity_observations' in weeklySchema.properties,false,'Weekly recognition must not gain base-pot authority');
+const weeklyPlatformAuthority=buildUcImgWeeklyPlatformAuthority(new Date('2026-08-17T01:00:00.000Z'));
+const weeklySchema=buildUcImgGeminiSchema(UC_IMG_A_SCENARIOS.weekly,'weekly',{platformAuthority:weeklyPlatformAuthority});assert.deepEqual(weeklySchema.properties.schema_version.enum,['1.1']);assert.deepEqual(weeklySchema.properties.scenario.enum,['weekly_context_update']);assert.equal('capacity_observations' in weeklySchema.properties,false,'Weekly recognition must not gain base-pot authority');
 if(UC_IMG_GEMINI_ADAPTER_VERSION==='uc-img-gemini-2026-08-17-d-live-recovery-schema'){
   const weeklyData=weeklySchema.properties.operations.items.properties.data.properties;
   for(const key of ['camp','dish_category','event_name','event_effects','base_notes'])assert.ok(weeklyData[key],`live semantic schema missing ${key}`);
