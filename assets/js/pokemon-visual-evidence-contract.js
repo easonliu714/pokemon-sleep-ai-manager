@@ -1,4 +1,5 @@
 import {BERRY_BY_TYPE,TYPES,MAIN_SKILLS,SUBSKILLS} from './pokemon-master-options.js';
+import {canonicalBerryName} from './public-berry-strength-master.js';
 import {inspectIngredientIdentity} from './public-ingredient-identity.js';
 import {publicSpeciesIngredientCandidatesForObservedName} from './public-species-form-zh-tw-identity-resolver.js';
 
@@ -13,7 +14,7 @@ export const CONSISTENCY_STATUSES=Object.freeze(['MATCH','CONFLICT','REVIEW_REQU
 
 const clean=value=>String(value??'').normalize('NFKC').trim();
 const typeSet=new Set(TYPES.map(clean));
-const berrySet=new Set(Object.values(BERRY_BY_TYPE).map(clean));
+const berrySet=new Set(Object.values(BERRY_BY_TYPE).map(value=>canonicalBerryName(clean(value))).filter(Boolean));
 const mainSkillSet=new Set(MAIN_SKILLS.map(clean));
 const subskillSet=new Set(SUBSKILLS.map(clean));
 const finiteConfidence=value=>Number.isFinite(Number(value))&&Number(value)>=0&&Number(value)<=1;
@@ -40,22 +41,28 @@ export function evaluateTypeBerryConsistency({type=null,berry=null}={}){
     reason:'TYPE_AND_BERRY_MUST_BE_INDEPENDENTLY_OBSERVED',type_evidence:typeDirect,berry_evidence:berryDirect,
     public_relation_used_as:'CONSISTENCY_CHECK_ONLY',auto_rewrite_player_observation:false,
   });
-  const observedType=typeDirect.observed_value,observedBerry=berryDirect.observed_value;
+  const observedType=typeDirect.observed_value;
+  const observedBerryRaw=berryDirect.observed_value;
+  // `葡萄果` is a legacy typo from the app's former public master, not a new
+  // player inference. Canonicalize only for the public consistency comparison;
+  // preserve the direct evidence value and never generate/rewrite player data.
+  const observedBerry=canonicalBerryName(observedBerryRaw);
   if(!typeSet.has(observedType)||!berrySet.has(observedBerry))return result('REVIEW_REQUIRED','TYPE_BERRY_RELATION',{
     reason:!typeSet.has(observedType)?'UNKNOWN_TYPE_VISUAL':'UNKNOWN_BERRY_VISUAL',type_evidence:typeDirect,berry_evidence:berryDirect,
+    observed_berry_raw:observedBerryRaw,observed_berry_canonical:observedBerry||null,
     public_relation_used_as:'CONSISTENCY_CHECK_ONLY',auto_rewrite_player_observation:false,
   });
-  const expectedBerry=clean(BERRY_BY_TYPE[observedType]||null);
+  const expectedBerry=canonicalBerryName(BERRY_BY_TYPE[observedType]||null);
   if(!expectedBerry)return result('NOT_CHECKABLE','TYPE_BERRY_RELATION',{
     reason:'PUBLIC_TYPE_BERRY_RELATION_MISSING',type_evidence:typeDirect,berry_evidence:berryDirect,
     public_relation_used_as:'CONSISTENCY_CHECK_ONLY',auto_rewrite_player_observation:false,
   });
   if(observedBerry!==expectedBerry)return result('CONFLICT','TYPE_BERRY_RELATION',{
-    reason:'TYPE_BERRY_VISUAL_CONFLICT',observed_type:observedType,observed_berry:observedBerry,public_expected_berry:expectedBerry,
+    reason:'TYPE_BERRY_VISUAL_CONFLICT',observed_type:observedType,observed_berry:observedBerryRaw,observed_berry_canonical:observedBerry,public_expected_berry:expectedBerry,
     type_evidence:typeDirect,berry_evidence:berryDirect,public_relation_used_as:'CONSISTENCY_CHECK_ONLY',auto_rewrite_player_observation:false,
   });
   return result('MATCH','TYPE_BERRY_RELATION',{
-    reason:'INDEPENDENT_VISUAL_PAIR_CONSISTENT',observed_type:observedType,observed_berry:observedBerry,public_expected_berry:expectedBerry,
+    reason:'INDEPENDENT_VISUAL_PAIR_CONSISTENT',observed_type:observedType,observed_berry:observedBerryRaw,observed_berry_canonical:observedBerry,public_expected_berry:expectedBerry,
     type_evidence:typeDirect,berry_evidence:berryDirect,public_relation_used_as:'CONSISTENCY_CHECK_ONLY',auto_rewrite_player_observation:false,
   });
 }
