@@ -15,11 +15,17 @@ assert.equal(atLeast(app,'v0.4.8.5'),true,`v0.4.8.5 E3 contract cannot run on ol
 if(app==='v0.4.8.5'){
   assert.equal(build,'20260810-v0485-compact-camp-table-density');
   assert.equal(cache,'pokemon-sleep-ai-v0.4.8.5-v0485-compact-camp-table-density');
+  assert.equal(PUBLIC_CAMP_BERRY_VERSION,'public-camp-berry-2026-08-10-a');
+}else{
+  assert.ok(['public-camp-berry-2026-08-10-a','public-camp-berry-2026-08-17-b-canonical-grape'].includes(PUBLIC_CAMP_BERRY_VERSION),`unexpected Camp Berry successor ${PUBLIC_CAMP_BERRY_VERSION}`);
 }
-assert.equal(PUBLIC_CAMP_BERRY_VERSION,'public-camp-berry-2026-08-10-a');
 assert.equal(PUBLIC_POKEMON_KNOWLEDGE_VERSION,'pokemon-knowledge-2026-08-10-e');
 assert.equal(PUBLIC_CANDY_MASTER_VERSION,'public-candy-master-2026-08-10-d');
 assert.equal(PUBLIC_CAMP_BERRY_MASTER.length,9);
+if(PUBLIC_CAMP_BERRY_VERSION==='public-camp-berry-2026-08-17-b-canonical-grape'){
+  const golden=PUBLIC_CAMP_BERRY_MASTER.find(row=>row.camp_name==='黃金舊發電廠');
+  assert.deepEqual(golden?.favorite_berries,['萄葡果','墨莓果','靛莓果'],'successor may correct canonical berry text without changing compact-layout contract');
+}
 
 const camp=read('assets/js/camp-berry-knowledge-ui.js');
 for(const token of [
@@ -51,6 +57,7 @@ console.log(JSON.stringify({
   current_app_version:app,
   exact_v0485_release:app==='v0.4.8.5',
   camp_master_version:PUBLIC_CAMP_BERRY_VERSION,
+  camp_master_successor_allowed:app!=='v0.4.8.5',
   public_pokemon_knowledge_version:PUBLIC_POKEMON_KNOWLEDGE_VERSION,
   public_candy_master_version:PUBLIC_CANDY_MASTER_VERSION,
   camp_rows:PUBLIC_CAMP_BERRY_MASTER.length,
@@ -58,7 +65,7 @@ console.log(JSON.stringify({
   one_row_per_camp:true,
   contained_horizontal_scroll_fallback:true,
   verbose_row_card_regression:false,
-  public_master_changed:false,
+  public_master_changed:PUBLIC_CAMP_BERRY_VERSION!=='public-camp-berry-2026-08-10-a',
   player_rows_mutated:false,
   sqlite_migration_added:false,
 },null,2));

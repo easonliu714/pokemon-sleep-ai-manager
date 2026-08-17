@@ -13,13 +13,16 @@ import {
   weeklyContextStrategyFingerprintInput,
 } from '../assets/js/weekly-context-normalization.js';
 import {validateWeeklyContextImportPayload} from '../assets/js/weekly-context-import-contract.js';
+import {localWeekStart} from '../assets/js/evaluation-week.js';
 import {validateWorkflow,approveReviewed} from '../assets/js/ai-workflow.js';
 import {pokemonEvaluationFingerprint} from '../assets/js/pokemon-evaluation-contract.js';
 import {projectPokemonCandidateFeatures} from '../assets/js/pokemon-candidate-feature-projection.js';
 import {projectRecipeDiscoveryStockpile} from '../assets/js/recipe-discovery-stockpile.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
-const NOW=new Date('2026-08-10T16:00:00+08:00');
+const NOW=new Date();
+const CURRENT_WEEK=localWeekStart(NOW);
+const NOW_ISO=NOW.toISOString();
 const clone=value=>JSON.parse(JSON.stringify(value));
 
 assert.equal(WEEKLY_EVENT_EFFECT_REGISTRY_VERSION,'weekly-event-effect-registry-2026-08-10-a');
@@ -69,8 +72,8 @@ const nestedUnknown=validateWeeklyEventEffectsByRegistry({unknown_effects:[{sour
 assert.ok(nestedUnknown.length>0,'unknown observed_value must not contain semantic nested object');
 
 function weeklyPayload(eventEffects,reviewRequired=false){return {
-  schema_version:'1.1',update_id:`UPD-WAR3B-${Math.random().toString(16).slice(2)}`,generated_at:'2026-08-10T08:00:00.000Z',source:'fixture',scenario:'weekly_context_update',context_authority:'UPDATE_CENTER_JSON',profile_audit_confirmations:[],
-  operations:[{operation_id:'OP-001',entity:'weekly_context',action:'upsert',key:{context_id:'weekly_context_2026-08-10_import'},data:{week_start:'2026-08-10',camp:'萌綠之島',dish_category:'咖哩／濃湯',event_name:'fixture',event_effects:eventEffects,pot_size:57,updated_at:'2026-08-10T08:00:00.000Z'},clear_fields:[],evidence:{source_type:'fixture',source_image_ref:'synthetic.png',confidence:1},review_required:reviewRequired,user_audit:{accepted_current_observation:false}}],
+  schema_version:'1.1',update_id:`UPD-WAR3B-${Math.random().toString(16).slice(2)}`,generated_at:NOW_ISO,source:'fixture',scenario:'weekly_context_update',context_authority:'UPDATE_CENTER_JSON',profile_audit_confirmations:[],
+  operations:[{operation_id:'OP-001',entity:'weekly_context',action:'upsert',key:{context_id:`weekly_context_${CURRENT_WEEK}_import`},data:{week_start:CURRENT_WEEK,camp:'萌綠之島',dish_category:'咖哩／濃湯',event_name:'fixture',event_effects:eventEffects,pot_size:57,updated_at:NOW_ISO},clear_fields:[],evidence:{source_type:'fixture',source_image_ref:'synthetic.png',confidence:1},review_required:reviewRequired,user_audit:{accepted_current_observation:false}}],
 };}
 
 const unknownNoReview=weeklyPayload({unknown_effects:[{source_text:'尚未支援效果'}]},false);
@@ -139,6 +142,6 @@ console.log(JSON.stringify({
   status:'PASS',gate:'WAR3B_TYPED_EVENT_EFFECT_REGISTRY_CONTRACT',registry_version:WEEKLY_EVENT_EFFECT_REGISTRY_VERSION,
   registry_rows:WEEKLY_EVENT_EFFECT_REGISTRY.length,active_verified:projection.states.filter(row=>row.rule_status==='ACTIVE_VERIFIED').length,
   feature_only_preserved:true,unknown_effects_preserved:true,unknown_effects_require_review:true,unknown_effects_deterministic_consumption:false,
-  wrong_types_fail_closed:true,manual_weekly_typed_validation:true,strategy_fingerprint_ignores_non_deterministic_effects:true,
+  wrong_types_fail_closed:true,manual_weekly_typed_validation:true,current_week_fixture:CURRENT_WEEK,strategy_fingerprint_ignores_non_deterministic_effects:true,
   active_effect_changes_invalidate_evaluation:true,candidate_feature_fingerprint_aligned:true,recipe_discovery_fingerprint_aligned:true,sqlite_migration_added:false,
 },null,2));

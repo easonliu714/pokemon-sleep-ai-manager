@@ -14,9 +14,15 @@ const read=path=>fs.readFileSync(path,'utf8');
 const versionSource=read('assets/js/version-authority.js');
 const sandbox={};sandbox.globalThis=sandbox;vm.createContext(sandbox);vm.runInContext(versionSource,sandbox);
 const authority=sandbox.PokemonSleepVersionAuthority;
-assert.equal(authority.app_version,'v0.4.27.2');
-assert.equal(authority.app_build,'20260816-v04272-ingredient-unlock-semantics-hotfix');
-assert.equal(authority.cache_name,'pokemon-sleep-ai-v0.4.27.2-v04272-ingredient-unlock-semantics-hotfix');
+assert.ok(['v0.4.27.2','v0.4.27.3'].includes(authority.app_version),`unexpected v0.4.27.2 successor ${authority.app_version}`);
+if(authority.app_version==='v0.4.27.2'){
+  assert.equal(authority.app_build,'20260816-v04272-ingredient-unlock-semantics-hotfix');
+  assert.equal(authority.cache_name,'pokemon-sleep-ai-v0.4.27.2-v04272-ingredient-unlock-semantics-hotfix');
+}else{
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.2'"),'v0.4.27.3 must retain v0.4.27.2 lineage');
+  assert.ok(versionSource.includes("// app_build: '20260816-v04272-ingredient-unlock-semantics-hotfix'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.2-v04272-ingredient-unlock-semantics-hotfix'"));
+}
 assert.ok(versionSource.includes("// app_version: 'v0.4.27.1'"),'v0.4.27.1 predecessor lineage missing');
 assert.equal(INGREDIENT_INVENTORY_INTEGRITY_VERSION,'ingredient-inventory-integrity-2026-08-16-b-unlock-state');
 assert.equal(INGREDIENT_INVENTORY_IDENTITY_MIGRATION_VERSION,12);
@@ -48,13 +54,13 @@ const ui=read('assets/js/ingredient-inventory-integrity-ui.js');for(const token 
 const catalog=read('assets/js/public-catalog-workbench.js');assert.ok(catalog.includes('canonical-ingredient-unlock'));assert.ok(catalog.includes('解鎖狀態'));assert.ok(catalog.includes('尚無玩家證據'));
 const editor=read('assets/js/manual-editor.js');assert.ok(editor.includes('quantity=0 never auto-means NOT_UNLOCKED'));assert.ok(editor.includes('unlocked=excluded.unlocked'));
 const migration=read('assets/js/ingredient-inventory-integrity-contract.js');assert.ok(migration.includes('ALTER TABLE ingredient_inventory ADD COLUMN unlocked INTEGER'));assert.ok(migration.includes('trg_ingredient_inventory_unlock_positive_insert'));
-const predecessor=read('scripts/v0423-predecessor-contract-runner.mjs');assert.ok(predecessor.includes("current==='v0.4.27.2'"),'production predecessor bridge missing');
-const sw=read('service-worker.js');assert.ok(sw.includes('pokemon-sleep-ai-v0.4.27.1-v04271-ingredient-inventory-integrity-hotfix'),'previous PWA cache marker missing');
+const predecessor=read('scripts/v0423-predecessor-contract-runner.mjs');assert.ok(predecessor.includes("current==='v0.4.27.2'")&&predecessor.includes("current==='v0.4.27.3'"),'production predecessor bridge missing current successor');
+const sw=read('service-worker.js');assert.ok(sw.includes('pokemon-sleep-ai-v0.4.27.2-v04272-ingredient-unlock-semantics-hotfix'),'v0.4.27.2 previous PWA cache marker missing');
 
 console.log(JSON.stringify({
   status:'PASS',
   gate:'V0.4.27.2_RELEASE_CONTRACT',
-  app_version:authority.app_version,
+  runtime_successor:authority.app_version,
   identity_migration_version:INGREDIENT_INVENTORY_IDENTITY_MIGRATION_VERSION,
   unlock_migration_version:INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION,
   quantity_and_unlock_state_separated:true,

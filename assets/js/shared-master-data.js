@@ -1,17 +1,17 @@
-export const MASTER_DATA_VERSION = 'shared-master-2026-08-15-canonical-avocado';
+export const MASTER_DATA_VERSION = 'shared-master-2026-08-17-canonical-grepa';
 
 const SOURCE_POLICY = Object.freeze({
   source_type: 'mixed_verified_reference',
   source_name: 'Pokémon Sleep official first; RaenonX supplemental',
   source_ref: 'game-screenshots-and-raenonx-reference',
-  verified_at: '2026-08-15',
+  verified_at: '2026-08-17',
 });
 
 // Public type→berry knowledge is projection-only.
 // The current successor meaning is projection/consistency-only: it is public game knowledge
 // and must never generate or overwrite player-owned Type/Berry observations.
 export const PUBLIC_BERRY_TYPES = Object.freeze([
-  ['一般','柿仔果'],['火','蘋野果'],['水','橙橙果'],['電','葡萄果'],['草','金枕果'],['冰','莓莓果'],
+  ['一般','柿仔果'],['火','蘋野果'],['水','橙橙果'],['電','萄葡果'],['草','金枕果'],['冰','莓莓果'],
   ['格鬥','櫻子果'],['毒','零餘果'],['地面','勿花果'],['飛行','椰木果'],['超能力','芒芒果'],['蟲','木子果'],
   ['岩石','文柚果'],['幽靈','墨莓果'],['龍','番荔果'],['惡','異奇果'],['鋼','靛莓果'],['妖精','桃桃果'],
 ].map(([type_name,berry_name])=>Object.freeze({type_name,berry_name,...SOURCE_POLICY,data_version:MASTER_DATA_VERSION})));

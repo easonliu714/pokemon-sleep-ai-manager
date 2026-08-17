@@ -17,7 +17,7 @@ import {
 
 export const PUBLIC_MASTER_CATALOG_SCHEMA='pokemon-sleep-public-master-catalog/1.0';
 export const PUBLIC_MASTER_RECOGNITION_SCHEMA='pokemon-sleep-public-master-recognition/1.0';
-export const PUBLIC_MASTER_RECOGNITION_VERSION='public-master-recognition-2026-08-12-c-pot-capacity';
+export const PUBLIC_MASTER_RECOGNITION_VERSION='public-master-recognition-2026-08-17-d-locked-placeholder';
 export const PUBLIC_MASTER_AI_STATUSES=Object.freeze(['MATCHED','AMBIGUOUS','UNMATCHED']);
 export const PUBLIC_MASTER_USER_STATUSES=Object.freeze([...PUBLIC_MASTER_AI_STATUSES,'IGNORE_CONFIRMED']);
 
@@ -29,7 +29,7 @@ const nonNegativeInteger=value=>Number.isInteger(value)&&value>=0;
 
 export function isLockedUnknownRecipePlaceholder(observation){
   const text=clean(observation?.observed_text).normalize('NFKC').replace(/\s+/g,'');
-  return observation?.observed_data?.unlocked===false&&/^\d+種食材的(?:咖哩|濃湯|沙拉|甜點|飲料|料理)$/.test(text);
+  return observation?.observed_data?.unlocked===false&&/^\d+種食材的(?:咖哩|濃湯|沙拉|甜點|點心|飲料|料理)$/.test(text);
 }
 
 const dataSchemas=Object.freeze({
@@ -162,7 +162,7 @@ export function buildPublicMasterRecognitionJsonSchema(input){
 }
 
 function dataRuleText(def){
-  if(def.scenario_key==='recipes')return 'observed_data 只可包含 unlocked、recipe_level、current_energy；只輸出畫面實際看見的欄位，未顯示欄位省略。料理只有 observed_text 與公版 recipe_name 完全一致，或逐字符合該公版列的 aliases，才可標 MATCHED；只是語意相近、同配方或你認為是同一道料理，都必須標 AMBIGUOUS。若畫面只顯示「4種食材的咖哩／沙拉」等未解鎖占位名稱，請輸出 unlocked=false、status=UNMATCHED、reason=LOCKED_UNKNOWN_RECIPE_SLOT；平台會把它視為不可識別的鎖定槽位，不是 Public Master 缺口。';
+  if(def.scenario_key==='recipes')return 'observed_data 只可包含 unlocked、recipe_level、current_energy；只輸出畫面實際看見的欄位，未顯示欄位省略。料理只有 observed_text 與公版 recipe_name 完全一致，或逐字符合該公版列的 aliases，才可標 MATCHED；只是語意相近、同配方或你認為是同一道料理，都必須標 AMBIGUOUS。若畫面只顯示「4種食材的咖哩／濃湯／沙拉／甜點／點心／飲料」等未解鎖占位名稱，請輸出 unlocked=false、status=UNMATCHED、reason=LOCKED_UNKNOWN_RECIPE_SLOT；平台會把它視為不可識別的鎖定槽位與 coverage evidence，直接忽略 identity mapping，不要求使用者猜公版名稱，也不是 Public Master 缺口。';
   return 'observed_data.quantity 只在畫面可辨識數量時輸出，必須是 0 以上整數；未顯示項目不可補 0。';
 }
 
@@ -246,7 +246,7 @@ export function validatePublicMasterRecognitionPayload(payload,input,{allowedIma
       if(observation.user_resolution?.action!=='IGNORE_CONFIRMED')errors.push(`${label} IGNORE_CONFIRMED 必須有使用者確認紀錄`);
     }else{
       if(def.scenario_key==='recipes'&&isLockedUnknownRecipePlaceholder(observation)){
-        warnings.push(`${label} 已辨識為未解鎖未知料理槽位；保留 coverage evidence，但不視為 Public Master 缺口。`);
+        warnings.push(`${label} 已辨識為未解鎖未知料理槽位；保留 coverage evidence，但不視為 Public Master 缺口，也不要求使用者建立料理 identity 對應。`);
         return;
       }
       unresolved.push({
