@@ -52,6 +52,7 @@ export const INGREDIENT_PROBABILITY_SOURCE_LINEAGE_REVIEWS=Object.freeze([
     source_name:'SleepAPI GitHub forks / legacy SleepAPI repository copies',
     lineage_review_status:INDEPENDENT_SOURCE_LINEAGE_REVIEW_STATUS.HUMAN_REVIEWED_REJECTED,
     lineage_class:SOURCE_LINEAGE_CLASS.FORK_OR_MIRROR_OF_PRIMARY_NUMERIC_LINEAGE,
+    fork_or_mirror_of_primary_numeric_lineage:true,
     mirror_of_neroli_primary:true,
     may_count_as_independent_crosscheck:false,
     reviewed_at:'2026-08-17',
@@ -66,14 +67,7 @@ export const INGREDIENT_PROBABILITY_SOURCE_LINEAGE_REVIEWS=Object.freeze([
 
 export function currentIngredientProbabilitySourceLineageReview(){
   const reviews=INGREDIENT_PROBABILITY_SOURCE_LINEAGE_REVIEWS.map(row=>{
-    const admission=evaluateIndependentIngredientProbabilitySourceAdmission({
-      source_id:row.source_id,
-      lineage_review_status:row.lineage_review_status,
-      lineage_evidence_refs:row.evidence_refs,
-      overlaps_primary_numeric_lineage:row.overlaps_primary_numeric_lineage,
-      derived_from_neroli_primary:row.derived_from_neroli_primary,
-      mirror_of_neroli_primary:row.mirror_of_neroli_primary,
-    });
+    const admission=evaluateIndependentIngredientProbabilitySourceAdmission({...row,lineage_evidence_refs:row.evidence_refs});
     return freeze({
       ...row,
       admission_status:admission.status,
