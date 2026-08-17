@@ -22,9 +22,15 @@ const read=path=>fs.readFileSync(path,'utf8');
 const versionSource=read('assets/js/version-authority.js');
 const sandbox={};sandbox.globalThis=sandbox;vm.createContext(sandbox);vm.runInContext(versionSource,sandbox);
 const authority=sandbox.PokemonSleepVersionAuthority;
-assert.equal(authority.app_version,'v0.4.27.3');
-assert.equal(authority.app_build,'20260817-v04273-weekly-recipe-semantic-intake-hotfix');
-assert.equal(authority.cache_name,'pokemon-sleep-ai-v0.4.27.3-v04273-weekly-recipe-semantic-intake-hotfix');
+assert.ok(['v0.4.27.3','v0.4.27.4'].includes(authority.app_version),`unexpected v0.4.27.3 successor ${authority.app_version}`);
+if(authority.app_version==='v0.4.27.3'){
+  assert.equal(authority.app_build,'20260817-v04273-weekly-recipe-semantic-intake-hotfix');
+  assert.equal(authority.cache_name,'pokemon-sleep-ai-v0.4.27.3-v04273-weekly-recipe-semantic-intake-hotfix');
+}else{
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.3'"));
+  assert.ok(versionSource.includes("// app_build: '20260817-v04273-weekly-recipe-semantic-intake-hotfix'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.3-v04273-weekly-recipe-semantic-intake-hotfix'"));
+}
 for(const token of [
   "// app_version: 'v0.4.27.2'",
   "// app_build: '20260816-v04272-ingredient-unlock-semantics-hotfix'",
@@ -33,9 +39,9 @@ for(const token of [
 
 assert.equal(MASTER_DATA_VERSION,'shared-master-2026-08-17-canonical-grepa');
 assert.equal(PUBLIC_CAMP_BERRY_VERSION,'public-camp-berry-2026-08-17-b-canonical-grape');
-assert.equal(PUBLIC_BERRY_STRENGTH_VERSION,'public-berry-strength-2026-08-17-b-canonical-grepa');
+assert.ok(['public-berry-strength-2026-08-17-b-canonical-grepa','public-berry-strength-2026-08-17-c-canonical-projection'].includes(PUBLIC_BERRY_STRENGTH_VERSION));
 assert.equal(PUBLIC_MASTER_RECOGNITION_VERSION,'public-master-recognition-2026-08-17-d-locked-placeholder');
-assert.equal(UC_IMG_WEEKLY_PLATFORM_AUTHORITY_VERSION,'uc-img-weekly-platform-authority-2026-08-17-c-semantic-intake-gate');
+assert.ok(['uc-img-weekly-platform-authority-2026-08-17-c-semantic-intake-gate','uc-img-weekly-platform-authority-2026-08-17-d-structured-semantic-schema'].includes(UC_IMG_WEEKLY_PLATFORM_AUTHORITY_VERSION));
 assert.deepEqual(campBerryAuthority('黃金舊發電廠').favorite_berries,['萄葡果','墨莓果','靛莓果']);
 assert.equal(berryNameForType('電'),'萄葡果');
 assert.deepEqual(resolveCampFavoriteBerries('黃金舊發電廠',['葡萄果','墨莓果','靛莓果']).berries,['萄葡果','墨莓果','靛莓果']);
@@ -59,6 +65,6 @@ const migrations=read('assets/js/migrations.js');assert.equal(migrations.include
 const production=read('assets/js/production-authority-registry.js');
 for(const token of ['ingredient_probability_per_help','NOT_YET_VERIFIED','4/7'])assert.ok(production.includes(token),`Production 4/7 HOLD boundary missing ${token}`);
 const sw=read('service-worker.js');for(const token of ['pokemon-sleep-ai-v0.4.27.2-v04272-ingredient-unlock-semantics-hotfix','public-camp-berry-master.js','uc-img-weekly-platform-authority.js','public-master-recognition.js','public-berry-strength-master.js','shared-master-data.js'])assert.ok(sw.includes(token),`PWA cache contract missing ${token}`);
-const workflows=fs.readdirSync('.github/workflows').filter(name=>/\.ya?ml$/.test(name));assert.equal(workflows.length,12,'v0.4.27.3 must not change consolidated workflow topology');
+const workflows=fs.readdirSync('.github/workflows').filter(name=>/\.ya?ml$/.test(name));assert.equal(workflows.length,12,'v0.4.27.3 successor must not change consolidated workflow topology');
 
-console.log(JSON.stringify({status:'PASS',gate:'V0.4.27.3_RELEASE_CONTRACT',app_version:authority.app_version,canonical_grepa:'萄葡果',locked_recipe_placeholder_review_required:false,weekly_platform_only_fail_closed:true,schema_migration_added:false,production_numeric_authority:'4/7_HOLD_INGREDIENT_PROBABILITY',workflow_count:workflows.length,android_pwa_live_validation_required:true},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V0.4.27.3_RELEASE_CONTRACT_SUCCESSOR_AWARE',app_version:authority.app_version,canonical_grepa:'萄葡果',locked_recipe_placeholder_review_required:false,weekly_platform_only_fail_closed:true,schema_migration_added:false,production_numeric_authority:'4/7_HOLD_INGREDIENT_PROBABILITY',workflow_count:workflows.length,android_pwa_live_validation_required:true},null,2));

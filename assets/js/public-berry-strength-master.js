@@ -1,6 +1,6 @@
 import {PUBLIC_BERRY_TYPES} from './shared-master-data.js';
 
-export const PUBLIC_BERRY_STRENGTH_VERSION='public-berry-strength-2026-08-17-b-canonical-grepa';
+export const PUBLIC_BERRY_STRENGTH_VERSION='public-berry-strength-2026-08-17-c-canonical-projection';
 export const BERRY_STRENGTH_MIN_LEVEL=1;
 export const BERRY_STRENGTH_MAX_LEVEL=70;
 export const BERRY_STRENGTH_FORMULA_VERSION='berry-strength-max-linear-exp-1.025-round-v1';
@@ -27,17 +27,17 @@ export const PUBLIC_BERRY_STRENGTH_MASTER=Object.freeze(BASE_ROWS.map(([type_nam
 })));
 
 const text=value=>String(value??'').normalize('NFKC').trim();
-const BERRY_ALIASES=Object.freeze({'葡萄果':'萄葡果'});
-const canonicalBerry=value=>BERRY_ALIASES[text(value)]||text(value);
+export const PUBLIC_BERRY_IDENTITY_ALIASES=Object.freeze({'葡萄果':'萄葡果'});
+export function canonicalBerryName(value){return PUBLIC_BERRY_IDENTITY_ALIASES[text(value)]||text(value);}
 const BY_BERRY=new Map(PUBLIC_BERRY_STRENGTH_MASTER.map(row=>[row.berry_name,row]));
-const BY_TYPE=new Map(PUBLIC_BERRY_TYPES.map(row=>[text(row.type_name),text(row.berry_name)]).filter(([type,berry])=>type&&berry));
+const BY_TYPE=new Map(PUBLIC_BERRY_TYPES.map(row=>[text(row.type_name),canonicalBerryName(row.berry_name)]).filter(([type,berry])=>type&&berry));
 
 function validLevel(value){
   const level=Number(value);
   return Number.isInteger(level)&&level>=BERRY_STRENGTH_MIN_LEVEL&&level<=BERRY_STRENGTH_MAX_LEVEL?level:null;
 }
 
-export function berryStrengthAuthority(berryName){return BY_BERRY.get(canonicalBerry(berryName))||null;}
+export function berryStrengthAuthority(berryName){return BY_BERRY.get(canonicalBerryName(berryName))||null;}
 export function berryNameForType(typeName){return BY_TYPE.get(text(typeName))||null;}
 
 export function berryStrengthAtLevel(berryName,levelValue){
@@ -49,7 +49,7 @@ export function berryStrengthAtLevel(berryName,levelValue){
 }
 
 export function resolveBerryStrength(berryName,levelValue){
-  const berry_name=canonicalBerry(berryName),authority=berryStrengthAuthority(berry_name),level=validLevel(levelValue);
+  const berry_name=canonicalBerryName(berryName),authority=berryStrengthAuthority(berry_name),level=validLevel(levelValue);
   if(!authority)return Object.freeze({status:'UNKNOWN_BERRY',berry_name:berry_name||null,level:null,strength:null,rule_version:BERRY_STRENGTH_FORMULA_VERSION});
   if(level===null)return Object.freeze({status:'LEVEL_OUT_OF_VERIFIED_RANGE',berry_name:authority.berry_name,level:Number.isFinite(Number(levelValue))?Number(levelValue):null,strength:null,min_level:BERRY_STRENGTH_MIN_LEVEL,max_level:BERRY_STRENGTH_MAX_LEVEL,rule_version:BERRY_STRENGTH_FORMULA_VERSION});
   return Object.freeze({status:'ACTIVE_VERIFIED',berry_name:authority.berry_name,type_name:authority.type_name,level,base_strength:authority.base_strength,strength:berryStrengthAtLevel(authority.berry_name,level),rule_version:BERRY_STRENGTH_FORMULA_VERSION,data_version:PUBLIC_BERRY_STRENGTH_VERSION,source_ref:authority.source_ref});

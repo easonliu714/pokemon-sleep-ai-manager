@@ -1,5 +1,6 @@
 import {rows} from './database.js';
 import {resolvePublicMainSkillName} from './public-pokemon-knowledge-coverage.js';
+import {canonicalBerryName} from './public-berry-strength-master.js';
 import {
   buildPokemonRosterFilterProfiles,
   buildPokemonRosterFacetOptions,
@@ -8,12 +9,13 @@ import {
   rosterFilterHasRecommendationContext,
 } from './pokemon-roster-filter-contract.js';
 
-export const POKEMON_ROSTER_FILTER_UI_VERSION='pokemon-roster-unlocked-filters-ui-2026-08-14-a';
+export const POKEMON_ROSTER_FILTER_UI_VERSION='pokemon-roster-unlocked-filters-ui-2026-08-17-b-berry-canonical-projection';
 
 const IDS=Object.freeze({berry:'berryFilter',ingredient:'ingredientFilter',main_skill:'mainSkillFilter',subskill:'subskillFilter'});
 const LABELS=Object.freeze({berry:'全部樹果',ingredient:'全部食材',main_skill:'全部主技能',subskill:'全部副技能'});
 let profiles=[];
 let observer=null;
+let detailObserver=null;
 let scheduled=false;
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -86,7 +88,7 @@ function loadProfiles(){
 
 function setOptions(select,values,placeholder){
   if(!select)return;
-  const current=select.value;
+  const current=canonicalBerryName(select.id===IDS.berry?select.value:'')||select.value;
   const nextValues=[...values];
   select.innerHTML=`<option value="">${esc(placeholder)}</option>${nextValues.map(value=>`<option value="${esc(value)}">${esc(value)}</option>`).join('')}`;
   select.value=nextValues.includes(current)?current:'';
@@ -161,11 +163,35 @@ function applyFilters(){
   }
 }
 
+function canonicalizeDetailBerry(){
+  const detail=document.getElementById('detailBody');
+  if(!detail)return;
+  for(const card of detail.querySelectorAll('.detail-card')){
+    if(card.querySelector('b')?.textContent?.trim()!=='樹果種類')continue;
+    for(const node of card.childNodes){
+      if(node.nodeType!==Node.TEXT_NODE)continue;
+      const raw=node.textContent?.trim()||'';
+      const canonical=canonicalBerryName(raw);
+      if(canonical&&canonical!==raw)node.textContent=node.textContent.replace(raw,canonical);
+    }
+  }
+  const select=document.getElementById('pokemonBerrySelect');
+  if(select){
+    const current=canonicalBerryName(select.value);
+    for(const option of [...select.options]){
+      const canonical=canonicalBerryName(option.value);
+      if(option.value&&canonical!==option.value&&[...select.options].some(row=>row.value===canonical))option.remove();
+    }
+    if(current&&[...select.options].some(option=>option.value===current))select.value=current;
+  }
+}
+
 function refreshFromDatabase(){
   if(!ensureControls())return;
   if(!loadProfiles())return;
   refreshFacetOptions();
   applyFilters();
+  canonicalizeDetailBerry();
 }
 
 function scheduleRefresh(){
@@ -184,10 +210,18 @@ function observePokemonTable(){
   observer.observe(table,{childList:true,subtree:true});
 }
 
+function observePokemonDetail(){
+  const detail=document.getElementById('pokemonDetailBackdrop');
+  if(!detail||detailObserver)return;
+  detailObserver=new MutationObserver(()=>queueMicrotask(canonicalizeDetailBerry));
+  detailObserver.observe(detail,{childList:true,subtree:true});
+}
+
 function install(){
   installStyle();
   if(!ensureControls())return;
   observePokemonTable();
+  observePokemonDetail();
   scheduleRefresh();
   window.addEventListener('pokemon-sleep:database-ready',scheduleRefresh);
   document.addEventListener('pokemon-sleep-data-refreshed',scheduleRefresh);

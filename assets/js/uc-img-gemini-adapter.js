@@ -1,6 +1,7 @@
 import {executeWithProjectPool} from './ai-project-pool-runtime.js';
 import {buildUpdatePackageJsonSchema} from './update-package-contract.js';
 import {buildPublicMasterRecognitionJsonSchema,supportsPublicMasterRecognition} from './public-master-recognition.js';
+import {recoverExactUnlockedRecipeRecognition} from './recipe-recognition-exact-recovery.js';
 import {isUcImgOwnedMemoryBlob} from './uc-img-image-runtime.js';
 import {SCREENSHOT_PROMPT_SAFETY_VERSION,appendScreenshotPromptSafety} from './pokemon-visual-prompt-policy.js';
 import {
@@ -10,7 +11,7 @@ import {
   constrainUcImgWeeklyJsonSchema,
 } from './uc-img-weekly-platform-authority.js';
 
-export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-08-15-c-prompt-safety-contract';
+export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-08-17-d-live-recovery-schema';
 export const UC_IMG_DIAGNOSTIC_SCHEMA='pokemon-sleep-uc-img-ai-diagnostic/1.1';
 
 const clean=value=>String(value??'').trim();
@@ -64,6 +65,16 @@ function safeAttemptFailureMessage(outcome){
   return `Gemini 分析暫停：${label}${suffix}`;
 }
 
+function normalizeProviderPayload(parsedPayload,config,scenarioKey,platformAuthority){
+  let payload=parsedPayload,recovery={recovered_count:0,recovered_observation_ids:[]};
+  if(config?.scenario==='recipe_status_update'){
+    recovery=recoverExactUnlockedRecipeRecognition(payload);
+    payload=recovery.payload;
+  }
+  if(platformAuthority)payload=applyUcImgWeeklyPlatformAuthority(payload,platformAuthority);
+  return {payload,recovery};
+}
+
 export async function analyzeUcImgScenarioWithGemini({scenarioKey,config,entries,fileMap,prompt,poolData,execute=executeWithProjectPool,onTrace=()=>{},platformNow=null}={}){
   if(!poolData?.projects?.length)throw new Error('尚未設定 Gemini API Key。請先到「使用說明 → AI API Key 與備援 Project」設定並測試 Key。');
   const model=clean(poolData.model);if(!model)throw new Error('尚未選擇 Gemini 模型。');
@@ -85,7 +96,8 @@ export async function analyzeUcImgScenarioWithGemini({scenarioKey,config,entries
     throw error;
   }
   const parsed=parseGeminiJsonPayload(outcome.payload);
-  const payload=platformAuthority?applyUcImgWeeklyPlatformAuthority(parsed.payload,platformAuthority):parsed.payload;
+  const normalized=normalizeProviderPayload(parsed.payload,config,scenarioKey,platformAuthority);
+  const payload=normalized.payload;
   const platformAuthorityAudit=platformAuthority?{
     authority_version:platformAuthority.authority_version,
     week_start:platformAuthority.week_start,
@@ -108,6 +120,10 @@ export async function analyzeUcImgScenarioWithGemini({scenarioKey,config,entries
     attempts:outcome.attempts||[],
     image_count:images.length,
     platform_authority:platformAuthorityAudit,
+    recipe_exact_recovery:config?.scenario==='recipe_status_update'?{
+      recovered_count:Number(normalized.recovery?.recovered_count||0),
+      recovered_observation_ids:[...(normalized.recovery?.recovered_observation_ids||[])],
+    }:null,
     completed_at:nowIso(),
   };
 }
@@ -213,6 +229,7 @@ export function buildUcImgDiagnosticBundle({appVersion=null,session,scenarioKey,
       summary:validation.summary||{},
     }:null,
     platform_authority:providerMeta?.platform_authority||null,
+    recipe_exact_recovery:providerMeta?.recipe_exact_recovery||null,
     generated_at:nowIso(),
     safety:{api_key_included:false,screenshot_bytes_included:false,screenshot_base64_included:false,sqlite_export_included:false,full_prompt_included:false},
   };

@@ -2,7 +2,7 @@ import {PUBLIC_INGREDIENT_CANONICAL_NAMES} from './public-ingredient-identity.js
 
 export const SPECIALTIES=['技能','樹果','食材'];
 export const TYPES=['一般','火','水','電','草','冰','格鬥','毒','地面','飛行','超能力','蟲','岩石','幽靈','龍','惡','鋼','妖精'];
-export const BERRY_BY_TYPE={一般:'柿仔果',火:'蘋野果',水:'橙橙果',電:'葡萄果',草:'金枕果',冰:'莓莓果',格鬥:'櫻子果',毒:'零餘果',地面:'勿花果',飛行:'椰木果',超能力:'芒芒果',蟲:'木子果',岩石:'文柚果',幽靈:'墨莓果',龍:'番荔果',惡:'異奇果',鋼:'靛莓果',妖精:'桃桃果'};
+export const BERRY_BY_TYPE={一般:'柿仔果',火:'蘋野果',水:'橙橙果',電:'萄葡果',草:'金枕果',冰:'莓莓果',格鬥:'櫻子果',毒:'零餘果',地面:'勿花果',飛行:'椰木果',超能力:'芒芒果',蟲:'木子果',岩石:'文柚果',幽靈:'墨莓果',龍:'番荔果',惡:'異奇果',鋼:'靛莓果',妖精:'桃桃果'};
 export const BERRIES=Object.values(BERRY_BY_TYPE);
 export const INGREDIENTS=[...PUBLIC_INGREDIENT_CANONICAL_NAMES];
 export const NATURE_EFFECTS=['無','幫忙速度','食材機率','食材發現率','主技能發動機率','活力回復量','EXP獲得量'];
