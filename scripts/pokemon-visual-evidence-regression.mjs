@@ -38,10 +38,16 @@ assert.equal(evaluateTypeBerryConsistency({type:inferredType,berry:ev('BERRY_VIS
 
 const goodPair=evaluateTypeBerryConsistency({type:ev('TYPE_VISUAL','電'),berry:ev('BERRY_VISUAL','葡萄果')});
 assert.equal(goodPair.status,'MATCH');
+assert.equal(goodPair.observed_berry,'葡萄果');
+assert.equal(goodPair.observed_berry_canonical,'萄葡果');
+assert.equal(goodPair.public_expected_berry,'萄葡果');
 assert.deepEqual(goodPair.generated_player_values,[]);
+const canonicalPair=evaluateTypeBerryConsistency({type:ev('TYPE_VISUAL','電'),berry:ev('BERRY_VISUAL','萄葡果')});
+assert.equal(canonicalPair.status,'MATCH');
+assert.equal(canonicalPair.observed_berry_canonical,'萄葡果');
 const conflictPair=evaluateTypeBerryConsistency({type:ev('TYPE_VISUAL','電'),berry:ev('BERRY_VISUAL','蘋野果')});
 assert.equal(conflictPair.status,'CONFLICT');
-assert.equal(conflictPair.public_expected_berry,'葡萄果');
+assert.equal(conflictPair.public_expected_berry,'萄葡果');
 assert.equal(conflictPair.auto_rewrite_player_observation,false);
 assert.equal(evaluateTypeBerryConsistency({type:ev('TYPE_VISUAL','電')}).status,'REVIEW_REQUIRED');
 assert.equal(evaluateTypeBerryConsistency({berry:ev('BERRY_VISUAL','葡萄果')}).status,'REVIEW_REQUIRED');
@@ -162,4 +168,4 @@ assert.ok(importerSource.includes("import {assertPokemonVisualUpdatePackageSafe}
 assert.ok(importerSource.includes('const visualPreflight=assertPokemonVisualUpdatePackageSafe(payload);'));
 assert.ok(importerSource.indexOf('const visualPreflight=assertPokemonVisualUpdatePackageSafe(payload);')<importerSource.indexOf("SELECT COUNT(*) FROM import_batches"));
 
-console.log(JSON.stringify({status:'PASS',gate:'POKEMON_VISUAL_EVIDENCE_C_DIRECT_IMAGE_AND_UPDATE_PREFLIGHT',schema:POKEMON_VISUAL_EVIDENCE_SCHEMA,contract_version:POKEMON_VISUAL_EVIDENCE_VERSION,prompt_policy_version:POKEMON_VISUAL_PROMPT_POLICY_VERSION,direct_image_basis_required:true,inference_forbidden:true,confidence_is_not_authority:true,public_relation_generates_player_observation:false,type_berry_independent_observation:true,ingredient_current_canonical:'嫩亮酪梨',apple_tomato_adversarial_fixture:true,species_ingredient_public_authority:'ACTIVE_EXACT_SLOT_SPECIFIC_CONSISTENCY_ONLY',editable_header_species_fallback:false,finite_skill_vocabulary_exact:true,screenshot_bridge_manifest:true,operation_binding_required:true,legacy_update_package_compatible:true,reaudit_manifest_required:true,safe_sqlite_apply_requires_match:true},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'POKEMON_VISUAL_EVIDENCE_C_DIRECT_IMAGE_AND_UPDATE_PREFLIGHT',schema:POKEMON_VISUAL_EVIDENCE_SCHEMA,contract_version:POKEMON_VISUAL_EVIDENCE_VERSION,prompt_policy_version:POKEMON_VISUAL_PROMPT_POLICY_VERSION,direct_image_basis_required:true,inference_forbidden:true,confidence_is_not_authority:true,public_relation_generates_player_observation:false,type_berry_independent_observation:true,legacy_grepa_direct_observation_preserved:true,legacy_grepa_consistency_canonicalized:true,ingredient_current_canonical:'嫩亮酪梨',apple_tomato_adversarial_fixture:true,species_ingredient_public_authority:'ACTIVE_EXACT_SLOT_SPECIFIC_CONSISTENCY_ONLY',editable_header_species_fallback:false,finite_skill_vocabulary_exact:true,screenshot_bridge_manifest:true,operation_binding_required:true,legacy_update_package_compatible:true,reaudit_manifest_required:true,safe_sqlite_apply_requires_match:true},null,2));
