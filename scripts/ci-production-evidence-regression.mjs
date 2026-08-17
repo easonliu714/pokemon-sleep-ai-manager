@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 
-export const PRODUCTION_EVIDENCE_REGRESSION_VERSION='production-evidence-regression-2026-08-17-g-e3c7-statistical-readiness';
+export const PRODUCTION_EVIDENCE_REGRESSION_VERSION='production-evidence-regression-2026-08-17-h-e3c7b-local-readiness-ui';
 const PREDECESSOR_BRIDGE='scripts/v0423-predecessor-contract-runner.mjs';
 const V04275_PRODUCTION_BRIDGE='scripts/v04275-production-contract-runner.mjs';
 
@@ -34,6 +34,7 @@ export const PRODUCTION_BEHAVIORAL_CONTRACTS=Object.freeze([
   'scripts/v0428-g75e3c6-first-party-observation-contract.mjs',
   'scripts/v0428-g75e3c6b-first-party-observation-update-contract.mjs',
   'scripts/v0428-g75e3c7-statistical-readiness-contract.mjs',
+  'scripts/v0428-g75e3c7b-local-readiness-ui-contract.mjs',
 ]);
 
 // v0.4.16–v0.4.22 validate historical release identities but are designed to
@@ -54,8 +55,10 @@ const PRODUCTION_RUNTIME_FILES=Object.freeze([
   'assets/js/team-supply-readiness.js',
   'assets/js/bounded-team-search.js',
   'assets/js/strategy-optimization-ai-contract.js',
+  'assets/js/strategy-context-local.js',
   'assets/js/production-authority-registry.js',
   'assets/js/production-evidence-registry.js',
+  'assets/js/production-evidence-ui.js',
   'assets/js/ingredient-production-evidence-contract.js',
   'assets/js/ingredient-slot-distribution-contract.js',
   'assets/js/ingredient-probability-activation-policy.js',
@@ -107,6 +110,11 @@ assert.ok(readinessSource.includes("policy_authority_status:'NOT_YET_DEFINED'"),
 assert.ok(readinessSource.includes('threshold_invented:false'),'E3C-7 must declare that no threshold is invented');
 assert.ok(readinessSource.includes('activation_authority_granted:false'),'E3C-7 readiness must not self-activate Ingredient Probability');
 assert.ok(readinessSource.includes("production_active_dimensions:'4/7'"),'E3C-7 must preserve Production 4/7 while readiness only is implemented');
+const strategyLocalSource=fs.readFileSync('assets/js/strategy-context-local.js','utf8');
+assert.ok(strategyLocalSource.includes('ingredient_probability_statistical_readiness:buildLocalIngredientProbabilityStatisticalReadiness()'),'E3C-7B readiness must be attached to local Production Evidence snapshot');
+const productionUiSource=fs.readFileSync('assets/js/production-evidence-ui.js','utf8');
+assert.ok(productionUiSource.includes('Readiness ≠ Production Activation'),'E3C-7B UI must distinguish readiness from activation');
+assert.ok(productionUiSource.includes('目前尚未核准統計充分性門檻'),'E3C-7B UI must state that production sufficiency thresholds are not governed yet');
 
 run('git',['diff','--exit-code'],{label:'repository mutation guard'});
-console.log(JSON.stringify({status:'PASS',gate:'PRODUCTION_EVIDENCE_REGRESSION',version:PRODUCTION_EVIDENCE_REGRESSION_VERSION,behavioral_contract_count:PRODUCTION_BEHAVIORAL_CONTRACTS.length,identity_bridged_contract_count:IDENTITY_BRIDGED_CONTRACTS.size,v04275_production_successor_bridge:true,runtime_syntax_count:PRODUCTION_RUNTIME_FILES.length,recipe_authority_workflow_retired:false,production_authority_mutated:false,behavioral_contracts_removed:0,runtime_network_authority_added:false,first_party_observation_capture_persistent_local_only:true,first_party_observation_activation_authority:false,e3c7_statistical_readiness_audit:true,e3c7_governed_thresholds_defined:false,e3c7_activation_authority:false},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'PRODUCTION_EVIDENCE_REGRESSION',version:PRODUCTION_EVIDENCE_REGRESSION_VERSION,behavioral_contract_count:PRODUCTION_BEHAVIORAL_CONTRACTS.length,identity_bridged_contract_count:IDENTITY_BRIDGED_CONTRACTS.size,v04275_production_successor_bridge:true,runtime_syntax_count:PRODUCTION_RUNTIME_FILES.length,recipe_authority_workflow_retired:false,production_authority_mutated:false,behavioral_contracts_removed:0,runtime_network_authority_added:false,first_party_observation_capture_persistent_local_only:true,first_party_observation_activation_authority:false,e3c7_statistical_readiness_audit:true,e3c7_local_readiness_ui:true,e3c7_governed_thresholds_defined:false,e3c7_activation_authority:false},null,2));
