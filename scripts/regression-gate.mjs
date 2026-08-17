@@ -8,11 +8,12 @@ import initSqlJs from 'sql.js';
 import {DDL,SEED_SQL} from '../assets/js/schema.js';
 import {applyAllMigrations,E3C6B_SCHEMA_MIGRATION_VERSION} from '../assets/js/migrations.js';
 import {INGREDIENT_INVENTORY_IDENTITY_MIGRATION_VERSION,INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION} from '../assets/js/ingredient-inventory-integrity-contract.js';
+import {PUBLIC_EVENT_MASTER_SCHEMA_MIGRATION_VERSION} from '../assets/js/public-event-master-schema.js';
 
 const root=new URL('../',import.meta.url);
 const text=async path=>readFile(new URL(path,root),'utf8');
 const require=createRequire(import.meta.url);
-const EXPECTED_SCHEMA_MIGRATIONS=Object.freeze([1,2,3,4,5,6,7,8,9,E3C6B_SCHEMA_MIGRATION_VERSION,INGREDIENT_INVENTORY_IDENTITY_MIGRATION_VERSION,INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION]);
+const EXPECTED_SCHEMA_MIGRATIONS=Object.freeze([1,2,3,4,5,6,7,8,9,E3C6B_SCHEMA_MIGRATION_VERSION,INGREDIENT_INVENTORY_IDENTITY_MIGRATION_VERSION,INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION,PUBLIC_EVENT_MASTER_SCHEMA_MIGRATION_VERSION]);
 
 function queryRows(db,sql){const statement=db.prepare(sql);const output=[];while(statement.step())output.push(statement.getAsObject());statement.free();return output;}
 function scalar(db,sql){const result=queryRows(db,sql);return result.length?Object.values(result[0])[0]:null;}
@@ -25,7 +26,7 @@ async function syntaxGate(){
 }
 
 async function migrationStaticGate(){
-  const schema=await text('assets/js/schema.js');const database=await text('assets/js/database.js');const migrations=await text('assets/js/migrations.js');const canonical=await text('assets/js/canonical-registry.js');const ingredientIntegrity=await text('assets/js/ingredient-inventory-integrity-contract.js');
+  const schema=await text('assets/js/schema.js');const database=await text('assets/js/database.js');const migrations=await text('assets/js/migrations.js');const canonical=await text('assets/js/canonical-registry.js');const ingredientIntegrity=await text('assets/js/ingredient-inventory-integrity-contract.js');const publicEventSchema=await text('assets/js/public-event-master-schema.js');
   for(const field of ['recipe_level','current_energy','updated_at','notes'])assert.match(migrations,new RegExp(`addColumnIfMissing\\(db,'recipes','${field}'`),`missing recipe migration field: ${field}`);
   for(const version of [1,2,3,4,5,6,7,8,9])assert.match(`${schema}\n${migrations}\n${canonical}`,new RegExp(`schema_migrations[^\\n]*${version}|VALUES\\(${version},`),`migration ${version} is not registered`);
   const initialization=functionBlock(database,'export async function initializeDatabase()','export function requestForcedDatabaseLoad');
@@ -40,13 +41,17 @@ async function migrationStaticGate(){
   assert.match(migrations,/pokemon_evaluation_snapshot/u,'evaluation snapshot migration missing');
   assert.match(migrations,/CREATE TABLE IF NOT EXISTS candy_inventory/u,'candy inventory migration missing');
   assert.match(migrations,/applyIngredientInventoryIdentityMigration\(db\)/u,'ingredient inventory integrity migration lifecycle missing');
+  assert.match(migrations,/applyPublicEventMasterSchemaMigration\(db\)/u,'public event master migration lifecycle missing');
+  assert.match(publicEventSchema,/PUBLIC_EVENT_MASTER_SCHEMA_MIGRATION_VERSION=14/u,'public event master migration 14 authority missing');
+  assert.match(publicEventSchema,/CREATE TABLE IF NOT EXISTS public_event_master/u,'public event master cache table missing');
+  assert.match(publicEventSchema,/CREATE TABLE IF NOT EXISTS public_event_phase/u,'public event phase cache table missing');
   assert.match(schema,/ingredient_inventory\(ingredient_name TEXT PRIMARY KEY,quantity INTEGER NOT NULL DEFAULT 0,unlocked INTEGER/u,'fresh schema missing ingredient unlock state');
   assert.match(ingredientIntegrity,/INGREDIENT_INVENTORY_IDENTITY_MIGRATION_VERSION=12/u,'migration 12 identity authority missing');
   assert.match(ingredientIntegrity,/INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION=13/u,'migration 13 unlock authority missing');
   assert.match(ingredientIntegrity,/ALTER TABLE ingredient_inventory ADD COLUMN unlocked INTEGER/u,'legacy unlock migration missing');
   assert.match(canonical,/CREATE TABLE IF NOT EXISTS canonical_term/u,'canonical term table missing');
   assert.match(canonical,/CREATE TABLE IF NOT EXISTS canonical_term_alias/u,'canonical alias table missing');
-  console.log('PASS migration structure: schema versions 1-9 + reserved gap 10 + migrations 11/12/13 and lifecycle hooks');
+  console.log('PASS migration structure: schema versions 1-9 + reserved gap 10 + migrations 11/12/13/14 and lifecycle hooks');
 }
 
 async function migrationFixtureGate(){
@@ -61,6 +66,8 @@ async function migrationFixtureGate(){
   assert.equal(scalar(fresh,'SELECT COUNT(*) FROM recipes'),0,'public master must not seed recipe unlock state');
   assert.equal(scalar(fresh,'SELECT COUNT(*) FROM strategy_goal_profile'),0,'fresh DB must not seed player goal profiles');
   assert.equal(scalar(fresh,'SELECT COUNT(*) FROM pokemon_evaluation_snapshot'),0,'fresh DB must not seed player evaluation snapshots');
+  assert.equal(scalar(fresh,'SELECT COUNT(*) FROM public_event_master'),0,'schema migration must not fabricate public event rows before manifest validation');
+  assert.equal(scalar(fresh,'SELECT COUNT(*) FROM public_event_phase'),0,'schema migration must not fabricate public event phase rows before manifest validation');
   assert.ok(scalar(fresh,'SELECT COUNT(*) FROM ingredient_catalog_state')>0,'ingredient public catalog missing');
   assert.ok(scalar(fresh,'SELECT COUNT(*) FROM item_catalog_state')>0,'item public catalog missing');
   assert.ok(scalar(fresh,'SELECT COUNT(*) FROM recipe_catalog_state')>0,'recipe public catalog missing');
@@ -108,9 +115,11 @@ async function migrationFixtureGate(){
   assert.equal(scalar(restored,"SELECT quantity FROM ingredient_inventory WHERE ingredient_name='嫩亮酪梨'"),7,'legacy avocado quantity was not re-keyed to canonical name');
   assert.equal(scalar(restored,"SELECT unlocked FROM ingredient_inventory WHERE ingredient_name='嫩亮酪梨'"),1,'positive legacy inventory must prove unlock');
   assert.equal(scalar(restored,"SELECT unlocked FROM ingredient_inventory WHERE ingredient_name='窩心洋芋'"),null,'legacy zero inventory must remain unlock UNKNOWN');
+  assert.equal(scalar(restored,'SELECT COUNT(*) FROM public_event_master'),0,'legacy migration must not invent public event rows');
+  assert.equal(scalar(restored,'SELECT COUNT(*) FROM public_event_phase'),0,'legacy migration must not invent public event phase rows');
   assert.deepEqual(queryRows(restored,'SELECT version FROM schema_migrations ORDER BY version').map(row=>row.version),EXPECTED_SCHEMA_MIGRATIONS);
   restored.close();fresh.close();
-  console.log(`PASS SQLite fixtures: fresh integrity=ok; canonical migration=6; detail observation migration=7; strategy snapshot migration=8; candy inventory migration=9; first-party observation migration=${E3C6B_SCHEMA_MIGRATION_VERSION}; ingredient identity migration=${INGREDIENT_INVENTORY_IDENTITY_MIGRATION_VERSION}; ingredient unlock migration=${INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION}; legacy zero remains UNKNOWN; personal rows ${JSON.stringify(before)} preserved`);
+  console.log(`PASS SQLite fixtures: fresh integrity=ok; canonical migration=6; detail observation migration=7; strategy snapshot migration=8; candy inventory migration=9; first-party observation migration=${E3C6B_SCHEMA_MIGRATION_VERSION}; ingredient identity migration=${INGREDIENT_INVENTORY_IDENTITY_MIGRATION_VERSION}; ingredient unlock migration=${INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION}; public event cache migration=${PUBLIC_EVENT_MASTER_SCHEMA_MIGRATION_VERSION}; legacy zero remains UNKNOWN; personal rows ${JSON.stringify(before)} preserved`);
 }
 
 async function knowledgeGate(){
@@ -150,14 +159,7 @@ async function serviceWorkerGate(){
 }
 
 function annotationEscape(value){return String(value??'').replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A');}
-async function runPhase(name,fn){
-  try{await fn();}
-  catch(error){
-    const detail=error?.stack||error?.message||String(error);
-    console.error(`::error title=${annotationEscape(`Frontend regression ${name}`)}::${annotationEscape(detail)}`);
-    throw error;
-  }
-}
+async function runPhase(name,fn){try{await fn();}catch(error){const detail=error?.stack||error?.message||String(error);console.error(`::error title=${annotationEscape(`Frontend regression ${name}`)}::${annotationEscape(detail)}`);throw error;}}
 
 await runPhase('syntax',syntaxGate);
 await runPhase('migration-static',migrationStaticGate);
