@@ -1,4 +1,4 @@
-export const WEEKLY_EVENT_EFFECT_REGISTRY_VERSION='weekly-event-effect-registry-2026-08-10-a';
+export const WEEKLY_EVENT_EFFECT_REGISTRY_VERSION='weekly-event-effect-registry-2026-08-17-b-public-event-master';
 
 export const WEEKLY_EVENT_RULE_STATUS=Object.freeze({
   ACTIVE_VERIFIED:'ACTIVE_VERIFIED',
@@ -25,6 +25,14 @@ export const WEEKLY_EVENT_EFFECT_REGISTRY=Object.freeze([
   def('sunday_extra_tasty_multiplier','number','cooking','multiplier','FEATURE_ONLY','週日漂亮成功倍率；已可保存與顯示，但尚未接入完整料理能量模型。','display_only',{exclusive_minimum:0}),
   def('sunday_pot_multiplier','number','cooking','multiplier','ACTIVE_VERIFIED','週日鍋子容量倍率；供 Recipe Discovery Sunday feasibility 使用。','recipe_discovery_sunday_pot',{exclusive_minimum:0}),
   def('new_recipe_count','integer','cooking','count','FEATURE_ONLY','活動新增料理數量；供活動資訊與探索提示使用。','display_only',{minimum:0}),
+  def('drowsy_power_multiplier','number','research','multiplier','FEATURE_ONLY','活動睡意之力倍率；Public Event Master 可保存與顯示，但在建立專用 deterministic contract 前不得直接改寫策略數值。','display_only',{exclusive_minimum:0}),
+  def('sleep_exp_multiplier','number','research','multiplier','FEATURE_ONLY','活動睡眠 EXP 倍率；目前只做公版活動結構化事實。','display_only',{exclusive_minimum:0}),
+  def('research_exp_multiplier','number','research','multiplier','FEATURE_ONLY','活動研究 EXP 倍率；目前只做公版活動結構化事實。','display_only',{exclusive_minimum:0}),
+  def('dream_shards_multiplier','number','research','multiplier','FEATURE_ONLY','活動夢之碎片倍率；目前只做公版活動結構化事實。','display_only',{exclusive_minimum:0}),
+  def('pokemon_candy_multiplier','number','research','multiplier','FEATURE_ONLY','活動睡眠研究寶可夢糖果倍率；目前只做公版活動結構化事實。','display_only',{exclusive_minimum:0}),
+  def('main_skill_trigger_multiplier','number','pokemon','multiplier','FEATURE_ONLY','活動主技能發動率倍率；尚未建立完整技能觸發 numeric contract，禁止直接進 Production 計算。','display_only',{exclusive_minimum:0}),
+  def('main_skill_level_bonus','integer','pokemon','level','FEATURE_ONLY','活動主技能等級加成；目前只供資訊與後續 contract 使用。','display_only',{minimum:0}),
+  def('ingredient_help_quantity_bonus','integer','pokemon','count','FEATURE_ONLY','活動每次食材幫忙數量加成；尚未建立完整產出模型前只供資訊。','display_only',{minimum:0}),
   def('cross_sleep_type_encounters','boolean','research','flag','FEATURE_ONLY','活動期間可跨睡眠類型遇見寶可夢；目前不轉換成捕捉機率。','display_only'),
   def('encounter_type_boosts','string_array','research','list','FEATURE_ONLY','活動提升遇見機率的分類描述；目前不轉換成精確機率。','display_only'),
   def('boosted_pokemon_types','string_array','pokemon','list','FEATURE_ONLY','活動提升出現機率的寶可夢屬性；目前作候選資訊，不轉換成精確機率。','display_only'),
