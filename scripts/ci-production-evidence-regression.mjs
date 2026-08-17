@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 
-export const PRODUCTION_EVIDENCE_REGRESSION_VERSION='production-evidence-regression-2026-08-15-e-e3c6b';
+export const PRODUCTION_EVIDENCE_REGRESSION_VERSION='production-evidence-regression-2026-08-17-f-v04275-public-event-successor';
 const PREDECESSOR_BRIDGE='scripts/v0423-predecessor-contract-runner.mjs';
+const V04275_PRODUCTION_BRIDGE='scripts/v04275-production-contract-runner.mjs';
 
 // Production/G7 behavioral lineage only. Recipe v0.4.22.1 keeps its own
 // Recipe Authority workflow and is intentionally not retired by P1.
@@ -36,7 +37,7 @@ export const PRODUCTION_BEHAVIORAL_CONTRACTS=Object.freeze([
 
 // v0.4.16–v0.4.22 validate historical release identities but are designed to
 // tolerate governed runtime successors. Replay them through the existing
-// v0.4.27 -> v0.4.22.1 identity bridge instead of mutating historical allowlists.
+// v0.4.27.x -> v0.4.22.1 identity bridge instead of mutating historical allowlists.
 const IDENTITY_BRIDGED_CONTRACTS=new Set([
   'scripts/v0416-g73-production-team-search-contract.mjs',
   'scripts/v0417-g74-ai-proposal-intake-contract.mjs',
@@ -72,67 +73,32 @@ const PRODUCTION_RUNTIME_FILES=Object.freeze([
   'assets/js/pokemon-master-options.js',
 ]);
 
-function annotationSafe(value){
-  return String(value??'').replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A');
-}
-
+function annotationSafe(value){return String(value??'').replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A');}
 function run(command,args,{label=command,env=process.env}={}){
   const result=spawnSync(command,args,{encoding:'utf8',env});
-  if(result.stdout)process.stdout.write(result.stdout);
-  if(result.stderr)process.stderr.write(result.stderr);
-  if(result.error){
-    console.error(`::error title=${annotationSafe(label)}::${annotationSafe(result.error.message)}`);
-    throw result.error;
-  }
-  if(result.status!==0){
-    const detail=[result.stderr,result.stdout].filter(Boolean).join('\n').trim()||`exit ${result.status}`;
-    console.error(`::error title=${annotationSafe(label)}::${annotationSafe(detail)}`);
-    throw new Error(`${label} failed with exit ${result.status}`);
-  }
+  if(result.stdout)process.stdout.write(result.stdout);if(result.stderr)process.stderr.write(result.stderr);
+  if(result.error){console.error(`::error title=${annotationSafe(label)}::${annotationSafe(result.error.message)}`);throw result.error;}
+  if(result.status!==0){const detail=[result.stderr,result.stdout].filter(Boolean).join('\n').trim()||`exit ${result.status}`;console.error(`::error title=${annotationSafe(label)}::${annotationSafe(detail)}`);throw new Error(`${label} failed with exit ${result.status}`);}
 }
 
-for(const path of [PREDECESSOR_BRIDGE,...PRODUCTION_RUNTIME_FILES,...PRODUCTION_BEHAVIORAL_CONTRACTS]){
+for(const path of [PREDECESSOR_BRIDGE,V04275_PRODUCTION_BRIDGE,...PRODUCTION_RUNTIME_FILES,...PRODUCTION_BEHAVIORAL_CONTRACTS]){
   assert.equal(fs.existsSync(path),true,`Production regression dependency missing: ${path}`);
   run(process.execPath,['--check',path],{label:`syntax:${path}`});
 }
 
 for(const path of PRODUCTION_BEHAVIORAL_CONTRACTS){
-  if(IDENTITY_BRIDGED_CONTRACTS.has(path)){
-    run(process.execPath,[PREDECESSOR_BRIDGE,path],{label:`bridged-contract:${path}`});
-  }else{
-    run(process.execPath,[path],{label:`contract:${path}`});
-  }
+  if(IDENTITY_BRIDGED_CONTRACTS.has(path))run(process.execPath,[PREDECESSOR_BRIDGE,path],{label:`bridged-contract:${path}`});
+  else run(process.execPath,[V04275_PRODUCTION_BRIDGE,path],{label:`v04275-production-bridge:${path}`});
 }
 
 const slotSource=fs.readFileSync('assets/js/ingredient-slot-distribution-contract.js','utf8');
-for(const forbidden of ['fetch(', 'localStorage', 'sessionStorage', 'indexedDB', 'INSERT INTO', 'UPDATE ', 'DELETE FROM', 'applyPayload(', 'dryRun(']){
-  assert.equal(slotSource.includes(forbidden),false,`ingredient-slot contract contains forbidden path: ${forbidden}`);
-}
-
+for(const forbidden of ['fetch(', 'localStorage', 'sessionStorage', 'indexedDB', 'INSERT INTO', 'UPDATE ', 'DELETE FROM', 'applyPayload(', 'dryRun('])assert.equal(slotSource.includes(forbidden),false,`ingredient-slot contract contains forbidden path: ${forbidden}`);
 const observationSource=fs.readFileSync('assets/js/ingredient-probability-first-party-observation-contract.js','utf8');
-for(const forbidden of ['fetch(', 'XMLHttpRequest', 'localStorage', 'sessionStorage', 'indexedDB']){
-  assert.equal(observationSource.includes(forbidden),false,`first-party observation contract contains forbidden path: ${forbidden}`);
-}
+for(const forbidden of ['fetch(', 'XMLHttpRequest', 'localStorage', 'sessionStorage', 'indexedDB'])assert.equal(observationSource.includes(forbidden),false,`first-party observation contract contains forbidden path: ${forbidden}`);
 const observationUpdateSource=fs.readFileSync('assets/js/ingredient-probability-first-party-observation-update.js','utf8');
-for(const forbidden of ['fetch(', 'XMLHttpRequest', 'localStorage', 'sessionStorage']){
-  assert.equal(observationUpdateSource.includes(forbidden),false,`first-party observation update adapter contains forbidden remote/storage side channel: ${forbidden}`);
-}
+for(const forbidden of ['fetch(', 'XMLHttpRequest', 'localStorage', 'sessionStorage'])assert.equal(observationUpdateSource.includes(forbidden),false,`first-party observation update adapter contains forbidden remote/storage side channel: ${forbidden}`);
 assert.ok(observationUpdateSource.includes("sample_sufficiency_for_activation:'NOT_DEFINED'"),'E3C-6B must not invent a sufficiency threshold');
 assert.ok(observationUpdateSource.includes("activation_authority_granted:false"),'E3C-6B aggregate must not activate Ingredient Probability');
 
 run('git',['diff','--exit-code'],{label:'repository mutation guard'});
-
-console.log(JSON.stringify({
-  status:'PASS',
-  gate:'PRODUCTION_EVIDENCE_REGRESSION',
-  version:PRODUCTION_EVIDENCE_REGRESSION_VERSION,
-  behavioral_contract_count:PRODUCTION_BEHAVIORAL_CONTRACTS.length,
-  identity_bridged_contract_count:IDENTITY_BRIDGED_CONTRACTS.size,
-  runtime_syntax_count:PRODUCTION_RUNTIME_FILES.length,
-  recipe_authority_workflow_retired:false,
-  production_authority_mutated:false,
-  behavioral_contracts_removed:0,
-  runtime_network_authority_added:false,
-  first_party_observation_capture_persistent_local_only:true,
-  first_party_observation_activation_authority:false,
-},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'PRODUCTION_EVIDENCE_REGRESSION',version:PRODUCTION_EVIDENCE_REGRESSION_VERSION,behavioral_contract_count:PRODUCTION_BEHAVIORAL_CONTRACTS.length,identity_bridged_contract_count:IDENTITY_BRIDGED_CONTRACTS.size,v04275_production_successor_bridge:true,runtime_syntax_count:PRODUCTION_RUNTIME_FILES.length,recipe_authority_workflow_retired:false,production_authority_mutated:false,behavioral_contracts_removed:0,runtime_network_authority_added:false,first_party_observation_capture_persistent_local_only:true,first_party_observation_activation_authority:false},null,2));
