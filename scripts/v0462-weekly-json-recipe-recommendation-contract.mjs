@@ -14,9 +14,12 @@ import {
 } from '../assets/js/weekly-context-import-contract.js';
 import {buildScenarioTemplate} from '../assets/js/prompt-catalog.js';
 import {validateWorkflow} from '../assets/js/ai-workflow.js';
+import {localWeekStart} from '../assets/js/evaluation-week.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
 const NOW=new Date('2026-08-10T12:00:00+08:00');
+const LIVE_NOW=new Date();
+const LIVE_WEEK=localWeekStart(LIVE_NOW);
 const clone=value=>JSON.parse(JSON.stringify(value));
 
 assert.equal(WEEKLY_CONTEXT_EVENT_SCHEMA,'pokemon-sleep-weekly-event-context/1.1');
@@ -79,7 +82,15 @@ assert.equal(modernForImporter.operations[0].data.dish_category,'咖哩／濃湯
 const storedEffects=JSON.parse(modernForImporter.operations[0].data.event_effects);
 assert.equal(storedEffects.event_start,'2026-08-10T04:00:00+08:00');
 assert.deepEqual(storedEffects.boosted_pokemon_types,['水','飛行','蟲']);
-const workflow=validateWorkflow(modernForImporter);
+// validateWorkflow intentionally applies the live current-week guard. Keep the
+// historical v0.4.6.2 payload above fixed to its original week, but probe the
+// generic workflow with an equivalent identity projected into today's week.
+const workflowPayload=clone(modernForImporter);
+workflowPayload.generated_at=LIVE_NOW.toISOString();
+workflowPayload.operations[0].key.context_id=`weekly_context_${LIVE_WEEK}_import`;
+workflowPayload.operations[0].data.week_start=LIVE_WEEK;
+workflowPayload.operations[0].data.updated_at=LIVE_NOW.toISOString();
+const workflow=validateWorkflow(workflowPayload);
 assert.equal(workflow.errors.length,0,workflow.errors.join('\n'));
 assert.equal(workflow.summary.weekly_context_contract,'PASS');
 
@@ -151,7 +162,7 @@ console.log(JSON.stringify({
   event_schema:WEEKLY_CONTEXT_EVENT_SCHEMA,import_contract:WEEKLY_CONTEXT_IMPORT_CONTRACT_VERSION,
   template_event_effects:'NESTED_OBJECT',sqlite_event_effects:'TEXT_AFTER_IMPORT_NORMALIZATION',
   modern_nested_object_pass:true,legacy_v046_string_payload_pass:true,legacy_context_id_repair:true,legacy_authority_repair:true,
-  iso_event_boundaries:true,rich_event_keys:true,unknown_event_key_fail_closed:true,partial_berry_trio_fail_closed:true,
+  workflow_current_week_fixture:LIVE_WEEK,iso_event_boundaries:true,rich_event_keys:true,unknown_event_key_fail_closed:true,partial_berry_trio_fail_closed:true,
   canonical_dish_aliases:true,recipe_consumer_current_week_authority:true,berry_runtime_vocabulary_gate:true,raw_json_paste_uses_existing_flow:true,
   sqlite_migration_added:false,gemini_dependency:false,
 },null,2));
