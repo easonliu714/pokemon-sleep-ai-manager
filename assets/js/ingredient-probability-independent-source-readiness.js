@@ -2,8 +2,8 @@ import {INDEPENDENT_CROSSCHECK_SOURCE_STATUS} from './ingredient-probability-ind
 import {INDEPENDENT_SOURCE_ADMISSION_STATUS} from './ingredient-probability-independent-source-admission.js';
 import {currentIngredientProbabilitySourceLineageReview} from './ingredient-probability-independent-source-lineage-review.js';
 
-export const INGREDIENT_PROBABILITY_INDEPENDENT_SOURCE_READINESS_ID='ingredient-probability-independent-source-readiness-2026-08-17-b';
-export const INGREDIENT_PROBABILITY_INDEPENDENT_SOURCE_READINESS_VERSION='ingredient-probability-independent-source-readiness-v2';
+export const INGREDIENT_PROBABILITY_INDEPENDENT_SOURCE_READINESS_ID='ingredient-probability-independent-source-readiness-2026-08-17-c';
+export const INGREDIENT_PROBABILITY_INDEPENDENT_SOURCE_READINESS_VERSION='ingredient-probability-independent-source-readiness-v3';
 
 const freeze=value=>Object.freeze(value);
 
@@ -23,7 +23,7 @@ function machineSnapshotStatus(row={}){
 
 function blockersForReview(row={}){
   if(row.admission_status===INDEPENDENT_SOURCE_ADMISSION_STATUS.ADMISSION_READY_FOR_CROSSCHECK)return freeze([]);
-  const values=[row.admission_reason||'SOURCE_ADMISSION_NOT_READY'];
+  const values=[...(Array.isArray(row.blockers)?row.blockers:[]),row.admission_reason||'SOURCE_ADMISSION_NOT_READY'];
   if(row.lineage_review_status==='NOT_REVIEWED'||row.lineage_review_status==='REVIEW_REQUIRED')values.push('HUMAN_REVIEWED_LINEAGE_INDEPENDENCE_NOT_COMPLETE');
   return freeze([...new Set(values)]);
 }
@@ -37,6 +37,9 @@ export const INGREDIENT_PROBABILITY_INDEPENDENT_SOURCE_CANDIDATES=Object.freeze(
     source_class:sourceClassForLineage(row),
     lineage_review_status:row.lineage_review_status,
     lineage_class:row.lineage_class,
+    numeric_evidence_class:row.numeric_evidence_class||null,
+    direct_help_event_observation_dataset:row.direct_help_event_observation_dataset===true,
+    current_revision:row.current_revision||null,
     independence_status:row.admission_independence_status,
     admission_status:row.admission_status,
     admission_reason:row.admission_reason,
@@ -59,6 +62,7 @@ export const INGREDIENT_PROBABILITY_DISALLOWED_INDEPENDENT_SOURCES=Object.freeze
 export const INGREDIENT_PROBABILITY_INDEPENDENT_SOURCE_REQUIREMENTS=Object.freeze([
   'SOURCE_LINEAGE_INDEPENDENT_OF_NEROLI_PRIMARY',
   'HUMAN_REVIEWED_LINEAGE_INDEPENDENCE',
+  'NUMERIC_EVIDENCE_CLASS_DISCLOSED_AND_REVIEWED',
   'VERSIONED_OR_HASHED_SOURCE_SNAPSHOT',
   'SOURCE_DATE_OR_RELEASE_SCOPE',
   'PUBLISHED_NUMERIC_PRECISION_PRESERVED',
@@ -77,6 +81,8 @@ export function currentIngredientProbabilityIndependentSourceReadiness(){
   const accepted=candidates.filter(row=>row.independence_status===INDEPENDENT_CROSSCHECK_SOURCE_STATUS.INDEPENDENCE_ACCEPTED&&row.admission_status===INDEPENDENT_SOURCE_ADMISSION_STATUS.ADMISSION_READY_FOR_CROSSCHECK&&row.may_count_as_independent_crosscheck===true);
   const rejected=candidates.filter(row=>row.admission_status===INDEPENDENT_SOURCE_ADMISSION_STATUS.REJECTED_PRIMARY_LINEAGE||row.admission_status===INDEPENDENT_SOURCE_ADMISSION_STATUS.REJECTED_AI_OR_UNTRACEABLE);
   const reviewRequired=candidates.filter(row=>row.admission_status===INDEPENDENT_SOURCE_ADMISSION_STATUS.REVIEW_REQUIRED);
+  const status=accepted.length?'PARTIAL_OR_READY_SOURCE_AVAILABLE':reviewRequired.length?'HOLD_REVIEW_REQUIRED_SOURCE_CANDIDATE_PRESENT':'HOLD_NO_ACCEPTED_INDEPENDENT_NUMERIC_SOURCE';
+  const nextAction=accepted.length?'RUN_PINNED_INDEPENDENT_CROSSCHECK':reviewRequired.length?'RESOLVE_REVIEW_REQUIRED_SOURCE_CANDIDATE_OR_FIND_NEW_CANDIDATE':'FIND_GENUINELY_INDEPENDENT_NUMERIC_SOURCE_CANDIDATE';
   return freeze({
     schema:'pokemon-sleep-ingredient-probability-independent-source-readiness/1.0',
     readiness_id:INGREDIENT_PROBABILITY_INDEPENDENT_SOURCE_READINESS_ID,
@@ -84,8 +90,9 @@ export function currentIngredientProbabilityIndependentSourceReadiness(){
     lineage_review_id:LINEAGE_REVIEW_SNAPSHOT.review_id,
     lineage_review_version:LINEAGE_REVIEW_SNAPSHOT.review_version,
     lineage_review_reconciled:true,
-    status:accepted.length?'PARTIAL_OR_READY_SOURCE_AVAILABLE':'HOLD_NO_ACCEPTED_INDEPENDENT_NUMERIC_SOURCE',
-    next_action:accepted.length?'RUN_PINNED_INDEPENDENT_CROSSCHECK':'FIND_GENUINELY_INDEPENDENT_NUMERIC_SOURCE_CANDIDATE',
+    status,
+    next_action:nextAction,
+    candidate_count:candidates.length,
     reviewed_candidate_count:candidates.length-reviewRequired.length,
     rejected_source_count:rejected.length,
     review_required_source_count:reviewRequired.length,
@@ -96,6 +103,8 @@ export function currentIngredientProbabilityIndependentSourceReadiness(){
     production_probability_activation_allowed:false,
     production_active_dimensions:'4/7',
     safety:freeze({
+      model_fit_candidate_auto_accepted:false,
+      current_contributor_identity_proves_numeric_independence:false,
       stale_pre_lineage_review_candidate_status_allowed:false,
       same_primary_lineage_counts_as_independent:false,
       primary_repository_fork_counts_as_independent:false,

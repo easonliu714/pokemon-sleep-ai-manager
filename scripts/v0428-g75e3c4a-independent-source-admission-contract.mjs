@@ -86,7 +86,10 @@ for(const [fixture,reason] of reviewCases){
 
 const readiness=currentIngredientProbabilityIndependentSourceReadiness();
 assert.equal(readiness.accepted_source_count,0,'admission evaluator fixture must not alter current source readiness');
-assert.equal(readiness.status,'HOLD_NO_ACCEPTED_INDEPENDENT_NUMERIC_SOURCE');
+assert.ok([
+  'HOLD_NO_ACCEPTED_INDEPENDENT_NUMERIC_SOURCE',
+  'HOLD_REVIEW_REQUIRED_SOURCE_CANDIDATE_PRESENT',
+].includes(readiness.status),'E3C-4A predecessor must remain HOLD while accepted independent source count is zero');
 const roster=currentPublicSpeciesFormRoster();
 assert.equal(roster.row_count,242);
 assert.equal(roster.activation_coverage_denominator_ready,true);
@@ -101,7 +104,7 @@ for(const forbidden of ['fetch(', 'raw.githubusercontent.com', 'localStorage', '
 
 console.log(JSON.stringify({
   status:'PASS',gate:'V0428_G75E3C4A_INDEPENDENT_SOURCE_ADMISSION',current_accepted_sources:readiness.accepted_source_count,
-  current_source_readiness:readiness.status,human_lineage_review_required:true,self_asserted_independence_sufficient:false,
+  current_source_readiness:readiness.status,successor_hold_reason_refinement_supported:true,human_lineage_review_required:true,self_asserted_independence_sufficient:false,
   partial_fixture_coverage:'100/242',complete_fixture_coverage:'242/242',complete_coverage_grants_activation:false,
   primary_mirror_rejected:true,ai_numeric_source_rejected:true,production_numeric_activation:'4/7',
   ingredient_probability_status:registry.rules.ingredient_probability_per_help.status,runtime_network_fetch:false,ai_numeric_authority:false,

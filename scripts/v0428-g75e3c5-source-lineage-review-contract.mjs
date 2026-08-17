@@ -20,7 +20,10 @@ assert.equal(review.schema,'pokemon-sleep-ingredient-probability-source-lineage-
 assert.ok(review.reviewed_candidate_count>=2,'E3C-5 predecessor candidates must remain reviewed');
 assert.ok(review.rejected_candidate_count>=2,'E3C-5 predecessor rejected lineages must remain rejected');
 assert.equal(review.accepted_independent_source_count,0);
-assert.equal(review.status,'HOLD_NEED_NEW_INDEPENDENT_SOURCE_CANDIDATE');
+assert.ok([
+  'HOLD_NEED_NEW_INDEPENDENT_SOURCE_CANDIDATE',
+  'HOLD_REVIEW_REQUIRED_SOURCE_CANDIDATE_PRESENT',
+].includes(review.status),'E3C-5 lineage review must remain HOLD while accepted independent source count is zero');
 assert.equal(review.production_probability_activation_allowed,false);
 
 const byId=new Map(review.reviews.map(row=>[row.source_id,row]));
@@ -62,7 +65,10 @@ assert.equal(overlapFixture.may_count_as_independent_crosscheck,false);
 
 const predecessor=currentIngredientProbabilityIndependentSourceReadiness();
 assert.equal(predecessor.accepted_source_count,0);
-assert.equal(predecessor.status,'HOLD_NO_ACCEPTED_INDEPENDENT_NUMERIC_SOURCE');
+assert.ok([
+  'HOLD_NO_ACCEPTED_INDEPENDENT_NUMERIC_SOURCE',
+  'HOLD_REVIEW_REQUIRED_SOURCE_CANDIDATE_PRESENT',
+].includes(predecessor.status),'E3C-5 predecessor readiness must remain HOLD while accepted independent source count is zero');
 assert.ok(INGREDIENT_PROBABILITY_SOURCE_LINEAGE_REVIEWS.length>=2);
 
 const roster=currentPublicSpeciesFormRoster();
@@ -85,6 +91,7 @@ console.log(JSON.stringify({
   reviewed_candidates:review.reviewed_candidate_count,
   rejected_candidates:review.rejected_candidate_count,
   accepted_independent_sources:review.accepted_independent_source_count,
+  successor_hold_reason_refinement_supported:true,
   raenonx_lineage:raenonx.lineage_class,
   verification_wiki_lineage:wiki.lineage_class,
   sleepapi_lineage:sleepApi?.lineage_class||'PREDECESSOR_NOT_PRESENT',

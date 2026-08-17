@@ -1,10 +1,12 @@
 import {
   INDEPENDENT_SOURCE_LINEAGE_REVIEW_STATUS,
+  INDEPENDENT_SOURCE_ADMISSION_STATUS,
   evaluateIndependentIngredientProbabilitySourceAdmission,
 } from './ingredient-probability-independent-source-admission.js';
+import {INGREDIENT_PROBABILITY_EVIDENCE_CLASS} from './ingredient-probability-activation-policy.js';
 
-export const INGREDIENT_PROBABILITY_SOURCE_LINEAGE_REVIEW_ID='ingredient-probability-source-lineage-review-2026-08-17-b';
-export const INGREDIENT_PROBABILITY_SOURCE_LINEAGE_REVIEW_VERSION='ingredient-probability-source-lineage-review-v2';
+export const INGREDIENT_PROBABILITY_SOURCE_LINEAGE_REVIEW_ID='ingredient-probability-source-lineage-review-2026-08-17-c';
+export const INGREDIENT_PROBABILITY_SOURCE_LINEAGE_REVIEW_VERSION='ingredient-probability-source-lineage-review-v3';
 
 export const SOURCE_LINEAGE_CLASS=Object.freeze({
   UPSTREAM_OR_SHARED_PRIMARY_NUMERIC_LINEAGE:'UPSTREAM_OR_SHARED_PRIMARY_NUMERIC_LINEAGE',
@@ -63,6 +65,30 @@ export const INGREDIENT_PROBABILITY_SOURCE_LINEAGE_REVIEWS=Object.freeze([
     ]),
     rationale:'A_GITHUB_FORK_OR_LEGACY_REPOSITORY_COPY_OF_NEROLI_CANNOT_CREATE_AN_INDEPENDENT_NUMERIC_LINEAGE_FROM_THE_PRIMARY_REFERENCE_MODEL',
   }),
+  freeze({
+    source_id:'MATHCORD_RP_FIT_MODEL',
+    source_name:'Mathcord / jeancroy RP-fit research model',
+    lineage_review_status:INDEPENDENT_SOURCE_LINEAGE_REVIEW_STATUS.REVIEW_REQUIRED,
+    lineage_class:SOURCE_LINEAGE_CLASS.INDEPENDENT_LINEAGE_NOT_YET_PROVEN,
+    numeric_evidence_class:INGREDIENT_PROBABILITY_EVIDENCE_CLASS.MODEL_FIT_OR_PLACEHOLDER,
+    direct_help_event_observation_dataset:false,
+    current_revision:'2fbc7fa68066c8a76f47623dabdf801b78544dc6',
+    current_revision_raenonx_authored:true,
+    may_count_as_independent_crosscheck:false,
+    reviewed_at:'2026-08-17',
+    evidence_refs:freeze([
+      'RP_FIT_README:jeancroy/RP-fit:Readme.md:ANALYZES_DATA_FROM_RP_COLLECTION_PROJECT',
+      'RP_FIT_CURRENT_HEAD:2fbc7fa68066c8a76f47623dabdf801b78544dc6:AUTHOR_RAENONX:FIXED_RP_MODEL',
+      'WIKIWIKI_INGREDIENT_PROBABILITY_VERIFICATION:SP_FORMULA_REVERSE_ENGINEERED_ESTIMATE_WITH_ASSUMPTIONS:MAY_DEVIATE_FROM_ACTUAL_VALUES',
+    ]),
+    blockers:freeze([
+      'CURRENT_NUMERIC_LINEAGE_INDEPENDENCE_NOT_ESTABLISHED',
+      'MODEL_FIT_REVERSE_ENGINEERED_NOT_DIRECT_HELP_EVENT_OBSERVATION',
+      'CURRENT_242_SPECIES_FORM_NUMERIC_COVERAGE_NOT_ESTABLISHED',
+      'CURRENT_PINNED_MACHINE_READABLE_PROBABILITY_SNAPSHOT_NOT_ADMITTED',
+    ]),
+    rationale:'RP_FIT_IS_A_REVERSE_ENGINEERED_RP_SP_MODEL_NOT_A_DIRECT_HELP_EVENT_PROBABILITY_OBSERVATION_DATASET_AND_CURRENT_HEAD_HAS_RAENONX_AUTHORSHIP_SO_IT_CANNOT_COUNT_AS_AN_ACCEPTED_CURRENT_INDEPENDENT_CROSSCHECK_WITHOUT_NEW_LINEAGE_AND_EVIDENCE_REVIEW',
+  }),
 ]);
 
 export function currentIngredientProbabilitySourceLineageReview(){
@@ -78,17 +104,22 @@ export function currentIngredientProbabilitySourceLineageReview(){
   });
   const accepted=reviews.filter(row=>row.admission_may_count_as_independent_crosscheck===true);
   const rejected=reviews.filter(row=>row.lineage_review_status===INDEPENDENT_SOURCE_LINEAGE_REVIEW_STATUS.HUMAN_REVIEWED_REJECTED);
+  const reviewRequired=reviews.filter(row=>row.admission_status===INDEPENDENT_SOURCE_ADMISSION_STATUS.REVIEW_REQUIRED);
   return freeze({
     schema:'pokemon-sleep-ingredient-probability-source-lineage-review/1.0',
     review_id:INGREDIENT_PROBABILITY_SOURCE_LINEAGE_REVIEW_ID,
     review_version:INGREDIENT_PROBABILITY_SOURCE_LINEAGE_REVIEW_VERSION,
-    reviewed_candidate_count:reviews.length,
+    candidate_count:reviews.length,
+    reviewed_candidate_count:reviews.length-reviewRequired.length,
+    review_required_candidate_count:reviewRequired.length,
     rejected_candidate_count:rejected.length,
     accepted_independent_source_count:accepted.length,
     reviews:freeze(reviews),
-    status:accepted.length?'INDEPENDENT_SOURCE_AVAILABLE':'HOLD_NEED_NEW_INDEPENDENT_SOURCE_CANDIDATE',
+    status:accepted.length?'INDEPENDENT_SOURCE_AVAILABLE':reviewRequired.length?'HOLD_REVIEW_REQUIRED_SOURCE_CANDIDATE_PRESENT':'HOLD_NEED_NEW_INDEPENDENT_SOURCE_CANDIDATE',
     production_probability_activation_allowed:false,
     safety:freeze({
+      model_fit_or_placeholder_counts_as_direct_observation:false,
+      current_contributor_identity_proves_numeric_independence:false,
       upstream_primary_supplier_counts_as_independent:false,
       downstream_transcription_counts_as_independent:false,
       overlapping_numeric_lineage_counts_as_independent:false,

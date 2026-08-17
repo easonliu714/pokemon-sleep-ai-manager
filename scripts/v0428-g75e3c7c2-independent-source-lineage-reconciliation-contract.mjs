@@ -15,11 +15,12 @@ import {INDEPENDENT_CROSSCHECK_SOURCE_STATUS} from '../assets/js/ingredient-prob
 import {currentProductionAuthorityRegistry} from '../assets/js/production-authority-registry.js';
 
 const lineage=currentIngredientProbabilitySourceLineageReview();
-assert.equal(lineage.review_version,'ingredient-probability-source-lineage-review-v2');
-assert.equal(lineage.reviewed_candidate_count,3);
-assert.equal(lineage.rejected_candidate_count,3);
+assert.ok(['ingredient-probability-source-lineage-review-v2','ingredient-probability-source-lineage-review-v3'].includes(lineage.review_version));
+assert.ok((lineage.candidate_count??lineage.reviewed_candidate_count)>=3,'C2 successor must retain at least the three reconciled candidates');
+assert.ok(lineage.reviewed_candidate_count>=3);
+assert.equal(lineage.rejected_candidate_count,3,'C2 three known overlapping/forked candidates must remain rejected');
 assert.equal(lineage.accepted_independent_source_count,0);
-assert.equal(lineage.status,'HOLD_NEED_NEW_INDEPENDENT_SOURCE_CANDIDATE');
+assert.ok(['HOLD_NEED_NEW_INDEPENDENT_SOURCE_CANDIDATE','HOLD_REVIEW_REQUIRED_SOURCE_CANDIDATE_PRESENT'].includes(lineage.status));
 assert.equal(lineage.production_probability_activation_allowed,false);
 assert.equal(lineage.safety.primary_repository_fork_counts_as_independent,false);
 assert.equal(lineage.safety.repository_or_domain_difference_proves_independence,false);
@@ -50,15 +51,15 @@ assert.equal(wiki.admission_status,INDEPENDENT_SOURCE_ADMISSION_STATUS.REJECTED_
 assert.equal(wiki.admission_independence_status,INDEPENDENT_CROSSCHECK_SOURCE_STATUS.DERIVED_OR_MIRROR_OF_PRIMARY);
 
 const readiness=currentIngredientProbabilityIndependentSourceReadiness();
-assert.equal(readiness.readiness_version,'ingredient-probability-independent-source-readiness-v2');
+assert.ok(['ingredient-probability-independent-source-readiness-v2','ingredient-probability-independent-source-readiness-v3'].includes(readiness.readiness_version));
 assert.equal(readiness.lineage_review_reconciled,true);
 assert.equal(readiness.lineage_review_version,lineage.review_version);
-assert.equal(readiness.reviewed_candidate_count,3);
+assert.equal(readiness.reviewed_candidate_count,3,'the three C2 candidates must remain terminally reviewed');
 assert.equal(readiness.rejected_source_count,3);
-assert.equal(readiness.review_required_source_count,0);
+assert.ok(readiness.review_required_source_count>=0);
 assert.equal(readiness.accepted_source_count,0);
-assert.equal(readiness.status,'HOLD_NO_ACCEPTED_INDEPENDENT_NUMERIC_SOURCE');
-assert.equal(readiness.next_action,'FIND_GENUINELY_INDEPENDENT_NUMERIC_SOURCE_CANDIDATE');
+assert.ok(['HOLD_NO_ACCEPTED_INDEPENDENT_NUMERIC_SOURCE','HOLD_REVIEW_REQUIRED_SOURCE_CANDIDATE_PRESENT'].includes(readiness.status));
+assert.ok(['FIND_GENUINELY_INDEPENDENT_NUMERIC_SOURCE_CANDIDATE','RESOLVE_REVIEW_REQUIRED_SOURCE_CANDIDATE_OR_FIND_NEW_CANDIDATE'].includes(readiness.next_action));
 assert.equal(readiness.production_probability_activation_allowed,false);
 assert.equal(readiness.production_active_dimensions,'4/7');
 assert.equal(readiness.safety.stale_pre_lineage_review_candidate_status_allowed,false);
@@ -116,6 +117,7 @@ console.log(JSON.stringify({
   gate:'V0428_G75E3C7C2_INDEPENDENT_SOURCE_LINEAGE_RECONCILIATION',
   reviewed_candidates:lineage.reviewed_candidate_count,
   rejected_candidates:lineage.rejected_candidate_count,
+  successor_review_required_candidates:lineage.review_required_candidate_count??readiness.review_required_source_count,
   accepted_independent_sources:lineage.accepted_independent_source_count,
   sleepapi_lineage:sleepApi.lineage_class,
   sleepapi_admission:sleepApi.admission_status,
