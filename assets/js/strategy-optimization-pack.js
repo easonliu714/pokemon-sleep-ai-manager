@@ -2,7 +2,7 @@ import {DEFAULT_TEAM_SEARCH_BUDGET} from './bounded-team-search.js';
 import {currentProductionAuthorityRegistry} from './production-authority-registry.js';
 import {resolvePokemonProductionModifierProfile} from './pokemon-master-options.js';
 
-export const STRATEGY_OPTIMIZATION_PACK_VERSION='strategy-optimization-pack-2026-08-14-c';
+export const STRATEGY_OPTIMIZATION_PACK_VERSION='strategy-optimization-pack-2026-08-17-d-public-event-provenance';
 const text=value=>String(value??'').normalize('NFKC').trim();
 const num=value=>{const n=Number(value);return value===null||value===undefined||value===''||!Number.isFinite(n)?null:n;};
 const stable=value=>Array.isArray(value)?value.map(stable):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,stable(value[key])])):value;
@@ -43,6 +43,7 @@ export function buildStrategyOptimizationPack({strategyContextResult=null,candid
   const payload=stable({
     schema:'pokemon-sleep-strategy-optimization-pack/2.0',package_version:STRATEGY_OPTIMIZATION_PACK_VERSION,
     context_fingerprint:contextPayload.context_fingerprint||null,goal_profile:contextPayload.goal_profile||null,weekly_context:contextPayload.weekly_context||null,
+    public_event_authority:contextPayload.public_event_authority||null,
     seed_team:{candidate_refs:seedRefs,team_status:teamOptimization?.primary?.team_status||'UNAVAILABLE',team_fingerprint:teamOptimization?.primary?.input_fingerprint||null},
     candidate_production_readiness:candidates,production_authority:{registry_version:productionRegistry?.registry_version||null,numeric_rate_model_status:productionRegistry?.numeric_rate_model_status||'NOT_YET_VERIFIED',rules:productionRules(productionRegistry)},
     inventory_summary:contextPayload.inventory_summary||[],recipe_gap_summary:contextPayload.recipe_gap_summary||[],team_supply_summary:teamSupplyReadiness?{
