@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 
-export const PRODUCTION_EVIDENCE_REGRESSION_VERSION='production-evidence-regression-2026-08-17-m-e3c7c5-candidate-intake';
+export const PRODUCTION_EVIDENCE_REGRESSION_VERSION='production-evidence-regression-2026-08-17-n-e3c7c6-recorded-dataset-resolution-pack';
 const PREDECESSOR_BRIDGE='scripts/v0423-predecessor-contract-runner.mjs';
 const V04275_PRODUCTION_BRIDGE='scripts/v04275-production-contract-runner.mjs';
 
@@ -38,6 +38,7 @@ export const PRODUCTION_BEHAVIORAL_CONTRACTS=Object.freeze([
   'scripts/v0428-g75e3c7c3-independent-candidate-discovery-contract.mjs',
   'scripts/v0428-g75e3c7c4-independent-candidate-discovery-register-contract.mjs',
   'scripts/v0428-g75e3c7c5-independent-candidate-intake-contract.mjs',
+  'scripts/v0428-g75e3c7c6-recorded-dataset-resolution-pack-contract.mjs',
 ]);
 
 const IDENTITY_BRIDGED_CONTRACTS=new Set([
@@ -69,6 +70,7 @@ const PRODUCTION_RUNTIME_FILES=Object.freeze([
   'assets/js/ingredient-probability-independent-source-lineage-review.js',
   'assets/js/ingredient-probability-independent-candidate-discovery-register.js',
   'assets/js/ingredient-probability-independent-candidate-intake.js',
+  'assets/js/ingredient-probability-recorded-dataset-resolution-pack.js',
   'assets/js/ingredient-probability-first-party-observation-contract.js',
   'assets/js/ingredient-probability-first-party-observation-update.js',
   'assets/js/ingredient-probability-first-party-observation-ui.js',
@@ -143,6 +145,12 @@ assert.ok(candidateIntakeSource.includes('MODEL_FIT_OR_REVERSE_ENGINEERED_NOT_AC
 assert.ok(candidateIntakeSource.includes('RATE_USED_AS_INPUT_IS_NOT_RATE_MEASUREMENT'),'E3C-7C5 rate-as-input rejection missing');
 assert.ok(candidateIntakeSource.includes('HELP_EVENT_DENOMINATOR_SEMANTICS_NOT_CONFIRMED'),'E3C-7C5 denominator semantics blocker missing');
 assert.ok(candidateIntakeSource.includes('RUN_HUMAN_SOURCE_LINEAGE_REVIEW_AND_EXISTING_C4A_ADMISSION_GATE'),'E3C-7C5 explicit next governance step missing');
+const recordedResolutionSource=fs.readFileSync('assets/js/ingredient-probability-recorded-dataset-resolution-pack.js','utf8');
+for(const forbidden of ['fetch(', 'XMLHttpRequest', 'localStorage', 'sessionStorage', 'indexedDB', 'INSERT INTO', 'UPDATE ', 'DELETE FROM', 'applyPayload(', 'dryRun('])assert.equal(recordedResolutionSource.includes(forbidden),false,`E3C-7C6 resolution pack contains forbidden authority/write path: ${forbidden}`);
+assert.ok(recordedResolutionSource.includes('not_found_means_nonexistent:false'),'E3C-7C6 must not convert failed resolution into source nonexistence');
+assert.ok(recordedResolutionSource.includes('resolution_pack_can_prove_source_absence:false'),'E3C-7C6 pack must not self-prove source absence');
+assert.ok(recordedResolutionSource.includes('prior_discovery_blockers_are_immutable_current_blockers:false'),'E3C-7C6 must recompute current blockers rather than fossilize discovery state');
+assert.ok(recordedResolutionSource.includes('RUN_HUMAN_SOURCE_LINEAGE_REVIEW_AND_EXISTING_C4A_ADMISSION_GATE'),'E3C-7C6 resolution readiness must still hand off to existing admission governance');
 const strategyLocalSource=fs.readFileSync('assets/js/strategy-context-local.js','utf8');
 assert.ok(strategyLocalSource.includes('ingredient_probability_statistical_readiness:readiness'),'E3C-7B readiness must be attached to local Production Evidence snapshot');
 assert.ok(strategyLocalSource.includes('ingredient_probability_sufficiency_evidence_pack:sufficiencyPack'),'E3C-7C1 sufficiency pack must be attached to local Production Evidence snapshot');
@@ -157,4 +165,4 @@ assert.ok(sufficiencySource.includes('source_keys_included:false'));
 assert.ok(sufficiencySource.includes('raw_observations_included:false'));
 
 run('git',['diff','--exit-code'],{label:'repository mutation guard'});
-console.log(JSON.stringify({status:'PASS',gate:'PRODUCTION_EVIDENCE_REGRESSION',version:PRODUCTION_EVIDENCE_REGRESSION_VERSION,behavioral_contract_count:PRODUCTION_BEHAVIORAL_CONTRACTS.length,identity_bridged_contract_count:IDENTITY_BRIDGED_CONTRACTS.size,v04275_production_successor_bridge:true,runtime_syntax_count:PRODUCTION_RUNTIME_FILES.length,recipe_authority_workflow_retired:false,production_authority_mutated:false,behavioral_contracts_removed:0,runtime_network_authority_added:false,first_party_observation_capture_persistent_local_only:true,first_party_observation_activation_authority:false,e3c7_statistical_readiness_audit:true,e3c7_local_readiness_ui:true,e3c7_sufficiency_evidence_pack:true,e3c7_independent_source_lineage_reconciliation:true,e3c7_sleepapi_primary_fork_rejected:true,e3c7_stale_source_readiness_status_allowed:false,e3c7_candidate_discovery_audit:true,e3c7_rp_fit_model_candidate_review_required:true,e3c7_model_fit_candidate_auto_accepted:false,e3c7_candidate_discovery_register:true,e3c7_unresolved_recorded_data_lead_is_not_admitted:true,e3c7_helper_whistle_validation_is_not_rate_measurement:true,e3c7_candidate_intake_gate:true,e3c7_intake_ready_does_not_bypass_admission:true,e3c7_model_fit_intake_rejected:true,e3c7_rate_input_intake_rejected:true,e3c7_governed_thresholds_defined:false,e3c7_threshold_recommendation_authority:false,e3c7_activation_authority:false},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'PRODUCTION_EVIDENCE_REGRESSION',version:PRODUCTION_EVIDENCE_REGRESSION_VERSION,behavioral_contract_count:PRODUCTION_BEHAVIORAL_CONTRACTS.length,identity_bridged_contract_count:IDENTITY_BRIDGED_CONTRACTS.size,v04275_production_successor_bridge:true,runtime_syntax_count:PRODUCTION_RUNTIME_FILES.length,recipe_authority_workflow_retired:false,production_authority_mutated:false,behavioral_contracts_removed:0,runtime_network_authority_added:false,first_party_observation_capture_persistent_local_only:true,first_party_observation_activation_authority:false,e3c7_statistical_readiness_audit:true,e3c7_local_readiness_ui:true,e3c7_sufficiency_evidence_pack:true,e3c7_independent_source_lineage_reconciliation:true,e3c7_sleepapi_primary_fork_rejected:true,e3c7_stale_source_readiness_status_allowed:false,e3c7_candidate_discovery_audit:true,e3c7_rp_fit_model_candidate_review_required:true,e3c7_model_fit_candidate_auto_accepted:false,e3c7_candidate_discovery_register:true,e3c7_unresolved_recorded_data_lead_is_not_admitted:true,e3c7_helper_whistle_validation_is_not_rate_measurement:true,e3c7_candidate_intake_gate:true,e3c7_intake_ready_does_not_bypass_admission:true,e3c7_model_fit_intake_rejected:true,e3c7_rate_input_intake_rejected:true,e3c7_recorded_dataset_resolution_pack:true,e3c7_not_found_does_not_mean_nonexistent:true,e3c7_resolution_pack_does_not_bypass_admission:true,e3c7_governed_thresholds_defined:false,e3c7_threshold_recommendation_authority:false,e3c7_activation_authority:false},null,2));
