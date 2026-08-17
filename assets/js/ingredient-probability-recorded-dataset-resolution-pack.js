@@ -1,7 +1,4 @@
-import {
-  INGREDIENT_PROBABILITY_DISCOVERY_LEAD_STATUS,
-  currentIngredientProbabilityIndependentCandidateDiscoveryRegister,
-} from './ingredient-probability-independent-candidate-discovery-register.js';
+import {currentIngredientProbabilityIndependentCandidateDiscoveryRegister} from './ingredient-probability-independent-candidate-discovery-register.js';
 import {
   INGREDIENT_PROBABILITY_CANDIDATE_EVIDENCE_CLASS,
   INGREDIENT_PROBABILITY_CANDIDATE_INTAKE_STATUS,
@@ -33,7 +30,7 @@ function leadById(leadId){
 
 function mappedResolutionStatus({lead,intake,input,extraBlockers}){
   if(!lead)return INGREDIENT_PROBABILITY_RECORDED_DATASET_RESOLUTION_STATUS.HOLD_UNKNOWN_DISCOVERY_LEAD;
-  if(extraBlockers.includes('SOURCE_ABSENCE_CLAIM_UNSUPPORTED'))return INGREDIENT_PROBABILITY_RECORDED_DATASET_RESOLUTION_STATUS.HOLD_UNSUPPORTED_ABSENCE_CLAIM;
+  if(extraBlockers.includes('SOURCE_ABSENCE_CLAIM_REQUIRES_HUMAN_REVIEW'))return INGREDIENT_PROBABILITY_RECORDED_DATASET_RESOLUTION_STATUS.HOLD_UNSUPPORTED_ABSENCE_CLAIM;
   if(intake.status===INGREDIENT_PROBABILITY_CANDIDATE_INTAKE_STATUS.REJECTED_MODEL_FIT_EVIDENCE_CLASS)return INGREDIENT_PROBABILITY_RECORDED_DATASET_RESOLUTION_STATUS.REJECTED_MODEL_FIT_EVIDENCE_CLASS;
   if(intake.status===INGREDIENT_PROBABILITY_CANDIDATE_INTAKE_STATUS.REJECTED_NON_MEASUREMENT_EVIDENCE_CLASS)return INGREDIENT_PROBABILITY_RECORDED_DATASET_RESOLUTION_STATUS.REJECTED_NON_MEASUREMENT_EVIDENCE_CLASS;
   if(intake.status===INGREDIENT_PROBABILITY_CANDIDATE_INTAKE_STATUS.READY_FOR_LINEAGE_REVIEW)return INGREDIENT_PROBABILITY_RECORDED_DATASET_RESOLUTION_STATUS.READY_FOR_LINEAGE_REVIEW;
@@ -44,12 +41,13 @@ function mappedResolutionStatus({lead,intake,input,extraBlockers}){
 export function evaluateIngredientProbabilityRecordedDatasetResolution(input={}){
   const lead=leadById(input.discovery_lead_id);
   const resolutionEvidenceRefs=nonEmptyArray(input.resolution_evidence_refs);
-  const authoritativeAbsenceEvidenceRefs=nonEmptyArray(input.authoritative_absence_evidence_refs);
+  const absenceEvidenceRefs=nonEmptyArray(input.authoritative_absence_evidence_refs);
   const extraBlockers=[];
+  if(!lead)extraBlockers.push('DISCOVERY_LEAD_NOT_REGISTERED');
   if(!text(input.resolution_attempt_id))extraBlockers.push('RESOLUTION_ATTEMPT_ID_MISSING');
   if(!text(input.resolution_method))extraBlockers.push('RESOLUTION_METHOD_MISSING');
   if(!resolutionEvidenceRefs.length)extraBlockers.push('RESOLUTION_EVIDENCE_REFS_MISSING');
-  if(input.source_absence_claimed===true&&!authoritativeAbsenceEvidenceRefs.length)extraBlockers.push('SOURCE_ABSENCE_CLAIM_UNSUPPORTED');
+  if(input.source_absence_claimed===true)extraBlockers.push('SOURCE_ABSENCE_CLAIM_REQUIRES_HUMAN_REVIEW');
 
   const intake=evaluateIndependentIngredientProbabilityCandidateIntake({
     discovery_lead_id:text(input.discovery_lead_id),
@@ -78,7 +76,7 @@ export function evaluateIngredientProbabilityRecordedDatasetResolution(input={})
     probability_value_field:input.probability_value_field,
   });
 
-  const blockers=[...new Set([...(lead?.blockers||[]),...(intake.blockers||[]),...extraBlockers])];
+  const blockers=[...new Set([...(intake.blockers||[]),...extraBlockers])];
   const status=mappedResolutionStatus({lead,intake,input,extraBlockers});
   const ready=status===INGREDIENT_PROBABILITY_RECORDED_DATASET_RESOLUTION_STATUS.READY_FOR_LINEAGE_REVIEW;
   const terminal=[
@@ -92,6 +90,7 @@ export function evaluateIngredientProbabilityRecordedDatasetResolution(input={})
     pack_version:INGREDIENT_PROBABILITY_RECORDED_DATASET_RESOLUTION_PACK_VERSION,
     discovery_lead_id:text(input.discovery_lead_id)||null,
     discovery_lead_status:lead?.status||null,
+    prior_discovery_blockers:freeze([...(lead?.blockers||[])]),
     resolution_attempt_id:text(input.resolution_attempt_id)||null,
     resolution_method:text(input.resolution_method)||null,
     resolution_status:status,
@@ -99,9 +98,9 @@ export function evaluateIngredientProbabilityRecordedDatasetResolution(input={})
     original_dataset_location:text(input.original_dataset_location)||null,
     dataset_location_resolved:Boolean(text(input.original_dataset_location)),
     source_absence_claimed:input.source_absence_claimed===true,
-    source_absence_proven:input.source_absence_claimed===true&&authoritativeAbsenceEvidenceRefs.length>0,
+    source_absence_proven:false,
     resolution_evidence_refs:freeze(resolutionEvidenceRefs),
-    authoritative_absence_evidence_refs:freeze(authoritativeAbsenceEvidenceRefs),
+    authoritative_absence_evidence_refs:freeze(absenceEvidenceRefs),
     intake_result:intake,
     blockers:freeze(blockers),
     ready_for_lineage_review:ready,
@@ -115,9 +114,13 @@ export function evaluateIngredientProbabilityRecordedDatasetResolution(input={})
         ?'DO_NOT_ADMIT_THIS_EVIDENCE_CLASS_AS_INGREDIENT_PROBABILITY_REFERENCE'
         :status===INGREDIENT_PROBABILITY_RECORDED_DATASET_RESOLUTION_STATUS.OPEN_ORIGINAL_DATASET_NOT_LOCATED
           ?'CONTINUE_LOCATING_ORIGINAL_DATASET_WITHOUT_TREATING_NOT_FOUND_AS_NONEXISTENT'
-          :'RESOLVE_RECORDED_DATASET_EVIDENCE_PACK_BLOCKERS',
+          :status===INGREDIENT_PROBABILITY_RECORDED_DATASET_RESOLUTION_STATUS.HOLD_UNSUPPORTED_ABSENCE_CLAIM
+            ?'HUMAN_REVIEW_ANY_SOURCE_ABSENCE_CLAIM;DO_NOT_INFER_NONEXISTENCE_FROM_FAILED_SEARCH'
+            :'RESOLVE_RECORDED_DATASET_EVIDENCE_PACK_BLOCKERS',
     safety:freeze({
+      prior_discovery_blockers_are_immutable_current_blockers:false,
       not_found_means_nonexistent:false,
+      resolution_pack_can_prove_source_absence:false,
       resolution_pack_grants_source_admission:false,
       resolution_pack_grants_independent_crosscheck:false,
       resolution_pack_grants_activation:false,
@@ -169,6 +172,7 @@ export function currentIngredientProbabilityRecordedDatasetResolutionPack(){
     safety:freeze({
       unresolved_resolution_is_terminal_rejection:false,
       not_found_means_nonexistent:false,
+      resolution_pack_can_prove_source_absence:false,
       ready_for_lineage_review_implies_source_admission:false,
       accepted_independent_source_count_may_be_inferred_from_resolution_pack:false,
       runtime_network_fetch:false,
