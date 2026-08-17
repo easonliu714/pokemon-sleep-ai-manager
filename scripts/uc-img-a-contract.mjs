@@ -3,8 +3,10 @@ import fs from 'node:fs';
 import {
   UC_IMG_A_VERSION,UC_IMG_A_MODES,createScreenshotUpdateSession,addScreenshotEntry,assignScreenshotScenario,setScenarioCoverage,setScenarioAiMode,serializableScreenshotSession,buildScreenshotScenarioPrompt,screenshotScenarioRevision,extractJsonObjectText,validateScreenshotScenarioPayload,
 } from '../assets/js/unified-screenshot-update-center.js';
+import {localWeekStart} from '../assets/js/evaluation-week.js';
 
 const iso='2026-08-11T00:00:00.000Z';
+const currentWeek=localWeekStart(new Date());
 const basePayload=(scenario,operations,extra={})=>({schema_version:'1.1',update_id:`TEST-${scenario}`,generated_at:iso,source:'ai_screenshot_analysis',scenario,update_policy:{blank_values:'preserve_existing',missing_fields:'no_change',explicit_zero_and_false:'write_value'},operations,...extra});
 const op=(entity,key,data,imageRef='image-001')=>({operation_id:`OP-${entity}-${Object.values(key).join('-')}`,entity,action:'upsert',key,data,clear_fields:[],evidence:{source_type:'screenshot',source_image_ref:imageRef,confidence:0.99},review_required:false,user_audit:{accepted_current_observation:true}});
 
@@ -29,7 +31,10 @@ const wrongAction=structuredClone(ingredientPayload);wrongAction.update_id='TEST
 const recipePayload=basePayload('recipe_status_update',[op('recipes',{recipe_name:'忍者咖哩'},{unlocked:true,recipe_level:1,current_energy:100},'image-003')]);result=validateScreenshotScenarioPayload(session,'recipes',recipePayload);assert.equal(result.errors.length,0,result.errors.join('\n'));assert.equal(result.payload.operations.length,1);
 const recipePrompt=buildScreenshotScenarioPrompt(session,'recipes');assert.match(recipePrompt,/Public Master Constrained Recognition/);assert.match(recipePrompt,/recipe_master/);assert.match(recipePrompt,/observed_data 只可包含 unlocked、recipe_level、current_energy/);
 
-const weeklyPayload=basePayload('weekly_context_update',[op('weekly_context',{context_id:'weekly_context_2026-08-10_import'},{week_start:'2026-08-10',camp:'萌綠之島',dish_category:'咖哩／濃湯',event_name:'測試活動',event_effects:{meal_category_forced:true,recipe_final_energy_multiplier:1.5},updated_at:iso},'image-001')],{context_authority:'UPDATE_CENTER_JSON'});result=validateScreenshotScenarioPayload(session,'weekly',weeklyPayload);assert.equal(result.errors.length,0,result.errors.join('\n'));assert.equal(result.summary.weekly_context_contract,'PASS');
+// The Screenshot Update Center validates weekly payloads against the actual
+// current-week authority. Keep this synthetic fixture calendar-robust while
+// preserving the historical behavior under test.
+const weeklyPayload=basePayload('weekly_context_update',[op('weekly_context',{context_id:`weekly_context_${currentWeek}_import`},{week_start:currentWeek,camp:'萌綠之島',dish_category:'咖哩／濃湯',event_name:'測試活動',event_effects:{meal_category_forced:true,recipe_final_energy_multiplier:1.5},updated_at:new Date().toISOString()},'image-001')],{context_authority:'UPDATE_CENTER_JSON'});result=validateScreenshotScenarioPayload(session,'weekly',weeklyPayload);assert.equal(result.errors.length,0,result.errors.join('\n'));assert.equal(result.summary.weekly_context_contract,'PASS');
 const weeklyTwo=structuredClone(weeklyPayload);weeklyTwo.update_id='TEST-weekly-two';weeklyTwo.operations.push({...weeklyTwo.operations[0],operation_id:'OP-weekly-2'});result=validateScreenshotScenarioPayload(session,'weekly',weeklyTwo);assert.ok(result.errors.some(value=>value.includes('Weekly Context 必須只有 1 筆 operation')));
 weekly.object_url='blob:private-screenshot';weekly.image_available=true;const persisted=serializableScreenshotSession(session);assert.equal(persisted.entries[0].object_url,null);assert.equal(persisted.entries[0].image_available,false);assert.equal(persisted.entries[0].file_name,'weekly_event.png');
 
@@ -40,4 +45,4 @@ if(bootstrapLoader){const bootstrap=fs.readFileSync(new URL('../assets/js/uc-img
 const source=fs.readFileSync(new URL('../assets/js/unified-screenshot-update-center.js',import.meta.url),'utf8');for(const token of ["from './ai-workflow.js'","from './importer.js'",'validateWorkflow','dryRun','applyPayload','multiple','USER_CONFIRMED_COMPLETE','PARTIAL','response_stale','screenshotScenarioRevision','Gemini API 直接分析','外部 AI Prompt','compilePublicMasterRecognitionToUpdatePackage','Public Master 對應待確認'])assert.ok(source.includes(token),`missing runtime contract token: ${token}`);
 assert.ok(!/indexedDB\.put\([^\n]*image|INSERT[^\n]*image_blob/i.test(source));assert.equal((source.match(/applyPayload\(/g)||[]).length,1,'UC.IMG must keep exactly one Apply bridge');
 
-console.log(JSON.stringify({status:'PASS',gate:'UC.IMG-A_SUCCESSOR_AWARE',version:UC_IMG_A_VERSION,authority_date:ucImgAuthorityDate,session_entries:session.entries.length,weekly_contract:'PASS',ingredient_public_master_recognition:'PASS',recipe_public_master_recognition:'PASS',legacy_update_package_parse:'PASS',image_ref_filename_mapping:'PASS',stale_response_guard:'PASS',evidence_ref_guard:'PASS',existing_importer_bridge:'PASS',loader_mode:bootstrapLoader?'successor_bootstrap':'direct',dual_mode:true},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'UC.IMG-A_SUCCESSOR_AWARE',version:UC_IMG_A_VERSION,authority_date:ucImgAuthorityDate,session_entries:session.entries.length,weekly_contract:'PASS',weekly_fixture_current_week:currentWeek,ingredient_public_master_recognition:'PASS',recipe_public_master_recognition:'PASS',legacy_update_package_parse:'PASS',image_ref_filename_mapping:'PASS',stale_response_guard:'PASS',evidence_ref_guard:'PASS',existing_importer_bridge:'PASS',loader_mode:bootstrapLoader?'successor_bootstrap':'direct',dual_mode:true},null,2));
