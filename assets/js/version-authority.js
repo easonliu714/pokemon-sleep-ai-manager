@@ -1,8 +1,8 @@
 (function installVersionAuthority(scope) {
   const authority = Object.freeze({
-    app_version: 'v0.4.27.11',
-    app_build: '20260818-v042711-model-health-fallback-persistence',
-    cache_name: 'pokemon-sleep-ai-v0.4.27.11-v042711-model-health-fallback-persistence',
+    app_version: 'v0.4.27.12',
+    app_build: '20260818-v042712-live-validation-model-confirmation-ux',
+    cache_name: 'pokemon-sleep-ai-v0.4.27.12-v042712-live-validation-model-confirmation-ux',
     schema: 'pokemon-sleep-version-authority/1.0',
   });
   Object.defineProperty(scope, 'PokemonSleepVersionAuthority', {
@@ -14,6 +14,9 @@
 })(globalThis);
 
 // Legacy CI parser bridge only; not executed and not a release authority:
+// app_version: 'v0.4.27.11'
+// app_build: '20260818-v042711-model-health-fallback-persistence'
+// cache_name: 'pokemon-sleep-ai-v0.4.27.11-v042711-model-health-fallback-persistence'
 // app_version: 'v0.4.27.10'
 // app_build: '20260818-v042710-ai-startup-timeout-public-hydration'
 // cache_name: 'pokemon-sleep-ai-v0.4.27.10-v042710-ai-startup-timeout-public-hydration'
