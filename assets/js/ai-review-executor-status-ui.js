@@ -3,6 +3,7 @@ const unifiedState={ocr:'pending',ai:'pending',cross:'pending',message:'尚未�
 const label={pending:'待執行',running:'執行中',completed:'完成',failed:'失敗',review:'待人工確認'};
 const icon={pending:'○',running:'◉',completed:'✓',failed:'✕',review:'△'};
 
+function setText(node,value){if(node&&node.textContent!==value)node.textContent=value;}
 function ensureExecutorStatus(panel){
   let node=panel.querySelector('[data-ai-executor-local-status]');
   if(node)return node;
@@ -12,10 +13,10 @@ function ensureExecutorStatus(panel){
 }
 function updatePanel(root=document,status=null){
   for(const panel of root.querySelectorAll('.ocr-region-ai-panel')){
-    const button=panel.querySelector('#prepareAiReviewBtn');if(button)button.textContent='同意並執行 AI 覆核';
+    const button=panel.querySelector('#prepareAiReviewBtn');setText(button,'同意並執行 AI 覆核');
     for(const notice of panel.querySelectorAll('.notice'))if(notice.textContent.includes('目前此按鈕只建立待送 Queue'))notice.innerHTML='<strong>按下後將立即使用目前啟用的 Project Pool 與模型送出已勾選圖片。</strong> 若遇短期限流會暫停；只有明確 Project／每日配額耗盡才切換下一 Project。';
-    const ack=panel.querySelector('#ocrAiUploadAck')?.closest('label');if(ack)ack.lastChild.textContent='我了解勾選圖片會上傳至 AI Provider；Key 可選擇加密保存於此裝置，且不會進入診斷或匯出檔。';
-    const local=ensureExecutorStatus(panel);if(local&&status)local.textContent=status.message;
+    const ack=panel.querySelector('#ocrAiUploadAck')?.closest('label');const desired='我了解勾選圖片會上傳至 AI Provider；Key 可選擇加密保存於此裝置，且不會進入診斷或匯出檔。';if(ack?.lastChild&&ack.lastChild.textContent!==desired)ack.lastChild.textContent=desired;
+    const local=ensureExecutorStatus(panel);if(local&&status)setText(local,status.message);
   }
 }
 function ensureUnifiedProgress(root=document){
@@ -62,7 +63,7 @@ export function createAiReviewExecutorStatusUi({root=document,target=globalThis}
   const onCross=event=>{unifiedState.cross=event.detail?.ai_revision_id?'completed':event.detail?.recommended_action==='run_ai'?'pending':'review';unifiedState.message=event.detail?.ai_revision_id?'Cross Check 已更新；請在下方逐欄人工確認。':'Cross Check 已更新，仍需補 AI 或人工確認。';renderUnifiedProgress(root);};
   const onSource=()=>resetUnified(root);
   target.addEventListener?.('pokemon-sleep:analysis-cross-check-ready',onCross);target.addEventListener?.('pokemon-sleep:identity-import-files-selected',onSource);
-  const observer=new MutationObserver(()=>{updatePanel(root,status);syncUnifiedFromDom(root);});observer.observe(root.documentElement||root,{subtree:true,childList:true,characterData:true});
+  const observer=new MutationObserver(()=>{updatePanel(root,status);syncUnifiedFromDom(root);});observer.observe(root.documentElement||root,{subtree:true,childList:true});
   updatePanel(root,status);syncUnifiedFromDom(root);
   return {schema:STATUS_UI_SCHEMA,get status(){return status;},get unified_progress(){return {...unifiedState};},dispose(){observer.disconnect();for(const [name,handler] of Object.entries(handlers))target.removeEventListener?.(`pokemon-sleep:ai-review-executor-${name}`,handler);target.removeEventListener?.('pokemon-sleep:analysis-cross-check-ready',onCross);target.removeEventListener?.('pokemon-sleep:identity-import-files-selected',onSource);}};
 }
