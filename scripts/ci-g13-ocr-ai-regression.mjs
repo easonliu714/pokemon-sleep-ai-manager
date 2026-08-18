@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 
-export const G13_OCR_AI_REGRESSION_VERSION='g13-ocr-ai-regression-2026-08-18-h-v042710-timeout-public-hydration';
+export const G13_OCR_AI_REGRESSION_VERSION='g13-ocr-ai-regression-2026-08-18-i-v042711-model-health-fallback';
 export const G13_CORE_GATES=Object.freeze([
   'tests/g13_2c_ocr_isolation_secret_redaction_gate.mjs',
   'tests/g13_2d_duplicate_finalize_live_debug_gate.mjs',
@@ -14,6 +14,7 @@ export const G13_CORE_GATES=Object.freeze([
   'tests/g13_8_v04278_ai_resilience_evolution_confirmation_gate.mjs',
   'tests/g13_9_v04279_multicapture_confirmation_authority_gate.mjs',
   'tests/g13_10_v042710_ai_timeout_public_hydration_gate.mjs',
+  'tests/g13_11_v042711_model_health_fallback_gate.mjs',
 ]);
 export const G13_REMAINING_WRAPPER_GATES=Object.freeze([
   'scripts/g13-2a-ai-project-pool-executor-regression.mjs',
