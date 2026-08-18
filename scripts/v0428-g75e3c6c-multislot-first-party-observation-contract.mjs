@@ -124,9 +124,11 @@ assert.ok(source.includes('outcome_dependent_window_selection:false'),'E3C-6C mu
 assert.ok(source.includes('slot_selection_probability_used:false'),'E3C-6C must not use ingredient-slot selection probability to reconstruct event count');
 assert.ok(source.includes('rate_value_used_to_reconstruct_events:false'),'E3C-6C must not use hidden Ingredient Probability to reconstruct events');
 
+// E3C-6C owns the statistical method, not permanent UI suppression. A later
+// governed UI successor may expose this mode only if it preserves the same
+// preobservable equal-quantity gate and Production boundary.
 const ui=fs.readFileSync('assets/js/ingredient-probability-first-party-observation-ui.js','utf8');
-assert.ok(ui.includes('level BETWEEN 1 AND 29'),'E3C-6C methodology PR must not silently widen the existing mobile capture UI');
-assert.equal(ui.includes(FIRST_PARTY_OBSERVATION_MODES.MULTI_SLOT_EQUAL_QUANTITY),false,'multi-slot mode must not be exposed before the UI successor gate');
+assert.ok(ui.includes('ingredient-probability-first-party-observation-ui-eligibility.js'),'multi-slot UI exposure must route through a governed eligibility resolver');
 
 console.log(JSON.stringify({
   status:'PASS',
@@ -139,7 +141,7 @@ console.log(JSON.stringify({
   predecessor_single_slot_mode_preserved:true,
   slot_selection_probability_used:false,
   hidden_rate_used:false,
-  mobile_capture_ui_enabled:false,
+  mobile_capture_ui_governed_by_successor_contract:true,
   schema_migration_required:false,
   sample_sufficiency_for_activation:'NOT_DEFINED',
   production_numeric_activation:'4/7',
