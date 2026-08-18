@@ -25,20 +25,16 @@ export function resolveFirstPartyObservationUiCandidate({level,ingredient_slots,
   }
 
   const slotResolution=resolveIngredientSlotDistribution({level:parsedLevel,slots:ingredient_slots});
-  if(slotResolution.status!=='ACTIVE_VERIFIED'){
-    blockers.push(FIRST_PARTY_OBSERVATION_UI_CANDIDATE_BLOCKERS.INGREDIENT_SLOT_STRUCTURE_NOT_VERIFIED);
-    return freeze({visible:false,observation_mode:null,expected_slot_count:expectedSlotCount,slot_quantities:null,multi_slot_preeligible:false,legacy_single_slot_visibility_preserved:expectedSlotCount===1,blockers:freeze(blockers)});
-  }
-
-  const slotQuantities=slotResolution.slots.map(row=>positiveInteger(row.quantity));
-  if(slotQuantities.some(value=>value===null))blockers.push(FIRST_PARTY_OBSERVATION_UI_CANDIDATE_BLOCKERS.INGREDIENT_SLOT_QUANTITY_MISSING);
+  const slotQuantities=slotResolution.status==='ACTIVE_VERIFIED'?slotResolution.slots.map(row=>positiveInteger(row.quantity)):[];
+  if(slotResolution.status!=='ACTIVE_VERIFIED')blockers.push(FIRST_PARTY_OBSERVATION_UI_CANDIDATE_BLOCKERS.INGREDIENT_SLOT_STRUCTURE_NOT_VERIFIED);
+  if(slotResolution.status==='ACTIVE_VERIFIED'&&slotQuantities.some(value=>value===null))blockers.push(FIRST_PARTY_OBSERVATION_UI_CANDIDATE_BLOCKERS.INGREDIENT_SLOT_QUANTITY_MISSING);
 
   if(expectedSlotCount===1){
-    // E3C-6B compatibility: keep the existing Lv1–29 candidate surface even
-    // when a rate modifier will later make the deterministic evaluator reject
-    // the observation. The successor only narrows newly exposed Lv30+ rows.
+    // E3C-6B compatibility: retain the existing Lv1–29 candidate surface.
+    // Missing/incomplete slot data or an individual modifier may still be shown
+    // and then fail closed in the existing deterministic evaluator.
     return freeze({
-      visible:blockers.length===0,
+      visible:true,
       observation_mode:FIRST_PARTY_OBSERVATION_MODES.SINGLE_SLOT,
       expected_slot_count:1,
       slot_quantities:freeze(slotQuantities),
@@ -49,7 +45,7 @@ export function resolveFirstPartyObservationUiCandidate({level,ingredient_slots,
     });
   }
 
-  const equalQuantities=slotQuantities.length===expectedSlotCount&&slotQuantities.every(value=>value!==null)&&new Set(slotQuantities).size===1;
+  const equalQuantities=slotResolution.status==='ACTIVE_VERIFIED'&&slotQuantities.length===expectedSlotCount&&slotQuantities.every(value=>value!==null)&&new Set(slotQuantities).size===1;
   if(!equalQuantities)blockers.push(FIRST_PARTY_OBSERVATION_UI_CANDIDATE_BLOCKERS.MULTI_SLOT_QUANTITIES_NOT_EQUAL);
   if(individual_ingredient_rate_modifier_present===true)blockers.push(FIRST_PARTY_OBSERVATION_UI_CANDIDATE_BLOCKERS.INDIVIDUAL_INGREDIENT_RATE_MODIFIER_PRESENT);
   const visible=blockers.length===0;
@@ -62,6 +58,6 @@ export function resolveFirstPartyObservationUiCandidate({level,ingredient_slots,
     legacy_single_slot_visibility_preserved:false,
     individual_rate_modifier_present:individual_ingredient_rate_modifier_present===true,
     outcome_dependent_window_selection:false,
-    blockers:freeze(blockers),
+    blockers:freeze([...new Set(blockers)]),
   });
 }
