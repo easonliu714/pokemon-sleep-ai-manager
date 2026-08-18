@@ -29,10 +29,10 @@ export function classifyGeminiFailure({status=0,payload=null,retryAfter=null,mes
   if(numericStatus===404||/model.*not found|not supported/.test(text))return {class:'model_unavailable',transport_kind:'http_response',retryable:false,disable_project:false,failover:true};
   if(numericStatus===429&&/daily|per day|quota.*day|resource exhausted.*day/.test(text))return {class:'daily_project_quota_exhausted',transport_kind:'http_response',retryable:false,disable_project:false,failover:true,cooldown_seconds:86400};
   if(numericStatus===429)return {class:'temporary_rate_limit',transport_kind:'http_response',retryable:true,disable_project:false,failover:false,cooldown_seconds:retrySeconds||60};
-  if(numericStatus===408)return {class:'provider_timeout',transport_kind:'http_response',retryable:false,disable_project:false,failover:true,cooldown_seconds:retrySeconds||10};
+  if(numericStatus===408)return {class:'provider_timeout',transport_kind:'http_response',retryable:true,disable_project:false,failover:false,cooldown_seconds:retrySeconds||30};
   if(numericStatus>=500)return {class:'provider_http_transient',transport_kind:'http_response',retryable:true,disable_project:false,failover:false,cooldown_seconds:retrySeconds||30};
   if(numericStatus===0&&/timeout|timeouterror|ai_provider_timeout/.test(text))return {class:'provider_timeout',transport_kind:'fetch_exception',retryable:false,disable_project:false,failover:true,cooldown_seconds:10};
-  if(numericStatus===0&&/aborterror|aborted|abort/.test(`${name} ${message}`.toLowerCase()))return {class:'request_aborted',transport_kind:'fetch_exception',retryable:false,disable_project:false,failover:true,cooldown_seconds:5};
+  if(numericStatus===0&&/aborterror|aborted|abort/.test(`${name} ${message}`.toLowerCase()))return {class:'request_aborted',transport_kind:'fetch_exception',retryable:true,disable_project:false,failover:false,cooldown_seconds:retrySeconds||5};
   if(numericStatus===0)return {class:'network_transport_error',transport_kind:'fetch_exception',retryable:true,disable_project:false,failover:false,cooldown_seconds:retrySeconds||5};
   return {class:'request_rejected',transport_kind:'http_response',retryable:false,disable_project:false,failover:false};
 }
