@@ -45,16 +45,17 @@ function imageParts(image){
   return [{text:`UC.IMG attachment: image_ref=${image.imageRef}${fileSuffix}`},inline];
 }
 
-export function buildGeminiGenerateBody({prompt,images=null,imageBase64=null,mimeType='image/png',responseJsonSchema=null}={}){
+export function buildGeminiGenerateBody({prompt,images=null,imageBase64=null,mimeType='image/png',responseJsonSchema=null,thinkingLevel=null}={}){
   const normalized=normalizeGeminiImages({images,imageBase64,mimeType});
   const parts=[{text:String(prompt||'')},...normalized.flatMap(imageParts)];
   const generationConfig={responseMimeType:'application/json'};
   if(responseJsonSchema&&typeof responseJsonSchema==='object')generationConfig.responseJsonSchema=responseJsonSchema;
+  if(clean(thinkingLevel))generationConfig.thinkingConfig={thinkingLevel:clean(thinkingLevel)};
   return {contents:[{role:'user',parts}],generationConfig};
 }
 
-export async function requestGemini({project,model,prompt,imageBase64,mimeType='image/png',images=null,responseJsonSchema=null,fetchImpl=fetch}){
-  const body=buildGeminiGenerateBody({prompt,imageBase64,mimeType,images,responseJsonSchema});
+export async function requestGemini({project,model,prompt,imageBase64,mimeType='image/png',images=null,responseJsonSchema=null,thinkingLevel=null,fetchImpl=fetch}){
+  const body=buildGeminiGenerateBody({prompt,imageBase64,mimeType,images,responseJsonSchema,thinkingLevel});
   const started=performance.now();
   let response;
   try{
@@ -77,7 +78,7 @@ export async function requestGemini({project,model,prompt,imageBase64,mimeType='
   return {payload,transport:{transport_kind:'http_response',http_status:response.status,http_status_text:response.statusText||null,elapsed_ms:elapsedMs}};
 }
 
-function buildAttemptRecord({project,model,imageCount,structuredOutput,attemptNumber,projectAttemptNumber,error=null,transport=null}={}){
+function buildAttemptRecord({project,model,imageCount,structuredOutput,thinkingLevel=null,attemptNumber,projectAttemptNumber,error=null,transport=null}={}){
   const failure=error?.failure||null;
   return {
     attempt_number:Number(attemptNumber||1),
@@ -87,6 +88,7 @@ function buildAttemptRecord({project,model,imageCount,structuredOutput,attemptNu
     model:model||null,
     image_count:Number(imageCount||0),
     structured_output:Boolean(structuredOutput),
+    thinking_level:clean(thinkingLevel)||null,
     status:error?'FAILED':'COMPLETED',
     error_class:failure?.class||null,
     transport_kind:failure?.transport_kind||transport?.transport_kind||null,
@@ -102,7 +104,7 @@ function buildAttemptRecord({project,model,imageCount,structuredOutput,attemptNu
   };
 }
 
-export async function executeWithProjectPool({projects,model,prompt,imageBase64,mimeType='image/png',images=null,responseJsonSchema=null,fetchImpl=fetch,onTrace=()=>{},retryDelaysMs=DEFAULT_TRANSIENT_RETRY_DELAYS_MS,maxProjectFailovers=1}={}){
+export async function executeWithProjectPool({projects,model,prompt,imageBase64,mimeType='image/png',images=null,responseJsonSchema=null,thinkingLevel=null,fetchImpl=fetch,onTrace=()=>{},retryDelaysMs=DEFAULT_TRANSIENT_RETRY_DELAYS_MS,maxProjectFailovers=1}={}){
   let state=normalizeProjectPool(projects);
   const attempts=[];
   const excludedAliases=new Set();
@@ -115,10 +117,10 @@ export async function executeWithProjectPool({projects,model,prompt,imageBase64,
     let projectAttempt=0;
     while(true){
       projectAttempt+=1;totalAttempt+=1;
-      onTrace('ai_request_started',{alias:project.alias,fingerprint:project.fingerprint,model,image_count:imageCount,structured_output:structuredOutput,attempt_number:totalAttempt,project_attempt_number:projectAttempt});
+      onTrace('ai_request_started',{alias:project.alias,fingerprint:project.fingerprint,model,image_count:imageCount,structured_output:structuredOutput,thinking_level:clean(thinkingLevel)||null,attempt_number:totalAttempt,project_attempt_number:projectAttempt});
       try{
-        const result=await requestGemini({project,model,prompt,imageBase64,mimeType,images,responseJsonSchema,fetchImpl});
-        const record=buildAttemptRecord({project,model,imageCount,structuredOutput,attemptNumber:totalAttempt,projectAttemptNumber:projectAttempt,transport:result.transport});
+        const result=await requestGemini({project,model,prompt,imageBase64,mimeType,images,responseJsonSchema,thinkingLevel,fetchImpl});
+        const record=buildAttemptRecord({project,model,imageCount,structuredOutput,thinkingLevel,attemptNumber:totalAttempt,projectAttemptNumber:projectAttempt,transport:result.transport});
         attempts.push(record);
         const used={...project,last_used_at:nowIso(),last_error_class:null,cooldown_until:null};state=state.map(item=>item.alias===project.alias?used:item);
         onTrace('ai_request_completed',{...record});
@@ -126,7 +128,7 @@ export async function executeWithProjectPool({projects,model,prompt,imageBase64,
       }catch(error){
         const failure=error.failure||classifyGeminiFailure({status:error.status,message:error.message,name:error.name});
         error.failure=failure;
-        const record=buildAttemptRecord({project,model,imageCount,structuredOutput,attemptNumber:totalAttempt,projectAttemptNumber:projectAttempt,error});
+        const record=buildAttemptRecord({project,model,imageCount,structuredOutput,thinkingLevel,attemptNumber:totalAttempt,projectAttemptNumber:projectAttempt,error});
         attempts.push(record);
         onTrace('ai_request_failed',{...record});
         const retryIndex=projectAttempt-1;
