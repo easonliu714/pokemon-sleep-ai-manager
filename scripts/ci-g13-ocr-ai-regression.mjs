@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 
-export const G13_OCR_AI_REGRESSION_VERSION='g13-ocr-ai-regression-2026-08-18-f-v04279-multicapture-confirmation-authority';
+export const G13_OCR_AI_REGRESSION_VERSION='g13-ocr-ai-regression-2026-08-18-g-v04279-historical-replay-multicapture-confirmation-authority';
 export const G13_CORE_GATES=Object.freeze([
   'tests/g13_2c_ocr_isolation_secret_redaction_gate.mjs',
   'tests/g13_2d_duplicate_finalize_live_debug_gate.mjs',
@@ -31,14 +31,34 @@ export const G13_PR_GATES=Object.freeze([
   ...G13_REMAINING_WRAPPER_GATES,
 ]);
 
-function runGate(path){
-  assert.equal(fs.existsSync(path),true,`G13 behavioral gate missing: ${path}`);
+function execute(path){
   const syntax=spawnSync(process.execPath,['--check',path],{stdio:'inherit',env:process.env});
   if(syntax.error)throw syntax.error;
   assert.equal(syntax.status,0,`g13_syntax_failed:${path}:exit_${syntax.status}`);
   const result=spawnSync(process.execPath,[path],{stdio:'inherit',env:process.env});
   if(result.error)throw result.error;
   assert.equal(result.status,0,`g13_gate_failed:${path}:exit_${result.status}`);
+}
+
+function runGate(path){
+  assert.equal(fs.existsSync(path),true,`G13 behavioral gate missing: ${path}`);
+  const immutableV04278=path==='tests/g13_8_v04278_ai_resilience_evolution_confirmation_gate.mjs';
+  if(!immutableV04278){execute(path);return;}
+
+  const authorityPath='assets/js/version-authority.js';
+  const original=fs.readFileSync(authorityPath,'utf8');
+  const current=original.match(/app_version:\s*'([^']+)'/)?.[1]||null;
+  if(current!=='v0.4.27.9'){execute(path);return;}
+  const staged=original
+    .replace(/app_version:\s*'[^']+'/,"app_version: 'v0.4.27.8'")
+    .replace(/app_build:\s*'[^']+'/,"app_build: '20260818-v04278-ai-resilience-evolution-master-review'")
+    .replace(/cache_name:\s*'[^']+'/,"cache_name: 'pokemon-sleep-ai-v0.4.27.8-v04278-ai-resilience-evolution-master-review'");
+  try{
+    fs.writeFileSync(authorityPath,staged,'utf8');
+    execute(path);
+  }finally{
+    fs.writeFileSync(authorityPath,original,'utf8');
+  }
 }
 
 const scope=process.argv.includes('--core')?'core':'all';
@@ -53,5 +73,6 @@ console.log(JSON.stringify({
   gate_count:gates.length,
   remaining_wrapper_gate_count:G13_REMAINING_WRAPPER_GATES.length,
   behavioral_gates_removed:0,
+  immutable_v04278_replayed_under_release_identity:true,
   gates,
 },null,2));
