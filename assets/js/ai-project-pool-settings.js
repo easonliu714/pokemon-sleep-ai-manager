@@ -26,6 +26,16 @@ function publishPool(data){globalThis.PokemonSleepAiProjectPool=data;globalThis.
 function ensureModelOption(select,model,{pending=false}={}){const value=String(model||'').trim()||DEFAULT_MODEL;if([...select.options].some(option=>option.value===value))return value;const option=document.createElement('option');option.value=value;option.textContent=value+(pending?'（待自動驗證）':'');select.appendChild(option);return value;}
 function chooseModel(names=[],requestedModel=''){const requested=String(requestedModel||'').trim();if(requested&&names.includes(requested))return requested;if(names.includes(DEFAULT_MODEL))return DEFAULT_MODEL;return names.find(name=>/gemini/i.test(name)&&/flash/i.test(name))||names[0]||requested||DEFAULT_MODEL;}
 function replaceModelOptions(select,names=[],selectedModel=''){const chosen=chooseModel(names,selectedModel);select.innerHTML='';for(const name of [...new Set([chosen,...names].filter(Boolean))]){const option=document.createElement('option');option.value=name;option.textContent=name+(name===chosen?'（預設）':'');select.appendChild(option);}select.value=chosen;return chosen;}
+function withRuntimeModel(data,model){const selected=String(model||'').trim();if(!selected||!data?.projects?.length)return null;return {...data,model:selected};}
+async function adoptRuntimeFallbackModel(model){
+  const current=loadSession()||globalThis.PokemonSleepAiProjectPool||null,next=withRuntimeModel(current,model);if(!next)return null;
+  saveSession(next);if(next.persistent)await saveEncryptedProjectPool(next);
+  const select=globalThis.document?.getElementById?.('aiModelSelect');if(select){ensureModelOption(select,next.model);select.value=next.model;}
+  const summary=globalThis.document?.getElementById?.('aiKeyTestSummary');if(summary)summary.insertAdjacentHTML?.('beforeend',`<p>前一模型實際辨識逾時／失敗，已將成功 fallback 模型 <b>${next.model}</b> 設為下次首選。</p>`);
+  publishPool(next);globalThis.DebugTrace?.record?.('ai_project_pool','ai_model_runtime_fallback_persisted',{status:'completed',details:{selected_model:next.model,persistent:Boolean(next.persistent)}});return next;
+}
+
+globalThis.addEventListener?.('pokemon-sleep:ai-model-fallback-success',event=>{adoptRuntimeFallbackModel(event?.detail?.to_model).catch(()=>{});});
 
 async function createPanel(){
   const guide=document.querySelector('#guide .prose');if(!guide||document.getElementById('aiProjectPoolSettings'))return;
@@ -55,4 +65,4 @@ async function createPanel(){
   if(restore?.projects?.length){const restored={...restore,model:String(select.value||DEFAULT_MODEL).trim()||DEFAULT_MODEL,persistent:Boolean(persist.checked||restore.persistent)};publishPool(restored);setTimeout(()=>{discoverModels({automatic:true}).catch(()=>{});},0);}
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',createPanel,{once:true});else createPanel();
-export {splitKeys,maskKey,testKey,DEFAULT_MODEL,buildProjects,MODEL_DISCOVERY_TIMEOUT_MS,chooseModel};
+export {splitKeys,maskKey,testKey,DEFAULT_MODEL,buildProjects,MODEL_DISCOVERY_TIMEOUT_MS,chooseModel,withRuntimeModel,adoptRuntimeFallbackModel};
