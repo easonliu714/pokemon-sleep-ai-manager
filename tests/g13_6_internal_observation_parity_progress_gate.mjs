@@ -17,7 +17,10 @@ for(const token of [
   '放鬆可可',
   '技能機率提升S',
 ])assert.ok(DEFAULT_PROMPT.includes(token),`internal Observation v2 prompt missing safety token: ${token}`);
-assert.equal(PROMPT_VERSION,'pokemon-sleep-observation-v2/2026-08-18-internal-parity');
+assert.ok(new Set([
+  'pokemon-sleep-observation-v2/2026-08-18-internal-parity',
+  'pokemon-sleep-observation-v2/2026-08-18-structured-output',
+]).has(PROMPT_VERSION),`unexpected Observation v2 prompt successor: ${PROMPT_VERSION}`);
 
 const valid={
   schema_version:'2.0-observation',prompt_policy_version:'pokemon-visual-prompt-policy-2026-08-15-b-partial-visibility',
