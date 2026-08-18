@@ -1,16 +1,28 @@
 import {PUBLIC_SPECIES_FORM_ROSTER_ROWS} from './public-pokemon-species-form-roster.js';
 import {expectedUnlockedIngredientSlotCount,resolveIngredientSlotDistribution} from './ingredient-slot-distribution-contract.js';
 
-export const INGREDIENT_PROBABILITY_FIRST_PARTY_OBSERVATION_ID='ingredient-probability-first-party-observation-2026-08-14-a';
-export const INGREDIENT_PROBABILITY_FIRST_PARTY_OBSERVATION_VERSION='ingredient-probability-first-party-observation-v1';
+export const INGREDIENT_PROBABILITY_FIRST_PARTY_OBSERVATION_ID='ingredient-probability-first-party-observation-2026-08-18-b';
+export const INGREDIENT_PROBABILITY_FIRST_PARTY_OBSERVATION_VERSION='ingredient-probability-first-party-observation-v2';
 
 export const FIRST_PARTY_OBSERVATION_STATUS=Object.freeze({
   ACCEPTED_RAW_OBSERVATION:'ACCEPTED_RAW_OBSERVATION',
   REVIEW_REQUIRED:'REVIEW_REQUIRED',
 });
 
-export const FIRST_PARTY_OBSERVATION_MODE='DIRECT_MANUAL_COLLECTION_SINGLE_SLOT_WINDOW';
+export const FIRST_PARTY_OBSERVATION_MODES=Object.freeze({
+  SINGLE_SLOT:'DIRECT_MANUAL_COLLECTION_SINGLE_SLOT_WINDOW',
+  MULTI_SLOT_UNIQUE_EVENT_COUNT:'DIRECT_MANUAL_COLLECTION_MULTI_SLOT_UNIQUE_EVENT_COUNT_WINDOW',
+});
+// Backward-compatible alias used by E3C-6/E3C-6B and the existing mobile UI.
+export const FIRST_PARTY_OBSERVATION_MODE=FIRST_PARTY_OBSERVATION_MODES.SINGLE_SLOT;
 export const FIRST_PARTY_OBSERVATION_SOURCE='PLAYER_FIRST_PARTY_CAPTURE';
+
+export const INGREDIENT_EVENT_RECONSTRUCTION_STATUS=Object.freeze({
+  UNIQUE_EVENT_COUNT:'UNIQUE_EVENT_COUNT',
+  AMBIGUOUS_EVENT_COUNT:'AMBIGUOUS_EVENT_COUNT',
+  NO_INTEGER_COMBINATION:'NO_INTEGER_COMBINATION',
+  INVALID_INPUT:'INVALID_INPUT',
+});
 
 const ROSTER_BY_KEY=new Map(PUBLIC_SPECIES_FORM_ROSTER_ROWS.map(row=>[row.source_key,row]));
 const freeze=value=>Object.freeze(value);
@@ -31,6 +43,7 @@ export const FIRST_PARTY_OBSERVATION_BLOCKERS=Object.freeze({
   WRONG_OBSERVATION_MODE:'WRONG_OBSERVATION_MODE',
   INVALID_LEVEL:'INVALID_LEVEL',
   MULTIPLE_INGREDIENT_SLOTS_UNLOCKED_NOT_SUPPORTED:'MULTIPLE_INGREDIENT_SLOTS_UNLOCKED_NOT_SUPPORTED',
+  MULTI_SLOT_MODE_REQUIRES_MULTIPLE_UNLOCKED_SLOTS:'MULTI_SLOT_MODE_REQUIRES_MULTIPLE_UNLOCKED_SLOTS',
   INGREDIENT_SLOT_STRUCTURE_NOT_VERIFIED:'INGREDIENT_SLOT_STRUCTURE_NOT_VERIFIED',
   INGREDIENT_SLOT_QUANTITY_MISSING:'INGREDIENT_SLOT_QUANTITY_MISSING',
   INDIVIDUAL_INGREDIENT_RATE_MODIFIER_NOT_ISOLATED:'INDIVIDUAL_INGREDIENT_RATE_MODIFIER_NOT_ISOLATED',
@@ -50,8 +63,43 @@ export const FIRST_PARTY_OBSERVATION_BLOCKERS=Object.freeze({
   INVENTORY_CAPACITY_NOT_PROVABLY_SAFE:'INVENTORY_CAPACITY_NOT_PROVABLY_SAFE',
   BERRY_EVENT_COUNT_NOT_INTEGER:'BERRY_EVENT_COUNT_NOT_INTEGER',
   INGREDIENT_EVENT_COUNT_NOT_INTEGER:'INGREDIENT_EVENT_COUNT_NOT_INTEGER',
+  INGREDIENT_EVENT_COUNT_NOT_RECONSTRUCTABLE:'INGREDIENT_EVENT_COUNT_NOT_RECONSTRUCTABLE',
+  MULTI_SLOT_INGREDIENT_EVENT_COUNT_AMBIGUOUS:'MULTI_SLOT_INGREDIENT_EVENT_COUNT_AMBIGUOUS',
   ZERO_HELP_EVENTS:'ZERO_HELP_EVENTS',
 });
+
+// E3C-6C: reconstruct only the NUMBER of ingredient-result help events from an
+// observed aggregate item total and observed unlocked-slot quantities. No slot
+// probability or hidden Ingredient Probability value is used. We retain at most
+// two distinct reachable event counts because the gate only needs to prove
+// uniqueness vs ambiguity.
+export function resolveIngredientHelpEventCountFromAggregateItems({ingredient_items_collected,slot_quantities}={}){
+  const target=nonNegativeInteger(ingredient_items_collected);
+  const quantities=Array.isArray(slot_quantities)?[...new Set(slot_quantities.map(positiveInteger).filter(value=>value!==null))]:[];
+  if(target===null||!Array.isArray(slot_quantities)||!slot_quantities.length||slot_quantities.some(value=>positiveInteger(value)===null)){
+    return freeze({status:INGREDIENT_EVENT_RECONSTRUCTION_STATUS.INVALID_INPUT,event_count:null,possible_event_counts:freeze([]),slot_quantities:freeze(quantities)});
+  }
+  const reachable=Array.from({length:target+1},()=>new Set());
+  reachable[0].add(0);
+  for(let amount=0;amount<=target;amount+=1){
+    if(!reachable[amount].size)continue;
+    for(const quantity of quantities){
+      const next=amount+quantity;
+      if(next>target)continue;
+      for(const count of reachable[amount]){
+        reachable[next].add(count+1);
+        if(reachable[next].size>2){
+          const firstTwo=[...reachable[next]].sort((a,b)=>a-b).slice(0,2);
+          reachable[next]=new Set(firstTwo);
+        }
+      }
+    }
+  }
+  const possible=[...reachable[target]].sort((a,b)=>a-b);
+  if(!possible.length)return freeze({status:INGREDIENT_EVENT_RECONSTRUCTION_STATUS.NO_INTEGER_COMBINATION,event_count:null,possible_event_counts:freeze([]),slot_quantities:freeze(quantities)});
+  if(possible.length!==1)return freeze({status:INGREDIENT_EVENT_RECONSTRUCTION_STATUS.AMBIGUOUS_EVENT_COUNT,event_count:null,possible_event_counts:freeze(possible),slot_quantities:freeze(quantities)});
+  return freeze({status:INGREDIENT_EVENT_RECONSTRUCTION_STATUS.UNIQUE_EVENT_COUNT,event_count:possible[0],possible_event_counts:freeze(possible),slot_quantities:freeze(quantities)});
+}
 
 export function evaluateFirstPartyIngredientHelpObservation(input={}){
   const blockers=[];
@@ -65,17 +113,20 @@ export function evaluateFirstPartyIngredientHelpObservation(input={}){
   if(text(input.observation_source)!==FIRST_PARTY_OBSERVATION_SOURCE)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.WRONG_OBSERVATION_SOURCE);
   if(input.player_private_identity_included!==false)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.PRIVATE_PLAYER_IDENTITY_INCLUDED);
   if(!nonEmptyRefs(input.observation_evidence_refs))blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.EVIDENCE_REFS_MISSING);
-  if(text(input.observation_mode)!==FIRST_PARTY_OBSERVATION_MODE)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.WRONG_OBSERVATION_MODE);
+  const observationMode=text(input.observation_mode);
+  const supportedMode=Object.values(FIRST_PARTY_OBSERVATION_MODES).includes(observationMode);
+  if(!supportedMode)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.WRONG_OBSERVATION_MODE);
 
   const level=integer(input.level);
   const slotCount=expectedUnlockedIngredientSlotCount(level);
   if(level===null||level<1)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.INVALID_LEVEL);
-  else if(slotCount!==1)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.MULTIPLE_INGREDIENT_SLOTS_UNLOCKED_NOT_SUPPORTED);
+  else if(observationMode===FIRST_PARTY_OBSERVATION_MODES.SINGLE_SLOT&&slotCount!==1)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.MULTIPLE_INGREDIENT_SLOTS_UNLOCKED_NOT_SUPPORTED);
+  else if(observationMode===FIRST_PARTY_OBSERVATION_MODES.MULTI_SLOT_UNIQUE_EVENT_COUNT&&slotCount!==null&&slotCount<2)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.MULTI_SLOT_MODE_REQUIRES_MULTIPLE_UNLOCKED_SLOTS);
 
   const slotResolution=level!==null?resolveIngredientSlotDistribution({level,slots:input.ingredient_slots}):null;
   if(slotResolution?.status!=='ACTIVE_VERIFIED')blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.INGREDIENT_SLOT_STRUCTURE_NOT_VERIFIED);
-  const ingredientItemsPerHelp=slotResolution?.status==='ACTIVE_VERIFIED'?positiveInteger(slotResolution.slots?.[0]?.quantity):null;
-  if(slotResolution?.status==='ACTIVE_VERIFIED'&&ingredientItemsPerHelp===null)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.INGREDIENT_SLOT_QUANTITY_MISSING);
+  const slotQuantities=slotResolution?.status==='ACTIVE_VERIFIED'?slotResolution.slots.map(row=>positiveInteger(row.quantity)):[];
+  if(slotResolution?.status==='ACTIVE_VERIFIED'&&slotQuantities.some(value=>value===null))blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.INGREDIENT_SLOT_QUANTITY_MISSING);
 
   if(text(input.individual_ingredient_rate_modifier_state)!=='NONE_ACTIVE_CONFIRMED')blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.INDIVIDUAL_INGREDIENT_RATE_MODIFIER_NOT_ISOLATED);
   if(text(input.environment_ingredient_rate_modifier_state)!=='NONE_ACTIVE_CONFIRMED')blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.ENVIRONMENT_INGREDIENT_RATE_MODIFIER_NOT_ISOLATED);
@@ -105,9 +156,18 @@ export function evaluateFirstPartyIngredientHelpObservation(input={}){
     if(berryItems%berryItemsPerHelp!==0)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.BERRY_EVENT_COUNT_NOT_INTEGER);
     else berryHelpEvents=berryItems/berryItemsPerHelp;
   }
-  if(ingredientItems!==null&&ingredientItemsPerHelp!==null){
-    if(ingredientItems%ingredientItemsPerHelp!==0)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.INGREDIENT_EVENT_COUNT_NOT_INTEGER);
-    else ingredientHelpEvents=ingredientItems/ingredientItemsPerHelp;
+  let ingredientReconstruction=null;
+  if(ingredientItems!==null&&slotQuantities.length&&slotQuantities.every(value=>value!==null)){
+    if(observationMode===FIRST_PARTY_OBSERVATION_MODES.SINGLE_SLOT){
+      const ingredientItemsPerHelp=slotQuantities[0];
+      if(ingredientItems%ingredientItemsPerHelp!==0)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.INGREDIENT_EVENT_COUNT_NOT_INTEGER);
+      else ingredientHelpEvents=ingredientItems/ingredientItemsPerHelp;
+    }else if(observationMode===FIRST_PARTY_OBSERVATION_MODES.MULTI_SLOT_UNIQUE_EVENT_COUNT){
+      ingredientReconstruction=resolveIngredientHelpEventCountFromAggregateItems({ingredient_items_collected:ingredientItems,slot_quantities:slotQuantities});
+      if(ingredientReconstruction.status===INGREDIENT_EVENT_RECONSTRUCTION_STATUS.UNIQUE_EVENT_COUNT)ingredientHelpEvents=ingredientReconstruction.event_count;
+      else if(ingredientReconstruction.status===INGREDIENT_EVENT_RECONSTRUCTION_STATUS.AMBIGUOUS_EVENT_COUNT)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.MULTI_SLOT_INGREDIENT_EVENT_COUNT_AMBIGUOUS);
+      else blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.INGREDIENT_EVENT_COUNT_NOT_RECONSTRUCTABLE);
+    }
   }
   if(berryHelpEvents!==null&&ingredientHelpEvents!==null){
     totalHelpEvents=berryHelpEvents+ingredientHelpEvents;
@@ -117,7 +177,7 @@ export function evaluateFirstPartyIngredientHelpObservation(input={}){
 
   const accepted=blockers.length===0;
   return freeze({
-    schema:'pokemon-sleep-first-party-ingredient-help-observation-result/1.0',
+    schema:'pokemon-sleep-first-party-ingredient-help-observation-result/1.1',
     contract_id:INGREDIENT_PROBABILITY_FIRST_PARTY_OBSERVATION_ID,
     contract_version:INGREDIENT_PROBABILITY_FIRST_PARTY_OBSERVATION_VERSION,
     observation_id:observationId||null,
@@ -135,7 +195,10 @@ export function evaluateFirstPartyIngredientHelpObservation(input={}){
     activation_authority_granted:false,
     independent_source_admission_granted:false,
     safety:freeze({
-      only_single_unlocked_ingredient_slot:true,
+      only_single_unlocked_ingredient_slot:observationMode===FIRST_PARTY_OBSERVATION_MODES.SINGLE_SLOT,
+      multi_slot_unique_integer_reconstruction:observationMode===FIRST_PARTY_OBSERVATION_MODES.MULTI_SLOT_UNIQUE_EVENT_COUNT,
+      multi_slot_reconstruction_status:ingredientReconstruction?.status??null,
+      slot_selection_probability_used:false,
       rate_value_used_to_reconstruct_events:false,
       invalid_batch_contributes_to_estimate:false,
       sample_sufficiency_threshold_invented:false,
