@@ -2,15 +2,80 @@ import {executeWithProjectPool,hashCacheKey,readAiResultCache,writeAiResultCache
 import {AI_OBSERVATION_PROMPT,normalizeObservationPayload} from './ai-observation.js';
 import {POKEMON_VISUAL_RECOGNITION_VOCABULARY} from './pokemon-visual-prompt-policy.js';
 
-const EXECUTOR_SCHEMA='pokemon-sleep-ai-review-executor/1.3-observation-v2';
-const PROMPT_VERSION='pokemon-sleep-observation-v2/2026-08-18-internal-parity';
+const EXECUTOR_SCHEMA='pokemon-sleep-ai-review-executor/1.4-structured-observation-v2';
+const PROMPT_VERSION='pokemon-sleep-observation-v2/2026-08-18-structured-output';
 const DEFAULT_PROMPT=AI_OBSERVATION_PROMPT;
 const SPECIALTIES=new Set(['樹果','食材','技能']);
 const itemId=item=>String(item?.sha256||item?.source_image_ref||item?.path||'');
 const itemPath=item=>String(item?.path||item?.source_image_ref||'');
+const itemName=item=>String(item?.file_name||item?.path||item?.source_image_ref||'未命名圖片');
 const text=value=>value==null?'':String(value).normalize('NFKC').trim();
 const finite=value=>value===null||value===undefined||value===''?null:(Number.isFinite(Number(value))?Number(value):null);
 const clone=value=>JSON.parse(JSON.stringify(value));
+const nullableString=Object.freeze({type:['string','null']});
+const nullableNumber=Object.freeze({type:['number','null']});
+const nullableInteger=Object.freeze({type:['integer','null']});
+const nullableBoolean=Object.freeze({type:['boolean','null']});
+
+export const AI_OBSERVATION_RESPONSE_JSON_SCHEMA=Object.freeze({
+  type:'object',
+  additionalProperties:true,
+  required:['schema_version','source','observations'],
+  properties:{
+    schema_version:{type:'string',enum:['2.0-observation']},
+    source:{type:'string',enum:['ai_screenshot_observation']},
+    prompt_policy_version:nullableString,
+    update_id:nullableString,
+    generated_at:nullableString,
+    update_policy:{type:['object','null'],additionalProperties:true},
+    observations:{
+      type:'array',minItems:1,maxItems:1,
+      items:{
+        type:'object',additionalProperties:true,
+        required:['incoming_ref','requested_action','identity','profile','ingredients','subskills','audit_candidates','evidence','visual_evidence'],
+        properties:{
+          incoming_ref:{type:'string'},
+          requested_action:{type:'string',enum:['resolve_on_import']},
+          identity:{
+            type:'object',additionalProperties:false,
+            required:['target_pokemon_instance_id','target_update_token','capture_species_id','current_species_id','registered_date','instance_discriminator'],
+            properties:{
+              target_pokemon_instance_id:nullableString,target_update_token:nullableString,capture_species_id:nullableString,current_species_id:nullableString,registered_date:nullableString,instance_discriminator:{type:'null'},
+            },
+          },
+          profile:{
+            type:'object',additionalProperties:true,
+            required:['species','species_observation_basis','header_name_text','nickname','level','sp','specialty','type','nature','nature_bonus','nature_penalty','main_skill','main_skill_level','helper_seconds','carry_limit','favorite_berry','sleep_time_text','sleep_hours'],
+            properties:{
+              species:nullableString,species_observation_basis:nullableString,header_name_text:nullableString,nickname:nullableString,
+              level:nullableInteger,sp:nullableInteger,specialty:nullableString,type:nullableString,nature:nullableString,nature_bonus:nullableString,nature_penalty:nullableString,
+              main_skill:nullableString,main_skill_level:nullableInteger,helper_seconds:nullableInteger,carry_limit:nullableInteger,favorite_berry:nullableString,sleep_time_text:nullableString,sleep_hours:nullableNumber,
+            },
+          },
+          ingredients:{
+            type:'array',maxItems:3,
+            items:{type:'object',additionalProperties:false,required:['unlock_level','ingredient_name','quantity'],properties:{unlock_level:{type:'integer',enum:[1,30,60]},ingredient_name:nullableString,quantity:nullableInteger}},
+          },
+          subskills:{
+            type:'array',maxItems:5,
+            items:{type:'object',additionalProperties:false,required:['unlock_level','subskill_name'],properties:{unlock_level:{type:'integer',enum:[10,25,50,70,80]},subskill_name:nullableString}},
+          },
+          audit_candidates:{
+            type:'array',
+            items:{type:'object',additionalProperties:true,required:['slot_type','unlock_levels','status','confirmed_by_user'],properties:{slot_type:{type:'string',enum:['ingredient','subskill']},unlock_levels:{type:'array',items:{type:'integer'}},status:{type:'string'},confirmed_by_user:{type:'boolean'},reason:nullableString}},
+          },
+          evidence:{
+            type:'object',additionalProperties:true,
+            required:['source_image_refs','field_confidence','unreadable_fields','notes'],
+            properties:{source_image_refs:{type:'array',items:{type:'string'}},field_confidence:{type:'object',additionalProperties:true},unreadable_fields:{type:'array',items:{type:'string'}},notes:nullableString},
+          },
+          visual_evidence:{type:['object','null'],additionalProperties:true},
+          is_favorite:nullableBoolean,
+        },
+      },
+    },
+  },
+});
 
 function extractJson(payload){
   const source=payload?.candidates?.[0]?.content?.parts?.map(part=>part.text||'').join('\n')||'';
@@ -93,14 +158,16 @@ export async function executeAiReviewQueue({queue,inventory,poolData,resolveImag
   if(!poolData?.projects?.length)throw new Error('ai_project_pool_missing');
   const results=[];let projects=poolData.projects;
   for(let index=0;index<queue.items.length;index++){
-    const queued=queue.items[index];const id=itemId(queued);const source=(inventory?.items||[]).find(item=>itemId(item)===id)||queued;const model=poolData.model||queue.model;const cacheKey=await hashCacheKey({sha256:source.sha256||id,model,promptVersion:PROMPT_VERSION});const cached=bypassCache?null:readAiResultCache(cacheKey);
-    if(cached){results.push({...cached,cached:true});onProgress({current:index+1,total:queue.items.length,cached:true});continue;}
+    const queued=queue.items[index];const id=itemId(queued);const source=(inventory?.items||[]).find(item=>itemId(item)===id)||queued;const model=poolData.model||queue.model;const fileName=itemName(source);const sourceImageRef=itemPath(source);const cacheKey=await hashCacheKey({sha256:source.sha256||id,model,promptVersion:PROMPT_VERSION});const cached=bypassCache?null:readAiResultCache(cacheKey);
+    if(cached){results.push({...cached,cached:true});onProgress({phase:'completed',current:index+1,total:queue.items.length,cached:true,file_name:fileName,source_image_ref:sourceImageRef,provider_elapsed_ms:0});continue;}
+    onProgress({phase:'started',current:index+1,total:queue.items.length,cached:false,file_name:fileName,source_image_ref:sourceImageRef});
     const image=await resolveImage(source);
-    const outcome=await executeWithProjectPool({projects,model,prompt,imageBase64:image.data,mimeType:image.mimeType,onTrace});projects=outcome.projects;
+    const thinkingLevel=/^gemini-3(?:[.-]|$)/i.test(String(model||''))?'low':null;
+    const outcome=await executeWithProjectPool({projects,model,prompt,imageBase64:image.data,mimeType:image.mimeType,responseJsonSchema:AI_OBSERVATION_RESPONSE_JSON_SCHEMA,thinkingLevel,onTrace});projects=outcome.projects;
     if(!outcome.ok)return {schema:EXECUTOR_SCHEMA,status:'paused',completed:results.length,total:queue.items.length,results,projects,attempts:outcome.attempts,reason:outcome.reason,prompt_version:PROMPT_VERSION};
     const raw=extractJson(outcome.payload),projection=projectObservationV2ForLegacy(raw);
-    const result={item_id:id,source_image_ref:itemPath(source),model,project_alias:outcome.used_alias,analysis:projection.analysis,observation_v2:projection.observation_v2,observation_contract_status:projection.contract_status,observation_contract_warnings:projection.warnings,completed_at:new Date().toISOString(),prompt_version:PROMPT_VERSION,forced:Boolean(bypassCache)};
-    writeAiResultCache(cacheKey,result);results.push(result);onProgress({current:index+1,total:queue.items.length,cached:false,project_alias:outcome.used_alias,observation_contract_status:projection.contract_status});
+    const result={item_id:id,source_image_ref:sourceImageRef,file_name:fileName,model,project_alias:outcome.used_alias,analysis:projection.analysis,observation_v2:projection.observation_v2,observation_contract_status:projection.contract_status,observation_contract_warnings:projection.warnings,provider_elapsed_ms:Number(outcome.transport?.elapsed_ms||0),thinking_level:thinkingLevel,structured_output:true,completed_at:new Date().toISOString(),prompt_version:PROMPT_VERSION,forced:Boolean(bypassCache)};
+    writeAiResultCache(cacheKey,result);results.push(result);onProgress({phase:'completed',current:index+1,total:queue.items.length,cached:false,file_name:fileName,source_image_ref:sourceImageRef,project_alias:outcome.used_alias,observation_contract_status:projection.contract_status,provider_elapsed_ms:result.provider_elapsed_ms});
   }
   return {schema:EXECUTOR_SCHEMA,status:'completed',completed:results.length,total:queue.items.length,results,projects,prompt_version:PROMPT_VERSION,forced:Boolean(bypassCache)};
 }
