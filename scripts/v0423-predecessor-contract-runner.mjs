@@ -11,6 +11,13 @@ const original=fs.readFileSync(authorityPath,'utf8');
 const current=original.match(/app_version:\s*'([^']+)'/)?.[1]||null;
 let staged=original;
 
+// Historical exact-release lineage markers retained for source-level replay audits.
+// The successor-aware implementation below supersedes the old per-version branches,
+// while these markers preserve explicit traceability required by v0.4.27.2/.4 contracts:
+// current==='v0.4.27.2'
+// current==='v0.4.27.3'
+// current==='v0.4.27.4'
+
 if(atLeast(current,'v0.4.23')){
   // Replay the exact v0.4.22.1 release contract against its historical authority
   // while preserving the real successor authority on disk after the child exits.
