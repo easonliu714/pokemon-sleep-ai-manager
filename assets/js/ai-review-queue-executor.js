@@ -1,9 +1,10 @@
-import {executeWithProjectPool,hashCacheKey,readAiResultCache,writeAiResultCache} from './ai-project-pool-runtime.js';
+import {hashCacheKey,readAiResultCache,writeAiResultCache} from './ai-project-pool-runtime.js';
+import {executeWithCapabilityFailover} from './ai-provider-capability-failover.js';
 import {AI_OBSERVATION_PROMPT,normalizeObservationPayload} from './ai-observation.js';
 import {POKEMON_VISUAL_RECOGNITION_VOCABULARY} from './pokemon-visual-prompt-policy.js';
 
-const EXECUTOR_SCHEMA='pokemon-sleep-ai-review-executor/1.4-structured-observation-v2';
-const PROMPT_VERSION='pokemon-sleep-observation-v2/2026-08-18-structured-output';
+const EXECUTOR_SCHEMA='pokemon-sleep-ai-review-executor/1.5-capability-failover-observation-v2';
+const PROMPT_VERSION='pokemon-sleep-observation-v2/2026-08-18-v04278-capability-failover';
 const DEFAULT_PROMPT=AI_OBSERVATION_PROMPT;
 const SPECIALTIES=new Set(['樹果','食材','技能']);
 const itemId=item=>String(item?.sha256||item?.source_image_ref||item?.path||'');
@@ -132,7 +133,7 @@ export function projectObservationV2ForLegacy(raw){
   }
   const normalized=normalizeObservationPayload(raw);
   const sanitized=sanitizeObservationV2(normalized);
-  const payload=sanitized.payload,observation=payload.observations[0]||{},profile=observation.profile||{};
+  const payload=sanitized.payload,observation=payload.observations[0]||{},profile=observation.profile||{},identity=observation.identity||{};
   const level=finite(profile.level);
   const subSkills=(observation.subskills||[]).map(row=>({level:finite(row.unlock_level),name:row.subskill_name??null,unlocked:level!=null&&finite(row.unlock_level)!=null?level>=Number(row.unlock_level):false}));
   const ingredients=(observation.ingredients||[]).map(row=>({level:finite(row.unlock_level),name:row.ingredient_name??null,count:finite(row.quantity)}));
@@ -147,7 +148,7 @@ export function projectObservationV2ForLegacy(raw){
     helper_seconds:finite(profile.helper_seconds),carry_limit:finite(profile.carry_limit),favorite_berry:profile.favorite_berry??null,
     sleep_hours:finite(profile.sleep_hours),sleep_time_text:profile.sleep_time_text??null,
     evolution_requirements:{level_required:null,sleep_hours_required:null,candy_required:null,item_required:null,other:null},
-    obtained_at:profile.obtained_at??null,is_favorite:profile.is_favorite??null,confidence:null,uncertain_fields:uncertain,field_evidence:{}
+    obtained_at:identity.registered_date??profile.obtained_at??null,is_favorite:observation.is_favorite??profile.is_favorite??null,confidence:null,uncertain_fields:uncertain,field_evidence:{}
   };
   return {analysis:compatibility,observation_v2:payload,contract_status:sanitized.warnings.length?'REVIEW_REQUIRED':'OBSERVATION_V2_ACCEPTED',warnings:sanitized.warnings};
 }
@@ -158,16 +159,16 @@ export async function executeAiReviewQueue({queue,inventory,poolData,resolveImag
   if(!poolData?.projects?.length)throw new Error('ai_project_pool_missing');
   const results=[];let projects=poolData.projects;
   for(let index=0;index<queue.items.length;index++){
-    const queued=queue.items[index];const id=itemId(queued);const source=(inventory?.items||[]).find(item=>itemId(item)===id)||queued;const model=poolData.model||queue.model;const fileName=itemName(source);const sourceImageRef=itemPath(source);const cacheKey=await hashCacheKey({sha256:source.sha256||id,model,promptVersion:PROMPT_VERSION});const cached=bypassCache?null:readAiResultCache(cacheKey);
+    const queued=queue.items[index];const id=itemId(queued);const source=(inventory?.items||[]).find(item=>itemId(item)===id)||queued;const model=poolData.model||queue.model;const fileName=itemName(source);const sourceImageRef=itemPath(source);const cacheKey=await hashCacheKey({sha256:source.sha256||id,model:`${model}|capability-failover-v1`,promptVersion:PROMPT_VERSION});const cached=bypassCache?null:readAiResultCache(cacheKey);
     if(cached){results.push({...cached,cached:true});onProgress({phase:'completed',current:index+1,total:queue.items.length,cached:true,file_name:fileName,source_image_ref:sourceImageRef,provider_elapsed_ms:0});continue;}
     onProgress({phase:'started',current:index+1,total:queue.items.length,cached:false,file_name:fileName,source_image_ref:sourceImageRef});
     const image=await resolveImage(source);
     const thinkingLevel=/^gemini-3(?:[.-]|$)/i.test(String(model||''))?'low':null;
-    const outcome=await executeWithProjectPool({projects,model,prompt,imageBase64:image.data,mimeType:image.mimeType,responseJsonSchema:AI_OBSERVATION_RESPONSE_JSON_SCHEMA,thinkingLevel,onTrace});projects=outcome.projects;
-    if(!outcome.ok)return {schema:EXECUTOR_SCHEMA,status:'paused',completed:results.length,total:queue.items.length,results,projects,attempts:outcome.attempts,reason:outcome.reason,prompt_version:PROMPT_VERSION};
-    const raw=extractJson(outcome.payload),projection=projectObservationV2ForLegacy(raw);
-    const result={item_id:id,source_image_ref:sourceImageRef,file_name:fileName,model,project_alias:outcome.used_alias,analysis:projection.analysis,observation_v2:projection.observation_v2,observation_contract_status:projection.contract_status,observation_contract_warnings:projection.warnings,provider_elapsed_ms:Number(outcome.transport?.elapsed_ms||0),thinking_level:thinkingLevel,structured_output:true,completed_at:new Date().toISOString(),prompt_version:PROMPT_VERSION,forced:Boolean(bypassCache)};
-    writeAiResultCache(cacheKey,result);results.push(result);onProgress({phase:'completed',current:index+1,total:queue.items.length,cached:false,file_name:fileName,source_image_ref:sourceImageRef,project_alias:outcome.used_alias,observation_contract_status:projection.contract_status,provider_elapsed_ms:result.provider_elapsed_ms});
+    const outcome=await executeWithCapabilityFailover({projects,preferredModel:model,prompt,imageBase64:image.data,mimeType:image.mimeType,responseJsonSchema:AI_OBSERVATION_RESPONSE_JSON_SCHEMA,thinkingLevel,onTrace});projects=outcome.projects;
+    if(!outcome.ok)return {schema:EXECUTOR_SCHEMA,status:'paused',completed:results.length,total:queue.items.length,results,projects,attempts:outcome.attempts,reason:outcome.reason,prompt_version:PROMPT_VERSION,preflight:outcome.preflight||[]};
+    const raw=extractJson(outcome.payload),projection=projectObservationV2ForLegacy(raw),usedModel=outcome.used_model||model,usedThinking=outcome.used_thinking_level??thinkingLevel;
+    const result={item_id:id,source_image_ref:sourceImageRef,file_name:fileName,model:usedModel,preferred_model:model,model_fallback_used:Boolean(outcome.model_fallback_used),project_alias:outcome.used_alias,analysis:projection.analysis,observation_v2:projection.observation_v2,observation_contract_status:projection.contract_status,observation_contract_warnings:projection.warnings,provider_elapsed_ms:Number(outcome.transport?.elapsed_ms||0),thinking_level:usedThinking,structured_output:true,completed_at:new Date().toISOString(),prompt_version:PROMPT_VERSION,forced:Boolean(bypassCache)};
+    writeAiResultCache(cacheKey,result);results.push(result);onProgress({phase:'completed',current:index+1,total:queue.items.length,cached:false,file_name:fileName,source_image_ref:sourceImageRef,project_alias:outcome.used_alias,model:usedModel,model_fallback_used:result.model_fallback_used,observation_contract_status:projection.contract_status,provider_elapsed_ms:result.provider_elapsed_ms});
   }
   return {schema:EXECUTOR_SCHEMA,status:'completed',completed:results.length,total:queue.items.length,results,projects,prompt_version:PROMPT_VERSION,forced:Boolean(bypassCache)};
 }

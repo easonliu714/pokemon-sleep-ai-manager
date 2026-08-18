@@ -7,7 +7,7 @@ if(!contract)throw new Error('usage: node scripts/v04275-production-contract-run
 const authorityPath='assets/js/version-authority.js';
 const original=fs.readFileSync(authorityPath,'utf8');
 const current=original.match(/app_version:\s*'([^']+)'/)?.[1]||null;
-const unchangedProductionReleases=new Set(['v0.4.27.5','v0.4.27.6','v0.4.27.7']);
+const unchangedProductionReleases=new Set(['v0.4.27.5','v0.4.27.6','v0.4.27.7','v0.4.27.8']);
 if(!unchangedProductionReleases.has(current)){
   const direct=spawnSync(process.execPath,[contract],{stdio:'inherit',env:process.env});
   if(direct.error)throw direct.error;
@@ -16,6 +16,7 @@ if(!unchangedProductionReleases.has(current)){
   // v0.4.27.5 changes Public Event / Weekly authority and PE7 legacy-event UI only.
   // v0.4.27.6 changes G13 screenshot-observation contract/progress UX only.
   // v0.4.27.7 hardens the same G13 path with structured output and current-file UX only.
+  // v0.4.27.8 hardens AI provider failover and review/evolution presentation only.
   // None changes Production numeric authority, so replay Production behavioral
   // contracts under the already-verified v0.4.27.4 identity.
   const staged=original

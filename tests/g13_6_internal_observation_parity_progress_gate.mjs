@@ -20,6 +20,7 @@ for(const token of [
 assert.ok(new Set([
   'pokemon-sleep-observation-v2/2026-08-18-internal-parity',
   'pokemon-sleep-observation-v2/2026-08-18-structured-output',
+  'pokemon-sleep-observation-v2/2026-08-18-v04278-capability-failover',
 ]).has(PROMPT_VERSION),`unexpected Observation v2 prompt successor: ${PROMPT_VERSION}`);
 
 const valid={
@@ -40,6 +41,7 @@ assert.equal(projected.analysis.pokemon_name,'小鍛匠');
 assert.equal(projected.analysis.specialty,'樹果');
 assert.equal(projected.analysis.type,'妖精');
 assert.equal(projected.analysis.main_skill.name,'能量填充M');
+assert.equal(projected.analysis.main_skill.level,1,'main skill Lv1 must remain 1 in the legacy confirmation projection');
 assert.equal(projected.analysis.ingredients[0].name,'好眠番茄');
 assert.equal(projected.analysis.ingredients[1].name,'放鬆可可');
 assert.equal(projected.analysis.sub_skills[0].name,'技能機率提升S');
@@ -69,7 +71,7 @@ assert.ok(executorSource.includes("import {AI_OBSERVATION_PROMPT,normalizeObserv
 assert.ok(executorSource.includes('NON_CANONICAL_DIRECT_VALUE_REJECTED'));
 
 const progressSource=fs.readFileSync('assets/js/ai-review-executor-status-ui.js','utf8');
-for(const token of ['data-unified-analysis-progress','辨識進度',"['OCR',unifiedState.ocr]","['AI',unifiedState.ai]","['Cross Check',unifiedState.cross]",'pokemon-sleep:analysis-cross-check-ready'])assert.ok(progressSource.includes(token),`feature-local progress UI missing: ${token}`);
+for(const token of ['data-unified-analysis-progress','辨識進度',"['OCR',unifiedState.ocr]","['AI',unifiedState.ai]","['Cross Check',unifiedState.cross]",'pokemon-sleep:analysis-cross-check-ready'])assert.ok(progressSource.includes(token),`feature-local progress UI missing ${token}`);
 
 const authoritySource=fs.readFileSync('assets/js/version-authority.js','utf8');
 const sandbox={};sandbox.globalThis=sandbox;vm.runInNewContext(authoritySource,sandbox,{filename:'version-authority.js'});
@@ -83,5 +85,5 @@ if(authority.app_version==='v0.4.27.6'){
 console.log(JSON.stringify({
   status:'PASS',gate:'G13.6_INTERNAL_OBSERVATION_V2_PARITY_PROGRESS_UX',
   internal_external_prompt_parity:true,legacy_internal_shape_rejected:true,noncanonical_names_fail_closed:true,
-  zero_preserved:true,feature_local_ocr_ai_cross_check_progress:true,minimum_visible_version:'v0.4.27.6',current_visible_version:authority.app_version,player_write_authority:false,
+  zero_preserved:true,main_skill_level_one_preserved:true,feature_local_ocr_ai_cross_check_progress:true,minimum_visible_version:'v0.4.27.6',current_visible_version:authority.app_version,player_write_authority:false,
 },null,2));
