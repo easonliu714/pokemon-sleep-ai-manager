@@ -11,6 +11,7 @@ const nowIso=()=>new Date().toISOString();
 function normalizeModelName(value){return clean(value).replace(/^models\//,'');}
 function capabilityKey(project){return clean(project?.fingerprint)||clean(project?.alias)||null;}
 function mergeProjectState(base=[],patch=[]){const byAlias=new Map(patch.map(row=>[row.alias,row]));return normalizeProjectPool(base).map(row=>byAlias.get(row.alias)||row);}
+export function releaseModelTimeoutState(projects=[]){return normalizeProjectPool(projects).map(project=>project.last_error_class==='provider_timeout'?{...project,cooldown_until:null,last_error_class:null}:project);}
 function modelScore(model,preferred){
   if(model===preferred)return 0;
   const stable=!/(?:preview|experimental|exp\b)/i.test(model);
@@ -92,10 +93,12 @@ export async function executeWithCapabilityFailover({projects,preferredModel,pro
       if(fallbackUsed){const detail={from_model:preferred,to_model:model,used_alias:outcome.used_alias||null,completed_at:nowIso()};try{onModelFallbackSuccess?.(detail);}catch{}onTrace('ai_model_fallback_promoted',detail);}
       return result;
     }
-    last=outcome;onTrace('ai_model_candidate_failed',{model,error_class:outcome?.failure?.error_class||outcome?.reason||null,candidate_budget_ms:candidateBudget});
+    last=outcome;const failureClass=outcome?.failure?.error_class||outcome?.reason||null;onTrace('ai_model_candidate_failed',{model,error_class:failureClass,candidate_budget_ms:candidateBudget});
     if(Date.now()-executionStarted>=totalMs)return totalTimeoutOutcome({state,attempts,preflight,started:executionStarted,totalMs,preferred});
-    if(!isModelSpecificFailure(outcome)&&!['provider_timeout','provider_total_timeout','request_aborted'].includes(outcome?.failure?.error_class||outcome?.reason||''))return {...outcome,projects:state,attempts,preferred_model:preferred||null,preflight};
-    const next=candidates[index+1];if(next)onTrace('ai_model_failover',{from_model:model,to_model:next,error_class:outcome?.failure?.error_class||outcome?.reason||null});
+    if(!isModelSpecificFailure(outcome)&&!['provider_timeout','provider_total_timeout','request_aborted'].includes(failureClass))return {...outcome,projects:state,attempts,preferred_model:preferred||null,preflight};
+    const next=candidates[index+1];
+    if(next&&['provider_timeout','provider_total_timeout'].includes(failureClass)){state=releaseModelTimeoutState(state);onTrace('ai_model_timeout_project_state_released',{from_model:model,to_model:next});}
+    if(next)onTrace('ai_model_failover',{from_model:model,to_model:next,error_class:failureClass});
   }
   return {...(last||{}),ok:false,paused:true,projects:state,attempts,reason:last?.reason||'model_unavailable',failure:last?.failure||{error_class:'model_unavailable'},preferred_model:preferred||null,preflight};
 }
