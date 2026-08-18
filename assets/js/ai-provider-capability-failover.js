@@ -3,6 +3,7 @@ import {GEMINI_IMAGE_TOTAL_TIMEOUT_MS,classifyGeminiFailure,executeWithProjectPo
 const MODELS_ENDPOINT='https://generativelanguage.googleapis.com/v1beta/models?key=';
 const CAPABILITY_TTL_MS=10*60*1000;
 export const CAPABILITY_PREFLIGHT_TIMEOUT_MS=15000;
+export const MODEL_CANDIDATE_TIMEOUT_MS=45000;
 const capabilityCache=new Map();
 const clean=value=>String(value??'').trim();
 const nowIso=()=>new Date().toISOString();
@@ -10,6 +11,7 @@ const nowIso=()=>new Date().toISOString();
 function normalizeModelName(value){return clean(value).replace(/^models\//,'');}
 function capabilityKey(project){return clean(project?.fingerprint)||clean(project?.alias)||null;}
 function mergeProjectState(base=[],patch=[]){const byAlias=new Map(patch.map(row=>[row.alias,row]));return normalizeProjectPool(base).map(row=>byAlias.get(row.alias)||row);}
+export function releaseModelTimeoutState(projects=[]){return normalizeProjectPool(projects).map(project=>project.last_error_class==='provider_timeout'?{...project,cooldown_until:null,last_error_class:null}:project);}
 function modelScore(model,preferred){
   if(model===preferred)return 0;
   const stable=!/(?:preview|experimental|exp\b)/i.test(model);
@@ -48,9 +50,10 @@ export async function fetchGeminiProjectCapabilities(project,{fetchImpl=fetch,no
 function failureSummary(error,project){return {error_class:error?.failure?.class||'capability_preflight_failed',transport_kind:error?.failure?.transport_kind||null,http_status:Number.isFinite(Number(error?.status))?Number(error.status):null,retryable:Boolean(error?.failure?.retryable),alias:project.alias,fingerprint:project.fingerprint,model:null,error_message:clean(error?.message).slice(0,500)||null,completed_at:nowIso()};}
 function isModelSpecificFailure(outcome){const cls=outcome?.failure?.error_class||outcome?.reason||'';if(cls==='model_unavailable')return true;if(cls!=='request_rejected')return false;return /model|response.?json.?schema|response schema|thinking|generation.?config|not supported|unsupported/i.test(String(outcome?.failure?.error_message||''));}
 function totalTimeoutOutcome({state,attempts,preflight,started,totalMs,preferred}){return {ok:false,paused:true,projects:state,attempts,reason:'provider_total_timeout',failure:{error_class:'provider_total_timeout',error_message:`AI 圖片分析超過 ${Math.ceil(totalMs/1000)} 秒，已停止等待。`,elapsed_ms:Date.now()-started},preferred_model:preferred||null,preflight};}
+function publishSuccessfulModelFallback(detail){try{if(typeof globalThis.CustomEvent==='function')globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:ai-model-fallback-success',{detail}));}catch{}}
 
-export async function executeWithCapabilityFailover({projects,preferredModel,prompt,imageBase64,mimeType='image/png',images=null,responseJsonSchema=null,thinkingLevel=null,fetchImpl=fetch,onTrace=()=>{},retryDelaysMs,maxProjectFailovers=null,capabilityTimeoutMs=CAPABILITY_PREFLIGHT_TIMEOUT_MS,requestTimeoutMs,totalTimeoutMs=GEMINI_IMAGE_TOTAL_TIMEOUT_MS}={}){
-  const executionStarted=Date.now(),totalMs=Math.max(1,Number(totalTimeoutMs)||GEMINI_IMAGE_TOTAL_TIMEOUT_MS);
+export async function executeWithCapabilityFailover({projects,preferredModel,prompt,imageBase64,mimeType='image/png',images=null,responseJsonSchema=null,thinkingLevel=null,fetchImpl=fetch,onTrace=()=>{},retryDelaysMs,maxProjectFailovers=null,capabilityTimeoutMs=CAPABILITY_PREFLIGHT_TIMEOUT_MS,requestTimeoutMs,totalTimeoutMs=GEMINI_IMAGE_TOTAL_TIMEOUT_MS,modelCandidateTimeoutMs=MODEL_CANDIDATE_TIMEOUT_MS,onModelFallbackSuccess=publishSuccessfulModelFallback}={}){
+  const executionStarted=Date.now(),totalMs=Math.max(1,Number(totalTimeoutMs)||GEMINI_IMAGE_TOTAL_TIMEOUT_MS),candidateLimitMs=Math.max(1,Number(modelCandidateTimeoutMs)||MODEL_CANDIDATE_TIMEOUT_MS);
   let state=normalizeProjectPool(projects),catalogs=new Map(),unknownAliases=new Set(),preflight=[];
   const enabledAtStart=state.filter(row=>row.enabled);
   const checks=await Promise.all(enabledAtStart.map(async project=>{
@@ -81,17 +84,23 @@ export async function executeWithCapabilityFailover({projects,preferredModel,pro
   const attempts=[...preflight];let last=null;
   for(let index=0;index<candidates.length;index++){
     const remaining=totalMs-(Date.now()-executionStarted);if(remaining<=0)return totalTimeoutOutcome({state,attempts,preflight,started:executionStarted,totalMs,preferred});
-    const model=candidates[index];const compatible=state.filter(project=>project.enabled&&(unknownAliases.has(project.alias)||catalogs.get(project.alias)?.has(model)||!anyCatalog));if(!compatible.length)continue;
-    const candidateThinking=/^gemini-3(?:[.-]|$)/i.test(model)?thinkingLevel:null;onTrace('ai_model_candidate_started',{model,candidate_number:index+1,candidate_count:candidates.length,compatible_project_count:compatible.length,preferred_model:preferred||null,remaining_ms:remaining});
-    const outcome=await executeWithProjectPool({projects:compatible,model,prompt,imageBase64,mimeType,images,responseJsonSchema,thinkingLevel:candidateThinking,fetchImpl,onTrace,retryDelaysMs,maxProjectFailovers:maxProjectFailovers==null?Math.max(0,compatible.length-1):maxProjectFailovers,requestTimeoutMs,totalTimeoutMs:remaining});
+    const model=candidates[index],candidateBudget=Math.min(remaining,candidateLimitMs);const compatible=state.filter(project=>project.enabled&&(unknownAliases.has(project.alias)||catalogs.get(project.alias)?.has(model)||!anyCatalog));if(!compatible.length)continue;
+    const candidateThinking=/^gemini-3(?:[.-]|$)/i.test(model)?thinkingLevel:null;onTrace('ai_model_candidate_started',{model,candidate_number:index+1,candidate_count:candidates.length,compatible_project_count:compatible.length,preferred_model:preferred||null,remaining_ms:remaining,candidate_budget_ms:candidateBudget});
+    const outcome=await executeWithProjectPool({projects:compatible,model,prompt,imageBase64,mimeType,images,responseJsonSchema,thinkingLevel:candidateThinking,fetchImpl,onTrace,retryDelaysMs,maxProjectFailovers:maxProjectFailovers==null?Math.max(0,compatible.length-1):maxProjectFailovers,requestTimeoutMs:Math.min(Number(requestTimeoutMs)||candidateBudget,candidateBudget),totalTimeoutMs:candidateBudget});
     state=mergeProjectState(state,outcome.projects||[]);attempts.push(...(outcome.attempts||[]));
-    if(outcome.ok)return {...outcome,projects:state,attempts,used_model:model,used_thinking_level:candidateThinking,preferred_model:preferred||null,model_fallback_used:Boolean(preferred&&model!==preferred),preflight};
-    last=outcome;onTrace('ai_model_candidate_failed',{model,error_class:outcome?.failure?.error_class||outcome?.reason||null});
+    if(outcome.ok){
+      const fallbackUsed=Boolean(preferred&&model!==preferred),result={...outcome,projects:state,attempts,used_model:model,used_thinking_level:candidateThinking,preferred_model:preferred||null,model_fallback_used:fallbackUsed,preflight};
+      if(fallbackUsed){const detail={from_model:preferred,to_model:model,used_alias:outcome.used_alias||null,completed_at:nowIso()};try{onModelFallbackSuccess?.(detail);}catch{}onTrace('ai_model_fallback_promoted',detail);}
+      return result;
+    }
+    last=outcome;const failureClass=outcome?.failure?.error_class||outcome?.reason||null;onTrace('ai_model_candidate_failed',{model,error_class:failureClass,candidate_budget_ms:candidateBudget});
     if(Date.now()-executionStarted>=totalMs)return totalTimeoutOutcome({state,attempts,preflight,started:executionStarted,totalMs,preferred});
-    if(!isModelSpecificFailure(outcome)&&!['provider_timeout','provider_total_timeout','request_aborted'].includes(outcome?.failure?.error_class||outcome?.reason||''))return {...outcome,projects:state,attempts,preferred_model:preferred||null,preflight};
-    const next=candidates[index+1];if(next)onTrace('ai_model_failover',{from_model:model,to_model:next,error_class:outcome?.failure?.error_class||outcome?.reason||null});
+    if(!isModelSpecificFailure(outcome)&&!['provider_timeout','provider_total_timeout','request_aborted'].includes(failureClass))return {...outcome,projects:state,attempts,preferred_model:preferred||null,preflight};
+    const next=candidates[index+1];
+    if(next&&['provider_timeout','provider_total_timeout'].includes(failureClass)){state=releaseModelTimeoutState(state);onTrace('ai_model_timeout_project_state_released',{from_model:model,to_model:next});}
+    if(next)onTrace('ai_model_failover',{from_model:model,to_model:next,error_class:failureClass});
   }
   return {...(last||{}),ok:false,paused:true,projects:state,attempts,reason:last?.reason||'model_unavailable',failure:last?.failure||{error_class:'model_unavailable'},preferred_model:preferred||null,preflight};
 }
 
-export const AI_PROVIDER_CAPABILITY_FAILOVER_VERSION='pokemon-sleep-ai-provider-capability-failover/1.2-v042710';
+export const AI_PROVIDER_CAPABILITY_FAILOVER_VERSION='pokemon-sleep-ai-provider-capability-failover/1.3-v042711';

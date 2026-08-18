@@ -10,11 +10,13 @@ if(current==='v0.4.27.5'){
   const direct=spawnSync(process.execPath,[contract],{stdio:'inherit',env:process.env});
   if(direct.error)throw direct.error;
   if(direct.status!==0)process.exitCode=direct.status??1;
-}else if(['v0.4.27.6','v0.4.27.7','v0.4.27.8','v0.4.27.9','v0.4.27.10'].includes(current)){
+}else if(['v0.4.27.6','v0.4.27.7','v0.4.27.8','v0.4.27.9','v0.4.27.10','v0.4.27.11'].includes(current)){
   // v0.4.27.6–v0.4.27.9 change only G13 screenshot/review/provider UX paths.
   // v0.4.27.10 adds bounded AI startup/provider timeout and Public Master
-  // confirmation-display hydration only. Public Event authority is unchanged,
-  // so replay the exact v0.4.27.5 release contract under its own identity.
+  // confirmation-display hydration only.
+  // v0.4.27.11 adds model-candidate budgeting and runtime fallback persistence only.
+  // Public Event authority is unchanged, so replay the exact v0.4.27.5 release
+  // contract under its own identity.
   const staged=original
     .replace(/app_version:\s*'[^']+'/,"app_version: 'v0.4.27.5'")
     .replace(/app_build:\s*'[^']+'/,"app_build: '20260817-v04275-pe7-legacy-event-ui-hotfix'")
