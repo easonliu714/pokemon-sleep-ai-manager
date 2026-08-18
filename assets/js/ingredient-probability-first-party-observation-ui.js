@@ -4,14 +4,17 @@ import {publicSpeciesFormRosterRow} from './public-pokemon-species-form-roster.j
 import {resolveCandidateBaseBerryOutput} from './base-berry-output-contract.js';
 import {
   FIRST_PARTY_OBSERVATION_MODE,
+  FIRST_PARTY_OBSERVATION_MODES,
   FIRST_PARTY_OBSERVATION_SOURCE,
 } from './ingredient-probability-first-party-observation-contract.js';
+import {resolveFirstPartyObservationUiCandidate} from './ingredient-probability-first-party-observation-ui-eligibility.js';
 import {
   buildFirstPartyIngredientObservationUpdatePackage,
   buildDeidentifiedFirstPartyIngredientAggregate,
 } from './ingredient-probability-first-party-observation-update.js';
 
 export const E3C6B_FIRST_PARTY_OBSERVATION_UI_VERSION='e3c6b-first-party-observation-ui-2026-08-15-a';
+export const E3C6D_FIRST_PARTY_OBSERVATION_UI_VERSION='e3c6d-first-party-observation-ui-2026-08-18-a';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const text=value=>String(value??'').normalize('NFKC').trim();
@@ -23,20 +26,32 @@ const integerValue=(form,name)=>{
   return Number.isInteger(value)?value:null;
 };
 
-function candidateRows(){
-  return rows(`SELECT pokemon_id,original_label,nickname,current_species,species,level,specialty,nature,nature_bonus,nature_penalty,carry_limit
-    FROM pokemon WHERE status='active' AND level BETWEEN 1 AND 29 ORDER BY level DESC,COALESCE(original_label,current_species,species),pokemon_id`);
-}
 function candidateSubskills(pokemonId,level){
   return rows('SELECT unlock_level,subskill_name,is_unlocked FROM pokemon_subskills WHERE pokemon_id=? AND unlock_level<=? ORDER BY unlock_level',[pokemonId,level]);
 }
-function candidateIngredients(pokemonId){
-  return rows('SELECT unlock_level,ingredient_name,quantity FROM pokemon_ingredients WHERE pokemon_id=? AND unlock_level=1 ORDER BY unlock_level',[pokemonId]);
+function candidateIngredients(pokemonId,level){
+  return rows('SELECT unlock_level,ingredient_name,quantity FROM pokemon_ingredients WHERE pokemon_id=? AND unlock_level<=? ORDER BY unlock_level',[pokemonId,level]);
 }
 function hasIngredientRateModifier(candidate,subskills){
   const effects=[candidate?.nature_bonus,candidate?.nature_penalty].map(text);
   if(effects.some(value=>value==='食材機率'||value==='食材發現率'))return true;
   return subskills.some(row=>['食材機率提升S','食材機率提升M'].includes(text(row.subskill_name)));
+}
+function candidateRows(){
+  const baseRows=rows(`SELECT pokemon_id,original_label,nickname,current_species,species,level,specialty,nature,nature_bonus,nature_penalty,carry_limit
+    FROM pokemon WHERE status='active' AND level>=1 ORDER BY level DESC,COALESCE(original_label,current_species,species),pokemon_id`);
+  return baseRows.map(candidate=>{
+    const level=Number(candidate.level);
+    const subskills=candidateSubskills(candidate.pokemon_id,level);
+    const ingredients=candidateIngredients(candidate.pokemon_id,level);
+    const ingredientModifier=hasIngredientRateModifier(candidate,subskills);
+    const uiEligibility=resolveFirstPartyObservationUiCandidate({
+      level,
+      ingredient_slots:ingredients,
+      individual_ingredient_rate_modifier_present:ingredientModifier,
+    });
+    return {...candidate,subskills,ingredients,ingredientModifier,uiEligibility};
+  }).filter(row=>row.uiEligibility.visible);
 }
 function newObservationId(){
   const now=new Date(),stamp=now.toISOString().replace(/[-:TZ.]/g,'').slice(0,14);
@@ -74,28 +89,30 @@ function resolveCandidateContext(root,pokemonId){
   const identity=resolvePublicSpeciesFormSourceKeys(displayName);
   const sourceKeys=identity.status==='MATCH'?[...identity.source_keys]:[];
   sourceSelect.innerHTML=sourceKeys.length?sourceKeys.map(key=>`<option value="${esc(key)}">${esc(displayName)} · ${esc(key)}</option>`).join(''):'<option value="">Public species/form identity 未能 exact resolve</option>';
-  const subskills=candidateSubskills(candidate.pokemon_id,Number(candidate.level));
-  const ingredients=candidateIngredients(candidate.pokemon_id);
+  const subskills=candidate.subskills;
+  const ingredients=candidate.ingredients;
   const berryOutput=resolveCandidateBaseBerryOutput({
     level:Number(candidate.level),specialty:candidate.specialty,
     unlocked_subskills:subskills,unlocked_subskill_slot_count:subskills.length,
   });
-  const ingredientModifier=hasIngredientRateModifier(candidate,subskills);
-  const blockers=[];
+  const ingredientModifier=candidate.ingredientModifier;
+  const observationMode=candidate.uiEligibility.observation_mode||FIRST_PARTY_OBSERVATION_MODE;
+  const modeLabel=observationMode===FIRST_PARTY_OBSERVATION_MODES.MULTI_SLOT_EQUAL_QUANTITY?'Lv30+ 多槽等量':'Lv1–29 單槽';
+  const ingredientSummary=ingredients.length?ingredients.map(row=>`Lv.${esc(row.unlock_level)} ${esc(row.ingredient_name||'—')} × ${esc(row.quantity??'—')}`).join('；'):'—';
+  const blockers=[...candidate.uiEligibility.blockers];
   if(sourceKeys.length===0)blockers.push('Public species/form identity 無 exact source_key');
-  if(ingredients.length!==1||!text(ingredients[0]?.ingredient_name)||!Number.isInteger(Number(ingredients[0]?.quantity))||Number(ingredients[0]?.quantity)<=0)blockers.push('Lv1 食材槽/數量不完整');
   if(berryOutput.status!=='ACTIVE_VERIFIED')blockers.push(`莓果單次產量不可 deterministic resolve：${berryOutput.status}`);
   if(!Number.isInteger(Number(candidate.carry_limit))||Number(candidate.carry_limit)<=0)blockers.push('持有上限缺值');
   if(ingredientModifier)blockers.push('此個體目前有 Nature / 食材機率副技能修正，不適合 base-rate isolation');
-  context.innerHTML=`<b>${esc(candidate.original_label||displayName)} · Lv.${esc(candidate.level)}</b><br>Public identity：${esc(identity.status)}；source keys=${sourceKeys.length}<br>Lv1 食材：${esc(ingredients[0]?.ingredient_name||'—')} × ${esc(ingredients[0]?.quantity??'—')}；莓果結果=${esc(berryOutput.total_output??'—')} 個/help；持有上限=${esc(candidate.carry_limit??'—')}<br>個體食材機率修正：${ingredientModifier?'<span class="status-conflict">有，將被 evaluator 拒絕</span>':'無（依目前 Nature + 已解鎖副技能）'}${blockers.length?`<div class="status-conflict">前置注意：${blockers.map(esc).join('；')}</div>`:''}`;
-  return {candidate,identity,sourceKeys,subskills,ingredients,berryOutput,ingredientModifier,blockers};
+  context.innerHTML=`<b>${esc(candidate.original_label||displayName)} · Lv.${esc(candidate.level)}</b><br>觀測模式：<b>${esc(modeLabel)}</b><br>Public identity：${esc(identity.status)}；source keys=${sourceKeys.length}<br>已解鎖食材：${ingredientSummary}；莓果結果=${esc(berryOutput.total_output??'—')} 個/help；持有上限=${esc(candidate.carry_limit??'—')}<br>個體食材機率修正：${ingredientModifier?'<span class="status-conflict">有，將被 evaluator 拒絕</span>':'無（依目前 Nature + 已解鎖副技能）'}${blockers.length?`<div class="status-conflict">前置注意：${[...new Set(blockers)].map(esc).join('；')}</div>`:''}`;
+  return {candidate,identity,sourceKeys,subskills,ingredients,berryOutput,ingredientModifier,observationMode,blockers};
 }
 
 function buildInput(root){
   const form=root.querySelector('#e3c6bCaptureForm');
   const pokemonId=text(form.elements.namedItem('pokemon_id')?.value);
   const context=resolveCandidateContext(root,pokemonId);
-  if(!context)throw new Error('請先選擇 Lv1–29 寶可夢');
+  if(!context)throw new Error('請先選擇符合 E3C-6B/6C Gate 的寶可夢');
   const sourceKey=text(form.elements.namedItem('source_key')?.value).toUpperCase();
   const roster=publicSpeciesFormRosterRow(sourceKey);
   if(!roster)throw new Error('source_key 無法對應 governed public roster');
@@ -108,7 +125,7 @@ function buildInput(root){
   return {
     observation_id:newObservationId(),
     observation_source:FIRST_PARTY_OBSERVATION_SOURCE,
-    observation_mode:FIRST_PARTY_OBSERVATION_MODE,
+    observation_mode:context.observationMode,
     source_key:sourceKey,
     canonical_species_form_id:roster.canonical_species_form_id,
     species_form_identity_confirmed:booleanChecked(form,'species_identity_confirmed'),
@@ -142,16 +159,16 @@ function mount(){
   const panel=document.createElement('section');
   panel.id='e3c6bFirstPartyPanel';
   panel.className='panel';
-  panel.innerHTML=`<h3>Ingredient Probability 第一手觀測（E3C-6B）</h3>
-    <p class="notice">只接受手動輸入的 Lv1–29 單食材槽觀察窗口。此功能不使用 OCR 推算 help event；原始 observation/evidence 只寫入本機 SQLite。Production 仍維持 4/7，Ingredient Probability 僅為 <b>OBSERVED_PARTIAL_ONLY</b>。</p>
+  panel.innerHTML=`<h3>Ingredient Probability 第一手觀測（E3C-6B / E3C-6D）</h3>
+    <p class="notice">手動輸入觀察窗口，不使用 OCR 推算 help event。Lv1–29 沿用單食材槽模式；Lv30+/Lv60 只顯示在窗口開始前即可確認「所有已解鎖食材槽 quantity 相同」且沒有個體食材機率修正的候選。原始 observation/evidence 只寫入本機 SQLite。Production 仍維持 4/7，Ingredient Probability 僅為 <b>OBSERVED_PARTIAL_ONLY</b>。</p>
     <form id="e3c6bCaptureForm" class="edit-grid">
-      <label class="edit-field full"><span>本機寶可夢（僅用於帶入 level / slot / berry output；pokemon_id 不會進 Update Package）</span><select name="pokemon_id" id="e3c6bPokemonSelect"><option value="">請選擇</option>${candidates.map(row=>`<option value="${esc(row.pokemon_id)}">${esc(row.original_label||row.current_species||row.species)} · Lv.${esc(row.level)}${row.nickname?` · ${esc(row.nickname)}`:''}</option>`).join('')}</select></label>
+      <label class="edit-field full"><span>本機寶可夢（僅用於帶入 level / slot / berry output；pokemon_id 不會進 Update Package）</span><select name="pokemon_id" id="e3c6bPokemonSelect"><option value="">請選擇</option>${candidates.map(row=>`<option value="${esc(row.pokemon_id)}">${esc(row.original_label||row.current_species||row.species)} · Lv.${esc(row.level)} · ${row.uiEligibility.observation_mode===FIRST_PARTY_OBSERVATION_MODES.MULTI_SLOT_EQUAL_QUANTITY?'多槽等量':'單槽'}${row.nickname?` · ${esc(row.nickname)}`:''}</option>`).join('')}</select></label>
       <label class="edit-field full"><span>Governed source_key / form</span><select name="source_key" id="e3c6bSourceKey"><option value="">請先選擇寶可夢</option></select></label>
       <div id="e3c6bCandidateContext" class="notice full"></div>
       <label class="edit-field"><span>收取時莓果物品數（手動）</span><input name="berry_items_collected" type="number" min="0" step="1" inputmode="numeric"></label>
       <label class="edit-field"><span>收取時食材物品數（手動）</span><input name="ingredient_items_collected" type="number" min="0" step="1" inputmode="numeric"></label>
       <label class="edit-field"><span>收取前背包實際總物品數</span><input name="inventory_items_before_collection" type="number" min="0" step="1" inputmode="numeric"></label>
-      <label class="edit-field full"><span>本次 evidence refs（截圖檔名／人工紀錄 ID；換行或逗號分隔）</span><textarea name="observation_evidence_refs" placeholder="例如 Screenshot_20260815-173000.png&#10;manual-window-20260815-01"></textarea></label>
+      <label class="edit-field full"><span>本次 evidence refs（截圖檔名／人工紀錄 ID；換行或逗號分隔）</span><textarea name="observation_evidence_refs" placeholder="例如 Screenshot_20260818-103000.png&#10;manual-window-20260818-01"></textarea></label>
       <fieldset class="edit-field full"><legend>必須逐項確認的隔離條件</legend>
         <label><input type="checkbox" name="species_identity_confirmed"> 已確認目前物種／型態與上方 source_key 一致</label><br>
         <label><input type="checkbox" name="environment_clear"> 本觀察窗口沒有活動／營地／其他環境食材機率修正</label><br>
@@ -175,12 +192,14 @@ function mount(){
   form.addEventListener('submit',event=>{
     event.preventDefault();
     try{
-      const payload=buildFirstPartyIngredientObservationUpdatePackage(buildInput(panel));
+      const input=buildInput(panel);
+      const payload=buildFirstPartyIngredientObservationUpdatePackage(input);
       const operation=payload.operations[0];
       const result=panel.querySelector('#e3c6bBuildResult');
       const accepted=operation.data.status==='ACCEPTED_RAW_OBSERVATION';
       result.innerHTML=`${accepted?'✅':'⚠️'} Observation：<b>${esc(operation.data.status)}</b>${operation.data.blockers.length?`；blockers=${operation.data.blockers.map(esc).join('、')}`:''}<br>已送入上方主更新中心。請依序執行「檢查結構 → Dry Run → 套用更新」。${accepted?'套用後才會納入本機聚合。':'即使套用也只會保留供 Review，絕不計入統計。'}`;
-      globalThis.dispatchEvent(new CustomEvent('pokemon-sleep:local-update-package-ready',{detail:{payload,origin:'E3C6B_FIRST_PARTY_MANUAL_CAPTURE'}}));
+      const origin=input.observation_mode===FIRST_PARTY_OBSERVATION_MODES.MULTI_SLOT_EQUAL_QUANTITY?'E3C6D_FIRST_PARTY_MULTI_SLOT_MANUAL_CAPTURE':'E3C6B_FIRST_PARTY_MANUAL_CAPTURE';
+      globalThis.dispatchEvent(new CustomEvent('pokemon-sleep:local-update-package-ready',{detail:{payload,origin}}));
     }catch(error){panel.querySelector('#e3c6bBuildResult').innerHTML=`<span class="status-conflict">建立失敗：${esc(error?.message||error)}</span>`;}
   });
   panel.querySelector('#e3c6bExportAggregateBtn').addEventListener('click',()=>{
@@ -192,7 +211,7 @@ function mount(){
   renderStoredSummary(panel);
 }
 
-function safeMount(){try{mount();}catch(error){console.warn('E3C-6B first-party observation UI deferred',error);}}
+function safeMount(){try{mount();}catch(error){console.warn('E3C-6B/6D first-party observation UI deferred',error);}}
 globalThis.addEventListener('pokemon-sleep:database-ready',()=>setTimeout(safeMount,0));
 globalThis.addEventListener('pokemon-sleep:update-applied',event=>{
   if(event?.detail?.payload?.scenario!=='ingredient_probability_first_party_observation_update')return;
