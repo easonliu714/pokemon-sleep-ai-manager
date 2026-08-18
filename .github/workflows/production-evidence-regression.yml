@@ -65,5 +65,7 @@ jobs:
         run: |
           node scripts/v0428-g75e3c6c-multislot-first-party-observation-contract.mjs
           node scripts/v0428-g75e3c6c-legacy-single-slot-compat-contract.mjs
+      - name: Verify E3C-6D bias-safe multi-slot mobile capture UI
+        run: node scripts/v0428-g75e3c6d-multislot-first-party-observation-ui-contract.mjs
       - name: Verify Production workflow consolidation topology
         run: node scripts/ci-production-workflow-consolidation-contract.mjs
