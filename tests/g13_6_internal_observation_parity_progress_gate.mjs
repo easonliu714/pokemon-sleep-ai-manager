@@ -4,6 +4,9 @@ import vm from 'node:vm';
 import {AI_OBSERVATION_PROMPT} from '../assets/js/ai-observation.js';
 import {DEFAULT_PROMPT,PROMPT_VERSION,projectObservationV2ForLegacy} from '../assets/js/ai-review-queue-executor.js';
 
+const parts=value=>String(value||'').replace(/^v/,'').split('.').map(part=>Number(part)||0);
+const atLeast=(current,minimum)=>{const left=parts(current),right=parts(minimum),size=Math.max(left.length,right.length);for(let index=0;index<size;index+=1){const a=left[index]||0,b=right[index]||0;if(a!==b)return a>b;}return true;};
+
 assert.equal(DEFAULT_PROMPT,AI_OBSERVATION_PROMPT,'internal Gemini must consume the same governed Observation v2 prompt as external prompt mode');
 for(const token of [
   'schema_version 固定 2.0-observation',
@@ -67,12 +70,15 @@ for(const token of ['data-unified-analysis-progress','辨識進度',"['OCR',unif
 
 const authoritySource=fs.readFileSync('assets/js/version-authority.js','utf8');
 const sandbox={};sandbox.globalThis=sandbox;vm.runInNewContext(authoritySource,sandbox,{filename:'version-authority.js'});
-assert.equal(sandbox.PokemonSleepVersionAuthority.app_version,'v0.4.27.6');
-assert.equal(sandbox.PokemonSleepVersionAuthority.app_build,'20260818-v04276-g13-internal-observation-parity-progress-ux');
-assert.equal(sandbox.PokemonSleepVersionAuthority.cache_name,'pokemon-sleep-ai-v0.4.27.6-v04276-g13-internal-observation-parity-progress-ux');
+const authority=sandbox.PokemonSleepVersionAuthority;
+assert.equal(atLeast(authority.app_version,'v0.4.27.6'),true,`G13.6 behavior requires v0.4.27.6 or newer: ${authority.app_version}`);
+if(authority.app_version==='v0.4.27.6'){
+  assert.equal(authority.app_build,'20260818-v04276-g13-internal-observation-parity-progress-ux');
+  assert.equal(authority.cache_name,'pokemon-sleep-ai-v0.4.27.6-v04276-g13-internal-observation-parity-progress-ux');
+}
 
 console.log(JSON.stringify({
   status:'PASS',gate:'G13.6_INTERNAL_OBSERVATION_V2_PARITY_PROGRESS_UX',
   internal_external_prompt_parity:true,legacy_internal_shape_rejected:true,noncanonical_names_fail_closed:true,
-  zero_preserved:true,feature_local_ocr_ai_cross_check_progress:true,visible_version:'v0.4.27.6',player_write_authority:false,
+  zero_preserved:true,feature_local_ocr_ai_cross_check_progress:true,minimum_visible_version:'v0.4.27.6',current_visible_version:authority.app_version,player_write_authority:false,
 },null,2));
