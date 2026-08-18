@@ -1,8 +1,10 @@
 import {PUBLIC_SPECIES_FORM_ROSTER_ROWS} from './public-pokemon-species-form-roster.js';
 import {expectedUnlockedIngredientSlotCount,resolveIngredientSlotDistribution} from './ingredient-slot-distribution-contract.js';
 
-export const INGREDIENT_PROBABILITY_FIRST_PARTY_OBSERVATION_ID='ingredient-probability-first-party-observation-2026-08-18-c';
-export const INGREDIENT_PROBABILITY_FIRST_PARTY_OBSERVATION_VERSION='ingredient-probability-first-party-observation-v2';
+export const INGREDIENT_PROBABILITY_FIRST_PARTY_OBSERVATION_ID='ingredient-probability-first-party-observation-2026-08-14-a';
+export const INGREDIENT_PROBABILITY_FIRST_PARTY_OBSERVATION_VERSION='ingredient-probability-first-party-observation-v1';
+export const INGREDIENT_PROBABILITY_FIRST_PARTY_MULTI_SLOT_EXTENSION_ID='ingredient-probability-first-party-multi-slot-extension-2026-08-18-a';
+export const INGREDIENT_PROBABILITY_FIRST_PARTY_MULTI_SLOT_EXTENSION_VERSION='ingredient-probability-first-party-multi-slot-extension-v1';
 
 export const FIRST_PARTY_OBSERVATION_STATUS=Object.freeze({
   ACCEPTED_RAW_OBSERVATION:'ACCEPTED_RAW_OBSERVATION',
@@ -151,12 +153,23 @@ export function evaluateFirstPartyIngredientHelpObservation(input={}){
     base_rate_normalization_applied:false,
     activation_authority_granted:false,
     independent_source_admission_granted:false,
-    safety:freeze({
-      only_single_unlocked_ingredient_slot:observationMode===FIRST_PARTY_OBSERVATION_MODES.SINGLE_SLOT,
-      multi_slot_equal_quantity_mode:observationMode===FIRST_PARTY_OBSERVATION_MODES.MULTI_SLOT_EQUAL_QUANTITY,
-      multi_slot_eligibility_preobservable:observationMode===FIRST_PARTY_OBSERVATION_MODES.MULTI_SLOT_EQUAL_QUANTITY?equalMultiSlotQuantities:null,
+    safety:freeze(observationMode===FIRST_PARTY_OBSERVATION_MODES.MULTI_SLOT_EQUAL_QUANTITY?{
+      only_single_unlocked_ingredient_slot:false,
+      rate_value_used_to_reconstruct_events:false,
+      invalid_batch_contributes_to_estimate:false,
+      sample_sufficiency_threshold_invented:false,
+      runtime_network_fetch:false,
+      player_data_write:false,
+      sqlite_write:false,
+      ai_numeric_authority:false,
+      multi_slot_extension_id:INGREDIENT_PROBABILITY_FIRST_PARTY_MULTI_SLOT_EXTENSION_ID,
+      multi_slot_extension_version:INGREDIENT_PROBABILITY_FIRST_PARTY_MULTI_SLOT_EXTENSION_VERSION,
+      multi_slot_equal_quantity_mode:true,
+      multi_slot_eligibility_preobservable:equalMultiSlotQuantities,
       outcome_dependent_window_selection:false,
       slot_selection_probability_used:false,
+    }:{
+      only_single_unlocked_ingredient_slot:true,
       rate_value_used_to_reconstruct_events:false,
       invalid_batch_contributes_to_estimate:false,
       sample_sufficiency_threshold_invented:false,
