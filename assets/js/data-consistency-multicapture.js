@@ -20,7 +20,7 @@ const number=value=>{
 };
 const badString=value=>/^\[(object Object|object Array)\]$|^(undefined|null)$/i.test(String(value??'').trim());
 const clean=value=>{const result=text(value);return badString(result)?'':result;};
-const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[char]));
+const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const blank=value=>value===null||value===undefined||value===''||(Array.isArray(value)&&value.length===0);
 function dateText(value){const raw=clean(value);if(!raw)return '';const match=raw.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日$/);if(match)return `${match[1]}-${match[2].padStart(2,'0')}-${match[3].padStart(2,'0')}`;const iso=raw.match(/^(\d{4}-\d{2}-\d{2})/);return iso?iso[1]:raw;}
 
