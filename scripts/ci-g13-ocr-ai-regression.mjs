@@ -44,6 +44,11 @@ const IMMUTABLE_RELEASE_IDENTITIES=Object.freeze({
     app_build:'20260818-v04279-confirmation-multicapture-authority-hotfix',
     cache_name:'pokemon-sleep-ai-v0.4.27.9-v04279-confirmation-multicapture-authority-hotfix',
   }),
+  'tests/g13_10_v042710_ai_timeout_public_hydration_gate.mjs':Object.freeze({
+    app_version:'v0.4.27.10',
+    app_build:'20260818-v042710-ai-startup-timeout-public-hydration',
+    cache_name:'pokemon-sleep-ai-v0.4.27.10-v042710-ai-startup-timeout-public-hydration',
+  }),
 });
 
 function execute(path){
