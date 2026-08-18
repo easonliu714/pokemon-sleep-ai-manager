@@ -7,7 +7,7 @@ if(!contract)throw new Error('usage: node scripts/v04275-production-contract-run
 const authorityPath='assets/js/version-authority.js';
 const original=fs.readFileSync(authorityPath,'utf8');
 const current=original.match(/app_version:\s*'([^']+)'/)?.[1]||null;
-const unchangedProductionReleases=new Set(['v0.4.27.5','v0.4.27.6','v0.4.27.7','v0.4.27.8','v0.4.27.9','v0.4.27.10','v0.4.27.11']);
+const unchangedProductionReleases=new Set(['v0.4.27.5','v0.4.27.6','v0.4.27.7','v0.4.27.8','v0.4.27.9','v0.4.27.10','v0.4.27.11','v0.4.27.12']);
 if(!unchangedProductionReleases.has(current)){
   const direct=spawnSync(process.execPath,[contract],{stdio:'inherit',env:process.env});
   if(direct.error)throw direct.error;
@@ -20,6 +20,8 @@ if(!unchangedProductionReleases.has(current)){
   // v0.4.27.9 fixes null-safe multicapture confirmation and evolution re-hydration only.
   // v0.4.27.10 bounds AI startup/provider timeouts and hydrates public review display only.
   // v0.4.27.11 budgets model candidates and persists successful runtime fallback only.
+  // v0.4.27.12 changes live model status, confirmation lifecycle, roster refresh,
+  // registration-date presentation, and verified evolution wording only.
   // None changes Production numeric authority, so replay Production behavioral
   // contracts under the already-verified v0.4.27.4 identity.
   const staged=original
