@@ -48,7 +48,10 @@ const runtime=read('assets/js/ai-project-pool-runtime.js');
 for(const token of ['thinkingLevel=null','generationConfig.thinkingConfig={thinkingLevel:clean(thinkingLevel)}','thinking_level:clean(thinkingLevel)||null'])assert.ok(runtime.includes(token),`G13.7 Gemini runtime missing ${token}`);
 
 const diagnostic=read('assets/js/data1d1-ocr-ai-ab-diagnostic.js');
-for(const token of ['batchIndex=1,batchTotal=1','AI ${batchIndex}/${batchTotal}：${name}','｜等待 ${Math.max','檔案：${escapeHtml(name)}'])assert.ok(diagnostic.includes(token),`G13.7 local progress missing ${token}`);
+for(const token of ['batchIndex=1,batchTotal=1','AI ${batchIndex}/${batchTotal}：${name}','檔案：${escapeHtml(name)}'])assert.ok(diagnostic.includes(token),`G13.7 local progress missing ${token}`);
+const legacyElapsedStatus=diagnostic.includes('｜等待 ${Math.max');
+const modelAwareElapsedStatus=diagnostic.includes('elapsedSeconds()')&&diagnostic.includes('setInterval(renderLiveStatus,1000)');
+assert.ok(legacyElapsedStatus||modelAwareElapsedStatus,'G13.7 local progress must keep live elapsed seconds visible');
 
 const workbench=read('assets/js/unified-import-analysis-workbench.js');
 assert.ok(workbench.includes("globalThis.PokemonSleepVersionAuthority?.app_version||'unknown'"),'Unified workbench must consume central version authority');
@@ -69,6 +72,7 @@ console.log(JSON.stringify({
   legacy_thinking_path_untouched:true,
   current_filename_visible:true,
   elapsed_seconds_visible:true,
+  model_aware_elapsed_status_successor:true,
   fail_closed_preserved:true,
   central_version:'v0.4.27.7',
 },null,2));
