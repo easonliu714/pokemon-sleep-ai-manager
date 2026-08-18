@@ -9,7 +9,7 @@ const SPECIALTIES=new Set(['樹果','食材','技能']);
 const itemId=item=>String(item?.sha256||item?.source_image_ref||item?.path||'');
 const itemPath=item=>String(item?.path||item?.source_image_ref||'');
 const text=value=>value==null?'':String(value).normalize('NFKC').trim();
-const finite=value=>Number.isFinite(Number(value))?Number(value):null;
+const finite=value=>value===null||value===undefined||value===''?null:(Number.isFinite(Number(value))?Number(value):null);
 const clone=value=>JSON.parse(JSON.stringify(value));
 
 function extractJson(payload){
