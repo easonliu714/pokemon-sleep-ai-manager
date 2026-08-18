@@ -97,6 +97,9 @@ jobs:
       - name: Verify fresh 75 Pokémon visual re-audit compiler
         run: node scripts/pokemon-75-visual-reaudit-compiler-regression.mjs
 
+      - name: Verify E3C-6E first-offline observation runtime closure
+        run: node scripts/v0428-g75e3c6e-first-party-observation-pwa-offline-contract.mjs
+
       - name: Install regression runtimes
         run: |
           npm install --no-save --no-package-lock sql.js@1.13.0 fake-indexeddb@6.2.4 playwright@1.54.1
