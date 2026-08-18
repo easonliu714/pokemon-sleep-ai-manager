@@ -85,7 +85,7 @@ function renderPokemon() {
     $('pokemonTable'),
     data,
     [
-      { label: '名稱', key: 'original_label' },
+      { label: '名稱', render: (pokemon) => esc(pokemon.original_label || pokemon.species) },
       { label: 'Lv', key: 'level' },
       { label: '評級', key: 'rating' },
       { label: '專長', key: 'specialty' },
@@ -364,6 +364,10 @@ function setupEventHandlers() {
     loadUpdatePayload(payload);
     if($('jsonFile'))$('jsonFile').value='';
     $('workflowIssues').classList.remove('hidden');
+  });
+
+  globalThis.addEventListener('pokemon-sleep:analysis-confirmed-applied', () => {
+    refresh().catch((error) => console.error('Analysis-confirmed roster refresh failed', error));
   });
 
   $('validateJsonBtn').onclick = () => {
