@@ -61,5 +61,7 @@ jobs:
           node-version: '22'
       - name: Replay Production evidence and predecessor contracts
         run: node scripts/ci-production-evidence-regression.mjs
+      - name: Verify E3C-6C multi-slot unique event reconstruction
+        run: node scripts/v0428-g75e3c6c-multislot-first-party-observation-contract.mjs
       - name: Verify Production workflow consolidation topology
         run: node scripts/ci-production-workflow-consolidation-contract.mjs
