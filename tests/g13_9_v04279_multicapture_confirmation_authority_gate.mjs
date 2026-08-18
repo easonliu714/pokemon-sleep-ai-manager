@@ -8,8 +8,6 @@ const sw=fs.readFileSync('service-worker.js','utf8');
 
 assert.match(version,/app_version:\s*'v0\.4\.27\.9'/);
 assert.match(version,/20260818-v04279-confirmation-multicapture-authority-hotfix/);
-assert.match(source,/if\(value===null\|\|value===undefined\|\|value===' '\.replace\(' ',''\)\)/);
-// Exact textual guard, without relying on Number(null) semantics.
 assert.ok(source.includes("if(value===null||value===undefined||value==='')return null;"));
 assert.ok(source.includes('profile?.main_skill_level??raw?.main_skill?.level'));
 assert.ok(source.includes('profile?.header_name_text??profile?.species'));
