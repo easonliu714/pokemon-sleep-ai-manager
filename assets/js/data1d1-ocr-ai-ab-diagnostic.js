@@ -5,7 +5,7 @@ import {executeAiReviewQueue,PROMPT_VERSION} from './ai-review-queue-executor.js
 import {readBlobAsData,createArchiveImageResolver} from './ai-review-image-resolver.js';
 import {saveAnalysisRevision,listAnalysisRevisions} from './analysis-revision-store.js';
 
-const BUILD='20260818-v04277-structured-gemini-current-file-ux';
+const BUILD='20260818-v042712-live-model-failover-confirmation-ux';
 let activeDispose=null,standalonePreviewUrl=null,latestImportResult=null;
 const standaloneFiles=new Map();
 const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -34,18 +34,28 @@ function createOcrOnlyPanel(item){
 export async function executePreparedAiPayload({queue,item,preset='full_image',statusNode=null,resultNode=null,bypassCache=true,batchIndex=1,batchTotal=1}={}){
   const poolData=globalThis.PokemonSleepAiProjectPool;if(!poolData?.projects?.length)throw new Error('請先至「使用說明」設定並測試至少一組 AI API Key。');
   const source=inventoryItemById(itemId(item))||item,name=itemName(source),prefix=`AI ${batchIndex}/${batchTotal}：${name}`;let resolveImage;if(standaloneFiles.has(itemId(item)))resolveImage=async()=>readBlobAsData(standaloneFiles.get(itemId(item)));else{const archive=latestImportResult?.archives?.[0];resolveImage=createArchiveImageResolver(archive);}
-  let startedAt=Date.now(),ticker=null;
+  const startedAt=Date.now();let ticker=null;let liveStage=`準備模型 ${poolData.model||'自動選擇'}`;
+  const elapsedSeconds=()=>Math.max(0,Math.floor((Date.now()-startedAt)/1000));
   const setStatus=message=>{if(statusNode)statusNode.textContent=message;};
-  setStatus(`${prefix}｜準備送往 AI Provider…`);trace('real_ai_analysis_started',{item_id:itemId(item),file_name:name,batch_index:batchIndex,batch_total:batchTotal,preset,bypass_cache:bypassCache,model:poolData.model});
-  ticker=setInterval(()=>setStatus(`${prefix}｜等待 ${Math.max(0,Math.floor((Date.now()-startedAt)/1000))} 秒`),1000);
+  const renderLiveStatus=()=>setStatus(`${prefix}｜${elapsedSeconds()} 秒｜${liveStage}`);
+  const handleTrace=(event,detail={})=>{
+    trace(event,detail);
+    if(event==='ai_model_candidate_started')liveStage=`嘗試模型 ${detail.model||'—'}（候選 ${detail.candidate_number||'?'}／${detail.candidate_count||'?'}）`;
+    else if(event==='ai_model_candidate_failed')liveStage=`模型 ${detail.model||'—'} 未完成（${detail.error_class||'unknown'}），準備切換`;
+    else if(event==='ai_model_failover')liveStage=`模型切換 ${detail.from_model||'—'} → ${detail.to_model||'—'}（${detail.error_class||'fallback'}）`;
+    else if(event==='ai_model_fallback_promoted')liveStage=`fallback 成功：${detail.from_model||'—'} → ${detail.to_model||'—'}`;
+    renderLiveStatus();
+  };
+  renderLiveStatus();trace('real_ai_analysis_started',{item_id:itemId(item),file_name:name,batch_index:batchIndex,batch_total:batchTotal,preset,bypass_cache:bypassCache,model:poolData.model});
+  ticker=setInterval(renderLiveStatus,1000);
   try{
     const outcome=await executeAiReviewQueue({queue,inventory:{items:[source]},poolData,resolveImage,bypassCache,onProgress:progress=>{
-      if(progress.phase==='started'){startedAt=Date.now();setStatus(`${prefix}｜已送往 AI Provider…`);}
-      else if(progress.phase==='completed')setStatus(`${prefix}｜AI 回應完成${progress.provider_elapsed_ms?`（${(progress.provider_elapsed_ms/1000).toFixed(1)} 秒）`:''}`);
-    },onTrace:(event,detail)=>trace(event,detail)});
+      if(progress.phase==='started'){liveStage=`已送往 AI Provider；首選 ${poolData.model||'自動選擇'}`;renderLiveStatus();}
+      else if(progress.phase==='completed'){liveStage=`AI 回應完成${progress.provider_elapsed_ms?`（Provider ${(progress.provider_elapsed_ms/1000).toFixed(1)} 秒）`:''}`;renderLiveStatus();}
+    },onTrace:handleTrace});
     if(outcome.status!=='completed')throw new Error(`AI 分析暫停：${outcome.reason||'unknown'}`);const result=outcome.results[0];const revision=await saveAnalysisRevision({imageSha256:itemId(item),sourceImageRef:name,analysisType:'ai',forced:bypassCache,provider:'gemini',model:result.model,promptVersion:PROMPT_VERSION,regionPreset:preset,result:result.analysis});
     if(resultNode){resultNode.innerHTML=`<div class="notice success"><strong>AI 分析完成 · revision ${revision.revision_no}</strong><br>檔案：${escapeHtml(name)}<br>Project：${escapeHtml(result.project_alias||'—')}；Model：${escapeHtml(result.model||'—')}；Provider：${result.provider_elapsed_ms?`${(result.provider_elapsed_ms/1000).toFixed(1)} 秒`:'—'}；Structured：${result.structured_output?'是':'否'}；Thinking：${escapeHtml(result.thinking_level||'預設')}</div><pre class="prompt-box">${escapeHtml(JSON.stringify(result.analysis,null,2))}</pre>`;}
-    setStatus(`${prefix}｜完成；已保存 revision ${revision.revision_no}。`);trace('real_ai_analysis_completed',{item_id:itemId(item),file_name:name,batch_index:batchIndex,batch_total:batchTotal,revision_no:revision.revision_no,model:result.model,project_alias:result.project_alias,provider_elapsed_ms:result.provider_elapsed_ms,observation_contract_status:result.observation_contract_status});return {outcome,revision};
+    liveStage=`完成；使用模型 ${result.model||'—'}；revision ${revision.revision_no}`;renderLiveStatus();trace('real_ai_analysis_completed',{item_id:itemId(item),file_name:name,batch_index:batchIndex,batch_total:batchTotal,revision_no:revision.revision_no,model:result.model,project_alias:result.project_alias,provider_elapsed_ms:result.provider_elapsed_ms,observation_contract_status:result.observation_contract_status});return {outcome,revision};
   }finally{if(ticker)clearInterval(ticker);}
 }
 
