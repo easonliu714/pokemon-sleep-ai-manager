@@ -20,7 +20,7 @@ const number=value=>{
 };
 const badString=value=>/^\[(object Object|object Array)\]$|^(undefined|null)$/i.test(String(value??'').trim());
 const clean=value=>{const result=text(value);return badString(result)?'':result;};
-const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[char]));
 const blank=value=>value===null||value===undefined||value===''||(Array.isArray(value)&&value.length===0);
 
 function normalizeSubskills(value){
@@ -41,7 +41,7 @@ function normalizeRevision(revision){
   const raw=revision?.result?.analysis??revision?.result??{};
   if(revision?.analysis_type!=='ai'){
     const regions=Array.isArray(raw?.regions)?raw.regions:Array.isArray(raw)?raw:[];
-    return {species:'',nickname:'',level:null,sp:null,specialty:'',type:'',nature:'',nature_bonus:'',nature_penalty:'',main_skill:'',main_skill_level:null,main_skill_description:'',helper_seconds:null,carry_limit:null,favorite_berry:'',sleep_hours:null,sleep_time_text:'',obtained_at:'',is_favorite:null,confidence:null,subskills:[],ingredients:[],source_text:regions.map(row=>`${row.name||row.region||'區域'}\n${row.text||row.ocr_text||''}`).join('\n\n'),source_refs:[revision?.source_image_ref].filter(Boolean),analysis_ids:[revision?.analysis_id].filter(Boolean),conflicts:[]};
+    return {species:'',nickname:'',level:null,sp:null,specialty:'',type:'',nature:'',nature_bonus:'',nature_penalty:'',main_skill:'',main_skill_level:null,main_skill_description:'',helper_seconds:null,carry_limit:null,favorite_berry:'',sleep_hours:null,sleep_time_text:'',registered_at:'',is_favorite:null,confidence:null,subskills:[],ingredients:[],source_text:regions.map(row=>`${row.name||row.region||'區域'}\n${row.text||row.ocr_text||''}`).join('\n\n'),source_refs:[revision?.source_image_ref].filter(Boolean),analysis_ids:[revision?.analysis_id].filter(Boolean),conflicts:[]};
   }
   const observation=Array.isArray(raw?.observations)?raw.observations[0]||{}:{};
   const profile=observation?.profile||{};
@@ -66,7 +66,7 @@ function normalizeRevision(revision){
     favorite_berry:clean(raw?.favorite_berry??profile?.favorite_berry),
     sleep_hours:number(raw?.sleep_hours??profile?.sleep_hours),
     sleep_time_text:clean(raw?.sleep_time_text??profile?.sleep_time_text),
-    obtained_at:clean(identity?.registered_date??raw?.obtained_at),
+    registered_at:clean(identity?.registered_date??raw?.registered_at??raw?.obtained_at),
     is_favorite:favoriteValue===true?1:favoriteValue===false?0:null,
     confidence:number(raw?.confidence),
     subskills:normalizeSubskills(raw?.sub_skills?.length?raw.sub_skills:observation?.subskills),
@@ -78,7 +78,7 @@ function normalizeRevision(revision){
   };
 }
 
-const MERGE_FIELDS=['species','nickname','level','sp','specialty','type','nature','nature_bonus','nature_penalty','main_skill','main_skill_level','main_skill_description','helper_seconds','carry_limit','favorite_berry','sleep_hours','sleep_time_text','obtained_at','is_favorite','confidence'];
+const MERGE_FIELDS=['species','nickname','level','sp','specialty','type','nature','nature_bonus','nature_penalty','main_skill','main_skill_level','main_skill_description','helper_seconds','carry_limit','favorite_berry','sleep_hours','sleep_time_text','registered_at','is_favorite','confidence'];
 function mergeDraft(base,next){
   const out={...base};const conflicts=[];
   for(const key of MERGE_FIELDS){
@@ -98,7 +98,18 @@ function group(){
   if(!groups.has(activeGroupId))groups.set(activeGroupId,{draft:{source_refs:[],analysis_ids:[],subskills:[],ingredients:[],conflicts:[]},created_at:new Date().toISOString()});
   return groups.get(activeGroupId);
 }
-function startNewGroup(){activeGroupId=`capture-${Date.now()}-${Math.random().toString(16).slice(2)}`;group();renderGroupNotice();}
+function resetActiveGroup(reason='reset'){
+  const previousGroupId=activeGroupId;
+  activeGroupId=`capture-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  group();
+  globalThis.UpdateCenterLiveDebug?.record?.('multicapture_group_reset',{reason,previous_group_id:previousGroupId,group_id:activeGroupId});
+  return activeGroupId;
+}
+function startNewGroup(){
+  resetActiveGroup('user_new_group');
+  globalThis.dispatchEvent(new CustomEvent('pokemon-sleep:analysis-capture-group-reset',{detail:{reason:'user_new_group',group_id:activeGroupId}}));
+  renderGroupNotice();
+}
 
 function setField(root,name,value){
   if(blank(value))return;
@@ -150,12 +161,22 @@ function renderGroupNotice(){
 }
 
 globalThis.addEventListener('pokemon-sleep:analysis-revision-saved',event=>{
-  const merged=mergeDraft(group().draft,normalizeRevision(event.detail));
+  const next=normalizeRevision(event.detail),current=group().draft;
+  if(current.species&&next.species&&current.species!==next.species){
+    const previousSpecies=current.species;
+    resetActiveGroup('species_identity_changed');
+    globalThis.UpdateCenterLiveDebug?.record?.('multicapture_species_boundary',{previous_species:previousSpecies,next_species:next.species,group_id:activeGroupId});
+  }
+  const merged=mergeDraft(group().draft,next);
   groups.get(activeGroupId).draft=merged;
   setTimeout(applyMergedDraftToForm,0);
-  globalThis.UpdateCenterLiveDebug?.record?.('multicapture_revision_merged',{group_id:activeGroupId,source_count:merged.source_refs.length,analysis_count:merged.analysis_ids.length,conflict_count:merged.conflicts.length,main_skill_level:merged.main_skill_level??null,species:merged.species||null,evolution_rehydration:true,legacy_partial_writer_disabled:true});
+  globalThis.UpdateCenterLiveDebug?.record?.('multicapture_revision_merged',{group_id:activeGroupId,source_count:merged.source_refs.length,analysis_count:merged.analysis_ids.length,conflict_count:merged.conflicts.length,main_skill_level:merged.main_skill_level??null,species:merged.species||null,evolution_rehydration:true,legacy_partial_writer_disabled:true,lifecycle_isolated:true});
 });
 
-globalThis.UpdateCenterLiveDebug?.record?.('data_consistency_multicapture_ready',{version:VERSION,build:BUILD,patch_semantics:true,null_safe_numeric:true,observation_v2:true,evolution_rehydration:true,legacy_partial_writer_disabled:true});
+globalThis.addEventListener('pokemon-sleep:analysis-confirmation-terminal',event=>{
+  resetActiveGroup(event.detail?.reason||'confirmation_terminal');
+});
 
-export {VERSION,BUILD,normalizeRevision,mergeDraft};
+globalThis.UpdateCenterLiveDebug?.record?.('data_consistency_multicapture_ready',{version:VERSION,build:BUILD,patch_semantics:true,null_safe_numeric:true,observation_v2:true,evolution_rehydration:true,legacy_partial_writer_disabled:true,lifecycle_isolated:true});
+
+export {VERSION,BUILD,normalizeRevision,mergeDraft,resetActiveGroup};
