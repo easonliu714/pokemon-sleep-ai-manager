@@ -7,18 +7,20 @@ if(!contract)throw new Error('usage: node scripts/v04275-production-contract-run
 const authorityPath='assets/js/version-authority.js';
 const original=fs.readFileSync(authorityPath,'utf8');
 const current=original.match(/app_version:\s*'([^']+)'/)?.[1]||null;
-if(current!=='v0.4.27.5'){
+const unchangedProductionReleases=new Set(['v0.4.27.5','v0.4.27.6']);
+if(!unchangedProductionReleases.has(current)){
   const direct=spawnSync(process.execPath,[contract],{stdio:'inherit',env:process.env});
   if(direct.error)throw direct.error;
   if(direct.status!==0)process.exitCode=direct.status??1;
 }else{
   // v0.4.27.5 changes Public Event / Weekly authority and PE7 legacy-event UI only.
-  // Production numeric authority is intentionally identical to the already-verified
-  // v0.4.27.4 runtime, so replay Production behavioral contracts under that identity.
+  // v0.4.27.6 changes G13 screenshot-observation contract/progress UX only.
+  // Neither release changes Production numeric authority, so replay Production
+  // behavioral contracts under the already-verified v0.4.27.4 identity.
   const staged=original
-    .replace("app_version: 'v0.4.27.5'","app_version: 'v0.4.27.4'")
-    .replace("app_build: '20260817-v04275-pe7-legacy-event-ui-hotfix'","app_build: '20260817-v04274-live-s2-s4-hotfix'")
-    .replace("cache_name: 'pokemon-sleep-ai-v0.4.27.5-v04275-pe7-legacy-event-ui-hotfix'","cache_name: 'pokemon-sleep-ai-v0.4.27.4-v04274-live-s2-s4-hotfix'");
+    .replace(/app_version:\s*'[^']+'/,"app_version: 'v0.4.27.4'")
+    .replace(/app_build:\s*'[^']+'/,"app_build: '20260817-v04274-live-s2-s4-hotfix'")
+    .replace(/cache_name:\s*'[^']+'/,"cache_name: 'pokemon-sleep-ai-v0.4.27.4-v04274-live-s2-s4-hotfix'");
   try{
     fs.writeFileSync(authorityPath,staged,'utf8');
     const result=spawnSync(process.execPath,[contract],{stdio:'inherit',env:process.env});

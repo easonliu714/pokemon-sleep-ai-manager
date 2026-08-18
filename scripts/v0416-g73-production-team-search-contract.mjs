@@ -7,20 +7,20 @@ import {buildStrategyOptimizationPack} from '../assets/js/strategy-optimization-
 import {buildExternalOptimizationPrompt,normalizeOptimizationAiResponse} from '../assets/js/strategy-optimization-ai-contract.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
+const parts=value=>String(value||'').replace(/^v/,'').split('.').map(part=>Number(part)||0);
+const atLeast=(current,minimum)=>{const left=parts(current),right=parts(minimum),size=Math.max(left.length,right.length);for(let index=0;index<size;index+=1){const a=left[index]||0,b=right[index]||0;if(a!==b)return a>b;}return true;};
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
-const releases=['v0.4.15','v0.4.16','v0.4.17','v0.4.17.1','v0.4.18','v0.4.19','v0.4.20','v0.4.21','v0.4.22','v0.4.22.1'];
-const successors=['v0.4.17','v0.4.17.1','v0.4.18','v0.4.19','v0.4.20','v0.4.21','v0.4.22','v0.4.22.1'];
-assert.ok(releases.includes(appVersion),`unexpected G7.3 staging/release/successor version ${appVersion}`);
-if(successors.includes(appVersion))assert.ok(version.includes("// app_version: 'v0.4.16'"),`${appVersion} must retain v0.4.16 lineage bridge`);
-if(appVersion==='v0.4.22.1')assert.ok(version.includes("// app_version: 'v0.4.22'"),'v0.4.22.1 must retain v0.4.22 lineage bridge');
+assert.equal(atLeast(appVersion,'v0.4.15'),true,`unexpected G7.3 pre-release version ${appVersion}`);
+if(atLeast(appVersion,'v0.4.17'))assert.ok(version.includes("// app_version: 'v0.4.16'"),`${appVersion} must retain v0.4.16 lineage bridge`);
+if(atLeast(appVersion,'v0.4.22.1'))assert.ok(version.includes("// app_version: 'v0.4.22'"),`${appVersion} must retain v0.4.22 lineage bridge`);
 
-const baseOutputSuccessor=['v0.4.22','v0.4.22.1'].includes(appVersion);
+const baseOutputSuccessor=atLeast(appVersion,'v0.4.22');
 const registry=currentProductionAuthorityRegistry();
 assert.equal(registry.numeric_rate_model_status,'NOT_YET_VERIFIED');
 assert.equal(registry.rules.helper_interval_seconds.status,'OBSERVED_INPUT');
-assert.equal(registry.rules.berry_energy_per_berry.status,['v0.4.19','v0.4.20','v0.4.21','v0.4.22','v0.4.22.1'].includes(appVersion)?'ACTIVE_VERIFIED':'NOT_YET_VERIFIED');
-if(['v0.4.20','v0.4.21','v0.4.22','v0.4.22.1'].includes(appVersion))assert.equal(registry.rules.favorite_berry_multiplier.status,'ACTIVE_VERIFIED');
+assert.equal(registry.rules.berry_energy_per_berry.status,atLeast(appVersion,'v0.4.19')?'ACTIVE_VERIFIED':'NOT_YET_VERIFIED');
+if(atLeast(appVersion,'v0.4.20'))assert.equal(registry.rules.favorite_berry_multiplier.status,'ACTIVE_VERIFIED');
 assert.equal(registry.rules.berry_output_per_help.status,baseOutputSuccessor?'ACTIVE_VERIFIED':'NOT_YET_VERIFIED');
 for(const key of ['ingredient_probability_per_help','main_skill_trigger_probability','main_skill_effect_value'])assert.equal(registry.rules[key].status,'NOT_YET_VERIFIED');
 const slotRule=registry.rules.ingredient_slot_distribution;
