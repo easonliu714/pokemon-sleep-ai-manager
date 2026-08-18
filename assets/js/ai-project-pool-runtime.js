@@ -4,9 +4,22 @@ const nowIso=()=>new Date().toISOString();
 const clean=value=>String(value??'').trim();
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const DEFAULT_TRANSIENT_RETRY_DELAYS_MS=Object.freeze([1200,3200]);
+export const GEMINI_GENERATE_ATTEMPT_TIMEOUT_MS=60000;
+export const GEMINI_IMAGE_TOTAL_TIMEOUT_MS=120000;
 
 function finiteOrNull(value){const n=Number(value);return Number.isFinite(n)?n:null;}
 function clampMessage(value,max=1000){return clean(value).slice(0,max)||null;}
+function monotonicNow(){return globalThis.performance?.now?.()??Date.now();}
+function timeoutError(label,timeoutMs){const error=new Error(`${label}_TIMEOUT_${timeoutMs}MS`);error.name='TimeoutError';error.code='AI_PROVIDER_TIMEOUT';error.timeout_ms=timeoutMs;return error;}
+
+export async function fetchWithTimeout(fetchImpl,url,options={},timeoutMs=GEMINI_GENERATE_ATTEMPT_TIMEOUT_MS){
+  const ms=Math.max(1,Number(timeoutMs)||GEMINI_GENERATE_ATTEMPT_TIMEOUT_MS);
+  const controller=typeof AbortController==='function'?new AbortController():null;
+  let timer=null;
+  const request=Promise.resolve().then(()=>fetchImpl(url,{...options,...(controller?{signal:controller.signal}:{})}));
+  const timeout=new Promise((_,reject)=>{timer=setTimeout(()=>{try{controller?.abort();}catch{}reject(timeoutError('AI_PROVIDER',ms));},ms);});
+  try{return await Promise.race([request,timeout]);}finally{if(timer)clearTimeout(timer);}
+}
 
 export function classifyGeminiFailure({status=0,payload=null,retryAfter=null,message='',name=''}={}){
   const numericStatus=Number(status||0);
@@ -18,6 +31,7 @@ export function classifyGeminiFailure({status=0,payload=null,retryAfter=null,mes
   if(numericStatus===429)return {class:'temporary_rate_limit',transport_kind:'http_response',retryable:true,disable_project:false,failover:false,cooldown_seconds:retrySeconds||60};
   if(numericStatus===408)return {class:'provider_timeout',transport_kind:'http_response',retryable:true,disable_project:false,failover:false,cooldown_seconds:retrySeconds||30};
   if(numericStatus>=500)return {class:'provider_http_transient',transport_kind:'http_response',retryable:true,disable_project:false,failover:false,cooldown_seconds:retrySeconds||30};
+  if(numericStatus===0&&/timeout|timeouterror|ai_provider_timeout/.test(text))return {class:'provider_timeout',transport_kind:'fetch_exception',retryable:false,disable_project:false,failover:true,cooldown_seconds:10};
   if(numericStatus===0&&/aborterror|aborted|abort/.test(`${name} ${message}`.toLowerCase()))return {class:'request_aborted',transport_kind:'fetch_exception',retryable:true,disable_project:false,failover:false,cooldown_seconds:retrySeconds||5};
   if(numericStatus===0)return {class:'network_transport_error',transport_kind:'fetch_exception',retryable:true,disable_project:false,failover:false,cooldown_seconds:retrySeconds||5};
   return {class:'request_rejected',transport_kind:'http_response',retryable:false,disable_project:false,failover:false};
@@ -54,20 +68,20 @@ export function buildGeminiGenerateBody({prompt,images=null,imageBase64=null,mim
   return {contents:[{role:'user',parts}],generationConfig};
 }
 
-export async function requestGemini({project,model,prompt,imageBase64,mimeType='image/png',images=null,responseJsonSchema=null,thinkingLevel=null,fetchImpl=fetch}){
+export async function requestGemini({project,model,prompt,imageBase64,mimeType='image/png',images=null,responseJsonSchema=null,thinkingLevel=null,fetchImpl=fetch,timeoutMs=GEMINI_GENERATE_ATTEMPT_TIMEOUT_MS}){
   const body=buildGeminiGenerateBody({prompt,imageBase64,mimeType,images,responseJsonSchema,thinkingLevel});
-  const started=performance.now();
+  const started=monotonicNow();
   let response;
   try{
-    response=await fetchImpl(`${GENERATE_ENDPOINT(model)}?key=${encodeURIComponent(project.key)}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+    response=await fetchWithTimeout(fetchImpl,`${GENERATE_ENDPOINT(model)}?key=${encodeURIComponent(project.key)}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)},timeoutMs);
   }catch(error){
-    const elapsedMs=Math.round(performance.now()-started);
+    const elapsedMs=Math.round(monotonicNow()-started);
     const failure=classifyGeminiFailure({status:0,message:error?.message||String(error),name:error?.name||''});
-    const wrapped=new Error(error?.message||String(error));
-    wrapped.failure=failure;wrapped.status=0;wrapped.statusText=null;wrapped.retryAfter=null;wrapped.elapsed_ms=elapsedMs;wrapped.original_name=error?.name||'Error';
+    const wrapped=new Error(failure.class==='provider_timeout'?`AI Provider 超過 ${Math.ceil(Number(timeoutMs||0)/1000)} 秒未回應。`:(error?.message||String(error)));
+    wrapped.failure=failure;wrapped.status=0;wrapped.statusText=null;wrapped.retryAfter=null;wrapped.elapsed_ms=elapsedMs;wrapped.original_name=error?.name||'Error';wrapped.timeout_ms=error?.timeout_ms||null;
     throw wrapped;
   }
-  const elapsedMs=Math.round(performance.now()-started);
+  const elapsedMs=Math.round(monotonicNow()-started);
   const payload=await response.json().catch(()=>({}));
   if(!response.ok){
     const retryAfter=response.headers?.get?.('retry-after')||null;
@@ -104,22 +118,28 @@ function buildAttemptRecord({project,model,imageCount,structuredOutput,thinkingL
   };
 }
 
-export async function executeWithProjectPool({projects,model,prompt,imageBase64,mimeType='image/png',images=null,responseJsonSchema=null,thinkingLevel=null,fetchImpl=fetch,onTrace=()=>{},retryDelaysMs=DEFAULT_TRANSIENT_RETRY_DELAYS_MS,maxProjectFailovers=1}={}){
+export async function executeWithProjectPool({projects,model,prompt,imageBase64,mimeType='image/png',images=null,responseJsonSchema=null,thinkingLevel=null,fetchImpl=fetch,onTrace=()=>{},retryDelaysMs=DEFAULT_TRANSIENT_RETRY_DELAYS_MS,maxProjectFailovers=1,requestTimeoutMs=GEMINI_GENERATE_ATTEMPT_TIMEOUT_MS,totalTimeoutMs=GEMINI_IMAGE_TOTAL_TIMEOUT_MS}={}){
   let state=normalizeProjectPool(projects);
   const attempts=[];
   const excludedAliases=new Set();
   const imageCount=normalizeGeminiImages({images,imageBase64,mimeType}).length;
   const structuredOutput=Boolean(responseJsonSchema);
+  const executionStarted=Date.now();
   let totalAttempt=0,failoverCount=0;
+  const totalExpired=()=>Date.now()-executionStarted>=Number(totalTimeoutMs||GEMINI_IMAGE_TOTAL_TIMEOUT_MS);
   while(true){
+    if(totalExpired())return {ok:false,paused:true,projects:state,attempts,reason:'provider_total_timeout',failure:{error_class:'provider_total_timeout',error_message:`AI 圖片分析超過 ${Math.ceil(Number(totalTimeoutMs||0)/1000)} 秒，已停止等待。`,elapsed_ms:Date.now()-executionStarted}};
     const project=selectAvailableProject(state,Date.now(),excludedAliases);
     if(!project)break;
     let projectAttempt=0;
     while(true){
+      if(totalExpired())return {ok:false,paused:true,projects:state,attempts,reason:'provider_total_timeout',failure:{error_class:'provider_total_timeout',error_message:`AI 圖片分析超過 ${Math.ceil(Number(totalTimeoutMs||0)/1000)} 秒，已停止等待。`,elapsed_ms:Date.now()-executionStarted}};
       projectAttempt+=1;totalAttempt+=1;
-      onTrace('ai_request_started',{alias:project.alias,fingerprint:project.fingerprint,model,image_count:imageCount,structured_output:structuredOutput,thinking_level:clean(thinkingLevel)||null,attempt_number:totalAttempt,project_attempt_number:projectAttempt});
+      const remaining=Math.max(1,Number(totalTimeoutMs||GEMINI_IMAGE_TOTAL_TIMEOUT_MS)-(Date.now()-executionStarted));
+      const attemptTimeout=Math.min(Number(requestTimeoutMs||GEMINI_GENERATE_ATTEMPT_TIMEOUT_MS),remaining);
+      onTrace('ai_request_started',{alias:project.alias,fingerprint:project.fingerprint,model,image_count:imageCount,structured_output:structuredOutput,thinking_level:clean(thinkingLevel)||null,attempt_number:totalAttempt,project_attempt_number:projectAttempt,timeout_ms:attemptTimeout});
       try{
-        const result=await requestGemini({project,model,prompt,imageBase64,mimeType,images,responseJsonSchema,thinkingLevel,fetchImpl});
+        const result=await requestGemini({project,model,prompt,imageBase64,mimeType,images,responseJsonSchema,thinkingLevel,fetchImpl,timeoutMs:attemptTimeout});
         const record=buildAttemptRecord({project,model,imageCount,structuredOutput,thinkingLevel,attemptNumber:totalAttempt,projectAttemptNumber:projectAttempt,transport:result.transport});
         attempts.push(record);
         const used={...project,last_used_at:nowIso(),last_error_class:null,cooldown_until:null};state=state.map(item=>item.alias===project.alias?used:item);
@@ -130,13 +150,13 @@ export async function executeWithProjectPool({projects,model,prompt,imageBase64,
         error.failure=failure;
         const record=buildAttemptRecord({project,model,imageCount,structuredOutput,thinkingLevel,attemptNumber:totalAttempt,projectAttemptNumber:projectAttempt,error});
         attempts.push(record);
-        onTrace('ai_request_failed',{...record});
+        onTrace(failure.class==='provider_timeout'?'ai_request_timeout':'ai_request_failed',{...record});
         const retryIndex=projectAttempt-1;
-        const canRetry=failure.retryable&&retryIndex<retryDelaysMs.length;
+        const canRetry=failure.retryable&&retryIndex<retryDelaysMs.length&&!totalExpired();
         if(canRetry){
           const delayMs=Number(retryDelaysMs[retryIndex]||0);
           onTrace('ai_request_retry_scheduled',{alias:project.alias,fingerprint:project.fingerprint,model,attempt_number:totalAttempt,next_project_attempt_number:projectAttempt+1,delay_ms:delayMs,error_class:failure.class});
-          if(delayMs>0)await sleep(delayMs);
+          if(delayMs>0)await sleep(Math.min(delayMs,Math.max(0,Number(totalTimeoutMs||GEMINI_IMAGE_TOTAL_TIMEOUT_MS)-(Date.now()-executionStarted))));
           continue;
         }
         state=state.map(item=>item.alias===project.alias?markProjectFailure(item,failure,{applyCooldown:true}):item);

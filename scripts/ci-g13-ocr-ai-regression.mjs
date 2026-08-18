@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 
-export const G13_OCR_AI_REGRESSION_VERSION='g13-ocr-ai-regression-2026-08-18-g-v04279-historical-replay-multicapture-confirmation-authority';
+export const G13_OCR_AI_REGRESSION_VERSION='g13-ocr-ai-regression-2026-08-18-h-v042710-timeout-public-hydration';
 export const G13_CORE_GATES=Object.freeze([
   'tests/g13_2c_ocr_isolation_secret_redaction_gate.mjs',
   'tests/g13_2d_duplicate_finalize_live_debug_gate.mjs',
@@ -13,6 +13,7 @@ export const G13_CORE_GATES=Object.freeze([
   'tests/g13_7_structured_output_current_file_latency_guard.mjs',
   'tests/g13_8_v04278_ai_resilience_evolution_confirmation_gate.mjs',
   'tests/g13_9_v04279_multicapture_confirmation_authority_gate.mjs',
+  'tests/g13_10_v042710_ai_timeout_public_hydration_gate.mjs',
 ]);
 export const G13_REMAINING_WRAPPER_GATES=Object.freeze([
   'scripts/g13-2a-ai-project-pool-executor-regression.mjs',
@@ -31,6 +32,19 @@ export const G13_PR_GATES=Object.freeze([
   ...G13_REMAINING_WRAPPER_GATES,
 ]);
 
+const IMMUTABLE_RELEASE_IDENTITIES=Object.freeze({
+  'tests/g13_8_v04278_ai_resilience_evolution_confirmation_gate.mjs':Object.freeze({
+    app_version:'v0.4.27.8',
+    app_build:'20260818-v04278-ai-resilience-evolution-master-review',
+    cache_name:'pokemon-sleep-ai-v0.4.27.8-v04278-ai-resilience-evolution-master-review',
+  }),
+  'tests/g13_9_v04279_multicapture_confirmation_authority_gate.mjs':Object.freeze({
+    app_version:'v0.4.27.9',
+    app_build:'20260818-v04279-confirmation-multicapture-authority-hotfix',
+    cache_name:'pokemon-sleep-ai-v0.4.27.9-v04279-confirmation-multicapture-authority-hotfix',
+  }),
+});
+
 function execute(path){
   const syntax=spawnSync(process.execPath,['--check',path],{stdio:'inherit',env:process.env});
   if(syntax.error)throw syntax.error;
@@ -42,17 +56,17 @@ function execute(path){
 
 function runGate(path){
   assert.equal(fs.existsSync(path),true,`G13 behavioral gate missing: ${path}`);
-  const immutableV04278=path==='tests/g13_8_v04278_ai_resilience_evolution_confirmation_gate.mjs';
-  if(!immutableV04278){execute(path);return;}
+  const identity=IMMUTABLE_RELEASE_IDENTITIES[path];
+  if(!identity){execute(path);return;}
 
   const authorityPath='assets/js/version-authority.js';
   const original=fs.readFileSync(authorityPath,'utf8');
   const current=original.match(/app_version:\s*'([^']+)'/)?.[1]||null;
-  if(current!=='v0.4.27.9'){execute(path);return;}
+  if(current===identity.app_version){execute(path);return;}
   const staged=original
-    .replace(/app_version:\s*'[^']+'/,"app_version: 'v0.4.27.8'")
-    .replace(/app_build:\s*'[^']+'/,"app_build: '20260818-v04278-ai-resilience-evolution-master-review'")
-    .replace(/cache_name:\s*'[^']+'/,"cache_name: 'pokemon-sleep-ai-v0.4.27.8-v04278-ai-resilience-evolution-master-review'");
+    .replace(/app_version:\s*'[^']+'/,`app_version: '${identity.app_version}'`)
+    .replace(/app_build:\s*'[^']+'/,`app_build: '${identity.app_build}'`)
+    .replace(/cache_name:\s*'[^']+'/,`cache_name: '${identity.cache_name}'`);
   try{
     fs.writeFileSync(authorityPath,staged,'utf8');
     execute(path);
@@ -73,6 +87,6 @@ console.log(JSON.stringify({
   gate_count:gates.length,
   remaining_wrapper_gate_count:G13_REMAINING_WRAPPER_GATES.length,
   behavioral_gates_removed:0,
-  immutable_v04278_replayed_under_release_identity:true,
+  immutable_predecessor_replay:Object.keys(IMMUTABLE_RELEASE_IDENTITIES),
   gates,
 },null,2));

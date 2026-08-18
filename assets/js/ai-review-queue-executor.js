@@ -1,11 +1,12 @@
-import {hashCacheKey,readAiResultCache,writeAiResultCache} from './ai-project-pool-runtime.js';
+import {GEMINI_GENERATE_ATTEMPT_TIMEOUT_MS,GEMINI_IMAGE_TOTAL_TIMEOUT_MS,hashCacheKey,readAiResultCache,writeAiResultCache} from './ai-project-pool-runtime.js';
 import {executeWithCapabilityFailover} from './ai-provider-capability-failover.js';
 import {AI_OBSERVATION_PROMPT,normalizeObservationPayload} from './ai-observation.js';
 import {POKEMON_VISUAL_RECOGNITION_VOCABULARY} from './pokemon-visual-prompt-policy.js';
 
-const EXECUTOR_SCHEMA='pokemon-sleep-ai-review-executor/1.5-capability-failover-observation-v2';
-const PROMPT_VERSION='pokemon-sleep-observation-v2/2026-08-18-v04278-capability-failover';
+const EXECUTOR_SCHEMA='pokemon-sleep-ai-review-executor/1.6-timeout-failover-public-hydration';
+const PROMPT_VERSION='pokemon-sleep-observation-v2/2026-08-18-v042710-timeout-failover';
 const DEFAULT_PROMPT=AI_OBSERVATION_PROMPT;
+const DEFAULT_EXECUTOR_MODEL='gemini-3.6-flash';
 const SPECIALTIES=new Set(['樹果','食材','技能']);
 const itemId=item=>String(item?.sha256||item?.source_image_ref||item?.path||'');
 const itemPath=item=>String(item?.path||item?.source_image_ref||'');
@@ -159,13 +160,18 @@ export async function executeAiReviewQueue({queue,inventory,poolData,resolveImag
   if(!poolData?.projects?.length)throw new Error('ai_project_pool_missing');
   const results=[];let projects=poolData.projects;
   for(let index=0;index<queue.items.length;index++){
-    const queued=queue.items[index];const id=itemId(queued);const source=(inventory?.items||[]).find(item=>itemId(item)===id)||queued;const model=poolData.model||queue.model;const fileName=itemName(source);const sourceImageRef=itemPath(source);const cacheKey=await hashCacheKey({sha256:source.sha256||id,model:`${model}|capability-failover-v1`,promptVersion:PROMPT_VERSION});const cached=bypassCache?null:readAiResultCache(cacheKey);
+    const queued=queue.items[index];const id=itemId(queued);const source=(inventory?.items||[]).find(item=>itemId(item)===id)||queued;const model=text(poolData.model||queue.model)||DEFAULT_EXECUTOR_MODEL;const fileName=itemName(source);const sourceImageRef=itemPath(source);const cacheKey=await hashCacheKey({sha256:source.sha256||id,model:`${model}|capability-failover-v2`,promptVersion:PROMPT_VERSION});const cached=bypassCache?null:readAiResultCache(cacheKey);
     if(cached){results.push({...cached,cached:true});onProgress({phase:'completed',current:index+1,total:queue.items.length,cached:true,file_name:fileName,source_image_ref:sourceImageRef,provider_elapsed_ms:0});continue;}
-    onProgress({phase:'started',current:index+1,total:queue.items.length,cached:false,file_name:fileName,source_image_ref:sourceImageRef});
+    onProgress({phase:'started',current:index+1,total:queue.items.length,cached:false,file_name:fileName,source_image_ref:sourceImageRef,model,timeout_seconds:Math.ceil(GEMINI_IMAGE_TOTAL_TIMEOUT_MS/1000)});
     const image=await resolveImage(source);
     const thinkingLevel=/^gemini-3(?:[.-]|$)/i.test(String(model||''))?'low':null;
-    const outcome=await executeWithCapabilityFailover({projects,preferredModel:model,prompt,imageBase64:image.data,mimeType:image.mimeType,responseJsonSchema:AI_OBSERVATION_RESPONSE_JSON_SCHEMA,thinkingLevel,onTrace});projects=outcome.projects;
-    if(!outcome.ok)return {schema:EXECUTOR_SCHEMA,status:'paused',completed:results.length,total:queue.items.length,results,projects,attempts:outcome.attempts,reason:outcome.reason,prompt_version:PROMPT_VERSION,preflight:outcome.preflight||[]};
+    const outcome=await executeWithCapabilityFailover({projects,preferredModel:model,prompt,imageBase64:image.data,mimeType:image.mimeType,responseJsonSchema:AI_OBSERVATION_RESPONSE_JSON_SCHEMA,thinkingLevel,onTrace,requestTimeoutMs:GEMINI_GENERATE_ATTEMPT_TIMEOUT_MS,totalTimeoutMs:GEMINI_IMAGE_TOTAL_TIMEOUT_MS});projects=outcome.projects;
+    if(!outcome.ok){
+      const errorClass=outcome?.failure?.error_class||outcome.reason||'ai_provider_failed';
+      const message=outcome?.failure?.error_message||(errorClass.includes('timeout')?`AI Provider 超過 ${Math.ceil(GEMINI_IMAGE_TOTAL_TIMEOUT_MS/1000)} 秒仍未完成，已停止等待。`:'AI Provider 無法完成辨識，已停止等待。');
+      onProgress({phase:'failed',current:index+1,total:queue.items.length,cached:false,file_name:fileName,source_image_ref:sourceImageRef,model,error_class:errorClass,reason:outcome.reason,message,provider_elapsed_ms:Number(outcome?.failure?.elapsed_ms||0)});
+      return {schema:EXECUTOR_SCHEMA,status:'paused',completed:results.length,total:queue.items.length,results,projects,attempts:outcome.attempts,reason:outcome.reason,failure:outcome.failure||null,user_message:message,prompt_version:PROMPT_VERSION,preflight:outcome.preflight||[]};
+    }
     const raw=extractJson(outcome.payload),projection=projectObservationV2ForLegacy(raw),usedModel=outcome.used_model||model,usedThinking=outcome.used_thinking_level??thinkingLevel;
     const result={item_id:id,source_image_ref:sourceImageRef,file_name:fileName,model:usedModel,preferred_model:model,model_fallback_used:Boolean(outcome.model_fallback_used),project_alias:outcome.used_alias,analysis:projection.analysis,observation_v2:projection.observation_v2,observation_contract_status:projection.contract_status,observation_contract_warnings:projection.warnings,provider_elapsed_ms:Number(outcome.transport?.elapsed_ms||0),thinking_level:usedThinking,structured_output:true,completed_at:new Date().toISOString(),prompt_version:PROMPT_VERSION,forced:Boolean(bypassCache)};
     writeAiResultCache(cacheKey,result);results.push(result);onProgress({phase:'completed',current:index+1,total:queue.items.length,cached:false,file_name:fileName,source_image_ref:sourceImageRef,project_alias:outcome.used_alias,model:usedModel,model_fallback_used:result.model_fallback_used,observation_contract_status:projection.contract_status,provider_elapsed_ms:result.provider_elapsed_ms});
@@ -173,4 +179,4 @@ export async function executeAiReviewQueue({queue,inventory,poolData,resolveImag
   return {schema:EXECUTOR_SCHEMA,status:'completed',completed:results.length,total:queue.items.length,results,projects,prompt_version:PROMPT_VERSION,forced:Boolean(bypassCache)};
 }
 
-export {EXECUTOR_SCHEMA,DEFAULT_PROMPT,PROMPT_VERSION,extractJson};
+export {DEFAULT_EXECUTOR_MODEL,EXECUTOR_SCHEMA,DEFAULT_PROMPT,PROMPT_VERSION,extractJson};
