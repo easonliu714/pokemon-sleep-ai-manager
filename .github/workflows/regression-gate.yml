@@ -111,7 +111,7 @@ jobs:
           node scripts/ingredient-inventory-integrity-regression.mjs
           node scripts/v04275-predecessor-release-contract-runner.mjs
           node scripts/v04273-weekly-recipe-semantic-intake-contract.mjs
-          node scripts/v04275-public-event-master-contract.mjs
+          node scripts/v04276-public-event-predecessor-contract-runner.mjs
           node scripts/v04275-pe4-effective-weekly-consumer-banner-contract.mjs
           node scripts/v04275-pe6-strategy-event-provenance-contract.mjs
           node scripts/v04275-g72-effective-event-energy-authority-contract.mjs
