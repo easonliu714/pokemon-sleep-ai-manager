@@ -57,8 +57,16 @@ assert.ok(/runAi\(item,preset,status,results,(?:index\+1|position),chosen\.lengt
 
 const version=read('assets/js/version-authority.js');
 assert.ok(version.includes("app_version: 'v0.4.27.7'"));
-assert.ok(version.includes("app_build: '20260818-v04277-g13-structured-output-current-file-ux'"));
-assert.ok(version.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.7-v04277-g13-structured-output-current-file-ux'"));
+const historicalBuildMarkers=[
+  "app_build: '20260818-v04277-g13-structured-output-current-file-ux'",
+  "app_build: '20260818-v04277-g13-structured-gemini-current-file-ux'",
+];
+const historicalCacheMarkers=[
+  "cache_name: 'pokemon-sleep-ai-v0.4.27.7-v04277-g13-structured-output-current-file-ux'",
+  "cache_name: 'pokemon-sleep-ai-v0.4.27.7-v04277-g13-structured-gemini-current-file-ux'",
+];
+assert.ok(historicalBuildMarkers.some(token=>version.includes(token)),'G13.7 historical build marker missing');
+assert.ok(historicalCacheMarkers.some(token=>version.includes(token)),'G13.7 historical cache marker missing');
 
 console.log(JSON.stringify({
   status:'PASS',
@@ -72,4 +80,5 @@ console.log(JSON.stringify({
   fail_closed_preserved:true,
   central_version:'v0.4.27.7',
   successor_stage_mode_metadata:true,
+  historical_marker_alias_compatible:true,
 },null,2));

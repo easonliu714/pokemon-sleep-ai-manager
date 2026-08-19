@@ -6,14 +6,20 @@ const original=fs.readFileSync(authorityPath,'utf8');
 const current=original.match(/app_version:\s*'([^']+)'/)?.[1]||null;
 
 // v0.4.27.15+ intentionally changes the identity authority and export/review
-// contracts. The successor contracts explicitly re-check retained v0.4.27.14
-// invariants, so the exact v0.4.27.13 source replay is superseded here.
-if(['v0.4.27.15','v0.4.27.16'].includes(current)){
+// contracts. Successor releases explicitly replay retained predecessor
+// invariants through their own staged chain, so a direct invocation on the
+// successor release is a compatibility no-op rather than a version mismatch.
+if(['v0.4.27.15','v0.4.27.16','v0.4.27.17'].includes(current)){
+  const successorContract=current==='v0.4.27.17'
+    ?'scripts/v042717-predecessor-v042716-runner.mjs'
+    :current==='v0.4.27.16'
+      ?'scripts/v042716-existing-baseline-sparse-diff-contract.mjs'
+      :'scripts/v042715-platform-identity-doctor-transfer-contract.mjs';
   console.log(JSON.stringify({
     status:'PASS',
     gate:'V042714_PREDECESSOR_V042713_REPLAY_SUPERSEDED',
     current_version:current,
-    superseded_by:current==='v0.4.27.16'?'scripts/v042716-existing-baseline-sparse-diff-contract.mjs':'scripts/v042715-platform-identity-doctor-transfer-contract.mjs',
+    superseded_by:successorContract,
     reason:'SUCCESSOR_IDENTITY_AND_CONFIRMATION_CONTRACT',
   },null,2));
   process.exit(0);
