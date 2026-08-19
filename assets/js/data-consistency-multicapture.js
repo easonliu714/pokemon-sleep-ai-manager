@@ -20,7 +20,7 @@ const number=value=>{
 };
 const badString=value=>/^\[(object Object|object Array)\]$|^(undefined|null)$/i.test(String(value??'').trim());
 const clean=value=>{const result=text(value);return badString(result)?'':result;};
-const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[char]));
+const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const blank=value=>value===null||value===undefined||value===''||(Array.isArray(value)&&value.length===0);
 
 function normalizeSubskills(value){
