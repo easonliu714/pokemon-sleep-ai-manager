@@ -3,13 +3,34 @@ import {createArchiveImageResolver} from './ai-review-image-resolver.js';
 import {saveEncryptedProjectPool} from './ai-key-vault.js';
 
 const SESSION_KEY='pokemon-sleep:ai-project-pool/session';
-const CONTROLLER_SCHEMA='pokemon-sleep-ai-review-executor-controller/1.0';
+const CONTROLLER_SCHEMA='pokemon-sleep-ai-review-executor-controller/1.1-model-status';
+const MODEL_STATUS_EVENTS=new Set(['ai_model_candidate_started','ai_model_candidate_failed','ai_model_timeout_project_state_released','ai_model_failover','ai_model_fallback_promoted']);
 
 function persistPool(data){sessionStorage.setItem(SESSION_KEY,JSON.stringify(data));if(data?.persistent)return saveEncryptedProjectPool(data);return Promise.resolve();}
+export function sanitizeModelStatusTrace(event,details={}){
+  if(!MODEL_STATUS_EVENTS.has(event))return null;
+  const d=details||{};
+  return {
+    event,
+    model:d.model||null,
+    from_model:d.from_model||null,
+    to_model:d.to_model||null,
+    candidate_number:Number(d.candidate_number)||null,
+    candidate_count:Number(d.candidate_count)||null,
+    error_class:d.error_class||null,
+    remaining_ms:Number(d.remaining_ms)||null,
+    candidate_budget_ms:Number(d.candidate_budget_ms)||null,
+    completed_at:d.completed_at||null,
+  };
+}
 export function createAiReviewExecutorController({target=globalThis}={}){
   let source=null,running=false,lastResult=null;
   const onSource=event=>{source=event?.detail||null;};
-  const trace=(event,details)=>target.DebugTrace?.record?.('ai_executor',event,{status:event.endsWith('failed')?'failed':'completed',details});
+  const trace=(event,details)=>{
+    target.DebugTrace?.record?.('ai_executor',event,{status:event.endsWith('failed')?'failed':'completed',details});
+    const modelStatus=sanitizeModelStatusTrace(event,details);
+    if(modelStatus)target.dispatchEvent?.(new CustomEvent('pokemon-sleep:ai-review-model-status',{detail:modelStatus}));
+  };
   const onQueue=async event=>{
     if(running)return;const queue=event?.detail?.queue;const poolData=target.PokemonSleepAiProjectPool;const archive=source?.archives?.[0],inventory=source?.inventory;
     if(!queue?.items?.length||!archive||!inventory){trace('ai_executor_blocked',{reason:'queue_or_source_missing',selected_count:queue?.selected_count||0});return;}
