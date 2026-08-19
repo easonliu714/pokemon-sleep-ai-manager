@@ -136,4 +136,4 @@ function installWhenReady(attempt=0){
   setTimeout(()=>installWhenReady(attempt+1),25);
 }
 
-if(typeof globalThis!=='undefined'&&typeof globalThis.setTimeout==='function')installWhenReady();
+if(typeof globalThis!=='undefined'&&typeof globalThis.document!=='undefined'&&typeof globalThis.addEventListener==='function')installWhenReady();
