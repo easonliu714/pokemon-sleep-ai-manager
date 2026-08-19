@@ -117,7 +117,7 @@ jobs:
           node scripts/v04275-g72-effective-event-energy-authority-contract.mjs
           node scripts/v042712-confirmation-lifecycle-ux-contract.mjs
           node scripts/v042714-predecessor-v042713-runner.mjs
-          node scripts/v042714-nickname-bidirectional-review-contract.mjs
+          node scripts/v042715-platform-identity-doctor-transfer-contract.mjs
 
       - name: Verify unlocked Pokémon roster filters
         run: node scripts/pokemon-roster-filter-regression.mjs
