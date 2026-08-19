@@ -327,17 +327,19 @@ function renderAssignmentSummary(card,id,identityApi){
   else summary.textContent='尚未指定這張圖片的寶可夢';
 }
 
+function setTextIfChanged(node,value){if(node&&node.textContent!==value)node.textContent=value;}
 function syncPerImageRunGate(node){
   const run=node.querySelector('#unifiedRun');if(!run)return;
   const ids=selectedItemIds(node),strategy=node.querySelector('#unifiedStrategy')?.value||'',needsAi=['ocr_ai','ai_only'].includes(strategy),consent=Boolean(node.querySelector('#unifiedAiConsent')?.checked);
   const allAssigned=ids.length>0&&ids.every(id=>assignmentReady(assignmentFor(id)));
   run.disabled=!ids.length||!allAssigned||(needsAi&&!consent);
-  run.textContent=ids.length?`開始一條龍辨識（${ids.length}，逐圖綁定）`:'開始一條龍辨識';
+  setTextIfChanged(run,ids.length?`開始一條龍辨識（${ids.length}，逐圖綁定）`:'開始一條龍辨識');
   const notice=node.querySelector('#v042718AssignmentGateNotice');
   if(notice){
     const assigned=ids.filter(id=>assignmentReady(assignmentFor(id))).length;
-    notice.className=`notice ${allAssigned?'success':'pending'}`;
-    notice.textContent=ids.length?`已選 ${ids.length} 張；完成目標指定 ${assigned}/${ids.length}。${allAssigned?'可一次處理多位寶可夢。':'請替每張已勾選圖片指定既有成員或新增群組。'}`:'請先勾選圖片，再逐張指定資料目標。';
+    const className=`notice ${allAssigned?'success':'pending'}`;
+    if(notice.className!==className)notice.className=className;
+    setTextIfChanged(notice,ids.length?`已選 ${ids.length} 張；完成目標指定 ${assigned}/${ids.length}。${allAssigned?'可一次處理多位寶可夢。':'請替每張已勾選圖片指定既有成員或新增群組。'}`:'請先勾選圖片，再逐張指定資料目標。');
   }
 }
 
@@ -358,6 +360,8 @@ function setCompatibilityRunTarget(node,firstAssignment){
 function wirePerImageTargetWorkbench(scope,node,identityApi){
   if(!node?.querySelector?.('.light-review-list')||!identityApi)return false;
   const oldPanel=node.querySelector('#unifiedIdentityTargetPanel');if(oldPanel)oldPanel.classList.add('hidden');
+  const legacyBanner=[...node.children].find(child=>child.matches?.('.notice.success')&&child.textContent?.includes('v0.4.27.16 Platform Identity'));
+  if(legacyBanner)legacyBanner.classList.add('hidden');
   if(!node.querySelector('#v042718PerImageTargetNotice')){
     const notice=scope.document.createElement('section');notice.id='v042718PerImageTargetNotice';notice.className='panel';notice.innerHTML=`<h3>1. 每張圖片指定寶可夢</h3><div class="notice success"><strong>v0.4.27.18 Per-Image Target Assignment</strong><br>同一批可以混合多位寶可夢。每張圖獨立選「既有」或「新增」；選既有時從目前名單指定個體，選新增時用相同的「新增寶可夢群組」把同一隻新寶可夢的多張圖綁在一起。平台 identity 只留在本機，AI 不負責決定玩家個體。</div><div id="v042718AssignmentGateNotice" class="notice pending">請先勾選圖片，再逐張指定資料目標。</div>`;
     oldPanel?.insertAdjacentElement('beforebegin',notice);
@@ -403,9 +407,9 @@ function wirePerImageTargetWorkbench(scope,node,identityApi){
         scope.UpdateCenterLiveDebug?.record?.('v042718_per_image_batch_prepared',traceDetail);
         scope.DebugTrace?.record?.('unified_pipeline','v042718_per_image_batch_prepared',{status:'completed',details:traceDetail});
         await originalRun.call(this,event);
-        const status=node.querySelector('#unifiedStatus');if(status&&!status.classList.contains('error')){status.className='notice success';status.textContent=`一條龍辨識完成：${prepared.assignments.length} 張；本批已依每張圖片的本機 target assignment 分流，可同時包含多位既有／新增寶可夢。`;}
+        const status=node.querySelector('#unifiedStatus');if(status&&!status.classList.contains('error')){status.className='notice success';setTextIfChanged(status,`一條龍辨識完成：${prepared.assignments.length} 張；本批已依每張圖片的本機 target assignment 分流，可同時包含多位既有／新增寶可夢。`);}
       }catch(error){
-        const status=node.querySelector('#unifiedStatus');if(status){status.className='notice error';status.textContent=`逐圖目標準備失敗：${error?.message||error}`;}
+        const status=node.querySelector('#unifiedStatus');if(status){status.className='notice error';setTextIfChanged(status,`逐圖目標準備失敗：${error?.message||error}`);}
       }finally{
         batchRuntime.active=false;batchRuntime.contextByItemId=new Map();batchRuntime.assignmentByItemId=new Map();setTimeout(()=>syncPerImageRunGate(node),0);
       }
@@ -435,10 +439,15 @@ export function installPerImageTargetAssignmentV042718(scope=globalThis){
   scope.addEventListener('pokemon-sleep:identity-import-files-selected',()=>{
     assignmentState.clear();existingContextCache.clear();newContextCache.clear();batchRuntime.active=false;batchRuntime.contextByItemId=new Map();batchRuntime.assignmentByItemId=new Map();
     setTimeout(()=>wire(),0);
+    setTimeout(()=>wire(),50);
+    setTimeout(()=>wire(),250);
   });
-  const observer=new MutationObserver(()=>wire());observer.observe(scope.document.documentElement,{subtree:true,childList:true});
-  const timer=setInterval(()=>{wire();if(scope.document.getElementById('unifiedImportAnalysisWorkbench')&&scope.PokemonSleepAnalysisTargetIdentity)clearInterval(timer);},100);
-  setTimeout(()=>clearInterval(timer),10000);wire();
+  let attempts=0;
+  const timer=setInterval(()=>{
+    attempts++;wire();
+    if((scope.document.getElementById('unifiedImportAnalysisWorkbench')&&scope.PokemonSleepAnalysisTargetIdentity)||attempts>=100)clearInterval(timer);
+  },100);
+  wire();
   scope.PokemonSleepPerImageTargetAssignmentV042718=Object.freeze({version:PER_IMAGE_TARGET_ASSIGNMENT_VERSION,getAssignments:()=>[...assignmentState.entries()].map(([item_id,row])=>({item_id,...clone(row)})),sync:wire});
   return true;
 }
