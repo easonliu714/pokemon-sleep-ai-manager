@@ -6,7 +6,10 @@ const source=fs.readFileSync('assets/js/data-consistency-multicapture.js','utf8'
 const version=fs.readFileSync('assets/js/version-authority.js','utf8');
 const sw=fs.readFileSync('service-worker.js','utf8');
 const currentVersion=version.match(/app_version:\s*'([^']+)'/)?.[1]||'';
-const platformIdentitySuccessor=currentVersion==='v0.4.27.15';
+// The consolidated G13 runner intentionally stages version-authority.js back
+// to v0.4.27.9 for immutable release replay. Detect successor semantics from
+// the runtime source instead of the temporarily staged visible version.
+const platformIdentitySuccessor=source.includes('platform_identity_authority:true')&&source.includes('REVIEW_REQUIRED_CROSS_IMAGE_CONFLICT');
 
 assert.match(version,/app_version:\s*'v0\.4\.27\.9'/);
 assert.match(version,/20260818-v04279-confirmation-multicapture-authority-hotfix/);
