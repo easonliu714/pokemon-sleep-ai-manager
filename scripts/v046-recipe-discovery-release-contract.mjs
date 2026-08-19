@@ -42,7 +42,7 @@ assert.equal(result.production_rate_model,'NOT_YET_VERIFIED');assert.equal(resul
 const canonical=read('assets/js/public-recipe-canonical-authority.js');assert.equal(canonical.includes("from './public-recipe-discovery-master.js'"),false,'canonical authority must not depend on mutable Discovery runtime');
 const local=read('assets/js/recipe-discovery-stockpile-local.js');for(const token of ['currentWeeklyContext','ingredient_inventory','buildLocalPokemonCandidateScoring'])assert.ok(local.includes(token));
 const recipeLocal=read('assets/js/recipe-strategy-local.js');assert.ok(recipeLocal.includes("war-room-recipe-discovery-bootstrap.js"));
-const sw=read('service-worker.js');assert.ok(sw.includes("importScripts('./assets/js/version-authority.js')"));assert.ok(sw.includes("url.pathname.endsWith('.js')"));assert.ok(sw.includes('caches.match(event.request)'));
+const sw=read('service-worker.js');assert.ok(sw.includes("importScripts('./assets/js/version-authority.js')"));assert.ok(sw.includes("url.pathname.endsWith('.js')"));assert.ok(sw.includes('caches.match(event.request)')||sw.includes('caches.match(request,{ignoreSearch:true})'),'historical cache fallback semantics must remain; query-safe successor is allowed');
 const migrations=read('assets/js/migrations.js');assert.equal(migrations.includes('recipe-discovery-stockpile'),false,'v0.4.6 behavior must remain migration-free');
 for(const deterministic of [read('assets/js/recipe-discovery-stockpile.js'),read('assets/js/weekly-context-normalization.js')])for(const forbidden of ['Gemini','fetch(','persist(','run('])assert.equal(deterministic.includes(forbidden),false,`deterministic v0.4.6 layer contains forbidden token: ${forbidden}`);
 
