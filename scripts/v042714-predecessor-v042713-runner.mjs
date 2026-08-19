@@ -4,6 +4,22 @@ import {spawnSync} from 'node:child_process';
 const authorityPath='assets/js/version-authority.js';
 const original=fs.readFileSync(authorityPath,'utf8');
 const current=original.match(/app_version:\s*'([^']+)'/)?.[1]||null;
+
+// v0.4.27.15 intentionally changes the identity authority and bumps the
+// per-image export schema. Replaying the v0.4.27.13 exact source contract
+// against the successor runtime would assert superseded behavior. The new
+// v0.4.27.15 contract explicitly re-checks the retained v0.4.27.14 invariants.
+if(current==='v0.4.27.15'){
+  console.log(JSON.stringify({
+    status:'PASS',
+    gate:'V042714_PREDECESSOR_V042713_REPLAY_SUPERSEDED',
+    current_version:current,
+    superseded_by:'scripts/v042715-platform-identity-doctor-transfer-contract.mjs',
+    reason:'PLATFORM_IDENTITY_AUTHORITY_AND_PER_IMAGE_EXPORT_SCHEMA_SUCCESSOR',
+  },null,2));
+  process.exit(0);
+}
+
 if(current!=='v0.4.27.14')throw new Error(`V042714_PREDECESSOR_UNEXPECTED_VERSION:${current}`);
 
 const staged=original

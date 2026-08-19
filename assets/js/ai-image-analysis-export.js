@@ -1,4 +1,4 @@
-export const AI_IMAGE_ANALYSIS_EXPORT_SCHEMA='pokemon-sleep-ai-image-analysis-export/1.0';
+export const AI_IMAGE_ANALYSIS_EXPORT_SCHEMA='pokemon-sleep-ai-image-analysis-export/1.1';
 
 const clean=value=>String(value??'').trim();
 const clone=value=>value==null?value:JSON.parse(JSON.stringify(value));
@@ -29,6 +29,19 @@ function sanitizeModelEvent(row={}){
   };
 }
 
+function safeTargetContext(revision){
+  const context=revision?.identity_context||null;
+  if(!context)return null;
+  return {
+    mode:context.mode||null,
+    platform_identity_authority:true,
+    existing_instance_bound:Boolean(context.target_pokemon_instance_id),
+    new_capture_group_bound:Boolean(context.capture_group_id),
+    provider_visible:false,
+    private_identity_values_included:false,
+  };
+}
+
 export function buildPerImageAnalysisExport({item={},revision=null,execution=null,selectedModel=null,modelEvents=[],failure=null,generatedAt=null}={}){
   const result=execution?.outcome?.results?.[0]||execution?.result||null;
   const actualModel=clean(result?.model||execution?.used_model||revision?.model)||null;
@@ -53,6 +66,7 @@ export function buildPerImageAnalysisExport({item={},revision=null,execution=nul
       prompt_version:revision.prompt_version||revision.promptVersion||null,
       created_at:revision.created_at||null,
     }:null,
+    analysis_target:safeTargetContext(revision),
     provider_process:{
       selected_model:preferredModel,
       actual_model:actualModel,
@@ -77,6 +91,7 @@ export function buildPerImageAnalysisExport({item={},revision=null,execution=nul
       api_key_included:false,
       screenshot_bytes_included:false,
       screenshot_base64_included:false,
+      private_platform_identity_values_included:false,
     },
   };
   return redact(exported);
