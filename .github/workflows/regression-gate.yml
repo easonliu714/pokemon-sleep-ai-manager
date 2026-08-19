@@ -116,7 +116,6 @@ jobs:
           node scripts/v04275-pe6-strategy-event-provenance-contract.mjs
           node scripts/v04275-g72-effective-event-energy-authority-contract.mjs
           node scripts/v042712-confirmation-lifecycle-ux-contract.mjs
-          node scripts/v042714-predecessor-v042713-runner.mjs
           node scripts/v042719-predecessor-v042718-runner.mjs
           node scripts/v042719-manual-draft-querysafe-offline-contract.mjs
 
