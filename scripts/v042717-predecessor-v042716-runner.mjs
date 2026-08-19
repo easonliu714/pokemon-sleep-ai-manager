@@ -19,13 +19,12 @@ function runContract(contract,{version,build,cache}){
   if(result.status!==0)throw new Error(`V042717_PREDECESSOR_FAILED:${contract}:${result.status}`);
 }
 
+// v0.4.27.13 exact replay is intentionally NOT forced against successor
+// runtime files: later releases validly evolved the export/identity contracts.
+// The direct v042714 runner is successor-aware on v0.4.27.17, while the
+// v0.4.27.16 predecessor + release contracts below verify retained safety
+// invariants at the immediate predecessor boundary.
 const replayPlan=[
-  {
-    contract:'scripts/v042714-predecessor-v042713-runner.mjs',
-    version:'v0.4.27.14',
-    build:'20260819-v042714-nickname-guard-bidirectional-review',
-    cache:'pokemon-sleep-ai-v0.4.27.14-v042714-nickname-guard-bidirectional-review',
-  },
   {
     contract:'scripts/v042716-predecessor-v042715-runner.mjs',
     version:'v0.4.27.16',
@@ -48,9 +47,10 @@ try{
 
 console.log(JSON.stringify({
   status:'PASS',
-  gate:'V042717_PREDECESSOR_CHAIN_REPLAY',
+  gate:'V042717_PREDECESSOR_V042716_REPLAY',
   current_version:current,
-  staged_versions:[...new Set(replayPlan.map(row=>row.version))],
+  staged_version:'v0.4.27.16',
   contracts:replayPlan.map(row=>row.contract),
+  v042713_exact_replay:'SUPERSEDED_BY_SUCCESSOR_CONTRACTS',
   current_authority_restored:true,
 },null,2));
