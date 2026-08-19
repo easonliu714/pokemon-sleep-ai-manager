@@ -53,7 +53,7 @@ for(const token of ['batchIndex=1,batchTotal=1','AI ${batchIndex}/${batchTotal}ï
 const workbench=read('assets/js/unified-import-analysis-workbench.js');
 assert.ok(workbench.includes("globalThis.PokemonSleepVersionAuthority?.app_version||'unknown'"),'Unified workbench must consume central version authority');
 assert.equal(workbench.includes("const VERSION='v0.3.75'"),false,'Unified workbench must not roll visible version back to stale local constant');
-assert.ok(workbench.includes('runAi(item,preset,status,results,index+1,chosen.length)'),'Unified workbench must preserve batch index/total into AI status');
+assert.ok(/runAi\(item,preset,status,results,(?:index\+1|position),chosen\.length(?:,\{mode\})?\)/.test(workbench),'Unified workbench must preserve batch index/total into AI status; successor may also pass explicit stage mode metadata');
 
 const version=read('assets/js/version-authority.js');
 assert.ok(version.includes("app_version: 'v0.4.27.7'"));
@@ -71,4 +71,5 @@ console.log(JSON.stringify({
   elapsed_seconds_visible:true,
   fail_closed_preserved:true,
   central_version:'v0.4.27.7',
+  successor_stage_mode_metadata:true,
 },null,2));
