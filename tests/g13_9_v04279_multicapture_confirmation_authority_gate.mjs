@@ -69,11 +69,11 @@ assert.equal(merged2.species,'小鍛匠');
 assert.equal(merged2.main_skill,'能量填充M');
 assert.equal(merged2.main_skill_level,1,'later observed level 1 must fill prior missing value');
 assert.equal(merged2.registered_at,'2026-08-18');
-assert.equal(merged2.obtained_at,'');
+assert.equal(merged2.obtained_at??'','', 'blank legacy obtained_at is intentionally omitted by sparse merge');
 assert.equal(merged2.conflicts.some(row=>row.field==='main_skill_level'),false);
 assert.deepEqual([...merged2.source_refs],['a.png','b.png']);
 
 const explicitZero=mergeDraft({source_refs:[],analysis_ids:[],subskills:[],ingredients:[],conflicts:[],main_skill_level:null},{...second,main_skill_level:0});
 assert.equal(explicitZero.main_skill_level,0,'explicit numeric zero remains a valid observation');
 
-console.log(JSON.stringify({status:'PASS',gate:'G13.9_V04279_MULTICAPTURE_CONFIRMATION_AUTHORITY',species:merged2.species,main_skill_level:merged2.main_skill_level,registered_at:merged2.registered_at,obtained_at:merged2.obtained_at,registered_date_successor_split:true,legacy_partial_writer_disabled:true,evolution_rehydration:true},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'G13.9_V04279_MULTICAPTURE_CONFIRMATION_AUTHORITY',species:merged2.species,main_skill_level:merged2.main_skill_level,registered_at:merged2.registered_at,obtained_at:merged2.obtained_at??null,registered_date_successor_split:true,legacy_partial_writer_disabled:true,evolution_rehydration:true},null,2));
