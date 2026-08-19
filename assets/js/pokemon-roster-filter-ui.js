@@ -9,7 +9,7 @@ import {
   rosterFilterHasRecommendationContext,
 } from './pokemon-roster-filter-contract.js';
 
-export const POKEMON_ROSTER_FILTER_UI_VERSION='pokemon-roster-unlocked-filters-ui-2026-08-17-b-berry-canonical-projection';
+export const POKEMON_ROSTER_FILTER_UI_VERSION='pokemon-roster-unlocked-filters-ui-2026-08-19-v042713-name-fallback';
 
 const IDS=Object.freeze({berry:'berryFilter',ingredient:'ingredientFilter',main_skill:'mainSkillFilter',subskill:'subskillFilter'});
 const LABELS=Object.freeze({berry:'全部樹果',ingredient:'全部食材',main_skill:'全部主技能',subskill:'全部副技能'});
@@ -19,6 +19,10 @@ let detailObserver=null;
 let scheduled=false;
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+export function resolvePokemonRosterDisplayName(pokemon={}){
+  for(const value of [pokemon?.original_label,pokemon?.species,pokemon?.nickname]){const name=String(value??'').trim();if(name)return name;}
+  return '未命名';
+}
 const getFilters=()=>({
   berry:document.getElementById(IDS.berry)?.value||'',
   ingredient:document.getElementById(IDS.ingredient)?.value||'',
@@ -107,6 +111,13 @@ function clearRowDecorations(row){
   row.querySelectorAll('.pokemon-filter-badges').forEach(node=>node.remove());
 }
 
+function applyRosterNameFallback(row,profile){
+  if(!row?.cells?.[0]||!profile?.pokemon)return;
+  const expected=resolvePokemonRosterDisplayName(profile.pokemon);
+  if(row.cells[0].childNodes.length===1&&row.cells[0].firstChild?.nodeType===Node.TEXT_NODE&&row.cells[0].textContent===expected)return;
+  row.cells[0].textContent=expected;
+}
+
 function appendBadges(row,badges,{top=false}={}){
   if(!row?.cells?.length)return;
   const values=[];
@@ -129,11 +140,13 @@ function applyFilters(){
   const filters=getFilters();
   const rowElements=[...document.querySelectorAll('#pokemonTable tr.pokemon-row')];
   const rowById=new Map(rowElements.map(row=>[String(row.dataset.pokemonId||''),row]));
+  const profileById=new Map(profiles.map(profile=>[String(profile.pokemon_id),profile]));
   const baseVisibleProfiles=profiles.filter(profile=>rowById.has(profile.pokemon_id));
   const matching=baseVisibleProfiles.filter(profile=>profileMatchesRosterFilters(profile,filters));
   const matchingIds=new Set(matching.map(profile=>profile.pokemon_id));
   for(const row of rowElements){
     clearRowDecorations(row);
+    applyRosterNameFallback(row,profileById.get(String(row.dataset.pokemonId||'')));
     row.hidden=!matchingIds.has(String(row.dataset.pokemonId||''));
   }
 
@@ -156,7 +169,7 @@ function applyFilters(){
     if(!recommendationContext)recommendationSummary.textContent='選擇樹果、食材、主技能或副技能後，會以已驗證的正向加成 Evidence 優先標示第一推薦；不推算未驗證的實際產量。';
     else if(!ranked.length)recommendationSummary.textContent='目前條件沒有符合的已解鎖寶可夢。';
     else {
-      const top=ranked[0],name=top.profile.pokemon.original_label||top.profile.pokemon.nickname||top.profile.pokemon.species||top.profile.pokemon_id;
+      const top=ranked[0],name=resolvePokemonRosterDisplayName(top.profile.pokemon);
       const reasons=top.evidence.badges.filter(item=>item.kind!=='penalty'&&item.kind!=='review').map(item=>item.label);
       recommendationSummary.textContent=`第一推薦：${name}${reasons.length?`；依據：${reasons.join('、')}`:'；目前沒有額外正向加成，依既有評級與 Lv 作穩定排序。'}`;
     }
@@ -229,4 +242,4 @@ function install(){
 
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 
-globalThis.PokemonSleepRosterFilterUI=Object.freeze({version:POKEMON_ROSTER_FILTER_UI_VERSION,refresh:scheduleRefresh});
+globalThis.PokemonSleepRosterFilterUI=Object.freeze({version:POKEMON_ROSTER_FILTER_UI_VERSION,refresh:scheduleRefresh,resolveDisplayName:resolvePokemonRosterDisplayName});
