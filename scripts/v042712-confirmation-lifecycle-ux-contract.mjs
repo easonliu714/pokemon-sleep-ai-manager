@@ -24,7 +24,8 @@ assert.match(schema,/obtained_at TEXT/u,'legacy pokemon.obtained_at must remain 
 // Direct Observation v2 registered_date becomes registered_at; legacy obtained_at stays a separate compatibility field.
 assert.match(workbench,/registered_at:text\(identity\.registered_date\)/u,'direct registered_date must project to registered_at');
 assert.match(workbench,/obtained_at:text\(raw\.obtained_at\)/u,'legacy obtained_at compatibility projection missing');
-assert.match(workbench,/field\('登錄日期','registered_at',d\.registered_at\|\|d\.obtained_at,'date'\)/u,'confirmation date UI must prefer registered_at with legacy fallback');
+assert.match(workbench,/field\('登錄日期','registered_at',d\.registered_at,'date'\)/u,'confirmation date UI must render direct registered_at only');
+assert.doesNotMatch(workbench,/field\('登錄日期','registered_at',d\.registered_at\|\|d\.obtained_at/u,'confirmation must not silently coerce legacy obtained_at into registered_at');
 assert.match(workbench,/['"]evolution_other_requirement['"],['"]registered_at['"],['"]obtained_at['"]/u,'confirmation sparse patch must preserve both date semantics');
 
 // Create-only display label fallback; existing custom labels are not part of the analysis sparse-update columns.
@@ -44,7 +45,7 @@ assert.match(detail,/pokemon-sleep:analysis-confirmed-applied/u,'detail module m
 assert.match(detail,/onSaved\?\.\(\)/u,'confirmed apply must invoke the existing refresh callback');
 assert.doesNotMatch(detail,/location\.reload|window\.location\.reload/u,'confirmation refresh must not reload the PWA');
 
-// Registered-date display remains backward compatible for pre-v0.4.27.12 rows.
+// Registered-date display remains backward compatible for pre-v0.4.27.12 rows only at the persisted detail boundary.
 assert.match(detail,/p\.registered_at\|\|p\.obtained_at/u,'detail registered date must fall back to legacy obtained_at');
 
 // VERIFIED_NOT_REQUIRED is presentation-only. It must be rendered explicitly but never become a writable player value.
@@ -60,7 +61,8 @@ for(const forbidden of ['key','fingerprint','project_alias','used_alias','compat
 assert.match(controller,/pokemon-sleep:ai-review-model-status/u,'sanitized model status event missing');
 assert.match(statusUi,/ai_model_failover/u,'visible model failover handling missing');
 assert.match(statusUi,/等待 \$\{elapsed\} 秒/u,'visible model elapsed seconds missing');
-assert.match(statusUi,/切換 →/u,'visible model transition message missing');
+assert.match(statusUi,/已切換 →/u,'visible model transition message missing');
+assert.match(statusUi,/if\(d\.event==='ai_model_candidate_started'\)modelState\.model=/u,'fallback candidate start must preserve the prior failover transition while it runs');
 assert.doesNotMatch(statusUi,/project\.key|fingerprint/u,'normal model status UI must not access key/fingerprint');
 
 // Offline closure: all changed runtime modules remain precached; version-authority cache change handles release activation.
