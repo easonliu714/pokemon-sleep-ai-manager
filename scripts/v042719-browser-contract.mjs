@@ -10,38 +10,45 @@ try{
   await page.waitForFunction(()=>globalThis.PokemonSleepVersionAuthority?.app_version==='v0.4.27.19',{timeout:30000});
   await page.waitForFunction(()=>Boolean(globalThis.PokemonSleepManualDraftOverlayV042719),{timeout:30000});
 
-  const manual=await page.evaluate(async()=>{
+  const manual=await page.evaluate(()=>{
     const real=document.getElementById('analysisConfirmationWorkbench');
     if(real)real.id='analysisConfirmationWorkbenchV042719Original';
     const root=document.createElement('section');root.id='analysisConfirmationWorkbench';document.body.append(root);
     const render=(groupId,value='')=>{root.innerHTML=`<section class="analysis-confirmation" data-v042718-group-id="${groupId}"><input data-field="nickname" value="${value}"><input data-field="species" value="SPECIES_${groupId}"><input data-check="sub_unlock_10" type="checkbox"></section>`;};
-    const dispatch=(name,groupId)=>globalThis.dispatchEvent(new CustomEvent(name,{detail:{group_id:groupId,reason:'v042719_browser_fixture'}}));
-    const sleep=()=>new Promise(resolve=>setTimeout(resolve,20));
+    const restore=groupId=>globalThis.PokemonSleepManualDraftOverlayV042719.restoreVisibleForm({groupId,reason:'v042719_browser_fixture'});
 
-    render('B');dispatch('pokemon-sleep:analysis-confirmation-group-selected','B');await sleep();
-    const bInput=root.querySelector('[data-field="nickname"]');bInput.value='USER_MANUAL_B';bInput.dispatchEvent(new Event('input',{bubbles:true}));
-    const bCheck=root.querySelector('[data-check="sub_unlock_10"]');bCheck.checked=true;bCheck.dispatchEvent(new Event('change',{bubbles:true}));
+    render('B');restore('B');
+    const bInput=root.querySelector('[data-field="nickname"]');
+    const bCheck=root.querySelector('[data-check="sub_unlock_10"]');
+    assertFixture(Boolean(bInput&&bCheck),'B fixture controls missing');
+    bInput.value='USER_MANUAL_B';bInput.dispatchEvent(new Event('input',{bubbles:true}));
+    bCheck.checked=true;bCheck.dispatchEvent(new Event('change',{bubbles:true}));
 
-    render('A');dispatch('pokemon-sleep:analysis-confirmation-group-selected','A');await sleep();
-    const aNickname=root.querySelector('[data-field="nickname"]').value;
-    const aChecked=root.querySelector('[data-check="sub_unlock_10"]').checked;
+    render('A');const aRestoreCount=restore('A');
+    const aNickname=root.querySelector('[data-field="nickname"]')?.value??null;
+    const aChecked=root.querySelector('[data-check="sub_unlock_10"]')?.checked??null;
 
-    render('C');dispatch('pokemon-sleep:analysis-confirmation-group-selected','C');await sleep();
-    const cNickname=root.querySelector('[data-field="nickname"]').value;
+    render('C');const cRestoreCount=restore('C');
+    const cNickname=root.querySelector('[data-field="nickname"]')?.value??null;
 
-    render('B');dispatch('pokemon-sleep:analysis-confirmation-group-selected','B');await sleep();
-    const bRestored=root.querySelector('[data-field="nickname"]').value;
-    const bCheckRestored=root.querySelector('[data-check="sub_unlock_10"]').checked;
+    render('B');const bRestoreCount=restore('B');
+    const bRestored=root.querySelector('[data-field="nickname"]')?.value??null;
+    const bCheckRestored=root.querySelector('[data-check="sub_unlock_10"]')?.checked??null;
     const state=globalThis.PokemonSleepManualDraftOverlayV042719.getState();
 
     root.remove();if(real)real.id='analysisConfirmationWorkbench';
-    return {aNickname,aChecked,cNickname,bRestored,bCheckRestored,state};
+    return {aNickname,aChecked,cNickname,bRestored,bCheckRestored,aRestoreCount,cRestoreCount,bRestoreCount,state};
+
+    function assertFixture(condition,message){if(!condition)throw new Error(message);}
   });
   assert.equal(manual.bRestored,'USER_MANUAL_B','manual nickname must survive B -> A -> C -> B');
   assert.equal(manual.bCheckRestored,true,'manual checkbox must survive navigation');
   assert.equal(manual.aNickname,'','B marker must not leak into A');
   assert.equal(manual.cNickname,'','B marker must not leak into C');
   assert.equal(manual.aChecked,false,'B checkbox must not leak into A');
+  assert.equal(manual.aRestoreCount,0,'A must not inherit B manual controls');
+  assert.equal(manual.cRestoreCount,0,'C must not inherit B manual controls');
+  assert.ok(manual.bRestoreCount>=2,'B manual controls must be restored from the group-local overlay');
   assert.ok(manual.state.group_ids.includes('B'));
 
   await page.waitForFunction(()=>navigator.serviceWorker?.controller!=null,{timeout:30000});
