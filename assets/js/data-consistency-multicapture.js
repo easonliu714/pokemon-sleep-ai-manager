@@ -110,7 +110,8 @@ function activeGroup(){return activeGroupId?groups.get(activeGroupId)||null:null
 function openGroups(){return [...groups.values()].filter(row=>row.status!=='closed').sort((a,b)=>a.created_at.localeCompare(b.created_at));}
 function pendingGroups(){return openGroups().filter(row=>row.id!==activeGroupId&&row.status==='pending');}
 function shouldStartNewGroupForRevision(current,incoming){const currentSpecies=clean(current?.species),incomingSpecies=clean(incoming?.species);return Boolean((current?.source_refs?.length||0)>0&&currentSpecies&&incomingSpecies&&currentSpecies!==incomingSpecies);}
-function hydratedDraft(group){return hydrateEvolutionDraft(group?.draft||emptyDraft(),resolveEvolutionAuthority(group?.draft?.species,rows));}
+function resolveEvolutionDraftAuthority(draft){return resolveEvolutionAuthority(draft.species,rows);}
+function hydratedDraft(group){return hydrateEvolutionDraft(group?.draft||emptyDraft(),resolveEvolutionDraftAuthority(group?.draft||emptyDraft()));}
 function dispatchSelected(group,reason='selected'){
   const detail=group?{group_id:group.id,status:group.status,reason,revision:group.latest_revision?clone(group.latest_revision):null,draft:clone(hydratedDraft(group)),pending_count:pendingGroups().length}:{group_id:null,status:'empty',reason,revision:null,draft:null,pending_count:0};
   globalThis.dispatchEvent(new CustomEvent('pokemon-sleep:analysis-confirmation-group-selected',{detail}));
