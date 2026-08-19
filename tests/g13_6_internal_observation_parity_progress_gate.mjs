@@ -22,6 +22,7 @@ assert.ok(new Set([
   'pokemon-sleep-observation-v2/2026-08-18-structured-output',
   'pokemon-sleep-observation-v2/2026-08-18-v04278-capability-failover',
   'pokemon-sleep-observation-v2/2026-08-18-v042710-timeout-failover',
+  'pokemon-sleep-observation-v2/2026-08-19-v042716-existing-baseline-sparse-diff',
 ]).has(PROMPT_VERSION),`unexpected Observation v2 prompt successor: ${PROMPT_VERSION}`);
 
 const valid={
