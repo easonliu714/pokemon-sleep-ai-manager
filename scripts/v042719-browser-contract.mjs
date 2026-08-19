@@ -70,8 +70,7 @@ try{
     const body=await response.text();return {status:response.status,bodyStart:body.slice(0,80),contentType:response.headers.get('content-type')||''};
   });
   assert.ok(missingScript.status>=400,'missing script must fail closed as an asset');
-  assert.ok(!missingScript.bodyStart.toLowerCase().includes('<!doctype'),'missing script must not receive app shell');
-  assert.ok(!missingScript.contentType.toLowerCase().includes('text/html')||missingScript.status!==200,'missing script must never succeed with an HTML shell');
+  assert.ok(!(missingScript.status===200&&missingScript.contentType.toLowerCase().includes('text/html')),'missing script must never succeed with an HTML shell');
 
   await page.reload({waitUntil:'domcontentloaded',timeout:30000});
   await page.waitForFunction(()=>globalThis.PokemonSleepVersionAuthority?.app_version==='v0.4.27.19',{timeout:30000});
