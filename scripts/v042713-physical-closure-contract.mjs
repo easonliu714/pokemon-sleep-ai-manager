@@ -28,7 +28,7 @@ for(const token of ['let currentGroupId=null','pokemon-sleep:analysis-confirmati
 const unified=fs.readFileSync('assets/js/unified-import-analysis-workbench.js','utf8');
 const statusUi=fs.readFileSync('assets/js/ai-review-executor-status-ui.js','utf8');
 for(const token of ['pokemon-sleep:unified-analysis-stage','publishStage(\'ai\',\'running\'','publishStage(\'ocr\',[\'ai_only\',\'existing\'].includes(mode)?\'skipped\''])assert.ok(unified.includes(token),`unified progress producer missing ${token}`);
-for(const token of ["skipped:'略過'",'pokemon-sleep:unified-analysis-stage','event_authoritative:true','pokemon-sleep:ai-capability-model-event'])assert.ok(statusUi.includes(token),`event-driven status UI missing ${token}`);
+for(const token of ["skipped:'略過'",'pokemon-sleep:unified-analysis-stage','unifiedState.event_authoritative=true','pokemon-sleep:ai-capability-model-event'])assert.ok(statusUi.includes(token),`event-driven status UI missing ${token}`);
 
 // 3. Roster display name must fall back to species without rewriting SQLite.
 const roster=fs.readFileSync('assets/js/pokemon-roster-filter-ui.js','utf8');
