@@ -3,7 +3,7 @@ import {localIso} from './time-utils.js';
 import {speciesCandyName} from './public-candy-master.js';
 import {CANDY_CONVERSION_RULE_STATUS} from './resource-context.js';
 
-export const PROFESSOR_TRANSFER_VERSION='pokemon-professor-transfer-2026-08-19-a';
+export const PROFESSOR_TRANSFER_VERSION='pokemon-professor-transfer-2026-08-19-b';
 export const PROFESSOR_TRANSFER_CANDY_RULE_STATUS=CANDY_CONVERSION_RULE_STATUS;
 
 const now=()=>localIso();
@@ -91,6 +91,9 @@ export async function transferPokemonToProfessor(pokemonId,{observedCandyQuantit
     trace('pokemon_sent_to_professor',{candy_conversion_status:candyConversionStatus,candy_inventory_applied:candyInventoryApplied,observed_candy_quantity:candyQuantity,deterministic_conversion_rule_status:PROFESSOR_TRANSFER_CANDY_RULE_STATUS});
     globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:data-changed',{detail:{reason:'pokemon_sent_to_professor'}}));
     globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:pokemon-evaluation-input-changed',{detail:{pokemon_ids:[String(pokemonId)],reason:'pokemon_sent_to_professor'}}));
+    // Existing app refresh contract currently listens to this event; keep it as a
+    // compatibility refresh signal until a generic roster-refresh event becomes authoritative.
+    globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:analysis-confirmed-applied',{detail:{pokemon_id:pokemonId,mode:'sent_to_professor',reason:'pokemon_sent_to_professor',compatibility_refresh_only:true}}));
     return {pokemon:after,transfer:transferEvidence,candy_inventory:candyInventoryAfter};
   }catch(error){rollback();throw error;}
 }
