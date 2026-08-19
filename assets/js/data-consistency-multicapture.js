@@ -4,7 +4,8 @@ import {resolveEvolutionAuthority,hydrateEvolutionDraft,evolutionAuthorityLabel}
 const VERSION=globalThis.PokemonSleepVersionAuthority?.app_version||'unknown';
 const BUILD=globalThis.PokemonSleepVersionAuthority?.app_build||'unknown';
 const groups=new Map();
-let activeGroupId=`capture-${Date.now()}`;
+let activeGroupId=null;
+let groupSequence=0;
 
 const text=value=>{
   if(value==null)return '';
@@ -22,6 +23,10 @@ const badString=value=>/^\[(object Object|object Array)\]$|^(undefined|null)$/i.
 const clean=value=>{const result=text(value);return badString(result)?'':result;};
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const blank=value=>value===null||value===undefined||value===''||(Array.isArray(value)&&value.length===0);
+const clone=value=>JSON.parse(JSON.stringify(value));
+const nowIso=()=>new Date().toISOString();
+const emptyDraft=()=>({source_refs:[],analysis_ids:[],subskills:[],ingredients:[],conflicts:[]});
+const trace=(event,detail={})=>{globalThis.UpdateCenterLiveDebug?.record?.(event,detail);globalThis.DebugTrace?.record?.('ai_review',event,{status:'completed',details:detail});};
 
 function normalizeSubskills(value){
   return (Array.isArray(value)?value:[]).map((row,index)=>({
@@ -95,72 +100,74 @@ function mergeDraft(base,next){
   out.conflicts=[...(out.conflicts||[]),...conflicts];
   return out;
 }
-function group(){
-  if(!groups.has(activeGroupId))groups.set(activeGroupId,{draft:{source_refs:[],analysis_ids:[],subskills:[],ingredients:[],conflicts:[]},created_at:new Date().toISOString()});
-  return groups.get(activeGroupId);
-}
-function startNewGroup(reason='manual'){activeGroupId=`capture-${Date.now()}-${Math.random().toString(16).slice(2)}`;group();renderGroupNotice();globalThis.UpdateCenterLiveDebug?.record?.('multicapture_group_started',{group_id:activeGroupId,reason});}
-function shouldStartNewGroupForRevision(current,incoming){const currentSpecies=clean(current?.species),incomingSpecies=clean(incoming?.species);return Boolean((current?.source_refs?.length||0)>0&&currentSpecies&&incomingSpecies&&currentSpecies!==incomingSpecies);}
 
-function setField(root,name,value){
-  if(blank(value))return;
-  const node=root.querySelector(`[data-field="${name}"]`);
-  if(node)node.value=value;
+function createGroup({status='pending'}={}){
+  const id=`capture-${Date.now()}-${++groupSequence}`;
+  const group={id,status,draft:emptyDraft(),revisions:[],latest_revision:null,created_at:nowIso(),updated_at:nowIso()};
+  groups.set(id,group);trace('confirmation_group_created',{group_id:id,status});return group;
 }
-function applyCollectionRows(root,draft){
-  for(const row of draft.ingredients||[]){
-    const level=number(row.unlock_level);if(!level)continue;
-    setField(root,`ingredient_name_${level}`,row.ingredient_name);
-    if(!blank(row.quantity))setField(root,`ingredient_qty_${level}`,row.quantity);
+function activeGroup(){return activeGroupId?groups.get(activeGroupId)||null:null;}
+function openGroups(){return [...groups.values()].filter(row=>row.status!=='closed').sort((a,b)=>a.created_at.localeCompare(b.created_at));}
+function pendingGroups(){return openGroups().filter(row=>row.id!==activeGroupId&&row.status==='pending');}
+function shouldStartNewGroupForRevision(current,incoming){const currentSpecies=clean(current?.species),incomingSpecies=clean(incoming?.species);return Boolean((current?.source_refs?.length||0)>0&&currentSpecies&&incomingSpecies&&currentSpecies!==incomingSpecies);}
+function hydratedDraft(group){return hydrateEvolutionDraft(group?.draft||emptyDraft(),resolveEvolutionAuthority(group?.draft?.species,rows));}
+function dispatchSelected(group,reason='selected'){
+  const detail=group?{group_id:group.id,status:group.status,reason,revision:group.latest_revision?clone(group.latest_revision):null,draft:clone(hydratedDraft(group)),pending_count:pendingGroups().length}:{group_id:null,status:'empty',reason,revision:null,draft:null,pending_count:0};
+  globalThis.dispatchEvent(new CustomEvent('pokemon-sleep:analysis-confirmation-group-selected',{detail}));
+  trace('confirmation_group_selected',{group_id:detail.group_id,reason,pending_count:detail.pending_count,species:detail.draft?.species||null});
+}
+function selectGroup(groupId,{reason='manual_select'}={}){
+  const next=groups.get(groupId);if(!next||next.status==='closed')return null;
+  const current=activeGroup();if(current&&current.id!==next.id)current.status='pending';
+  next.status='active';next.updated_at=nowIso();activeGroupId=next.id;dispatchSelected(next,reason);setTimeout(renderGroupNotice,0);return next;
+}
+function advanceReviewGroup({reason='manual_next_pokemon',createIfEmpty=true}={}){
+  const queue=pendingGroups();let next=queue[0]||null;
+  if(!next&&createIfEmpty)next=createGroup({status:'pending'});
+  if(next){const selected=selectGroup(next.id,{reason});trace('confirmation_group_advanced',{group_id:selected?.id||null,reason,pending_count:pendingGroups().length});return selected;}
+  activeGroupId=null;dispatchSelected(null,reason);trace('confirmation_group_advanced',{group_id:null,reason,pending_count:0});return null;
+}
+function closeActiveGroup(reason='terminal'){
+  const current=activeGroup();if(current){current.status='closed';current.closed_at=nowIso();current.close_reason=reason;trace('confirmation_group_closed',{group_id:current.id,reason,species:current.draft?.species||null});}
+  activeGroupId=null;return advanceReviewGroup({reason:`after_${reason}`,createIfEmpty:false});
+}
+function findGroupForRevision(incoming){
+  const current=activeGroup(),incomingSpecies=clean(incoming?.species);
+  if(current&&!shouldStartNewGroupForRevision(current.draft,incoming))return current;
+  if(incomingSpecies){
+    const matched=openGroups().find(row=>clean(row.draft?.species)===incomingSpecies);if(matched)return matched;
   }
-  for(const row of draft.subskills||[]){
-    const level=number(row.unlock_level);if(!level)continue;
-    setField(root,`subskill_name_${level}`,row.subskill_name);
-    const check=root.querySelector(`[data-check="sub_unlock_${level}"]`);if(check)check.checked=Boolean(row.is_unlocked);
-  }
+  return createGroup({status:current?'pending':'active'});
 }
-function applyEvolutionAuthority(root,draft){
-  const hydrated=hydrateEvolutionDraft(draft,resolveEvolutionAuthority(draft.species,rows));
-  for(const key of ['evolution_level_required','evolution_sleep_hours_required','evolution_candy_required','evolution_item_required','evolution_other_requirement'])setField(root,key,hydrated[key]);
-  const authority=hydrated.evolution_authority||{};
-  const notice=root.querySelector('[data-evolution-authority-status]');
-  if(notice){
-    const alert=String(authority.status||'').startsWith('REVIEW_REQUIRED')||authority.status==='MULTIPLE_PUBLIC_ROUTES_REVIEW_REQUIRED'||authority.status==='SPECIES_UNRESOLVED';
-    notice.className=`notice ${alert?'error':'success'}`;
-    notice.dataset.evolutionAuthorityStatus=authority.status||'UNKNOWN';
-    notice.innerHTML=`<strong>公版進化條件</strong><br>${esc(evolutionAuthorityLabel(authority))}`;
-  }
-  return hydrated;
+function upsertRevision(revision){
+  const incoming=normalizeRevision(revision),target=findGroupForRevision(incoming);
+  target.draft=mergeDraft(target.draft,incoming);target.latest_revision=revision;target.revisions.push(revision);target.updated_at=nowIso();
+  const hadActive=Boolean(activeGroupId);
+  if(!hadActive||target.id===activeGroupId){if(!hadActive){activeGroupId=target.id;target.status='active';dispatchSelected(target,'first_revision');}else globalThis.dispatchEvent(new CustomEvent('pokemon-sleep:analysis-confirmation-merged',{detail:{group_id:target.id,status:target.status,revision:clone(revision),draft:clone(hydratedDraft(target)),pending_count:pendingGroups().length}}));}
+  else trace('confirmation_group_queued',{group_id:target.id,active_group_id:activeGroupId,species:target.draft?.species||null,pending_count:pendingGroups().length});
+  setTimeout(renderGroupNotice,0);
+  trace('multicapture_revision_merged',{group_id:target.id,active_group_id:activeGroupId,source_count:target.draft.source_refs.length,analysis_count:target.draft.analysis_ids.length,conflict_count:target.draft.conflicts.length,main_skill_level:target.draft.main_skill_level??null,species:target.draft.species||null,evolution_rehydration:true,legacy_partial_writer_disabled:true});
+  return target;
 }
-function applyMergedDraftToForm(){
-  const root=document.getElementById('analysisConfirmationWorkbench');if(!root)return;
-  const draft=group().draft;
-  for(const key of MERGE_FIELDS)setField(root,key,draft[key]);
-  if(draft.source_text)setField(root,'source_text',draft.source_text);
-  applyCollectionRows(root,draft);
-  const hydrated=applyEvolutionAuthority(root,draft);
-  globalThis.dispatchEvent(new CustomEvent('pokemon-sleep:analysis-confirmation-merged',{detail:{group_id:activeGroupId,draft:{...draft,evolution_authority:hydrated.evolution_authority}}}));
-  renderGroupNotice();
-}
+
 function renderGroupNotice(){
   const root=document.querySelector('#analysisConfirmationWorkbench .analysis-confirmation');if(!root)return;
   let panel=root.querySelector('#captureGroupStatus');
   if(!panel){panel=document.createElement('section');panel.id='captureGroupStatus';panel.className='notice';root.querySelector('header')?.insertAdjacentElement('afterend',panel);}
-  const data=group().draft;
-  panel.innerHTML=`<b>同一寶可夢多截圖群組</b><br>來源圖片：${data.source_refs?.length||0}；分析 revision：${data.analysis_ids?.length||0}；衝突：${data.conflicts?.length||0}<br><small>${(data.source_refs||[]).map(esc).join('、')||'尚無來源'}</small><div class="buttons"><button type="button" id="startNewCaptureGroup" class="secondary">下一隻寶可夢／建立新群組</button></div>${data.conflicts?.length?`<details><summary>欄位衝突，請以表單目前值人工確認</summary><pre>${esc(JSON.stringify(data.conflicts,null,2))}</pre></details>`:''}`;
-  panel.querySelector('#startNewCaptureGroup').onclick=()=>startNewGroup('manual_next_pokemon');
+  const current=activeGroup();if(!current){panel.remove();return;}
+  const data=current.draft,queued=pendingGroups().length;
+  panel.innerHTML=`<b>同一寶可夢多截圖群組</b><br>來源圖片：${data.source_refs?.length||0}；分析 revision：${data.analysis_ids?.length||0}；衝突：${data.conflicts?.length||0}；待確認群組：${queued}<br><small>${(data.source_refs||[]).map(esc).join('、')||'尚無來源'}</small><div class="buttons"><button type="button" id="startNewCaptureGroup" class="secondary">${queued?`下一隻寶可夢（${queued}）`:'建立新群組'}</button></div>${data.conflicts?.length?`<details><summary>欄位衝突，請以表單目前值人工確認</summary><pre>${esc(JSON.stringify(data.conflicts,null,2))}</pre></details>`:''}`;
+  panel.querySelector('#startNewCaptureGroup').onclick=()=>advanceReviewGroup({reason:'manual_next_pokemon',createIfEmpty:true});
 }
 
-globalThis.addEventListener('pokemon-sleep:analysis-revision-saved',event=>{
-  const incoming=normalizeRevision(event.detail);
-  if(shouldStartNewGroupForRevision(group().draft,incoming))startNewGroup('source_identity_changed');
-  const merged=mergeDraft(group().draft,incoming);
-  groups.get(activeGroupId).draft=merged;
-  setTimeout(applyMergedDraftToForm,0);
-  globalThis.UpdateCenterLiveDebug?.record?.('multicapture_revision_merged',{group_id:activeGroupId,source_count:merged.source_refs.length,analysis_count:merged.analysis_ids.length,conflict_count:merged.conflicts.length,main_skill_level:merged.main_skill_level??null,species:merged.species||null,evolution_rehydration:true,legacy_partial_writer_disabled:true});
-});
-globalThis.addEventListener('pokemon-sleep:analysis-confirmation-terminal',event=>startNewGroup(event?.detail?.reason||'confirmation_terminal'));
+globalThis.addEventListener('pokemon-sleep:analysis-revision-saved',event=>upsertRevision(event.detail?.revision||event.detail||{}));
+globalThis.addEventListener('pokemon-sleep:analysis-confirmation-terminal',event=>closeActiveGroup(event?.detail?.reason||'confirmation_terminal'));
 
-globalThis.UpdateCenterLiveDebug?.record?.('data_consistency_multicapture_ready',{version:VERSION,build:BUILD,patch_semantics:true,null_safe_numeric:true,observation_v2:true,evolution_rehydration:true,legacy_partial_writer_disabled:true});
+globalThis.PokemonSleepMultiCaptureConsistency={
+  normalizeRevision,mergeDraft,shouldStartNewGroupForRevision,upsertRevision,selectGroup,advanceReviewGroup,closeActiveGroup,
+  getState:()=>({active_group_id:activeGroupId,groups:[...groups.values()].map(clone)}),
+};
 
-export {VERSION,BUILD,normalizeRevision,mergeDraft,shouldStartNewGroupForRevision};
+globalThis.UpdateCenterLiveDebug?.record?.('data_consistency_multicapture_ready',{version:VERSION,build:BUILD,patch_semantics:true,null_safe_numeric:true,observation_v2:true,evolution_rehydration:true,legacy_partial_writer_disabled:true,navigable_review_groups:true});
+
+export {VERSION,BUILD,normalizeRevision,mergeDraft,shouldStartNewGroupForRevision,upsertRevision,selectGroup,advanceReviewGroup,closeActiveGroup};
