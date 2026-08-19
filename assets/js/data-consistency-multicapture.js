@@ -41,7 +41,7 @@ function normalizeRevision(revision){
   const raw=revision?.result?.analysis??revision?.result??{};
   if(revision?.analysis_type!=='ai'){
     const regions=Array.isArray(raw?.regions)?raw.regions:Array.isArray(raw)?raw:[];
-    return {species:'',nickname:'',level:null,sp:null,specialty:'',type:'',nature:'',nature_bonus:'',nature_penalty:'',main_skill:'',main_skill_level:null,main_skill_description:'',helper_seconds:null,carry_limit:null,favorite_berry:'',sleep_hours:null,sleep_time_text:'',obtained_at:'',is_favorite:null,confidence:null,subskills:[],ingredients:[],source_text:regions.map(row=>`${row.name||row.region||'區域'}\n${row.text||row.ocr_text||''}`).join('\n\n'),source_refs:[revision?.source_image_ref].filter(Boolean),analysis_ids:[revision?.analysis_id].filter(Boolean),conflicts:[]};
+    return {species:'',nickname:'',level:null,sp:null,specialty:'',type:'',nature:'',nature_bonus:'',nature_penalty:'',main_skill:'',main_skill_level:null,main_skill_description:'',helper_seconds:null,carry_limit:null,favorite_berry:'',sleep_hours:null,sleep_time_text:'',registered_at:'',obtained_at:'',is_favorite:null,confidence:null,subskills:[],ingredients:[],source_text:regions.map(row=>`${row.name||row.region||'區域'}\n${row.text||row.ocr_text||''}`).join('\n\n'),source_refs:[revision?.source_image_ref].filter(Boolean),analysis_ids:[revision?.analysis_id].filter(Boolean),conflicts:[]};
   }
   const observation=Array.isArray(raw?.observations)?raw.observations[0]||{}:{};
   const profile=observation?.profile||{};
@@ -66,7 +66,8 @@ function normalizeRevision(revision){
     favorite_berry:clean(raw?.favorite_berry??profile?.favorite_berry),
     sleep_hours:number(raw?.sleep_hours??profile?.sleep_hours),
     sleep_time_text:clean(raw?.sleep_time_text??profile?.sleep_time_text),
-    obtained_at:clean(identity?.registered_date??raw?.obtained_at),
+    registered_at:clean(identity?.registered_date),
+    obtained_at:clean(raw?.obtained_at),
     is_favorite:favoriteValue===true?1:favoriteValue===false?0:null,
     confidence:number(raw?.confidence),
     subskills:normalizeSubskills(raw?.sub_skills?.length?raw.sub_skills:observation?.subskills),
@@ -78,7 +79,7 @@ function normalizeRevision(revision){
   };
 }
 
-const MERGE_FIELDS=['species','nickname','level','sp','specialty','type','nature','nature_bonus','nature_penalty','main_skill','main_skill_level','main_skill_description','helper_seconds','carry_limit','favorite_berry','sleep_hours','sleep_time_text','obtained_at','is_favorite','confidence'];
+const MERGE_FIELDS=['species','nickname','level','sp','specialty','type','nature','nature_bonus','nature_penalty','main_skill','main_skill_level','main_skill_description','helper_seconds','carry_limit','favorite_berry','sleep_hours','sleep_time_text','registered_at','obtained_at','is_favorite','confidence'];
 function mergeDraft(base,next){
   const out={...base};const conflicts=[];
   for(const key of MERGE_FIELDS){
@@ -98,7 +99,8 @@ function group(){
   if(!groups.has(activeGroupId))groups.set(activeGroupId,{draft:{source_refs:[],analysis_ids:[],subskills:[],ingredients:[],conflicts:[]},created_at:new Date().toISOString()});
   return groups.get(activeGroupId);
 }
-function startNewGroup(){activeGroupId=`capture-${Date.now()}-${Math.random().toString(16).slice(2)}`;group();renderGroupNotice();}
+function startNewGroup(reason='manual'){activeGroupId=`capture-${Date.now()}-${Math.random().toString(16).slice(2)}`;group();renderGroupNotice();globalThis.UpdateCenterLiveDebug?.record?.('multicapture_group_started',{group_id:activeGroupId,reason});}
+function shouldStartNewGroupForRevision(current,incoming){const currentSpecies=clean(current?.species),incomingSpecies=clean(incoming?.species);return Boolean((current?.source_refs?.length||0)>0&&currentSpecies&&incomingSpecies&&currentSpecies!==incomingSpecies);}
 
 function setField(root,name,value){
   if(blank(value))return;
@@ -146,16 +148,19 @@ function renderGroupNotice(){
   if(!panel){panel=document.createElement('section');panel.id='captureGroupStatus';panel.className='notice';root.querySelector('header')?.insertAdjacentElement('afterend',panel);}
   const data=group().draft;
   panel.innerHTML=`<b>同一寶可夢多截圖群組</b><br>來源圖片：${data.source_refs?.length||0}；分析 revision：${data.analysis_ids?.length||0}；衝突：${data.conflicts?.length||0}<br><small>${(data.source_refs||[]).map(esc).join('、')||'尚無來源'}</small><div class="buttons"><button type="button" id="startNewCaptureGroup" class="secondary">下一隻寶可夢／建立新群組</button></div>${data.conflicts?.length?`<details><summary>欄位衝突，請以表單目前值人工確認</summary><pre>${esc(JSON.stringify(data.conflicts,null,2))}</pre></details>`:''}`;
-  panel.querySelector('#startNewCaptureGroup').onclick=startNewGroup;
+  panel.querySelector('#startNewCaptureGroup').onclick=()=>startNewGroup('manual_next_pokemon');
 }
 
 globalThis.addEventListener('pokemon-sleep:analysis-revision-saved',event=>{
-  const merged=mergeDraft(group().draft,normalizeRevision(event.detail));
+  const incoming=normalizeRevision(event.detail);
+  if(shouldStartNewGroupForRevision(group().draft,incoming))startNewGroup('source_identity_changed');
+  const merged=mergeDraft(group().draft,incoming);
   groups.get(activeGroupId).draft=merged;
   setTimeout(applyMergedDraftToForm,0);
   globalThis.UpdateCenterLiveDebug?.record?.('multicapture_revision_merged',{group_id:activeGroupId,source_count:merged.source_refs.length,analysis_count:merged.analysis_ids.length,conflict_count:merged.conflicts.length,main_skill_level:merged.main_skill_level??null,species:merged.species||null,evolution_rehydration:true,legacy_partial_writer_disabled:true});
 });
+globalThis.addEventListener('pokemon-sleep:analysis-confirmation-terminal',event=>startNewGroup(event?.detail?.reason||'confirmation_terminal'));
 
 globalThis.UpdateCenterLiveDebug?.record?.('data_consistency_multicapture_ready',{version:VERSION,build:BUILD,patch_semantics:true,null_safe_numeric:true,observation_v2:true,evolution_rehydration:true,legacy_partial_writer_disabled:true});
 
-export {VERSION,BUILD,normalizeRevision,mergeDraft};
+export {VERSION,BUILD,normalizeRevision,mergeDraft,shouldStartNewGroupForRevision};

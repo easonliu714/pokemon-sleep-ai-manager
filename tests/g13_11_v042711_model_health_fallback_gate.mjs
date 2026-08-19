@@ -5,8 +5,14 @@ const settings=await import('../assets/js/ai-project-pool-settings.js');
 const capability=await import('../assets/js/ai-provider-capability-failover.js');
 await import('../assets/js/version-authority.js');
 
-assert.equal(globalThis.PokemonSleepVersionAuthority?.app_version,'v0.4.27.11');
-assert.equal(globalThis.PokemonSleepVersionAuthority?.app_build,'20260818-v042711-model-health-fallback-persistence');
+const versionAtLeast=(version,floor)=>{
+  const parse=value=>String(value||'').replace(/^v/,'').split('.').map(part=>Number(part)||0);
+  const left=parse(version),right=parse(floor),size=Math.max(left.length,right.length);
+  for(let index=0;index<size;index+=1){const a=left[index]||0,b=right[index]||0;if(a!==b)return a>b;}
+  return true;
+};
+const currentVersion=globalThis.PokemonSleepVersionAuthority?.app_version||'';
+assert.equal(versionAtLeast(currentVersion,'v0.4.27.11'),true,`G13.11 behavior requires v0.4.27.11 or successor, got ${currentVersion}`);
 assert.equal(settings.DEFAULT_MODEL,'gemini-3.6-flash');
 assert.equal(capability.MODEL_CANDIDATE_TIMEOUT_MS,45000);
 
@@ -63,7 +69,9 @@ assert.equal(settings.withRuntimeModel(saved,''),null);
 console.log(JSON.stringify({
   status:'PASS',
   gate:'V042711_G13_11_MODEL_HEALTH_FALLBACK_PERSISTENCE',
-  version:'v0.4.27.11',
+  predecessor_version:'v0.4.27.11',
+  current_version:currentVersion,
+  successor_compatible:true,
   checks:{
     candidate_budget_preserves_fallback:true,
     listed_but_hung_model_falls_back:true,

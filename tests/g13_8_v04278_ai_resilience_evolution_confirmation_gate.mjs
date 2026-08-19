@@ -54,7 +54,7 @@ const observation={
 };
 const projected=projectObservationV2ForLegacy(observation);
 assert.equal(projected.analysis.main_skill.level,1,'Observation v2 main skill Lv1 must not become 0');
-assert.equal(projected.analysis.obtained_at,'2026-08-18','identity.registered_date must project into confirmation obtained_at');
+assert.equal(projected.analysis.obtained_at,'2026-08-18','legacy adapter must continue carrying identity.registered_date for predecessor consumers');
 assert.equal(projected.analysis.is_favorite,false,'boolean false must remain an observed value');
 
 assert.equal(V04278_EVOLUTION_REQUIREMENT_MASTER.length,1);
@@ -91,7 +91,8 @@ for(const token of ['white-space:pre-wrap','overflow-wrap:anywhere','word-break:
 const diagnostic=fs.readFileSync('assets/js/data1d1-ocr-ai-ab-diagnostic.js','utf8');
 assert.ok(diagnostic.includes('JSON.stringify(result.analysis,null,2)'),'JSON display must preserve the original serialized result');
 const workbench=fs.readFileSync('assets/js/analysis-confirmation-workbench.js','utf8');
-for(const token of ['resolveEvolutionAuthority','hydrateEvolutionDraft','profile.main_skill_level??raw.main_skill?.level','identity.registered_date??raw.obtained_at','data-evolution-authority-status'])assert.ok(workbench.includes(token),`confirmation workbench missing ${token}`);
+for(const token of ['resolveEvolutionAuthority','hydrateEvolutionDraft','profile.main_skill_level??raw.main_skill?.level','registered_at:text(identity.registered_date)','obtained_at:text(raw.obtained_at)','data-evolution-authority-status'])assert.ok(workbench.includes(token),`confirmation workbench missing ${token}`);
+assert.equal(workbench.includes('identity.registered_date??raw.obtained_at'),false,'successor workbench must not collapse registered-date and legacy obtained-at semantics');
 const sw=fs.readFileSync('service-worker.js','utf8');
 for(const token of ['./assets/js/ai-provider-capability-failover.js','./assets/js/analysis-confirmation-evolution-authority.js'])assert.ok(sw.includes(token),`offline precache missing ${token}`);
 
@@ -101,7 +102,7 @@ assert.equal(sandbox.PokemonSleepVersionAuthority.app_build,'20260818-v04278-ai-
 
 console.log(JSON.stringify({
   status:'PASS',gate:'G13.8_V04278_AI_RESILIENCE_EVOLUTION_CONFIRMATION',
-  invalid_key_preflight_fail_fast:true,model_capability_failover:true,main_skill_level_one_preserved:true,registered_date_projection:true,
+  invalid_key_preflight_fail_fast:true,model_capability_failover:true,main_skill_level_one_preserved:true,registered_date_projection:true,registered_date_successor_split:true,
   evolution_requirement_master:{species:'小鍛匠',level:18,candy:40,target_route_invented:false},
   evolution_master_hydration:true,observation_master_conflict_fail_closed:true,multiple_route_guessing:false,json_visual_wrap_only:true,offline_precache:true,version:'v0.4.27.8',
 },null,2));

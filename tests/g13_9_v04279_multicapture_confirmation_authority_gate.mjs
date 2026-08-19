@@ -14,6 +14,9 @@ assert.ok(source.includes('profile?.header_name_text??profile?.species'));
 assert.ok(source.includes('applyEvolutionAuthority(root,draft)'));
 assert.ok(source.includes('resolveEvolutionAuthority(draft.species,rows)'));
 assert.ok(source.includes('legacy_partial_writer_disabled:true'));
+assert.ok(source.includes('registered_at:clean(identity?.registered_date)'),'successor multicapture must retain registered_date in registered_at');
+assert.ok(source.includes('obtained_at:clean(raw?.obtained_at)'),'legacy obtained_at must remain a separate field');
+assert.equal(source.includes('identity?.registered_date??raw?.obtained_at'),false,'successor multicapture must not collapse registered and legacy obtained dates');
 assert.equal(source.includes("document.addEventListener('click',safeApply,true)"),false);
 assert.ok(sw.includes("'./assets/js/data-consistency-multicapture.js'"));
 assert.ok(sw.includes("'./assets/js/analysis-confirmation-evolution-authority.js'"));
@@ -57,18 +60,20 @@ const second=normalizeRevision({
   }}
 });
 assert.equal(second.main_skill_level,1);
-assert.equal(second.obtained_at,'2026-08-18');
+assert.equal(second.registered_at,'2026-08-18');
+assert.equal(second.obtained_at,'','direct registered date must not be duplicated into legacy obtained_at');
 
 const merged=mergeDraft({source_refs:[],analysis_ids:[],subskills:[],ingredients:[],conflicts:[]},first);
 const merged2=mergeDraft(merged,second);
 assert.equal(merged2.species,'小鍛匠');
 assert.equal(merged2.main_skill,'能量填充M');
 assert.equal(merged2.main_skill_level,1,'later observed level 1 must fill prior missing value');
-assert.equal(merged2.obtained_at,'2026-08-18');
+assert.equal(merged2.registered_at,'2026-08-18');
+assert.equal(merged2.obtained_at??'','', 'blank legacy obtained_at is intentionally omitted by sparse merge');
 assert.equal(merged2.conflicts.some(row=>row.field==='main_skill_level'),false);
 assert.deepEqual([...merged2.source_refs],['a.png','b.png']);
 
 const explicitZero=mergeDraft({source_refs:[],analysis_ids:[],subskills:[],ingredients:[],conflicts:[],main_skill_level:null},{...second,main_skill_level:0});
 assert.equal(explicitZero.main_skill_level,0,'explicit numeric zero remains a valid observation');
 
-console.log(JSON.stringify({status:'PASS',gate:'G13.9_V04279_MULTICAPTURE_CONFIRMATION_AUTHORITY',species:merged2.species,main_skill_level:merged2.main_skill_level,obtained_at:merged2.obtained_at,legacy_partial_writer_disabled:true,evolution_rehydration:true},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'G13.9_V04279_MULTICAPTURE_CONFIRMATION_AUTHORITY',species:merged2.species,main_skill_level:merged2.main_skill_level,registered_at:merged2.registered_at,obtained_at:merged2.obtained_at??null,registered_date_successor_split:true,legacy_partial_writer_disabled:true,evolution_rehydration:true},null,2));
