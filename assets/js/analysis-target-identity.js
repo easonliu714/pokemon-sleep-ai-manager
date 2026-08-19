@@ -1,8 +1,9 @@
 import {rows,run,persist,snapshot,begin,commit,rollback} from './database.js';
 import {localIso} from './time-utils.js';
 
-export const ANALYSIS_TARGET_IDENTITY_VERSION='analysis-target-identity-2026-08-19-b';
-export const ANALYSIS_TARGET_CONTEXT_SCHEMA='pokemon-sleep-analysis-target-context/1.0';
+export const ANALYSIS_TARGET_IDENTITY_VERSION='analysis-target-identity-2026-08-19-c-existing-baseline';
+export const ANALYSIS_TARGET_CONTEXT_SCHEMA='pokemon-sleep-analysis-target-context/1.1';
+export const EXISTING_BASELINE_SCHEMA='pokemon-sleep-existing-pokemon-baseline/1.0';
 
 const TABLE_SQL=`CREATE TABLE IF NOT EXISTS image_analysis_target_binding(
   analysis_id TEXT PRIMARY KEY,
@@ -22,11 +23,14 @@ const uuid=prefix=>`${prefix}-${globalThis.crypto?.randomUUID?.()||`${Date.now()
 const now=()=>localIso();
 const clone=value=>value?JSON.parse(JSON.stringify(value)):null;
 const text=value=>String(value??'').trim();
+const nullable=value=>value===undefined?'':value;
+const canonicalMainSkill=value=>text(value).replace(/樹果速增/g,'樹果遽增')||null;
 const trace=(event,detail={})=>{
   const safe={...detail};
   delete safe.target_pokemon_id;
   delete safe.target_pokemon_instance_id;
   delete safe.capture_group_id;
+  delete safe.baseline_reference;
   globalThis.UpdateCenterLiveDebug?.record?.(event,safe);
   globalThis.DebugTrace?.record?.('analysis_target',event,{status:'completed',details:safe});
 };
@@ -50,6 +54,44 @@ export function listActivePokemonAnalysisTargets(){
     }));
 }
 
+export function buildExistingPokemonBaselineReference(pokemonId){
+  const row=rows('SELECT * FROM pokemon WHERE pokemon_id=?',[pokemonId])[0]||null;
+  if(!row)return null;
+  const ingredients=rows('SELECT unlock_level,ingredient_name,quantity FROM pokemon_ingredients WHERE pokemon_id=? ORDER BY unlock_level',[pokemonId])
+    .map(item=>({unlock_level:Number(item.unlock_level),ingredient_name:text(item.ingredient_name)||null,quantity:item.quantity==null?null:Number(item.quantity)}));
+  const subskills=rows('SELECT unlock_level,subskill_name,is_unlocked FROM pokemon_subskills WHERE pokemon_id=? ORDER BY unlock_level',[pokemonId])
+    .map(item=>({unlock_level:Number(item.unlock_level),subskill_name:text(item.subskill_name)||null,is_unlocked:Number(item.is_unlocked)===1}));
+  return Object.freeze({
+    schema:EXISTING_BASELINE_SCHEMA,
+    authority:'PLAYER_SQLITE_CURRENT_REFERENCE',
+    evidence_role:'REFERENCE_ONLY_NOT_IMAGE_EVIDENCE',
+    immutable_reference:true,
+    display_identity_excluded:true,
+    private_platform_ids_excluded:true,
+    species:text(row.current_species||row.species)||null,
+    level:row.level==null?null:Number(row.level),
+    sp:row.sp==null?null:Number(row.sp),
+    specialty:text(row.specialty)||null,
+    type:text(row.type)||null,
+    nature:text(row.nature)||null,
+    nature_bonus:text(row.nature_bonus)||null,
+    nature_penalty:text(row.nature_penalty)||null,
+    main_skill:canonicalMainSkill(row.main_skill),
+    main_skill_level:row.main_skill_level==null?null:Number(row.main_skill_level),
+    main_skill_description:text(row.main_skill_description)||null,
+    helper_seconds:row.helper_seconds==null?null:Number(row.helper_seconds),
+    carry_limit:row.carry_limit==null?null:Number(row.carry_limit),
+    favorite_berry:text(row.favorite_berry)||null,
+    sleep_hours:row.sleep_hours==null?null:Number(row.sleep_hours),
+    sleep_time_text:text(row.sleep_time_text)||null,
+    registered_at:text(row.registered_at)||null,
+    obtained_at:text(row.obtained_at)||null,
+    is_favorite:row.is_favorite==null?null:Boolean(Number(row.is_favorite)),
+    ingredients,
+    subskills,
+  });
+}
+
 async function ensurePokemonInstanceId(pokemonId){
   const before=rows('SELECT * FROM pokemon WHERE pokemon_id=?',[pokemonId])[0]||null;
   if(!before)throw new Error('找不到指定的既有寶可夢');
@@ -63,7 +105,7 @@ async function ensurePokemonInstanceId(pokemonId){
     run('UPDATE pokemon SET pokemon_instance_id=?,last_updated_at=?,source_update_id=? WHERE pokemon_id=?',[instanceId,at,sourceUpdateId,pokemonId]);
     const after=rows('SELECT * FROM pokemon WHERE pokemon_id=?',[pokemonId])[0];
     run('INSERT INTO pokemon_history(pokemon_id,event_at,event_type,before_json,after_json,reason,source_update_id) VALUES(?,?,?,?,?,?,?)',[
-      pokemonId,at,'platform_identity_assigned',JSON.stringify(before),JSON.stringify(after),'v0.4.27.15：為既有寶可夢建立穩定 pokemon_instance_id，供圖片更新綁定。',sourceUpdateId,
+      pokemonId,at,'platform_identity_assigned',JSON.stringify(before),JSON.stringify(after),'v0.4.27.15+：為既有寶可夢建立穩定 pokemon_instance_id，供圖片更新綁定。',sourceUpdateId,
     ]);
     commit();await persist();
     trace('analysis_target_instance_id_assigned',{mode:'existing',has_target_instance_id:true});
@@ -73,6 +115,7 @@ async function ensurePokemonInstanceId(pokemonId){
 
 export async function createExistingPokemonAnalysisContext(pokemonId){
   const row=await ensurePokemonInstanceId(pokemonId);
+  const baselineReference=buildExistingPokemonBaselineReference(row.pokemon_id);
   const context={
     schema:ANALYSIS_TARGET_CONTEXT_SCHEMA,
     version:ANALYSIS_TARGET_IDENTITY_VERSION,
@@ -82,10 +125,12 @@ export async function createExistingPokemonAnalysisContext(pokemonId){
     capture_group_id:null,
     target_species_snapshot:row.current_species||row.species||null,
     target_label_snapshot:row.original_label||row.nickname||row.current_species||row.species||null,
+    baseline_reference:baselineReference,
+    baseline_reference_provider_visible:true,
     created_at:now(),
     provider_visible:false,
   };
-  trace('analysis_target_context_created',{mode:'existing',has_target_instance_id:true,provider_visible:false});
+  trace('analysis_target_context_created',{mode:'existing',has_target_instance_id:true,provider_visible:false,baseline_reference_provider_visible:true,baseline_field_count:Object.keys(baselineReference||{}).length});
   return Object.freeze(context);
 }
 
@@ -99,17 +144,19 @@ export function createNewPokemonAnalysisContext(){
     capture_group_id:uuid('capture'),
     target_species_snapshot:null,
     target_label_snapshot:null,
+    baseline_reference:null,
+    baseline_reference_provider_visible:false,
     created_at:now(),
     provider_visible:false,
   };
-  trace('analysis_target_context_created',{mode:'new',has_capture_group:true,provider_visible:false});
+  trace('analysis_target_context_created',{mode:'new',has_capture_group:true,provider_visible:false,baseline_reference_provider_visible:false});
   return Object.freeze(context);
 }
 
 export function setActiveAnalysisTargetContext(context){
   activeContext=context?clone(context):null;
   globalThis.PokemonSleepAnalysisTargetContext=activeContext?Object.freeze(clone(activeContext)):null;
-  trace('analysis_target_context_activated',{mode:activeContext?.mode||null,active:Boolean(activeContext),provider_visible:false});
+  trace('analysis_target_context_activated',{mode:activeContext?.mode||null,active:Boolean(activeContext),provider_visible:false,baseline_reference_provider_visible:Boolean(activeContext?.baseline_reference_provider_visible)});
   return getActiveAnalysisTargetContext();
 }
 
@@ -144,6 +191,8 @@ export function resolveRevisionAnalysisTarget(revision){
     capture_group_id:row.capture_group_id||null,
     target_species_snapshot:row.target_species_snapshot||null,
     target_label_snapshot:row.target_label_snapshot||null,
+    baseline_reference:row.target_mode==='existing'&&row.target_pokemon_id?buildExistingPokemonBaselineReference(row.target_pokemon_id):null,
+    baseline_reference_provider_visible:row.target_mode==='existing',
     created_at:row.created_at,
     provider_visible:false,
   };
@@ -161,7 +210,7 @@ function bindRevisionToActiveContext(revision){
     context.target_species_snapshot,context.target_label_snapshot,context.created_at||now(),
   ]);
   persist().catch(()=>{});
-  trace('analysis_revision_platform_identity_bound',{mode:context.mode,analysis_type:revision.analysis_type||null,has_target_instance_id:Boolean(context.target_pokemon_instance_id),has_capture_group:Boolean(context.capture_group_id)});
+  trace('analysis_revision_platform_identity_bound',{mode:context.mode,analysis_type:revision.analysis_type||null,has_target_instance_id:Boolean(context.target_pokemon_instance_id),has_capture_group:Boolean(context.capture_group_id),baseline_reference_bound:Boolean(context.baseline_reference)});
 }
 
 function currentConfirmationContext(){
@@ -174,7 +223,7 @@ function ensureConfirmationIdentityNotice(root,context){
   let notice=root.querySelector('#analysisPlatformIdentityNotice');
   if(!notice){notice=document.createElement('div');notice.id='analysisPlatformIdentityNotice';notice.className='notice success';const fieldset=root.querySelector('fieldset');fieldset?.insertAdjacentElement('beforebegin',notice);}
   if(!notice)return;
-  if(context.mode==='existing')notice.innerHTML=`<strong>Platform Identity Authority</strong><br>本次確認已鎖定既有寶可夢：${text(context.target_label_snapshot||context.target_species_snapshot)||'既有成員'}。AI/OCR 名稱只做一致性查核，不可切換寫入目標。`;
+  if(context.mode==='existing')notice.innerHTML=`<strong>Platform Identity Authority</strong><br>本次確認已鎖定既有寶可夢：${text(context.target_label_snapshot||context.target_species_snapshot)||'既有成員'}。AI/OCR 名稱只做一致性查核，不可切換寫入目標。既有 SQLite 詳細資料只作唯讀 Baseline Reference；圖片未顯示的欄位不得因 Baseline 而被宣稱為新 Evidence。`;
   else notice.innerHTML='<strong>Platform Identity Authority</strong><br>本次確認已鎖定「新增寶可夢」Capture Group；人工確認完成後才建立新的 pokemon_instance_id。';
 }
 
@@ -235,6 +284,7 @@ globalThis.PokemonSleepAnalysisTargetIdentity={
   setActiveAnalysisTargetContext,
   clearActiveAnalysisTargetContext,
   getActiveAnalysisTargetContext,
+  buildExistingPokemonBaselineReference,
   analysisTargetIdentityKey,
   resolveRevisionAnalysisTarget,
   enforceConfirmationTarget,

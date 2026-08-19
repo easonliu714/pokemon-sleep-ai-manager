@@ -1,8 +1,8 @@
 (function installVersionAuthority(scope) {
   const authority = Object.freeze({
-    app_version: 'v0.4.27.15',
-    app_build: '20260819-v042715-platform-identity-doctor-transfer',
-    cache_name: 'pokemon-sleep-ai-v0.4.27.15-v042715-platform-identity-doctor-transfer',
+    app_version: 'v0.4.27.16',
+    app_build: '20260819-v042716-existing-baseline-sparse-diff',
+    cache_name: 'pokemon-sleep-ai-v0.4.27.16-v042716-existing-baseline-sparse-diff',
     schema: 'pokemon-sleep-version-authority/1.0',
   });
   Object.defineProperty(scope, 'PokemonSleepVersionAuthority', {
@@ -14,6 +14,9 @@
 })(globalThis);
 
 // Legacy CI parser bridge only; not executed and not a release authority:
+// app_version: 'v0.4.27.15'
+// app_build: '20260819-v042715-platform-identity-doctor-transfer'
+// cache_name: 'pokemon-sleep-ai-v0.4.27.15-v042715-platform-identity-doctor-transfer'
 // app_version: 'v0.4.27.14'
 // app_build: '20260819-v042714-nickname-guard-bidirectional-review'
 // cache_name: 'pokemon-sleep-ai-v0.4.27.14-v042714-nickname-guard-bidirectional-review'

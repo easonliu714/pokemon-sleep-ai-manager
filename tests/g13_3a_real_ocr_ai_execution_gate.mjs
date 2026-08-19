@@ -7,7 +7,12 @@ const diagnostic=fs.readFileSync(files[0],'utf8'),hotfix=fs.readFileSync(files[1
 for(const token of ['localOcrRuntime.recognize','cropBlob','forced_ocr_started','forced_ocr_completed','executeAiReviewQueue','createArchiveImageResolver','readBlobAsData','real_ai_analysis_started','real_ai_analysis_completed','saveAnalysisRevision','listAnalysisRevisions'])assert.ok(diagnostic.includes(token),`diagnostic_missing:${token}`);
 for(const token of ["HOTFIX_VERSION='v0.3.72'","HOTFIX_BUILD='20260803-g13-3a-real-ocr-ai-execution'",'executePreparedAiPayload','direct_real_ai_execution_requested'])assert.ok(hotfix.includes(token),`hotfix_missing:${token}`);
 for(const token of ['強制執行單張 AI 分析','await onPrepared','pokemon-sleep-ai-consent-queue/1.4-real-execution'])assert.ok(panel.includes(token),`panel_missing:${token}`);
-for(const token of ['prompt=DEFAULT_PROMPT','bypassCache=false','const cached=bypassCache?null','prompt,imageBase64'])assert.ok(executor.includes(token),`executor_missing:${token}`);
+for(const token of ['prompt=DEFAULT_PROMPT','bypassCache=false','const cached=bypassCache?null','imageBase64'])assert.ok(executor.includes(token),`executor_missing:${token}`);
+assert.ok(executor.includes('prompt,imageBase64')||executor.includes('prompt:effectivePrompt,imageBase64'),'executor_missing:prompt transport binding');
+if(executor.includes('buildExistingBaselinePrompt')){
+  assert.ok(executor.includes('const effectivePrompt=promptContext.prompt'),'baseline successor must build effective prompt');
+  assert.ok(executor.includes('prompt:effectivePrompt,imageBase64'),'baseline successor must send effective prompt with real image bytes');
+}
 for(const token of ['CREATE TABLE IF NOT EXISTS image_analysis_revision','before_analysis_revision_','supersedes_analysis_id','await persist()'])assert.ok(store.includes(token),`store_missing:${token}`);
 assert.ok(!diagnostic.includes('只在本機建立預覽與 AI Queue，絕不自動送出'),'obsolete_queue_only_text');
-console.log(JSON.stringify({ok:true,gate:'G13.3A duplicate-selectable real OCR and AI execution',version:'v0.3.72'}));
+console.log(JSON.stringify({ok:true,gate:'G13.3A duplicate-selectable real OCR and AI execution',version:'v0.3.72',baseline_prompt_successor_compatible:true}));

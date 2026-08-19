@@ -1,4 +1,4 @@
-export const AI_IMAGE_ANALYSIS_EXPORT_SCHEMA='pokemon-sleep-ai-image-analysis-export/1.1';
+export const AI_IMAGE_ANALYSIS_EXPORT_SCHEMA='pokemon-sleep-ai-image-analysis-export/1.2';
 
 const clean=value=>String(value??'').trim();
 const clone=value=>value==null?value:JSON.parse(JSON.stringify(value));
@@ -39,6 +39,8 @@ function safeTargetContext(revision){
     new_capture_group_bound:Boolean(context.capture_group_id),
     provider_visible:false,
     private_identity_values_included:false,
+    existing_baseline_reference_sent:Boolean(context.mode==='existing'&&context.baseline_reference_provider_visible&&context.baseline_reference),
+    baseline_reference_values_exported:false,
   };
 }
 
@@ -80,6 +82,9 @@ export function buildPerImageAnalysisExport({item={},revision=null,execution=nul
       analysis_json:clone(analysis),
       observation_contract_status:result?.observation_contract_status||null,
       observation_contract_warnings:clone(result?.observation_contract_warnings||[]),
+      baseline_reference_used:Boolean(result?.baseline_reference_used||execution?.outcome?.baseline_reference_used||execution?.baseline_reference_used),
+      baseline_prompt_policy_version:result?.baseline_prompt_policy_version||execution?.outcome?.baseline_prompt_policy_version||execution?.baseline_prompt_policy_version||null,
+      baseline_reference_values_exported:false,
     },
     failure:failure?redact({
       error_class:failure.error_class||failure.reason||null,
@@ -92,6 +97,7 @@ export function buildPerImageAnalysisExport({item={},revision=null,execution=nul
       screenshot_bytes_included:false,
       screenshot_base64_included:false,
       private_platform_identity_values_included:false,
+      baseline_reference_values_exported:false,
     },
   };
   return redact(exported);

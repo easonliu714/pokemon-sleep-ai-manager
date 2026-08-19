@@ -5,17 +5,16 @@ const authorityPath='assets/js/version-authority.js';
 const original=fs.readFileSync(authorityPath,'utf8');
 const current=original.match(/app_version:\s*'([^']+)'/)?.[1]||null;
 
-// v0.4.27.15 intentionally changes the identity authority and bumps the
-// per-image export schema. Replaying the v0.4.27.13 exact source contract
-// against the successor runtime would assert superseded behavior. The new
-// v0.4.27.15 contract explicitly re-checks the retained v0.4.27.14 invariants.
-if(current==='v0.4.27.15'){
+// v0.4.27.15+ intentionally changes the identity authority and export/review
+// contracts. The successor contracts explicitly re-check retained v0.4.27.14
+// invariants, so the exact v0.4.27.13 source replay is superseded here.
+if(['v0.4.27.15','v0.4.27.16'].includes(current)){
   console.log(JSON.stringify({
     status:'PASS',
     gate:'V042714_PREDECESSOR_V042713_REPLAY_SUPERSEDED',
     current_version:current,
-    superseded_by:'scripts/v042715-platform-identity-doctor-transfer-contract.mjs',
-    reason:'PLATFORM_IDENTITY_AUTHORITY_AND_PER_IMAGE_EXPORT_SCHEMA_SUCCESSOR',
+    superseded_by:current==='v0.4.27.16'?'scripts/v042716-existing-baseline-sparse-diff-contract.mjs':'scripts/v042715-platform-identity-doctor-transfer-contract.mjs',
+    reason:'SUCCESSOR_IDENTITY_AND_CONFIRMATION_CONTRACT',
   },null,2));
   process.exit(0);
 }
