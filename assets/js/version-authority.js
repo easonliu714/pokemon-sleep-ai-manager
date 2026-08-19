@@ -1,8 +1,8 @@
 (function installVersionAuthority(scope) {
   const authority = Object.freeze({
-    app_version: 'v0.4.27.16',
-    app_build: '20260819-v042716-existing-baseline-sparse-diff',
-    cache_name: 'pokemon-sleep-ai-v0.4.27.16-v042716-existing-baseline-sparse-diff',
+    app_version: 'v0.4.27.17',
+    app_build: '20260819-v042717-review-group-isolation',
+    cache_name: 'pokemon-sleep-ai-v0.4.27.17-v042717-review-group-isolation',
     schema: 'pokemon-sleep-version-authority/1.0',
   });
   Object.defineProperty(scope, 'PokemonSleepVersionAuthority', {
@@ -14,6 +14,9 @@
 })(globalThis);
 
 // Legacy CI parser bridge only; not executed and not a release authority:
+// app_version: 'v0.4.27.16'
+// app_build: '20260819-v042716-existing-baseline-sparse-diff'
+// cache_name: 'pokemon-sleep-ai-v0.4.27.16-v042716-existing-baseline-sparse-diff'
 // app_version: 'v0.4.27.15'
 // app_build: '20260819-v042715-platform-identity-doctor-transfer'
 // cache_name: 'pokemon-sleep-ai-v0.4.27.15-v042715-platform-identity-doctor-transfer'
@@ -39,8 +42,8 @@
 // app_build: '20260818-v04278-ai-resilience-evolution-master-review'
 // cache_name: 'pokemon-sleep-ai-v0.4.27.8-v04278-ai-resilience-evolution-master-review'
 // app_version: 'v0.4.27.7'
-// app_build: '20260818-v04277-g13-structured-output-current-file-ux'
-// cache_name: 'pokemon-sleep-ai-v0.4.27.7-v04277-g13-structured-output-current-file-ux'
+// app_build: '20260818-v04277-g13-structured-gemini-current-file-ux'
+// cache_name: 'pokemon-sleep-ai-v0.4.27.7-v04277-g13-structured-gemini-current-file-ux'
 // app_version: 'v0.4.27.6'
 // app_build: '20260818-v04276-g13-internal-observation-parity-progress-ux'
 // cache_name: 'pokemon-sleep-ai-v0.4.27.6-v04276-g13-internal-observation-parity-progress-ux'
