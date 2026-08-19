@@ -26,7 +26,7 @@ assert.match(worker,/app_version:APP_VERSION/,'worker activation must use centra
 assert.match(worker,/build:APP_BUILD/,'worker activation must use central build alias');
 assert.match(worker,/pokemon-sleep-version-activated/);
 assert.match(worker,/cache:'no-store'/);
-assert.match(worker,/keys\.filter\(\(key\) => key !== CACHE\)/);
+assert.match(worker,/keys\.filter\(\s*\(?key\)?\s*=>\s*key\s*!==\s*CACHE\s*\)/,'worker must delete caches other than active CACHE; formatting is not authority');
 assert.ok(index.includes('bootstrap.js'),'index must load bootstrap');
 assert.doesNotMatch(index,/bootstrap\.js\?v=v?\d+\.\d+\.\d+(?:\.\d+)?/,'index must not use semantic version literals as cache tokens');
 console.log(JSON.stringify({ok:true,gate:`${activeVersion} central version authority`,downgrade_guard:true,cache_rotated:true,hotfix_semver_supported:true,single_authority_file:true}));

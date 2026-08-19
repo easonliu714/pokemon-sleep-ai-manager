@@ -39,7 +39,7 @@ for(const required of [
 assert.ok(sw.includes('cache.addAll(ASSETS)'),'service worker install must atomically precache ASSETS');
 assert.ok(sw.includes("url.pathname.endsWith('.js')"),'same-origin JavaScript must retain network-first update semantics while online');
 assert.ok(sw.includes("fetch(event.request,{cache:'no-store'})"),'network-first JavaScript fetch must bypass stale HTTP cache');
-assert.ok(sw.includes("caches.match(event.request)"),'network failure must retain cache fallback');
+assert.ok(sw.includes("caches.match(event.request)")||sw.includes('caches.match(request,{ignoreSearch:true})'),'network failure must retain cache fallback; query-safe successor is allowed');
 
 const registry=currentProductionAuthorityRegistry();
 assert.deepEqual(registry.active_verified_dimensions,[

@@ -51,7 +51,7 @@ for(const token of ['Evaluation Snapshot Lifecycle','zero-write preflight','éœ€æ
 assert.ok(sw.includes("importScripts('./assets/js/version-authority.js')"),'service worker must use central version authority');
 assert.ok(sw.includes("url.pathname.endsWith('.js')"),'runtime JS must remain network-first');
 assert.ok(sw.includes('caches.open(CACHE).then(cache=>cache.put(event.request,copy))'),'runtime JS must be cached after online load');
-assert.ok(sw.includes('caches.match(event.request)'),'runtime JS must have offline cache fallback');
+assert.ok(sw.includes('caches.match(event.request)')||sw.includes('caches.match(request,{ignoreSearch:true})'),'runtime JS must have offline cache fallback; query-safe successor is allowed');
 assert.equal(migrations.includes('evaluation-lifecycle'),false,'v0.4.4 must not add a schema migration for lifecycle scheduling');
 
 for(const source of [planner,lifecycle,bootstrap,lifecycleUi])for(const forbidden of ['Gemini','ai-project-pool-runtime','fetch('])assert.equal(source.includes(forbidden),false,`deterministic lifecycle must not depend on provider: ${forbidden}`);
