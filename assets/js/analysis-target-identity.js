@@ -1,7 +1,7 @@
 import {rows,run,persist,snapshot,begin,commit,rollback} from './database.js';
 import {localIso} from './time-utils.js';
 
-export const ANALYSIS_TARGET_IDENTITY_VERSION='analysis-target-identity-2026-08-19-a';
+export const ANALYSIS_TARGET_IDENTITY_VERSION='analysis-target-identity-2026-08-19-b';
 export const ANALYSIS_TARGET_CONTEXT_SCHEMA='pokemon-sleep-analysis-target-context/1.0';
 
 const TABLE_SQL=`CREATE TABLE IF NOT EXISTS image_analysis_target_binding(
@@ -16,6 +16,7 @@ const TABLE_SQL=`CREATE TABLE IF NOT EXISTS image_analysis_target_binding(
 )`;
 let bindingReady=false;
 let activeContext=null;
+let confirmationObserver=null;
 
 const uuid=prefix=>`${prefix}-${globalThis.crypto?.randomUUID?.()||`${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
 const now=()=>localIso();
@@ -163,6 +164,68 @@ function bindRevisionToActiveContext(revision){
   trace('analysis_revision_platform_identity_bound',{mode:context.mode,analysis_type:revision.analysis_type||null,has_target_instance_id:Boolean(context.target_pokemon_instance_id),has_capture_group:Boolean(context.capture_group_id)});
 }
 
+function currentConfirmationContext(){
+  const state=globalThis.PokemonSleepMultiCaptureConsistency?.getState?.();
+  const active=state?.groups?.find(row=>row.id===state.active_group_id)||null;
+  return active?.identity_context||active?.draft?.analysis_target_context||null;
+}
+
+function ensureConfirmationIdentityNotice(root,context){
+  let notice=root.querySelector('#analysisPlatformIdentityNotice');
+  if(!notice){notice=document.createElement('div');notice.id='analysisPlatformIdentityNotice';notice.className='notice success';const fieldset=root.querySelector('fieldset');fieldset?.insertAdjacentElement('beforebegin',notice);}
+  if(!notice)return;
+  if(context.mode==='existing')notice.innerHTML=`<strong>Platform Identity Authority</strong><br>本次確認已鎖定既有寶可夢：${text(context.target_label_snapshot||context.target_species_snapshot)||'既有成員'}。AI/OCR 名稱只做一致性查核，不可切換寫入目標。`;
+  else notice.innerHTML='<strong>Platform Identity Authority</strong><br>本次確認已鎖定「新增寶可夢」Capture Group；人工確認完成後才建立新的 pokemon_instance_id。';
+}
+
+function enforceConfirmationTarget({beforeApply=false}={}){
+  const root=document.querySelector('#analysisConfirmationWorkbench .analysis-confirmation');
+  const context=currentConfirmationContext();
+  if(!root||!context||!['existing','new'].includes(context.mode))return false;
+  const radios=[...root.querySelectorAll('input[name="analysisTarget"]')];
+  const newRadio=radios.find(node=>node.value==='new');
+  const existingRadio=radios.find(node=>node.value==='existing');
+  const holdRadio=radios.find(node=>node.value==='hold');
+  const existingSelect=root.querySelector('#analysisExistingPokemon');
+  const holding=Boolean(holdRadio?.checked);
+  if(context.mode==='existing'){
+    if(!holding&&existingRadio)existingRadio.checked=true;
+    if(newRadio)newRadio.disabled=true;
+    if(existingRadio)existingRadio.disabled=false;
+    if(existingSelect){existingSelect.value=context.target_pokemon_id||'';existingSelect.disabled=true;}
+  }else{
+    if(!holding&&newRadio)newRadio.checked=true;
+    if(existingRadio)existingRadio.disabled=true;
+    if(newRadio)newRadio.disabled=false;
+    if(existingSelect){existingSelect.value='';existingSelect.disabled=true;}
+  }
+  if(holdRadio)holdRadio.disabled=false;
+  ensureConfirmationIdentityNotice(root,context);
+  if(beforeApply&&holding)trace('analysis_confirmation_platform_target_hold',{mode:context.mode});
+  else if(beforeApply)trace('analysis_confirmation_platform_target_enforced',{mode:context.mode,platform_identity_authority:true});
+  return true;
+}
+
+function bindConfirmationEnforcement(){
+  if(typeof document==='undefined'||confirmationObserver)return;
+  const schedule=()=>setTimeout(()=>enforceConfirmationTarget(),0);
+  confirmationObserver=new MutationObserver(schedule);
+  confirmationObserver.observe(document.documentElement,{subtree:true,childList:true});
+  document.addEventListener('change',event=>{
+    const node=event.target;if(!(node instanceof HTMLInputElement)||node.name!=='analysisTarget')return;
+    const context=currentConfirmationContext();if(!context)return;
+    if(node.value==='hold')return;
+    if(context.mode==='existing'&&node.value!=='existing')enforceConfirmationTarget();
+    if(context.mode==='new'&&node.value!=='new')enforceConfirmationTarget();
+  },true);
+  document.addEventListener('click',event=>{
+    const target=event.target instanceof Element?event.target.closest('#applyConfirmedAnalysis'):null;
+    if(target)enforceConfirmationTarget({beforeApply:true});
+  },true);
+  globalThis.addEventListener?.('pokemon-sleep:analysis-confirmation-group-selected',schedule);
+  globalThis.addEventListener?.('pokemon-sleep:analysis-confirmation-merged',schedule);
+}
+
 globalThis.addEventListener?.('pokemon-sleep:analysis-revision-saved',event=>bindRevisionToActiveContext(event.detail?.revision||event.detail||null));
 globalThis.PokemonSleepAnalysisTargetIdentity={
   version:ANALYSIS_TARGET_IDENTITY_VERSION,
@@ -174,6 +237,8 @@ globalThis.PokemonSleepAnalysisTargetIdentity={
   getActiveAnalysisTargetContext,
   analysisTargetIdentityKey,
   resolveRevisionAnalysisTarget,
+  enforceConfirmationTarget,
 };
+bindConfirmationEnforcement();
 
 export {TABLE_SQL};
