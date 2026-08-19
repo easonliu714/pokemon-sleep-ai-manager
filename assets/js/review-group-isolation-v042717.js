@@ -1,4 +1,5 @@
 export const REVIEW_GROUP_ISOLATION_VERSION='v0.4.27.17-group-bound-snapshot-2026-08-19-a';
+export const REVIEW_GROUP_SNAPSHOT_SOURCE_RESYNC_MARKER='v042717_snapshot_source_resync';
 
 const clone=value=>value==null?value:JSON.parse(JSON.stringify(value));
 
