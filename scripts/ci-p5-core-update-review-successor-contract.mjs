@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import {validateWorkflow} from '../assets/js/ai-workflow.js';
 import {buildScenarioReviewSummary} from '../assets/js/update-review-summary.js';
 
-export const CI_P5_CORE_UPDATE_REVIEW_SUCCESSOR_VERSION='ci-p5-core-update-review-successor-2026-08-15-a';
+export const CI_P5_CORE_UPDATE_REVIEW_SUCCESSOR_VERSION='ci-p5-core-update-review-successor-2026-08-19-b-registered-date-compat';
 export const PREDECESSOR_RUNTIME_FIXTURE=Object.freeze({
   workflow:'v0399-human-readable-diff-review.yml',
   historical_runtime:'v0.4.1',
@@ -89,8 +89,11 @@ assert.ok(UI.includes("sleep_time_text:['一起睡覺的時間']"),'sleep displa
 assert.ok(CSS.includes('review-detail-grid'),'human-readable review grid missing');
 assert.ok(CSS.includes('no-player-change'),'no-player-change review state missing');
 
-assert.ok(DETAIL.includes("['登錄日期',p.registered_at]"),'registered date display missing');
-assert.equal(DETAIL.includes("['入手日期',p.obtained_at]"),false,'legacy obtained_at must not render in Pokemon detail');
+// v0.4.27.12 keeps registered_at as the writable/display authority while allowing old rows
+// that only have obtained_at to remain visible. The legacy field must not return as a
+// separately editable/displayed field and manual-editor must still preserve it untouched.
+assert.ok(DETAIL.includes("['登錄日期',p.registered_at||p.obtained_at]"),'registered date display with legacy compatibility fallback missing');
+assert.equal(DETAIL.includes("['入手日期',p.obtained_at]"),false,'legacy obtained_at must not render as a separate Pokemon detail field');
 assert.equal(DETAIL.includes("input('obtained_at'"),false,'legacy obtained_at must not remain in manual detail editor');
 assert.equal(MANUAL.includes("'obtained_at'"),false,'manual editor must preserve legacy obtained_at rather than overwrite it');
 for(const token of ['resolvePublicMainSkillName','PUBLIC_MAIN_SKILL_MASTER','mainSkillDisplay(p,knowledge)','mainSkillDescriptionDisplay(p,knowledge)','原始玩家觀察值仍保留於 SQLite','個體／匯入條件優先','公版進化條件','公版引用'])assert.ok(DETAIL.includes(token),`Pokemon detail successor missing token: ${token}`);
@@ -114,6 +117,7 @@ console.log(JSON.stringify({
   scenario_review_summary:true,
   human_readable_review:true,
   game_native_sleep_semantics:true,
+  registered_date_legacy_display_fallback:true,
   non_executable_manifest_guard:true,
   repository_mutation:false,
 },null,2));
