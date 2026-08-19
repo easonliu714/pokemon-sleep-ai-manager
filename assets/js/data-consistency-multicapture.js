@@ -26,7 +26,7 @@ const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&
 const blank=value=>value===null||value===undefined||value===''||(Array.isArray(value)&&value.length===0);
 const clone=value=>JSON.parse(JSON.stringify(value));
 const nowIso=()=>new Date().toISOString();
-const emptyDraft=()=>({source_refs:[],analysis_ids:[],subskills:[],ingredients:[],conflicts:[],conflicted_fields:[],identity_guard_warnings:[],analysis_target_context:null});
+const emptyDraft=()=>({source_refs:[],analysis_ids:[],subskills:[],ingredients:[],conflicts:[],conflicted_fields:[],identity_guard_warnings:[],analysis_target_context:null,baseline_reference_status:null,baseline_hydrated_fields:[]});
 const trace=(event,detail={})=>{globalThis.UpdateCenterLiveDebug?.record?.(event,detail);globalThis.DebugTrace?.record?.('ai_review',event,{status:'completed',details:detail});};
 
 const firstNonblank=(...values)=>{for(const value of values){const result=clean(value);if(result)return result;}return '';};
@@ -72,7 +72,7 @@ function normalizeRevision(revision){
   const targetContext=resolveRevisionAnalysisTarget(revision);
   if(revision?.analysis_type!=='ai'){
     const regions=Array.isArray(raw?.regions)?raw.regions:Array.isArray(raw)?raw:[];
-    return {species:targetContext?.mode==='existing'?clean(targetContext.target_species_snapshot):'',nickname:'',level:null,sp:null,specialty:'',type:'',nature:'',nature_bonus:'',nature_penalty:'',main_skill:'',main_skill_level:null,main_skill_description:'',helper_seconds:null,carry_limit:null,favorite_berry:'',sleep_hours:null,sleep_time_text:'',registered_at:'',obtained_at:'',is_favorite:null,confidence:null,subskills:[],ingredients:[],source_text:regions.map(row=>`${row.name||row.region||'區域'}\n${row.text||row.ocr_text||''}`).join('\n\n'),source_refs:[revision?.source_image_ref].filter(Boolean),analysis_ids:[revision?.analysis_id].filter(Boolean),conflicts:[],conflicted_fields:[],identity_guard_warnings:[],analysis_target_context:targetContext};
+    return {species:targetContext?.mode==='existing'?clean(targetContext.target_species_snapshot):'',nickname:'',level:null,sp:null,specialty:'',type:'',nature:'',nature_bonus:'',nature_penalty:'',main_skill:'',main_skill_level:null,main_skill_description:'',helper_seconds:null,carry_limit:null,favorite_berry:'',sleep_hours:null,sleep_time_text:'',registered_at:'',obtained_at:'',is_favorite:null,confidence:null,subskills:[],ingredients:[],source_text:regions.map(row=>`${row.name||row.region||'區域'}\n${row.text||row.ocr_text||''}`).join('\n\n'),source_refs:[revision?.source_image_ref].filter(Boolean),analysis_ids:[revision?.analysis_id].filter(Boolean),conflicts:[],conflicted_fields:[],identity_guard_warnings:[],analysis_target_context:targetContext,baseline_reference_status:null,baseline_hydrated_fields:[]};
   }
   const observation=Array.isArray(raw?.observations)?raw.observations[0]||{}:{};
   const profile=observation?.profile||{};
@@ -115,10 +115,13 @@ function normalizeRevision(revision){
     conflicted_fields:[],
     identity_guard_warnings:identityGuardWarnings,
     analysis_target_context:targetContext,
+    baseline_reference_status:null,
+    baseline_hydrated_fields:[],
   };
 }
 
 const MERGE_FIELDS=['species','nickname','level','sp','specialty','type','nature','nature_bonus','nature_penalty','main_skill','main_skill_level','main_skill_description','helper_seconds','carry_limit','favorite_berry','sleep_hours','sleep_time_text','registered_at','obtained_at','is_favorite','confidence'];
+const BASELINE_SCALAR_FIELDS=['species','level','sp','specialty','type','nature','nature_bonus','nature_penalty','main_skill','main_skill_level','main_skill_description','helper_seconds','carry_limit','favorite_berry','sleep_hours','sleep_time_text','registered_at','obtained_at','is_favorite'];
 function addConflict(out,field,existing,incoming){
   const current=(out.conflicts||[]).find(row=>row.field===field);
   const values=[];
@@ -130,7 +133,7 @@ function addConflict(out,field,existing,incoming){
   out.conflicted_fields=[...new Set([...(out.conflicted_fields||[]),field])];
 }
 function mergeDraft(base,next){
-  const out={...base,conflicts:[...(base.conflicts||[])],conflicted_fields:[...(base.conflicted_fields||[])],identity_guard_warnings:[...(base.identity_guard_warnings||[])]};
+  const out={...base,conflicts:[...(base.conflicts||[])],conflicted_fields:[...(base.conflicted_fields||[])],identity_guard_warnings:[...(base.identity_guard_warnings||[])],baseline_hydrated_fields:[]};
   for(const key of MERGE_FIELDS){
     if(blank(next[key]))continue;
     if(out.conflicted_fields.includes(key)){addConflict(out,key,null,next[key]);out[key]=null;continue;}
@@ -180,9 +183,33 @@ function getNavigationState(){
     next_group_id:next?.id||null,
   };
 }
+function publishNavigation(reason='navigation_changed'){
+  const detail={...getNavigationState(),reason};
+  globalThis.dispatchEvent(new CustomEvent('pokemon-sleep:analysis-confirmation-navigation-changed',{detail}));
+  trace('confirmation_navigation_changed',{reason,position:detail.position,total:detail.total,pending_count:detail.pending_count,has_previous:detail.has_previous,has_next:detail.has_next});
+  return detail;
+}
 function shouldStartNewGroupForRevision(current,incoming){const currentSpecies=clean(current?.species),incomingSpecies=clean(incoming?.species);return Boolean((current?.source_refs?.length||0)>0&&currentSpecies&&incomingSpecies&&currentSpecies!==incomingSpecies);}
 function resolveEvolutionDraftAuthority(draft){return resolveEvolutionAuthority(draft.species,rows);}
-function hydratedDraft(group){return hydrateEvolutionDraft(group?.draft||emptyDraft(),resolveEvolutionDraftAuthority(group?.draft||emptyDraft()));}
+function overlayExistingBaseline(draft,context){
+  const out=clone(draft||emptyDraft());
+  const baseline=context?.mode==='existing'?context?.baseline_reference:null;
+  if(!baseline)return out;
+  const hydrated=[];
+  for(const field of BASELINE_SCALAR_FIELDS){
+    if(blank(out[field])&&!blank(baseline[field])){out[field]=clone(baseline[field]);hydrated.push(field);}
+  }
+  if((!out.ingredients||out.ingredients.length===0)&&Array.isArray(baseline.ingredients)&&baseline.ingredients.length){out.ingredients=clone(baseline.ingredients);hydrated.push('ingredients');}
+  if((!out.subskills||out.subskills.length===0)&&Array.isArray(baseline.subskills)&&baseline.subskills.length){out.subskills=clone(baseline.subskills);hydrated.push('subskills');}
+  out.baseline_reference_status='REFERENCE_OVERLAY_ACTIVE';
+  out.baseline_hydrated_fields=[...new Set(hydrated)];
+  out.analysis_target_context=context?clone(context):out.analysis_target_context;
+  return out;
+}
+function hydratedDraft(group){
+  const overlaid=overlayExistingBaseline(group?.draft||emptyDraft(),group?.identity_context||group?.draft?.analysis_target_context||null);
+  return hydrateEvolutionDraft(overlaid,resolveEvolutionDraftAuthority(overlaid));
+}
 function dispatchSelected(group,reason='selected'){
   const navigation=getNavigationState();
   const detail=group?{group_id:group.id,status:group.status,reason,revision:group.latest_revision?clone(group.latest_revision):null,draft:clone(hydratedDraft(group)),identity_context:group.identity_context?clone(group.identity_context):null,pending_count:navigation.pending_count,navigation}:{group_id:null,status:'empty',reason,revision:null,draft:null,identity_context:null,pending_count:0,navigation};
@@ -192,7 +219,7 @@ function dispatchSelected(group,reason='selected'){
 function selectGroup(groupId,{reason='manual_select'}={}){
   const next=groups.get(groupId);if(!next||next.status==='closed')return null;
   const current=activeGroup();if(current&&current.id!==next.id)current.status='pending';
-  next.status='active';next.updated_at=nowIso();activeGroupId=next.id;dispatchSelected(next,reason);setTimeout(renderGroupNotice,0);return next;
+  next.status='active';next.updated_at=nowIso();activeGroupId=next.id;dispatchSelected(next,reason);publishNavigation(reason);setTimeout(renderGroupNotice,0);return next;
 }
 function replaceActiveDraft(draft,{reason='manual_navigation_snapshot'}={}){
   const current=activeGroup();if(!current||!draft)return null;
@@ -203,6 +230,8 @@ function replaceActiveDraft(draft,{reason='manual_navigation_snapshot'}={}){
     conflicted_fields:[...(current.draft?.conflicted_fields||[])],
     identity_guard_warnings:[...(current.draft?.identity_guard_warnings||[])],
     analysis_target_context:current.identity_context?clone(current.identity_context):null,
+    baseline_reference_status:null,
+    baseline_hydrated_fields:[],
   };
   current.draft={...current.draft,...clone(draft),...metadata};
   current.updated_at=nowIso();
@@ -224,6 +253,7 @@ function navigateReviewGroup(offset,{reason=null,createIfEmpty=false}={}){
     trace('confirmation_group_navigated',{direction:'next_new_group',group_id:selected?.id||null,reason,pending_count:pendingGroups().length});
     return selected;
   }
+  publishNavigation(reason||'navigation_boundary');
   trace('confirmation_group_navigation_boundary',{direction:step<0?'previous':'next',active_group_id:activeGroupId,reason});
   return null;
 }
@@ -240,7 +270,7 @@ function closeActiveGroup(reason='terminal'){
   const ordered=openGroups();
   const next=(order==null?ordered[0]:ordered.find(row=>row.order>order))||ordered[0]||null;
   if(next)return selectGroup(next.id,{reason:`after_${reason}`});
-  dispatchSelected(null,`after_${reason}`);return null;
+  dispatchSelected(null,`after_${reason}`);publishNavigation(`after_${reason}`);return null;
 }
 function findGroupForRevision(revision,incoming){
   const targetContext=resolveRevisionAnalysisTarget(revision)||incoming?.analysis_target_context||null;
@@ -257,15 +287,25 @@ function findGroupForRevision(revision,incoming){
   }
   return createGroup({status:current?'pending':'active'});
 }
+function requestActiveDraftSnapshot(reason){
+  globalThis.dispatchEvent(new CustomEvent('pokemon-sleep:analysis-confirmation-snapshot-request',{detail:{reason,active_group_id:activeGroupId}}));
+  trace('confirmation_group_snapshot_requested',{reason,active_group_id:activeGroupId});
+}
 function upsertRevision(revision){
   const incoming=normalizeRevision(revision),target=findGroupForRevision(revision,incoming);
   if(!target.identity_context&&incoming.analysis_target_context){target.identity_context=clone(incoming.analysis_target_context);target.identity_key=analysisTargetIdentityKey(target.identity_context);}
   target.draft=mergeDraft(target.draft,incoming);target.latest_revision={...revision,identity_context:target.identity_context?clone(target.identity_context):revision.identity_context||null};target.revisions.push(target.latest_revision);target.updated_at=nowIso();
-  const hadActive=Boolean(activeGroupId);
-  if(!hadActive||target.id===activeGroupId){if(!hadActive){activeGroupId=target.id;target.status='active';dispatchSelected(target,'first_revision');}else globalThis.dispatchEvent(new CustomEvent('pokemon-sleep:analysis-confirmation-merged',{detail:{group_id:target.id,status:target.status,revision:clone(target.latest_revision),draft:clone(hydratedDraft(target)),identity_context:target.identity_context?clone(target.identity_context):null,pending_count:pendingGroups().length,navigation:getNavigationState()}}));}
-  else trace('confirmation_group_queued',{group_id:target.id,active_group_id:activeGroupId,species:target.draft?.species||null,pending_count:pendingGroups().length,target_mode:target.identity_context?.mode||'legacy'});
+  const hadActive=Boolean(activeGroupId),differentPlatformTarget=Boolean(target.identity_key&&hadActive&&target.id!==activeGroupId);
+  if(differentPlatformTarget){
+    requestActiveDraftSnapshot('platform_target_new_run_focus');
+    selectGroup(target.id,{reason:'platform_target_new_run_focus'});
+    trace('confirmation_group_auto_focused',{group_id:target.id,target_mode:target.identity_context?.mode||null,reason:'platform_target_new_run_focus'});
+  }else if(!hadActive||target.id===activeGroupId){
+    if(!hadActive){activeGroupId=target.id;target.status='active';dispatchSelected(target,'first_revision');publishNavigation('first_revision');}
+    else {globalThis.dispatchEvent(new CustomEvent('pokemon-sleep:analysis-confirmation-merged',{detail:{group_id:target.id,status:target.status,revision:clone(target.latest_revision),draft:clone(hydratedDraft(target)),identity_context:target.identity_context?clone(target.identity_context):null,pending_count:pendingGroups().length,navigation:getNavigationState()}}));publishNavigation('revision_merged');}
+  }else {trace('confirmation_group_queued',{group_id:target.id,active_group_id:activeGroupId,species:target.draft?.species||null,pending_count:pendingGroups().length,target_mode:target.identity_context?.mode||'legacy'});publishNavigation('group_queued');}
   setTimeout(renderGroupNotice,0);
-  trace('multicapture_revision_merged',{group_id:target.id,active_group_id:activeGroupId,source_count:target.draft.source_refs.length,analysis_count:target.draft.analysis_ids.length,conflict_count:target.draft.conflicts.length,conflicted_field_count:target.draft.conflicted_fields.length,identity_guard_warning_count:target.draft.identity_guard_warnings.length,main_skill_level:target.draft.main_skill_level??null,species:target.draft.species||null,evolution_rehydration:true,legacy_partial_writer_disabled:true,platform_identity_authority:Boolean(target.identity_key),target_mode:target.identity_context?.mode||'legacy'});
+  trace('multicapture_revision_merged',{group_id:target.id,active_group_id:activeGroupId,source_count:target.draft.source_refs.length,analysis_count:target.draft.analysis_ids.length,conflict_count:target.draft.conflicts.length,conflicted_field_count:target.draft.conflicted_fields.length,identity_guard_warning_count:target.draft.identity_guard_warnings.length,main_skill_level:target.draft.main_skill_level??null,species:target.draft.species||null,evolution_rehydration:true,legacy_partial_writer_disabled:true,platform_identity_authority:Boolean(target.identity_key),target_mode:target.identity_context?.mode||'legacy',existing_baseline_overlay:Boolean(target.identity_context?.mode==='existing'&&target.identity_context?.baseline_reference)});
   return target;
 }
 
@@ -274,19 +314,19 @@ function renderGroupNotice(){
   let panel=root.querySelector('#captureGroupStatus');
   if(!panel){panel=document.createElement('section');panel.id='captureGroupStatus';panel.className='notice';root.querySelector('header')?.insertAdjacentElement('afterend',panel);}
   const current=activeGroup();if(!current){panel.remove();return;}
-  const data=current.draft,navigation=getNavigationState(),context=current.identity_context;
+  const data=hydratedDraft(current),navigation=getNavigationState(),context=current.identity_context;
   const targetLabel=context?.mode==='existing'?`既有成員：${esc(context.target_label_snapshot||context.target_species_snapshot||'已綁定個體')}`:context?.mode==='new'?'新增寶可夢：平台 Capture Group':'Legacy／未綁定模式';
-  panel.innerHTML=`<b>同一寶可夢多截圖群組</b><br><b>Identity Authority：</b>${targetLabel}<br>目前：${navigation.position}/${navigation.total||1}；來源圖片：${data.source_refs?.length||0}；分析 revision：${data.analysis_ids?.length||0}；衝突：${data.conflicts?.length||0}；待確認群組：${navigation.pending_count}<br><small>${(data.source_refs||[]).map(esc).join('、')||'尚無來源'}</small>${data.identity_guard_warnings?.length?`<div class="notice pending"><b>Identity Guard</b><br>${data.identity_guard_warnings.map(row=>esc(row.message)).join('<br>')}</div>`:''}${data.conflicts?.length?`<details open><summary>欄位衝突：已 Fail-Closed，請人工選擇正確值</summary><pre>${esc(JSON.stringify(data.conflicts,null,2))}</pre></details>`:''}`;
+  panel.innerHTML=`<b>同一寶可夢多截圖群組</b><br><b>Identity Authority：</b>${targetLabel}<br>目前：${navigation.position}/${navigation.total||1}；來源圖片：${current.draft.source_refs?.length||0}；分析 revision：${current.draft.analysis_ids?.length||0}；衝突：${current.draft.conflicts?.length||0}；待確認群組：${navigation.pending_count}<br><small>${(current.draft.source_refs||[]).map(esc).join('、')||'尚無來源'}</small>${data.baseline_reference_status==='REFERENCE_OVERLAY_ACTIVE'&&data.baseline_hydrated_fields?.length?`<div class="notice success"><b>Existing Baseline Reference</b><br>目前資料庫值已補入人工確認畫面：${data.baseline_hydrated_fields.map(esc).join('、')}。這些值只是 review default，不會因此成為新圖片 Evidence；維持不變即不更新。</div>`:''}${current.draft.identity_guard_warnings?.length?`<div class="notice pending"><b>Identity Guard</b><br>${current.draft.identity_guard_warnings.map(row=>esc(row.message)).join('<br>')}</div>`:''}${current.draft.conflicts?.length?`<details open><summary>欄位衝突：已 Fail-Closed，Baseline 只供參考，請人工選擇正確值</summary><pre>${esc(JSON.stringify(current.draft.conflicts,null,2))}</pre></details>`:''}`;
 }
 
 globalThis.addEventListener('pokemon-sleep:analysis-revision-saved',event=>upsertRevision(event.detail?.revision||event.detail||{}));
 globalThis.addEventListener('pokemon-sleep:analysis-confirmation-terminal',event=>closeActiveGroup(event?.detail?.reason||'confirmation_terminal'));
 
 globalThis.PokemonSleepMultiCaptureConsistency={
-  normalizeRevision,mergeDraft,shouldStartNewGroupForRevision,upsertRevision,selectGroup,replaceActiveDraft,navigateReviewGroup,advanceReviewGroup,closeActiveGroup,getNavigationState,
+  normalizeRevision,mergeDraft,overlayExistingBaseline,shouldStartNewGroupForRevision,upsertRevision,selectGroup,replaceActiveDraft,navigateReviewGroup,advanceReviewGroup,closeActiveGroup,getNavigationState,publishNavigation,
   getState:()=>({active_group_id:activeGroupId,groups:[...groups.values()].map(clone),navigation:getNavigationState()}),
 };
 
-globalThis.UpdateCenterLiveDebug?.record?.('data_consistency_multicapture_ready',{version:VERSION,build:BUILD,patch_semantics:true,null_safe_numeric:true,observation_v2:true,evolution_rehydration:true,legacy_partial_writer_disabled:true,navigable_review_groups:true,bidirectional_review_navigation:true,nickname_fail_closed:true,platform_identity_authority:true,cross_image_conflict_fail_closed:true});
+globalThis.UpdateCenterLiveDebug?.record?.('data_consistency_multicapture_ready',{version:VERSION,build:BUILD,patch_semantics:true,null_safe_numeric:true,observation_v2:true,evolution_rehydration:true,legacy_partial_writer_disabled:true,navigable_review_groups:true,bidirectional_review_navigation:true,nickname_fail_closed:true,platform_identity_authority:true,cross_image_conflict_fail_closed:true,existing_baseline_review_overlay:true,live_navigation_sync:true,platform_target_auto_focus:true});
 
-export {VERSION,BUILD,normalizeRevision,mergeDraft,shouldStartNewGroupForRevision,upsertRevision,selectGroup,replaceActiveDraft,navigateReviewGroup,advanceReviewGroup,closeActiveGroup,getNavigationState};
+export {VERSION,BUILD,normalizeRevision,mergeDraft,overlayExistingBaseline,shouldStartNewGroupForRevision,upsertRevision,selectGroup,replaceActiveDraft,navigateReviewGroup,advanceReviewGroup,closeActiveGroup,getNavigationState,publishNavigation};
