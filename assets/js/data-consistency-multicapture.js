@@ -1,5 +1,6 @@
 import {rows} from './database.js';
 import {resolveEvolutionAuthority,hydrateEvolutionDraft,evolutionAuthorityLabel} from './analysis-confirmation-evolution-authority.js';
+import {resolveRevisionAnalysisTarget,analysisTargetIdentityKey} from './analysis-target-identity.js';
 
 const VERSION=globalThis.PokemonSleepVersionAuthority?.app_version||'unknown';
 const BUILD=globalThis.PokemonSleepVersionAuthority?.app_build||'unknown';
@@ -25,14 +26,15 @@ const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&
 const blank=value=>value===null||value===undefined||value===''||(Array.isArray(value)&&value.length===0);
 const clone=value=>JSON.parse(JSON.stringify(value));
 const nowIso=()=>new Date().toISOString();
-const emptyDraft=()=>({source_refs:[],analysis_ids:[],subskills:[],ingredients:[],conflicts:[],identity_guard_warnings:[]});
+const emptyDraft=()=>({source_refs:[],analysis_ids:[],subskills:[],ingredients:[],conflicts:[],conflicted_fields:[],identity_guard_warnings:[],analysis_target_context:null});
 const trace=(event,detail={})=>{globalThis.UpdateCenterLiveDebug?.record?.(event,detail);globalThis.DebugTrace?.record?.('ai_review',event,{status:'completed',details:detail});};
 
 const firstNonblank=(...values)=>{for(const value of values){const result=clean(value);if(result)return result;}return '';};
 // Legacy static-contract parser bridge only; not runtime authority: profile?.header_name_text??profile?.species
 function resolveObservedSpecies({raw={},observation={}}={}){
   const profile=observation?.profile||{},identity=observation?.identity||{};
-  return firstNonblank(profile.species,raw?.pokemon_name,profile.header_name_text,identity.current_species_id,identity.capture_species_id);
+  if(Array.isArray(raw?.observations))return firstNonblank(profile.species,identity.current_species_id,identity.capture_species_id);
+  return firstNonblank(profile.species,raw?.pokemon_name,identity.current_species_id,identity.capture_species_id);
 }
 function resolveObservedNickname({raw={},observation={},species=null}={}){
   const profile=observation?.profile||{},candidate=firstNonblank(profile.nickname,raw?.nickname);
@@ -41,9 +43,14 @@ function resolveObservedNickname({raw={},observation={},species=null}={}){
   if(basis!=='DIRECT_EXPLICIT_NICKNAME_FIELD')return {value:'',candidate,status:'REJECTED_UNPROVEN',reason:'NICKNAME_REQUIRES_DIRECT_EXPLICIT_FIELD',compared_species:clean(species)||null,header_name_text:clean(profile.header_name_text)||null};
   return {value:candidate,candidate,status:'ACCEPTED_DIRECT_EXPLICIT_FIELD',reason:null};
 }
-function buildIdentityGuardWarnings({nicknameResult}={}){
-  if(!nicknameResult||!nicknameResult.candidate||nicknameResult.value)return [];
-  return [{field:'nickname',candidate:nicknameResult.candidate,status:nicknameResult.status,reason:nicknameResult.reason,message:'暱稱缺少獨立直接證據，平台已留空，避免由頁首名稱／物種名稱或其他圖片自行補值。'}];
+function buildIdentityGuardWarnings({nicknameResult,observedSpecies=null,targetContext=null}={}){
+  const warnings=[];
+  if(nicknameResult?.candidate&&!nicknameResult.value)warnings.push({field:'nickname',candidate:nicknameResult.candidate,status:nicknameResult.status,reason:nicknameResult.reason,message:'暱稱缺少獨立直接證據，平台已留空，避免由頁首名稱／物種名稱或其他圖片自行補值。'});
+  const targetSpecies=clean(targetContext?.target_species_snapshot),incomingSpecies=clean(observedSpecies);
+  if(targetContext?.mode==='existing'&&targetSpecies&&incomingSpecies&&targetSpecies!==incomingSpecies){
+    warnings.push({field:'species',candidate:incomingSpecies,status:'REVIEW_ONLY_MISMATCH',reason:'OBSERVED_SPECIES_DIFFERS_BOUND_TARGET',message:`圖片辨識物種「${incomingSpecies}」與已綁定既有寶可夢「${targetSpecies}」不同；平台仍以 pokemon_instance_id 為目標，不切換個體。`});
+  }
+  return warnings;
 }
 
 function normalizeSubskills(value){
@@ -62,19 +69,21 @@ function normalizeIngredients(value){
 }
 function normalizeRevision(revision){
   const raw=revision?.result?.analysis??revision?.result??{};
+  const targetContext=resolveRevisionAnalysisTarget(revision);
   if(revision?.analysis_type!=='ai'){
     const regions=Array.isArray(raw?.regions)?raw.regions:Array.isArray(raw)?raw:[];
-    return {species:'',nickname:'',level:null,sp:null,specialty:'',type:'',nature:'',nature_bonus:'',nature_penalty:'',main_skill:'',main_skill_level:null,main_skill_description:'',helper_seconds:null,carry_limit:null,favorite_berry:'',sleep_hours:null,sleep_time_text:'',registered_at:'',obtained_at:'',is_favorite:null,confidence:null,subskills:[],ingredients:[],source_text:regions.map(row=>`${row.name||row.region||'區域'}\n${row.text||row.ocr_text||''}`).join('\n\n'),source_refs:[revision?.source_image_ref].filter(Boolean),analysis_ids:[revision?.analysis_id].filter(Boolean),conflicts:[],identity_guard_warnings:[]};
+    return {species:targetContext?.mode==='existing'?clean(targetContext.target_species_snapshot):'',nickname:'',level:null,sp:null,specialty:'',type:'',nature:'',nature_bonus:'',nature_penalty:'',main_skill:'',main_skill_level:null,main_skill_description:'',helper_seconds:null,carry_limit:null,favorite_berry:'',sleep_hours:null,sleep_time_text:'',registered_at:'',obtained_at:'',is_favorite:null,confidence:null,subskills:[],ingredients:[],source_text:regions.map(row=>`${row.name||row.region||'區域'}\n${row.text||row.ocr_text||''}`).join('\n\n'),source_refs:[revision?.source_image_ref].filter(Boolean),analysis_ids:[revision?.analysis_id].filter(Boolean),conflicts:[],conflicted_fields:[],identity_guard_warnings:[],analysis_target_context:targetContext};
   }
   const observation=Array.isArray(raw?.observations)?raw.observations[0]||{}:{};
   const profile=observation?.profile||{};
   const identity=observation?.identity||{};
   const rawNature=raw?.nature;
   const favoriteValue=observation?.is_favorite??raw?.is_favorite;
-  const species=resolveObservedSpecies({raw,observation});
+  const observedSpecies=resolveObservedSpecies({raw,observation});
+  const species=targetContext?.mode==='existing'&&clean(targetContext.target_species_snapshot)?clean(targetContext.target_species_snapshot):observedSpecies;
   const nicknameResult=resolveObservedNickname({raw,observation,species});
-  const identityGuardWarnings=buildIdentityGuardWarnings({nicknameResult});
-  if(identityGuardWarnings.length)trace('analysis_identity_guard_rejected',{analysis_id:revision?.analysis_id||null,source_image_ref:revision?.source_image_ref||null,field:'nickname',candidate:nicknameResult.candidate,reason:nicknameResult.reason,species});
+  const identityGuardWarnings=buildIdentityGuardWarnings({nicknameResult,observedSpecies,targetContext});
+  if(identityGuardWarnings.length)trace('analysis_identity_guard_rejected',{analysis_id:revision?.analysis_id||null,source_image_ref:revision?.source_image_ref||null,warning_count:identityGuardWarnings.length,target_mode:targetContext?.mode||'legacy'});
   return {
     species:clean(species),
     nickname:clean(nicknameResult.value),
@@ -103,33 +112,55 @@ function normalizeRevision(revision){
     source_refs:[revision?.source_image_ref].filter(Boolean),
     analysis_ids:[revision?.analysis_id].filter(Boolean),
     conflicts:[],
+    conflicted_fields:[],
     identity_guard_warnings:identityGuardWarnings,
+    analysis_target_context:targetContext,
   };
 }
 
 const MERGE_FIELDS=['species','nickname','level','sp','specialty','type','nature','nature_bonus','nature_penalty','main_skill','main_skill_level','main_skill_description','helper_seconds','carry_limit','favorite_berry','sleep_hours','sleep_time_text','registered_at','obtained_at','is_favorite','confidence'];
+function addConflict(out,field,existing,incoming){
+  const current=(out.conflicts||[]).find(row=>row.field===field);
+  const values=[];
+  for(const value of [current?.candidates?.length?current.candidates:null,current?.existing,current?.incoming,existing,incoming].flat().filter(value=>value!==undefined&&value!==null&&value!=='')){
+    if(!values.some(item=>JSON.stringify(item)===JSON.stringify(value)))values.push(clone(value));
+  }
+  out.conflicts=(out.conflicts||[]).filter(row=>row.field!==field);
+  out.conflicts.push({field,status:'REVIEW_REQUIRED_CROSS_IMAGE_CONFLICT',candidates:values,existing:values[0]??null,incoming:values[1]??null});
+  out.conflicted_fields=[...new Set([...(out.conflicted_fields||[]),field])];
+}
 function mergeDraft(base,next){
-  const out={...base};const conflicts=[];
+  const out={...base,conflicts:[...(base.conflicts||[])],conflicted_fields:[...(base.conflicted_fields||[])],identity_guard_warnings:[...(base.identity_guard_warnings||[])]};
   for(const key of MERGE_FIELDS){
     if(blank(next[key]))continue;
-    if(blank(out[key]))out[key]=next[key];
-    else if(String(out[key])!==String(next[key]))conflicts.push({field:key,existing:out[key],incoming:next[key]});
+    if(out.conflicted_fields.includes(key)){addConflict(out,key,null,next[key]);out[key]=null;continue;}
+    if(blank(out[key]))out[key]=clone(next[key]);
+    else if(String(out[key])!==String(next[key])){addConflict(out,key,out[key],next[key]);out[key]=null;}
   }
-  if(next.subskills?.length){if(!out.subskills?.length)out.subskills=next.subskills;else if(JSON.stringify(out.subskills)!==JSON.stringify(next.subskills))conflicts.push({field:'subskills',existing:out.subskills,incoming:next.subskills});}
-  if(next.ingredients?.length){if(!out.ingredients?.length)out.ingredients=next.ingredients;else if(JSON.stringify(out.ingredients)!==JSON.stringify(next.ingredients))conflicts.push({field:'ingredients',existing:out.ingredients,incoming:next.ingredients});}
+  if(next.subskills?.length){
+    if(out.conflicted_fields.includes('subskills'))addConflict(out,'subskills',null,next.subskills);
+    else if(!out.subskills?.length)out.subskills=clone(next.subskills);
+    else if(JSON.stringify(out.subskills)!==JSON.stringify(next.subskills)){addConflict(out,'subskills',out.subskills,next.subskills);out.subskills=[];}
+  }
+  if(next.ingredients?.length){
+    if(out.conflicted_fields.includes('ingredients'))addConflict(out,'ingredients',null,next.ingredients);
+    else if(!out.ingredients?.length)out.ingredients=clone(next.ingredients);
+    else if(JSON.stringify(out.ingredients)!==JSON.stringify(next.ingredients)){addConflict(out,'ingredients',out.ingredients,next.ingredients);out.ingredients=[];}
+  }
   out.source_text=[out.source_text,next.source_text].filter(Boolean).join('\n\n---\n\n');
   out.source_refs=[...new Set([...(out.source_refs||[]),...(next.source_refs||[])])];
   out.analysis_ids=[...new Set([...(out.analysis_ids||[]),...(next.analysis_ids||[])])];
-  out.conflicts=[...(out.conflicts||[]),...conflicts];
   out.identity_guard_warnings=[...(out.identity_guard_warnings||[]),...(next.identity_guard_warnings||[])];
+  if(!out.analysis_target_context&&next.analysis_target_context)out.analysis_target_context=clone(next.analysis_target_context);
   return out;
 }
 
-function createGroup({status='pending'}={}){
+function createGroup({status='pending',identityContext=null,identityKey=null}={}){
   const order=++groupSequence;
   const id=`capture-${Date.now()}-${order}`;
-  const group={id,order,status,draft:emptyDraft(),revisions:[],latest_revision:null,created_at:nowIso(),updated_at:nowIso()};
-  groups.set(id,group);trace('confirmation_group_created',{group_id:id,status,order});return group;
+  const group={id,order,status,identity_key:identityKey||analysisTargetIdentityKey(identityContext),identity_context:identityContext?clone(identityContext):null,draft:emptyDraft(),revisions:[],latest_revision:null,created_at:nowIso(),updated_at:nowIso()};
+  group.draft.analysis_target_context=group.identity_context?clone(group.identity_context):null;
+  groups.set(id,group);trace('confirmation_group_created',{group_id:id,status,order,target_mode:group.identity_context?.mode||'legacy',platform_identity:Boolean(group.identity_key)});return group;
 }
 function activeGroup(){return activeGroupId?groups.get(activeGroupId)||null:null;}
 function openGroups(){return [...groups.values()].filter(row=>row.status!=='closed').sort((a,b)=>a.order-b.order);}
@@ -154,9 +185,9 @@ function resolveEvolutionDraftAuthority(draft){return resolveEvolutionAuthority(
 function hydratedDraft(group){return hydrateEvolutionDraft(group?.draft||emptyDraft(),resolveEvolutionDraftAuthority(group?.draft||emptyDraft()));}
 function dispatchSelected(group,reason='selected'){
   const navigation=getNavigationState();
-  const detail=group?{group_id:group.id,status:group.status,reason,revision:group.latest_revision?clone(group.latest_revision):null,draft:clone(hydratedDraft(group)),pending_count:navigation.pending_count,navigation}:{group_id:null,status:'empty',reason,revision:null,draft:null,pending_count:0,navigation};
+  const detail=group?{group_id:group.id,status:group.status,reason,revision:group.latest_revision?clone(group.latest_revision):null,draft:clone(hydratedDraft(group)),identity_context:group.identity_context?clone(group.identity_context):null,pending_count:navigation.pending_count,navigation}:{group_id:null,status:'empty',reason,revision:null,draft:null,identity_context:null,pending_count:0,navigation};
   globalThis.dispatchEvent(new CustomEvent('pokemon-sleep:analysis-confirmation-group-selected',{detail}));
-  trace('confirmation_group_selected',{group_id:detail.group_id,reason,pending_count:detail.pending_count,species:detail.draft?.species||null,position:navigation.position,total:navigation.total});
+  trace('confirmation_group_selected',{group_id:detail.group_id,reason,pending_count:detail.pending_count,species:detail.draft?.species||null,position:navigation.position,total:navigation.total,target_mode:detail.identity_context?.mode||'legacy'});
 }
 function selectGroup(groupId,{reason='manual_select'}={}){
   const next=groups.get(groupId);if(!next||next.status==='closed')return null;
@@ -169,11 +200,13 @@ function replaceActiveDraft(draft,{reason='manual_navigation_snapshot'}={}){
     source_refs:[...(current.draft?.source_refs||[])],
     analysis_ids:[...(current.draft?.analysis_ids||[])],
     conflicts:[...(current.draft?.conflicts||[])],
+    conflicted_fields:[...(current.draft?.conflicted_fields||[])],
     identity_guard_warnings:[...(current.draft?.identity_guard_warnings||[])],
+    analysis_target_context:current.identity_context?clone(current.identity_context):null,
   };
   current.draft={...current.draft,...clone(draft),...metadata};
   current.updated_at=nowIso();
-  trace('confirmation_group_manual_draft_saved',{group_id:current.id,reason,species:current.draft?.species||null,nickname:current.draft?.nickname||null});
+  trace('confirmation_group_manual_draft_saved',{group_id:current.id,reason,species:current.draft?.species||null,nickname:current.draft?.nickname||null,target_mode:current.identity_context?.mode||'legacy'});
   return current;
 }
 function navigateReviewGroup(offset,{reason=null,createIfEmpty=false}={}){
@@ -202,29 +235,37 @@ function advanceReviewGroup({reason='manual_next_pokemon',createIfEmpty=true}={}
 function closeActiveGroup(reason='terminal'){
   const current=activeGroup();
   const order=current?.order??null;
-  if(current){current.status='closed';current.closed_at=nowIso();current.close_reason=reason;trace('confirmation_group_closed',{group_id:current.id,reason,species:current.draft?.species||null});}
+  if(current){current.status='closed';current.closed_at=nowIso();current.close_reason=reason;trace('confirmation_group_closed',{group_id:current.id,reason,species:current.draft?.species||null,target_mode:current.identity_context?.mode||'legacy'});}
   activeGroupId=null;
   const ordered=openGroups();
   const next=(order==null?ordered[0]:ordered.find(row=>row.order>order))||ordered[0]||null;
   if(next)return selectGroup(next.id,{reason:`after_${reason}`});
   dispatchSelected(null,`after_${reason}`);return null;
 }
-function findGroupForRevision(incoming){
+function findGroupForRevision(revision,incoming){
+  const targetContext=resolveRevisionAnalysisTarget(revision)||incoming?.analysis_target_context||null;
+  const targetKey=analysisTargetIdentityKey(targetContext);
+  if(targetKey){
+    const matched=openGroups().find(row=>row.identity_key===targetKey);
+    if(matched)return matched;
+    return createGroup({status:activeGroupId?'pending':'active',identityContext:targetContext,identityKey:targetKey});
+  }
   const current=activeGroup(),incomingSpecies=clean(incoming?.species);
-  if(current&&!shouldStartNewGroupForRevision(current.draft,incoming))return current;
+  if(current&&!current.identity_key&&!shouldStartNewGroupForRevision(current.draft,incoming))return current;
   if(incomingSpecies){
-    const matched=openGroups().find(row=>clean(row.draft?.species)===incomingSpecies);if(matched)return matched;
+    const matched=openGroups().find(row=>!row.identity_key&&clean(row.draft?.species)===incomingSpecies);if(matched)return matched;
   }
   return createGroup({status:current?'pending':'active'});
 }
 function upsertRevision(revision){
-  const incoming=normalizeRevision(revision),target=findGroupForRevision(incoming);
-  target.draft=mergeDraft(target.draft,incoming);target.latest_revision=revision;target.revisions.push(revision);target.updated_at=nowIso();
+  const incoming=normalizeRevision(revision),target=findGroupForRevision(revision,incoming);
+  if(!target.identity_context&&incoming.analysis_target_context){target.identity_context=clone(incoming.analysis_target_context);target.identity_key=analysisTargetIdentityKey(target.identity_context);}
+  target.draft=mergeDraft(target.draft,incoming);target.latest_revision={...revision,identity_context:target.identity_context?clone(target.identity_context):revision.identity_context||null};target.revisions.push(target.latest_revision);target.updated_at=nowIso();
   const hadActive=Boolean(activeGroupId);
-  if(!hadActive||target.id===activeGroupId){if(!hadActive){activeGroupId=target.id;target.status='active';dispatchSelected(target,'first_revision');}else globalThis.dispatchEvent(new CustomEvent('pokemon-sleep:analysis-confirmation-merged',{detail:{group_id:target.id,status:target.status,revision:clone(revision),draft:clone(hydratedDraft(target)),pending_count:pendingGroups().length,navigation:getNavigationState()}}));}
-  else trace('confirmation_group_queued',{group_id:target.id,active_group_id:activeGroupId,species:target.draft?.species||null,pending_count:pendingGroups().length});
+  if(!hadActive||target.id===activeGroupId){if(!hadActive){activeGroupId=target.id;target.status='active';dispatchSelected(target,'first_revision');}else globalThis.dispatchEvent(new CustomEvent('pokemon-sleep:analysis-confirmation-merged',{detail:{group_id:target.id,status:target.status,revision:clone(target.latest_revision),draft:clone(hydratedDraft(target)),identity_context:target.identity_context?clone(target.identity_context):null,pending_count:pendingGroups().length,navigation:getNavigationState()}}));}
+  else trace('confirmation_group_queued',{group_id:target.id,active_group_id:activeGroupId,species:target.draft?.species||null,pending_count:pendingGroups().length,target_mode:target.identity_context?.mode||'legacy'});
   setTimeout(renderGroupNotice,0);
-  trace('multicapture_revision_merged',{group_id:target.id,active_group_id:activeGroupId,source_count:target.draft.source_refs.length,analysis_count:target.draft.analysis_ids.length,conflict_count:target.draft.conflicts.length,identity_guard_warning_count:target.draft.identity_guard_warnings.length,main_skill_level:target.draft.main_skill_level??null,species:target.draft.species||null,evolution_rehydration:true,legacy_partial_writer_disabled:true});
+  trace('multicapture_revision_merged',{group_id:target.id,active_group_id:activeGroupId,source_count:target.draft.source_refs.length,analysis_count:target.draft.analysis_ids.length,conflict_count:target.draft.conflicts.length,conflicted_field_count:target.draft.conflicted_fields.length,identity_guard_warning_count:target.draft.identity_guard_warnings.length,main_skill_level:target.draft.main_skill_level??null,species:target.draft.species||null,evolution_rehydration:true,legacy_partial_writer_disabled:true,platform_identity_authority:Boolean(target.identity_key),target_mode:target.identity_context?.mode||'legacy'});
   return target;
 }
 
@@ -233,8 +274,9 @@ function renderGroupNotice(){
   let panel=root.querySelector('#captureGroupStatus');
   if(!panel){panel=document.createElement('section');panel.id='captureGroupStatus';panel.className='notice';root.querySelector('header')?.insertAdjacentElement('afterend',panel);}
   const current=activeGroup();if(!current){panel.remove();return;}
-  const data=current.draft,navigation=getNavigationState();
-  panel.innerHTML=`<b>同一寶可夢多截圖群組</b><br>目前：${navigation.position}/${navigation.total||1}；來源圖片：${data.source_refs?.length||0}；分析 revision：${data.analysis_ids?.length||0}；衝突：${data.conflicts?.length||0}；待確認群組：${navigation.pending_count}<br><small>${(data.source_refs||[]).map(esc).join('、')||'尚無來源'}</small>${data.identity_guard_warnings?.length?`<div class="notice pending"><b>Identity Guard</b><br>${data.identity_guard_warnings.map(row=>esc(row.message)).join('<br>')}</div>`:''}${data.conflicts?.length?`<details><summary>欄位衝突，請以表單目前值人工確認</summary><pre>${esc(JSON.stringify(data.conflicts,null,2))}</pre></details>`:''}`;
+  const data=current.draft,navigation=getNavigationState(),context=current.identity_context;
+  const targetLabel=context?.mode==='existing'?`既有成員：${esc(context.target_label_snapshot||context.target_species_snapshot||'已綁定個體')}`:context?.mode==='new'?'新增寶可夢：平台 Capture Group':'Legacy／未綁定模式';
+  panel.innerHTML=`<b>同一寶可夢多截圖群組</b><br><b>Identity Authority：</b>${targetLabel}<br>目前：${navigation.position}/${navigation.total||1}；來源圖片：${data.source_refs?.length||0}；分析 revision：${data.analysis_ids?.length||0}；衝突：${data.conflicts?.length||0}；待確認群組：${navigation.pending_count}<br><small>${(data.source_refs||[]).map(esc).join('、')||'尚無來源'}</small>${data.identity_guard_warnings?.length?`<div class="notice pending"><b>Identity Guard</b><br>${data.identity_guard_warnings.map(row=>esc(row.message)).join('<br>')}</div>`:''}${data.conflicts?.length?`<details open><summary>欄位衝突：已 Fail-Closed，請人工選擇正確值</summary><pre>${esc(JSON.stringify(data.conflicts,null,2))}</pre></details>`:''}`;
 }
 
 globalThis.addEventListener('pokemon-sleep:analysis-revision-saved',event=>upsertRevision(event.detail?.revision||event.detail||{}));
@@ -245,6 +287,6 @@ globalThis.PokemonSleepMultiCaptureConsistency={
   getState:()=>({active_group_id:activeGroupId,groups:[...groups.values()].map(clone),navigation:getNavigationState()}),
 };
 
-globalThis.UpdateCenterLiveDebug?.record?.('data_consistency_multicapture_ready',{version:VERSION,build:BUILD,patch_semantics:true,null_safe_numeric:true,observation_v2:true,evolution_rehydration:true,legacy_partial_writer_disabled:true,navigable_review_groups:true,bidirectional_review_navigation:true,nickname_fail_closed:true});
+globalThis.UpdateCenterLiveDebug?.record?.('data_consistency_multicapture_ready',{version:VERSION,build:BUILD,patch_semantics:true,null_safe_numeric:true,observation_v2:true,evolution_rehydration:true,legacy_partial_writer_disabled:true,navigable_review_groups:true,bidirectional_review_navigation:true,nickname_fail_closed:true,platform_identity_authority:true,cross_image_conflict_fail_closed:true});
 
 export {VERSION,BUILD,normalizeRevision,mergeDraft,shouldStartNewGroupForRevision,upsertRevision,selectGroup,replaceActiveDraft,navigateReviewGroup,advanceReviewGroup,closeActiveGroup,getNavigationState};
