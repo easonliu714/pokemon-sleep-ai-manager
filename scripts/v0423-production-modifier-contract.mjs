@@ -7,9 +7,17 @@ import {currentProductionAuthorityRegistry} from '../assets/js/production-author
 const source=fs.readFileSync('assets/js/version-authority.js','utf8');
 const sandbox={};sandbox.globalThis=sandbox;vm.runInNewContext(source,sandbox);
 const appVersion=sandbox.PokemonSleepVersionAuthority?.app_version||null;
-// v0.4.27.1+ are local inventory/screenshot/identity semantic hotfixes only;
-// they inherit the same verified nature numeric successor behavior as v0.4.27.
-const successorNatureNumeric=['v0.4.24','v0.4.25','v0.4.26','v0.4.27','v0.4.27.1','v0.4.27.2','v0.4.27.3','v0.4.27.4'].includes(appVersion);
+// v0.4.24 introduced the verified nature numeric successor. Later patch releases inherit
+// that already-verified modifier behavior unless production code explicitly revokes it.
+// Do not hard-code every subsequent hotfix version: that causes unrelated release bumps
+// to report a false Production regression while the 4/7 base authority remains unchanged.
+function versionAtLeast(version,floor){
+  const parse=value=>String(value||'').replace(/^v/,'').split('.').map(part=>Number(part)||0);
+  const left=parse(version),right=parse(floor),length=Math.max(left.length,right.length);
+  for(let index=0;index<length;index+=1){const a=left[index]||0,b=right[index]||0;if(a!==b)return a>b;}
+  return true;
+}
+const successorNatureNumeric=versionAtLeast(appVersion,'v0.4.24');
 
 const candidate={nature:'固執',nature_bonus:'幫忙速度',nature_penalty:'食材機率',unlocked_subskills:[{unlock_level:10,subskill_name:'樹果數量S'},{unlock_level:25,subskill_name:'幫手獎勵'},{unlock_level:50,subskill_name:'食材機率提升M'}]};
 const profile=resolvePokemonProductionModifierProfile(candidate);
