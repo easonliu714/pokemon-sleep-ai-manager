@@ -1,4 +1,4 @@
-import {executeWithProjectPool} from './ai-project-pool-runtime.js';
+import {executeWithCapabilityFailover} from './ai-provider-capability-failover.js';
 import {buildUpdatePackageJsonSchema} from './update-package-contract.js';
 import {buildPublicMasterRecognitionJsonSchema,supportsPublicMasterRecognition} from './public-master-recognition.js';
 import {recoverExactUnlockedRecipeRecognition} from './recipe-recognition-exact-recovery.js';
@@ -11,7 +11,7 @@ import {
   constrainUcImgWeeklyJsonSchema,
 } from './uc-img-weekly-platform-authority.js';
 
-export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-08-17-d-live-recovery-schema';
+export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-08-19-v042713-feature-model-capability';
 export const UC_IMG_DIAGNOSTIC_SCHEMA='pokemon-sleep-uc-img-ai-diagnostic/1.1';
 
 const clean=value=>String(value??'').trim();
@@ -75,7 +75,7 @@ function normalizeProviderPayload(parsedPayload,config,scenarioKey,platformAutho
   return {payload,recovery};
 }
 
-export async function analyzeUcImgScenarioWithGemini({scenarioKey,config,entries,fileMap,prompt,poolData,execute=executeWithProjectPool,onTrace=()=>{},platformNow=null}={}){
+export async function analyzeUcImgScenarioWithGemini({scenarioKey,config,entries,fileMap,prompt,poolData,execute=executeWithCapabilityFailover,onTrace=()=>{},platformNow=null}={}){
   if(!poolData?.projects?.length)throw new Error('尚未設定 Gemini API Key。請先到「使用說明 → AI API Key 與備援 Project」設定並測試 Key。');
   const model=clean(poolData.model);if(!model)throw new Error('尚未選擇 Gemini 模型。');
   const platformAuthority=scenarioKey==='weekly'?buildUcImgWeeklyPlatformAuthority(platformNow||new Date()):null;
@@ -84,7 +84,8 @@ export async function analyzeUcImgScenarioWithGemini({scenarioKey,config,entries
   const scenarioPrompt=platformAuthority?`${prompt}${buildUcImgWeeklyPlatformPromptInstruction(platformAuthority)}`:prompt;
   const effectivePrompt=appendScreenshotPromptSafety(scenarioPrompt,{scenario:config?.scenario||scenarioKey});
   const trace=(event,details={})=>onTrace(event,{scenario_key:scenarioKey,scenario:config?.scenario||null,adapter_version:UC_IMG_GEMINI_ADAPTER_VERSION,prompt_safety_version:SCREENSHOT_PROMPT_SAFETY_VERSION,...details});
-  const outcome=await execute({projects:poolData.projects,model,prompt:effectivePrompt,images,responseJsonSchema,onTrace:trace});
+  const feature=`uc_img_${scenarioKey}`;
+  const outcome=await execute({projects:poolData.projects,model,preferredModel:model,feature,prompt:effectivePrompt,images,responseJsonSchema,onTrace:trace});
   if(Array.isArray(outcome?.projects)){
     try{poolData.projects=outcome.projects;}catch{}
   }
@@ -107,6 +108,7 @@ export async function analyzeUcImgScenarioWithGemini({scenarioKey,config,entries
     provider_original_generated_at:parsed.payload?.generated_at||null,
     provider_original_week_start:parsed.payload?.operations?.find(item=>item?.entity==='weekly_context')?.data?.week_start||null,
   }:null;
+  const usedModel=outcome.used_model||model;
   return {
     adapter_version:UC_IMG_GEMINI_ADAPTER_VERSION,
     prompt_safety_version:SCREENSHOT_PROMPT_SAFETY_VERSION,
@@ -114,7 +116,10 @@ export async function analyzeUcImgScenarioWithGemini({scenarioKey,config,entries
     raw_json:JSON.stringify(payload,null,2),
     raw_provider_text:parsed.text,
     response_contract:supportsPublicMasterRecognition(config.scenario)?'public-master-recognition':'update-package-v1.1',
-    model,
+    model:usedModel,
+    preferred_model:model,
+    model_fallback_used:Boolean(outcome.model_fallback_used),
+    feature,
     project_alias:outcome.used_alias||null,
     projects:outcome.projects||poolData.projects,
     attempts:outcome.attempts||[],
