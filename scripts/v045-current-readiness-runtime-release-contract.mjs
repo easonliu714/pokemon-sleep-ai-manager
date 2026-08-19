@@ -46,7 +46,7 @@ assert.ok(teamUi.includes('current_readiness_score'),'Team card must expose read
 const sw=read('service-worker.js');
 assert.ok(sw.includes("importScripts('./assets/js/version-authority.js')"));
 assert.ok(sw.includes("url.pathname.endsWith('.js')"));
-assert.ok(sw.includes('caches.match(event.request)'));
+assert.ok(sw.includes('caches.match(event.request)')||sw.includes('caches.match(request,{ignoreSearch:true})'),'historical JS cache fallback must remain; query-safe successor is allowed');
 const migrations=read('assets/js/migrations.js');
 assert.equal(migrations.includes('current-readiness-slot-bridge'),false,'readiness bridge must remain migration-free');
 for(const deterministic of [source,read('assets/js/pokemon-scoring-engine.js')])for(const forbidden of ['Gemini','fetch(','run(','persist('])assert.equal(deterministic.includes(forbidden),false,`readiness runtime bridge must remain local/read-only: ${forbidden}`);
