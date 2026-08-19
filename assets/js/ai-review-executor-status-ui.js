@@ -53,8 +53,8 @@ function modelStatusText(modelState,status){
   const pos=d.current&&d.total?`AI ${d.current}/${d.total}`:'AI';
   const file=d.file_name||'目前圖片';
   const elapsed=elapsedSeconds(modelState.imageStartedAt);
-  if(modelState.transition)return `${modelState.transition}｜累計 ${elapsed} 秒`;
-  return `${pos}｜${modelState.model||d.model||'模型確認中'}｜${file}｜等待 ${elapsed} 秒`;
+  const transition=modelState.transition?`｜${modelState.transition}`:'';
+  return `${pos}｜${modelState.model||d.model||'模型確認中'}｜${file}｜等待 ${elapsed} 秒${transition}`;
 }
 
 export function createAiReviewExecutorStatusUi({root=document,target=globalThis}={}){
@@ -72,8 +72,8 @@ export function createAiReviewExecutorStatusUi({root=document,target=globalThis}
   for(const [name,handler] of Object.entries(handlers))target.addEventListener?.(`pokemon-sleep:ai-review-executor-${name}`,handler);
   const onModelStatus=event=>{
     const d=event.detail||{};
-    if(d.event==='ai_model_candidate_started'){modelState.model=d.model||modelState.model;modelState.transition=null;}
-    else if(d.event==='ai_model_failover'){modelState.model=d.to_model||modelState.model;modelState.transition=`${d.from_model||'前一模型'} ${d.error_class==='provider_timeout'||d.error_class==='provider_total_timeout'?'逾時':'失敗'}，切換 → ${d.to_model||'下一模型'}`;}
+    if(d.event==='ai_model_candidate_started')modelState.model=d.model||modelState.model;
+    else if(d.event==='ai_model_failover'){modelState.model=d.to_model||modelState.model;modelState.transition=`${d.from_model||'前一模型'} ${d.error_class==='provider_timeout'||d.error_class==='provider_total_timeout'?'逾時':'失敗'}，已切換 → ${d.to_model||'下一模型'}`;}
     else if(d.event==='ai_model_fallback_promoted'){modelState.model=d.to_model||modelState.model;modelState.transition=`${d.to_model||modelState.model||'Fallback 模型'} 完成，已設為下次首選`;}
     set('running',modelStatusText(modelState,status),{...(status?.detail||{}),model_event:d.event,model:modelState.model});
   };
