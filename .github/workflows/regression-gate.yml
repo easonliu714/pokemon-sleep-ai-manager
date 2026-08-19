@@ -117,8 +117,8 @@ jobs:
           node scripts/v04275-g72-effective-event-energy-authority-contract.mjs
           node scripts/v042712-confirmation-lifecycle-ux-contract.mjs
           node scripts/v042714-predecessor-v042713-runner.mjs
-          node scripts/v042716-predecessor-v042715-runner.mjs
-          node scripts/v042716-existing-baseline-sparse-diff-contract.mjs
+          node scripts/v042717-predecessor-v042716-runner.mjs
+          node scripts/v042717-review-group-isolation-contract.mjs
 
       - name: Verify unlocked Pokémon roster filters
         run: node scripts/pokemon-roster-filter-regression.mjs
