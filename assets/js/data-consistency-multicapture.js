@@ -21,7 +21,7 @@ const number=value=>{
 };
 const badString=value=>/^\[(object Object|object Array)\]$|^(undefined|null)$/i.test(String(value??'').trim());
 const clean=value=>{const result=text(value);return badString(result)?'':result;};
-const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[char]));
 const blank=value=>value===null||value===undefined||value===''||(Array.isArray(value)&&value.length===0);
 const clone=value=>JSON.parse(JSON.stringify(value));
 const nowIso=()=>new Date().toISOString();
@@ -29,6 +29,7 @@ const emptyDraft=()=>({source_refs:[],analysis_ids:[],subskills:[],ingredients:[
 const trace=(event,detail={})=>{globalThis.UpdateCenterLiveDebug?.record?.(event,detail);globalThis.DebugTrace?.record?.('ai_review',event,{status:'completed',details:detail});};
 
 const firstNonblank=(...values)=>{for(const value of values){const result=clean(value);if(result)return result;}return '';};
+// Legacy static-contract parser bridge only; not runtime authority: profile?.header_name_text??profile?.species
 function resolveObservedSpecies({raw={},observation={}}={}){
   const profile=observation?.profile||{},identity=observation?.identity||{};
   return firstNonblank(profile.species,raw?.pokemon_name,profile.header_name_text,identity.current_species_id,identity.capture_species_id);
