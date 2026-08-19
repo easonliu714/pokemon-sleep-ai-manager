@@ -117,8 +117,8 @@ jobs:
           node scripts/v04275-g72-effective-event-energy-authority-contract.mjs
           node scripts/v042712-confirmation-lifecycle-ux-contract.mjs
           node scripts/v042714-predecessor-v042713-runner.mjs
-          node scripts/v042717-predecessor-v042716-runner.mjs
-          node scripts/v042717-review-group-isolation-contract.mjs
+          node scripts/v042718-predecessor-v042717-runner.mjs
+          node scripts/v042718-per-image-group-authority-contract.mjs
 
       - name: Verify unlocked Pokémon roster filters
         run: node scripts/pokemon-roster-filter-regression.mjs
@@ -156,6 +156,11 @@ jobs:
           done
           cat /tmp/pokemon-sleep-http.log
           exit 1
+
+      - name: Verify v0.4.27.18 browser per-image target and form group authority
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/v042718-browser-contract.mjs
 
       - name: Verify browser runtime and dynamic module loading
         env:

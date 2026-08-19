@@ -9,12 +9,14 @@ const current=original.match(/app_version:\s*'([^']+)'/)?.[1]||null;
 // contracts. Successor releases explicitly replay retained predecessor
 // invariants through their own staged chain, so a direct invocation on the
 // successor release is a compatibility no-op rather than a version mismatch.
-if(['v0.4.27.15','v0.4.27.16','v0.4.27.17'].includes(current)){
-  const successorContract=current==='v0.4.27.17'
-    ?'scripts/v042717-predecessor-v042716-runner.mjs'
-    :current==='v0.4.27.16'
-      ?'scripts/v042716-existing-baseline-sparse-diff-contract.mjs'
-      :'scripts/v042715-platform-identity-doctor-transfer-contract.mjs';
+if(['v0.4.27.15','v0.4.27.16','v0.4.27.17','v0.4.27.18'].includes(current)){
+  const successorContract=current==='v0.4.27.18'
+    ?'scripts/v042718-predecessor-v042717-runner.mjs'
+    :current==='v0.4.27.17'
+      ?'scripts/v042717-predecessor-v042716-runner.mjs'
+      :current==='v0.4.27.16'
+        ?'scripts/v042716-existing-baseline-sparse-diff-contract.mjs'
+        :'scripts/v042715-platform-identity-doctor-transfer-contract.mjs';
   console.log(JSON.stringify({
     status:'PASS',
     gate:'V042714_PREDECESSOR_V042713_REPLAY_SUPERSEDED',
