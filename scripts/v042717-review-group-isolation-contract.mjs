@@ -57,7 +57,7 @@ for(const token of [
 ])assert.ok(workbench.includes(token),`v0.4.27.16 confirmation invariant missing ${token}`);
 for(const token of [
   'current_profile_reference',
-  'REFERENCE，不是這張圖片的 Evidence',
+  '只是唯讀 Reference，不是這張圖片的 Evidence',
   "replace(/樹果速增/g,'樹果遽增')",
 ])assert.ok(executor.includes(token),`v0.4.27.16 baseline/canonical invariant missing ${token}`);
 assert.ok(master.includes("'流星群（樹果遽增）'"),'Latios main-skill canonical regressed');
