@@ -1,4 +1,4 @@
-const STATUS_UI_SCHEMA='pokemon-sleep-ai-review-executor-status-ui/1.1-local-progress';
+const STATUS_UI_SCHEMA='pokemon-sleep-ai-review-executor-status-ui/1.2-model-failover-visible';
 const unifiedState={ocr:'pending',ai:'pending',cross:'pending',message:'尚未開始辨識。'};
 const label={pending:'待執行',running:'執行中',completed:'完成',failed:'失敗',review:'待人工確認'};
 const icon={pending:'○',running:'◉',completed:'✓',failed:'✕',review:'△'};
@@ -47,25 +47,44 @@ function syncUnifiedFromDom(root=document){
   if(value)unifiedState.message=value;renderUnifiedProgress(root);
 }
 function resetUnified(root=document){unifiedState.ocr='pending';unifiedState.ai='pending';unifiedState.cross='pending';unifiedState.message='圖片已載入；請選擇辨識策略後開始。';renderUnifiedProgress(root);}
+function elapsedSeconds(startedAt){return startedAt?Math.max(0,Math.floor((Date.now()-startedAt)/1000)):0;}
+function modelStatusText(modelState,status){
+  const d=status?.detail||{};
+  const pos=d.current&&d.total?`AI ${d.current}/${d.total}`:'AI';
+  const file=d.file_name||'目前圖片';
+  const elapsed=elapsedSeconds(modelState.imageStartedAt);
+  if(modelState.transition)return `${modelState.transition}｜累計 ${elapsed} 秒`;
+  return `${pos}｜${modelState.model||d.model||'模型確認中'}｜${file}｜等待 ${elapsed} 秒`;
+}
 
 export function createAiReviewExecutorStatusUi({root=document,target=globalThis}={}){
   let status=null;
+  const modelState={model:null,imageStartedAt:null,transition:null};
   const set=(state,message,detail={})=>{status={state,message,detail,updated_at:new Date().toISOString()};target.DebugTrace?.record?.('ai_executor_ui','ai_executor_status_changed',{status:state==='failed'?'failed':'completed',details:{state,...detail}});updatePanel(root,status);};
   const handlers={
-    started:event=>set('running','AI 覆核：執行中。',event.detail),
-    progress:event=>set('running',`AI 覆核：${event.detail?.current||0}/${event.detail?.total||0}。`,event.detail),
-    completed:event=>set('completed',`AI 覆核：完成 ${event.detail?.completed||0} 張。`,event.detail),
-    paused:event=>set('paused','AI 覆核：已暫停，可在 Project 恢復後重試。',event.detail),
+    started:event=>{modelState.model=event.detail?.model||modelState.model;modelState.imageStartedAt=null;modelState.transition=null;set('running','AI 覆核：執行中。',event.detail);},
+    progress:event=>{const d=event.detail||{};if(d.phase==='started'){modelState.model=d.model||modelState.model;modelState.imageStartedAt=Date.now();modelState.transition=null;}if(d.phase==='completed'){modelState.model=d.model||modelState.model;modelState.transition=null;}set('running',modelStatusText(modelState,{detail:d}),d);},
+    completed:event=>{modelState.imageStartedAt=null;modelState.transition=null;set('completed',`AI 覆核：完成 ${event.detail?.completed||0} 張。`,event.detail);},
+    paused:event=>{modelState.imageStartedAt=null;set('paused','AI 覆核：已暫停，可在 Project 恢復後重試。',event.detail);},
     blocked:event=>set('blocked','AI 覆核：請先在使用說明設定並測試 Project Pool。',event.detail),
-    failed:event=>set('failed',`AI 覆核失敗：${event.detail?.message||'未知錯誤'}`,event.detail)
+    failed:event=>{modelState.imageStartedAt=null;set('failed',`AI 覆核失敗：${event.detail?.message||'未知錯誤'}`,event.detail);}
   };
   for(const [name,handler] of Object.entries(handlers))target.addEventListener?.(`pokemon-sleep:ai-review-executor-${name}`,handler);
+  const onModelStatus=event=>{
+    const d=event.detail||{};
+    if(d.event==='ai_model_candidate_started'){modelState.model=d.model||modelState.model;modelState.transition=null;}
+    else if(d.event==='ai_model_failover'){modelState.model=d.to_model||modelState.model;modelState.transition=`${d.from_model||'前一模型'} ${d.error_class==='provider_timeout'||d.error_class==='provider_total_timeout'?'逾時':'失敗'}，切換 → ${d.to_model||'下一模型'}`;}
+    else if(d.event==='ai_model_fallback_promoted'){modelState.model=d.to_model||modelState.model;modelState.transition=`${d.to_model||modelState.model||'Fallback 模型'} 完成，已設為下次首選`;}
+    set('running',modelStatusText(modelState,status),{...(status?.detail||{}),model_event:d.event,model:modelState.model});
+  };
+  target.addEventListener?.('pokemon-sleep:ai-review-model-status',onModelStatus);
+  const ticker=setInterval(()=>{if(status?.state==='running'&&modelState.imageStartedAt){status.message=modelStatusText(modelState,status);updatePanel(root,status);}},1000);
   const onCross=event=>{unifiedState.cross=event.detail?.ai_revision_id?'completed':event.detail?.recommended_action==='run_ai'?'pending':'review';unifiedState.message=event.detail?.ai_revision_id?'Cross Check 已更新；請在下方逐欄人工確認。':'Cross Check 已更新，仍需補 AI 或人工確認。';renderUnifiedProgress(root);};
   const onSource=()=>resetUnified(root);
   target.addEventListener?.('pokemon-sleep:analysis-cross-check-ready',onCross);target.addEventListener?.('pokemon-sleep:identity-import-files-selected',onSource);
   const observer=new MutationObserver(()=>{updatePanel(root,status);syncUnifiedFromDom(root);});observer.observe(root.documentElement||root,{subtree:true,childList:true});
   updatePanel(root,status);syncUnifiedFromDom(root);
-  return {schema:STATUS_UI_SCHEMA,get status(){return status;},get unified_progress(){return {...unifiedState};},dispose(){observer.disconnect();for(const [name,handler] of Object.entries(handlers))target.removeEventListener?.(`pokemon-sleep:ai-review-executor-${name}`,handler);target.removeEventListener?.('pokemon-sleep:analysis-cross-check-ready',onCross);target.removeEventListener?.('pokemon-sleep:identity-import-files-selected',onSource);}};
+  return {schema:STATUS_UI_SCHEMA,get status(){return status;},get unified_progress(){return {...unifiedState};},dispose(){observer.disconnect();for(const [name,handler] of Object.entries(handlers))target.removeEventListener?.(`pokemon-sleep:ai-review-executor-${name}`,handler);target.removeEventListener?.('pokemon-sleep:analysis-cross-check-ready',onCross);target.removeEventListener?.('pokemon-sleep:identity-import-files-selected',onSource);target.removeEventListener?.('pokemon-sleep:ai-review-model-status',onModelStatus);clearInterval(ticker);}};
 }
 if(typeof document!=='undefined'&&!globalThis.PokemonSleepAiReviewExecutorStatusUi)globalThis.PokemonSleepAiReviewExecutorStatusUi=createAiReviewExecutorStatusUi();
 export {STATUS_UI_SCHEMA};
