@@ -32,7 +32,10 @@ for(const token of [
 ])assert.ok(versionSource.includes(token),`v0.4.27.3 lineage missing ${token}`);
 
 assert.equal(RECIPE_RECOGNITION_EXACT_RECOVERY_VERSION,'recipe-recognition-exact-recovery-2026-08-17-b-prompt');
-assert.equal(UC_IMG_GEMINI_ADAPTER_VERSION,'uc-img-gemini-2026-08-17-d-live-recovery-schema');
+assert.ok([
+  'uc-img-gemini-2026-08-17-d-live-recovery-schema',
+  'uc-img-gemini-2026-08-19-v042713-feature-model-capability',
+].includes(UC_IMG_GEMINI_ADAPTER_VERSION),`v0.4.27.4 UC.IMG live recovery successor is not governed: ${UC_IMG_GEMINI_ADAPTER_VERSION}`);
 assert.equal(UC_IMG_WEEKLY_PLATFORM_AUTHORITY_VERSION,'uc-img-weekly-platform-authority-2026-08-17-d-structured-semantic-schema');
 const weeklyProps=buildUcImgWeeklySemanticDataProperties();
 for(const key of ['camp','dish_category','favorite_berry_1','favorite_berry_2','favorite_berry_3','event_name','event_effects','base_notes'])assert.ok(weeklyProps[key],`weekly semantic property missing ${key}`);
@@ -46,12 +49,24 @@ assert.equal(POKEMON_CANDIDATE_FEATURE_VERSION,'pokemon-candidate-features-2026-
 assert.equal(POKEMON_CANDIDATE_BERRY_IDENTITY_VERSION,'pokemon-candidate-berry-identity-2026-08-17-a-canonical-grepa');
 
 const rosterUi=read('assets/js/pokemon-roster-filter-ui.js');
-assert.ok(rosterUi.includes("POKEMON_ROSTER_FILTER_UI_VERSION='pokemon-roster-unlocked-filters-ui-2026-08-17-b-berry-canonical-projection'"),'Pokémon roster UI successor version missing');
+assert.ok(
+  rosterUi.includes("POKEMON_ROSTER_FILTER_UI_VERSION='pokemon-roster-unlocked-filters-ui-2026-08-17-b-berry-canonical-projection'")||
+  rosterUi.includes("POKEMON_ROSTER_FILTER_UI_VERSION='pokemon-roster-unlocked-filters-ui-2026-08-19-v042713-name-fallback'"),
+  'Pokémon roster UI governed successor version missing',
+);
 for(const token of ['canonicalizeDetailBerry','pokemonDetailBackdrop','pokemonBerrySelect'])assert.ok(rosterUi.includes(token),`Pokémon detail berry projection missing ${token}`);
+if(rosterUi.includes('v042713-name-fallback')){
+  for(const token of ['resolvePokemonRosterDisplayName','applyRosterNameFallback'])assert.ok(rosterUi.includes(token),`v0.4.27.13 roster-name successor missing ${token}`);
+}
 const recovery=read('assets/js/recipe-recognition-exact-recovery.js');
 for(const token of ['PARTIALLY_OCCLUDED_BY_UI','PLATFORM_EXACT_UNLOCKED_RECIPE_RECOVERY','unlocked!==true'])assert.ok(recovery.includes(token),`exact recipe recovery safety marker missing ${token}`);
 const weekly=read('assets/js/uc-img-weekly-platform-authority.js');
 for(const token of ['紅色／粉紅色活動公告','unknown_effects','UC_IMG_WEEKLY_SEMANTIC_INTAKE_EMPTY','additionalProperties=false'])assert.ok(weekly.includes(token),`weekly semantic intake marker missing ${token}`);
+const adapter=read('assets/js/uc-img-gemini-adapter.js');
+for(const token of ['buildUcImgWeeklyPlatformAuthority','constrainUcImgWeeklyJsonSchema','applyUcImgWeeklyPlatformAuthority'])assert.ok(adapter.includes(token),`v0.4.27.4 UC.IMG live semantic boundary missing ${token}`);
+if(UC_IMG_GEMINI_ADAPTER_VERSION.includes('v042713-feature-model-capability')){
+  for(const token of ['executeWithCapabilityFailover','preferredModel:model','const feature=`uc_img_${scenarioKey}`'])assert.ok(adapter.includes(token),`v0.4.27.13 UC.IMG capability successor missing ${token}`);
+}
 
 assert.equal(E3C6B_SCHEMA_MIGRATION_VERSION,11);
 assert.equal(INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION,13);
@@ -87,4 +102,6 @@ console.log(JSON.stringify({
   production_numeric_authority:'4/7_HOLD_INGREDIENT_PROBABILITY',
   workflow_count:workflows.length,
   android_pwa_live_validation_required:true,
+  uc_img_successor_version:UC_IMG_GEMINI_ADAPTER_VERSION,
+  roster_ui_successor:Boolean(rosterUi.includes('v042713-name-fallback')),
 },null,2));
