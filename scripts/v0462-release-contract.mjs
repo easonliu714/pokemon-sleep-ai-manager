@@ -68,7 +68,7 @@ assert.equal(importer.includes('v0462'),false,'generic importer remains unchange
 const sw=read('service-worker.js');
 assert.ok(sw.includes("importScripts('./assets/js/version-authority.js')"));
 assert.ok(sw.includes("url.pathname.endsWith('.js')"));
-assert.ok(sw.includes('caches.match(event.request)'));
+assert.ok(sw.includes('caches.match(event.request)')||sw.includes('caches.match(request,{ignoreSearch:true})'),'service worker must retain cached GET fallback semantics; query-safe successor is allowed');
 for(const deterministic of [read('assets/js/weekly-context-normalization.js'),read('assets/js/weekly-context-import-contract.js'),shared,recommendation]){
   for(const forbidden of ['Gemini','fetch('])assert.equal(deterministic.includes(forbidden),false,`deterministic release layer contains provider/network token: ${forbidden}`);
 }
