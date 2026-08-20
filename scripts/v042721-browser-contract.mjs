@@ -7,7 +7,7 @@ try{
   const context=await browser.newContext();
   const page=await context.newPage();
   await page.goto(base,{waitUntil:'domcontentloaded'});
-  await page.waitForFunction(()=>['v0.4.27.21','v0.4.27.22'].includes(globalThis.PokemonSleepVersionAuthority?.app_version),{timeout:30000});
+  await page.waitForFunction(()=>['v0.4.27.21','v0.4.27.22','v0.4.27.23'].includes(globalThis.PokemonSleepVersionAuthority?.app_version),{timeout:30000});
   await page.waitForFunction(()=>Boolean(globalThis.PokemonSleepPlayerEvolutionOverrideV042721),{timeout:30000});
   await page.waitForFunction(()=>document.getElementById('dbStatus')?.textContent?.includes('就緒'),{timeout:60000}).catch(()=>{});
 
@@ -46,7 +46,7 @@ try{
     return {publicBefore,cannot,afterReturn,version:globalThis.PokemonSleepVersionAuthority?.app_version,apiVersion:globalThis.PokemonSleepPlayerEvolutionOverrideV042721?.version};
   });
 
-  assert.ok(['v0.4.27.21','v0.4.27.22'].includes(result.version));
+  assert.ok(['v0.4.27.21','v0.4.27.22','v0.4.27.23'].includes(result.version));
   assert.equal(result.apiVersion,'pokemon-sleep-player-evolution-override/1.0-v042721');
   assert.equal(result.cannot.mode,'PLAYER_OVERRIDE');
   assert.equal(result.cannot.status,'CANNOT_EVOLVE');
