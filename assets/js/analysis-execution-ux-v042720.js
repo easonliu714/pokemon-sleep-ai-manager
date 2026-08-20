@@ -66,9 +66,9 @@ function strategyNeedsAi(){return ['ocr_ai','ai_only'].includes(unifiedRoot()?.q
 function cancelAiButton(){return unifiedRoot()?.querySelector('#unifiedCancelAi')||null;}
 function enforceRunLock(){
   const run=runButton();if(!run)return;
-  if(state.batchActive){run.disabled=true;run.dataset.v042720ExecutionLock='1';if(!/辨識進行中/.test(run.textContent||''))run.textContent='辨識進行中…';}
+  if(state.batchActive){if(!run.disabled)run.disabled=true;run.dataset.v042720ExecutionLock='1';if(!/辨識進行中/.test(run.textContent||''))run.textContent='辨識進行中…';}
   else delete run.dataset.v042720ExecutionLock;
-  const cancel=cancelAiButton();if(cancel){cancel.disabled=!state.batchActive||!strategyNeedsAi()||state.aiCancelRequested;cancel.textContent=state.aiCancelRequested?'AI 取消中…':'取消 AI';}
+  const cancel=cancelAiButton();if(cancel){const shouldDisable=!state.batchActive||!strategyNeedsAi()||state.aiCancelRequested;if(cancel.disabled!==shouldDisable)cancel.disabled=shouldDisable;const label=state.aiCancelRequested?'AI 取消中…':'取消 AI';if(cancel.textContent!==label)cancel.textContent=label;}
 }
 function finishBatch(reason='completed'){
   setTimeout(()=>{
@@ -102,7 +102,7 @@ function alignUpdateCenterLayout(){
   const updates=document.getElementById('updates');if(!updates)return false;
   const ocr=document.getElementById('ocrRuntimeStatusPanel'),heading=document.getElementById('importHistoryHeading'),wrap=document.getElementById('importHistoryWrap');
   if(ocr&&heading&&ocr.nextElementSibling!==heading)updates.insertBefore(ocr,heading);
-  if(heading&&wrap){updates.appendChild(heading);updates.appendChild(wrap);}
+  if(heading&&wrap&&(updates.lastElementChild!==wrap||heading.nextElementSibling!==wrap)){updates.appendChild(heading);updates.appendChild(wrap);}
   if(ocr&&heading)ocr.dataset.v042720BeforeImportHistory='1';
   return Boolean(ocr&&heading&&wrap);
 }
