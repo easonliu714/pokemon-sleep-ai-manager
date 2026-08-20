@@ -7,7 +7,7 @@ try{
   const context=await browser.newContext();
   const page=await context.newPage();
   await page.goto(base,{waitUntil:'domcontentloaded'});
-  await page.waitForFunction(()=>globalThis.PokemonSleepVersionAuthority?.app_version==='v0.4.27.22',{timeout:30000});
+  await page.waitForFunction(()=>['v0.4.27.22','v0.4.27.23'].includes(globalThis.PokemonSleepVersionAuthority?.app_version),{timeout:30000});
   await page.waitForFunction(()=>Boolean(globalThis.PokemonSleepAiJsonCollapseV042722),{timeout:30000});
   const result=await page.evaluate(async()=>{
     const updates=document.getElementById('updates');
@@ -23,7 +23,7 @@ try{
     const after={open:details?.open??null};
     return {before,after,version:globalThis.PokemonSleepVersionAuthority?.app_version,apiVersion:globalThis.PokemonSleepAiJsonCollapseV042722?.version};
   });
-  assert.equal(result.version,'v0.4.27.22');
+  assert.ok(['v0.4.27.22','v0.4.27.23'].includes(result.version));
   assert.equal(result.apiVersion,'v0.4.27.22-ai-json-collapse-2026-08-20-a');
   assert.equal(result.before.details,true);
   assert.equal(result.before.open,false);
@@ -32,5 +32,5 @@ try{
   assert.equal(result.before.statusVisible,true);
   assert.equal(result.before.hiddenWrapped,false);
   assert.equal(result.after.open,true);
-  console.log(JSON.stringify({status:'PASS',gate:'V042722_BROWSER_COLLAPSED_AI_JSON',result},null,2));
+  console.log(JSON.stringify({status:'PASS',gate:'V042722_BROWSER_COLLAPSED_AI_JSON_SUCCESSOR_AWARE',result},null,2));
 }finally{await browser.close();}
