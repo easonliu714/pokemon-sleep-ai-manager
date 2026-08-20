@@ -4,6 +4,7 @@ export const VISUAL_MODEL_RESCUE_ORDER=Object.freeze(['gemini-2.5-flash','gemini
 
 const SESSION_KEY='pokemon-sleep:ai-project-pool/session';
 const LEGACY_DEFAULT_MODELS=new Set(['','gemini-3.6-flash']);
+const CURATED_VISUAL_MODELS=new Set([PRIMARY_VISUAL_MODEL,...VISUAL_MODEL_RESCUE_ORDER]);
 const state={batchActive:false,aiCancelRequested:false,activeGeminiControllers:new Set(),modelPolicyUpdating:false};
 const text=value=>String(value??'').trim();
 const trace=(event,detail={})=>{
@@ -106,8 +107,22 @@ function alignUpdateCenterLayout(){
   return Boolean(ocr&&heading&&wrap);
 }
 
-function isGeminiRequest(input){
-  try{const raw=typeof input==='string'?input:input?.url||String(input);const url=new URL(raw,location.href);return url.hostname==='generativelanguage.googleapis.com';}catch{return false;}
+function requestUrl(input){try{return new URL(typeof input==='string'?input:input?.url||String(input),location.href);}catch{return null;}}
+function isGeminiRequest(input){return requestUrl(input)?.hostname==='generativelanguage.googleapis.com';}
+function shouldCurateVisualCatalog(url){
+  return Boolean(state.batchActive&&url?.hostname==='generativelanguage.googleapis.com'&&/\/v1beta\/models\/?$/.test(url.pathname)&&text(globalThis.PokemonSleepAiProjectPool?.model)===PRIMARY_VISUAL_MODEL);
+}
+async function curateCapabilityResponse(response){
+  if(!response?.ok)return response;
+  let payload;try{payload=await response.clone().json();}catch{return response;}
+  if(!Array.isArray(payload?.models))return response;
+  const before=payload.models.length;
+  const selected=payload.models.filter(model=>CURATED_VISUAL_MODELS.has(text(model?.name).replace(/^models\//,'')));
+  if(!selected.length)return response;
+  payload={...payload,models:selected};
+  const headers=new Headers(response.headers);headers.set('content-type','application/json; charset=utf-8');
+  trace('v042720_visual_capability_catalog_curated',{before_count:before,after_count:selected.length,models:selected.map(model=>text(model?.name).replace(/^models\//,''))});
+  return new Response(JSON.stringify(payload),{status:response.status,statusText:response.statusText,headers});
 }
 function installGeminiCancelFetchBoundary(){
   if(globalThis.fetch?.v042720AiCancelWrapped)return;
@@ -120,11 +135,13 @@ function installGeminiCancelFetchBoundary(){
     const outer=init?.signal;
     const abortFromOuter=()=>{try{controller.abort(outer?.reason);}catch{}};
     if(outer){if(outer.aborted)abortFromOuter();else outer.addEventListener?.('abort',abortFromOuter,{once:true});}
-    try{return await originalFetch(input,{...init,signal:controller.signal});}
-    finally{state.activeGeminiControllers.delete(controller);outer?.removeEventListener?.('abort',abortFromOuter);}
+    try{
+      const response=await originalFetch(input,{...init,signal:controller.signal});
+      return shouldCurateVisualCatalog(requestUrl(input))?await curateCapabilityResponse(response):response;
+    }finally{state.activeGeminiControllers.delete(controller);outer?.removeEventListener?.('abort',abortFromOuter);}
   };
   Object.defineProperty(wrapped,'v042720AiCancelWrapped',{value:true});
-  globalThis.fetch=wrapped;trace('v042720_gemini_cancel_fetch_boundary_ready',{});
+  globalThis.fetch=wrapped;trace('v042720_gemini_cancel_fetch_boundary_ready',{curated_capability_rescue:true});
 }
 
 function onUnifiedStage(event){
@@ -150,8 +167,8 @@ function install(){
   observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['disabled']});
   const api=Object.freeze({version:ANALYSIS_EXECUTION_UX_VERSION,primary_model:PRIMARY_VISUAL_MODEL,rescue_order:[...VISUAL_MODEL_RESCUE_ORDER],rankVisualRescueModels,requestAiCancel,getState:()=>({batch_active:state.batchActive,ai_cancel_requested:state.aiCancelRequested,active_gemini_requests:state.activeGeminiControllers.size}),alignUpdateCenterLayout,enforceRunLock});
   globalThis.PokemonSleepAnalysisExecutionUXV042720=api;
-  globalThis.PokemonSleepVisualModelPolicyV042720=Object.freeze({primary:PRIMARY_VISUAL_MODEL,rescue_order:[...VISUAL_MODEL_RESCUE_ORDER],reason:'PHYSICAL_V042719_8_OF_8_SUCCESS_LOW_LATENCY_STRUCTURED_EXTRACTION'});
-  trace('v042720_analysis_execution_ux_ready',{run_lock:true,cancel_ai:true,ocr_before_history:true,history_last:true,primary_model:PRIMARY_VISUAL_MODEL,rescue_order:[...VISUAL_MODEL_RESCUE_ORDER]});
+  globalThis.PokemonSleepVisualModelPolicyV042720=Object.freeze({primary:PRIMARY_VISUAL_MODEL,rescue_order:[...VISUAL_MODEL_RESCUE_ORDER],capability_catalog_curated_when_primary_active:true,reason:'PHYSICAL_V042719_8_OF_8_SUCCESS_LOW_LATENCY_STRUCTURED_EXTRACTION'});
+  trace('v042720_analysis_execution_ux_ready',{run_lock:true,cancel_ai:true,ocr_before_history:true,history_last:true,primary_model:PRIMARY_VISUAL_MODEL,rescue_order:[...VISUAL_MODEL_RESCUE_ORDER],capability_catalog_curated:true});
   return api;
 }
 
