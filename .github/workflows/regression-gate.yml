@@ -116,8 +116,8 @@ jobs:
           node scripts/v04275-pe6-strategy-event-provenance-contract.mjs
           node scripts/v04275-g72-effective-event-energy-authority-contract.mjs
           node scripts/v042712-confirmation-lifecycle-ux-contract.mjs
-          node scripts/v042721-predecessor-v042720-runner.mjs
-          node scripts/v042721-player-evolution-override-contract.mjs
+          node scripts/v042722-predecessor-v042721-runner.mjs
+          node scripts/v042722-ai-json-collapse-contract.mjs
 
       - name: Verify unlocked Pokémon roster filters
         run: node scripts/pokemon-roster-filter-regression.mjs
@@ -160,6 +160,11 @@ jobs:
         env:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/v042721-browser-contract.mjs
+
+      - name: Verify v0.4.27.22 browser collapsed AI JSON
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/v042722-browser-contract.mjs
 
       - name: Verify browser runtime and dynamic module loading
         env:

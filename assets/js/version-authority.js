@@ -1,8 +1,8 @@
 (function installVersionAuthority(scope) {
   const authority = Object.freeze({
-    app_version: 'v0.4.27.21',
-    app_build: '20260820-v042721-player-evolution-override',
-    cache_name: 'pokemon-sleep-ai-v0.4.27.21-v042721-player-evolution-override',
+    app_version: 'v0.4.27.22',
+    app_build: '20260820-v042722-collapsed-ai-json',
+    cache_name: 'pokemon-sleep-ai-v0.4.27.22-v042722-collapsed-ai-json',
     schema: 'pokemon-sleep-version-authority/1.0',
   });
   Object.defineProperty(scope, 'PokemonSleepVersionAuthority', {
@@ -14,6 +14,9 @@
 })(globalThis);
 
 // Legacy CI parser bridge only; not executed and not a release authority:
+// app_version: 'v0.4.27.21'
+// app_build: '20260820-v042721-player-evolution-override'
+// cache_name: 'pokemon-sleep-ai-v0.4.27.21-v042721-player-evolution-override'
 // app_version: 'v0.4.27.20'
 // app_build: '20260820-v042720-analysis-ux-flash-lite'
 // cache_name: 'pokemon-sleep-ai-v0.4.27.20-v042720-analysis-ux-flash-lite'

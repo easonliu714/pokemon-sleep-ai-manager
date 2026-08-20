@@ -7,7 +7,7 @@ try{
   const context=await browser.newContext();
   const page=await context.newPage();
   await page.goto(base,{waitUntil:'domcontentloaded'});
-  await page.waitForFunction(()=>globalThis.PokemonSleepVersionAuthority?.app_version==='v0.4.27.21',{timeout:30000});
+  await page.waitForFunction(()=>['v0.4.27.21','v0.4.27.22'].includes(globalThis.PokemonSleepVersionAuthority?.app_version),{timeout:30000});
   await page.waitForFunction(()=>Boolean(globalThis.PokemonSleepPlayerEvolutionOverrideV042721),{timeout:30000});
   await page.waitForFunction(()=>document.getElementById('dbStatus')?.textContent?.includes('就緒'),{timeout:60000}).catch(()=>{});
 
@@ -38,7 +38,6 @@ try{
     reason.value='活動特殊造型不可進化';reason.dispatchEvent(new Event('input',{bubbles:true}));
     const cannot={mode:mode.value,status:status.value,reason:reason.value,candy:candy?.value??null,item:item?.value??null,disabled:fields.every(node=>node?.disabled===true),notice:form.querySelector('#playerEvolutionOverrideEffective')?.textContent||'',publicHeading:form.querySelector('[data-evolution-authority-status] strong')?.textContent||''};
 
-    // Re-dispatch the same group to simulate leaving and returning. Group-local successor state must win.
     globalThis.dispatchEvent(new CustomEvent('pokemon-sleep:analysis-confirmation-group-selected',{detail:{group_id:'v042721-browser-group',revision,draft,reason:'v042721_browser_return'}}));
     await new Promise(resolve=>setTimeout(resolve,100));
     const returned=document.querySelector('#analysisConfirmationWorkbench .analysis-confirmation');
@@ -47,7 +46,7 @@ try{
     return {publicBefore,cannot,afterReturn,version:globalThis.PokemonSleepVersionAuthority?.app_version,apiVersion:globalThis.PokemonSleepPlayerEvolutionOverrideV042721?.version};
   });
 
-  assert.equal(result.version,'v0.4.27.21');
+  assert.ok(['v0.4.27.21','v0.4.27.22'].includes(result.version));
   assert.equal(result.apiVersion,'pokemon-sleep-player-evolution-override/1.0-v042721');
   assert.equal(result.cannot.mode,'PLAYER_OVERRIDE');
   assert.equal(result.cannot.status,'CANNOT_EVOLVE');
@@ -64,5 +63,5 @@ try{
   assert.equal(result.afterReturn.item,'');
   assert.equal(result.afterReturn.disabled,true);
 
-  console.log(JSON.stringify({status:'PASS',gate:'V042721_BROWSER_PLAYER_EVOLUTION_OVERRIDE',result},null,2));
+  console.log(JSON.stringify({status:'PASS',gate:'V042721_BROWSER_PLAYER_EVOLUTION_OVERRIDE_SUCCESSOR_AWARE',result},null,2));
 }finally{await browser.close();}
