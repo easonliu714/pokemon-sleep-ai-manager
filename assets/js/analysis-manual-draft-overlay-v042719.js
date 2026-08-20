@@ -1,3 +1,5 @@
+import './analysis-execution-ux-v042720.js';
+
 export const MANUAL_DRAFT_OVERLAY_VERSION='v0.4.27.19-group-local-manual-draft-2026-08-19-a';
 
 const records=new Map();
