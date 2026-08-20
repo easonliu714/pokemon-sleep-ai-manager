@@ -116,8 +116,8 @@ jobs:
           node scripts/v04275-pe6-strategy-event-provenance-contract.mjs
           node scripts/v04275-g72-effective-event-energy-authority-contract.mjs
           node scripts/v042712-confirmation-lifecycle-ux-contract.mjs
-          node scripts/v042720-predecessor-v042719-runner.mjs
-          node scripts/v042720-analysis-ux-model-policy-contract.mjs
+          node scripts/v042721-predecessor-v042720-runner.mjs
+          node scripts/v042721-player-evolution-override-contract.mjs
 
       - name: Verify unlocked Pokémon roster filters
         run: node scripts/pokemon-roster-filter-regression.mjs
@@ -156,10 +156,10 @@ jobs:
           cat /tmp/pokemon-sleep-http.log
           exit 1
 
-      - name: Verify v0.4.27.20 browser analysis UX and offline modules
+      - name: Verify v0.4.27.21 browser player evolution override
         env:
           BASE_URL: http://127.0.0.1:4173/
-        run: node scripts/v042720-browser-contract.mjs
+        run: node scripts/v042721-browser-contract.mjs
 
       - name: Verify browser runtime and dynamic module loading
         env:
