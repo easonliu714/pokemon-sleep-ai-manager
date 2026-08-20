@@ -1,5 +1,6 @@
 import './version-authority.js';
 import './analysis-manual-draft-overlay-v042719.js';
+import './ai-json-collapse-v042722.js';
 
 const UNKNOWN_VERSION='v0.0.0-unknown';
 const UNKNOWN_BUILD='unknown-build';
