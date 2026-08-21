@@ -46,7 +46,7 @@ assert.equal(INGREDIENT_PROBABILITY_FIRST_PARTY_OBSERVATION_VERSION,'ingredient-
 assert.equal(evaluation.contract_id,INGREDIENT_PROBABILITY_FIRST_PARTY_OBSERVATION_ID);
 assert.equal(evaluation.contract_version,INGREDIENT_PROBABILITY_FIRST_PARTY_OBSERVATION_VERSION);
 assert.equal(evaluation.status,'ACCEPTED_RAW_OBSERVATION');
-assert.deepEqual(evaluation.safety,{
+const legacySafetyInvariants={
   only_single_unlocked_ingredient_slot:true,
   rate_value_used_to_reconstruct_events:false,
   invalid_batch_contributes_to_estimate:false,
@@ -55,8 +55,13 @@ assert.deepEqual(evaluation.safety,{
   player_data_write:false,
   sqlite_write:false,
   ai_numeric_authority:false,
-});
-assert.equal(Object.hasOwn(evaluation.safety,'multi_slot_extension_id'),false,'legacy single-slot safety must not gain extension fields');
+};
+for(const [field,expected] of Object.entries(legacySafetyInvariants))assert.equal(evaluation.safety[field],expected,`legacy safety invariant changed: ${field}`);
+assert.equal(Object.hasOwn(evaluation.safety,'multi_slot_extension_id'),false,'legacy single-slot safety must not gain equal-quantity extension identity');
+assert.equal(Object.hasOwn(evaluation.safety,'distinct_slot_extension_id'),false,'legacy single-slot safety must not gain distinct-slot extension identity');
+assert.equal(evaluation.safety.berry_count_completeness_status,'COMPLETE_CONFIRMED','legacy payload without successor field must preserve old complete-count semantics');
+assert.equal(evaluation.safety.censored_partial_observation,false);
+assert.equal(evaluation.safety.repeated_windows_do_not_rescue_censored_denominator,true);
 
 const payload=buildFirstPartyIngredientObservationUpdatePackage(legacyRaw,{
   generatedAt:'2026-08-15T10:00:00.000Z',
@@ -70,11 +75,12 @@ assert.deepEqual(payload.operations[0].data.safety,evaluation.safety);
 
 console.log(JSON.stringify({
   status:'PASS',
-  gate:'V0428_G75E3C6C_LEGACY_SINGLE_SLOT_PACKAGE_COMPAT',
+  gate:'V0428_G75E3C6C_LEGACY_SINGLE_SLOT_PACKAGE_COMPAT_SUCCESSOR_AWARE',
   legacy_contract_id_preserved:true,
   legacy_contract_version_preserved:true,
-  legacy_safety_shape_preserved:true,
+  legacy_safety_invariants_preserved:true,
+  successor_safety_metadata_additive:true,
   pending_single_slot_update_package_compatibility:true,
-  multi_slot_extension_fields_leak_into_single_slot:false,
+  multi_slot_extension_identity_leak_into_single_slot:false,
   production_numeric_activation:'4/7',
 },null,2));

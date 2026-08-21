@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
 
 const base=process.env.BASE_URL||'http://127.0.0.1:4173/';
+const supported=['v0.4.27.22','v0.4.27.23','v0.4.27.24'];
 const browser=await chromium.launch({headless:true});
 try{
   const context=await browser.newContext();
   const page=await context.newPage();
   await page.goto(base,{waitUntil:'domcontentloaded'});
-  await page.waitForFunction(()=>['v0.4.27.22','v0.4.27.23'].includes(globalThis.PokemonSleepVersionAuthority?.app_version),{timeout:30000});
+  await page.waitForFunction((versions)=>versions.includes(globalThis.PokemonSleepVersionAuthority?.app_version),supported,{timeout:30000});
   await page.waitForFunction(()=>Boolean(globalThis.PokemonSleepAiJsonCollapseV042722),{timeout:30000});
   const result=await page.evaluate(async()=>{
     const updates=document.getElementById('updates');
@@ -23,7 +24,7 @@ try{
     const after={open:details?.open??null};
     return {before,after,version:globalThis.PokemonSleepVersionAuthority?.app_version,apiVersion:globalThis.PokemonSleepAiJsonCollapseV042722?.version};
   });
-  assert.ok(['v0.4.27.22','v0.4.27.23'].includes(result.version));
+  assert.ok(supported.includes(result.version));
   assert.equal(result.apiVersion,'v0.4.27.22-ai-json-collapse-2026-08-20-a');
   assert.equal(result.before.details,true);
   assert.equal(result.before.open,false);
