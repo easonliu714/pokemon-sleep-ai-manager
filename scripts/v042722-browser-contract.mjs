@@ -8,7 +8,7 @@ try{
   const context=await browser.newContext();
   const page=await context.newPage();
   await page.goto(base,{waitUntil:'domcontentloaded'});
-  await page.waitForFunction versions=>versions.includes(globalThis.PokemonSleepVersionAuthority?.app_version),supported,{timeout:30000});
+  await page.waitForFunction((versions)=>versions.includes(globalThis.PokemonSleepVersionAuthority?.app_version),supported,{timeout:30000});
   await page.waitForFunction(()=>Boolean(globalThis.PokemonSleepAiJsonCollapseV042722),{timeout:30000});
   const result=await page.evaluate(async()=>{
     const updates=document.getElementById('updates');
