@@ -49,7 +49,9 @@ assert.equal(level30Equal.observation_mode,FIRST_PARTY_OBSERVATION_MODES.MULTI_S
 assert.equal(level30Equal.multi_slot_preeligible,true);
 assert.equal(level30Equal.outcome_dependent_window_selection,false);
 
-const level30Unequal=resolveFirstPartyObservationUiCandidate({
+// E3C-6F successor takes ownership of preobservable unequal-quantity rows only when
+// every unlocked ingredient name is distinct. E3C-6D's equal-quantity path is unchanged.
+const level30UnequalDistinct=resolveFirstPartyObservationUiCandidate({
   level:30,
   ingredient_slots:[
     {unlock_level:1,ingredient_name:'HONEY',quantity:2},
@@ -57,9 +59,23 @@ const level30Unequal=resolveFirstPartyObservationUiCandidate({
   ],
   individual_ingredient_rate_modifier_present:false,
 });
-assert.equal(level30Unequal.visible,false);
-assert.equal(level30Unequal.observation_mode,null);
-assert.ok(level30Unequal.blockers.includes(FIRST_PARTY_OBSERVATION_UI_CANDIDATE_BLOCKERS.MULTI_SLOT_QUANTITIES_NOT_EQUAL));
+assert.equal(level30UnequalDistinct.visible,true);
+assert.equal(level30UnequalDistinct.observation_mode,FIRST_PARTY_OBSERVATION_MODES.MULTI_SLOT_DISTINCT_QUANTITY);
+assert.equal(level30UnequalDistinct.distinct_slot_preeligible,true);
+assert.equal(level30UnequalDistinct.outcome_dependent_window_selection,false);
+
+const level30UnequalSameName=resolveFirstPartyObservationUiCandidate({
+  level:30,
+  ingredient_slots:[
+    {unlock_level:1,ingredient_name:'HONEY',quantity:2},
+    {unlock_level:30,ingredient_name:'HONEY',quantity:3},
+  ],
+  individual_ingredient_rate_modifier_present:false,
+});
+assert.equal(level30UnequalSameName.visible,false);
+assert.equal(level30UnequalSameName.observation_mode,null);
+assert.ok(level30UnequalSameName.blockers.includes(FIRST_PARTY_OBSERVATION_UI_CANDIDATE_BLOCKERS.MULTI_SLOT_QUANTITIES_NOT_EQUAL));
+assert.ok(level30UnequalSameName.blockers.includes(FIRST_PARTY_OBSERVATION_UI_CANDIDATE_BLOCKERS.MULTI_SLOT_INGREDIENT_NAMES_NOT_DISTINCT));
 
 const level30Modifier=resolveFirstPartyObservationUiCandidate({
   level:30,
@@ -128,15 +144,14 @@ for(const token of [
   'unlock_level<=?',
   'resolveFirstPartyObservationUiCandidate',
   'FIRST_PARTY_OBSERVATION_MODES.MULTI_SLOT_EQUAL_QUANTITY',
+  'FIRST_PARTY_OBSERVATION_MODES.MULTI_SLOT_DISTINCT_QUANTITY',
   'observation_mode:context.observationMode',
-  'Lv30+/Lv60',
-  '所有已解鎖食材槽 quantity 相同',
   'pokemon_id 不會進 Update Package',
-  '不使用 OCR',
+  '不使用 OCR/AI',
   '下載去識別聚合 JSON',
-])assert.ok(ui.includes(token),`E3C-6D UI missing governed token: ${token}`);
+])assert.ok(ui.includes(token),`E3C-6D/6F UI missing governed token: ${token}`);
 assert.equal(ui.includes('level BETWEEN 1 AND 29'),false,'successor UI must no longer hard-code the old Lv1-29 SQL ceiling');
-for(const forbidden of ['fetch(', 'XMLHttpRequest', 'localStorage', 'sessionStorage', 'indexedDB', 'INSERT INTO', 'UPDATE ', 'DELETE FROM', 'applyPayload(', 'dryRun('])assert.equal(eligibilitySource.includes(forbidden),false,`E3C-6D eligibility resolver contains forbidden authority/write path: ${forbidden}`);
+for(const forbidden of ['fetch(', 'XMLHttpRequest', 'localStorage', 'sessionStorage', 'indexedDB', 'INSERT INTO', 'UPDATE ', 'DELETE FROM', 'applyPayload(', 'dryRun('])assert.equal(eligibilitySource.includes(forbidden),false,`E3C-6D/6F eligibility resolver contains forbidden authority/write path: ${forbidden}`);
 assert.ok(eligibilitySource.includes('outcome_dependent_window_selection:false'),'UI eligibility must preserve the E3C-6C anti-selection-bias invariant');
 
 const registry=currentProductionAuthorityRegistry();
@@ -147,10 +162,11 @@ assert.equal(registry.numeric_rate_model_status,'NOT_YET_VERIFIED');
 
 console.log(JSON.stringify({
   status:'PASS',
-  gate:'V0428_G75E3C6D_MULTI_SLOT_FIRST_PARTY_OBSERVATION_MOBILE_UI',
+  gate:'V0428_G75E3C6D_MULTI_SLOT_FIRST_PARTY_OBSERVATION_MOBILE_UI_SUCCESSOR_AWARE',
   legacy_single_slot_visibility_preserved:true,
   level30_equal_quantity_visible:true,
-  level30_unequal_quantity_hidden:true,
+  level30_unequal_distinct_handed_to_e3c6f:true,
+  level30_unequal_same_name_hidden:true,
   level30_individual_rate_modifier_hidden:true,
   level60_equal_quantity_visible:true,
   incomplete_multislot_hidden:true,
