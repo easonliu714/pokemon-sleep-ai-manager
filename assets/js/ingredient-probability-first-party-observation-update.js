@@ -6,7 +6,7 @@ import {
   wilsonBinomialInterval,
 } from './ingredient-probability-first-party-observation-contract.js';
 
-export const FIRST_PARTY_OBSERVATION_UPDATE_VERSION='ingredient-probability-first-party-observation-update-2026-08-15-a';
+export const FIRST_PARTY_OBSERVATION_UPDATE_VERSION='ingredient-probability-first-party-observation-update-2026-08-21-b';
 export const FIRST_PARTY_OBSERVATION_UPDATE_SCENARIO='ingredient_probability_first_party_observation_update';
 export const FIRST_PARTY_OBSERVATION_UPDATE_ENTITY='ingredient_probability_observations';
 export const FIRST_PARTY_OBSERVATION_UPDATE_SOURCE='player_first_party_manual_capture';
@@ -33,12 +33,14 @@ const RAW_FIELDS=Object.freeze([
   'external_extra_help_effect_used','non_help_item_contamination','collection_counts_complete',
   'external_rate_value_used_to_reconstruct_events','berry_items_collected','ingredient_items_collected','berry_items_per_help',
   'berry_items_per_help_authority','inventory_items_before_collection','inventory_capacity',
+  'berry_count_completeness_status','observation_series_id','window_sequence',
 ]);
 const DERIVED_FIELDS=Object.freeze([
-  'contract_id','contract_version','status','blockers','eligible_for_statistical_aggregation','berry_help_event_count',
+  'contract_id','contract_version','status','blockers','partial_reasons','eligible_for_statistical_aggregation','berry_help_event_count',
   'ingredient_help_event_count','total_help_event_count','ingredient_event_fraction','statistical_semantics',
   'base_rate_normalization_applied','activation_authority_granted','independent_source_admission_granted','safety',
 ]);
+const TRANSIENT_STORAGE_FIELDS=Object.freeze(['berry_count_completeness_status','observation_series_id','window_sequence','partial_reasons']);
 const FORBIDDEN_PRIVATE_FIELDS=Object.freeze([
   'pokemon_id','pokemon_instance_id','game_pokemon_id','nickname','registered_at','obtained_at','identity_fingerprint','player_name','account_id',
 ]);
@@ -53,6 +55,7 @@ export function buildFirstPartyIngredientObservationRecord(input={}){
     contract_version:evaluation.contract_version,
     status:evaluation.status,
     blockers:Object.freeze([...evaluation.blockers]),
+    partial_reasons:Object.freeze([...(evaluation.partial_reasons||[])]),
     eligible_for_statistical_aggregation:evaluation.eligible_for_statistical_aggregation,
     berry_help_event_count:evaluation.berry_help_event_count,
     ingredient_help_event_count:evaluation.ingredient_help_event_count,
@@ -78,7 +81,7 @@ export function validateFirstPartyIngredientObservationUpdateOperation(operation
   if(keyId&&dataId&&keyId!==dataId)errors.push('key.observation_id 與 data.observation_id 必須一致');
   if(!validIso(data.captured_at))errors.push('data.captured_at 必須是有效 ISO 日期時間');
   if(text(data.capture_input_method)!==FIRST_PARTY_OBSERVATION_CAPTURE_INPUT_METHOD)errors.push(`capture_input_method 必須是 ${FIRST_PARTY_OBSERVATION_CAPTURE_INPUT_METHOD}`);
-  if(operation.review_required===true)errors.push('觀測 status=REVIEW_REQUIRED 與 Update Center operation.review_required 是不同語意；本 entity 必須先 deterministic 驗證後再安全保存');
+  if(operation.review_required===true)errors.push('觀測 status 與 Update Center operation.review_required 是不同語意；本 entity 必須先 deterministic 驗證後再安全保存');
   if(text(operation?.evidence?.source_type)!==FIRST_PARTY_OBSERVATION_OPERATION_EVIDENCE_TYPE)errors.push(`evidence.source_type 必須是 ${FIRST_PARTY_OBSERVATION_OPERATION_EVIDENCE_TYPE}`);
   for(const field of FORBIDDEN_PRIVATE_FIELDS)if(Object.prototype.hasOwnProperty.call(data,field))errors.push(`禁止在 first-party observation Update Package 中包含私人 identity 欄位：${field}`);
 
@@ -88,6 +91,7 @@ export function validateFirstPartyIngredientObservationUpdateOperation(operation
   if(text(data.contract_version)!==INGREDIENT_PROBABILITY_FIRST_PARTY_OBSERVATION_VERSION)errors.push('contract_version 不符合 E3C-6 authority');
   if(text(data.status)!==evaluation.status)errors.push(`status 與 deterministic evaluator 不一致：expected=${evaluation.status}`);
   if(!jsonEqual(safeArray(data.blockers),[...evaluation.blockers]))errors.push('blockers 與 deterministic evaluator 不一致');
+  if(!jsonEqual(safeArray(data.partial_reasons),[...(evaluation.partial_reasons||[])]))errors.push('partial_reasons 與 deterministic evaluator 不一致');
   if(bool(data.eligible_for_statistical_aggregation)!==evaluation.eligible_for_statistical_aggregation)errors.push('eligible_for_statistical_aggregation 與 deterministic evaluator 不一致');
   for(const field of ['berry_help_event_count','ingredient_help_event_count','total_help_event_count','ingredient_event_fraction']){
     if(!sameNumber(data[field],evaluation[field]))errors.push(`${field} 與 deterministic evaluator 不一致`);
@@ -101,6 +105,9 @@ export function validateFirstPartyIngredientObservationUpdateOperation(operation
   if(!jsonEqual(data.safety,evaluation.safety))errors.push('safety 與 deterministic evaluator 不一致');
   if(evaluation.status===FIRST_PARTY_OBSERVATION_STATUS.REVIEW_REQUIRED){
     warnings.push(`觀測 ${dataId||keyId||'(unknown)'} 將以 REVIEW_REQUIRED 保留，但不會納入任何統計聚合：${evaluation.blockers.join(', ')}`);
+  }
+  if(evaluation.status===FIRST_PARTY_OBSERVATION_STATUS.ACCEPTED_PARTIAL_OBSERVATION){
+    warnings.push(`觀測 ${dataId||keyId||'(unknown)'} 為 ACCEPTED_PARTIAL_OBSERVATION：食材 help numerator 可重建，但樹果分母可能被卡比獸直接吃掉而截尾，因此不納入 Ingredient Probability 聚合。`);
   }
   return Object.freeze({errors:Object.freeze(errors),warnings:Object.freeze(warnings),evaluation});
 }
@@ -134,7 +141,7 @@ export function buildFirstPartyIngredientObservationUpdatePackage(input={},optio
   const suffix=observationId.replace(/[^A-Za-z0-9_-]/g,'').slice(-24)||'OBS';
   const payload={
     schema_version:'1.1',
-    update_id:options.updateId||`UPD-${generatedAt.replace(/[-:TZ.]/g,'').slice(0,14)}-E3C6B-${suffix}`,
+    update_id:options.updateId||`UPD-${generatedAt.replace(/[-:TZ.]/g,'').slice(0,14)}-E3C6F-${suffix}`,
     generated_at:generatedAt,
     source:FIRST_PARTY_OBSERVATION_UPDATE_SOURCE,
     scenario:FIRST_PARTY_OBSERVATION_UPDATE_SCENARIO,
@@ -171,13 +178,13 @@ export function buildFirstPartyIngredientObservationUpdatePackage(input={},optio
   return Object.freeze(payload);
 }
 
-// Importer-owned normalization: JSON arrays/objects are preserved in the private
-// Update Package but serialized only at the SQLite boundary. Derived values are
-// never trusted; they are re-evaluated before this function is allowed to return.
 export function prepareFirstPartyIngredientObservationStorageData(operation={},payload={},updatedAt=new Date().toISOString()){
   const validation=validateFirstPartyIngredientObservationUpdateOperation(operation);
   if(validation.errors.length)throw new Error(`FIRST_PARTY_OBSERVATION_VALIDATION_FAILED:${validation.errors.join('|')}`);
   const data=clone(operation.data||{});
+  // E3C-6F successor metadata is retained inside safety/ingredient_slots JSON so the
+  // existing private SQLite schema remains backward compatible and no migration is needed.
+  for(const field of TRANSIENT_STORAGE_FIELDS)delete data[field];
   for(const field of ['observation_evidence_refs','ingredient_slots','blockers','safety'])data[field]=JSON.stringify(data[field]??(field==='safety'?{}:[]));
   for(const field of [
     'species_form_identity_confirmed','player_private_identity_included','inventory_empty_at_window_start',
@@ -191,8 +198,14 @@ export function prepareFirstPartyIngredientObservationStorageData(operation={},p
   return data;
 }
 
+function storedSafety(row){
+  try{return typeof row?.safety==='string'?JSON.parse(row.safety||'{}'):(row?.safety||{});}catch{return {};}
+}
+
 export function buildDeidentifiedFirstPartyIngredientAggregate(rows=[]){
-  const accepted=(Array.isArray(rows)?rows:[]).filter(row=>row?.status===FIRST_PARTY_OBSERVATION_STATUS.ACCEPTED_RAW_OBSERVATION&&Number(row?.eligible_for_statistical_aggregation)===1);
+  const input=Array.isArray(rows)?rows:[];
+  const accepted=input.filter(row=>row?.status===FIRST_PARTY_OBSERVATION_STATUS.ACCEPTED_RAW_OBSERVATION&&Number(row?.eligible_for_statistical_aggregation)===1);
+  const partial=input.filter(row=>row?.status===FIRST_PARTY_OBSERVATION_STATUS.ACCEPTED_PARTIAL_OBSERVATION);
   const grouped=new Map();
   for(const row of accepted){
     const key=text(row.source_key);
@@ -204,11 +217,14 @@ export function buildDeidentifiedFirstPartyIngredientAggregate(rows=[]){
     current.total_help_event_count+=Number(row.total_help_event_count)||0;
     grouped.set(key,current);
   }
+  const partialBySource=new Map();
+  for(const row of partial){const key=text(row.source_key);if(key)partialBySource.set(key,(partialBySource.get(key)||0)+1);}
   const groups=[...grouped.values()].sort((a,b)=>a.source_key.localeCompare(b.source_key)).map(row=>{
     const interval=wilsonBinomialInterval(row.ingredient_help_event_count,row.total_help_event_count);
     return Object.freeze({
       source_key:row.source_key,
       observation_count:row.observation_count,
+      partial_window_count:partialBySource.get(row.source_key)||0,
       berry_help_event_count:row.berry_help_event_count,
       ingredient_help_event_count:row.ingredient_help_event_count,
       total_help_event_count:row.total_help_event_count,
@@ -216,16 +232,25 @@ export function buildDeidentifiedFirstPartyIngredientAggregate(rows=[]){
       wilson_95:interval?Object.freeze({lower:interval.lower,upper:interval.upper}):null,
     });
   });
+  const partialWindows=partial.map(row=>Object.freeze({
+    source_key:text(row.source_key),
+    ingredient_help_event_count:Number(row.ingredient_help_event_count)||0,
+    berry_denominator_complete:storedSafety(row).berry_denominator_complete===true,
+  }));
   return Object.freeze({
-    schema:'pokemon-sleep-deidentified-first-party-ingredient-observation-aggregate/1.0',
+    schema:'pokemon-sleep-deidentified-first-party-ingredient-observation-aggregate/1.1',
     generated_at:new Date().toISOString(),
     source:'LOCAL_FIRST_PARTY_OBSERVATIONS',
     privacy:Object.freeze({raw_observation_included:false,evidence_refs_included:false,player_identity_included:false,source_key_only:true}),
-    statistical_status:groups.length?'OBSERVED_PARTIAL_ONLY':'NO_ACCEPTED_OBSERVATIONS',
+    statistical_status:groups.length?'OBSERVED_PARTIAL_ONLY':partial.length?'CENSORED_NUMERATOR_ONLY_WINDOWS_AVAILABLE':'NO_ACCEPTED_OBSERVATIONS',
+    accepted_observation_count:accepted.length,
+    partial_observation_count:partial.length,
+    partial_windows_do_not_contribute_to_probability:true,
+    partial_windows:Object.freeze(partialWindows),
     sample_sufficiency_for_activation:'NOT_DEFINED',
     activation_authority_granted:false,
     groups:Object.freeze(groups),
   });
 }
 
-export const FIRST_PARTY_OBSERVATION_STORAGE_FIELDS=Object.freeze([...RAW_FIELDS,'capture_input_method',...DERIVED_FIELDS,'captured_at','updated_at','source_update_id']);
+export const FIRST_PARTY_OBSERVATION_STORAGE_FIELDS=Object.freeze([...RAW_FIELDS.filter(field=>!TRANSIENT_STORAGE_FIELDS.includes(field)),'capture_input_method',...DERIVED_FIELDS.filter(field=>field!=='partial_reasons'),'captured_at','updated_at','source_update_id']);
