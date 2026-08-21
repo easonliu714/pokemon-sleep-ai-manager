@@ -5,19 +5,27 @@ export const INGREDIENT_PROBABILITY_FIRST_PARTY_OBSERVATION_ID='ingredient-proba
 export const INGREDIENT_PROBABILITY_FIRST_PARTY_OBSERVATION_VERSION='ingredient-probability-first-party-observation-v1';
 export const INGREDIENT_PROBABILITY_FIRST_PARTY_MULTI_SLOT_EXTENSION_ID='ingredient-probability-first-party-multi-slot-extension-2026-08-18-a';
 export const INGREDIENT_PROBABILITY_FIRST_PARTY_MULTI_SLOT_EXTENSION_VERSION='ingredient-probability-first-party-multi-slot-extension-v1';
+export const INGREDIENT_PROBABILITY_FIRST_PARTY_DISTINCT_SLOT_EXTENSION_ID='ingredient-probability-first-party-distinct-slot-extension-2026-08-21-a';
+export const INGREDIENT_PROBABILITY_FIRST_PARTY_DISTINCT_SLOT_EXTENSION_VERSION='ingredient-probability-first-party-distinct-slot-extension-v1';
 
 export const FIRST_PARTY_OBSERVATION_STATUS=Object.freeze({
   ACCEPTED_RAW_OBSERVATION:'ACCEPTED_RAW_OBSERVATION',
+  ACCEPTED_PARTIAL_OBSERVATION:'ACCEPTED_PARTIAL_OBSERVATION',
   REVIEW_REQUIRED:'REVIEW_REQUIRED',
 });
 
 export const FIRST_PARTY_OBSERVATION_MODES=Object.freeze({
   SINGLE_SLOT:'DIRECT_MANUAL_COLLECTION_SINGLE_SLOT_WINDOW',
   MULTI_SLOT_EQUAL_QUANTITY:'DIRECT_MANUAL_COLLECTION_MULTI_SLOT_EQUAL_QUANTITY_WINDOW',
+  MULTI_SLOT_DISTINCT_QUANTITY:'DIRECT_MANUAL_COLLECTION_MULTI_SLOT_DISTINCT_QUANTITY_WINDOW',
 });
-// Backward-compatible alias used by E3C-6/E3C-6B and the existing mobile UI.
 export const FIRST_PARTY_OBSERVATION_MODE=FIRST_PARTY_OBSERVATION_MODES.SINGLE_SLOT;
 export const FIRST_PARTY_OBSERVATION_SOURCE='PLAYER_FIRST_PARTY_CAPTURE';
+
+export const BERRY_COUNT_COMPLETENESS=Object.freeze({
+  COMPLETE_CONFIRMED:'COMPLETE_CONFIRMED',
+  POSSIBLY_CENSORED_BY_SNORLAX:'POSSIBLY_CENSORED_BY_SNORLAX',
+});
 
 const ROSTER_BY_KEY=new Map(PUBLIC_SPECIES_FORM_ROSTER_ROWS.map(row=>[row.source_key,row]));
 const freeze=value=>Object.freeze(value);
@@ -26,6 +34,7 @@ const integer=value=>{const n=Number(value);return Number.isInteger(n)?n:null;};
 const nonNegativeInteger=value=>{const n=integer(value);return n!==null&&n>=0?n:null;};
 const positiveInteger=value=>{const n=integer(value);return n!==null&&n>0?n:null;};
 const nonEmptyRefs=value=>Array.isArray(value)&&value.map(text).filter(Boolean).length>0;
+const unique=value=>[...new Set(value)];
 
 export const FIRST_PARTY_OBSERVATION_BLOCKERS=Object.freeze({
   OBSERVATION_ID_MISSING:'OBSERVATION_ID_MISSING',
@@ -40,8 +49,12 @@ export const FIRST_PARTY_OBSERVATION_BLOCKERS=Object.freeze({
   MULTIPLE_INGREDIENT_SLOTS_UNLOCKED_NOT_SUPPORTED:'MULTIPLE_INGREDIENT_SLOTS_UNLOCKED_NOT_SUPPORTED',
   MULTI_SLOT_MODE_REQUIRES_MULTIPLE_UNLOCKED_SLOTS:'MULTI_SLOT_MODE_REQUIRES_MULTIPLE_UNLOCKED_SLOTS',
   MULTI_SLOT_QUANTITIES_NOT_EQUAL:'MULTI_SLOT_QUANTITIES_NOT_EQUAL',
+  MULTI_SLOT_INGREDIENT_NAMES_NOT_DISTINCT:'MULTI_SLOT_INGREDIENT_NAMES_NOT_DISTINCT',
   INGREDIENT_SLOT_STRUCTURE_NOT_VERIFIED:'INGREDIENT_SLOT_STRUCTURE_NOT_VERIFIED',
   INGREDIENT_SLOT_QUANTITY_MISSING:'INGREDIENT_SLOT_QUANTITY_MISSING',
+  INGREDIENT_SLOT_OBSERVED_COUNT_MISSING:'INGREDIENT_SLOT_OBSERVED_COUNT_MISSING',
+  INGREDIENT_SLOT_OBSERVED_COUNT_NOT_INTEGER:'INGREDIENT_SLOT_OBSERVED_COUNT_NOT_INTEGER',
+  INGREDIENT_SLOT_ITEM_TOTAL_MISMATCH:'INGREDIENT_SLOT_ITEM_TOTAL_MISMATCH',
   INDIVIDUAL_INGREDIENT_RATE_MODIFIER_NOT_ISOLATED:'INDIVIDUAL_INGREDIENT_RATE_MODIFIER_NOT_ISOLATED',
   ENVIRONMENT_INGREDIENT_RATE_MODIFIER_NOT_ISOLATED:'ENVIRONMENT_INGREDIENT_RATE_MODIFIER_NOT_ISOLATED',
   WINDOW_DID_NOT_START_EMPTY:'WINDOW_DID_NOT_START_EMPTY',
@@ -62,8 +75,19 @@ export const FIRST_PARTY_OBSERVATION_BLOCKERS=Object.freeze({
   ZERO_HELP_EVENTS:'ZERO_HELP_EVENTS',
 });
 
+export const FIRST_PARTY_OBSERVATION_PARTIAL_REASONS=Object.freeze({
+  BERRY_COUNT_POSSIBLY_CENSORED_BY_SNORLAX:'BERRY_COUNT_POSSIBLY_CENSORED_BY_SNORLAX',
+});
+
+function normalizedBerryCompleteness(input={}){
+  const value=text(input.berry_count_completeness_status);
+  if(!value)return BERRY_COUNT_COMPLETENESS.COMPLETE_CONFIRMED; // predecessor compatibility
+  return Object.values(BERRY_COUNT_COMPLETENESS).includes(value)?value:null;
+}
+
 export function evaluateFirstPartyIngredientHelpObservation(input={}){
   const blockers=[];
+  const partialReasons=[];
   const observationId=text(input.observation_id);
   if(!observationId)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.OBSERVATION_ID_MISSING);
   const sourceKey=text(input.source_key).toUpperCase();
@@ -81,17 +105,27 @@ export function evaluateFirstPartyIngredientHelpObservation(input={}){
   const slotCount=expectedUnlockedIngredientSlotCount(level);
   if(level===null||level<1)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.INVALID_LEVEL);
   else if(observationMode===FIRST_PARTY_OBSERVATION_MODES.SINGLE_SLOT&&slotCount!==1)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.MULTIPLE_INGREDIENT_SLOTS_UNLOCKED_NOT_SUPPORTED);
-  else if(observationMode===FIRST_PARTY_OBSERVATION_MODES.MULTI_SLOT_EQUAL_QUANTITY&&slotCount!==null&&slotCount<2)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.MULTI_SLOT_MODE_REQUIRES_MULTIPLE_UNLOCKED_SLOTS);
+  else if([FIRST_PARTY_OBSERVATION_MODES.MULTI_SLOT_EQUAL_QUANTITY,FIRST_PARTY_OBSERVATION_MODES.MULTI_SLOT_DISTINCT_QUANTITY].includes(observationMode)&&slotCount!==null&&slotCount<2)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.MULTI_SLOT_MODE_REQUIRES_MULTIPLE_UNLOCKED_SLOTS);
 
-  const slotResolution=level!==null?resolveIngredientSlotDistribution({level,slots:input.ingredient_slots}):null;
+  const rawSlots=Array.isArray(input.ingredient_slots)?input.ingredient_slots:[];
+  const rawSlotByLevel=new Map(rawSlots.map(row=>[Number(row?.unlock_level),row]));
+  const slotResolution=level!==null?resolveIngredientSlotDistribution({level,slots:rawSlots}):null;
   if(slotResolution?.status!=='ACTIVE_VERIFIED')blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.INGREDIENT_SLOT_STRUCTURE_NOT_VERIFIED);
-  const slotQuantities=slotResolution?.status==='ACTIVE_VERIFIED'?slotResolution.slots.map(row=>positiveInteger(row.quantity)):[];
+  const resolvedSlots=slotResolution?.status==='ACTIVE_VERIFIED'?slotResolution.slots:[];
+  const slotQuantities=resolvedSlots.map(row=>positiveInteger(row.quantity));
   if(slotResolution?.status==='ACTIVE_VERIFIED'&&slotQuantities.some(value=>value===null))blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.INGREDIENT_SLOT_QUANTITY_MISSING);
   const validSlotQuantities=slotQuantities.filter(value=>value!==null);
   const equalMultiSlotQuantities=validSlotQuantities.length>=2&&new Set(validSlotQuantities).size===1;
+  const resolvedNames=resolvedSlots.map(row=>text(row.ingredient_name)).filter(Boolean);
+  const distinctIngredientNames=resolvedNames.length===resolvedSlots.length&&new Set(resolvedNames).size===resolvedNames.length;
+
   if(observationMode===FIRST_PARTY_OBSERVATION_MODES.MULTI_SLOT_EQUAL_QUANTITY&&slotResolution?.status==='ACTIVE_VERIFIED'&&validSlotQuantities.length===slotQuantities.length&&!equalMultiSlotQuantities){
     blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.MULTI_SLOT_QUANTITIES_NOT_EQUAL);
   }
+  if(observationMode===FIRST_PARTY_OBSERVATION_MODES.MULTI_SLOT_DISTINCT_QUANTITY&&slotResolution?.status==='ACTIVE_VERIFIED'&&!distinctIngredientNames){
+    blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.MULTI_SLOT_INGREDIENT_NAMES_NOT_DISTINCT);
+  }
+
   const ingredientItemsPerHelp=validSlotQuantities.length&&(
     observationMode===FIRST_PARTY_OBSERVATION_MODES.SINGLE_SLOT||equalMultiSlotQuantities
   )?validSlotQuantities[0]:null;
@@ -107,26 +141,48 @@ export function evaluateFirstPartyIngredientHelpObservation(input={}){
   if(input.collection_counts_complete!==true)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.COLLECTION_COUNTS_INCOMPLETE);
   if(input.external_rate_value_used_to_reconstruct_events!==false)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.RATE_VALUE_USED_TO_RECONSTRUCT_EVENTS);
 
+  const berryCompleteness=normalizedBerryCompleteness(input);
+  if(berryCompleteness===BERRY_COUNT_COMPLETENESS.POSSIBLY_CENSORED_BY_SNORLAX){
+    partialReasons.push(FIRST_PARTY_OBSERVATION_PARTIAL_REASONS.BERRY_COUNT_POSSIBLY_CENSORED_BY_SNORLAX);
+  }
+
   const berryItems=nonNegativeInteger(input.berry_items_collected);
   const ingredientItems=nonNegativeInteger(input.ingredient_items_collected);
-  if(berryItems===null||ingredientItems===null)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.INVALID_ITEM_COUNTS);
+  if(ingredientItems===null||berryItems===null)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.INVALID_ITEM_COUNTS);
   const berryItemsPerHelp=positiveInteger(input.berry_items_per_help);
   if(berryItemsPerHelp===null)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.INVALID_BERRY_ITEMS_PER_HELP);
   if(text(input.berry_items_per_help_authority)!=='DETERMINISTIC_PLATFORM_VERIFIED')blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.BERRY_OUTPUT_AUTHORITY_NOT_VERIFIED);
 
   const inventoryCount=nonNegativeInteger(input.inventory_items_before_collection);
   const inventoryCapacity=positiveInteger(input.inventory_capacity);
-  if(inventoryCount===null||berryItems===null||ingredientItems===null||inventoryCount!==berryItems+ingredientItems)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.INVENTORY_COUNT_MISMATCH);
-  if(inventoryCount===null||inventoryCapacity===null||inventoryCount>=inventoryCapacity)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.INVENTORY_CAPACITY_NOT_PROVABLY_SAFE);
-
-  let berryHelpEvents=null,ingredientHelpEvents=null,totalHelpEvents=null,ingredientEventFraction=null;
-  if(berryItems!==null&&berryItemsPerHelp!==null){
-    if(berryItems%berryItemsPerHelp!==0)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.BERRY_EVENT_COUNT_NOT_INTEGER);
-    else berryHelpEvents=berryItems/berryItemsPerHelp;
+  if(berryCompleteness===BERRY_COUNT_COMPLETENESS.COMPLETE_CONFIRMED){
+    if(inventoryCount===null||berryItems===null||ingredientItems===null||inventoryCount!==berryItems+ingredientItems)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.INVENTORY_COUNT_MISMATCH);
+    if(inventoryCount===null||inventoryCapacity===null||inventoryCount>=inventoryCapacity)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.INVENTORY_CAPACITY_NOT_PROVABLY_SAFE);
   }
-  if(ingredientItems!==null&&ingredientItemsPerHelp!==null){
+
+  let ingredientHelpEvents=null;
+  if(observationMode===FIRST_PARTY_OBSERVATION_MODES.MULTI_SLOT_DISTINCT_QUANTITY&&resolvedSlots.length){
+    let totalObservedItems=0,totalEvents=0,slotCountsValid=true;
+    for(const slot of resolvedSlots){
+      const raw=rawSlotByLevel.get(Number(slot.unlock_level))||{};
+      const observed=nonNegativeInteger(raw.observed_item_count);
+      const quantity=positiveInteger(slot.quantity);
+      if(observed===null){blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.INGREDIENT_SLOT_OBSERVED_COUNT_MISSING);slotCountsValid=false;continue;}
+      totalObservedItems+=observed;
+      if(quantity===null||observed%quantity!==0){blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.INGREDIENT_SLOT_OBSERVED_COUNT_NOT_INTEGER);slotCountsValid=false;continue;}
+      totalEvents+=observed/quantity;
+    }
+    if(ingredientItems!==null&&totalObservedItems!==ingredientItems)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.INGREDIENT_SLOT_ITEM_TOTAL_MISMATCH);
+    if(slotCountsValid&&distinctIngredientNames)ingredientHelpEvents=totalEvents;
+  }else if(ingredientItems!==null&&ingredientItemsPerHelp!==null){
     if(ingredientItems%ingredientItemsPerHelp!==0)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.INGREDIENT_EVENT_COUNT_NOT_INTEGER);
     else ingredientHelpEvents=ingredientItems/ingredientItemsPerHelp;
+  }
+
+  let berryHelpEvents=null,totalHelpEvents=null,ingredientEventFraction=null;
+  if(berryCompleteness===BERRY_COUNT_COMPLETENESS.COMPLETE_CONFIRMED&&berryItems!==null&&berryItemsPerHelp!==null){
+    if(berryItems%berryItemsPerHelp!==0)blockers.push(FIRST_PARTY_OBSERVATION_BLOCKERS.BERRY_EVENT_COUNT_NOT_INTEGER);
+    else berryHelpEvents=berryItems/berryItemsPerHelp;
   }
   if(berryHelpEvents!==null&&ingredientHelpEvents!==null){
     totalHelpEvents=berryHelpEvents+ingredientHelpEvents;
@@ -134,50 +190,67 @@ export function evaluateFirstPartyIngredientHelpObservation(input={}){
     else ingredientEventFraction=ingredientHelpEvents/totalHelpEvents;
   }
 
-  const accepted=blockers.length===0;
+  const hardBlockers=unique(blockers);
+  const partial=hardBlockers.length===0&&partialReasons.length>0&&ingredientHelpEvents!==null;
+  const accepted=hardBlockers.length===0&&!partial&&berryHelpEvents!==null&&ingredientHelpEvents!==null&&totalHelpEvents>0;
+  const status=accepted?FIRST_PARTY_OBSERVATION_STATUS.ACCEPTED_RAW_OBSERVATION:partial?FIRST_PARTY_OBSERVATION_STATUS.ACCEPTED_PARTIAL_OBSERVATION:FIRST_PARTY_OBSERVATION_STATUS.REVIEW_REQUIRED;
+  const seriesId=text(input.observation_series_id)||null;
+  const windowSequence=positiveInteger(input.window_sequence);
+
+  const commonSafety={
+    rate_value_used_to_reconstruct_events:false,
+    invalid_batch_contributes_to_estimate:false,
+    sample_sufficiency_threshold_invented:false,
+    runtime_network_fetch:false,
+    player_data_write:false,
+    sqlite_write:false,
+    ai_numeric_authority:false,
+    outcome_dependent_window_selection:false,
+    slot_selection_probability_used:false,
+    berry_count_completeness_status:berryCompleteness,
+    berry_denominator_complete:berryCompleteness===BERRY_COUNT_COMPLETENESS.COMPLETE_CONFIRMED,
+    censored_partial_observation:partial,
+    partial_reasons:freeze(unique(partialReasons)),
+    observation_series_id:seriesId,
+    window_sequence:windowSequence,
+    repeated_windows_supported:true,
+    repeated_windows_do_not_rescue_censored_denominator:true,
+  };
+  const modeSafety=observationMode===FIRST_PARTY_OBSERVATION_MODES.MULTI_SLOT_EQUAL_QUANTITY?{
+    only_single_unlocked_ingredient_slot:false,
+    multi_slot_extension_id:INGREDIENT_PROBABILITY_FIRST_PARTY_MULTI_SLOT_EXTENSION_ID,
+    multi_slot_extension_version:INGREDIENT_PROBABILITY_FIRST_PARTY_MULTI_SLOT_EXTENSION_VERSION,
+    multi_slot_equal_quantity_mode:true,
+    multi_slot_eligibility_preobservable:equalMultiSlotQuantities,
+  }:observationMode===FIRST_PARTY_OBSERVATION_MODES.MULTI_SLOT_DISTINCT_QUANTITY?{
+    only_single_unlocked_ingredient_slot:false,
+    distinct_slot_extension_id:INGREDIENT_PROBABILITY_FIRST_PARTY_DISTINCT_SLOT_EXTENSION_ID,
+    distinct_slot_extension_version:INGREDIENT_PROBABILITY_FIRST_PARTY_DISTINCT_SLOT_EXTENSION_VERSION,
+    multi_slot_distinct_quantity_mode:true,
+    distinct_ingredient_names_preobservable:distinctIngredientNames,
+    per_slot_observed_item_counts_required:true,
+  }:{only_single_unlocked_ingredient_slot:true};
+
   return freeze({
-    schema:'pokemon-sleep-first-party-ingredient-help-observation-result/1.1',
+    schema:'pokemon-sleep-first-party-ingredient-help-observation-result/1.2',
     contract_id:INGREDIENT_PROBABILITY_FIRST_PARTY_OBSERVATION_ID,
     contract_version:INGREDIENT_PROBABILITY_FIRST_PARTY_OBSERVATION_VERSION,
     observation_id:observationId||null,
     source_key:sourceKey||null,
     canonical_species_form_id:rosterRow?.canonical_species_form_id||null,
-    status:accepted?FIRST_PARTY_OBSERVATION_STATUS.ACCEPTED_RAW_OBSERVATION:FIRST_PARTY_OBSERVATION_STATUS.REVIEW_REQUIRED,
-    blockers:freeze([...new Set(blockers)]),
+    status,
+    blockers:freeze(hardBlockers),
+    partial_reasons:freeze(unique(partialReasons)),
     eligible_for_statistical_aggregation:accepted,
     berry_help_event_count:accepted?berryHelpEvents:null,
-    ingredient_help_event_count:accepted?ingredientHelpEvents:null,
+    ingredient_help_event_count:(accepted||partial)?ingredientHelpEvents:null,
     total_help_event_count:accepted?totalHelpEvents:null,
     ingredient_event_fraction:accepted?ingredientEventFraction:null,
-    statistical_semantics:'BERNOULLI_HELP_EVENT_SPLIT_OBSERVATION',
+    statistical_semantics:accepted?'BERNOULLI_HELP_EVENT_SPLIT_OBSERVATION':partial?'INGREDIENT_EVENT_NUMERATOR_ONLY_CENSORED_BERRY_DENOMINATOR':'NOT_STATISTICALLY_ADMISSIBLE',
     base_rate_normalization_applied:false,
     activation_authority_granted:false,
     independent_source_admission_granted:false,
-    safety:freeze(observationMode===FIRST_PARTY_OBSERVATION_MODES.MULTI_SLOT_EQUAL_QUANTITY?{
-      only_single_unlocked_ingredient_slot:false,
-      rate_value_used_to_reconstruct_events:false,
-      invalid_batch_contributes_to_estimate:false,
-      sample_sufficiency_threshold_invented:false,
-      runtime_network_fetch:false,
-      player_data_write:false,
-      sqlite_write:false,
-      ai_numeric_authority:false,
-      multi_slot_extension_id:INGREDIENT_PROBABILITY_FIRST_PARTY_MULTI_SLOT_EXTENSION_ID,
-      multi_slot_extension_version:INGREDIENT_PROBABILITY_FIRST_PARTY_MULTI_SLOT_EXTENSION_VERSION,
-      multi_slot_equal_quantity_mode:true,
-      multi_slot_eligibility_preobservable:equalMultiSlotQuantities,
-      outcome_dependent_window_selection:false,
-      slot_selection_probability_used:false,
-    }:{
-      only_single_unlocked_ingredient_slot:true,
-      rate_value_used_to_reconstruct_events:false,
-      invalid_batch_contributes_to_estimate:false,
-      sample_sufficiency_threshold_invented:false,
-      runtime_network_fetch:false,
-      player_data_write:false,
-      sqlite_write:false,
-      ai_numeric_authority:false,
-    }),
+    safety:freeze({...commonSafety,...modeSafety}),
   });
 }
 
@@ -193,7 +266,8 @@ export function wilsonBinomialInterval(successes,total,z=1.959963984540054){
 export function aggregateFirstPartyIngredientHelpObservations(inputs=[]){
   const evaluations=(Array.isArray(inputs)?inputs:[]).map(evaluateFirstPartyIngredientHelpObservation);
   const accepted=evaluations.filter(row=>row.status===FIRST_PARTY_OBSERVATION_STATUS.ACCEPTED_RAW_OBSERVATION);
-  const rejected=evaluations.filter(row=>row.status!==FIRST_PARTY_OBSERVATION_STATUS.ACCEPTED_RAW_OBSERVATION);
+  const partial=evaluations.filter(row=>row.status===FIRST_PARTY_OBSERVATION_STATUS.ACCEPTED_PARTIAL_OBSERVATION);
+  const rejected=evaluations.filter(row=>row.status===FIRST_PARTY_OBSERVATION_STATUS.REVIEW_REQUIRED);
   const grouped=new Map();
   for(const row of accepted){
     const current=grouped.get(row.source_key)||{source_key:row.source_key,canonical_species_form_id:row.canonical_species_form_id,observation_count:0,berry_help_event_count:0,ingredient_help_event_count:0,total_help_event_count:0};
@@ -205,14 +279,17 @@ export function aggregateFirstPartyIngredientHelpObservations(inputs=[]){
   }
   const groups=[...grouped.values()].map(row=>freeze({...row,wilson_95:wilsonBinomialInterval(row.ingredient_help_event_count,row.total_help_event_count),activation_authority_granted:false}));
   return freeze({
-    schema:'pokemon-sleep-first-party-ingredient-help-observation-aggregate/1.0',
+    schema:'pokemon-sleep-first-party-ingredient-help-observation-aggregate/1.1',
     contract_id:INGREDIENT_PROBABILITY_FIRST_PARTY_OBSERVATION_ID,
     accepted_observation_count:accepted.length,
+    partial_observation_count:partial.length,
     rejected_observation_count:rejected.length,
+    partial_observations:freeze(partial.map(row=>freeze({observation_id:row.observation_id,source_key:row.source_key,ingredient_help_event_count:row.ingredient_help_event_count,partial_reasons:row.partial_reasons}))),
     rejected_observations:freeze(rejected.map(row=>freeze({observation_id:row.observation_id,blockers:row.blockers}))),
     groups:freeze(groups),
-    status:accepted.length?'OBSERVATIONAL_ESTIMATE_AVAILABLE':'NO_ACCEPTED_OBSERVATIONS',
-    statistical_method:'BERNOULLI_POINT_ESTIMATE_WITH_WILSON_95_INTERVAL',
+    status:accepted.length?'OBSERVATIONAL_ESTIMATE_AVAILABLE':partial.length?'PARTIAL_NUMERATOR_ONLY_OBSERVATIONS_AVAILABLE':'NO_ACCEPTED_OBSERVATIONS',
+    statistical_method:'BERNOULLI_POINT_ESTIMATE_WITH_WILSON_95_INTERVAL_ACCEPTED_WINDOWS_ONLY',
+    censored_windows_excluded_from_probability_estimate:true,
     sample_sufficiency_for_activation:'NOT_DEFINED',
     external_rate_comparison_performed:false,
     independent_source_admission_granted:false,
