@@ -190,7 +190,7 @@ function mount(){
     <p class="notice">手動輸入觀察窗口，不使用 OCR/AI 推算 help event。E3C-6F 新增「不同食材、不同單次 quantity」的逐槽計數，以及可重複 series/window。<b>重要：</b>如果樹果可能在採收時直接被卡比獸吃掉，請保留預設「可能被截尾」；該窗口仍會保存可重建的食材 numerator，但不會假裝有完整分母，也不會進 Ingredient Probability 統計。Production 仍維持 4/7。</p>
     <div id="e3c6fSeriesContext" class="notice">選擇寶可夢後建立觀測 series。</div>
     <form id="e3c6bCaptureForm" class="edit-grid">
-      <label class="edit-field full"><span>本機寶可夢（pokemon_id 只在本機選擇用，不進 Update Package）</span><select name="pokemon_id" id="e3c6bPokemonSelect"><option value="">請選擇</option>${candidates.map(row=>`<option value="${esc(row.pokemon_id)}">${esc(row.original_label||row.current_species||row.species)} · Lv.${esc(row.level)} · ${esc(modeLabel(row.uiEligibility.observation_mode))}${row.nickname?` · ${esc(row.nickname)}`:''}</option>`).join('')}</select></label>
+      <label class="edit-field full"><span>本機寶可夢（僅用於帶入 level / slot / berry output；pokemon_id 不會進 Update Package）</span><select name="pokemon_id" id="e3c6bPokemonSelect"><option value="">請選擇</option>${candidates.map(row=>`<option value="${esc(row.pokemon_id)}">${esc(row.original_label||row.current_species||row.species)} · Lv.${esc(row.level)} · ${esc(modeLabel(row.uiEligibility.observation_mode))}${row.nickname?` · ${esc(row.nickname)}`:''}</option>`).join('')}</select></label>
       <label class="edit-field full"><span>Governed source_key / form</span><select name="source_key" id="e3c6bSourceKey"><option value="">請先選擇寶可夢</option></select></label>
       <div id="e3c6bCandidateContext" class="notice full"></div>
       <label class="edit-field"><span>畫面可見莓果物品數（手動）</span><input name="berry_items_collected" type="number" min="0" step="1" inputmode="numeric"></label>
