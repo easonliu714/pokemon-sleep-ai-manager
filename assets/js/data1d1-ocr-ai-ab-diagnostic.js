@@ -9,7 +9,7 @@ import {snapshotStandaloneImage} from './standalone-image-byte-snapshot.js';
 const BUILD='20260822-v042726-standalone-android-byte-snapshot-closure';
 let activeDispose=null,standalonePreviewUrl=null,latestImportResult=null;
 const standaloneFiles=new Map();
-const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[char]));
+const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const trace=(event,detail={})=>{globalThis.UpdateCenterLiveDebug?.record?.(event,detail);globalThis.DebugTrace?.record?.('ai_review',event,{status:'completed',details:detail});};
 const itemId=item=>String(item?.sha256||item?.source_image_ref||item?.path||'');
 const itemName=item=>String(item?.file_name||item?.path||item?.source_image_ref||'未命名圖片');
