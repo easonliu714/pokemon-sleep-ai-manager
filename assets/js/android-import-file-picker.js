@@ -9,28 +9,72 @@ const ZIP_ACCEPT='.zip,application/zip,application/x-zip-compressed';
 const IMPORT_ACCEPT=`${ZIP_ACCEPT},${IMAGE_ACCEPT}`;
 const ERROR_MESSAGES={no_files_selected:'未選取任何檔案。',mixed_zip_and_images_not_allowed:'請勿同時選擇圖片與 ZIP；請改用對應的獨立按鈕。',single_zip_per_batch_required:'一次只能選擇一個 ZIP。',zip_contains_no_images:'ZIP 內沒有支援的圖片。',review_render_timeout:'分析清單建立逾時，系統已保留清點結果與本頁除錯紀錄。'};
 const EXT_BY_TYPE={'image/png':'png','image/jpeg':'jpg','image/webp':'webp','image/avif':'avif'};
+const SNAPSHOT_SCHEMA='pokemon-sleep-android-image-byte-snapshot/1.0';
 const asFiles=list=>Array.from(list||[]).filter(Boolean);
 const isZip=file=>/\.zip$/i.test(file?.name||'')||['application/zip','application/x-zip-compressed'].includes(file?.type);
 const isImage=file=>/^image\//.test(file?.type||'')||/\.(png|jpe?g|webp|avif)$/i.test(file?.name||'');
 const yieldUi=()=>new Promise(resolve=>setTimeout(resolve,0));
+const cloneBytes=bytes=>bytes.slice(0);
 function getDebugTrace(){const trace=globalThis.DebugTrace;if(trace?.begin&&trace?.recordStage&&trace?.recordProgress&&trace?.end&&trace?.fail)return trace;return {begin:()=>null,recordStage:()=>null,recordProgress:()=>null,end:()=>null,fail:()=>null};}
 function dispatchBatch(name,detail={}){globalThis.dispatchEvent?.(new CustomEvent(`pokemon-sleep:ocr-batch-${name}`,{detail}));}
 function dispatchCheckpoint(stage,details={}){globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:update-center-debug',{detail:{stage,details}}));}
 function withTimeout(promise,timeoutMs,code='review_render_timeout'){let timer;return Promise.race([Promise.resolve(promise),new Promise((_,reject)=>{timer=setTimeout(()=>{const error=new Error(code);error.code=code;reject(error);},timeoutMs);})]).finally(()=>clearTimeout(timer));}
 export function humanizeImportError(code){if(ERROR_MESSAGES[code])return ERROR_MESSAGES[code];if(String(code).startsWith('unsupported_file:'))return `不支援此檔案格式：${String(code).split(':').slice(1).join(':')}。`;if(code==='ocr_timeout')return '單張圖片 OCR 超時，系統已重建辨識器並繼續後續圖片。';if(code==='ocr_stalled')return 'OCR 長時間無進度，系統已重建辨識器並繼續後續圖片。';return `檔案讀取失敗。錯誤代碼：${code}`;}
 
-function createImageArchive(files){
-  const entries=files.map((file,index)=>{const ext=(file.name.split('.').pop()||EXT_BY_TYPE[file.type]||'png').toLowerCase();return {path:file.name||`image-${index+1}.${ext}`,name:file.name||`image-${index+1}.${ext}`,extension:ext,size:file.size,modified_at:file.lastModified?new Date(file.lastModified).toISOString():null,directory:false,file};});
-  const byPath=new Map(entries.map(entry=>[entry.path,entry]));
-  return {entries,summary:{entry_count:entries.length,image_count:entries.length,total_uncompressed_bytes:entries.reduce((sum,row)=>sum+Number(row.size||0),0)},async readImage(path,{type='blob'}={}){const entry=byPath.get(path);if(!entry)throw new Error(`image_source_not_found:${path}`);if(type==='blob')return entry.file;if(type==='arraybuffer')return entry.file.arrayBuffer();if(type==='uint8array')return new Uint8Array(await entry.file.arrayBuffer());return entry.file;}};
+function createDetachedFile(bytes,{name,type,lastModified}){
+  const payload=cloneBytes(bytes),mime=type||'application/octet-stream',modified=Number(lastModified)||Date.now();
+  if(typeof File==='function')return new File([payload],name,{type:mime,lastModified:modified});
+  const blob=new Blob([payload],{type:mime});
+  try{Object.defineProperties(blob,{name:{value:name,enumerable:true},lastModified:{value:modified,enumerable:true}});}catch{}
+  return blob;
+}
+
+// v0.4.27.25: Android SAF/File handles may become unreadable after the first consumer.
+// Capture every selected image exactly once at intake and make the detached byte copy
+// the only authority used by SHA-256, OCR, preview and AI image resolution.
+export async function createImageArchive(files){
+  const capturedAt=new Date().toISOString(),entries=[],records=new Map();
+  let totalBytes=0,readyCount=0,failedCount=0;
+  for(let index=0;index<files.length;index+=1){
+    const file=files[index],ext=(String(file?.name||'').split('.').pop()||EXT_BY_TYPE[file?.type]||'png').toLowerCase();
+    const path=file?.name||`image-${index+1}.${ext}`,mime=file?.type||`image/${ext==='jpg'?'jpeg':ext}`;
+    const base={path,name:path,extension:ext,size:Number(file?.size||0),modified_at:file?.lastModified?new Date(file.lastModified).toISOString():null,directory:false};
+    try{
+      const raw=await file.arrayBuffer(),bytes=new Uint8Array(raw);
+      if(!bytes.byteLength)throw new Error(`image_snapshot_empty:${path}`);
+      const safeFile=createDetachedFile(bytes,{name:path,type:mime,lastModified:file?.lastModified});
+      const record={bytes:cloneBytes(bytes),mime,safeFile};records.set(path,record);totalBytes+=bytes.byteLength;readyCount+=1;
+      entries.push({...base,size:bytes.byteLength,file:safeFile,byte_snapshot_status:'ready',byte_snapshot_captured_at:capturedAt});
+    }catch(error){
+      failedCount+=1;records.set(path,{error,mime});
+      entries.push({...base,file:null,byte_snapshot_status:'failed',byte_snapshot_error:error?.name||error?.message||String(error),byte_snapshot_captured_at:capturedAt});
+    }
+    await yieldUi();
+  }
+  const byteSnapshot={schema:SNAPSHOT_SCHEMA,ready:failedCount===0,captured_at:capturedAt,image_count:entries.length,ready_images:readyCount,failed_images:failedCount,total_bytes:totalBytes,source_read_policy:'single_eager_read_then_detached_bytes'};
+  return {
+    entries,
+    summary:{entry_count:entries.length,image_count:entries.length,total_uncompressed_bytes:entries.reduce((sum,row)=>sum+Number(row.size||0),0)},
+    byte_snapshot:byteSnapshot,
+    async readImage(path,{type='blob'}={}){
+      const record=records.get(path);if(!record)throw new Error(`image_source_not_found:${path}`);if(record.error)throw record.error;
+      if(type==='arraybuffer')return cloneBytes(record.bytes).buffer;
+      if(type==='uint8array')return cloneBytes(record.bytes);
+      if(type==='blob')return new Blob([record.bytes],{type:record.mime});
+      return createDetachedFile(record.bytes,{name:path,type:record.mime,lastModified:Date.now()});
+    }
+  };
 }
 
 async function buildUnifiedResult({selected,sourceType,loadZip,extractZip,onStage,onFingerprintProgress,onOcrProgress,ocrProvider,signal,shouldCancel,regions,itemTimeoutMs}){
   let archive,sourceFiles=selected;
   if(sourceType==='zip'){
-    onStage('archive_read_started');await yieldUi();const JSZip=await loadZip();archive=await extractZip(selected[0],{JSZip});onStage('archive_read_completed',{image_count:archive.summary.image_count});if(!archive.summary.image_count)return {ok:false,errors:['zip_contains_no_images'],source_type:'zip',files:selected,archives:[archive],inventory:null};
+    onStage('archive_read_started');await yieldUi();const JSZip=await loadZip();archive=await extractZip(selected[0],{JSZip});onStage('archive_read_completed',{image_count:archive.summary.image_count});if(!archive.summary.image_count)return {ok:false,errors:['zip_contains_no_images'],source_type:'zip',files:selected,archives:[archive],inventory:null,image_byte_snapshot:null};
   }else{
-    archive=createImageArchive(selected);onStage('image_archive_created',{image_count:archive.summary.image_count});
+    onStage('image_byte_snapshot_started',{image_count:selected.length});
+    archive=await createImageArchive(selected);sourceFiles=archive.entries.map(entry=>entry.file).filter(Boolean);
+    onStage('image_byte_snapshot_completed',archive.byte_snapshot);
+    onStage('image_archive_created',{image_count:archive.summary.image_count,snapshot_ready:archive.byte_snapshot.ready,snapshot_failed:archive.byte_snapshot.failed_images});
   }
   const archiveName=sourceType==='zip'?(selected[0]?.name||null):`selected-images-${new Date().toISOString()}`;
   const baseInventory=buildPrivateZipInventory(archive,{archiveName});
@@ -45,7 +89,7 @@ async function buildUnifiedResult({selected,sourceType,loadZip,extractZip,onStag
   else classified=await classifyInventoryWithOcr(archive,fingerprinted,{ocrProvider,onProgress:onOcrProgress,signal,shouldCancel,regions,itemTimeoutMs});
   onStage('ocr_completed',{analyzed:classified?.classification_summary?.analyzed||0,failed:classified?.classification_summary?.failed||0});
   onStage('finalize_started');const inventory=finalizeInventory(classified);onStage('finalize_completed');
-  return {ok:true,errors:[],source_type:sourceType,files:sourceFiles,archives:[archive],inventory};
+  return {ok:true,errors:[],source_type:sourceType,files:sourceFiles,archives:[archive],inventory,image_byte_snapshot:archive.byte_snapshot||null};
 }
 
 export async function inspectImportFiles(files,{loadZip=loadJSZip,extractZip=extractZipEntries,onFingerprintProgress=()=>{},onOcrProgress=()=>{},onStage=()=>{},ocrProvider=resolveOcrProvider(),signal=null,shouldCancel=()=>false,regions=[],itemTimeoutMs=30000}={}){
@@ -69,7 +113,7 @@ export function createAndroidImportFilePicker({onInspect,onError}={}){
   imageButton.onclick=()=>imageInput.click();zipButton.onclick=()=>zipInput.click();let activeController=null,cancelRequested=false;
   const cancelListener=async()=>{cancelRequested=true;activeController?.abort('user_cancelled');status.textContent='正在停止 OCR…';try{await globalThis.PokemonSleepOCR?.cancel?.('user_cancelled');}catch{}status.textContent='OCR 已停止，可重新選擇來源。';};
   globalThis.addEventListener?.('pokemon-sleep:ocr-cancel-requested',cancelListener);
-  const handle=async(input,sourceKind)=>{const debugTrace=getDebugTrace(),buttons=[imageButton,zipButton];buttons.forEach(button=>button.disabled=true);activeController=new AbortController();cancelRequested=false;const operationId=debugTrace.begin('unified_import_source_inspection',{source_kind:sourceKind,file_count:input.files?.length||0});dispatchBatch('started',{source_kind:sourceKind,file_count:input.files?.length||0,phase:'PREPARING_SOURCE'});dispatchCheckpoint('file_selection_received',{source_kind:sourceKind,file_count:input.files?.length||0});status.textContent='正在建立統一圖片清單…';await yieldUi();try{const result=await inspectImportFiles(input.files,{signal:activeController.signal,shouldCancel:()=>cancelRequested,itemTimeoutMs:30000,onStage:(stage,details={})=>{dispatchCheckpoint(stage,details);debugTrace.recordStage(operationId,stage,details);if(stage==='fingerprint_started')status.textContent='正在計算 SHA-256…';if(stage==='ocr_started')status.textContent=`OCR 初判：需辨識 ${details.ocr_total} 張；略過 ${details.skipped} 張。`;if(stage==='ocr_skipped_duplicate_only')status.textContent='全部圖片已存在；仍可在清單中勾選後強制重新辨識。';if(stage==='finalize_started')status.textContent='正在建立統一 Inventory…';},onFingerprintProgress:progress=>debugTrace.recordProgress(operationId,'image_fingerprint_progress',progress.current,progress.total,progress),onOcrProgress:progress=>debugTrace.recordProgress(operationId,'ocr_classification_progress',progress.current,progress.total,progress)});if(result.ok){const classification=result.inventory?.classification_summary||{};const detail={source_type:result.source_type,total:classification.total||0,analyzed:classification.analyzed||0,skipped:classification.skipped||0,failed:classification.failed||0,requires_review:classification.requires_review||0};await withTimeout(onInspect?.(result),15000);dispatchBatch('completed',detail);debugTrace.end(operationId,'completed',detail);status.textContent=`清點完成：共 ${detail.total} 張；OCR ${detail.analyzed}；略過 ${detail.skipped}；待覆核 ${detail.requires_review}。`;globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:unified-import-ready',{detail:{result}}));}else{status.textContent=errorText(result);onError?.(result);debugTrace.end(operationId,'blocked',{errors:result.errors});}}catch(error){status.textContent=`讀取失敗：${humanizeImportError(error?.code||error?.message||String(error))}`;onError?.({ok:false,errors:[error?.code||error?.message||String(error)],source_type:null,files:[],archives:[],inventory:null});debugTrace.fail(operationId,error,{source_kind:sourceKind});}finally{activeController=null;buttons.forEach(button=>button.disabled=false);input.value='';await yieldUi();}};
+  const handle=async(input,sourceKind)=>{const debugTrace=getDebugTrace(),buttons=[imageButton,zipButton];buttons.forEach(button=>button.disabled=true);activeController=new AbortController();cancelRequested=false;const operationId=debugTrace.begin('unified_import_source_inspection',{source_kind:sourceKind,file_count:input.files?.length||0});dispatchBatch('started',{source_kind:sourceKind,file_count:input.files?.length||0,phase:'PREPARING_SOURCE'});dispatchCheckpoint('file_selection_received',{source_kind:sourceKind,file_count:input.files?.length||0});status.textContent='正在建立統一圖片清單…';await yieldUi();try{const result=await inspectImportFiles(input.files,{signal:activeController.signal,shouldCancel:()=>cancelRequested,itemTimeoutMs:30000,onStage:(stage,details={})=>{dispatchCheckpoint(stage,details);debugTrace.recordStage(operationId,stage,details);if(stage==='image_byte_snapshot_started')status.textContent=`正在建立圖片記憶體快照（${details.image_count} 張）…`;if(stage==='image_byte_snapshot_completed')status.textContent=`圖片快照完成：${details.ready_images}/${details.image_count}；失敗 ${details.failed_images}。`;if(stage==='fingerprint_started')status.textContent='正在計算 SHA-256…';if(stage==='ocr_started')status.textContent=`OCR 初判：需辨識 ${details.ocr_total} 張；略過 ${details.skipped} 張。`;if(stage==='ocr_skipped_duplicate_only')status.textContent='全部圖片已存在；仍可在清單中勾選後強制重新辨識。';if(stage==='finalize_started')status.textContent='正在建立統一 Inventory…';},onFingerprintProgress:progress=>debugTrace.recordProgress(operationId,'image_fingerprint_progress',progress.current,progress.total,progress),onOcrProgress:progress=>debugTrace.recordProgress(operationId,'ocr_classification_progress',progress.current,progress.total,progress)});if(result.ok){const classification=result.inventory?.classification_summary||{},snapshot=result.image_byte_snapshot||{};const detail={source_type:result.source_type,total:classification.total||0,analyzed:classification.analyzed||0,skipped:classification.skipped||0,failed:classification.failed||0,requires_review:classification.requires_review||0,snapshot_ready_images:snapshot.ready_images??null,snapshot_failed_images:snapshot.failed_images??null};await withTimeout(onInspect?.(result),15000);dispatchBatch('completed',detail);debugTrace.end(operationId,'completed',detail);status.textContent=`清點完成：共 ${detail.total} 張；OCR ${detail.analyzed}；略過 ${detail.skipped}；待覆核 ${detail.requires_review}。`;globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:unified-import-ready',{detail:{result}}));}else{status.textContent=errorText(result);onError?.(result);debugTrace.end(operationId,'blocked',{errors:result.errors});}}catch(error){status.textContent=`讀取失敗：${humanizeImportError(error?.code||error?.message||String(error))}`;onError?.({ok:false,errors:[error?.code||error?.message||String(error)],source_type:null,files:[],archives:[],inventory:null});debugTrace.fail(operationId,error,{source_kind:sourceKind});}finally{activeController=null;buttons.forEach(button=>button.disabled=false);input.value='';await yieldUi();}};
   imageInput.addEventListener('change',()=>handle(imageInput,'images'));zipInput.addEventListener('change',()=>handle(zipInput,'zip'));wrapper.append(buttonRow,imageInput,zipInput,status);return wrapper;
 }
-export {IMPORT_ACCEPT as ANDROID_IMPORT_ACCEPT,IMAGE_ACCEPT as ANDROID_IMAGE_ACCEPT,ZIP_ACCEPT as ANDROID_ZIP_ACCEPT};
+export {IMPORT_ACCEPT as ANDROID_IMPORT_ACCEPT,IMAGE_ACCEPT as ANDROID_IMAGE_ACCEPT,ZIP_ACCEPT as ANDROID_ZIP_ACCEPT,SNAPSHOT_SCHEMA as ANDROID_IMAGE_BYTE_SNAPSHOT_SCHEMA};
