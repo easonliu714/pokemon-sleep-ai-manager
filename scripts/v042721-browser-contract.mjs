@@ -2,13 +2,14 @@ import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
 
 const base=process.env.BASE_URL||'http://127.0.0.1:4173/';
-const supported=['v0.4.27.21','v0.4.27.22','v0.4.27.23','v0.4.27.24'];
+const minimumPatch=21;
+const isSupportedVersion=version=>{const match=/^v0\.4\.27\.(\d+)$/.exec(String(version||''));return Boolean(match)&&Number(match[1])>=minimumPatch;};
 const browser=await chromium.launch({headless:true});
 try{
   const context=await browser.newContext();
   const page=await context.newPage();
   await page.goto(base,{waitUntil:'domcontentloaded'});
-  await page.waitForFunction((versions)=>versions.includes(globalThis.PokemonSleepVersionAuthority?.app_version),supported,{timeout:30000});
+  await page.waitForFunction((minimum)=>{const match=/^v0\.4\.27\.(\d+)$/.exec(String(globalThis.PokemonSleepVersionAuthority?.app_version||''));return Boolean(match)&&Number(match[1])>=minimum;},minimumPatch,{timeout:30000});
   await page.waitForFunction(()=>Boolean(globalThis.PokemonSleepPlayerEvolutionOverrideV042721),{timeout:30000});
   await page.waitForFunction(()=>document.getElementById('dbStatus')?.textContent?.includes('就緒'),{timeout:60000}).catch(()=>{});
 
@@ -47,7 +48,7 @@ try{
     return {publicBefore,cannot,afterReturn,version:globalThis.PokemonSleepVersionAuthority?.app_version,apiVersion:globalThis.PokemonSleepPlayerEvolutionOverrideV042721?.version};
   });
 
-  assert.ok(supported.includes(result.version));
+  assert.equal(isSupportedVersion(result.version),true);
   assert.equal(result.apiVersion,'pokemon-sleep-player-evolution-override/1.0-v042721');
   assert.equal(result.cannot.mode,'PLAYER_OVERRIDE');
   assert.equal(result.cannot.status,'CANNOT_EVOLVE');
@@ -64,5 +65,5 @@ try{
   assert.equal(result.afterReturn.item,'');
   assert.equal(result.afterReturn.disabled,true);
 
-  console.log(JSON.stringify({status:'PASS',gate:'V042721_BROWSER_PLAYER_EVOLUTION_OVERRIDE_SUCCESSOR_AWARE',result},null,2));
+  console.log(JSON.stringify({status:'PASS',gate:'V042721_BROWSER_PLAYER_EVOLUTION_OVERRIDE_SUCCESSOR_AWARE',result,minimum_patch:minimumPatch},null,2));
 }finally{await browser.close();}
