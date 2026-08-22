@@ -2,13 +2,14 @@ import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
 
 const base=process.env.BASE_URL||'http://127.0.0.1:4173/';
-const supported=['v0.4.27.23','v0.4.27.24'];
+const minimumPatch=23;
+const isSupportedVersion=version=>{const match=/^v0\.4\.27\.(\d+)$/.exec(String(version||''));return Boolean(match)&&Number(match[1])>=minimumPatch;};
 const browser=await chromium.launch({headless:true});
 try{
   const context=await browser.newContext();
   const page=await context.newPage();
   await page.goto(base,{waitUntil:'domcontentloaded'});
-  await page.waitForFunction((versions)=>versions.includes(globalThis.PokemonSleepVersionAuthority?.app_version),supported,{timeout:30000});
+  await page.waitForFunction((minimum)=>{const match=/^v0\.4\.27\.(\d+)$/.exec(String(globalThis.PokemonSleepVersionAuthority?.app_version||''));return Boolean(match)&&Number(match[1])>=minimum;},minimumPatch,{timeout:30000});
   await page.waitForFunction(()=>Boolean(globalThis.PokemonSleepPlayerProfileConsistencyV042723),{timeout:30000});
   await page.waitForFunction(()=>Boolean(globalThis.PokemonSleepPlayerEvolutionOverrideV042721),{timeout:30000});
   await page.waitForFunction(()=>document.getElementById('dbStatus')?.textContent?.includes('就緒'),{timeout:60000});
@@ -70,7 +71,7 @@ try{
     return {version:globalThis.PokemonSleepVersionAuthority?.app_version,apiVersion:api.version,pure,confirmation,detail};
   });
 
-  assert.ok(supported.includes(result.version));
+  assert.equal(isSupportedVersion(result.version),true);
   assert.equal(result.apiVersion,'v0.4.27.23-player-profile-consistency-2026-08-20-a');
   assert.equal(result.pure.date,'2026-08-20');
   assert.equal(result.pure.berry,'萄葡果');
@@ -89,5 +90,5 @@ try{
   assert.doesNotMatch(result.detail.text,/×80|雷之石/);
   assert.match(result.detail.publicText,/進化條件由玩家覆寫 Authority 決定/);
 
-  console.log(JSON.stringify({status:'PASS',gate:'V042723_BROWSER_PLAYER_PROFILE_CONSISTENCY_SUCCESSOR_AWARE',result},null,2));
+  console.log(JSON.stringify({status:'PASS',gate:'V042723_BROWSER_PLAYER_PROFILE_CONSISTENCY_SUCCESSOR_AWARE',result,minimum_patch:minimumPatch},null,2));
 }finally{await browser.close();}
