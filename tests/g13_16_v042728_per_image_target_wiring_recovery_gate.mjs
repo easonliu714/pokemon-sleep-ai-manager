@@ -5,6 +5,8 @@ import vm from 'node:vm';
 const recovery=fs.readFileSync('assets/js/per-image-target-wiring-recovery-v042728.js','utf8');
 const predecessor=fs.readFileSync('assets/js/review-group-isolation-v042717.js','utf8');
 const index=fs.readFileSync('index.html','utf8');
+const sw=fs.readFileSync('service-worker.js','utf8');
+const version=fs.readFileSync('assets/js/version-authority.js','utf8');
 
 // The v0.4.27.28 fix must remain an additive successor. Do not rewrite the
 // already-deployed v0.4.27.18 group/target core while closing this Android race.
@@ -28,6 +30,10 @@ for(const token of [
 const predecessorPos=index.indexOf('./assets/js/review-group-isolation-v042717.js');
 const recoveryPos=index.indexOf('./assets/js/per-image-target-wiring-recovery-v042728.js');
 assert.ok(predecessorPos>=0&&recoveryPos>predecessorPos,'recovery module must load after the v0.4.27.18 target-assignment core');
+assert.ok(sw.includes("'./assets/js/per-image-target-wiring-recovery-v042728.js'"),'recovery module must be precached for the established offline-after-load contract');
+assert.match(version,/app_version:\s*'v0\.4\.27\.28'/);
+assert.match(version,/app_build:\s*'20260823-v042728-per-image-target-wiring-recovery'/);
+assert.match(version,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.28-v042728-per-image-target-wiring-recovery'/);
 
 const executable=recovery
   .replace(/^export /gm,'')
@@ -75,6 +81,7 @@ console.log(JSON.stringify({
   mutation_observer_recovery:true,
   bounded_parity_recovery_ms:30000,
   actionable_missing_filename_jump:true,
+  offline_precache:true,
   physical_failure:physicalFailure,
   recovered,
 },null,2));
