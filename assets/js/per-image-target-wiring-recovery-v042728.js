@@ -4,6 +4,8 @@ export const PER_IMAGE_TARGET_WIRING_RECOVERY_INTERVAL_MS=100;
 
 const text=value=>String(value??'').trim();
 const assignmentReady=row=>Boolean(row&&(row.mode==='existing'?text(row.pokemon_id):row.mode==='new'?text(row.new_group_key):false));
+const setTextIfChanged=(node,value)=>{if(node&&node.textContent!==value)node.textContent=value;};
+const setClassIfChanged=(node,value)=>{if(node&&node.className!==value)node.className=value;};
 const trace=(scope,event,detail={})=>{
   const safe={version:PER_IMAGE_TARGET_WIRING_RECOVERY_VERSION,...detail};
   scope.UpdateCenterLiveDebug?.record?.(event,safe);
@@ -69,30 +71,23 @@ function ensureRecoveryUi(scope,node){
 
 function renderRecoveryState(scope,node,core){
   const state=stateFor(node,core),notice=node.querySelector('#v042718AssignmentGateNotice'),jump=ensureRecoveryUi(scope,node);
-  const problemIds=[...state.unwired_ids,...state.unassigned_ids];
+  const assignments=assignmentMap(core),problemIds=[...state.unwired_ids,...state.unassigned_ids];
   const names=problemIds.map(id=>filenameFor(node,id));
   if(jump){jump.disabled=!problemIds.length;jump.dataset.targetItemId=problemIds[0]||'';}
   for(const card of node.querySelectorAll('.light-review-item')){
     const id=cardId(card);if(!id)continue;
     const selected=Boolean(card.querySelector('[data-unified-item]')?.checked);
     const wired=Boolean(card.querySelector('[data-v042718-target-assignment]'));
-    const ready=assignmentReady(assignmentMap(core).get(id));
+    const ready=assignmentReady(assignments.get(id));
     card.dataset.v042728AssignmentState=!selected?'not-selected':!wired?'unwired':ready?'ready':'unassigned';
   }
   if(notice&&state.selected_count){
-    if(state.unwired_ids.length){
-      notice.className='notice pending';
-      notice.textContent=`已選 ${state.selected_count} 張；目標欄位載入 ${state.control_count}/${state.selected_count}。正在自動補掛：${names.join('、')}`;
-    }else if(state.unassigned_ids.length){
-      notice.className='notice pending';
-      notice.textContent=`已選 ${state.selected_count} 張；完成目標指定 ${state.ready_count}/${state.selected_count}。未指定：${names.join('、')}`;
-    }else if(!state.run_allowed){
-      notice.className='notice pending';
-      notice.textContent=`已選 ${state.selected_count} 張；完成目標指定 ${state.ready_count}/${state.selected_count}。若策略包含 AI，請確認已勾選 AI 上傳同意。`;
-    }else{
-      notice.className='notice success';
-      notice.textContent=`已選 ${state.selected_count} 張；完成目標指定 ${state.ready_count}/${state.selected_count}。可開始辨識。`;
-    }
+    let message='',className='notice pending';
+    if(state.unwired_ids.length)message=`已選 ${state.selected_count} 張；目標欄位載入 ${state.control_count}/${state.selected_count}。正在自動補掛：${names.join('、')}`;
+    else if(state.unassigned_ids.length)message=`已選 ${state.selected_count} 張；完成目標指定 ${state.ready_count}/${state.selected_count}。未指定：${names.join('、')}`;
+    else if(!state.run_allowed)message=`已選 ${state.selected_count} 張；完成目標指定 ${state.ready_count}/${state.selected_count}。若策略包含 AI，請確認已勾選 AI 上傳同意。`;
+    else {message=`已選 ${state.selected_count} 張；完成目標指定 ${state.ready_count}/${state.selected_count}。可開始辨識。`;className='notice success';}
+    setClassIfChanged(notice,className);setTextIfChanged(notice,message);
   }
   return state;
 }
