@@ -30,6 +30,10 @@ const emptyDraft=()=>({source_refs:[],analysis_ids:[],subskills:[],ingredients:[
 const trace=(event,detail={})=>{globalThis.UpdateCenterLiveDebug?.record?.(event,detail);globalThis.DebugTrace?.record?.('ai_review',event,{status:'completed',details:detail});};
 
 const firstNonblank=(...values)=>{for(const value of values){const result=clean(value);if(result)return result;}return '';};
+function resolveFavoriteBerryAuthority({raw={},profile={}}={}){
+  if(Array.isArray(raw?.observations))return clean(profile?.favorite_berry);
+  return clean(raw?.favorite_berry??profile?.favorite_berry);
+}
 // Legacy static-contract parser bridge only; not runtime authority: profile?.header_name_text??profile?.species
 function resolveObservedSpecies({raw={},observation={}}={}){
   const profile=observation?.profile||{},identity=observation?.identity||{};
@@ -99,7 +103,7 @@ function normalizeRevision(revision){
     main_skill_description:clean(raw?.main_skill?.description),
     helper_seconds:number(raw?.helper_seconds??profile?.helper_seconds),
     carry_limit:number(raw?.carry_limit??profile?.carry_limit),
-    favorite_berry:clean(raw?.favorite_berry??profile?.favorite_berry),
+    favorite_berry:resolveFavoriteBerryAuthority({raw,profile}),
     sleep_hours:number(raw?.sleep_hours??profile?.sleep_hours),
     sleep_time_text:clean(raw?.sleep_time_text??profile?.sleep_time_text),
     registered_at:clean(identity?.registered_date),
@@ -327,6 +331,6 @@ globalThis.PokemonSleepMultiCaptureConsistency={
   getState:()=>({active_group_id:activeGroupId,groups:[...groups.values()].map(clone),navigation:getNavigationState()}),
 };
 
-globalThis.UpdateCenterLiveDebug?.record?.('data_consistency_multicapture_ready',{version:VERSION,build:BUILD,patch_semantics:true,null_safe_numeric:true,observation_v2:true,evolution_rehydration:true,legacy_partial_writer_disabled:true,navigable_review_groups:true,bidirectional_review_navigation:true,nickname_fail_closed:true,platform_identity_authority:true,cross_image_conflict_fail_closed:true,existing_baseline_review_overlay:true,live_navigation_sync:true,platform_target_auto_focus:true});
+globalThis.UpdateCenterLiveDebug?.record?.('data_consistency_multicapture_ready',{version:VERSION,build:BUILD,patch_semantics:true,null_safe_numeric:true,observation_v2:true,observation_v2_profile_berry_authority:true,evolution_rehydration:true,legacy_partial_writer_disabled:true,navigable_review_groups:true,bidirectional_review_navigation:true,nickname_fail_closed:true,platform_identity_authority:true,cross_image_conflict_fail_closed:true,existing_baseline_review_overlay:true,live_navigation_sync:true,platform_target_auto_focus:true});
 
-export {VERSION,BUILD,normalizeRevision,mergeDraft,overlayExistingBaseline,shouldStartNewGroupForRevision,upsertRevision,selectGroup,replaceActiveDraft,navigateReviewGroup,advanceReviewGroup,closeActiveGroup,getNavigationState,publishNavigation};
+export {VERSION,BUILD,normalizeRevision,resolveFavoriteBerryAuthority,mergeDraft,overlayExistingBaseline,shouldStartNewGroupForRevision,upsertRevision,selectGroup,replaceActiveDraft,navigateReviewGroup,advanceReviewGroup,closeActiveGroup,getNavigationState,publishNavigation};
