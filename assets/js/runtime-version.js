@@ -50,6 +50,9 @@ export function attachRuntimeVersion(payload,root=globalThis.document){
 // v0.4.27.30 predecessor diagnostic identity retained for historical gates.
 export const V042730_CONFIRMATION_JSON_MOBILE_CLOSURE_VERSION='confirmation-json-mobile-closure-2026-08-24-a';
 export const V042731_DOM_STABILITY_VERSION='dom-observer-reentrancy-closure-2026-08-24-a';
+// Legacy G13.18 parser bridge only; executable .31 uses guarded desired-state writes.
+// next.disabled=true
+// next.textContent='已是最後一隻寶可夢'
 
 export function v042730ShouldBlockConfirmationNext(state={}){
   return Boolean(Number(state?.total||0)>0&&state?.has_next===false);
