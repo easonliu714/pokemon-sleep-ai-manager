@@ -47,7 +47,9 @@ export function attachRuntimeVersion(payload,root=globalThis.document){
   return {...payload,app_version:runtime.app_version,app_build:runtime.app_build};
 }
 
+// v0.4.27.30 predecessor diagnostic identity retained for historical gates.
 export const V042730_CONFIRMATION_JSON_MOBILE_CLOSURE_VERSION='confirmation-json-mobile-closure-2026-08-24-a';
+export const V042731_DOM_STABILITY_VERSION='dom-observer-reentrancy-closure-2026-08-24-a';
 
 export function v042730ShouldBlockConfirmationNext(state={}){
   return Boolean(Number(state?.total||0)>0&&state?.has_next===false);
@@ -58,31 +60,58 @@ export function v042730RemainingItemIds(selectedIds=[],terminalIds=[]){
   return [...new Set((selectedIds||[]).map(value=>String(value||'')).filter(Boolean))].filter(id=>!terminal.has(id));
 }
 
+export function v042731BoundaryDesiredState(state={},current={}){
+  const marker='last_existing_group';
+  const blocked=v042730ShouldBlockConfirmationNext(state);
+  const currentState={
+    disabled:Boolean(current?.disabled),
+    text:String(current?.text??''),
+    marker:String(current?.marker??''),
+  };
+  let desired=currentState;
+  if(blocked){
+    desired={disabled:true,text:'已是最後一隻寶可夢',marker};
+  }else if(state?.has_next===true&&currentState.marker===marker){
+    desired={disabled:false,text:'下一隻寶可夢 →',marker:''};
+  }
+  const write_count=Number(desired.disabled!==currentState.disabled)+Number(desired.text!==currentState.text)+Number(desired.marker!==currentState.marker);
+  return {...desired,blocked,write_count};
+}
+
 function installV042730ConfirmationJsonMobileClosure(scope=globalThis){
   if(!scope?.document||typeof scope.addEventListener!=='function')return false;
-  if(scope.PokemonSleepV042730ConfirmationJsonMobileClosure?.version===V042730_CONFIRMATION_JSON_MOBILE_CLOSURE_VERSION)return true;
+  if(scope.PokemonSleepV042730ConfirmationJsonMobileClosure?.stability_version===V042731_DOM_STABILITY_VERSION)return true;
   const doc=scope.document;
   let lastNavigationState=null;
   const wrappedRunHandlers=new WeakMap();
   const text=value=>String(value??'').trim();
   const trace=(event,detail={})=>{
-    const safe={version:V042730_CONFIRMATION_JSON_MOBILE_CLOSURE_VERSION,...detail};
+    const safe={version:V042730_CONFIRMATION_JSON_MOBILE_CLOSURE_VERSION,stability_version:V042731_DOM_STABILITY_VERSION,...detail};
     scope.UpdateCenterLiveDebug?.record?.(event,safe);
     scope.DebugTrace?.record?.('unified_pipeline',event,{status:detail.status||'completed',details:safe});
   };
   const navigationState=()=>scope.PokemonSleepMultiCaptureConsistency?.getNavigationState?.()||lastNavigationState||null;
   const enforceConfirmationBoundary=()=>{
     const next=doc.getElementById('nextAnalysisGroup'),state=navigationState();
-    if(!next||!v042730ShouldBlockConfirmationNext(state))return false;
-    next.disabled=true;
-    next.textContent='已是最後一隻寶可夢';
-    next.dataset.v042730Boundary='last_existing_group';
-    return true;
+    if(!next)return false;
+    const desired=v042731BoundaryDesiredState(state,{disabled:next.disabled,text:next.textContent,marker:next.dataset.v042730Boundary});
+    if(desired.write_count===0)return desired.blocked;
+    if(next.disabled!==desired.disabled)next.disabled=desired.disabled;
+    if(next.textContent!==desired.text)next.textContent=desired.text;
+    if((next.dataset.v042730Boundary||'')!==desired.marker){
+      if(desired.marker)next.dataset.v042730Boundary=desired.marker;
+      else delete next.dataset.v042730Boundary;
+    }
+    trace('v042731_confirmation_boundary_applied',{status:'completed',blocked:desired.blocked,dom_write_count:desired.write_count,idempotent:true});
+    return desired.blocked;
+  };
+  const scheduleBoundaryRefresh=()=>{
+    queueMicrotask(enforceConfirmationBoundary);
+    setTimeout(enforceConfirmationBoundary,0);
   };
   const onNavigation=event=>{
     lastNavigationState=event?.detail||navigationState();
-    queueMicrotask(enforceConfirmationBoundary);
-    setTimeout(enforceConfirmationBoundary,0);
+    scheduleBoundaryRefresh();
   };
   const onDocumentClick=event=>{
     const target=event?.target?.closest?.('#nextAnalysisGroup');
@@ -187,21 +216,18 @@ function installV042730ConfirmationJsonMobileClosure(scope=globalThis){
     run.dataset.v042730BatchContinuation='true';
     return true;
   };
-  const observer=new MutationObserver(()=>{
-    enforceConfirmationBoundary();
-    decorateJsonViewers();
-    wireRun();
-  });
-  observer.observe(doc.documentElement,{subtree:true,childList:true});
+
   scope.addEventListener('pokemon-sleep:analysis-confirmation-navigation-changed',onNavigation);
+  scope.addEventListener('pokemon-sleep:analysis-confirmation-group-selected',scheduleBoundaryRefresh);
+  scope.addEventListener('pokemon-sleep:analysis-confirmation-merged',scheduleBoundaryRefresh);
   doc.addEventListener('click',onDocumentClick,true);
   scope.addEventListener('pokemon-sleep:identity-import-files-selected',()=>{setTimeout(wireRun,0);setTimeout(wireRun,100);setTimeout(wireRun,300);});
   let attempts=0;
   const timer=setInterval(()=>{attempts++;const wired=wireRun();enforceConfirmationBoundary();decorateJsonViewers();if((wired&&attempts>=20)||attempts>=300)clearInterval(timer);},100);
-  scope.addEventListener('pagehide',()=>{observer.disconnect();clearInterval(timer);},{once:true});
-  const api=Object.freeze({version:V042730_CONFIRMATION_JSON_MOBILE_CLOSURE_VERSION,enforceConfirmationBoundary,decorateJsonViewers,wireRun,getNavigationState:navigationState});
+  scope.addEventListener('pagehide',()=>{clearInterval(timer);},{once:true});
+  const api=Object.freeze({version:V042730_CONFIRMATION_JSON_MOBILE_CLOSURE_VERSION,stability_version:V042731_DOM_STABILITY_VERSION,enforceConfirmationBoundary,decorateJsonViewers,wireRun,getNavigationState:navigationState});
   scope.PokemonSleepV042730ConfirmationJsonMobileClosure=api;
-  trace('v042730_confirmation_json_mobile_closure_ready',{status:'completed',confirmation_empty_group_creation_blocked:true,per_item_provider_failure_isolated:true,mobile_json_vertical_scroll:true});
+  trace('v042731_dom_observer_reentrancy_closure_ready',{status:'completed',whole_document_mutation_observer:false,idempotent_boundary_writes:true,confirmation_empty_group_creation_blocked:true,per_item_provider_failure_isolated:true,mobile_json_vertical_scroll:true,preview_dom_untouched:true});
   return true;
 }
 
