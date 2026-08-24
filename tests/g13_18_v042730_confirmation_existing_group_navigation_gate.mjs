@@ -6,7 +6,7 @@ const runtime=fs.readFileSync('assets/js/runtime-version.js','utf8');
 const workbench=fs.readFileSync('assets/js/analysis-confirmation-workbench.js','utf8');
 const consistency=fs.readFileSync('assets/js/data-consistency-multicapture.js','utf8');
 
-assert.match(runtime,/V042730_CONFIRMATION_JSON_MOBILE_CLOSURE_VERSION='v0\.4\.27\.30-confirmation-json-mobile-closure-2026-08-24-a'/);
+assert.match(runtime,/V042730_CONFIRMATION_JSON_MOBILE_CLOSURE_VERSION='confirmation-json-mobile-closure-2026-08-24-a'/);
 assert.match(runtime,/function v042730ShouldBlockConfirmationNext\(state=\{\}\)/);
 assert.match(runtime,/event\.stopImmediatePropagation\(\)/);
 assert.match(runtime,/next\.disabled=true/);
@@ -39,6 +39,7 @@ assert.equal(state.visible_group_id,'C');
 console.log(JSON.stringify({
   status:'PASS',
   gate:'G13.18_V042730_CONFIRMATION_EXISTING_GROUP_NAVIGATION',
+  runtime_diagnostic_token_release_neutral:true,
   last_group_forward_blocked:true,
   revisionless_empty_group_created:false,
   existing_group_navigation_preserved:true,
