@@ -47,7 +47,7 @@ export function attachRuntimeVersion(payload,root=globalThis.document){
   return {...payload,app_version:runtime.app_version,app_build:runtime.app_build};
 }
 
-export const V042730_CONFIRMATION_JSON_MOBILE_CLOSURE_VERSION='v0.4.27.30-confirmation-json-mobile-closure-2026-08-24-a';
+export const V042730_CONFIRMATION_JSON_MOBILE_CLOSURE_VERSION='confirmation-json-mobile-closure-2026-08-24-a';
 
 export function v042730ShouldBlockConfirmationNext(state={}){
   return Boolean(Number(state?.total||0)>0&&state?.has_next===false);
