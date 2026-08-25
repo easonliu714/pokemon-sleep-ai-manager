@@ -1,14 +1,19 @@
 export const EXPLICIT_MANUAL_DRAFT_SAVE_VERSION='v0.4.27.38-authoritative-draft-navigation-2026-08-25-a';
 export const EXPLICIT_MANUAL_DRAFT_SAVE_REASON='explicit_manual_save_v042738';
+export const SINGLE_CONFIRMATION_AUTHORITY_VERSION='v0.4.27.39-single-confirmation-authority-2026-08-25-a';
 
 const clone=value=>value==null?value:JSON.parse(JSON.stringify(value));
 const text=value=>String(value??'').trim();
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const trace=(scope,event,detail={})=>{
-  const payload={version:EXPLICIT_MANUAL_DRAFT_SAVE_VERSION,...detail};
+  const payload={version:EXPLICIT_MANUAL_DRAFT_SAVE_VERSION,single_confirmation_authority_version:SINGLE_CONFIRMATION_AUTHORITY_VERSION,...detail};
   scope.UpdateCenterLiveDebug?.record?.(event,payload);
   scope.DebugTrace?.record?.('ai_review',event,{status:detail.status||'completed',details:payload});
 };
+
+export function isLegacyCorrectedConfirmationEvent(detail={}){
+  return detail?.v042718_form_authority_corrected===true;
+}
 
 export function revisionAuthorityFromDetail(detail={}){
   const revision=detail?.revision||{};
@@ -164,8 +169,8 @@ export function applyManualPatch(rawDraft={},root,manualKeys=[]){
 export function installExplicitManualDraftSave(scope=globalThis){
   const consistency=scope?.PokemonSleepMultiCaptureConsistency;
   if(!consistency||typeof consistency.getState!=='function'||typeof consistency.replaceActiveDraft!=='function')return false;
-  const installed=scope.PokemonSleepExplicitManualDraftSaveV042738||scope.PokemonSleepExplicitManualDraftSaveV042737;
-  if(installed?.version===EXPLICIT_MANUAL_DRAFT_SAVE_VERSION)return true;
+  const installed=scope.PokemonSleepSingleConfirmationAuthorityV042739||scope.PokemonSleepExplicitManualDraftSaveV042738||scope.PokemonSleepExplicitManualDraftSaveV042737;
+  if(installed?.single_confirmation_authority_version===SINGLE_CONFIRMATION_AUTHORITY_VERSION)return true;
 
   const originalReplace=consistency.replaceActiveDraft.bind(consistency);
   const legacyReplace=consistency.replaceActiveDraft;
@@ -175,7 +180,7 @@ export function installExplicitManualDraftSave(scope=globalThis){
     return null;
   };
 
-  let authority=null,authoritativeDraft=null,lastStatus=null,lastDriftSignature='';
+  let authority=null,authoritativeDraft=null,lastStatus=null,lastDriftSignature='',projectionSequence=0;
   const touched=new Set();
   const root=()=>scope.document?.getElementById?.('analysisConfirmationWorkbench')||null;
   const confirmation=()=>root()?.querySelector?.('.analysis-confirmation')||null;
@@ -216,11 +221,29 @@ export function installExplicitManualDraftSave(scope=globalThis){
     return true;
   };
   const acceptDetail=(detail={},reason='selected')=>{
+    if(isLegacyCorrectedConfirmationEvent(detail))return false;
     authority=revisionAuthorityFromDetail(detail);
     authoritativeDraft=detail?.draft?clone(detail.draft):null;
     touched.clear();lastStatus=null;lastDriftSignature='';
     mount();refreshDirtyStatus();
     trace(scope,'v042738_manual_authority_refreshed',{reason,group_id:authority.group_id,analysis_id:authority.analysis_id,revision_no:authority.revision_no,status:'completed'});
+    return true;
+  };
+  const scheduleAuthoritativeRender=(detail={},reason='core_event')=>{
+    const expected=revisionAuthorityFromDetail(detail),token=++projectionSequence;
+    if(!expected.group_id||!expected.analysis_id||expected.revision_no==null)return token;
+    queueMicrotask(()=>{
+      if(token!==projectionSequence)return;
+      const match=revisionAuthorityMatches(expected,consistency.getState());
+      if(!match.ok||text(authority?.group_id)!==text(expected.group_id)){
+        trace(scope,'v042739_authoritative_render_skipped',{reason,status:'blocked',match_status:match.status||null,expected_group_id:expected.group_id,active_group_id:consistency.getState()?.active_group_id||null});
+        return;
+      }
+      const projected=projectAuthoritativeForm(root(),authoritativeDraft||{});
+      trace(scope,'v042739_authoritative_render_committed',{reason,status:'completed',group_id:expected.group_id,analysis_id:expected.analysis_id,revision_no:expected.revision_no,field_count:projected.length,fields:projected,legacy_dom_writer_count:0,single_confirmation_authority:true});
+      refreshDirtyStatus();
+    });
+    return token;
   };
   function revertManual(reason='manual_revert'){
     if(!authority?.group_id)return false;
@@ -274,14 +297,24 @@ export function installExplicitManualDraftSave(scope=globalThis){
     const key=nodeKey(event.target);if(!key)return;
     touched.add(key);refreshDirtyStatus();
   };
+  const suppressLegacyCorrectedEvent=event=>{
+    if(!isLegacyCorrectedConfirmationEvent(event?.detail||{}))return;
+    event.preventDefault?.();event.stopImmediatePropagation?.();event.stopPropagation?.();
+    trace(scope,'v042739_legacy_corrected_event_suppressed',{status:'blocked',group_id:event?.detail?.group_id||null,event_type:event?.type||null,legacy_source:'v042718_form_authority_corrected',single_confirmation_authority:true});
+  };
 
   if(scope.document){
-    scope.addEventListener?.('pokemon-sleep:analysis-confirmation-group-selected',event=>acceptDetail(event.detail||{},'group_selected'));
+    scope.addEventListener?.('pokemon-sleep:analysis-confirmation-group-selected',suppressLegacyCorrectedEvent,true);
+    scope.addEventListener?.('pokemon-sleep:analysis-confirmation-merged',suppressLegacyCorrectedEvent,true);
+    scope.addEventListener?.('pokemon-sleep:analysis-confirmation-group-selected',event=>{
+      const detail=event.detail||{};if(isLegacyCorrectedConfirmationEvent(detail))return;
+      if(acceptDetail(detail,'group_selected'))scheduleAuthoritativeRender(detail,'group_selected');
+    });
     scope.addEventListener?.('pokemon-sleep:analysis-confirmation-merged',event=>{
-      const detail=event.detail||{};
+      const detail=event.detail||{};if(isLegacyCorrectedConfirmationEvent(detail))return;
       if(authority?.group_id&&text(detail.group_id)!==text(authority.group_id))return;
       const hadDirty=currentClassification().manual_dirty;
-      acceptDetail(detail,'revision_merged');
+      if(acceptDetail(detail,'revision_merged'))scheduleAuthoritativeRender(detail,'revision_merged');
       if(hadDirty)setStatus('分析 revision 已更新；先前未儲存的人工修改沒有寫回，請重新覆核。','pending');
     });
     scope.document.addEventListener('input',markTouched,true);
@@ -292,19 +325,21 @@ export function installExplicitManualDraftSave(scope=globalThis){
 
   const api={
     version:EXPLICIT_MANUAL_DRAFT_SAVE_VERSION,
+    single_confirmation_authority_version:SINGLE_CONFIRMATION_AUTHORITY_VERSION,
     saveManualDraft:(draft,expected)=>{
       const state=consistency.getState(),match=revisionAuthorityMatches(expected,state);
       if(!match.ok){trace(scope,'v042738_manual_api_save_blocked',{...match,status:'blocked'});return match;}
       originalReplace(clone(draft),{reason:EXPLICIT_MANUAL_DRAFT_SAVE_REASON});
       return {ok:true,status:'SAVED',group_id:expected.group_id};
     },
-    getState:()=>({authority:clone(authority),touched_keys:[...touched],classification:currentClassification(),last_status:clone(lastStatus)}),
+    getState:()=>({authority:clone(authority),touched_keys:[...touched],classification:currentClassification(),last_status:clone(lastStatus),projection_sequence:projectionSequence}),
     refresh:()=>{mount();return refreshDirtyStatus();},
     legacy_replace_reference:legacyReplace,
   };
   scope.PokemonSleepExplicitManualDraftSaveV042737=api;
   scope.PokemonSleepExplicitManualDraftSaveV042738=api;
-  trace(scope,'v042738_explicit_manual_draft_save_ready',{status:'completed',implicit_navigation_write_disabled:true,explicit_save_only:true,revision_cas:true,system_drift_navigation_blocked:false,authoritative_apply_projection:true});
+  scope.PokemonSleepSingleConfirmationAuthorityV042739=api;
+  trace(scope,'v042739_single_confirmation_authority_ready',{status:'completed',implicit_navigation_write_disabled:true,explicit_save_only:true,revision_cas:true,system_drift_navigation_blocked:false,authoritative_apply_projection:true,legacy_corrected_event_suppressed:true,legacy_manual_overlay_shadow_only:true,first_render_projector_shadow_only:true,single_confirmation_authority:true});
   return true;
 }
 
