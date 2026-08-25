@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-globalThis.document={readyState:'complete',querySelector:()=>null,getElementById:()=>null};
+// Minimal browser fixture for importing the production executor. The gate does not
+// exercise confirmation DOM behavior; these stubs only satisfy module bootstrap.
+globalThis.document={readyState:'complete',querySelector:()=>null,getElementById:()=>null,addEventListener:()=>{},documentElement:{}};
+globalThis.MutationObserver=class{observe(){} disconnect(){}};
 globalThis.addEventListener=globalThis.addEventListener||(()=>{});
 globalThis.dispatchEvent=globalThis.dispatchEvent||(()=>true);
 
