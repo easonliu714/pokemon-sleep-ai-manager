@@ -1,9 +1,14 @@
 export const CONFIRMATION_FIRST_RENDER_AUTHORITY_VERSION='confirmation-first-render-authority-2026-08-25-b-v042736';
 export const PER_IMAGE_IDENTITY_PROJECTION_ISOLATION_VERSION='v0.4.27.36-per-image-identity-projection-isolation-2026-08-25-a';
+export const SINGLE_CONFIRMATION_AUTHORITY_SHADOW_VERSION='v0.4.27.39-single-confirmation-authority-2026-08-25-a';
 
 const text=value=>String(value??'').trim();
 const clone=value=>value==null?value:JSON.parse(JSON.stringify(value));
 const firstNonblank=(...values)=>{for(const value of values){const result=text(value);if(result)return result;}return '';};
+function releaseAtLeast39(scope=globalThis){
+  const match=text(scope?.PokemonSleepVersionAuthority?.app_version).match(/^v0\.4\.27\.(\d+)$/);
+  return Boolean(match&&Number(match[1])>=39);
+}
 
 function stateGroup(scope,groupId){
   const state=scope?.PokemonSleepMultiCaptureConsistency?.getState?.()||null;
@@ -24,10 +29,8 @@ export function resolveConfirmationFirstRenderProjection({detail={},group=null}=
   const context=exactContext(detail,group);
   const baseline=context?.mode==='existing'?clone(context?.baseline_reference||null):null;
 
-  // v0.4.27.36: identity/master fields may only come from the exact bound group.
-  // Existing targets may use their immutable target/baseline as a fallback when the
-  // same-group observation is blank. New targets never borrow any public/global or
-  // previous-group value. Type must never be used to synthesize a berry observation.
+  // v0.4.27.36 predecessor projection helper is retained for historical replay only.
+  // v0.4.27.39 production does not grant this helper DOM write authority.
   const species=context?.mode==='existing'
     ? firstNonblank(context?.target_species_snapshot,core?.species,incoming?.species,baseline?.species)
     : firstNonblank(core?.species,incoming?.species);
@@ -86,7 +89,6 @@ export function installConfirmationFirstRenderAuthority(scope=globalThis){
     if(!form||!group)return {status:!form?'NO_VISIBLE_FORM':'NO_EXACT_GROUP',writes:0};
     const visible=text(form.dataset?.v042718GroupId);
     if(!shouldProjectConfirmationGroup({incoming_group_id:incoming,active_group_id:active,visible_group_id:visible})){
-      // Fail closed. Never relabel a visible form to make a stale event look current.
       trace('v042736_noncurrent_projection_rejected',{status:'blocked',reason,incoming_group_id:incoming||null,active_group_id:active||null,visible_group_id:visible||null,render_marker_mutated:false});
       return {status:'REJECTED_NONCURRENT',writes:0};
     }
@@ -104,9 +106,6 @@ export function installConfirmationFirstRenderAuthority(scope=globalThis){
   }
 
   function scheduleFinalProjection(detail,reason){
-    // One microtask is retained only to allow the authoritative form-render listener
-    // from the same event to finish. The captured sequence and exact group IDs are
-    // revalidated before any DOM write. There is intentionally no setTimeout writer.
     const sequence=++projectionSequence;
     queueMicrotask(()=>projectVisible(detail,`${reason}_exact_postrender`,sequence));
     return sequence;
@@ -125,20 +124,25 @@ export function installConfirmationFirstRenderAuthority(scope=globalThis){
     scheduleFinalProjection(detail,reason);
   }
 
-  scope.addEventListener('pokemon-sleep:analysis-confirmation-group-selected',event=>onEvent(event,'group_selected'),true);
-  scope.addEventListener('pokemon-sleep:analysis-confirmation-merged',event=>onEvent(event,'merged'),true);
-
+  const shadowOnly=releaseAtLeast39(scope);
+  if(!shadowOnly){
+    scope.addEventListener('pokemon-sleep:analysis-confirmation-group-selected',event=>onEvent(event,'group_selected'),true);
+    scope.addEventListener('pokemon-sleep:analysis-confirmation-merged',event=>onEvent(event,'merged'),true);
+  }
+  const shadowProject=()=>({status:'SHADOW_ONLY_SINGLE_CONFIRMATION_AUTHORITY',writes:0,projection:null});
   const api=Object.freeze({
     version:CONFIRMATION_FIRST_RENDER_AUTHORITY_VERSION,
     isolation_version:PER_IMAGE_IDENTITY_PROJECTION_ISOLATION_VERSION,
+    single_confirmation_authority_version:shadowOnly?SINGLE_CONFIRMATION_AUTHORITY_SHADOW_VERSION:null,
+    shadow_only:shadowOnly,
     resolveConfirmationFirstRenderProjection,
     shouldProjectConfirmationGroup,
     patchConfirmationEventDraft,
-    projectVisible,
+    projectVisible:shadowOnly?shadowProject:projectVisible,
     visibleGroupId,
   });
   scope.PokemonSleepConfirmationFirstRenderAuthorityV042732=api;
-  trace('v042736_confirmation_first_render_authority_ready',{status:'completed',exact_group_only:true,existing_target_species_fallback:true,type_berry_auto_rewrite:false,stale_render_marker_repair:false,noncurrent_merged_projection:false,deferred_timeout_writer:false,raw_provider_json_mutated:false});
+  trace(shadowOnly?'v042739_first_render_projector_shadow_only':'v042736_confirmation_first_render_authority_ready',{status:'completed',exact_group_only:true,existing_target_species_fallback:true,type_berry_auto_rewrite:false,stale_render_marker_repair:false,noncurrent_merged_projection:false,deferred_timeout_writer:false,raw_provider_json_mutated:false,shadow_only:shadowOnly,confirmation_dom_write_authority:!shadowOnly,event_draft_mutation_authority:!shadowOnly});
   return true;
 }
 
