@@ -84,6 +84,15 @@ assert.equal(missing.status,'BLOCKED_EXACT_CONTEXT_MISSING');
 const missingApi=executor.resolveQueueAnalysisTargetContext(queue('img-tinkatink'),{});
 assert.equal(missingApi.status,'BLOCKED_PER_IMAGE_CONTEXT_API_NOT_READY');
 
+// A raw multi-item unified queue remains ambiguous by definition. The executor must keep
+// failing closed rather than silently selecting items[0]. Current unified orchestration
+// prevents this shape by creating one queue per runAi(item).
+const ambiguous=executor.resolveQueueAnalysisTargetContext({
+  schema:'pokemon-sleep-ai-consent-queue/1.3-unified',
+  items:[{item_id:'img-tinkatink',sha256:'img-tinkatink'},{item_id:'img-clodsire',sha256:'img-clodsire'}],
+},scope);
+assert.equal(ambiguous.status,'BLOCKED_QUEUE_ITEM_ID_MISSING');
+
 // Legacy / standalone queues remain backward compatible and are the only paths allowed to use global fallback.
 const legacy=executor.resolveQueueAnalysisTargetContext({schema:'legacy',items:[{sha256:'legacy-img'}]},scope);
 assert.equal(legacy.status,'LEGACY_CONTEXT_FALLBACK');
@@ -98,6 +107,22 @@ assert.match(source,/queueContext\.status==='EXACT_PER_IMAGE_CONTEXT'/);
 assert.match(source,/buildExistingBaselinePrompt\(prompt,\{analysisTargetContext:queueContext\.context\}\)/);
 assert.match(source,/analysis_target_context_authority:promptContext\.context_authority/);
 
+// Freeze the current physical unified-path contract. The user may select many images,
+// but runAi receives one item and queueFor emits exactly one unified queue item. The
+// synchronous stage event activates that same item before executePreparedAiPayload runs.
+const unifiedSource=fs.readFileSync('assets/js/unified-import-analysis-workbench.js','utf8');
+const perImageSource=fs.readFileSync('assets/js/per-image-runtime-context-v042733.js','utf8');
+const legacyConsentSource=fs.readFileSync('assets/js/data1d1-ocr-region-ai-consent.js','utf8');
+assert.match(unifiedSource,/function queueFor\(item,preset\)\{return \{schema:'pokemon-sleep-ai-consent-queue\/1\.3-unified',selected_count:1/);
+assert.match(unifiedSource,/items:\[\{item_id:itemId\(item\),source_image_ref:item\.path\|\|item\.source_image_ref/);
+assert.match(unifiedSource,/const payload=\{queue:queueFor\(item,preset\),item,preset,statusNode:status/);
+const stageIndex=unifiedSource.indexOf("publishStage('ai','running'");
+const executeIndex=unifiedSource.indexOf('executePreparedAiPayload(payload)');
+assert.ok(stageIndex>=0&&executeIndex>stageIndex,'unified_ai_stage_must_activate_item_before_provider_execution');
+assert.match(perImageSource,/detail\.state==='running'&&\(detail\.stage==='ocr'\|\|detail\.stage==='ai'\)\)activateItem\(detail\.item_id,detail\.stage\)/);
+assert.match(legacyConsentSource,/AI_CONSENT_SCHEMA='pokemon-sleep-ai-consent-queue\/1\.2'/);
+assert.doesNotMatch(legacyConsentSource,/pokemon-sleep-ai-consent-queue\/1\.3-unified/);
+
 console.log(JSON.stringify({
   status:'PASS',
   gate:'G13.25_V042735_EXPLICIT_PER_IMAGE_AI_CONTEXT',
@@ -108,6 +133,10 @@ console.log(JSON.stringify({
   missing_stage_marker_still_uses_exact_queue_context:true,
   unified_missing_context_fail_closed:true,
   queue_active_item_mismatch_fail_closed:true,
+  unified_multi_item_queue_fail_closed:true,
+  unified_runtime_queue_is_single_item:true,
+  unified_stage_activates_item_before_provider:true,
+  legacy_multi_select_consent_not_unified_authority:true,
   unified_global_context_fallback_forbidden:true,
   provider_request_context_bound_before_ai:true,
   revision_rebinding_remains_downstream_defense:true,
