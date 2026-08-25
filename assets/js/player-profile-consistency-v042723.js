@@ -1,9 +1,9 @@
 import {BERRY_BY_TYPE} from './pokemon-master-options.js';
 import {getPersistedPlayerEvolutionOverride,PLAYER_OVERRIDE,CUSTOM_REQUIREMENTS,CANNOT_EVOLVE} from './analysis-confirmation-evolution-authority.js';
 
-export const PLAYER_PROFILE_CONSISTENCY_VERSION='v0.4.27.23-player-profile-consistency-2026-08-20-a';
+export const PLAYER_PROFILE_CONSISTENCY_VERSION='v0.4.27.36-player-profile-consistency-review-only-2026-08-25-a';
 export const DATE_INPUT_NORMALIZATION_VERSION='v0.4.27.23-localized-date-to-iso-2026-08-20-a';
-export const TYPE_BERRY_CONSISTENCY_VERSION='v0.4.27.23-type-berry-consistency-2026-08-20-a';
+export const TYPE_BERRY_CONSISTENCY_VERSION='v0.4.27.36-type-berry-review-only-2026-08-25-a';
 export const DETAIL_EVOLUTION_OVERRIDE_PROJECTION_VERSION='v0.4.27.23-detail-player-override-projection-2026-08-20-a';
 
 const text=value=>String(value??'').trim();
@@ -12,7 +12,7 @@ const clone=value=>value==null?value:JSON.parse(JSON.stringify(value));
 const meaningful=value=>value!==null&&value!==undefined&&text(value)!=='';
 const trace=(event,detail={})=>{
   globalThis.UpdateCenterLiveDebug?.record?.(event,{version:PLAYER_PROFILE_CONSISTENCY_VERSION,...detail});
-  globalThis.DebugTrace?.record?.('player_profile_consistency',event,{status:'completed',details:{version:PLAYER_PROFILE_CONSISTENCY_VERSION,...detail}});
+  globalThis.DebugTrace?.record?.('player_profile_consistency',event,{status:detail.status||'completed',details:{version:PLAYER_PROFILE_CONSISTENCY_VERSION,...detail}});
 };
 
 export function normalizeGameDateForInput(value){
@@ -33,13 +33,15 @@ export function repairPlayerProfileDraft(source={}){
   const dateSource=text(draft.registered_at)||text(draft.obtained_at);
   const normalizedDate=normalizeGameDateForInput(dateSource);
   if(normalizedDate&&text(draft.registered_at)!==normalizedDate){
-    corrections.push({field:'registered_at',status:'LOCALIZED_DATE_NORMALIZED',observed_value:dateSource,canonical_value:normalizedDate,authority:'HTML_DATE_INPUT_COMPATIBILITY'});
+    corrections.push({field:'registered_at',status:'LOCALIZED_DATE_NORMALIZED',observed_value:dateSource,canonical_value:normalizedDate,authority:'HTML_DATE_INPUT_COMPATIBILITY',auto_rewrite:true});
     draft.registered_at=normalizedDate;
   }
   const type=text(draft.type),observedBerry=text(draft.favorite_berry),canonicalBerry=text(BERRY_BY_TYPE[type]);
   if(type&&observedBerry&&canonicalBerry&&observedBerry!==canonicalBerry){
-    corrections.push({field:'favorite_berry',status:'DETERMINISTIC_TYPE_BERRY_MISMATCH_CORRECTED',observed_value:observedBerry,canonical_value:canonicalBerry,type,authority:'PUBLIC_BERRY_BY_TYPE',evidence_role:'VALIDATION_NOT_IMAGE_EVIDENCE'});
-    draft.favorite_berry=canonicalBerry;
+    // v0.4.27.36: public type→berry relation is validation evidence only. It must
+    // never mutate a player observation because a stale/wrong type would otherwise
+    // manufacture a plausible but incorrect berry and hide the upstream conflict.
+    corrections.push({field:'favorite_berry',status:'REVIEW_REQUIRED_TYPE_BERRY_MISMATCH',observed_value:observedBerry,canonical_value:canonicalBerry,type,authority:'PUBLIC_BERRY_BY_TYPE',evidence_role:'VALIDATION_NOT_IMAGE_EVIDENCE',auto_rewrite:false});
   }
   return Object.freeze({draft,corrections:Object.freeze(corrections)});
 }
@@ -53,7 +55,7 @@ function visibleConfirmation(){return document.querySelector?.('#analysisConfirm
 function ensureCorrectionNotice(form){
   let notice=form.querySelector('#playerProfileConsistencyNoticeV042723');
   if(notice)return notice;
-  notice=document.createElement('div');notice.id='playerProfileConsistencyNoticeV042723';notice.className='notice success';notice.dataset.playerProfileConsistencyVersion=PLAYER_PROFILE_CONSISTENCY_VERSION;
+  notice=document.createElement('div');notice.id='playerProfileConsistencyNoticeV042723';notice.className='notice';notice.dataset.playerProfileConsistencyVersion=PLAYER_PROFILE_CONSISTENCY_VERSION;
   const nav=form.querySelector('.analysis-review-navigation');
   if(nav)nav.insertAdjacentElement('afterend',notice);else form.querySelector('header')?.insertAdjacentElement('afterend',notice);
   return notice;
@@ -62,34 +64,40 @@ function renderCorrectionNotice(form,corrections=[]){
   const notice=ensureCorrectionNotice(form);
   if(!notice)return;
   if(!corrections.length){notice.remove();return;}
+  const hasReview=corrections.some(row=>String(row.status||'').startsWith('REVIEW_REQUIRED'));
+  notice.className=`notice ${hasReview?'pending':'success'}`;
   const lines=corrections.map(row=>{
     if(row.field==='registered_at')return `登錄日期格式正規化：${esc(row.observed_value)} → ${esc(row.canonical_value)}`;
-    if(row.field==='favorite_berry')return `屬性／樹果一致性修正：${esc(row.type)}屬性 ${esc(row.observed_value)} → ${esc(row.canonical_value)}`;
+    if(row.field==='favorite_berry')return `屬性／樹果需要人工覆核：目前為 ${esc(row.type)}屬性／${esc(row.observed_value)}；公版關係參考值為 ${esc(row.canonical_value)}。平台不會自動改寫。`;
     return `${esc(row.field)} 已正規化`;
   });
-  notice.innerHTML=`<strong>平台 deterministic 一致性校正</strong><br>${lines.join('<br>')}<br><small>AI 原始 JSON 保留不變；此處只修正人工確認／寫入投影。</small>`;
+  notice.innerHTML=`<strong>${hasReview?'平台一致性檢查：需要人工覆核':'平台 deterministic 一致性校正'}</strong><br>${lines.join('<br>')}<br><small>${hasReview?'公版關係只用於偵測矛盾，不會把任何值轉成圖片 Evidence 或自動寫入玩家資料。':'AI 原始 JSON 保留不變；僅執行格式正規化。'}</small>`;
 }
 
 export function reconcileVisibleConfirmation(detail=null){
   if(typeof document==='undefined')return {status:'NO_DOCUMENT',corrections:[]};
   const form=visibleConfirmation();if(!form)return {status:'NO_VISIBLE_CONFIRMATION',corrections:[]};
   const active=activeDraftFromConsistency();
+  const incomingGroup=text(detail?.group_id),activeGroup=text(active?.group_id),visibleGroup=text(form.dataset?.v042718GroupId);
+  if(incomingGroup&&(incomingGroup!==activeGroup||incomingGroup!==visibleGroup)){
+    trace('v042736_profile_consistency_noncurrent_rejected',{status:'blocked',incoming_group_id:incomingGroup,active_group_id:activeGroup||null,visible_group_id:visibleGroup||null,dom_write_count:0});
+    return {status:'REJECTED_NONCURRENT',corrections:[]};
+  }
   const source=detail?.draft||active?.draft||{};
   const result=repairPlayerProfileDraft(source);
   const dateInput=form.querySelector('[data-field="registered_at"]');
-  const berryInput=form.querySelector('[data-field="favorite_berry"]');
-  const dateCorrection=result.corrections.find(row=>row.field==='registered_at');
-  const berryCorrection=result.corrections.find(row=>row.field==='favorite_berry');
+  const dateCorrection=result.corrections.find(row=>row.field==='registered_at'&&row.auto_rewrite!==false);
   if(dateCorrection&&dateInput)dateInput.value=dateCorrection.canonical_value;
   else if(dateInput&&!dateInput.value){
     const attrValue=dateInput.getAttribute('value')||'';
     const normalized=normalizeGameDateForInput(attrValue);
     if(normalized)dateInput.value=normalized;
   }
-  if(berryCorrection&&berryInput)berryInput.value=berryCorrection.canonical_value;
+  // Intentionally no favorite_berry DOM assignment here. Type/berry mismatch is
+  // review-only in v0.4.27.36 and must preserve the exact-group observation.
   renderCorrectionNotice(form,result.corrections);
-  if(result.corrections.length)trace('v042723_confirmation_projection_corrected',{group_id:detail?.group_id||active?.group_id||null,fields:result.corrections.map(row=>row.field),raw_provider_json_mutated:false});
-  return {status:'RECONCILED',corrections:result.corrections,draft:result.draft};
+  if(result.corrections.length)trace('v042736_confirmation_consistency_checked',{status:result.corrections.some(row=>String(row.status).startsWith('REVIEW_REQUIRED'))?'review_required':'completed',group_id:detail?.group_id||active?.group_id||null,fields:result.corrections.map(row=>row.field),type_berry_auto_rewrite:false,raw_provider_json_mutated:false});
+  return {status:result.corrections.some(row=>String(row.status).startsWith('REVIEW_REQUIRED'))?'REVIEW_REQUIRED':'RECONCILED',corrections:result.corrections,draft:result.draft};
 }
 
 function detailSection(title){return [...document.querySelectorAll?.('#detailBody .detail-section')||[]].find(section=>text(section.querySelector('h3')?.textContent)===title)||null;}
@@ -128,7 +136,7 @@ export function reconcilePokemonDetail(pokemonId){
 }
 
 let currentDetailPokemonId=null,detailObserver=null;
-function scheduleConfirmation(detail){setTimeout(()=>reconcileVisibleConfirmation(detail),0);}
+function scheduleConfirmation(detail){queueMicrotask(()=>reconcileVisibleConfirmation(detail));}
 function scheduleDetail(){const id=currentDetailPokemonId;if(id)setTimeout(()=>reconcilePokemonDetail(id),0);}
 function install(){
   if(typeof globalThis.addEventListener==='function'){
@@ -146,7 +154,7 @@ function install(){
       detailObserver.observe(body,{childList:true,subtree:true});
     }
   }
-  trace('v042723_player_profile_consistency_ready',{date_normalization:true,type_berry_conflict_correction:true,detail_player_override_projection:true,raw_provider_json_mutated:false,missing_berry_public_fill:false});
+  trace('v042736_player_profile_consistency_ready',{date_normalization:true,type_berry_conflict_review_only:true,type_berry_auto_rewrite:false,detail_player_override_projection:true,raw_provider_json_mutated:false,missing_berry_public_fill:false,exact_visible_group_gate:true});
 }
 
 install();
