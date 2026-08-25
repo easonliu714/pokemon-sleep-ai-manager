@@ -184,17 +184,19 @@ function existingBaselineContext(contextOverride=undefined){
 export function resolveQueueAnalysisTargetContext(queue,scope=globalThis){
   const queued=Array.isArray(queue?.items)&&queue.items.length===1?queue.items[0]:null;
   const id=itemId(queued);
+  const unifiedQueue=String(queue?.schema||'')==='pokemon-sleep-ai-consent-queue/1.3-unified';
+  if(!unifiedQueue)return {status:'LEGACY_CONTEXT_FALLBACK',item_id:id||null,context:null,target_mode:null};
+  if(!id)return {status:'BLOCKED_QUEUE_ITEM_ID_MISSING',item_id:null,context:null,target_mode:null};
+
   const perImage=scope?.PokemonSleepPerImageRuntimeContextV042733;
+  if(typeof perImage?.contextForItem!=='function')return {status:'BLOCKED_PER_IMAGE_CONTEXT_API_NOT_READY',item_id:id,context:null,target_mode:null};
   const state=perImage?.getState?.()||{};
   const activeId=text(state?.active_item_id);
-  const unifiedQueue=String(queue?.schema||'')==='pokemon-sleep-ai-consent-queue/1.3-unified';
-  if(unifiedQueue&&id&&activeId===id&&typeof perImage?.contextForItem==='function'){
-    const context=perImage.contextForItem(id)||null;
-    if(context)return {status:'EXACT_PER_IMAGE_CONTEXT',item_id:id,context:clone(context),target_mode:context.mode||null};
-    return {status:'BLOCKED_EXACT_CONTEXT_MISSING',item_id:id,context:null,target_mode:null};
-  }
-  if(unifiedQueue&&id&&activeId&&activeId!==id)return {status:'BLOCKED_ACTIVE_ITEM_MISMATCH',item_id:id,active_item_id:activeId,context:null,target_mode:null};
-  return {status:'LEGACY_CONTEXT_FALLBACK',item_id:id||null,context:null,target_mode:null};
+  if(activeId&&activeId!==id)return {status:'BLOCKED_ACTIVE_ITEM_MISMATCH',item_id:id,active_item_id:activeId,context:null,target_mode:null};
+
+  const context=perImage.contextForItem(id)||null;
+  if(!context)return {status:'BLOCKED_EXACT_CONTEXT_MISSING',item_id:id,context:null,target_mode:null};
+  return {status:'EXACT_PER_IMAGE_CONTEXT',item_id:id,active_item_id:activeId||null,context:clone(context),target_mode:context.mode||null};
 }
 
 export function buildExistingBaselinePrompt(basePrompt=DEFAULT_PROMPT,{analysisTargetContext=undefined}={}){
