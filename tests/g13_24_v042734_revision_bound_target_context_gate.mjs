@@ -72,7 +72,7 @@ const v33Source=fs.readFileSync('assets/js/per-image-runtime-context-v042733.js'
 const watchdogSource=fs.readFileSync('assets/js/v0394-startup-watchdog.js','utf8');
 
 assert.match(watchdogSource,/revision-bound-target-context-v042734\.js/,'v0.4.27.34 exact revision authority must load at startup');
-assert.match(successorSource,/revision\.image_sha256\|\|revision\?\.item_id/);
+assert.match(successorSource,/revision\?\.image_sha256\|\|revision\?\.item_id/);
 assert.match(successorSource,/contextForItem\(itemId\)/,'saved revision must resolve exact per-image context by immutable item id');
 assert.match(successorSource,/setActiveAnalysisTargetContext\?\.\(resolved\.context\)/,'exact context must be restored globally before predecessor persistence listeners run');
 assert.match(successorSource,/addEventListener\('pokemon-sleep:analysis-revision-saved',handler,true\)/,'capture phase must run before legacy non-capture saved-revision listeners');
