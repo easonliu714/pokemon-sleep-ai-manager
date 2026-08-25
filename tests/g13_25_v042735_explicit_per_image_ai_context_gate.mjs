@@ -40,8 +40,7 @@ const scope={
 };
 const queue=id=>({schema:'pokemon-sleep-ai-consent-queue/1.3-unified',items:[{item_id:id,sha256:id,source_image_ref:`${id}.png`}]});
 
-// Physical replay: request A is NEW. Even if the mutable global context elsewhere has advanced,
-// queue item A must resolve A's immutable new context, therefore the provider prompt has NO baseline.
+// Physical replay: request A is NEW. The immutable queue item context must force NO_BASELINE.
 active='img-tinkatink';
 const aResolved=executor.resolveQueueAnalysisTargetContext(queue('img-tinkatink'),scope);
 assert.equal(aResolved.status,'EXACT_PER_IMAGE_CONTEXT');
@@ -52,8 +51,14 @@ assert.equal(aPrompt.context_authority,'EXPLICIT_PER_IMAGE');
 assert.equal(aPrompt.target_mode,'new');
 assert.equal(aPrompt.prompt,'BASE');
 
-// Physical replay: request B is Clodsire while the next Pokemon is Delibird.
-// B's explicit prompt may contain Clodsire baseline only; Delibird must be impossible to leak in.
+// Even if the stage active marker is absent, a unified queue may still resolve only its exact
+// immutable item context. It must never fall back to mutable global identity/baseline state.
+active='';
+const aNoActive=executor.resolveQueueAnalysisTargetContext(queue('img-tinkatink'),scope);
+assert.equal(aNoActive.status,'EXACT_PER_IMAGE_CONTEXT');
+assert.equal(aNoActive.context.capture_group_id,'capture-tinkatink');
+
+// Physical replay: request B is Clodsire. B may contain Clodsire baseline only; Delibird is forbidden.
 active='img-clodsire';
 const bResolved=executor.resolveQueueAnalysisTargetContext(queue('img-clodsire'),scope);
 assert.equal(bResolved.status,'EXACT_PER_IMAGE_CONTEXT');
@@ -67,20 +72,30 @@ assert.match(bPrompt.prompt,/"species": "土王"/);
 assert.doesNotMatch(bPrompt.prompt,/"species": "信使鳥"/);
 assert.doesNotMatch(bPrompt.prompt,/"favorite_berry": "椰木果"/);
 
-// Exact per-image request authority must fail closed if queue id and active item diverge.
+// A conflicting active item is evidence of orchestration drift and must BLOCK before Provider execution.
 active='img-delibird';
 const mismatch=executor.resolveQueueAnalysisTargetContext(queue('img-clodsire'),scope);
 assert.equal(mismatch.status,'BLOCKED_ACTIVE_ITEM_MISMATCH');
 
-// Legacy / standalone queues remain backward compatible and do not claim per-image authority.
+// Missing immutable context in unified flow is also BLOCK; global fallback is forbidden.
+active='';
+const missing=executor.resolveQueueAnalysisTargetContext(queue('img-unknown'),scope);
+assert.equal(missing.status,'BLOCKED_EXACT_CONTEXT_MISSING');
+const missingApi=executor.resolveQueueAnalysisTargetContext(queue('img-tinkatink'),{});
+assert.equal(missingApi.status,'BLOCKED_PER_IMAGE_CONTEXT_API_NOT_READY');
+
+// Legacy / standalone queues remain backward compatible and are the only paths allowed to use global fallback.
 const legacy=executor.resolveQueueAnalysisTargetContext({schema:'legacy',items:[{sha256:'legacy-img'}]},scope);
 assert.equal(legacy.status,'LEGACY_CONTEXT_FALLBACK');
 
 const source=fs.readFileSync('assets/js/ai-review-queue-executor.js','utf8');
 assert.match(source,/resolveQueueAnalysisTargetContext\(queue,globalThis\)/);
+assert.match(source,/if\(!unifiedQueue\)return \{status:'LEGACY_CONTEXT_FALLBACK'/);
+assert.match(source,/BLOCKED_PER_IMAGE_CONTEXT_API_NOT_READY/);
+assert.match(source,/BLOCKED_EXACT_CONTEXT_MISSING/);
+assert.match(source,/BLOCKED_ACTIVE_ITEM_MISMATCH/);
 assert.match(source,/queueContext\.status==='EXACT_PER_IMAGE_CONTEXT'/);
 assert.match(source,/buildExistingBaselinePrompt\(prompt,\{analysisTargetContext:queueContext\.context\}\)/);
-assert.match(source,/BLOCKED_ACTIVE_ITEM_MISMATCH/);
 assert.match(source,/analysis_target_context_authority:promptContext\.context_authority/);
 
 console.log(JSON.stringify({
@@ -90,7 +105,10 @@ console.log(JSON.stringify({
   new_item_forces_no_baseline:true,
   existing_item_uses_exact_own_baseline:true,
   next_pokemon_baseline_leak_rejected:true,
+  missing_stage_marker_still_uses_exact_queue_context:true,
+  unified_missing_context_fail_closed:true,
   queue_active_item_mismatch_fail_closed:true,
+  unified_global_context_fallback_forbidden:true,
   provider_request_context_bound_before_ai:true,
   revision_rebinding_remains_downstream_defense:true,
   behavioral_gates_removed:0,
