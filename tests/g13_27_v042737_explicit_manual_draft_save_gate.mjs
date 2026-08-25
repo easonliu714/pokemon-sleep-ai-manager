@@ -8,10 +8,18 @@ const syntax=spawnSync(process.execPath,['--check',modulePath],{stdio:'inherit'}
 assert.equal(syntax.status,0,'successor module syntax must pass');
 const mod=await import(`${pathToFileURL(modulePath).href}?t=${Date.now()}`);
 
-const wiring=fs.readFileSync('assets/js/per-image-target-wiring-recovery-v042728.js','utf8');
+const index=fs.readFileSync('index.html','utf8');
+const predecessor=fs.readFileSync('assets/js/per-image-target-wiring-recovery-v042728.js','utf8');
 const serviceWorker=fs.readFileSync('service-worker.js','utf8');
 const versionAuthority=fs.readFileSync('assets/js/version-authority.js','utf8');
-assert.match(wiring,/^import '\.\/explicit-manual-draft-save-v042737\.js';/m,'production runtime must import the .37 authority successor');
+const consistencyPos=index.indexOf('./assets/js/data-consistency-multicapture.js');
+const reviewAuthorityPos=index.indexOf('./assets/js/review-group-isolation-v042717.js');
+const explicitSavePos=index.indexOf('./assets/js/explicit-manual-draft-save-v042737.js');
+const recoveryPos=index.indexOf('./assets/js/per-image-target-wiring-recovery-v042728.js');
+assert.ok(consistencyPos>=0&&reviewAuthorityPos>consistencyPos,'review authority must load after MultiCapture consistency');
+assert.ok(explicitSavePos>reviewAuthorityPos,'explicit manual save authority must load after review-group authority');
+assert.ok(recoveryPos>explicitSavePos,'per-image recovery must load after the .37 write authority');
+assert.doesNotMatch(predecessor,/explicit-manual-draft-save-v042737/,'v0.4.27.28 predecessor must remain release-compatible and must not import .37');
 assert.match(serviceWorker,/\.\/assets\/js\/explicit-manual-draft-save-v042737\.js/,'offline precache must contain the .37 authority successor');
 assert.match(versionAuthority,/app_version:\s*'v0\.4\.27\.37'/);
 assert.match(versionAuthority,/app_build:\s*'20260825-v042737-explicit-manual-draft-save-authority'/);
@@ -84,7 +92,8 @@ assert.match(source,/revertManualAnalysisDraftV042737/);
 console.log(JSON.stringify({
   status:'PASS',
   gate:'G13.27_V042737_EXPLICIT_MANUAL_DRAFT_SAVE',
-  production_import_wired:true,
+  production_index_load_order:true,
+  predecessor_release_compatibility_preserved:true,
   offline_precache_wired:true,
   release_authority_v042737:true,
   implicit_navigation_write_blocked:true,
