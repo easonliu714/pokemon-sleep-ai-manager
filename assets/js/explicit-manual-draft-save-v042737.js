@@ -1,5 +1,5 @@
-export const EXPLICIT_MANUAL_DRAFT_SAVE_VERSION='v0.4.27.37-explicit-manual-draft-save-authority-2026-08-25-a';
-export const EXPLICIT_MANUAL_DRAFT_SAVE_REASON='explicit_manual_save_v042737';
+export const EXPLICIT_MANUAL_DRAFT_SAVE_VERSION='v0.4.27.38-authoritative-draft-navigation-2026-08-25-a';
+export const EXPLICIT_MANUAL_DRAFT_SAVE_REASON='explicit_manual_save_v042738';
 
 const clone=value=>value==null?value:JSON.parse(JSON.stringify(value));
 const text=value=>String(value??'').trim();
@@ -54,11 +54,27 @@ export function classifyFormSnapshot({expected={},current={},touched_keys=[]}={}
   };
 }
 
+export function confirmationActionPolicy({action='',classification={}}={}){
+  const manualDirty=Boolean(classification?.manual_dirty);
+  const systemDrift=Boolean(classification?.unauthorized_drift);
+  return {
+    allowed:!manualDirty,
+    block_reason:manualDirty?'UNSAVED_MANUAL_CHANGES':null,
+    discard_system_drift:systemDrift,
+    prepare_authoritative_apply:action==='applyConfirmedAnalysis'&&systemDrift&&!manualDirty,
+  };
+}
+
 function nodeValue(node){
   if(!node)return null;
   if(node.type==='checkbox')return Boolean(node.checked);
   if(node.type==='number')return node.value===''?null:Number(node.value);
   return String(node.value??'').trim();
+}
+function setNodeValue(node,value){
+  if(!node)return;
+  if(node.type==='checkbox'){node.checked=Boolean(value);return;}
+  node.value=value==null?'':String(value);
 }
 function nodeKey(node){
   if(node?.dataset?.field)return `field:${node.dataset.field}`;
@@ -92,6 +108,21 @@ export function snapshotForm(root,draft={}){
     current[key]=Boolean(node.checked);
   }
   return {expected,current};
+}
+
+export function projectAuthoritativeForm(root,draft={}){
+  const projected=[];
+  for(const node of root?.querySelectorAll?.('[data-field]')||[]){
+    const key=nodeKey(node);if(!key)continue;
+    const expected=expectedForField(draft,node.dataset.field,node);
+    if(!same(nodeValue(node),expected)){setNodeValue(node,expected);projected.push(key);}
+  }
+  for(const node of root?.querySelectorAll?.('[data-check]')||[]){
+    const key=nodeKey(node);if(!key)continue;
+    const expected=expectedForCheck(draft,node.dataset.check);
+    if(Boolean(node.checked)!==Boolean(expected)){node.checked=Boolean(expected);projected.push(key);}
+  }
+  return projected;
 }
 
 function scalarFieldName(key){return key.startsWith('field:')?key.slice(6):null;}
@@ -133,22 +164,22 @@ export function applyManualPatch(rawDraft={},root,manualKeys=[]){
 export function installExplicitManualDraftSave(scope=globalThis){
   const consistency=scope?.PokemonSleepMultiCaptureConsistency;
   if(!consistency||typeof consistency.getState!=='function'||typeof consistency.replaceActiveDraft!=='function')return false;
-  if(scope.PokemonSleepExplicitManualDraftSaveV042737?.version===EXPLICIT_MANUAL_DRAFT_SAVE_VERSION)return true;
+  const installed=scope.PokemonSleepExplicitManualDraftSaveV042738||scope.PokemonSleepExplicitManualDraftSaveV042737;
+  if(installed?.version===EXPLICIT_MANUAL_DRAFT_SAVE_VERSION)return true;
 
   const originalReplace=consistency.replaceActiveDraft.bind(consistency);
   const legacyReplace=consistency.replaceActiveDraft;
   consistency.replaceActiveDraft=(draft,{reason='legacy_implicit_snapshot'}={})=>{
     if(reason===EXPLICIT_MANUAL_DRAFT_SAVE_REASON)return originalReplace(draft,{reason});
-    trace(scope,'v042737_implicit_draft_write_blocked',{reason,status:'blocked',active_group_id:consistency.getState()?.active_group_id||null});
+    trace(scope,'v042738_implicit_draft_write_blocked',{reason,status:'blocked',active_group_id:consistency.getState()?.active_group_id||null});
     return null;
   };
 
-  let authority=null,authoritativeDraft=null;
+  let authority=null,authoritativeDraft=null,lastStatus=null,lastDriftSignature='';
   const touched=new Set();
-  let lastStatus=null;
   const root=()=>scope.document?.getElementById?.('analysisConfirmationWorkbench')||null;
   const confirmation=()=>root()?.querySelector?.('.analysis-confirmation')||null;
-  const statusNode=()=>root()?.querySelector?.('#manualDraftStatusV042737')||null;
+  const statusNode=()=>root()?.querySelector?.('#manualDraftStatusV042738')||null;
   const setStatus=(message,kind='')=>{
     lastStatus={message,kind};const node=statusNode();if(!node)return;
     node.className=`notice${kind?` ${kind}`:''}`;node.textContent=message;
@@ -158,22 +189,28 @@ export function installExplicitManualDraftSave(scope=globalThis){
     const snapshots=snapshotForm(currentRoot,authoritativeDraft);
     return classifyFormSnapshot({...snapshots,touched_keys:[...touched]});
   };
+  const traceSystemDrift=state=>{
+    if(!state.unauthorized_drift)return;
+    const signature=state.unauthorized_keys.join('|');if(signature===lastDriftSignature)return;
+    lastDriftSignature=signature;
+    trace(scope,'v042738_system_dom_drift_isolated',{group_id:authority?.group_id||null,fields:state.unauthorized_keys,status:'isolated',write_authority:false,navigation_blocked:false});
+  };
   const refreshDirtyStatus=()=>{
     const state=currentClassification();
-    if(state.unauthorized_drift){setStatus('偵測到非人工操作造成的畫面漂移；不會寫回草稿。請按「還原目前草稿」後重新覆核。','error');return state;}
     if(state.manual_dirty){setStatus('有尚未儲存的人工修改。請先儲存或還原，才能切換寶可夢或確認處置。','pending');return state;}
-    if(!lastStatus||['pending','error'].includes(lastStatus.kind))setStatus('目前沒有尚未儲存的人工修改。','');
+    traceSystemDrift(state);
+    if(!lastStatus||['pending','error'].includes(lastStatus.kind))setStatus(state.unauthorized_drift?'目前沒有尚未儲存的人工修改；系統顯示差異不具寫入權，切換時會直接丟棄。':'目前沒有尚未儲存的人工修改。','');
     return state;
   };
   const mount=()=>{
     const area=confirmation();if(!area)return false;
-    let panel=area.querySelector('#manualDraftAuthorityV042737');
+    let panel=area.querySelector('#manualDraftAuthorityV042738');
     if(!panel){
-      panel=scope.document.createElement('section');panel.id='manualDraftAuthorityV042737';panel.className='notice';
-      panel.innerHTML='<strong>人工修改 Authority</strong><br><span>切換寶可夢不會自動保存表單。只有按「儲存人工修改」才會永久覆寫目前草稿。</span><div class="buttons"><button type="button" id="saveManualAnalysisDraftV042737">儲存人工修改</button><button type="button" id="revertManualAnalysisDraftV042737" class="secondary">還原目前草稿</button></div><div id="manualDraftStatusV042737" class="notice"></div>';
+      panel=scope.document.createElement('section');panel.id='manualDraftAuthorityV042738';panel.className='notice';
+      panel.innerHTML='<strong>人工修改 Authority</strong><br><span>切換寶可夢不會自動保存表單。只有按「儲存人工修改」才會永久覆寫目前草稿。</span><div class="buttons"><button type="button" id="saveManualAnalysisDraftV042738">儲存人工修改</button><button type="button" id="revertManualAnalysisDraftV042738" class="secondary">還原目前草稿</button></div><div id="manualDraftStatusV042738" class="notice"></div>';
       const nav=area.querySelector('.analysis-review-navigation');(nav||area.querySelector('header'))?.insertAdjacentElement('afterend',panel);
-      panel.querySelector('#saveManualAnalysisDraftV042737').onclick=saveManual;
-      panel.querySelector('#revertManualAnalysisDraftV042737').onclick=()=>revertManual('user_revert');
+      panel.querySelector('#saveManualAnalysisDraftV042738').onclick=saveManual;
+      panel.querySelector('#revertManualAnalysisDraftV042738').onclick=()=>revertManual('user_revert');
     }
     if(lastStatus)setStatus(lastStatus.message,lastStatus.kind);else refreshDirtyStatus();
     return true;
@@ -181,41 +218,55 @@ export function installExplicitManualDraftSave(scope=globalThis){
   const acceptDetail=(detail={},reason='selected')=>{
     authority=revisionAuthorityFromDetail(detail);
     authoritativeDraft=detail?.draft?clone(detail.draft):null;
-    touched.clear();lastStatus=null;
+    touched.clear();lastStatus=null;lastDriftSignature='';
     mount();refreshDirtyStatus();
-    trace(scope,'v042737_manual_authority_refreshed',{reason,group_id:authority.group_id,analysis_id:authority.analysis_id,revision_no:authority.revision_no,status:'completed'});
+    trace(scope,'v042738_manual_authority_refreshed',{reason,group_id:authority.group_id,analysis_id:authority.analysis_id,revision_no:authority.revision_no,status:'completed'});
   };
   function revertManual(reason='manual_revert'){
     if(!authority?.group_id)return false;
-    touched.clear();lastStatus={message:'已還原為目前群組的已儲存草稿。',kind:'success'};
-    consistency.selectGroup?.(authority.group_id,{reason:`${reason}_v042737`});
-    trace(scope,'v042737_manual_draft_reverted',{group_id:authority.group_id,reason,status:'completed'});
+    touched.clear();lastDriftSignature='';lastStatus={message:'已還原為目前群組的已儲存草稿。',kind:'success'};
+    consistency.selectGroup?.(authority.group_id,{reason:`${reason}_v042738`});
+    trace(scope,'v042738_manual_draft_reverted',{group_id:authority.group_id,reason,status:'completed'});
     return true;
   }
   function saveManual(){
     const currentRoot=root();if(!currentRoot||!authority)return {ok:false,status:'NO_ACTIVE_CONFIRMATION'};
     const classification=currentClassification();
-    if(classification.unauthorized_drift){setStatus('儲存已阻擋：畫面含非人工操作造成的漂移。請先還原目前草稿。','error');return {ok:false,status:'UNAUTHORIZED_DOM_DRIFT',classification};}
-    if(!classification.manual_dirty){setStatus('沒有需要儲存的人工修改。','');return {ok:true,status:'NO_MANUAL_CHANGES'};}
+    if(!classification.manual_dirty){
+      traceSystemDrift(classification);
+      setStatus(classification.unauthorized_drift?'沒有需要儲存的人工修改；系統顯示差異不會寫回草稿。':'沒有需要儲存的人工修改。','');
+      return {ok:true,status:'NO_MANUAL_CHANGES',discarded_system_drift:classification.unauthorized_keys};
+    }
     const state=consistency.getState(),match=revisionAuthorityMatches(authority,state);
-    if(!match.ok){setStatus(`儲存已阻擋：${match.status}。分析 revision 已改變，請重新覆核。`,'error');trace(scope,'v042737_manual_draft_save_blocked',{...match,status:'blocked'});return match;}
+    if(!match.ok){setStatus(`儲存已阻擋：${match.status}。分析 revision 已改變，請重新覆核。`,'error');trace(scope,'v042738_manual_draft_save_blocked',{...match,status:'blocked'});return match;}
     const patched=applyManualPatch(match.group.draft,currentRoot,classification.manual_keys);
     originalReplace(patched,{reason:EXPLICIT_MANUAL_DRAFT_SAVE_REASON});
-    touched.clear();lastStatus={message:'人工修改已儲存到目前寶可夢草稿。',kind:'success'};
+    touched.clear();lastDriftSignature='';lastStatus={message:'人工修改已儲存到目前寶可夢草稿。',kind:'success'};
     consistency.selectGroup?.(authority.group_id,{reason:EXPLICIT_MANUAL_DRAFT_SAVE_REASON});
-    trace(scope,'v042737_manual_draft_saved',{group_id:authority.group_id,analysis_id:authority.analysis_id,revision_no:authority.revision_no,field_count:classification.manual_keys.length,fields:classification.manual_keys,status:'completed'});
-    return {ok:true,status:'SAVED',manual_keys:classification.manual_keys};
+    trace(scope,'v042738_manual_draft_saved',{group_id:authority.group_id,analysis_id:authority.analysis_id,revision_no:authority.revision_no,field_count:classification.manual_keys.length,fields:classification.manual_keys,discarded_system_drift:classification.unauthorized_keys,status:'completed'});
+    return {ok:true,status:'SAVED',manual_keys:classification.manual_keys,discarded_system_drift:classification.unauthorized_keys};
   }
 
   const guardAction=event=>{
     const id=event?.target?.id;
     if(!['previousAnalysisGroup','nextAnalysisGroup','applyConfirmedAnalysis'].includes(id))return;
     const classification=currentClassification();
-    if(classification.clean)return;
-    event.preventDefault?.();event.stopImmediatePropagation?.();event.stopPropagation?.();
-    if(classification.unauthorized_drift)setStatus('操作已阻擋：畫面與目前群組 Authority 不一致，且不是已記錄的人工修改。請先還原目前草稿。','error');
-    else setStatus('操作已阻擋：請先「儲存人工修改」或「還原目前草稿」。','pending');
-    trace(scope,'v042737_confirmation_action_blocked',{action:id,group_id:authority?.group_id||null,manual_dirty:classification.manual_dirty,unauthorized_drift:classification.unauthorized_drift,status:'blocked'});
+    const policy=confirmationActionPolicy({action:id,classification});
+    if(!policy.allowed){
+      event.preventDefault?.();event.stopImmediatePropagation?.();event.stopPropagation?.();
+      setStatus('操作已阻擋：請先「儲存人工修改」或「還原目前草稿」。','pending');
+      trace(scope,'v042738_confirmation_action_blocked',{action:id,group_id:authority?.group_id||null,manual_dirty:true,system_drift:classification.unauthorized_drift,status:'blocked'});
+      return;
+    }
+    if(policy.discard_system_drift){
+      traceSystemDrift(classification);
+      if(policy.prepare_authoritative_apply){
+        const projected=projectAuthoritativeForm(root(),authoritativeDraft||{});
+        trace(scope,'v042738_authoritative_apply_projection',{group_id:authority?.group_id||null,field_count:projected.length,fields:projected,status:'completed'});
+      }else{
+        trace(scope,'v042738_navigation_system_drift_discarded',{action:id,group_id:authority?.group_id||null,fields:classification.unauthorized_keys,status:'completed'});
+      }
+    }
   };
   const markTouched=event=>{
     const currentRoot=root();if(!currentRoot||!currentRoot.contains?.(event.target))return;
@@ -243,7 +294,7 @@ export function installExplicitManualDraftSave(scope=globalThis){
     version:EXPLICIT_MANUAL_DRAFT_SAVE_VERSION,
     saveManualDraft:(draft,expected)=>{
       const state=consistency.getState(),match=revisionAuthorityMatches(expected,state);
-      if(!match.ok){trace(scope,'v042737_manual_api_save_blocked',{...match,status:'blocked'});return match;}
+      if(!match.ok){trace(scope,'v042738_manual_api_save_blocked',{...match,status:'blocked'});return match;}
       originalReplace(clone(draft),{reason:EXPLICIT_MANUAL_DRAFT_SAVE_REASON});
       return {ok:true,status:'SAVED',group_id:expected.group_id};
     },
@@ -252,7 +303,8 @@ export function installExplicitManualDraftSave(scope=globalThis){
     legacy_replace_reference:legacyReplace,
   };
   scope.PokemonSleepExplicitManualDraftSaveV042737=api;
-  trace(scope,'v042737_explicit_manual_draft_save_ready',{status:'completed',implicit_navigation_write_disabled:true,explicit_save_only:true,revision_cas:true});
+  scope.PokemonSleepExplicitManualDraftSaveV042738=api;
+  trace(scope,'v042738_explicit_manual_draft_save_ready',{status:'completed',implicit_navigation_write_disabled:true,explicit_save_only:true,revision_cas:true,system_drift_navigation_blocked:false,authoritative_apply_projection:true});
   return true;
 }
 
