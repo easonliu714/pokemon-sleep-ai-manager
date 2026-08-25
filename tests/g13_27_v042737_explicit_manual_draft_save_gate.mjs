@@ -8,6 +8,15 @@ const syntax=spawnSync(process.execPath,['--check',modulePath],{stdio:'inherit'}
 assert.equal(syntax.status,0,'successor module syntax must pass');
 const mod=await import(`${pathToFileURL(modulePath).href}?t=${Date.now()}`);
 
+const wiring=fs.readFileSync('assets/js/per-image-target-wiring-recovery-v042728.js','utf8');
+const serviceWorker=fs.readFileSync('service-worker.js','utf8');
+const versionAuthority=fs.readFileSync('assets/js/version-authority.js','utf8');
+assert.match(wiring,/^import '\.\/explicit-manual-draft-save-v042737\.js';/m,'production runtime must import the .37 authority successor');
+assert.match(serviceWorker,/\.\/assets\/js\/explicit-manual-draft-save-v042737\.js/,'offline precache must contain the .37 authority successor');
+assert.match(versionAuthority,/app_version:\s*'v0\.4\.27\.37'/);
+assert.match(versionAuthority,/app_build:\s*'20260825-v042737-explicit-manual-draft-save-authority'/);
+assert.match(versionAuthority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.37-v042737-explicit-manual-draft-save-authority'/);
+
 assert.equal(mod.EXPLICIT_MANUAL_DRAFT_SAVE_REASON,'explicit_manual_save_v042737');
 assert.deepEqual(
   mod.classifyFormSnapshot({expected:{species:'小鍛匠',type:'妖精'},current:{species:'土王',type:'毒'},touched_keys:[]}),
@@ -75,6 +84,9 @@ assert.match(source,/revertManualAnalysisDraftV042737/);
 console.log(JSON.stringify({
   status:'PASS',
   gate:'G13.27_V042737_EXPLICIT_MANUAL_DRAFT_SAVE',
+  production_import_wired:true,
+  offline_precache_wired:true,
+  release_authority_v042737:true,
   implicit_navigation_write_blocked:true,
   explicit_save_only:true,
   exact_group_revision_cas:true,
