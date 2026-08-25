@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 
-export const G13_OCR_AI_REGRESSION_VERSION='g13-ocr-ai-regression-2026-08-24-v042731-dom-observer-reentrancy-closure';
+export const G13_OCR_AI_REGRESSION_VERSION='g13-ocr-ai-regression-2026-08-25-v042732-confirmation-first-render-watchdog-closure';
 export const G13_CORE_GATES=Object.freeze([
   'tests/g13_2c_ocr_isolation_secret_redaction_gate.mjs',
   'tests/g13_2d_duplicate_finalize_live_debug_gate.mjs',
@@ -24,6 +24,8 @@ export const G13_CORE_GATES=Object.freeze([
   'tests/g13_18_v042730_confirmation_existing_group_navigation_gate.mjs',
   'tests/g13_19_v042730_batch_terminal_json_mobile_gate.mjs',
   'tests/g13_20_v042731_dom_observer_reentrancy_gate.mjs',
+  'tests/g13_21_v042732_confirmation_first_render_projection_gate.mjs',
+  'tests/g13_22_v042732_startup_watchdog_recovery_gate.mjs',
 ]);
 export const G13_REMAINING_WRAPPER_GATES=Object.freeze([
   'scripts/g13-2a-ai-project-pool-executor-regression.mjs',
