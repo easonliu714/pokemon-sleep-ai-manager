@@ -1,8 +1,8 @@
 (function installVersionAuthority(scope) {
   const authority = Object.freeze({
-    app_version: 'v0.4.27.31',
-    app_build: '20260824-v042731-dom-observer-reentrancy-closure',
-    cache_name: 'pokemon-sleep-ai-v0.4.27.31-v042731-dom-observer-reentrancy-closure',
+    app_version: 'v0.4.27.32',
+    app_build: '20260825-v042732-confirmation-first-render-watchdog-closure',
+    cache_name: 'pokemon-sleep-ai-v0.4.27.32-v042732-confirmation-first-render-watchdog-closure',
     schema: 'pokemon-sleep-version-authority/1.0',
   });
   Object.defineProperty(scope, 'PokemonSleepVersionAuthority', {
@@ -14,6 +14,9 @@
 })(globalThis);
 
 // Legacy CI parser bridge only; not executed and not a release authority:
+// app_version: 'v0.4.27.31'
+// app_build: '20260824-v042731-dom-observer-reentrancy-closure'
+// cache_name: 'pokemon-sleep-ai-v0.4.27.31-v042731-dom-observer-reentrancy-closure'
 // app_version: 'v0.4.27.30'
 // app_build: '20260824-v042730-confirmation-json-mobile-closure'
 // cache_name: 'pokemon-sleep-ai-v0.4.27.30-v042730-confirmation-json-mobile-closure'
@@ -85,7 +88,7 @@
 // cache_name: 'pokemon-sleep-ai-v0.4.27.8-v04278-ai-resilience-evolution-master-review'
 // app_version: 'v0.4.27.7'
 // app_build: '20260818-v04277-g13-structured-gemini-current-file-ux'
-// cache_name: 'pokemon-sleep-ai-v0.4.27.7-v04277-g13-structured-gemini-current-file-ux'
+// cache_name: 'pokemon-sleep-ai-v0.4.27.7-v04277-structured-gemini-current-file-ux'
 // app_version: 'v0.4.27.6'
 // app_build: '20260817-v04276-g13-internal-observation-parity-progress-ux'
 // cache_name: 'pokemon-sleep-ai-v0.4.27.6-v04276-g13-internal-observation-parity-progress-ux'
@@ -157,7 +160,7 @@
 // app_version: 'v0.4.12'
 // app_build: '20260811-v0412-recipe-unified-player-workbench'
 // app_version: 'v0.4.11.4'
-// app_build: '20260811-v04114-recipe-zh-tw-diagnostic-export'
+// app_build: '20260811-v04114-recipe-zh-tW-authority-diagnostic-export'
 // app_version: 'v0.4.11.3'
 // app_build: '20260811-v04113-weekly-recipe-semantic-safety'
 // app_version: 'v0.4.11.2'
