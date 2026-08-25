@@ -23,6 +23,9 @@ const c=resolveConfirmationFirstRenderProjection({detail:{group_id:'C',draft:{..
 assert.deepEqual([a.species,a.type,a.favorite_berry],['小鍛匠','妖精','桃桃果']);
 assert.deepEqual([b.species,b.type,b.favorite_berry],['土王','毒','零餘果']);
 assert.deepEqual([c.species,c.type,c.favorite_berry],['信使鳥','飛行','椰木果']);
+assert.equal(a.berry_derived_from_type,false);
+assert.equal(b.berry_derived_from_type,false);
+assert.equal(c.berry_derived_from_type,false);
 
 // Stale C must never write while B is active/visible, and B must never write while A is visible.
 assert.equal(shouldProjectConfirmationGroup({incoming_group_id:'C',active_group_id:'B',visible_group_id:'B'}),false);
@@ -48,7 +51,8 @@ assert.equal(zero.corrections.some(row=>row.field==='favorite_berry'),false);
 console.log(JSON.stringify({
   status:'PASS',
   gate:'G13.24_V042736_PER_IMAGE_IDENTITY_PROJECTION_ISOLATION',
-  uploaded_revision_replay_preserved:true,
+  uploaded_provider_revision_replay_preserved:true,
+  provider_to_confirmation_identity_chain_preserved:true,
   adjacent_group_dom_write_rejected:true,
   type_berry_mismatch_review_only:true,
   public_relation_not_player_evidence:true,
