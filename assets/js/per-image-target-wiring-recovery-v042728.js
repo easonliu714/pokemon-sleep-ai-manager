@@ -1,3 +1,5 @@
+import './explicit-manual-draft-save-v042737.js';
+
 export const PER_IMAGE_TARGET_WIRING_RECOVERY_VERSION='v0.4.27.28-late-card-wiring-recovery-2026-08-23-b';
 export const PER_IMAGE_TARGET_WIRING_RECOVERY_MAX_ATTEMPTS=300;
 export const PER_IMAGE_TARGET_WIRING_RECOVERY_INTERVAL_MS=100;
