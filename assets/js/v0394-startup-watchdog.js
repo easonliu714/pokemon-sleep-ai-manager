@@ -1,6 +1,7 @@
 import './version-authority.js';
 import './confirmation-first-render-authority-v042732.js';
 import './per-image-runtime-context-v042733.js';
+import './revision-bound-target-context-v042734.js';
 import {debugTrace} from './debug-trace-manager.js';
 
 const authority=globalThis.PokemonSleepVersionAuthority;
