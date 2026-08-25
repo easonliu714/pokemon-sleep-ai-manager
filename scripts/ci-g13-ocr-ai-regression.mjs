@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 
-export const G13_OCR_AI_REGRESSION_VERSION='g13-ocr-ai-regression-2026-08-25-v042736-per-image-identity-projection-isolation';
+export const G13_OCR_AI_REGRESSION_VERSION='g13-ocr-ai-regression-2026-08-25-v042737-explicit-manual-draft-save';
 export const G13_CORE_GATES=Object.freeze([
   'tests/g13_2c_ocr_isolation_secret_redaction_gate.mjs',
   'tests/g13_2d_duplicate_finalize_live_debug_gate.mjs',
@@ -30,6 +30,7 @@ export const G13_CORE_GATES=Object.freeze([
   'tests/g13_24_v042734_revision_bound_target_context_gate.mjs',
   'tests/g13_25_v042735_explicit_per_image_ai_context_gate.mjs',
   'tests/g13_26_v042736_per_image_identity_projection_isolation_gate.mjs',
+  'tests/g13_27_v042737_explicit_manual_draft_save_gate.mjs',
 ]);
 export const G13_REMAINING_WRAPPER_GATES=Object.freeze([
   'scripts/g13-2a-ai-project-pool-executor-regression.mjs',
