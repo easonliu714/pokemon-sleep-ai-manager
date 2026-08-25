@@ -7,6 +7,7 @@ import {getActiveAnalysisTargetContext,buildExistingPokemonBaselineReference} fr
 const EXECUTOR_SCHEMA='pokemon-sleep-ai-review-executor/1.7-existing-baseline-sparse-diff';
 const PROMPT_VERSION='pokemon-sleep-observation-v2/2026-08-19-v042716-existing-baseline-sparse-diff';
 export const BASELINE_PROMPT_POLICY_VERSION='existing-baseline-reference-2026-08-19-a';
+export const PER_IMAGE_AI_CONTEXT_AUTHORITY_VERSION='v0.4.27.35-explicit-per-image-ai-context-2026-08-25-a';
 const DEFAULT_PROMPT=AI_OBSERVATION_PROMPT;
 const DEFAULT_EXECUTOR_MODEL='gemini-3.6-flash';
 const SPECIALTIES=new Set(['樹果','食材','技能']);
@@ -173,24 +174,47 @@ export function projectObservationV2ForLegacy(raw){
   return {analysis:compatibility,observation_v2:payload,contract_status:hardWarnings.length?'REVIEW_REQUIRED':'OBSERVATION_V2_ACCEPTED',warnings:sanitized.warnings};
 }
 
-function existingBaselineContext(){
-  const context=getActiveAnalysisTargetContext?.()||globalThis.PokemonSleepAnalysisTargetContext||null;
+function existingBaselineContext(contextOverride=undefined){
+  const context=contextOverride===undefined?(getActiveAnalysisTargetContext?.()||globalThis.PokemonSleepAnalysisTargetContext||null):clone(contextOverride);
   if(context?.mode!=='existing')return {context,baseline:null};
   const baseline=context.baseline_reference||buildExistingPokemonBaselineReference?.(context.target_pokemon_id)||null;
   return {context,baseline};
 }
-export function buildExistingBaselinePrompt(basePrompt=DEFAULT_PROMPT){
-  const {context,baseline}=existingBaselineContext();
-  if(!context||context.mode!=='existing'||!baseline)return {prompt:String(basePrompt||''),baseline_reference_used:false,baseline:null,policy_version:null};
+
+export function resolveQueueAnalysisTargetContext(queue,scope=globalThis){
+  const queued=Array.isArray(queue?.items)&&queue.items.length===1?queue.items[0]:null;
+  const id=itemId(queued);
+  const unifiedQueue=String(queue?.schema||'')==='pokemon-sleep-ai-consent-queue/1.3-unified';
+  if(!unifiedQueue)return {status:'LEGACY_CONTEXT_FALLBACK',item_id:id||null,context:null,target_mode:null};
+  if(!id)return {status:'BLOCKED_QUEUE_ITEM_ID_MISSING',item_id:null,context:null,target_mode:null};
+
+  const perImage=scope?.PokemonSleepPerImageRuntimeContextV042733;
+  if(typeof perImage?.contextForItem!=='function')return {status:'BLOCKED_PER_IMAGE_CONTEXT_API_NOT_READY',item_id:id,context:null,target_mode:null};
+  const state=perImage?.getState?.()||{};
+  const activeId=text(state?.active_item_id);
+  if(activeId&&activeId!==id)return {status:'BLOCKED_ACTIVE_ITEM_MISMATCH',item_id:id,active_item_id:activeId,context:null,target_mode:null};
+
+  const context=perImage.contextForItem(id)||null;
+  if(!context)return {status:'BLOCKED_EXACT_CONTEXT_MISSING',item_id:id,context:null,target_mode:null};
+  return {status:'EXACT_PER_IMAGE_CONTEXT',item_id:id,active_item_id:activeId||null,context:clone(context),target_mode:context.mode||null};
+}
+
+export function buildExistingBaselinePrompt(basePrompt=DEFAULT_PROMPT,{analysisTargetContext=undefined}={}){
+  const {context,baseline}=existingBaselineContext(analysisTargetContext);
+  if(!context||context.mode!=='existing'||!baseline)return {prompt:String(basePrompt||''),baseline_reference_used:false,baseline:null,policy_version:null,target_mode:context?.mode||null,context_authority:analysisTargetContext===undefined?'GLOBAL_LEGACY':'EXPLICIT_PER_IMAGE'};
   const instruction=`\n\n【Existing Pokémon Baseline Sparse-Diff Contract ${BASELINE_PROMPT_POLICY_VERSION}】\n你正在更新一位由平台 pokemon_instance_id 已鎖定的「既有寶可夢」。下方 current_profile_reference 是玩家本機 SQLite 的既有資料，只是唯讀 Reference，不是這張圖片的 Evidence。\n1. 必須先獨立看圖片，再與 Reference 比較。Reference 中已有值，不代表這張圖片有顯示。\n2. 圖片未直接顯示、被遮住、模糊或只能靠 Reference 猜到的欄位，一律輸出 null／省略並加入 unreadable_fields（適用時）；禁止複製 Reference 來填滿 profile、ingredients、subskills 或 visual_evidence。\n3. visual_evidence 只能來自本張圖片直接可見內容；禁止把 Reference 轉成 visual_evidence。\n4. 圖片清楚顯示且與 Reference 相同：可以輸出該直接觀測值；這代表 UNCHANGED，不代表 Reference 變成 Evidence。\n5. 圖片清楚顯示且與 Reference 不同：輸出圖片實際值，讓平台建立 CHANGED 候選；不得為了與 Reference 一致而改寫圖片。\n6. 圖片文字與 Reference 衝突但圖片不足以唯一判斷：不要自行選一邊，該欄位輸出 null，並在 evidence.notes 說明 BASELINE_CONFLICT_REVIEW_REQUIRED。\n7. 主要目標是找出可直接觀測的差異，輸出應偏 Sparse；不要重新建構完整既有 Profile。\n8. current_profile_reference 不含 pokemon_id、pokemon_instance_id、暱稱或可編輯 display label；不得要求、推測或產生這些私有 identity。\n9. 主技能「樹果遽增」的正確文字使用「遽增」；不要改寫成「速增」。\n\ncurrent_profile_reference=${JSON.stringify(baseline,null,2)}`;
-  return {prompt:`${String(basePrompt||'')}${instruction}`,baseline_reference_used:true,baseline,policy_version:BASELINE_PROMPT_POLICY_VERSION};
+  return {prompt:`${String(basePrompt||'')}${instruction}`,baseline_reference_used:true,baseline,policy_version:BASELINE_PROMPT_POLICY_VERSION,target_mode:'existing',context_authority:analysisTargetContext===undefined?'GLOBAL_LEGACY':'EXPLICIT_PER_IMAGE'};
 }
 
 export async function executeAiReviewQueue({queue,inventory,poolData,resolveImage,prompt=DEFAULT_PROMPT,bypassCache=false,onProgress=()=>{},onTrace=()=>{}}={}){
   if(!queue?.items?.length)throw new Error('ai_review_queue_empty');
   if(typeof resolveImage!=='function')throw new Error('ai_review_image_resolver_missing');
   if(!poolData?.projects?.length)throw new Error('ai_project_pool_missing');
-  const promptContext=buildExistingBaselinePrompt(prompt);
+  const queueContext=resolveQueueAnalysisTargetContext(queue,globalThis);
+  if(queueContext.status.startsWith('BLOCKED_'))throw new Error(queueContext.status);
+  const promptContext=queueContext.status==='EXACT_PER_IMAGE_CONTEXT'
+    ?buildExistingBaselinePrompt(prompt,{analysisTargetContext:queueContext.context})
+    :buildExistingBaselinePrompt(prompt);
   const effectivePrompt=promptContext.prompt;
   const baselineCacheContext=promptContext.baseline_reference_used?JSON.stringify(promptContext.baseline):'NO_BASELINE';
   const results=[];let projects=poolData.projects;
@@ -205,13 +229,13 @@ export async function executeAiReviewQueue({queue,inventory,poolData,resolveImag
       const errorClass=outcome?.failure?.error_class||outcome.reason||'ai_provider_failed';
       const message=outcome?.failure?.error_message||(errorClass.includes('timeout')?`AI Provider 超過 ${Math.ceil(GEMINI_IMAGE_TOTAL_TIMEOUT_MS/1000)} 秒仍未完成，已停止等待。`:'AI Provider 無法完成辨識，已停止等待。');
       onProgress({phase:'failed',current:index+1,total:queue.items.length,cached:false,file_name:fileName,source_image_ref:sourceImageRef,model,error_class:errorClass,reason:outcome.reason,message,provider_elapsed_ms:Number(outcome?.failure?.elapsed_ms||0),baseline_reference_used:promptContext.baseline_reference_used});
-      return {schema:EXECUTOR_SCHEMA,status:'paused',completed:results.length,total:queue.items.length,results,projects,attempts:outcome.attempts,reason:outcome.reason,failure:outcome.failure||null,user_message:message,prompt_version:PROMPT_VERSION,baseline_reference_used:promptContext.baseline_reference_used,baseline_prompt_policy_version:promptContext.policy_version,preflight:outcome.preflight||[]};
+      return {schema:EXECUTOR_SCHEMA,status:'paused',completed:results.length,total:queue.items.length,results,projects,attempts:outcome.attempts,reason:outcome.reason,failure:outcome.failure||null,user_message:message,prompt_version:PROMPT_VERSION,baseline_reference_used:promptContext.baseline_reference_used,baseline_prompt_policy_version:promptContext.policy_version,preflight:outcome.preflight||[],analysis_target_context_authority:promptContext.context_authority,analysis_target_mode:promptContext.target_mode};
     }
     const raw=extractJson(outcome.payload),projection=projectObservationV2ForLegacy(raw),usedModel=outcome.used_model||model,usedThinking=outcome.used_thinking_level??thinkingLevel;
-    const result={item_id:id,source_image_ref:sourceImageRef,file_name:fileName,model:usedModel,preferred_model:model,model_fallback_used:Boolean(outcome.model_fallback_used),project_alias:outcome.used_alias,analysis:projection.analysis,observation_v2:projection.observation_v2,observation_contract_status:projection.contract_status,observation_contract_warnings:projection.warnings,provider_elapsed_ms:Number(outcome.transport?.elapsed_ms||0),thinking_level:usedThinking,structured_output:true,completed_at:new Date().toISOString(),prompt_version:PROMPT_VERSION,forced:Boolean(bypassCache),baseline_reference_used:promptContext.baseline_reference_used,baseline_prompt_policy_version:promptContext.policy_version};
+    const result={item_id:id,source_image_ref:sourceImageRef,file_name:fileName,model:usedModel,preferred_model:model,model_fallback_used:Boolean(outcome.model_fallback_used),project_alias:outcome.used_alias,analysis:projection.analysis,observation_v2:projection.observation_v2,observation_contract_status:projection.contract_status,observation_contract_warnings:projection.warnings,provider_elapsed_ms:Number(outcome.transport?.elapsed_ms||0),thinking_level:usedThinking,structured_output:true,completed_at:new Date().toISOString(),prompt_version:PROMPT_VERSION,forced:Boolean(bypassCache),baseline_reference_used:promptContext.baseline_reference_used,baseline_prompt_policy_version:promptContext.policy_version,analysis_target_context_authority:promptContext.context_authority,analysis_target_mode:promptContext.target_mode};
     writeAiResultCache(cacheKey,result);results.push(result);onProgress({phase:'completed',current:index+1,total:queue.items.length,cached:false,file_name:fileName,source_image_ref:sourceImageRef,project_alias:outcome.used_alias,model:usedModel,model_fallback_used:result.model_fallback_used,observation_contract_status:projection.contract_status,provider_elapsed_ms:result.provider_elapsed_ms,baseline_reference_used:promptContext.baseline_reference_used});
   }
-  return {schema:EXECUTOR_SCHEMA,status:'completed',completed:results.length,total:queue.items.length,results,projects,prompt_version:PROMPT_VERSION,forced:Boolean(bypassCache),baseline_reference_used:promptContext.baseline_reference_used,baseline_prompt_policy_version:promptContext.policy_version};
+  return {schema:EXECUTOR_SCHEMA,status:'completed',completed:results.length,total:queue.items.length,results,projects,prompt_version:PROMPT_VERSION,forced:Boolean(bypassCache),baseline_reference_used:promptContext.baseline_reference_used,baseline_prompt_policy_version:promptContext.policy_version,analysis_target_context_authority:promptContext.context_authority,analysis_target_mode:promptContext.target_mode};
 }
 
 export {DEFAULT_EXECUTOR_MODEL,EXECUTOR_SCHEMA,DEFAULT_PROMPT,PROMPT_VERSION,extractJson,normalizeMainSkillCandidate};
