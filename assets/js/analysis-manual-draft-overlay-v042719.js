@@ -1,6 +1,7 @@
 import './analysis-execution-ux-v042720.js';
 
 export const MANUAL_DRAFT_OVERLAY_VERSION='v0.4.27.29-group-local-stale-restore-guard-2026-08-24-a';
+export const SINGLE_CONFIRMATION_AUTHORITY_SHADOW_VERSION='v0.4.27.39-single-confirmation-authority-2026-08-25-a';
 // Legacy predecessor contract parser bridge only; not runtime authority:
 // MANUAL_DRAFT_OVERLAY_VERSION='v0.4.27.19-group-local-manual-draft-2026-08-19-a'
 
@@ -11,6 +12,10 @@ const trace=(event,detail={})=>{
   globalThis.UpdateCenterLiveDebug?.record?.(event,payload);
   globalThis.DebugTrace?.record?.('ai_review',event,{status:'completed',details:payload});
 };
+function releaseAtLeast39(scope=globalThis){
+  const match=text(scope?.PokemonSleepVersionAuthority?.app_version).match(/^v0\.4\.27\.(\d+)$/);
+  return Boolean(match&&Number(match[1])>=39);
+}
 
 function visibleForm(){return document.querySelector('#analysisConfirmationWorkbench .analysis-confirmation');}
 function visibleGroupId(form=visibleForm()){
@@ -87,16 +92,29 @@ function clearGroup(groupId,reason='terminal'){
 
 function install(){
   if(globalThis.PokemonSleepManualDraftOverlayV042719)return globalThis.PokemonSleepManualDraftOverlayV042719;
-  document.addEventListener('input',event=>captureNode(event.target,{reason:'input'}),true);
-  document.addEventListener('change',event=>captureNode(event.target,{reason:'change'}),true);
-  globalThis.addEventListener('pokemon-sleep:analysis-confirmation-snapshot-request',event=>captureVisibleForm({reason:event?.detail?.reason||'snapshot_request'}));
-  globalThis.addEventListener('pokemon-sleep:analysis-confirmation-group-selected',event=>scheduleRestore(event?.detail?.group_id||null,event?.detail?.reason||'group_selected'));
-  globalThis.addEventListener('pokemon-sleep:analysis-confirmation-merged',event=>scheduleRestore(event?.detail?.group_id||null,'merged'));
-  globalThis.addEventListener('pokemon-sleep:analysis-confirmation-navigation-changed',()=>scheduleRestore(null,'navigation_changed'));
-  globalThis.addEventListener('pokemon-sleep:analysis-confirmation-terminal',event=>clearGroup(event?.detail?.group_id||null,event?.detail?.reason||'terminal'));
-  const api=Object.freeze({version:MANUAL_DRAFT_OVERLAY_VERSION,captureVisibleForm,restoreVisibleForm,shouldRestoreGroup,clearGroup,getState:()=>({group_ids:[...records.keys()],records:[...records.values()].map(record=>({group_id:record.group_id,controls:Object.fromEntries(record.controls),updated_at:record.updated_at}))})});
+  const shadowOnly=releaseAtLeast39(globalThis);
+  if(!shadowOnly){
+    document.addEventListener('input',event=>captureNode(event.target,{reason:'input'}),true);
+    document.addEventListener('change',event=>captureNode(event.target,{reason:'change'}),true);
+    globalThis.addEventListener('pokemon-sleep:analysis-confirmation-snapshot-request',event=>captureVisibleForm({reason:event?.detail?.reason||'snapshot_request'}));
+    globalThis.addEventListener('pokemon-sleep:analysis-confirmation-group-selected',event=>scheduleRestore(event?.detail?.group_id||null,event?.detail?.reason||'group_selected'));
+    globalThis.addEventListener('pokemon-sleep:analysis-confirmation-merged',event=>scheduleRestore(event?.detail?.group_id||null,'merged'));
+    globalThis.addEventListener('pokemon-sleep:analysis-confirmation-navigation-changed',()=>scheduleRestore(null,'navigation_changed'));
+    globalThis.addEventListener('pokemon-sleep:analysis-confirmation-terminal',event=>clearGroup(event?.detail?.group_id||null,event?.detail?.reason||'terminal'));
+  }
+  const noCapture=()=>0,noRestore=()=>0;
+  const api=Object.freeze({
+    version:MANUAL_DRAFT_OVERLAY_VERSION,
+    single_confirmation_authority_version:shadowOnly?SINGLE_CONFIRMATION_AUTHORITY_SHADOW_VERSION:null,
+    shadow_only:shadowOnly,
+    captureVisibleForm:shadowOnly?noCapture:captureVisibleForm,
+    restoreVisibleForm:shadowOnly?noRestore:restoreVisibleForm,
+    shouldRestoreGroup,
+    clearGroup,
+    getState:()=>({shadow_only:shadowOnly,group_ids:[...records.keys()],records:[...records.values()].map(record=>({group_id:record.group_id,controls:Object.fromEntries(record.controls),updated_at:record.updated_at}))}),
+  });
   globalThis.PokemonSleepManualDraftOverlayV042719=api;
-  trace('v042719_manual_draft_overlay_ready',{group_local:true,dirty_controls_only:true,stale_restore_fail_closed:true,visible_group_recheck:true});
+  trace(shadowOnly?'v042739_legacy_manual_overlay_shadow_only':'v042719_manual_draft_overlay_ready',{group_local:true,dirty_controls_only:true,stale_restore_fail_closed:true,visible_group_recheck:true,shadow_only:shadowOnly,confirmation_dom_write_authority:!shadowOnly,confirmation_dom_capture_authority:!shadowOnly});
   return api;
 }
 
