@@ -71,6 +71,13 @@ function selectedAssignments(scope){
   const selected=new Set([...root.querySelectorAll('[data-unified-item]:checked')].map(node=>text(node.value)).filter(Boolean));
   return api.getAssignments().filter(row=>selected.has(text(row.item_id)));
 }
+function installLegacyConflictJsonHide(scope){
+  if(!scope.document||scope.document.getElementById('v042743LegacyConflictJsonHide'))return;
+  const style=scope.document.createElement('style');
+  style.id='v042743LegacyConflictJsonHide';
+  style.textContent='#analysisConfirmationWorkbench #captureGroupStatus details{display:none!important;}';
+  (scope.document.head||scope.document.documentElement)?.appendChild(style);
+}
 
 export function installGroupBoundReviewEventGuard(scope=globalThis){
   if(scope.PokemonSleepGroupBoundReviewEventGuardV042743?.version===GROUP_BOUND_REVIEW_EVENT_GUARD_VERSION)return true;
@@ -78,6 +85,7 @@ export function installGroupBoundReviewEventGuard(scope=globalThis){
   const consistency=scope.PokemonSleepMultiCaptureConsistency,api=sessionApi(scope);
   if(!consistency?.getState||!api?.model)return false;
   const tracker=createExactGroupSealTracker();
+  installLegacyConflictJsonHide(scope);
 
   const canonicalize=(event,eventType)=>{
     const detail=event?.detail||{},id=text(detail.group_id);if(!id)return;
@@ -130,7 +138,7 @@ export function installGroupBoundReviewEventGuard(scope=globalThis){
 
   const exported=Object.freeze({version:GROUP_BOUND_REVIEW_EVENT_GUARD_VERSION,tracker,getState:()=>tracker.getState()});
   scope.PokemonSleepGroupBoundReviewEventGuardV042743=exported;
-  trace(scope,'v042743_review_event_guard_ready',{status:'completed',capture_phase_session_projection:true,exact_group_source_count:true,background_dom_write:false,timeout_seal:false});
+  trace(scope,'v042743_review_event_guard_ready',{status:'completed',capture_phase_session_projection:true,exact_group_source_count:true,background_dom_write:false,timeout_seal:false,legacy_conflict_json_hidden:true});
   return true;
 }
 
