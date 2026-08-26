@@ -1,4 +1,4 @@
-export const GROUP_BOUND_REVIEW_SESSION_VERSION='v0.4.27.43-group-bound-review-session-cache-2026-08-26-a';
+export const GROUP_BOUND_REVIEW_SESSION_VERSION='v0.4.27.43-group-bound-review-session-cache-2026-08-27-b';
 export const GROUP_BOUND_REVIEW_SESSION_REASON='v042743_group_session_authority_reseed';
 export const GROUP_BOUND_REVIEW_SESSION_SCHEMA='pokemon-sleep-group-bound-review-session/1.0';
 
@@ -22,7 +22,7 @@ const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const now=()=>new Date().toISOString();
 const unique=(values=[])=>{const out=[];for(const value of values){if(value===undefined||value===null||value==='')continue;if(!out.some(item=>same(item,value)))out.push(clone(value));}return out;};
 
-function emptyDraft(){return {source_refs:[],analysis_ids:[],ingredients:[],subskills:[],identity_guard_warnings:[],analysis_target_context:null};}
+function emptyDraft(){return {source_refs:[],analysis_ids:[],ingredients:[],subskills:[],conflicts:[],conflicted_fields:[],identity_guard_warnings:[],analysis_target_context:null};}
 function valueLabel(value,field=''){
   if(value===null||value===undefined||value==='')return '空白';
   if(typeof value==='boolean')return value?'是':'否';
@@ -55,7 +55,7 @@ function addConflict(out,field,existing,incoming,{source_ref=null}={}){
   const record={
     field,status:'REVIEW_REQUIRED_CROSS_IMAGE_CONFLICT_FIRST_NONBLANK_PRESERVED',
     candidates,existing:candidates[0]??clone(existing),incoming:candidates[1]??clone(incoming),
-    source_refs:unique([...(current?.source_refs||[]),source_ref]),resolved_by_manual_save:Boolean(current?.resolved_by_manual_save),
+    source_refs:unique([...(current?.source_refs||[]),source_ref]),manual_review_saved:Boolean(current?.manual_review_saved),
   };
   record.human_message=humanizeConflict(record);
   out.conflicts=(out.conflicts||[]).filter(row=>row.field!==field);
@@ -100,6 +100,7 @@ export function mergeFirstNonblankDraft(base={},incoming={},meta={}){
 }
 function fillBlanksFromDraft(base={},incoming={}){
   const out=clone(base)||emptyDraft();
+  out.conflicts=[...(out.conflicts||[])];out.conflicted_fields=[...(out.conflicted_fields||[])];
   for(const field of SCALAR_FIELDS)if(blank(out[field])&&!blank(incoming?.[field]))out[field]=clone(incoming[field]);
   for(const kind of ['ingredients','subskills']){
     const slots=new Map((Array.isArray(out[kind])?out[kind]:[]).map(row=>[Number(row.unlock_level),clone(row)]));
@@ -112,8 +113,8 @@ function fillBlanksFromDraft(base={},incoming={}){
   return out;
 }
 function manualReplacement(previous={},draft={}){
-  const next={...emptyDraft(),...clone(draft),conflicts:(previous.conflicts||[]).map(row=>({...clone(row),resolved_by_manual_save:true})),conflicted_fields:[...(previous.conflicted_fields||[])],source_refs:[...(draft?.source_refs||previous?.source_refs||[])],analysis_ids:[...(draft?.analysis_ids||previous?.analysis_ids||[])]};
-  next.conflicts=next.conflicts.map(row=>({...row,human_message:`${humanizeConflict(row)}（目前表單值已由人工儲存。）`}));
+  const next={...emptyDraft(),...clone(draft),conflicts:(previous.conflicts||[]).map(row=>({...clone(row),manual_review_saved:true})),conflicted_fields:[...(previous.conflicted_fields||[])],source_refs:[...(draft?.source_refs||previous?.source_refs||[])],analysis_ids:[...(draft?.analysis_ids||previous?.analysis_ids||[])]};
+  next.conflicts=next.conflicts.map(row=>({...row,human_message:`${humanizeConflict(row)}（目前表單已人工儲存；請以表單中的目前值為準。）`}));
   return next;
 }
 
@@ -151,13 +152,6 @@ function findGroupForRevision(consistency,revision){
   const context=revision?.identity_context||null;
   const key=context?globalThis.PokemonSleepAnalysisTargetIdentity?.analysisTargetIdentityKey?.(context):null;
   return key?(state.groups||[]).find(group=>text(group?.identity_key)===text(key))||null:null;
-}
-function activeContextGroup(consistency,scope){
-  const state=consistency?.getState?.()||{};
-  const context=scope.PokemonSleepAnalysisTargetIdentity?.getActiveAnalysisTargetContext?.()||null;
-  const key=context?scope.PokemonSleepAnalysisTargetIdentity?.analysisTargetIdentityKey?.(context):null;
-  if(key)return (state.groups||[]).find(group=>text(group?.identity_key)===text(key))||null;
-  return (state.groups||[]).find(group=>text(group?.id)===text(state.active_group_id))||null;
 }
 function hideLegacyConflictJson(root){
   for(const detail of root?.querySelectorAll?.('#captureGroupStatus details')||[]){if(text(detail.querySelector('summary')?.textContent).includes('欄位衝突'))detail.hidden=true;}
@@ -214,16 +208,9 @@ export function installGroupBoundReviewSessionCache(scope=globalThis,{coreWriter
     runtimeTrace(scope,result.ok?'v042743_revision_merged_into_group_session':'v042743_revision_session_write_blocked',{group_id:group.id,analysis_id:revision.analysis_id||null,source_image_ref:revision.source_image_ref||null,status:result.ok?'completed':'blocked',merge_status:result.status,active_group_id:consistency.getState()?.active_group_id||null,background_group:text(consistency.getState()?.active_group_id)!==text(group.id),conflict_count:result.session?.draft?.conflicts?.length||0});
     if(result.ok&&text(consistency.getState()?.active_group_id)===text(group.id))scheduleReseed(group.id,'revision_saved_after_core');
   };
-  const onStage=event=>{
-    const detail=event?.detail||{};if(detail.stage!=='ai')return;
-    const group=activeContextGroup(consistency,scope);if(!group)return;
-    if(detail.state==='running'&&Number(detail.current)===1){model.reopen(group.id);runtimeTrace(scope,'v042743_group_session_ai_reopened',{group_id:group.id,status:'completed'});}
-    if(detail.state==='completed'&&Number(detail.current)===Number(detail.total)&&Number(detail.total)>0){queueMicrotask(()=>{const current=activeContextGroup(consistency,scope)||group;const sealed=model.seal(current.id);runtimeTrace(scope,'v042743_group_session_ai_sealed',{group_id:current.id,status:'completed',phase:sealed?.phase||null,source_count:sealed?.draft?.source_refs?.length||0});if(text(consistency.getState()?.active_group_id)===text(current.id))scheduleReseed(current.id,'ai_batch_sealed');});}
-  };
   scope.addEventListener?.('pokemon-sleep:analysis-confirmation-group-selected',onSelected);
   scope.addEventListener?.('pokemon-sleep:analysis-confirmation-merged',onMerged);
   scope.addEventListener?.('pokemon-sleep:analysis-revision-saved',onRevision);
-  scope.addEventListener?.('pokemon-sleep:unified-analysis-stage',onStage);
   const api={
     version:GROUP_BOUND_REVIEW_SESSION_VERSION,schema:GROUP_BOUND_REVIEW_SESSION_SCHEMA,model,
     legacyProjectionAllowed:()=>false,
@@ -232,7 +219,7 @@ export function installGroupBoundReviewSessionCache(scope=globalThis,{coreWriter
     renderHumanConflicts:groupId=>renderHumanConflictPanel(scope,model,groupId),
   };
   scope.PokemonSleepGroupBoundReviewSessionV042743=api;
-  runtimeTrace(scope,'v042743_group_bound_review_session_ready',{status:'completed',first_nonblank_wins:true,background_dom_write:false,human_conflict_messages:true,legacy_projection_allowed:false,ai_seal:true,manual_save_authority_preserved:true});
+  runtimeTrace(scope,'v042743_group_bound_review_session_ready',{status:'completed',first_nonblank_wins:true,background_dom_write:false,human_conflict_messages:true,legacy_projection_allowed:false,ai_lifecycle_delegated_to_exact_group_guard:true,manual_save_authority_preserved:true});
   return true;
 }
 
