@@ -5,11 +5,12 @@ import {spawnSync} from 'node:child_process';
 const bootstrapPath='assets/js/bootstrap.js';
 const corePath='assets/js/data-consistency-multicapture.js';
 const explicitPath='assets/js/explicit-manual-draft-save-v042737.js';
+const confirmationPath='assets/js/analysis-confirmation-workbench.js';
 const versionPath='assets/js/version-authority.js';
 const indexPath='index.html';
 const serviceWorkerPath='service-worker.js';
 
-for(const path of [bootstrapPath,corePath,explicitPath,versionPath,serviceWorkerPath]){
+for(const path of [bootstrapPath,corePath,explicitPath,confirmationPath,versionPath,serviceWorkerPath]){
   const syntax=spawnSync(process.execPath,['--check',path],{stdio:'inherit'});
   assert.equal(syntax.status,0,`${path} syntax must pass`);
 }
@@ -17,6 +18,7 @@ for(const path of [bootstrapPath,corePath,explicitPath,versionPath,serviceWorker
 const bootstrap=fs.readFileSync(bootstrapPath,'utf8');
 const core=fs.readFileSync(corePath,'utf8');
 const explicit=fs.readFileSync(explicitPath,'utf8');
+const confirmation=fs.readFileSync(confirmationPath,'utf8');
 const version=fs.readFileSync(versionPath,'utf8');
 const index=fs.readFileSync(indexPath,'utf8');
 const serviceWorker=fs.readFileSync(serviceWorkerPath,'utf8');
@@ -47,6 +49,14 @@ const saveIndex=index.indexOf('./assets/js/explicit-manual-draft-save-v042737.js
 assert.ok(bootstrapIndex>=0&&coreIndex>bootstrapIndex&&groupIndex>coreIndex&&saveIndex>groupIndex,'page order must remain bootstrap -> canonical core reference -> group -> explicit save');
 assert.match(bootstrap,/import '\.\/data-consistency-multicapture\.js';[\s\S]*const authority=/,'singleton dependency must be evaluated before bootstrap runtime body');
 
+// v0.4.27.23 localized-date compatibility must not depend on listener/microtask
+// ordering after the v0.4.27.41 singleton topology change. The confirmation form
+// projects only the HTML date-control value to ISO at render time; the source draft
+// and Evidence remain untouched until normal human-review handling.
+assert.match(confirmation,/import \{normalizeGameDateForInput\} from '\.\/player-profile-consistency-v042723\.js';/,'confirmation render must reuse the established v0.4.27.23 date authority');
+assert.match(confirmation,/const registeredDateInputValue=normalizeGameDateForInput\(d\.registered_at\)\|\|'';/,'date input compatibility must be resolved synchronously during render');
+assert.match(confirmation,/field\('登錄日期','registered_at',registeredDateInputValue,'date'\)/,'HTML date input must receive the ISO projection rather than localized raw text');
+
 // Offline remains supported because Service Worker precaches that same canonical URL
 // and querySafeCacheMatch ignores search params for legacy/query-safe requests.
 assert.match(serviceWorker,/['"]\.\/assets\/js\/data-consistency-multicapture\.js['"]/,'single multicapture authority must stay precached');
@@ -68,6 +78,8 @@ console.log(JSON.stringify({
   page_static_references:1,
   evaluated_esm_instances_expected:1,
   bootstrap_query_versioned_instances:0,
+  confirmation_date_projection:'SYNCHRONOUS_V042723_AUTHORITY',
+  source_draft_mutated_by_projection:false,
   service_worker_precache:true,
   stale_revision_fail_closed:true,
   group_not_found_fail_closed:true,
