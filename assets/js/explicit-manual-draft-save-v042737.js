@@ -2,12 +2,13 @@ export const EXPLICIT_MANUAL_DRAFT_SAVE_VERSION='v0.4.27.38-authoritative-draft-
 export const EXPLICIT_MANUAL_DRAFT_SAVE_REASON='explicit_manual_save_v042738';
 export const SINGLE_CONFIRMATION_AUTHORITY_VERSION='v0.4.27.39-single-confirmation-authority-2026-08-25-a';
 export const REVIEW_SESSION_AUTHORITY_VERSION='v0.4.27.40-review-session-authority-partial-merge-2026-08-26-a';
+export const DATE_CONTROL_PROJECTION_VERSION='v0.4.27.41-authoritative-date-control-iso-display-2026-08-26-a';
 
 const clone=value=>value==null?value:JSON.parse(JSON.stringify(value));
 const text=value=>String(value??'').trim();
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const trace=(scope,event,detail={})=>{
-  const payload={version:EXPLICIT_MANUAL_DRAFT_SAVE_VERSION,single_confirmation_authority_version:SINGLE_CONFIRMATION_AUTHORITY_VERSION,review_session_authority_version:REVIEW_SESSION_AUTHORITY_VERSION,...detail};
+  const payload={version:EXPLICIT_MANUAL_DRAFT_SAVE_VERSION,single_confirmation_authority_version:SINGLE_CONFIRMATION_AUTHORITY_VERSION,review_session_authority_version:REVIEW_SESSION_AUTHORITY_VERSION,date_control_projection_version:DATE_CONTROL_PROJECTION_VERSION,...detail};
   scope.UpdateCenterLiveDebug?.record?.(event,payload);
   scope.DebugTrace?.record?.('ai_review',event,{status:detail.status||'completed',details:payload});
 };
@@ -56,7 +57,19 @@ function nodeValue(node){
   if(node.type==='number')return node.value===''?null:Number(node.value);
   return String(node.value??'').trim();
 }
-function setNodeValue(node,value){if(!node)return;if(node.type==='checkbox'){node.checked=Boolean(value);return;}node.value=value==null?'':String(value);}
+function normalizeDateControlValue(value){
+  const raw=text(value);if(!raw)return '';
+  let match=raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s].*)?$/);
+  if(!match)match=raw.match(/^(\d{4})[\/\.](\d{1,2})[\/\.](\d{1,2})$/);
+  if(!match)match=raw.match(/^(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日$/);
+  if(!match)return '';
+  const year=Number(match[1]),month=Number(match[2]),day=Number(match[3]);
+  if(year<2000||year>2100||month<1||month>12||day<1||day>31)return '';
+  const probe=new Date(Date.UTC(year,month-1,day));
+  if(probe.getUTCFullYear()!==year||probe.getUTCMonth()!==month-1||probe.getUTCDate()!==day)return '';
+  return `${String(year).padStart(4,'0')}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+}
+function setNodeValue(node,value){if(!node)return;if(node.type==='checkbox'){node.checked=Boolean(value);return;}node.value=node.type==='date'?normalizeDateControlValue(value):(value==null?'':String(value));}
 function nodeKey(node){if(node?.dataset?.field)return `field:${node.dataset.field}`;if(node?.dataset?.check)return `check:${node.dataset.check}`;return null;}
 function rowAt(rows,level){return (Array.isArray(rows)?rows:[]).find(row=>Number(row?.unlock_level)===Number(level))||null;}
 function expectedForField(draft,name,node){
@@ -65,6 +78,7 @@ function expectedForField(draft,name,node){
   match=name.match(/^subskill_name_(\d+)$/);if(match)return text(rowAt(draft?.subskills,match[1])?.subskill_name);
   const value=draft?.[name];
   if(node?.type==='number')return value==null||value===''?null:Number(value);
+  if(node?.type==='date')return normalizeDateControlValue(value);
   return text(value);
 }
 function expectedForCheck(draft,name){const match=name.match(/^sub_unlock_(\d+)$/);if(!match)return false;return Boolean(rowAt(draft?.subskills,match[1])?.is_unlocked);}
@@ -218,11 +232,11 @@ export function installExplicitManualDraftSave(scope=globalThis){
     scope.document.addEventListener('input',markTouched,true);scope.document.addEventListener('change',markTouched,true);scope.document.addEventListener('click',guardAction,true);setTimeout(mount,0);
   }
 
-  const api={version:EXPLICIT_MANUAL_DRAFT_SAVE_VERSION,single_confirmation_authority_version:SINGLE_CONFIRMATION_AUTHORITY_VERSION,review_session_authority_version:REVIEW_SESSION_AUTHORITY_VERSION,
+  const api={version:EXPLICIT_MANUAL_DRAFT_SAVE_VERSION,single_confirmation_authority_version:SINGLE_CONFIRMATION_AUTHORITY_VERSION,review_session_authority_version:REVIEW_SESSION_AUTHORITY_VERSION,date_control_projection_version:DATE_CONTROL_PROJECTION_VERSION,
     saveManualDraft:(draft,expected)=>{const match=revisionAuthorityMatches(expected,consistency.getState());if(!match.ok){trace(scope,'v042738_manual_api_save_blocked',{...match,status:'blocked'});return match;}originalReplace(clone(draft),{reason:EXPLICIT_MANUAL_DRAFT_SAVE_REASON});return {ok:true,status:'SAVED',group_id:expected.group_id};},
     getState:()=>({authority:clone(authority),touched_keys:[...touched],classification:currentClassification(),last_status:clone(lastStatus),projection_sequence:projectionSequence}),refresh:()=>{mount();return refreshDirtyStatus();},legacy_replace_reference:legacyReplace};
   scope.PokemonSleepExplicitManualDraftSaveV042737=api;scope.PokemonSleepExplicitManualDraftSaveV042738=api;scope.PokemonSleepSingleConfirmationAuthorityV042739=api;scope.PokemonSleepReviewSessionAuthorityV042740=api;
-  trace(scope,'v042740_review_session_authority_ready',{status:'completed',implicit_navigation_write_disabled:true,explicit_save_only:true,revision_cas:true,visible_authority_rebind:true,background_revision_focus_preserved:true,partial_collection_merge:true,system_drift_navigation_blocked:false,authoritative_apply_projection:true,legacy_corrected_event_suppressed:true,legacy_manual_overlay_shadow_only:true,first_render_projector_shadow_only:true,single_confirmation_authority:true});return true;
+  trace(scope,'v042740_review_session_authority_ready',{status:'completed',implicit_navigation_write_disabled:true,explicit_save_only:true,revision_cas:true,visible_authority_rebind:true,background_revision_focus_preserved:true,partial_collection_merge:true,system_drift_navigation_blocked:false,authoritative_apply_projection:true,legacy_corrected_event_suppressed:true,legacy_manual_overlay_shadow_only:true,first_render_projector_shadow_only:true,single_confirmation_authority:true,date_control_projection:'ISO_DISPLAY_ONLY'});return true;
 }
 
 if(typeof globalThis!=='undefined'&&typeof globalThis.document!=='undefined')installExplicitManualDraftSave(globalThis);
