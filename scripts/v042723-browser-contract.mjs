@@ -67,10 +67,18 @@ try{
     const group=globalThis.PokemonSleepMultiCaptureConsistency.upsertRevision(revision);
     await new Promise(resolve=>setTimeout(resolve,200));
     const form=document.querySelector('#analysisConfirmationWorkbench .analysis-confirmation');
+    const dateInput=form?.querySelector('[data-field="registered_at"]')||null;
+    const multicaptureState=globalThis.PokemonSleepMultiCaptureConsistency.getState?.()||null;
+    const exactStateGroup=(multicaptureState?.groups||[]).find(row=>row.id===group?.id)||null;
+    const formAuthorityDraft=globalThis.PokemonSleepReviewGroupAuthorityV042718?.getDraft?.(group?.id)||null;
     const confirmation={
       groupId:group?.id||null,
       visibleGroupId:form?.dataset?.v042718GroupId||null,
-      date:form?.querySelector('[data-field="registered_at"]')?.value||null,
+      date:dateInput?.value||null,
+      dateAttribute:dateInput?.getAttribute?.('value')||null,
+      groupDraftDate:exactStateGroup?.draft?.registered_at??null,
+      formAuthorityDraftDate:formAuthorityDraft?.registered_at??null,
+      dateNormalizationFromGroup:api.normalizeGameDateForInput(exactStateGroup?.draft?.registered_at)||null,
       berry:form?.querySelector('[data-field="favorite_berry"]')?.value||null,
       type:form?.querySelector('[data-field="type"]')?.value||null,
       notice:form?.querySelector('#playerProfileConsistencyNoticeV042723')?.textContent||'',
@@ -104,6 +112,7 @@ try{
     return {version:globalThis.PokemonSleepVersionAuthority?.app_version,apiVersion:api.version,pure,confirmation,detail};
   });
 
+  console.log(JSON.stringify({gate:'V042723_BROWSER_REGISTERED_DATE_DIAGNOSTIC',confirmation:result.confirmation},null,2));
   assert.equal(isSupportedVersion(result.version),true);
   assert.equal(result.apiVersion,'v0.4.27.36-player-profile-consistency-review-only-2026-08-25-a');
   assert.equal(result.pure.date,'2026-08-20');
