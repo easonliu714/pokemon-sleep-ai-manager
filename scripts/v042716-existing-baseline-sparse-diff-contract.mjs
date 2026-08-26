@@ -88,30 +88,49 @@ for(const token of [
 ])assert.ok(workbench.includes(token),`baseline sparse-write dehydration missing ${token}`);
 assert.ok(workbench.includes('維持原值不會建立新 Evidence 或 update'),'human review must disclose baseline display semantics');
 
-// Cross-image conflicts remain fail-closed. Baseline is a review default, not conflict authority.
-for(const token of [
-  'REVIEW_REQUIRED_CROSS_IMAGE_CONFLICT',
-  'out[key]=null',
-  'out.ingredients=[]',
-  'out.subskills=[]',
-  'Baseline 只供參考',
-])assert.ok(multi.includes(token),`cross-image fail-closed invariant missing ${token}`);
+// Cross-image disagreements remain fail closed. The v0.4.27.16 predecessor cleared whole
+// collections. Successors may narrow isolation to the contradictory unlock level, but may never
+// silently pick first/last writer or treat Baseline as conflict authority.
+for(const token of ['REVIEW_REQUIRED_CROSS_IMAGE_CONFLICT','out[key]=null','Baseline 只供參考'])assert.ok(multi.includes(token),`cross-image fail-closed invariant missing ${token}`);
+const levelAwareCollections=multi.includes('function mergeCollectionRows(out,key,nextRows)');
+if(levelAwareCollections){
+  for(const token of [
+    'const field=`${key}@${level}`',
+    "mergeCollectionRows(out,'ingredients',next.ingredients)",
+    "mergeCollectionRows(out,'subskills',next.subskills)",
+    'map.delete(level)',
+  ])assert.ok(multi.includes(token),`successor per-level collection fail-closed invariant missing ${token}`);
+}else{
+  for(const token of ['out.ingredients=[]','out.subskills=[]'])assert.ok(multi.includes(token),`predecessor whole-array fail-closed invariant missing ${token}`);
+}
 
-// A newly imported platform target must immediately become the active review group. Before switching,
-// the current visible form is snapshotted so manual edits survive.
-for(const token of [
-  'pokemon-sleep:analysis-confirmation-navigation-changed',
-  'pokemon-sleep:analysis-confirmation-snapshot-request',
-  'platform_target_new_run_focus',
-  'requestActiveDraftSnapshot',
-  'confirmation_group_auto_focused',
-  'publishNavigation',
-])assert.ok(multi.includes(token),`live review queue synchronization missing ${token}`);
+// v0.4.27.16 auto-focused a newly imported platform target and requested a snapshot first.
+// v0.4.27.40+ deliberately strengthens this: once human review has an active group, revisions for
+// other platform targets queue in the background and cannot steal focus at all. Both policies must
+// preserve the current review; the successor no longer needs an implicit snapshot-before-focus fix.
+const backgroundTargetQueue=multi.includes('platform_target_background_revision')&&multi.includes('background_target_queue:true');
+for(const token of ['pokemon-sleep:analysis-confirmation-navigation-changed','publishNavigation'])assert.ok(multi.includes(token),`live review queue synchronization missing ${token}`);
+if(backgroundTargetQueue){
+  for(const token of [
+    "reason:'platform_target_background_revision'",
+    "publishNavigation('platform_target_background_revision_queued')",
+    'platform_target_auto_focus:false',
+    'background_target_queue:true',
+  ])assert.ok(multi.includes(token),`successor background review authority missing ${token}`);
+  assert.ok(!multi.includes("selectGroup(target.id,{reason:'platform_target_new_run_focus'})"),'successor must not auto-focus a background target');
+}else{
+  for(const token of [
+    'pokemon-sleep:analysis-confirmation-snapshot-request',
+    'platform_target_new_run_focus',
+    'requestActiveDraftSnapshot',
+    'confirmation_group_auto_focused',
+  ])assert.ok(multi.includes(token),`predecessor auto-focus/snapshot synchronization missing ${token}`);
+  assert.ok(workbench.includes("globalThis.addEventListener('pokemon-sleep:analysis-confirmation-snapshot-request'"),'predecessor snapshot listener missing');
+  assert.ok(workbench.includes('replaceActiveDraft?.(draft'),'predecessor snapshot request must persist unsaved confirmation edits');
+}
 assert.ok(workbench.includes('id="analysisReviewPosition"'),'review position badge needs a live DOM target');
 assert.ok(workbench.includes('refreshNavigationControls'),'live navigation control updater missing');
 assert.ok(workbench.includes("globalThis.addEventListener('pokemon-sleep:analysis-confirmation-navigation-changed'"),'navigation-changed listener missing');
-assert.ok(workbench.includes("globalThis.addEventListener('pokemon-sleep:analysis-confirmation-snapshot-request'"),'external focus snapshot listener missing');
-assert.ok(workbench.includes('replaceActiveDraft?.(draft'),'snapshot request must persist unsaved confirmation edits');
 
 // Existing-member UI explicitly informs the user that detailed local profile reference is sent to the Provider.
 for(const token of [
@@ -166,9 +185,10 @@ console.log(JSON.stringify({
     baseline_confirmation_overlay:true,
     unchanged_baseline_dehydrated_before_write:true,
     cross_image_conflict_fail_closed:true,
-    new_target_auto_focus:true,
+    cross_image_collection_conflict_granularity:levelAwareCollections?'UNLOCK_LEVEL':'WHOLE_ARRAY',
+    review_focus_policy:backgroundTargetQueue?'BACKGROUND_TARGET_QUEUE_NO_FOCUS_STEAL':'PREDECESSOR_AUTO_FOCUS_WITH_SNAPSHOT',
     live_review_pagination:true,
-    unsaved_review_snapshot_before_focus:true,
+    unsaved_review_preserved:true,
     export_baseline_values_redacted:true,
     professor_transfer_regression_preserved:true,
     offline_pwa_precache:true,
