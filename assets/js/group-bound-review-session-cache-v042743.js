@@ -1,4 +1,4 @@
-export const GROUP_BOUND_REVIEW_SESSION_VERSION='v0.4.27.43-group-bound-review-session-cache-2026-08-27-b';
+export const GROUP_BOUND_REVIEW_SESSION_VERSION='v0.4.27.43-group-bound-review-session-cache-2026-08-27-c';
 export const GROUP_BOUND_REVIEW_SESSION_REASON='v042743_group_session_authority_reseed';
 export const GROUP_BOUND_REVIEW_SESSION_SCHEMA='pokemon-sleep-group-bound-review-session/1.0';
 
@@ -52,11 +52,7 @@ export function humanizeConflict(conflict={}){
 function addConflict(out,field,existing,incoming,{source_ref=null}={}){
   const current=(out.conflicts||[]).find(row=>row.field===field);
   const candidates=unique([...(current?.candidates||[]),current?.existing,current?.incoming,existing,incoming]);
-  const record={
-    field,status:'REVIEW_REQUIRED_CROSS_IMAGE_CONFLICT_FIRST_NONBLANK_PRESERVED',
-    candidates,existing:candidates[0]??clone(existing),incoming:candidates[1]??clone(incoming),
-    source_refs:unique([...(current?.source_refs||[]),source_ref]),manual_review_saved:Boolean(current?.manual_review_saved),
-  };
+  const record={field,status:'REVIEW_REQUIRED_CROSS_IMAGE_CONFLICT_FIRST_NONBLANK_PRESERVED',candidates,existing:candidates[0]??clone(existing),incoming:candidates[1]??clone(incoming),source_refs:unique([...(current?.source_refs||[]),source_ref]),manual_review_saved:Boolean(current?.manual_review_saved)};
   record.human_message=humanizeConflict(record);
   out.conflicts=(out.conflicts||[]).filter(row=>row.field!==field);
   out.conflicts.push(record);
@@ -85,13 +81,8 @@ function mergeCollection(out,kind,incomingRows,{source_ref=null}={}){
 }
 export function mergeFirstNonblankDraft(base={},incoming={},meta={}){
   const out={...emptyDraft(),...clone(base),conflicts:[...(base?.conflicts||[])].map(clone),conflicted_fields:[...(base?.conflicted_fields||[])],source_refs:[...(base?.source_refs||[])],analysis_ids:[...(base?.analysis_ids||[])],identity_guard_warnings:[...(base?.identity_guard_warnings||[])]};
-  for(const field of SCALAR_FIELDS){
-    const value=incoming?.[field];if(blank(value))continue;
-    if(blank(out[field]))out[field]=clone(value);
-    else if(!same(out[field],value))addConflict(out,field,out[field],value,meta);
-  }
-  mergeCollection(out,'ingredients',incoming?.ingredients,meta);
-  mergeCollection(out,'subskills',incoming?.subskills,meta);
+  for(const field of SCALAR_FIELDS){const value=incoming?.[field];if(blank(value))continue;if(blank(out[field]))out[field]=clone(value);else if(!same(out[field],value))addConflict(out,field,out[field],value,meta);}
+  mergeCollection(out,'ingredients',incoming?.ingredients,meta);mergeCollection(out,'subskills',incoming?.subskills,meta);
   out.source_refs=[...new Set([...(out.source_refs||[]),...(incoming?.source_refs||[]),meta.source_ref].filter(Boolean).map(text))];
   out.analysis_ids=[...new Set([...(out.analysis_ids||[]),...(incoming?.analysis_ids||[]),meta.analysis_id].filter(Boolean).map(text))];
   out.identity_guard_warnings=[...(out.identity_guard_warnings||[]),...(incoming?.identity_guard_warnings||[]).map(clone)];
@@ -99,8 +90,7 @@ export function mergeFirstNonblankDraft(base={},incoming={},meta={}){
   return out;
 }
 function fillBlanksFromDraft(base={},incoming={}){
-  const out=clone(base)||emptyDraft();
-  out.conflicts=[...(out.conflicts||[])];out.conflicted_fields=[...(out.conflicted_fields||[])];
+  const out=clone(base)||emptyDraft();out.conflicts=[...(out.conflicts||[])];out.conflicted_fields=[...(out.conflicted_fields||[])];
   for(const field of SCALAR_FIELDS)if(blank(out[field])&&!blank(incoming?.[field]))out[field]=clone(incoming[field]);
   for(const kind of ['ingredients','subskills']){
     const slots=new Map((Array.isArray(out[kind])?out[kind]:[]).map(row=>[Number(row.unlock_level),clone(row)]));
@@ -128,67 +118,49 @@ export function createReviewSessionCacheModel(){
   };
   return {
     activate(groupId,seed={}){const session=ensure(groupId,seed);if(!session)return null;activeGroupId=session.group_id;return clone(session);},
-    ingest(groupId,incoming={},meta={}){const session=ensure(groupId);if(!session)return {ok:false,status:'GROUP_ID_REQUIRED'};const analysisId=text(meta.analysis_id);if(analysisId&&session.seen_analysis_ids.includes(analysisId))return {ok:true,status:'DUPLICATE_REVISION_IGNORED',session:clone(session)};if(session.phase==='AI_SEALED')return {ok:false,status:'AI_SESSION_SEALED',session:clone(session)};session.draft=mergeFirstNonblankDraft(session.draft,incoming,meta);if(analysisId)session.seen_analysis_ids.push(analysisId);session.updated_at=now();return {ok:true,status:'MERGED_FIRST_NONBLANK',session:clone(session)};},
+    ingest(groupId,incoming={},meta={}){
+      const session=ensure(groupId);if(!session)return {ok:false,status:'GROUP_ID_REQUIRED'};
+      const analysisId=text(meta.analysis_id);if(analysisId&&session.seen_analysis_ids.includes(analysisId))return {ok:true,status:'DUPLICATE_REVISION_IGNORED',session:clone(session)};
+      if(session.phase!=='AI_COLLECTING')return {ok:false,status:session.phase==='MANUAL_AUTHORITY'?'MANUAL_SESSION_AUTHORITY':'AI_SESSION_SEALED',session:clone(session)};
+      session.draft=mergeFirstNonblankDraft(session.draft,incoming,meta);if(analysisId)session.seen_analysis_ids.push(analysisId);session.updated_at=now();return {ok:true,status:'MERGED_FIRST_NONBLANK',session:clone(session)};
+    },
     manualReplace(groupId,draft={}){const session=ensure(groupId);if(!session)return null;session.draft=manualReplacement(session.draft,draft);session.phase='MANUAL_AUTHORITY';session.manual_saved_at=now();session.updated_at=now();return clone(session);},
-    seal(groupId){const session=ensure(groupId);if(!session)return null;if(session.phase!=='MANUAL_AUTHORITY')session.phase='AI_SEALED';session.sealed_at=now();session.updated_at=now();return clone(session);},
-    reopen(groupId){const session=ensure(groupId);if(!session)return null;if(session.phase!=='MANUAL_AUTHORITY')session.phase='AI_COLLECTING';session.sealed_at=null;session.updated_at=now();return clone(session);},
+    seal(groupId){const session=ensure(groupId);if(!session)return null;if(session.phase==='AI_COLLECTING')session.phase='AI_SEALED';session.sealed_at=now();session.updated_at=now();return clone(session);},
     get(groupId){const row=sessions.get(text(groupId));return row?clone(row):null;},
     getState(){return {active_group_id:activeGroupId,sessions:[...sessions.values()].map(clone)};},
   };
 }
 
 function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[char]));}
-function runtimeTrace(scope,event,detail={}){
-  const payload={version:GROUP_BOUND_REVIEW_SESSION_VERSION,...detail};
-  scope.UpdateCenterLiveDebug?.record?.(event,payload);
-  scope.DebugTrace?.record?.('ai_review',event,{status:detail.status||'completed',details:payload});
-}
+function runtimeTrace(scope,event,detail={}){const payload={version:GROUP_BOUND_REVIEW_SESSION_VERSION,...detail};scope.UpdateCenterLiveDebug?.record?.(event,payload);scope.DebugTrace?.record?.('ai_review',event,{status:detail.status||'completed',details:payload});}
 function findGroupForRevision(consistency,revision){
   const state=consistency?.getState?.()||{},analysisId=text(revision?.analysis_id);
-  if(analysisId){
-    const exact=(state.groups||[]).find(group=>text(group?.latest_revision?.analysis_id)===analysisId||(group?.revisions||[]).some(row=>text(row?.analysis_id)===analysisId));
-    if(exact)return exact;
-  }
-  const context=revision?.identity_context||null;
-  const key=context?globalThis.PokemonSleepAnalysisTargetIdentity?.analysisTargetIdentityKey?.(context):null;
+  if(analysisId){const exact=(state.groups||[]).find(group=>text(group?.latest_revision?.analysis_id)===analysisId||(group?.revisions||[]).some(row=>text(row?.analysis_id)===analysisId));if(exact)return exact;}
+  const context=revision?.identity_context||null,key=context?globalThis.PokemonSleepAnalysisTargetIdentity?.analysisTargetIdentityKey?.(context):null;
   return key?(state.groups||[]).find(group=>text(group?.identity_key)===text(key))||null:null;
 }
-function hideLegacyConflictJson(root){
-  for(const detail of root?.querySelectorAll?.('#captureGroupStatus details')||[]){if(text(detail.querySelector('summary')?.textContent).includes('欄位衝突'))detail.hidden=true;}
-}
+function hideLegacyConflictJson(root){for(const detail of root?.querySelectorAll?.('#captureGroupStatus details')||[]){if(text(detail.querySelector('summary')?.textContent).includes('欄位衝突'))detail.hidden=true;}}
 function renderHumanConflictPanel(scope,model,groupId){
   const root=scope.document?.querySelector?.('#analysisConfirmationWorkbench .analysis-confirmation')||scope.document?.getElementById?.('analysisConfirmationWorkbench');if(!root)return;
-  hideLegacyConflictJson(root);
-  let panel=root.querySelector?.('#groupBoundConflictPanelV042743');
-  const session=model.get(groupId),conflicts=session?.draft?.conflicts||[];
+  hideLegacyConflictJson(root);let panel=root.querySelector?.('#groupBoundConflictPanelV042743');const session=model.get(groupId),conflicts=session?.draft?.conflicts||[];
   if(!conflicts.length){panel?.remove?.();return;}
   if(!panel){panel=scope.document.createElement('section');panel.id='groupBoundConflictPanelV042743';panel.className='notice pending';const anchor=root.querySelector('#captureGroupStatus')||root.querySelector('header');anchor?.insertAdjacentElement('afterend',panel);}
-  const items=conflicts.map(row=>`<li>${escapeHtml(row.human_message||humanizeConflict(row))}</li>`).join('');
-  panel.innerHTML=`<strong>多圖辨識結果有差異，需要人工確認</strong><br><span>平台已保留第一個非空值；不會因另一張圖片不同而自動清空或覆寫。</span><ul>${items}</ul>`;
+  panel.innerHTML=`<strong>多圖辨識結果有差異，需要人工確認</strong><br><span>平台已保留第一個非空值；不會因另一張圖片不同而自動清空或覆寫。</span><ul>${conflicts.map(row=>`<li>${escapeHtml(row.human_message||humanizeConflict(row))}</li>`).join('')}</ul>`;
 }
 
-let productionCoreDraftWriter=null;
-let productionCoreWriterLoadError=null;
-if(typeof globalThis!=='undefined'&&typeof globalThis.document!=='undefined'){
-  import('./data-consistency-multicapture.js').then(module=>{productionCoreDraftWriter=typeof module?.replaceActiveDraft==='function'?module.replaceActiveDraft:null;if(!productionCoreDraftWriter)productionCoreWriterLoadError='CORE_WRITER_EXPORT_MISSING';}).catch(error=>{productionCoreWriterLoadError=error?.message||String(error);});
-}
+let productionCoreDraftWriter=null,productionCoreWriterLoadError=null;
+if(typeof globalThis!=='undefined'&&typeof globalThis.document!=='undefined')import('./data-consistency-multicapture.js').then(module=>{productionCoreDraftWriter=typeof module?.replaceActiveDraft==='function'?module.replaceActiveDraft:null;if(!productionCoreDraftWriter)productionCoreWriterLoadError='CORE_WRITER_EXPORT_MISSING';}).catch(error=>{productionCoreWriterLoadError=error?.message||String(error);});
 
 export function installGroupBoundReviewSessionCache(scope=globalThis,{coreWriter=null}={}){
   if(scope.PokemonSleepGroupBoundReviewSessionV042743?.version===GROUP_BOUND_REVIEW_SESSION_VERSION)return true;
-  const consistency=scope.PokemonSleepMultiCaptureConsistency;
-  if(!consistency?.getState||!consistency?.normalizeRevision)return false;
-  const model=createReviewSessionCacheModel(),scheduled=new Set();
-  const writer=()=>coreWriter||productionCoreDraftWriter;
+  const consistency=scope.PokemonSleepMultiCaptureConsistency;if(!consistency?.getState||!consistency?.normalizeRevision)return false;
+  const model=createReviewSessionCacheModel(),scheduled=new Set(),writer=()=>coreWriter||productionCoreDraftWriter;
   const scheduleReseed=(groupId,reason='session_update')=>{
-    const id=text(groupId);if(!id||scheduled.has(id))return;
-    scheduled.add(id);queueMicrotask(()=>{
-      scheduled.delete(id);
-      const state=consistency.getState(),group=(state.groups||[]).find(row=>text(row.id)===id),session=model.get(id);
+    const id=text(groupId);if(!id||scheduled.has(id))return;scheduled.add(id);queueMicrotask(()=>{
+      scheduled.delete(id);const state=consistency.getState(),group=(state.groups||[]).find(row=>text(row.id)===id),session=model.get(id);
       if(!group||!session||text(state.active_group_id)!==id){renderHumanConflictPanel(scope,model,state.active_group_id);return;}
       const write=writer();if(typeof write!=='function'){runtimeTrace(scope,'v042743_session_reseed_blocked',{group_id:id,reason,status:'blocked',error:productionCoreWriterLoadError||'CORE_WRITER_NOT_READY'});return;}
-      write(clone(session.draft),{reason:GROUP_BOUND_REVIEW_SESSION_REASON});
-      runtimeTrace(scope,'v042743_active_session_core_reconciled',{group_id:id,reason,status:'completed',conflict_count:session.draft.conflicts?.length||0,phase:session.phase});
-      consistency.selectGroup?.(id,{reason:GROUP_BOUND_REVIEW_SESSION_REASON});
+      write(clone(session.draft),{reason:GROUP_BOUND_REVIEW_SESSION_REASON});runtimeTrace(scope,'v042743_active_session_core_reconciled',{group_id:id,reason,status:'completed',conflict_count:session.draft.conflicts?.length||0,phase:session.phase});consistency.selectGroup?.(id,{reason:GROUP_BOUND_REVIEW_SESSION_REASON});
     });
   };
   const onSelected=event=>{
@@ -197,30 +169,16 @@ export function installGroupBoundReviewSessionCache(scope=globalThis,{coreWriter
     if(MANUAL_SAVE_REASONS.has(text(detail.reason))){model.activate(id);model.manualReplace(id,detail.draft||{});renderHumanConflictPanel(scope,model,id);runtimeTrace(scope,'v042743_manual_save_promoted_to_session_cache',{group_id:id,status:'completed'});return;}
     model.activate(id,detail.draft||{});renderHumanConflictPanel(scope,model,id);scheduleReseed(id,`group_selected:${detail.reason||'unknown'}`);
   };
-  const onMerged=event=>{
-    const detail=event?.detail||{},id=text(detail.group_id);if(!id)return;
-    model.activate(id,detail.draft||{});renderHumanConflictPanel(scope,model,id);scheduleReseed(id,'active_group_merged');
-  };
+  const onMerged=event=>{const detail=event?.detail||{},id=text(detail.group_id);if(!id)return;model.activate(id,detail.draft||{});renderHumanConflictPanel(scope,model,id);scheduleReseed(id,'active_group_merged');};
   const onRevision=event=>{
     const revision=event?.detail?.revision||event?.detail||{};if(revision?.analysis_type!=='ai')return;
     const group=findGroupForRevision(consistency,revision);if(!group){runtimeTrace(scope,'v042743_revision_session_bind_blocked',{analysis_id:revision?.analysis_id||null,status:'blocked',reason:'GROUP_NOT_RESOLVED'});return;}
-    const incoming=consistency.normalizeRevision(revision),result=model.ingest(group.id,incoming,{analysis_id:revision.analysis_id,source_ref:revision.source_image_ref});
-    runtimeTrace(scope,result.ok?'v042743_revision_merged_into_group_session':'v042743_revision_session_write_blocked',{group_id:group.id,analysis_id:revision.analysis_id||null,source_image_ref:revision.source_image_ref||null,status:result.ok?'completed':'blocked',merge_status:result.status,active_group_id:consistency.getState()?.active_group_id||null,background_group:text(consistency.getState()?.active_group_id)!==text(group.id),conflict_count:result.session?.draft?.conflicts?.length||0});
+    const result=model.ingest(group.id,consistency.normalizeRevision(revision),{analysis_id:revision.analysis_id,source_ref:revision.source_image_ref});runtimeTrace(scope,result.ok?'v042743_revision_merged_into_group_session':'v042743_revision_session_write_blocked',{group_id:group.id,analysis_id:revision.analysis_id||null,source_image_ref:revision.source_image_ref||null,status:result.ok?'completed':'blocked',merge_status:result.status,active_group_id:consistency.getState()?.active_group_id||null,background_group:text(consistency.getState()?.active_group_id)!==text(group.id),conflict_count:result.session?.draft?.conflicts?.length||0});
     if(result.ok&&text(consistency.getState()?.active_group_id)===text(group.id))scheduleReseed(group.id,'revision_saved_after_core');
   };
-  scope.addEventListener?.('pokemon-sleep:analysis-confirmation-group-selected',onSelected);
-  scope.addEventListener?.('pokemon-sleep:analysis-confirmation-merged',onMerged);
-  scope.addEventListener?.('pokemon-sleep:analysis-revision-saved',onRevision);
-  const api={
-    version:GROUP_BOUND_REVIEW_SESSION_VERSION,schema:GROUP_BOUND_REVIEW_SESSION_SCHEMA,model,
-    legacyProjectionAllowed:()=>false,
-    getSession:groupId=>model.get(groupId),getState:()=>model.getState(),
-    reseedActiveSession:(groupId,reason='api_reseed')=>scheduleReseed(groupId,reason),
-    renderHumanConflicts:groupId=>renderHumanConflictPanel(scope,model,groupId),
-  };
-  scope.PokemonSleepGroupBoundReviewSessionV042743=api;
-  runtimeTrace(scope,'v042743_group_bound_review_session_ready',{status:'completed',first_nonblank_wins:true,background_dom_write:false,human_conflict_messages:true,legacy_projection_allowed:false,ai_lifecycle_delegated_to_exact_group_guard:true,manual_save_authority_preserved:true});
-  return true;
+  scope.addEventListener?.('pokemon-sleep:analysis-confirmation-group-selected',onSelected);scope.addEventListener?.('pokemon-sleep:analysis-confirmation-merged',onMerged);scope.addEventListener?.('pokemon-sleep:analysis-revision-saved',onRevision);
+  const api={version:GROUP_BOUND_REVIEW_SESSION_VERSION,schema:GROUP_BOUND_REVIEW_SESSION_SCHEMA,model,legacyProjectionAllowed:()=>false,getSession:groupId=>model.get(groupId),getState:()=>model.getState(),reseedActiveSession:(groupId,reason='api_reseed')=>scheduleReseed(groupId,reason),renderHumanConflicts:groupId=>renderHumanConflictPanel(scope,model,groupId)};
+  scope.PokemonSleepGroupBoundReviewSessionV042743=api;runtimeTrace(scope,'v042743_group_bound_review_session_ready',{status:'completed',first_nonblank_wins:true,background_dom_write:false,human_conflict_messages:true,legacy_projection_allowed:false,ai_seal_terminal:true,ai_lifecycle_delegated_to_exact_group_guard:true,manual_save_authority_preserved:true});return true;
 }
 
 if(typeof globalThis!=='undefined'&&typeof globalThis.document!=='undefined')installGroupBoundReviewSessionCache(globalThis);
