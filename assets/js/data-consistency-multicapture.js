@@ -22,7 +22,7 @@ const number=value=>{
 };
 const badString=value=>/^\[(object Object|object Array)\]$|^(undefined|null)$/i.test(String(value??'').trim());
 const clean=value=>{const result=text(value);return badString(result)?'':result;};
-const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[char]));
 const blank=value=>value===null||value===undefined||value===''||(Array.isArray(value)&&value.length===0);
 const clone=value=>JSON.parse(JSON.stringify(value));
 const nowIso=()=>new Date().toISOString();
@@ -136,6 +136,30 @@ function addConflict(out,field,existing,incoming){
   out.conflicts.push({field,status:'REVIEW_REQUIRED_CROSS_IMAGE_CONFLICT',candidates:values,existing:values[0]??null,incoming:values[1]??null});
   out.conflicted_fields=[...new Set([...(out.conflicted_fields||[]),field])];
 }
+function compatibleCollectionRow(key,a,b){
+  if(key==='ingredients'){
+    if(clean(a?.ingredient_name)!==clean(b?.ingredient_name))return false;
+    const aq=number(a?.quantity),bq=number(b?.quantity);
+    return aq==null||bq==null||aq===bq;
+  }
+  return clean(a?.subskill_name)===clean(b?.subskill_name);
+}
+function mergeCollectionRows(out,key,nextRows){
+  if(!Array.isArray(nextRows)||!nextRows.length)return;
+  if(out.conflicted_fields.includes(key)){addConflict(out,key,null,nextRows);out[key]=[];return;}
+  const map=new Map((Array.isArray(out[key])?out[key]:[]).map(row=>[Number(row.unlock_level),clone(row)]));
+  for(const raw of nextRows){
+    const level=Number(raw?.unlock_level);if(!Number.isFinite(level))continue;
+    const field=`${key}@${level}`;
+    if(out.conflicted_fields.includes(field)){addConflict(out,field,null,raw);map.delete(level);continue;}
+    const existing=map.get(level);
+    if(!existing){map.set(level,clone(raw));continue;}
+    if(!compatibleCollectionRow(key,existing,raw)){addConflict(out,field,existing,raw);map.delete(level);continue;}
+    if(key==='ingredients'&&number(existing.quantity)==null&&number(raw.quantity)!=null)existing.quantity=number(raw.quantity);
+    if(key==='subskills')existing.is_unlocked=(Number(existing.is_unlocked)||Number(raw.is_unlocked))?1:0;
+  }
+  out[key]=[...map.values()].sort((a,b)=>Number(a.unlock_level)-Number(b.unlock_level));
+}
 function mergeDraft(base,next){
   const out={...base,conflicts:[...(base.conflicts||[])],conflicted_fields:[...(base.conflicted_fields||[])],identity_guard_warnings:[...(base.identity_guard_warnings||[])],baseline_hydrated_fields:[]};
   for(const key of MERGE_FIELDS){
@@ -144,16 +168,8 @@ function mergeDraft(base,next){
     if(blank(out[key]))out[key]=clone(next[key]);
     else if(String(out[key])!==String(next[key])){addConflict(out,key,out[key],next[key]);out[key]=null;}
   }
-  if(next.subskills?.length){
-    if(out.conflicted_fields.includes('subskills'))addConflict(out,'subskills',null,next.subskills);
-    else if(!out.subskills?.length)out.subskills=clone(next.subskills);
-    else if(JSON.stringify(out.subskills)!==JSON.stringify(next.subskills)){addConflict(out,'subskills',out.subskills,next.subskills);out.subskills=[];}
-  }
-  if(next.ingredients?.length){
-    if(out.conflicted_fields.includes('ingredients'))addConflict(out,'ingredients',null,next.ingredients);
-    else if(!out.ingredients?.length)out.ingredients=clone(next.ingredients);
-    else if(JSON.stringify(out.ingredients)!==JSON.stringify(next.ingredients)){addConflict(out,'ingredients',out.ingredients,next.ingredients);out.ingredients=[];}
-  }
+  mergeCollectionRows(out,'subskills',next.subskills);
+  mergeCollectionRows(out,'ingredients',next.ingredients);
   out.source_text=[out.source_text,next.source_text].filter(Boolean).join('\n\n---\n\n');
   out.source_refs=[...new Set([...(out.source_refs||[]),...(next.source_refs||[])])];
   out.analysis_ids=[...new Set([...(out.analysis_ids||[]),...(next.analysis_ids||[])])];
@@ -301,15 +317,15 @@ function upsertRevision(revision){
   target.draft=mergeDraft(target.draft,incoming);target.latest_revision={...revision,identity_context:target.identity_context?clone(target.identity_context):revision.identity_context||null};target.revisions.push(target.latest_revision);target.updated_at=nowIso();
   const hadActive=Boolean(activeGroupId),differentPlatformTarget=Boolean(target.identity_key&&hadActive&&target.id!==activeGroupId);
   if(differentPlatformTarget){
-    requestActiveDraftSnapshot('platform_target_new_run_focus');
-    selectGroup(target.id,{reason:'platform_target_new_run_focus'});
-    trace('confirmation_group_auto_focused',{group_id:target.id,target_mode:target.identity_context?.mode||null,reason:'platform_target_new_run_focus'});
+    target.status='pending';
+    trace('confirmation_group_queued',{group_id:target.id,active_group_id:activeGroupId,species:target.draft?.species||null,pending_count:pendingGroups().length,target_mode:target.identity_context?.mode||'legacy',reason:'platform_target_background_revision'});
+    publishNavigation('platform_target_background_revision_queued');
   }else if(!hadActive||target.id===activeGroupId){
     if(!hadActive){activeGroupId=target.id;target.status='active';dispatchSelected(target,'first_revision');publishNavigation('first_revision');}
     else {globalThis.dispatchEvent(new CustomEvent('pokemon-sleep:analysis-confirmation-merged',{detail:{group_id:target.id,status:target.status,revision:clone(target.latest_revision),draft:clone(hydratedDraft(target)),identity_context:target.identity_context?clone(target.identity_context):null,pending_count:pendingGroups().length,navigation:getNavigationState()}}));publishNavigation('revision_merged');}
   }else {trace('confirmation_group_queued',{group_id:target.id,active_group_id:activeGroupId,species:target.draft?.species||null,pending_count:pendingGroups().length,target_mode:target.identity_context?.mode||'legacy'});publishNavigation('group_queued');}
   setTimeout(renderGroupNotice,0);
-  trace('multicapture_revision_merged',{group_id:target.id,active_group_id:activeGroupId,source_count:target.draft.source_refs.length,analysis_count:target.draft.analysis_ids.length,conflict_count:target.draft.conflicts.length,conflicted_field_count:target.draft.conflicted_fields.length,identity_guard_warning_count:target.draft.identity_guard_warnings.length,main_skill_level:target.draft.main_skill_level??null,species:target.draft.species||null,evolution_rehydration:true,legacy_partial_writer_disabled:true,platform_identity_authority:Boolean(target.identity_key),target_mode:target.identity_context?.mode||'legacy',existing_baseline_overlay:Boolean(target.identity_context?.mode==='existing'&&target.identity_context?.baseline_reference)});
+  trace('multicapture_revision_merged',{group_id:target.id,active_group_id:activeGroupId,source_count:target.draft.source_refs.length,analysis_count:target.draft.analysis_ids.length,conflict_count:target.draft.conflicts.length,conflicted_field_count:target.draft.conflicted_fields.length,identity_guard_warning_count:target.draft.identity_guard_warnings.length,main_skill_level:target.draft.main_skill_level??null,species:target.draft.species||null,evolution_rehydration:true,legacy_partial_writer_disabled:true,platform_identity_authority:Boolean(target.identity_key),target_mode:target.identity_context?.mode||'legacy',existing_baseline_overlay:Boolean(target.identity_context?.mode==='existing'&&target.identity_context?.baseline_reference),platform_target_auto_focus:false,background_target_queue:true,partial_collection_merge:true});
   return target;
 }
 
@@ -331,6 +347,6 @@ globalThis.PokemonSleepMultiCaptureConsistency={
   getState:()=>({active_group_id:activeGroupId,groups:[...groups.values()].map(clone),navigation:getNavigationState()}),
 };
 
-globalThis.UpdateCenterLiveDebug?.record?.('data_consistency_multicapture_ready',{version:VERSION,build:BUILD,patch_semantics:true,null_safe_numeric:true,observation_v2:true,observation_v2_profile_berry_authority:true,evolution_rehydration:true,legacy_partial_writer_disabled:true,navigable_review_groups:true,bidirectional_review_navigation:true,nickname_fail_closed:true,platform_identity_authority:true,cross_image_conflict_fail_closed:true,existing_baseline_review_overlay:true,live_navigation_sync:true,platform_target_auto_focus:true});
+globalThis.UpdateCenterLiveDebug?.record?.('data_consistency_multicapture_ready',{version:VERSION,build:BUILD,patch_semantics:true,null_safe_numeric:true,observation_v2:true,observation_v2_profile_berry_authority:true,evolution_rehydration:true,legacy_partial_writer_disabled:true,navigable_review_groups:true,bidirectional_review_navigation:true,nickname_fail_closed:true,platform_identity_authority:true,cross_image_conflict_fail_closed:true,existing_baseline_review_overlay:true,live_navigation_sync:true,platform_target_auto_focus:false,background_target_queue:true,partial_collection_merge:true});
 
 export {VERSION,BUILD,normalizeRevision,resolveFavoriteBerryAuthority,mergeDraft,overlayExistingBaseline,shouldStartNewGroupForRevision,upsertRevision,selectGroup,replaceActiveDraft,navigateReviewGroup,advanceReviewGroup,closeActiveGroup,getNavigationState,publishNavigation};

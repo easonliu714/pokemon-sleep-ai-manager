@@ -76,14 +76,22 @@ for(const token of [
 ])assert.ok(multi.includes(token),`multicapture identity authority missing ${token}`);
 assert.match(multi,/if\(targetKey\)\{/u,'platform target key must be resolved before legacy species grouping');
 
-// Cross-image disagreements fail closed: accepted draft field becomes blank/review, never first-seen-wins authority.
-for(const token of [
-  'REVIEW_REQUIRED_CROSS_IMAGE_CONFLICT',
-  'conflicted_fields',
-  'out[key]=null',
-  'out.ingredients=[]',
-  'out.subskills=[]',
-])assert.ok(multi.includes(token),`cross-image fail-closed contract missing ${token}`);
+// Cross-image disagreements remain fail closed on successors. The original v0.4.27.15
+// implementation cleared whole collections. Newer successors may narrow that safety boundary
+// to the conflicting unlock level, but they must still preserve REVIEW_REQUIRED and never
+// silently accept a first-seen conflicting value.
+for(const token of ['REVIEW_REQUIRED_CROSS_IMAGE_CONFLICT','conflicted_fields','out[key]=null'])assert.ok(multi.includes(token),`cross-image fail-closed contract missing ${token}`);
+const levelAwareCollections=multi.includes('function mergeCollectionRows(out,key,nextRows)');
+if(levelAwareCollections){
+  for(const token of [
+    'const field=`${key}@${level}`',
+    "mergeCollectionRows(out,'ingredients',next.ingredients)",
+    "mergeCollectionRows(out,'subskills',next.subskills)",
+    'map.delete(level)',
+  ])assert.ok(multi.includes(token),`successor per-level fail-closed contract missing ${token}`);
+}else{
+  for(const token of ['out.ingredients=[]','out.subskills=[]'])assert.ok(multi.includes(token),`predecessor whole-array fail-closed contract missing ${token}`);
+}
 
 // Previous/next confirmation and nickname guard from v0.4.27.14 remain present.
 for(const token of [
@@ -143,6 +151,7 @@ console.log(JSON.stringify({
     new_capture_group_predeclared:true,
     ai_text_not_identity_authority:true,
     cross_image_conflict_fail_closed:true,
+    cross_image_collection_conflict_granularity:levelAwareCollections?'UNLOCK_LEVEL':'WHOLE_ARRAY',
     confirmation_target_locked:true,
     nickname_guard_preserved:true,
     bidirectional_confirmation_preserved:true,

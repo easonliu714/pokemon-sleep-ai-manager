@@ -17,10 +17,10 @@ const overlaySource=fs.readFileSync(overlayPath,'utf8');
 const firstRenderSource=fs.readFileSync(firstRenderPath,'utf8');
 const explicitSource=fs.readFileSync(explicitPath,'utf8');
 const coreSource=fs.readFileSync('assets/js/data-consistency-multicapture.js','utf8');
+const currentApp=versionAuthority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 
-assert.match(versionAuthority,/app_version:\s*'v0\.4\.27\.39'/);
-assert.match(versionAuthority,/app_build:\s*'20260825-v042739-single-confirmation-authority'/);
-assert.match(versionAuthority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.39-v042739-single-confirmation-authority'/);
+assert.match(versionAuthority,/app_version:\s*'v0\.4\.27\.(?:39|40)'/);
+assert.match(versionAuthority,/\/\/ app_version: 'v0\.4\.27\.39'/,'v0.4.27.39 must remain as immutable predecessor parser evidence on successors');
 assert.match(versionAuthority,/\/\/ app_version: 'v0\.4\.27\.38'/,'v0.4.27.38 must remain as immutable predecessor parser evidence');
 
 assert.equal(explicit.SINGLE_CONFIRMATION_AUTHORITY_VERSION,'v0.4.27.39-single-confirmation-authority-2026-08-25-a');
@@ -34,7 +34,7 @@ assert.match(explicitSource,/single_confirmation_authority:true/);
 assert.match(explicitSource,/v042739_authoritative_render_committed/);
 
 // v0.4.27.29 manual overlay and v0.4.27.36 first-render projection are retained only
-// as predecessor helpers. In v0.4.27.39 they cannot register production DOM writers.
+// as predecessor helpers. In v0.4.27.39+ they cannot register production DOM writers.
 assert.match(overlaySource,/SINGLE_CONFIRMATION_AUTHORITY_SHADOW_VERSION='v0\.4\.27\.39-single-confirmation-authority-2026-08-25-a'/);
 assert.match(overlaySource,/if\(!shadowOnly\)\{/);
 assert.match(overlaySource,/captureVisibleForm:shadowOnly\?noCapture:captureVisibleForm/);
@@ -91,15 +91,24 @@ const classification=explicit.classifyFormSnapshot({...before,touched_keys:[]});
 assert.equal(classification.clean,true,'after authoritative projection there must be no residual system drift');
 assert.equal(classification.manual_dirty,false);
 
-// Existing core conflict semantics must remain fail-closed; v0.4.27.39 does not guess
-// between genuinely conflicting cross-image ingredient/subskill observations.
+// v0.4.27.39 preserved whole-array fail-closed behavior. v0.4.27.40 refines the same
+// safety rule to unlock-level granularity: genuine conflicts remain REVIEW_REQUIRED,
+// while unrelated observed slots are no longer erased.
 assert.match(coreSource,/REVIEW_REQUIRED_CROSS_IMAGE_CONFLICT/);
-assert.match(coreSource,/addConflict\(out,'ingredients',out\.ingredients,next\.ingredients\);out\.ingredients=\[\]/);
-assert.match(coreSource,/addConflict\(out,'subskills',out\.subskills,next\.subskills\);out\.subskills=\[\]/);
+if(currentApp==='v0.4.27.39'){
+  assert.match(coreSource,/addConflict\(out,'ingredients',out\.ingredients,next\.ingredients\);out\.ingredients=\[\]/);
+  assert.match(coreSource,/addConflict\(out,'subskills',out\.subskills,next\.subskills\);out\.subskills=\[\]/);
+}else{
+  assert.match(coreSource,/function mergeCollectionRows\(out,key,nextRows\)/);
+  assert.match(coreSource,/const field=`\$\{key\}@\$\{level\}`/);
+  assert.match(coreSource,/mergeCollectionRows\(out,'ingredients',next\.ingredients\)/);
+  assert.match(coreSource,/mergeCollectionRows\(out,'subskills',next\.subskills\)/);
+}
 
 console.log(JSON.stringify({
   status:'PASS',
   gate:'G13.29_V042739_SINGLE_CONFIRMATION_AUTHORITY',
+  current_app_version:currentApp,
   physical_failure_replay:'A<-B and B<-C visible +1 contamination after otherwise correct per-image revisions',
   core_hydrated_draft_is_automatic_render_authority:true,
   explicit_manual_save_is_only_user_write_authority:true,
@@ -109,5 +118,6 @@ console.log(JSON.stringify({
   full_form_authoritative_reprojection:true,
   species_type_berry_only_patch_retired:true,
   cross_image_conflict_fail_closed_preserved:true,
+  successor_unlock_level_conflict_granularity:currentApp!=='v0.4.27.39',
   private_player_fixture_embedded:false,
 },null,2));
