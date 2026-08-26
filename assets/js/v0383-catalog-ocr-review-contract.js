@@ -1,4 +1,5 @@
 import {rows} from './database.js';
+import './group-bound-review-session-event-guard-v042743.js';
 
 const APP_VERSION='v0.3.85';
 const APP_BUILD='20260805-v0385-database-boot-isolation';
@@ -8,6 +9,7 @@ const trace=(event,details={},status='completed',error=null)=>{
   globalThis.UpdateCenterLiveDebug?.record?.(event,details);
   globalThis.DebugTrace?.record?.('v0383_contract',event,{status,details,error});
 };
+const groupSessionAuthorityActive=()=>globalThis.PokemonSleepGroupBoundReviewSessionV042743?.legacyProjectionAllowed?.()===false;
 
 // v0.4.2 compatibility export only. The historical 76-row recipe literal and
 // writer were retired; migrations.auditAndSyncPublicMasters now owns recipe
@@ -80,8 +82,16 @@ function mergeAiObservations(anchor){
 }
 function applyReviewProjection(detail){
   if(detail?.analysis_type!=='ai')return;
+  if(groupSessionAuthorityActive()){
+    trace('full_review_projection_blocked_v042743',{reason:'group_bound_review_session_authority',analysis_id:detail?.analysis_id||detail?.revision?.analysis_id||null});
+    return;
+  }
   const payload=mergeAiObservations(analysisPayload({result_json:JSON.stringify(detail.result)}));
   setTimeout(()=>{
+    if(groupSessionAuthorityActive()){
+      trace('full_review_projection_blocked_v042743',{reason:'group_bound_review_session_authority_timeout_recheck',analysis_id:detail?.analysis_id||detail?.revision?.analysis_id||null});
+      return;
+    }
     const root=document.getElementById('analysisConfirmationWorkbench');if(!root)return;
     const set=(name,value)=>{const input=root.querySelector(`[data-field="${name}"]`);if(input&&(input.value===''||input.value==null)&&value!==null&&value!==undefined)input.value=value;};
     set('species',payload.pokemon_name);set('nickname',payload.nickname);set('level',payload.level);set('sp',payload.sp);set('specialty',payload.specialty);set('type',payload.type);
