@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {
   GROUP_BOUND_REVIEW_SESSION_VERSION,
   createReviewSessionCacheModel,
   mergeFirstNonblankDraft,
   humanizeConflict,
 } from '../assets/js/group-bound-review-session-cache-v042743.js';
+import {createExactGroupSealTracker} from '../assets/js/group-bound-review-session-event-guard-v042743.js';
 
 assert.match(GROUP_BOUND_REVIEW_SESSION_VERSION,/v0\.4\.27\.43/);
 
@@ -55,4 +57,55 @@ model.manualReplace('A',manual);
 assert.equal(model.get('A').draft.level,14,'explicit manual save must become session authority');
 assert.equal(model.get('A').phase,'MANUAL_AUTHORITY');
 
-console.log(JSON.stringify({status:'PASS',gate:'G13.33',version:GROUP_BOUND_REVIEW_SESSION_VERSION,checks:{first_nonblank:true,human_conflicts:true,background_isolation:true,roundtrip:true,ai_seal:true,manual_authority:true}},null,2));
+const tracker=createExactGroupSealTracker();
+let trackerState=tracker.freeze([
+  {item_id:'a1',mode:'new',new_group_key:'new-1'},
+  {item_id:'a2',mode:'new',new_group_key:'new-1'},
+  {item_id:'b1',mode:'existing',pokemon_id:'p-b'},
+  {item_id:'c1',mode:'new',new_group_key:'new-2'},
+]);
+assert.equal(Object.keys(trackerState.expected_by_logical).length,3);
+tracker.bind('a1','new:capture-a');
+tracker.bind('a2','new:capture-a');
+tracker.bind('b1','existing:instance-b');
+tracker.bind('c1','new:capture-c');
+let progress=tracker.complete('a1');
+assert.equal(progress.expected_source_count,2);
+assert.equal(progress.completed_source_count,1);
+assert.equal(progress.ready_to_seal,false,'Group A must not seal after only one of two assigned images');
+progress=tracker.complete('b1');
+assert.equal(progress.expected_source_count,1);
+assert.equal(progress.ready_to_seal,true,'single-image Group B may seal independently while A is incomplete');
+progress=tracker.complete('a2');
+assert.equal(progress.completed_source_count,2);
+assert.equal(progress.ready_to_seal,true,'Group A seals only after its exact assigned source set completes');
+trackerState=tracker.getState();
+assert.deepEqual(trackerState.completed_by_identity['new:capture-a'].sort(),['a1','a2']);
+
+const legacyProjection=fs.readFileSync('assets/js/v0383-catalog-ocr-review-contract.js','utf8');
+const eventGuard=fs.readFileSync('assets/js/group-bound-review-session-event-guard-v042743.js','utf8');
+assert.match(legacyProjection,/import '\.\/group-bound-review-session-event-guard-v042743\.js';/,'runtime must install the v0.4.27.43 authority');
+assert.match(legacyProjection,/full_review_projection_blocked_v042743/,'legacy shared-DOM projection must be fail-closed under .43');
+assert.match(legacyProjection,/groupSessionAuthorityActive\(\)/,'legacy projection must recheck .43 authority before delayed DOM write');
+assert.match(eventGuard,/analysis-confirmation-group-selected',event=>canonicalize\(event,'selected'\),true/,'selected event must be canonicalized in capture phase');
+assert.match(eventGuard,/analysis-confirmation-merged',event=>canonicalize\(event,'merged'\),true/,'merged event must be canonicalized in capture phase');
+assert.match(eventGuard,/v042743_group_source_expectations_frozen/,'assigned source expectations must be frozen before execution');
+assert.match(eventGuard,/v042743_exact_group_ai_sealed/,'exact per-Group seal must be traced');
+assert.doesNotMatch(eventGuard,/setTimeout\([^)]*seal/,'AI seal must not depend on a timeout');
+
+console.log(JSON.stringify({
+  status:'PASS',
+  gate:'G13.33',
+  version:GROUP_BOUND_REVIEW_SESSION_VERSION,
+  checks:{
+    first_nonblank:true,
+    human_conflicts:true,
+    background_isolation:true,
+    roundtrip:true,
+    ai_seal:true,
+    exact_group_source_completion:true,
+    manual_authority:true,
+    capture_phase_projection:true,
+    legacy_dom_projection_blocked:true,
+  },
+},null,2));
