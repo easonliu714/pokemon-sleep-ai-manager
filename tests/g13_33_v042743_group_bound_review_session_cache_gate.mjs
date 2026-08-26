@@ -84,6 +84,9 @@ assert.deepEqual(trackerState.completed_by_identity['new:capture-a'].sort(),['a1
 
 const legacyProjection=fs.readFileSync('assets/js/v0383-catalog-ocr-review-contract.js','utf8');
 const eventGuard=fs.readFileSync('assets/js/group-bound-review-session-event-guard-v042743.js','utf8');
+const versionAuthority=fs.readFileSync('assets/js/version-authority.js','utf8');
+const serviceWorker=fs.readFileSync('service-worker.js','utf8');
+const regressionRunner=fs.readFileSync('scripts/ci-g13-ocr-ai-regression.mjs','utf8');
 assert.match(legacyProjection,/import '\.\/group-bound-review-session-event-guard-v042743\.js';/,'runtime must install the v0.4.27.43 authority');
 assert.match(legacyProjection,/full_review_projection_blocked_v042743/,'legacy shared-DOM projection must be fail-closed under .43');
 assert.match(legacyProjection,/groupSessionAuthorityActive\(\)/,'legacy projection must recheck .43 authority before delayed DOM write');
@@ -91,7 +94,15 @@ assert.match(eventGuard,/analysis-confirmation-group-selected',event=>canonicali
 assert.match(eventGuard,/analysis-confirmation-merged',event=>canonicalize\(event,'merged'\),true/,'merged event must be canonicalized in capture phase');
 assert.match(eventGuard,/v042743_group_source_expectations_frozen/,'assigned source expectations must be frozen before execution');
 assert.match(eventGuard,/v042743_exact_group_ai_sealed/,'exact per-Group seal must be traced');
+assert.match(eventGuard,/#analysisConfirmationWorkbench #captureGroupStatus details\{display:none!important;\}/,'legacy JSON conflict details must be permanently hidden while .43 authority is active');
 assert.doesNotMatch(eventGuard,/setTimeout\([^)]*seal/,'AI seal must not depend on a timeout');
+assert.match(versionAuthority,/app_version: 'v0\.4\.27\.43'/,'central release authority must be .43');
+assert.match(versionAuthority,/20260827-v042743-group-bound-review-session-cache-authority/,'central build authority must be .43');
+assert.match(versionAuthority,/pokemon-sleep-ai-v0\.4\.27\.43-v042743-group-bound-review-session-cache-authority/,'central cache authority must be .43');
+assert.match(serviceWorker,/\.\/assets\/js\/group-bound-review-session-cache-v042743\.js/,'session cache must be available offline');
+assert.match(serviceWorker,/\.\/assets\/js\/group-bound-review-session-event-guard-v042743\.js/,'session event guard must be available offline');
+assert.match(regressionRunner,/tests\/g13_33_v042743_group_bound_review_session_cache_gate\.mjs/,'G13.33 must be in consolidated G13 regression');
+assert.match(regressionRunner,/g13-ocr-ai-regression-2026-08-27-v042743-group-bound-review-session-cache-authority/,'consolidated regression identity must be .43');
 
 console.log(JSON.stringify({
   status:'PASS',
@@ -107,5 +118,9 @@ console.log(JSON.stringify({
     manual_authority:true,
     capture_phase_projection:true,
     legacy_dom_projection_blocked:true,
+    legacy_json_hidden:true,
+    central_release_authority:true,
+    offline_precache:true,
+    consolidated_runner:true,
   },
 },null,2));
