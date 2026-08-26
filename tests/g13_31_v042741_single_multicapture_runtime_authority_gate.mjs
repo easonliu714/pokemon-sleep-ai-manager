@@ -27,23 +27,28 @@ assert.match(version,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.41-v042741-sing
 assert.match(version,/\/\/ app_version: 'v0\.4\.27\.40'/,'v0.4.27.40 predecessor identity must remain available');
 
 // Physical Android replay exposed two capture ledgers for one analysis revision:
-// the same stateful module was loaded once by index.html and again as ?v=<build>
-// from bootstrap. The production topology must have exactly one owner URL.
+// the stateful module was previously loaded once as an unversioned page module and
+// again as ?v=<build> from bootstrap. v0.4.27.41 uses one canonical module URL.
 const staticNeedle='<script type="module" src="./assets/js/data-consistency-multicapture.js"></script>';
-assert.equal(index.split(staticNeedle).length-1,1,'index.html must own exactly one static multicapture runtime');
-assert.equal((bootstrap.match(/data-consistency-multicapture\.js/g)||[]).length,0,'bootstrap must not probe or dynamically import a second multicapture module URL');
+const bootstrapNeedle="import './data-consistency-multicapture.js';";
+assert.equal(index.split(staticNeedle).length-1,1,'index.html must retain exactly one canonical unversioned multicapture reference');
+assert.equal(bootstrap.split(bootstrapNeedle).length-1,1,'bootstrap must initialize the same canonical unversioned multicapture URL exactly once');
+assert.doesNotMatch(bootstrap,/data-consistency-multicapture\.js['"]?\s*,/,'multicapture must not re-enter the query-versioned probe list');
 assert.doesNotMatch(bootstrap,/import\(`\.\/data-consistency-multicapture\.js\?v=/,'query-versioned duplicate runtime is forbidden');
+assert.equal((bootstrap.match(/data-consistency-multicapture\.js\?v=/g)||[]).length,0,'no query-versioned multicapture URL may remain');
 
-// Static dependency order is intentional: one ledger first, then the form-group
-// authority, then explicit-save authority. Removing the static core without changing
-// this order would leave later installers without their API.
+// Bootstrap is earlier than the page's later static script, but its top-level import
+// is a dependency: ESM evaluates the singleton before bootstrap body/downstream probes.
+// The later page script resolves to the identical URL and is therefore de-duplicated.
+const bootstrapIndex=index.indexOf('./assets/js/bootstrap.js');
 const coreIndex=index.indexOf('./assets/js/data-consistency-multicapture.js');
 const groupIndex=index.indexOf('./assets/js/review-group-isolation-v042717.js');
 const saveIndex=index.indexOf('./assets/js/explicit-manual-draft-save-v042737.js');
-assert.ok(coreIndex>=0&&groupIndex>coreIndex&&saveIndex>groupIndex,'static review authority load order must remain core -> group -> explicit save');
+assert.ok(bootstrapIndex>=0&&coreIndex>bootstrapIndex&&groupIndex>coreIndex&&saveIndex>groupIndex,'page order must remain bootstrap -> canonical core reference -> group -> explicit save');
+assert.match(bootstrap,/import '\.\/data-consistency-multicapture\.js';[\s\S]*const authority=/,'singleton dependency must be evaluated before bootstrap runtime body');
 
-// Offline remains supported without the bootstrap duplicate because Service Worker
-// precaches the single static authority and querySafeCacheMatch ignores search params.
+// Offline remains supported because Service Worker precaches that same canonical URL
+// and querySafeCacheMatch ignores search params for legacy/query-safe requests.
 assert.match(serviceWorker,/['"]\.\/assets\/js\/data-consistency-multicapture\.js['"]/,'single multicapture authority must stay precached');
 assert.match(serviceWorker,/caches\.match\(request,\{ignoreSearch:true\}\)/,'offline query-safe cache fallback must remain available');
 
@@ -57,9 +62,12 @@ assert.match(core,/globalThis\.addEventListener\('pokemon-sleep:analysis-revisio
 console.log(JSON.stringify({
   status:'PASS',
   gate:'G13.31_V042741_SINGLE_MULTICAPTURE_RUNTIME_AUTHORITY',
-  physical_failure_replayed:'explicit manual save GROUP_NOT_FOUND while navigation uses a different duplicate capture ledger',
-  production_static_multicapture_instances:1,
-  bootstrap_dynamic_multicapture_instances:0,
+  physical_failure_replayed:'explicit manual save GROUP_NOT_FOUND while navigation used another duplicate capture ledger',
+  canonical_multicapture_url:'./assets/js/data-consistency-multicapture.js',
+  bootstrap_dependency_references:1,
+  page_static_references:1,
+  evaluated_esm_instances_expected:1,
+  bootstrap_query_versioned_instances:0,
   service_worker_precache:true,
   stale_revision_fail_closed:true,
   group_not_found_fail_closed:true,
