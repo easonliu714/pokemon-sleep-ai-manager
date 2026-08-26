@@ -1,6 +1,7 @@
 import {debugTrace} from './debug-trace-manager.js';
 import './version-authority.js';
 import {enforceLiveVersionHandoff} from './v0394-startup-watchdog.js';
+import './data-consistency-multicapture.js';
 
 /* Legacy CI parser bridges only. Executable runtime authority comes exclusively from version-authority.js.
 APP_VERSION = 'v0.3.94'
@@ -108,9 +109,10 @@ function showFailure(label,error){
   if(warning){warning.textContent=`前端模組載入失敗：${label}：${error?.message||error}。請至診斷中心匯出 JSON。`;warning.classList.remove('hidden');}
 }
 
-// Stateful multicapture authority is intentionally NOT dynamically probed here.
-// index.html owns its single unversioned module instance so the group ledger/listeners
-// used by review-group authority and explicit manual save are the same runtime instance.
+// Stateful multicapture authority is a canonical unversioned Bootstrap dependency.
+// index.html also references that exact same URL; ESM URL identity deduplicates it to
+// one evaluated module/ledger while making the singleton ready before downstream probes.
+// Never add this stateful module to the query-versioned probe list below.
 const probes=['runtime-version.js','storage.js','schema.js','seed-data.js','shared-master-schema.js','shared-master-data.js','public-empty-profile-master.js','canonical-registry.js','database.js','time-utils.js','pokemon-master-options.js','manual-editor.js','pokemon-detail.js','importer.js','ai-observation.js','ai-workflow.js','ai-key-vault.js','ai-project-pool-runtime.js','ai-project-pool-settings.js','ai-review-image-resolver.js','ai-review-queue-executor.js','ai-review-executor-controller.js','ai-review-executor-status-ui.js','prompt-catalog.js','g3-planning.js','identity-review.js','identity-convergence.js','identity-quality-guard.js','identity-dedup.js','identity-evidence-builder.js','ingredient-gap-engine.js','ingredient-probability-first-party-observation-contract.js','ingredient-probability-first-party-observation-update.js','ingredient-probability-first-party-observation-ui.js','update-center-ui-guard.js','update-center-live-debug.js','shared-knowledge-ui.js','recipe-render-guard.js','identity-candidate-engine.js','sqlite-identity-candidate-adapter.js','identity-confirmation-model.js','identity-confirmation-ui.js','identity-confirmation-entry.js','identity-import-wizard.js','identity-import-pipeline.js','pokemon-screenshot-grouping.js','pokemon-zip-manifest.js','pokemon-zip-adapter.js','data1-zip-inventory.js','data1-image-fingerprint.js','data1d-local-ocr-runtime.js','ocr-runtime-monitor.js','data1d-ocr-first-classifier.js','data1d1-ocr-runtime-ui.js','data1d1-ocr-review-package.js','data1d1-ocr-region-ai-consent.js','data1d1-ocr-region-ui.js','data1d1-manual-reocr.js','data1d1-ocr-thumbnail-region-confidence.js','data1d1-ocr-thumbnail-overlay-wiring.js','data1d1-ocr-overlay-lifecycle-events.js','data1d1-ocr-overlay-controller-integration.js','data1d1-ocr-overlay-update-center-mount.js','data1d1-ocr-overlay-update-center-bridge.js','data1d1-ocr-overlay-update-center-bootstrap.js','data1d1-ocr-overlay-preview-event-wiring.js','data1-inventory-review.js','data1-inventory-review-ui.js','jszip-loader.js','android-import-file-picker.js','screenshot-observation-bridge.js','identity-import-apply-operation.js','identity-import-transaction.js','identity-import-wizard-entry.js','unified-import-analysis-workbench.js','backup-truth-restore.js','public-catalog-workbench.js','v0382-image-byte-snapshot.js','v0382-release-authority.js','v0383-catalog-ocr-review-contract.js','v0389-rescue-catalog-import.js'];
 
 (async()=>{
