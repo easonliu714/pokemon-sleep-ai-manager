@@ -28,7 +28,17 @@ assert.match(schema,/obtained_at TEXT/u,'legacy pokemon.obtained_at must remain 
 // Direct Observation v2 registered_date becomes registered_at; legacy obtained_at stays a separate compatibility field.
 assert.match(workbench,/registered_at:text\(identity\.registered_date\)/u,'direct registered_date must project to registered_at');
 assert.match(workbench,/obtained_at:text\(raw\.obtained_at\)/u,'legacy obtained_at compatibility projection missing');
-assert.match(workbench,/field\('登錄日期','registered_at',d\.registered_at,'date'\)/u,'confirmation date UI must render direct registered_at only');
+if(versionAtLeast(currentVersion,'v0.4.27.41')){
+  // v0.4.27.41 keeps the same direct registered_at authority but synchronously
+  // projects localized display text to an HTML-date-compatible ISO value. This is
+  // presentation-only; obtained_at must never become a substitute observation.
+  assert.match(workbench,/import \{normalizeGameDateForInput\} from '\.\/player-profile-consistency-v042723\.js';/u,'v0.4.27.41 date UI must reuse the governed deterministic formatter');
+  assert.match(workbench,/const registeredDateInputValue=normalizeGameDateForInput\(d\.registered_at\)\|\|'';/u,'v0.4.27.41 date UI must project direct registered_at synchronously');
+  assert.match(workbench,/field\('登錄日期','registered_at',registeredDateInputValue,'date'\)/u,'v0.4.27.41 confirmation date UI must render the direct registered_at ISO projection');
+  assert.doesNotMatch(workbench,/normalizeGameDateForInput\([^)]*obtained_at/u,'v0.4.27.41 date projection must not use legacy obtained_at');
+}else{
+  assert.match(workbench,/field\('登錄日期','registered_at',d\.registered_at,'date'\)/u,'confirmation date UI must render direct registered_at only');
+}
 assert.doesNotMatch(workbench,/field\('登錄日期','registered_at',d\.registered_at\|\|d\.obtained_at/u,'confirmation must not silently coerce legacy obtained_at into registered_at');
 assert.match(workbench,/['"]evolution_other_requirement['"],['"]registered_at['"],['"]obtained_at['"]/u,'confirmation sparse patch must preserve both date semantics');
 
@@ -89,4 +99,4 @@ for(const asset of [
   './assets/js/version-authority.js',
 ])assert.ok(serviceWorker.includes(`'${asset}'`),`service worker precache missing ${asset}`);
 
-console.log(JSON.stringify({status:'PASS',gate:'V042712_CONFIRMATION_LIFECYCLE_UX_SUCCESSOR_AWARE',predecessor_version:'v0.4.27.12',current_version:currentVersion,registered_date_split:true,existing_player_label_protected:true,terminal_capture_lifecycle:true,navigable_capture_successor:versionAtLeast(currentVersion,'v0.4.27.13'),roster_refresh_without_reload:true,verified_not_required_display_only:true,model_failover_visible:true,offline_module_closure:true},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V042712_CONFIRMATION_LIFECYCLE_UX_SUCCESSOR_AWARE',predecessor_version:'v0.4.27.12',current_version:currentVersion,registered_date_split:true,registered_date_input_projection:versionAtLeast(currentVersion,'v0.4.27.41')?'DIRECT_REGISTERED_AT_ISO_DISPLAY_ONLY':'DIRECT_REGISTERED_AT_RAW',existing_player_label_protected:true,terminal_capture_lifecycle:true,navigable_capture_successor:versionAtLeast(currentVersion,'v0.4.27.13'),roster_refresh_without_reload:true,verified_not_required_display_only:true,model_failover_visible:true,offline_module_closure:true},null,2));
