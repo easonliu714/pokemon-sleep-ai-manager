@@ -43,13 +43,21 @@ for(const token of [
   'getRenderedReviewGroupState',
 ])assert.ok(patch.includes(token),`group-bound runtime contract missing ${token}`);
 
-// v0.4.27.16 physical PASS invariants remain intact.
+// v0.4.27.16 physical PASS invariants remain intact. The original predecessor auto-focused a
+// newly arriving target. v0.4.27.40+ supersedes only that focus policy: background targets queue
+// and therefore cannot create the stale active-pointer race in the first place.
 for(const token of [
   'REFERENCE_OVERLAY_ACTIVE',
   'baseline_hydrated_fields',
   'pokemon-sleep:analysis-confirmation-navigation-changed',
-  'platform_target_new_run_focus',
 ])assert.ok(multi.includes(token),`v0.4.27.16 multicapture invariant missing ${token}`);
+const backgroundTargetQueue=multi.includes('platform_target_background_revision')&&multi.includes('background_target_queue:true');
+if(backgroundTargetQueue){
+  for(const token of ["reason:'platform_target_background_revision'",'platform_target_auto_focus:false','background_target_queue:true'])assert.ok(multi.includes(token),`successor review-focus invariant missing ${token}`);
+  assert.ok(!multi.includes("selectGroup(target.id,{reason:'platform_target_new_run_focus'})"),'successor must not restore predecessor auto-focus');
+}else{
+  assert.ok(multi.includes('platform_target_new_run_focus'),'v0.4.27.16 predecessor focus invariant missing platform_target_new_run_focus');
+}
 for(const token of [
   'dehydrateBaselineDraft',
   '維持原值不會建立新 Evidence 或 update',
@@ -149,6 +157,7 @@ console.log(JSON.stringify({
     manual_snapshot_persistence:true,
     bidirectional_navigation_from_rendered_group:true,
     v042716_baseline_sparse_diff_preserved:true,
+    review_focus_policy:backgroundTargetQueue?'BACKGROUND_TARGET_QUEUE_NO_FOCUS_STEAL':'PREDECESSOR_AUTO_FOCUS',
     latios_main_skill_canonical:'流星群（樹果遽增）',
     professor_transfer_preserved:true,
     per_image_export_schema:'1.2',
