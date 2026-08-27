@@ -1,3 +1,5 @@
+import './review-reference-history-ux-v042745.js';
+
 function clearPreview(){
   const summary=document.getElementById('importSummary');
   const table=document.getElementById('changeTable');
