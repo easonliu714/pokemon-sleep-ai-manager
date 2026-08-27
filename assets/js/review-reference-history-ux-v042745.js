@@ -7,7 +7,7 @@ import {
   canonicalBerryName,
 } from './public-berry-strength-master.js';
 
-export const REVIEW_REFERENCE_HISTORY_UX_VERSION='v0.4.27.45-review-reference-evolution-history-ux-2026-08-27-b';
+export const REVIEW_REFERENCE_HISTORY_UX_VERSION='v0.4.27.45-review-reference-evolution-history-ux-2026-08-27-c';
 export const IMPORT_HISTORY_EXPORT_SCHEMA='pokemon-sleep-import-history-export/1.0';
 
 const text=value=>String(value??'').normalize('NFKC').trim();
@@ -89,6 +89,26 @@ export function berryReferenceHumanMessage(reference={}){
   }
 }
 
+const BERRY_APPLY_BLOCK_STATUSES=new Set([
+  'AI_BLANK_PUBLIC_REFERENCE_AVAILABLE',
+  'AI_BLANK_PUBLIC_SPECIES_REFERENCE_AVAILABLE',
+  'REVIEW_REQUIRED_BERRY_PUBLIC_RELATION_MISMATCH',
+  'REVIEW_REQUIRED_UNKNOWN_BERRY_NAME',
+  'PUBLIC_RELATION_MATCH_ALIAS_NORMALIZED',
+  'CANONICAL_BERRY_ALIAS_AVAILABLE',
+]);
+export function berryReferenceApplyPolicy(reference={}){
+  const status=text(reference.status);
+  const blocked=BERRY_APPLY_BLOCK_STATUSES.has(status);
+  return Object.freeze({
+    allowed:!blocked,
+    status:blocked?'PUBLIC_BERRY_MANUAL_CONFIRMATION_REQUIRED':'PUBLIC_BERRY_REFERENCE_CLEAR',
+    reference_status:status||'NO_PUBLIC_REFERENCE',
+    required_action:blocked?'CORRECT_OR_SELECT_CANONICAL_BERRY_THEN_EXPLICIT_MANUAL_SAVE':null,
+    auto_write:false,
+  });
+}
+
 export function evolutionRequirementSemantic({authority_status='',public_requirement_state='',current_value=''}={}){
   const status=text(authority_status),state=text(public_requirement_state),value=text(current_value);
   if(status==='VERIFIED_TERMINAL_CURRENT_SLEEP')return Object.freeze({kind:'TERMINAL',label:'已完全進化',detail:'公版已驗證：目前物種在 Pokémon Sleep 中已沒有下一階進化。'});
@@ -145,18 +165,37 @@ function speciesReference(species){
   return globalThis.PokemonSleepReviewSessionRuntimeV042744?.getPublicFixedFields?.(species)||null;
 }
 
-export function decorateBerryReference(root=document.getElementById('analysisConfirmationWorkbench')){
-  const section=root?.querySelector?.('.analysis-confirmation');if(!section)return null;
+function currentBerryReference(root=document.getElementById('analysisConfirmationWorkbench')){
+  const section=root?.querySelector?.('.analysis-confirmation');if(!section)return {section:null,berryInput:null,reference:null};
   const speciesInput=section.querySelector('[data-field="species"]'),typeInput=section.querySelector('[data-field="type"]'),berryInput=section.querySelector('[data-field="favorite_berry"]');
-  if(!berryInput)return null;
-  ensureBerryDatalist(section.ownerDocument||document);berryInput.setAttribute('list','publicBerryNamesV042745');
+  if(!berryInput)return {section,berryInput:null,reference:null};
   const reference=resolvePublicBerryReference({species:speciesInput?.value,observed_type:typeInput?.value,observed_berry:berryInput.value,species_reference:speciesReference(speciesInput?.value)});
+  return {section,berryInput,reference};
+}
+
+export function decorateBerryReference(root=document.getElementById('analysisConfirmationWorkbench')){
+  const {section,berryInput,reference}=currentBerryReference(root);if(!section||!berryInput||!reference)return null;
+  ensureBerryDatalist(section.ownerDocument||document);berryInput.setAttribute('list','publicBerryNamesV042745');
   const holder=berryInput.closest('.edit-field')||berryInput.parentElement;if(!holder)return reference;
   let note=holder.querySelector('[data-v042745-berry-reference]');if(!note){note=(section.ownerDocument||document).createElement('small');note.dataset.v042745BerryReference='true';holder.appendChild(note);}
-  note.className=reference.review_required?'notice error':'notice';note.textContent=berryReferenceHumanMessage(reference);
-  note.dataset.referenceStatus=reference.status;note.dataset.autoWrite='false';
-  trace('v042745_berry_public_reference_rendered',{status:reference.status,species:reference.species,observed_type:reference.observed_type,reference_type:reference.reference_type,reference_type_basis:reference.reference_type_basis,observed_berry:reference.observed_berry,reference_berry:reference.reference_berry,review_required:reference.review_required,auto_write:false});
+  const policy=berryReferenceApplyPolicy(reference);
+  note.className=policy.allowed?(reference.review_required?'notice error':'notice'):'notice pending';note.textContent=berryReferenceHumanMessage(reference);
+  note.dataset.referenceStatus=reference.status;note.dataset.autoWrite='false';note.dataset.applyAllowed=String(policy.allowed);
+  trace('v042745_berry_public_reference_rendered',{status:reference.status,species:reference.species,observed_type:reference.observed_type,reference_type:reference.reference_type,reference_type_basis:reference.reference_type_basis,observed_berry:reference.observed_berry,reference_berry:reference.reference_berry,review_required:reference.review_required,apply_allowed:policy.allowed,auto_write:false});
   return reference;
+}
+
+function blockUnconfirmedBerryApply(event){
+  const button=event?.target?.closest?.('#applyConfirmedAnalysis');if(!button)return;
+  const {section,berryInput,reference}=currentBerryReference();if(!section||!berryInput||!reference)return;
+  const policy=berryReferenceApplyPolicy(reference);if(policy.allowed)return;
+  event.preventDefault?.();event.stopImmediatePropagation?.();event.stopPropagation?.();
+  const holder=berryInput.closest('.edit-field')||berryInput.parentElement;
+  let note=holder?.querySelector?.('[data-v042745-berry-reference]')||null;
+  if(!note&&holder){note=(section.ownerDocument||document).createElement('small');note.dataset.v042745BerryReference='true';holder.appendChild(note);}
+  if(note){note.className='notice error';note.textContent=`${berryReferenceHumanMessage(reference)} 確認處置已阻擋：請先完成樹果人工確認，並按「儲存人工修改」。`;note.dataset.applyAllowed='false';}
+  berryInput.focus?.();berryInput.scrollIntoView?.({block:'center',behavior:'smooth'});
+  trace('v042745_public_berry_apply_blocked',{status:'blocked',reference_status:reference.status,species:reference.species,observed_type:reference.observed_type,observed_berry:reference.observed_berry,reference_berry:reference.reference_berry,required_action:policy.required_action,player_sqlite_write:false,auto_write:false},'blocked');
 }
 
 const EVOLUTION_FIELDS=Object.freeze(['evolution_level_required','evolution_sleep_hours_required','evolution_candy_required','evolution_item_required','evolution_other_requirement']);
@@ -174,8 +213,7 @@ export function decorateEvolutionSemantics(root=document.getElementById('analysi
     const semantic=evolutionRequirementSemantic({authority_status:authorityStatus,public_requirement_state:input.dataset.publicRequirementState,current_value:input.value});
     if(semantic.kind==='NONE'){note?.remove?.();continue;}
     if(semantic.kind==='TERMINAL'){
-      note?.remove?.();
-      input.placeholder='已完全進化';input.title=semantic.detail;continue;
+      note?.remove?.();input.placeholder='已完全進化';input.title=semantic.detail;continue;
     }
     if(!note){note=(section.ownerDocument||document).createElement('small');note.dataset.v042745EvolutionField=field;input.closest('.edit-field')?.appendChild(note);}
     note.className=semantic.kind==='NOT_REQUIRED_CONFLICT'?'notice error':'notice';note.textContent=semantic.detail;
@@ -221,7 +259,8 @@ function boot(){
   globalThis.addEventListener('pokemon-sleep:analysis-confirmation-merged',scheduleReviewDecoration);
   document.addEventListener('input',event=>{if(['species','type','favorite_berry',...EVOLUTION_FIELDS].includes(event.target?.dataset?.field))scheduleReviewDecoration();},true);
   document.addEventListener('change',event=>{if(['species','type','favorite_berry',...EVOLUTION_FIELDS].includes(event.target?.dataset?.field))scheduleReviewDecoration();},true);
-  trace('v042745_review_reference_history_ux_ready',{berry_reference:true,public_name_datalist:true,evolution_semantics:true,import_history_default_collapsed:true,import_history_json_export:true,no_player_auto_write:true,no_new_mutation_observer:true});
+  document.addEventListener('click',blockUnconfirmedBerryApply,true);
+  trace('v042745_review_reference_history_ux_ready',{berry_reference:true,berry_manual_confirmation_apply_gate:true,public_name_datalist:true,evolution_semantics:true,import_history_default_collapsed:true,import_history_json_export:true,no_player_auto_write:true,no_new_mutation_observer:true});
 }
 
 if(typeof document!=='undefined'){
