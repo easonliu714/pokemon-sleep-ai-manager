@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 
-export const G13_OCR_AI_REGRESSION_VERSION='g13-ocr-ai-regression-2026-08-27-v042744-deferred-session-authority-public-berry';
-// Legacy G13.33 static parser bridge only; executable runner authority is the successor above:
+export const G13_OCR_AI_REGRESSION_VERSION='g13-ocr-ai-regression-2026-08-27-v042745-public-reference-evolution-history-ux';
+// Legacy G13.34 static parser bridge only; executable runner authority is the successor above:
+// g13-ocr-ai-regression-2026-08-27-v042744-deferred-session-authority-public-berry
+// Legacy G13.33 static parser bridge only:
 // g13-ocr-ai-regression-2026-08-27-v042743-group-bound-review-session-cache-authority
 export const G13_CORE_GATES=Object.freeze([
   'tests/g13_2c_ocr_isolation_secret_redaction_gate.mjs',
@@ -40,6 +42,7 @@ export const G13_CORE_GATES=Object.freeze([
   'tests/g13_32_v042742_manual_save_authority_promotion_gate.mjs',
   'tests/g13_33_v042743_group_bound_review_session_cache_gate.mjs',
   'tests/g13_34_v042744_deferred_session_authority_public_berry_gate.mjs',
+  'tests/g13_35_v042745_reference_evolution_history_gate.mjs',
 ]);
 export const G13_REMAINING_WRAPPER_GATES=Object.freeze([
   'scripts/g13-2a-ai-project-pool-executor-regression.mjs',
