@@ -7,17 +7,14 @@ import {
   berryNameForType,
 } from './public-berry-strength-master.js';
 
-export const GROUP_BOUND_REVIEW_RUNTIME_VERSION='v0.4.27.44-deferred-session-authority-public-fixed-field-2026-08-27-b';
-export const PUBLIC_FIXED_FIELD_AUTHORITY_VERSION='pokemon-sleep-public-fixed-field-authority-2026-08-27-b';
+export const GROUP_BOUND_REVIEW_RUNTIME_VERSION='v0.4.27.44-deferred-session-authority-public-relation-review-only-2026-08-27-c';
+export const PUBLIC_FIXED_FIELD_AUTHORITY_VERSION='pokemon-sleep-public-relation-review-only-2026-08-27-c';
 
 const text=value=>String(value??'').trim();
 const clone=value=>value==null?value:JSON.parse(JSON.stringify(value));
-const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 
-// Only fields verified independently from the player's screenshot belong here.
-// Berry identity is NOT duplicated per species: Pokémon Sleep deterministically
-// maps type -> berry, so favorite_berry is resolved through the existing public
-// berry master below. AI remains evidence, never public-master authority.
+// Independent public species reference. This is validation evidence only.
+// It must never manufacture or overwrite image-observed player fields.
 export const PUBLIC_FIXED_SPECIES_FIELDS=Object.freeze({
   '小鍛匠':Object.freeze({
     type:'妖精',
@@ -48,13 +45,12 @@ export const PUBLIC_FIXED_SPECIES_FIELDS=Object.freeze({
   }),
 });
 
-const FIELD_LABELS=Object.freeze({type:'屬性',favorite_berry:'樹果'});
 const patchState={
   status:'PENDING_CORE',
   attempts:0,
   installed_at:null,
   normalize_wrapped:false,
-  capture_sanitizer_installed:false,
+  capture_validator_installed:false,
   event_guard_installed:false,
   last_error:null,
 };
@@ -62,7 +58,7 @@ const patchState={
 function trace(scope,event,details={},status='completed',error=null){
   const payload={
     version:GROUP_BOUND_REVIEW_RUNTIME_VERSION,
-    fixed_field_version:PUBLIC_FIXED_FIELD_AUTHORITY_VERSION,
+    public_relation_version:PUBLIC_FIXED_FIELD_AUTHORITY_VERSION,
     berry_master_version:PUBLIC_BERRY_STRENGTH_VERSION,
     inherited_guard_version:GROUP_BOUND_REVIEW_EVENT_GUARD_VERSION,
     ...details,
@@ -74,140 +70,164 @@ function trace(scope,event,details={},status='completed',error=null){
 export function publicFixedFieldsForSpecies(species){
   const row=PUBLIC_FIXED_SPECIES_FIELDS[text(species)]||null;
   if(!row)return null;
-  const favorite_berry=berryNameForType(row.type)||null;
-  return Object.freeze({...row,favorite_berry,berry_master_version:PUBLIC_BERRY_STRENGTH_VERSION});
+  return Object.freeze({
+    ...row,
+    favorite_berry:berryNameForType(row.type)||null,
+    berry_master_version:PUBLIC_BERRY_STRENGTH_VERSION,
+  });
 }
 
-function fixedFieldWarning({field,candidate,authoritative,species,sourceType,sourceRefs=[]}){
-  const label=FIELD_LABELS[field]||field;
+function typeWarning({candidate,authoritative,species,master}){
   return {
-    field,
+    field:'type',
     candidate:clone(candidate),
     authoritative:clone(authoritative),
     species,
-    status:'REVIEW_ONLY_PUBLIC_FIXED_FIELD_CONFLICT',
-    reason:field==='favorite_berry'?'AI_BERRY_DIFFERS_TYPE_BERRY_MASTER':'AI_VALUE_DIFFERS_VERIFIED_PUBLIC_FIXED_FIELD',
+    status:'REVIEW_REQUIRED_SPECIES_TYPE_MISMATCH',
+    reason:'AI_TYPE_DIFFERS_VERIFIED_PUBLIC_SPECIES_REFERENCE',
     authority_version:PUBLIC_FIXED_FIELD_AUTHORITY_VERSION,
-    berry_master_version:PUBLIC_BERRY_STRENGTH_VERSION,
-    source_type:sourceType||'verified_public_master',
-    source_refs:[...sourceRefs],
-    message:`${label}：AI 辨識為「${text(candidate)}」；公版固定資料為「${text(authoritative)}」。平台已保留公版值「${text(authoritative)}」，請人工確認圖片。`,
+    source_type:master?.source_type||'verified_public_species_reference',
+    source_refs:[...(master?.source_refs||[])],
+    evidence_role:'VALIDATION_NOT_IMAGE_EVIDENCE',
+    auto_rewrite:false,
+    message:`屬性：AI 辨識為「${text(candidate)}」；公版物種資料為「${text(authoritative)}」。平台保留 AI 觀察值，不會自動改寫，請人工確認圖片。`,
   };
 }
 
-function addWarning(draft,warning){
-  if(!warning)return;
-  const rows=Array.isArray(draft.identity_guard_warnings)?draft.identity_guard_warnings.map(clone):[];
-  const duplicate=rows.some(row=>row?.reason===warning.reason&&row?.field===warning.field&&text(row?.candidate)===text(warning.candidate)&&text(row?.authoritative)===text(warning.authoritative));
-  if(!duplicate)rows.push(warning);
-  draft.identity_guard_warnings=rows;
+function berryWarning({candidate,canonicalBerry,observedType,species}){
+  return {
+    field:'favorite_berry',
+    candidate:clone(candidate),
+    authoritative:clone(canonicalBerry),
+    species,
+    observed_type:observedType,
+    status:'REVIEW_REQUIRED_TYPE_BERRY_MISMATCH',
+    reason:'AI_BERRY_DIFFERS_PUBLIC_TYPE_BERRY_RELATION',
+    authority_version:PUBLIC_FIXED_FIELD_AUTHORITY_VERSION,
+    berry_master_version:PUBLIC_BERRY_STRENGTH_VERSION,
+    source_type:'verified_public_type_to_berry_master',
+    source_refs:[PUBLIC_BERRY_STRENGTH_VERSION],
+    evidence_role:'VALIDATION_NOT_IMAGE_EVIDENCE',
+    auto_rewrite:false,
+    message:`樹果：AI 辨識為「${text(candidate)}」；依目前觀察屬性「${text(observedType)}」的公版關係參考值為「${text(canonicalBerry)}」。平台保留 AI 觀察值，不會自動改寫，請人工確認圖片。`,
+  };
 }
 
+// Compatibility name retained for the v0.4.27.44 branch API. Despite the old
+// name, this function is review-only: it returns an unchanged player draft and
+// sidecar warnings. Public master data is never promoted to image evidence.
 export function applyPublicFixedFieldAuthorityToDraft(input={},meta={}){
   const draft=clone(input)||{};
   const species=text(draft.species||meta.species);
   const speciesMaster=PUBLIC_FIXED_SPECIES_FIELDS[species]||null;
+  const observedType=text(draft.type);
+  const observedBerry=text(draft.favorite_berry);
   const warnings=[];
 
-  // Species-fixed type wins only where independent public verification exists.
-  // For other species the observed type is left untouched; however, once a type
-  // is present, its berry is deterministic and comes from the canonical public
-  // type->berry master rather than from AI free text.
-  if(speciesMaster?.type){
-    const candidate=draft.type,authoritative=speciesMaster.type;
-    if(candidate!==null&&candidate!==undefined&&candidate!==''&&!same(candidate,authoritative)){
-      const warning=fixedFieldWarning({field:'type',candidate,authoritative,species,sourceType:speciesMaster.source_type,sourceRefs:speciesMaster.source_refs});
-      warnings.push(warning);addWarning(draft,warning);
-    }
-    draft.type=authoritative;
+  if(speciesMaster?.type&&observedType&&observedType!==text(speciesMaster.type)){
+    warnings.push(typeWarning({candidate:observedType,authoritative:speciesMaster.type,species,master:speciesMaster}));
   }
 
-  const authoritativeBerry=berryNameForType(text(draft.type));
-  if(authoritativeBerry){
-    const candidate=draft.favorite_berry;
-    if(candidate!==null&&candidate!==undefined&&candidate!==''&&!same(candidate,authoritativeBerry)){
-      const warning=fixedFieldWarning({field:'favorite_berry',candidate,authoritative:authoritativeBerry,species,sourceType:'verified_public_type_to_berry_master',sourceRefs:[PUBLIC_BERRY_STRENGTH_VERSION]});
-      warnings.push(warning);addWarning(draft,warning);
-    }
-    draft.favorite_berry=authoritativeBerry;
+  // The relation is only meaningful when BOTH image-observed values exist.
+  // Missing values remain missing; no public-master fill is permitted.
+  const canonicalBerry=observedType?text(berryNameForType(observedType)):'';
+  if(observedType&&observedBerry&&canonicalBerry&&observedBerry!==canonicalBerry){
+    warnings.push(berryWarning({candidate:observedBerry,canonicalBerry,observedType,species}));
   }
 
-  const authoritativeFields=[];
-  if(speciesMaster?.type)authoritativeFields.push('type');
-  if(authoritativeBerry)authoritativeFields.push('favorite_berry');
-  if(authoritativeFields.length){
-    draft.public_fixed_field_authority={
-      version:PUBLIC_FIXED_FIELD_AUTHORITY_VERSION,
-      berry_master_version:PUBLIC_BERRY_STRENGTH_VERSION,
-      species:species||null,
-      fields:authoritativeFields,
-      species_source_type:speciesMaster?.source_type||null,
-      species_source_refs:[...(speciesMaster?.source_refs||[])],
-      species_verified_at:speciesMaster?.verified_at||null,
-      type_to_berry_master:true,
-    };
-  }
   return {
     draft,
-    changed:warnings.length>0||!same(input?.type,draft.type)||!same(input?.favorite_berry,draft.favorite_berry),
+    changed:false,
+    review_required:warnings.length>0,
     warnings,
     species,
     species_master:speciesMaster?publicFixedFieldsForSpecies(species):null,
-    authoritative_berry:authoritativeBerry||null,
+    observed_type:observedType||null,
+    observed_berry:observedBerry||null,
+    canonical_berry_reference:canonicalBerry||null,
+    auto_rewrite:false,
+    missing_public_fill:false,
+    evidence_role:'VALIDATION_NOT_IMAGE_EVIDENCE',
   };
 }
 
+export const validatePublicRelationsInDraft=applyPublicFixedFieldAuthorityToDraft;
+
 function installNormalizeWrapper(scope,consistency){
-  if(consistency.normalizeRevision?.__v042744PublicFixedFieldAuthority===PUBLIC_FIXED_FIELD_AUTHORITY_VERSION){patchState.normalize_wrapped=true;return true;}
+  if(consistency.normalizeRevision?.__v042744PublicFixedFieldAuthority===PUBLIC_FIXED_FIELD_AUTHORITY_VERSION){
+    patchState.normalize_wrapped=true;
+    return true;
+  }
   if(typeof consistency.normalizeRevision!=='function')return false;
   const original=consistency.normalizeRevision.bind(consistency);
   const wrapped=revision=>{
     const normalized=original(revision);
     if(revision?.analysis_type!=='ai')return normalized;
-    const result=applyPublicFixedFieldAuthorityToDraft(normalized,{analysis_id:revision?.analysis_id||null,source_image_ref:revision?.source_image_ref||null});
-    if(result.changed){
-      trace(scope,'v042744_public_fixed_field_projection_applied',{
+    const validation=applyPublicFixedFieldAuthorityToDraft(normalized,{
+      analysis_id:revision?.analysis_id||null,
+      source_image_ref:revision?.source_image_ref||null,
+    });
+    if(validation.review_required){
+      trace(scope,'v042744_public_relation_validation_flagged',{
         analysis_id:revision?.analysis_id||null,
         source_image_ref:revision?.source_image_ref||null,
-        species:result.species,
-        warning_count:result.warnings.length,
-        corrected_fields:result.draft?.public_fixed_field_authority?.fields||[],
-        ai_candidate_values:result.warnings.map(row=>({field:row.field,candidate:row.candidate,authoritative:row.authoritative})),
+        species:validation.species,
+        warning_count:validation.warnings.length,
+        fields:validation.warnings.map(row=>row.field),
+        human_messages:validation.warnings.map(row=>row.message),
+        auto_rewrite:false,
+        missing_public_fill:false,
+        raw_observation_preserved:true,
         player_sqlite_write:false,
-      });
+      },'review_required');
     }
-    return result.draft;
+    // Return the exact normalized observation. The existing v0.4.27.36 player
+    // profile consistency layer renders the human review notice from these
+    // observed values; this successor must not pre-correct them.
+    return validation.draft;
   };
   Object.defineProperty(wrapped,'__v042744PublicFixedFieldAuthority',{value:PUBLIC_FIXED_FIELD_AUTHORITY_VERSION});
   consistency.normalizeRevision=wrapped;
   patchState.normalize_wrapped=true;
-  trace(scope,'v042744_public_fixed_field_normalizer_ready',{status:'completed',verified_species:Object.keys(PUBLIC_FIXED_SPECIES_FIELDS),generic_type_to_berry:true,player_sqlite_write:false});
+  trace(scope,'v042744_public_relation_validator_ready',{
+    status:'completed',
+    verified_species:Object.keys(PUBLIC_FIXED_SPECIES_FIELDS),
+    generic_type_to_berry:true,
+    auto_rewrite:false,
+    missing_public_fill:false,
+    player_sqlite_write:false,
+  });
   return true;
 }
 
-function sanitizeConfirmationEvent(scope,event,eventType){
-  const detail=event?.detail;if(!detail||!detail.draft)return;
-  const result=applyPublicFixedFieldAuthorityToDraft(detail.draft,{species:detail.draft?.species});
-  if(!result.changed)return;
-  detail.draft=result.draft;
-  trace(scope,'v042744_confirmation_event_public_fields_sanitized',{
+function validateConfirmationEvent(scope,event,eventType){
+  const detail=event?.detail;
+  if(!detail||!detail.draft)return;
+  const validation=applyPublicFixedFieldAuthorityToDraft(detail.draft,{species:detail.draft?.species});
+  if(!validation.review_required)return;
+  trace(scope,'v042744_confirmation_event_public_relation_flagged',{
     event_type:eventType,
     group_id:detail.group_id||null,
-    species:result.species,
-    warning_count:result.warnings.length,
-    corrected_fields:result.draft?.public_fixed_field_authority?.fields||[],
+    species:validation.species,
+    warning_count:validation.warnings.length,
+    fields:validation.warnings.map(row=>row.field),
+    human_messages:validation.warnings.map(row=>row.message),
     capture_phase:true,
+    auto_rewrite:false,
+    raw_observation_preserved:true,
     background_dom_write:false,
-  });
+  },'review_required');
 }
 
-function installCaptureSanitizer(scope){
-  if(patchState.capture_sanitizer_installed)return true;
+function installCaptureValidator(scope){
+  if(patchState.capture_validator_installed)return true;
   if(typeof scope.addEventListener!=='function')return false;
-  scope.addEventListener('pokemon-sleep:analysis-confirmation-group-selected',event=>sanitizeConfirmationEvent(scope,event,'selected'),true);
-  scope.addEventListener('pokemon-sleep:analysis-confirmation-merged',event=>sanitizeConfirmationEvent(scope,event,'merged'),true);
-  patchState.capture_sanitizer_installed=true;
-  trace(scope,'v042744_public_fixed_field_capture_guard_ready',{status:'completed',capture_phase:true,background_dom_write:false});
+  scope.addEventListener('pokemon-sleep:analysis-confirmation-group-selected',event=>validateConfirmationEvent(scope,event,'selected'),true);
+  scope.addEventListener('pokemon-sleep:analysis-confirmation-merged',event=>validateConfirmationEvent(scope,event,'merged'),true);
+  patchState.capture_validator_installed=true;
+  trace(scope,'v042744_public_relation_capture_validator_ready',{
+    status:'completed',capture_phase:true,auto_rewrite:false,background_dom_write:false,
+  });
   return true;
 }
 
@@ -220,43 +240,69 @@ export function attemptInstallDeferredReviewAuthority(scope=globalThis){
   }
   try{
     installNormalizeWrapper(scope,consistency);
-    installCaptureSanitizer(scope);
+    installCaptureValidator(scope);
     const guardOk=installGroupBoundReviewEventGuard(scope);
     patchState.event_guard_installed=Boolean(guardOk&&scope.PokemonSleepGroupBoundReviewEventGuardV042743);
-    if(!patchState.event_guard_installed){patchState.status='PENDING_GUARD';return false;}
-    patchState.status='READY';patchState.installed_at=patchState.installed_at||new Date().toISOString();patchState.last_error=null;
+    if(!patchState.event_guard_installed){
+      patchState.status='PENDING_GUARD';
+      return false;
+    }
+    patchState.status='READY';
+    patchState.installed_at=patchState.installed_at||new Date().toISOString();
+    patchState.last_error=null;
     trace(scope,'v042744_deferred_group_review_authority_ready',{
-      status:'completed',attempts:patchState.attempts,normalize_wrapped:patchState.normalize_wrapped,
-      capture_sanitizer_installed:patchState.capture_sanitizer_installed,event_guard_installed:true,
-      legacy_projection_retired:true,public_fixed_field_guard:true,generic_type_to_berry:true,no_new_mutation_observer:true,
+      status:'completed',
+      attempts:patchState.attempts,
+      normalize_wrapped:patchState.normalize_wrapped,
+      capture_validator_installed:patchState.capture_validator_installed,
+      event_guard_installed:true,
+      legacy_projection_retired:true,
+      public_relation_review_only:true,
+      generic_type_to_berry:true,
+      auto_rewrite:false,
+      no_new_mutation_observer:true,
     });
     return true;
   }catch(error){
-    patchState.status='ERROR';patchState.last_error=error?.message||String(error);
-    trace(scope,'v042744_deferred_group_review_authority_failed',{status:'failed',attempts:patchState.attempts,message:patchState.last_error},'failed',error);
+    patchState.status='ERROR';
+    patchState.last_error=error?.message||String(error);
+    trace(scope,'v042744_deferred_group_review_authority_failed',{
+      status:'failed',attempts:patchState.attempts,message:patchState.last_error,
+    },'failed',error);
     return false;
   }
 }
 
 export function installDeferredReviewAuthority(scope=globalThis,{interval_ms=50,max_wait_ms=120000}={}){
-  if(scope.PokemonSleepReviewSessionRuntimeV042744?.version===GROUP_BOUND_REVIEW_RUNTIME_VERSION)return scope.PokemonSleepReviewSessionRuntimeV042744;
+  if(scope.PokemonSleepReviewSessionRuntimeV042744?.version===GROUP_BOUND_REVIEW_RUNTIME_VERSION){
+    return scope.PokemonSleepReviewSessionRuntimeV042744;
+  }
   let timer=null,stopped=false,startedAt=Date.now();
   const attempt=()=>{
     if(stopped)return;
-    if(attemptInstallDeferredReviewAuthority(scope)){stopped=true;if(timer)scope.clearInterval?.(timer);return;}
+    if(attemptInstallDeferredReviewAuthority(scope)){
+      stopped=true;
+      if(timer)scope.clearInterval?.(timer);
+      return;
+    }
     if(Date.now()-startedAt>=max_wait_ms){
-      stopped=true;if(timer)scope.clearInterval?.(timer);
+      stopped=true;
+      if(timer)scope.clearInterval?.(timer);
       patchState.status='TIMEOUT';
-      trace(scope,'v042744_deferred_group_review_authority_timeout',{status:'blocked',attempts:patchState.attempts,max_wait_ms},'blocked');
+      trace(scope,'v042744_deferred_group_review_authority_timeout',{
+        status:'blocked',attempts:patchState.attempts,max_wait_ms,
+      },'blocked');
     }
   };
   const api={
     version:GROUP_BOUND_REVIEW_RUNTIME_VERSION,
+    public_relation_version:PUBLIC_FIXED_FIELD_AUTHORITY_VERSION,
     fixed_field_version:PUBLIC_FIXED_FIELD_AUTHORITY_VERSION,
     berry_master_version:PUBLIC_BERRY_STRENGTH_VERSION,
     attemptNow:attempt,
     getState:()=>clone(patchState),
     getPublicFixedFields:species=>clone(publicFixedFieldsForSpecies(species)),
+    validatePublicRelationsInDraft:(draft,meta={})=>applyPublicFixedFieldAuthorityToDraft(draft,meta),
     applyPublicFixedFieldAuthorityToDraft:(draft,meta={})=>applyPublicFixedFieldAuthorityToDraft(draft,meta),
   };
   scope.PokemonSleepReviewSessionRuntimeV042744=api;
@@ -264,8 +310,17 @@ export function installDeferredReviewAuthority(scope=globalThis,{interval_ms=50,
   if(!stopped&&typeof scope.setInterval==='function')timer=scope.setInterval(attempt,interval_ms);
   scope.addEventListener?.('DOMContentLoaded',attempt,{once:true});
   scope.addEventListener?.('load',attempt,{once:true});
-  trace(scope,'v042744_deferred_group_review_authority_bootstrap',{status:patchState.status,interval_ms,max_wait_ms,legacy_projection_retired:true,generic_type_to_berry:true});
+  trace(scope,'v042744_deferred_group_review_authority_bootstrap',{
+    status:patchState.status,
+    interval_ms,
+    max_wait_ms,
+    legacy_projection_retired:true,
+    public_relation_review_only:true,
+    auto_rewrite:false,
+  });
   return api;
 }
 
-if(typeof globalThis!=='undefined'&&typeof globalThis.document!=='undefined')installDeferredReviewAuthority(globalThis);
+if(typeof globalThis!=='undefined'&&typeof globalThis.document!=='undefined'){
+  installDeferredReviewAuthority(globalThis);
+}
