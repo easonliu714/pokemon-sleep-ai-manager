@@ -5,6 +5,7 @@ import {
   IMPORT_HISTORY_EXPORT_SCHEMA,
   resolvePublicBerryReference,
   berryReferenceHumanMessage,
+  berryReferenceApplyPolicy,
   evolutionRequirementSemantic,
   buildImportHistoryExport,
 } from '../assets/js/review-reference-history-ux-v042745.js';
@@ -26,6 +27,7 @@ assert.equal(blankBerry.evidence_role,'REFERENCE_NOT_IMAGE_EVIDENCE');
 assert.match(berryReferenceHumanMessage(blankBerry),/AI 未辨識樹果/);
 assert.match(berryReferenceHumanMessage(blankBerry),/參考值為「桃桃果」/);
 assert.match(berryReferenceHumanMessage(blankBerry),/儲存人工修改/);
+assert.equal(berryReferenceApplyPolicy(blankBerry).allowed,false,'blank AI berry with a public reference must require manual confirmation before Apply');
 
 const speciesFallback=resolvePublicBerryReference({
   species:'小鍛匠',observed_type:'',observed_berry:'',species_reference:{type:'妖精',favorite_berry:'桃桃果'},
@@ -34,6 +36,7 @@ assert.equal(speciesFallback.reference_type,'妖精');
 assert.equal(speciesFallback.reference_type_basis,'VERIFIED_SPECIES_REFERENCE');
 assert.equal(speciesFallback.reference_berry,'桃桃果');
 assert.equal(speciesFallback.status,'AI_BLANK_PUBLIC_REFERENCE_AVAILABLE');
+assert.equal(berryReferenceApplyPolicy(speciesFallback).allowed,false);
 
 const wrongTypeBlankBerry=resolvePublicBerryReference({
   species:'小鍛匠',observed_type:'毒',observed_berry:'',species_reference:{type:'妖精',favorite_berry:'桃桃果'},
@@ -45,6 +48,7 @@ assert.equal(wrongTypeBlankBerry.reference_berry,'桃桃果');
 assert.equal(wrongTypeBlankBerry.type_reference_conflict,true);
 assert.match(berryReferenceHumanMessage(wrongTypeBlankBerry),/目前觀察屬性「毒」與公版物種屬性不同/);
 assert.match(berryReferenceHumanMessage(wrongTypeBlankBerry),/公版物種屬性「妖精」/);
+assert.equal(berryReferenceApplyPolicy(wrongTypeBlankBerry).allowed,false);
 
 const conflict=resolvePublicBerryReference({species:'小鍛匠',observed_type:'妖精',observed_berry:'零餘果'});
 assert.equal(conflict.status,'REVIEW_REQUIRED_BERRY_PUBLIC_RELATION_MISMATCH');
@@ -56,6 +60,7 @@ assert.match(conflictText,/目前欄位為「零餘果」/);
 assert.match(conflictText,/參考值為「桃桃果」/);
 assert.match(conflictText,/不會自動改寫/);
 assert.doesNotMatch(conflictText,/\{|\}/,'berry conflict UX must be human-readable, not JSON');
+assert.equal(berryReferenceApplyPolicy(conflict).allowed,false);
 
 const doubleWrong=resolvePublicBerryReference({species:'小鍛匠',observed_type:'毒',observed_berry:'零餘果',species_reference:{type:'妖精',favorite_berry:'桃桃果'}});
 assert.equal(doubleWrong.status,'REVIEW_REQUIRED_BERRY_PUBLIC_RELATION_MISMATCH');
@@ -63,12 +68,22 @@ assert.equal(doubleWrong.reference_type,'妖精');
 assert.equal(doubleWrong.reference_berry,'桃桃果');
 assert.equal(doubleWrong.observed_berry,'零餘果');
 assert.match(berryReferenceHumanMessage(doubleWrong),/公版物種屬性「妖精」/);
+assert.equal(berryReferenceApplyPolicy(doubleWrong).allowed,false);
 
 const alias=resolvePublicBerryReference({observed_type:'電',observed_berry:'葡萄果'});
 assert.equal(alias.canonical_observed_berry,'萄葡果');
 assert.equal(alias.reference_berry,'萄葡果');
 assert.equal(alias.status,'PUBLIC_RELATION_MATCH_ALIAS_NORMALIZED');
 assert.match(berryReferenceHumanMessage(alias),/正名為「萄葡果」/);
+assert.equal(berryReferenceApplyPolicy(alias).allowed,false,'legacy alias must be manually saved as canonical public name before Apply');
+
+const exact=resolvePublicBerryReference({observed_type:'妖精',observed_berry:'桃桃果'});
+assert.equal(exact.status,'PUBLIC_RELATION_MATCH');
+assert.equal(berryReferenceApplyPolicy(exact).allowed,true,'canonical matching berry may proceed');
+
+const noReference=resolvePublicBerryReference({species:'未知物種',observed_type:'',observed_berry:''});
+assert.equal(noReference.status,'NO_PUBLIC_REFERENCE');
+assert.equal(berryReferenceApplyPolicy(noReference).allowed,true,'lack of public evidence must not invent a blocking requirement');
 
 const notRequired=evolutionRequirementSemantic({authority_status:'MASTER_HYDRATED',public_requirement_state:'VERIFIED_NOT_REQUIRED',current_value:''});
 assert.equal(notRequired.kind,'NOT_REQUIRED');
@@ -126,6 +141,8 @@ assert.doesNotMatch(source,/MutationObserver\s*\(/,'v0.4.27.45 must not add Muta
 assert.doesNotMatch(source,/berryInput\.value\s*=/,'public berry reference must never auto-write the visible observation');
 assert.match(source,/data-v042745-berry-reference/);
 assert.match(source,/publicBerryNamesV042745/,'berry field must receive governed public name candidates');
+assert.match(source,/v042745_public_berry_apply_blocked/,'unconfirmed public berry reference must have an explicit Apply fail-closed trace');
+assert.match(source,/addEventListener\('click',blockUnconfirmedBerryApply,true\)/,'public berry Apply guard must run in capture phase');
 assert.match(source,/details\.open=false/,'import history must default to collapsed');
 assert.match(source,/exportImportHistoryJsonBtnV042745/,'import history JSON export control must exist');
 assert.match(source,/SELECT \* FROM import_batches ORDER BY imported_at DESC/,'history export must query complete batch history');
@@ -150,6 +167,8 @@ console.log(JSON.stringify({
     berry_conflict_human_reference:true,
     berry_public_name_candidates:true,
     public_reference_auto_write:false,
+    unconfirmed_public_berry_apply_blocked:true,
+    canonical_matching_berry_apply_allowed:true,
     evolution_not_required_semantic:true,
     evolution_terminal_semantic:true,
     import_history_default_collapsed:true,
