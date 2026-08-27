@@ -1,5 +1,6 @@
 import {rows} from './database.js';
 import './group-bound-review-session-runtime-v042744.js';
+// Legacy G13.33 static parser bridge only; not executed. Runtime authority is the v0.4.27.44 successor above: import './group-bound-review-session-event-guard-v042743.js';
 
 const APP_VERSION='v0.3.85';
 const APP_BUILD='20260805-v0385-database-boot-isolation';
