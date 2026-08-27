@@ -31,8 +31,20 @@ const speciesFallback=resolvePublicBerryReference({
   species:'小鍛匠',observed_type:'',observed_berry:'',species_reference:{type:'妖精',favorite_berry:'桃桃果'},
 });
 assert.equal(speciesFallback.reference_type,'妖精');
+assert.equal(speciesFallback.reference_type_basis,'VERIFIED_SPECIES_REFERENCE');
 assert.equal(speciesFallback.reference_berry,'桃桃果');
 assert.equal(speciesFallback.status,'AI_BLANK_PUBLIC_REFERENCE_AVAILABLE');
+
+const wrongTypeBlankBerry=resolvePublicBerryReference({
+  species:'小鍛匠',observed_type:'毒',observed_berry:'',species_reference:{type:'妖精',favorite_berry:'桃桃果'},
+});
+assert.equal(wrongTypeBlankBerry.status,'AI_BLANK_PUBLIC_SPECIES_REFERENCE_AVAILABLE');
+assert.equal(wrongTypeBlankBerry.observed_type,'毒');
+assert.equal(wrongTypeBlankBerry.reference_type,'妖精','verified species type must drive public reference when AI type conflicts');
+assert.equal(wrongTypeBlankBerry.reference_berry,'桃桃果');
+assert.equal(wrongTypeBlankBerry.type_reference_conflict,true);
+assert.match(berryReferenceHumanMessage(wrongTypeBlankBerry),/目前觀察屬性「毒」與公版物種屬性不同/);
+assert.match(berryReferenceHumanMessage(wrongTypeBlankBerry),/公版物種屬性「妖精」/);
 
 const conflict=resolvePublicBerryReference({species:'小鍛匠',observed_type:'妖精',observed_berry:'零餘果'});
 assert.equal(conflict.status,'REVIEW_REQUIRED_BERRY_PUBLIC_RELATION_MISMATCH');
@@ -44,6 +56,13 @@ assert.match(conflictText,/目前欄位為「零餘果」/);
 assert.match(conflictText,/參考值為「桃桃果」/);
 assert.match(conflictText,/不會自動改寫/);
 assert.doesNotMatch(conflictText,/\{|\}/,'berry conflict UX must be human-readable, not JSON');
+
+const doubleWrong=resolvePublicBerryReference({species:'小鍛匠',observed_type:'毒',observed_berry:'零餘果',species_reference:{type:'妖精',favorite_berry:'桃桃果'}});
+assert.equal(doubleWrong.status,'REVIEW_REQUIRED_BERRY_PUBLIC_RELATION_MISMATCH');
+assert.equal(doubleWrong.reference_type,'妖精');
+assert.equal(doubleWrong.reference_berry,'桃桃果');
+assert.equal(doubleWrong.observed_berry,'零餘果');
+assert.match(berryReferenceHumanMessage(doubleWrong),/公版物種屬性「妖精」/);
 
 const alias=resolvePublicBerryReference({observed_type:'電',observed_berry:'葡萄果'});
 assert.equal(alias.canonical_observed_berry,'萄葡果');
@@ -117,6 +136,8 @@ assert.match(evolutionAuthority,/VERIFIED_TERMINAL_CURRENT_SLEEP/);
 assert.match(source,/已完全進化/);
 assert.match(source,/不需要/);
 assert.match(runner,/tests\/g13_35_v042745_reference_evolution_history_gate\.mjs/,'G13.35 must be part of consolidated regression');
+assert.match(runner,/g13-ocr-ai-regression-2026-08-27-v042745-public-reference-evolution-history-ux/);
+assert.match(runner,/g13-ocr-ai-regression-2026-08-27-v042744-deferred-session-authority-public-berry/,'v0.4.27.44 predecessor runner marker must remain');
 
 console.log(JSON.stringify({
   status:'PASS',
@@ -125,6 +146,7 @@ console.log(JSON.stringify({
   release:RELEASE,
   checks:{
     ai_blank_berry_public_reference:true,
+    verified_species_type_reference_precedence:true,
     berry_conflict_human_reference:true,
     berry_public_name_candidates:true,
     public_reference_auto_write:false,
