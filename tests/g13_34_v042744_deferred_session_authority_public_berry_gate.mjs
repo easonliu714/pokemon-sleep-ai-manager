@@ -8,7 +8,19 @@ import {
   publicFixedFieldsForSpecies,
 } from '../assets/js/group-bound-review-session-runtime-v042744.js';
 
+const RELEASE=Object.freeze({
+  app_version:'v0.4.27.44',
+  app_build:'20260827-v042744-deferred-session-authority-public-berry',
+  cache_name:'pokemon-sleep-ai-v0.4.27.44-v042744-deferred-session-authority-public-berry',
+});
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+
+const versionAuthority=fs.readFileSync('assets/js/version-authority.js','utf8');
+assert.match(versionAuthority,new RegExp(`app_version:\\s*'${RELEASE.app_version.replaceAll('.','\\.')}'`));
+assert.match(versionAuthority,new RegExp(`app_build:\\s*'${RELEASE.app_build}'`));
+assert.match(versionAuthority,new RegExp(`cache_name:\\s*'${RELEASE.cache_name.replaceAll('.','\\.')}'`));
+const serviceWorker=fs.readFileSync('service-worker.js','utf8');
+assert.match(serviceWorker,/\.\/assets\/js\/group-bound-review-session-runtime-v042744\.js/,'v0.4.27.44 runtime must be precached for offline use');
 
 const fixed=publicFixedFieldsForSpecies('小鍛匠');
 assert.ok(fixed,'小鍛匠 must have verified public fixed fields');
@@ -83,12 +95,15 @@ console.log(JSON.stringify({
   status:'PASS',
   gate:'G13.34',
   version:GROUP_BOUND_REVIEW_RUNTIME_VERSION,
+  release:RELEASE,
   checks:{
     delayed_core_install_recovery:true,
     legacy_shared_dom_projection_retired:true,
     tinkatink_public_berry_authority:'桃桃果',
     ai_wrong_berry_preserved_as_human_warning:true,
     unknown_species_not_silently_rewritten:true,
+    runtime_precached:true,
+    release_authority_v042744:true,
     no_new_mutation_observer:true,
   },
 },null,2));
