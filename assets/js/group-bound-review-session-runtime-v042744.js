@@ -2,21 +2,25 @@ import {
   GROUP_BOUND_REVIEW_EVENT_GUARD_VERSION,
   installGroupBoundReviewEventGuard,
 } from './group-bound-review-session-event-guard-v042743.js';
+import {
+  PUBLIC_BERRY_STRENGTH_VERSION,
+  berryNameForType,
+} from './public-berry-strength-master.js';
 
-export const GROUP_BOUND_REVIEW_RUNTIME_VERSION='v0.4.27.44-deferred-session-authority-public-fixed-field-2026-08-27-a';
-export const PUBLIC_FIXED_FIELD_AUTHORITY_VERSION='pokemon-sleep-public-fixed-field-authority-2026-08-27-a';
+export const GROUP_BOUND_REVIEW_RUNTIME_VERSION='v0.4.27.44-deferred-session-authority-public-fixed-field-2026-08-27-b';
+export const PUBLIC_FIXED_FIELD_AUTHORITY_VERSION='pokemon-sleep-public-fixed-field-authority-2026-08-27-b';
 
 const text=value=>String(value??'').trim();
 const clone=value=>value==null?value:JSON.parse(JSON.stringify(value));
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 
-// Verified current Pokémon Sleep public fields. These values are deterministic
-// game data, not player observations. AI may provide contradictory evidence,
-// but it must not overwrite these fields in a review draft.
+// Only fields verified independently from the player's screenshot belong here.
+// Berry identity is NOT duplicated per species: Pokémon Sleep deterministically
+// maps type -> berry, so favorite_berry is resolved through the existing public
+// berry master below. AI remains evidence, never public-master authority.
 export const PUBLIC_FIXED_SPECIES_FIELDS=Object.freeze({
   '小鍛匠':Object.freeze({
     type:'妖精',
-    favorite_berry:'桃桃果',
     source_type:'official_plus_reference_verified',
     source_refs:Object.freeze([
       'https://www.pokemonsleep.net/zh/news/343238363931353636383439313633323637/',
@@ -26,7 +30,6 @@ export const PUBLIC_FIXED_SPECIES_FIELDS=Object.freeze({
   }),
   '巧鍛匠':Object.freeze({
     type:'妖精',
-    favorite_berry:'桃桃果',
     source_type:'official_plus_reference_verified',
     source_refs:Object.freeze([
       'https://www.pokemonsleep.net/zh/news/343238363931353636383439313633323637/',
@@ -36,7 +39,6 @@ export const PUBLIC_FIXED_SPECIES_FIELDS=Object.freeze({
   }),
   '巨鍛匠':Object.freeze({
     type:'妖精',
-    favorite_berry:'桃桃果',
     source_type:'official_plus_reference_verified',
     source_refs:Object.freeze([
       'https://www.pokemonsleep.net/zh/news/343238363931353636383439313633323637/',
@@ -61,6 +63,7 @@ function trace(scope,event,details={},status='completed',error=null){
   const payload={
     version:GROUP_BOUND_REVIEW_RUNTIME_VERSION,
     fixed_field_version:PUBLIC_FIXED_FIELD_AUTHORITY_VERSION,
+    berry_master_version:PUBLIC_BERRY_STRENGTH_VERSION,
     inherited_guard_version:GROUP_BOUND_REVIEW_EVENT_GUARD_VERSION,
     ...details,
   };
@@ -69,10 +72,13 @@ function trace(scope,event,details={},status='completed',error=null){
 }
 
 export function publicFixedFieldsForSpecies(species){
-  return PUBLIC_FIXED_SPECIES_FIELDS[text(species)]||null;
+  const row=PUBLIC_FIXED_SPECIES_FIELDS[text(species)]||null;
+  if(!row)return null;
+  const favorite_berry=berryNameForType(row.type)||null;
+  return Object.freeze({...row,favorite_berry,berry_master_version:PUBLIC_BERRY_STRENGTH_VERSION});
 }
 
-function fixedFieldWarning({field,candidate,authoritative,species,master}){
+function fixedFieldWarning({field,candidate,authoritative,species,sourceType,sourceRefs=[]}){
   const label=FIELD_LABELS[field]||field;
   return {
     field,
@@ -80,10 +86,11 @@ function fixedFieldWarning({field,candidate,authoritative,species,master}){
     authoritative:clone(authoritative),
     species,
     status:'REVIEW_ONLY_PUBLIC_FIXED_FIELD_CONFLICT',
-    reason:'AI_VALUE_DIFFERS_VERIFIED_PUBLIC_FIXED_FIELD',
+    reason:field==='favorite_berry'?'AI_BERRY_DIFFERS_TYPE_BERRY_MASTER':'AI_VALUE_DIFFERS_VERIFIED_PUBLIC_FIXED_FIELD',
     authority_version:PUBLIC_FIXED_FIELD_AUTHORITY_VERSION,
-    source_type:master?.source_type||'verified_public_master',
-    source_refs:[...(master?.source_refs||[])],
+    berry_master_version:PUBLIC_BERRY_STRENGTH_VERSION,
+    source_type:sourceType||'verified_public_master',
+    source_refs:[...sourceRefs],
     message:`${label}：AI 辨識為「${text(candidate)}」；公版固定資料為「${text(authoritative)}」。平台已保留公版值「${text(authoritative)}」，請人工確認圖片。`,
   };
 }
@@ -99,28 +106,55 @@ function addWarning(draft,warning){
 export function applyPublicFixedFieldAuthorityToDraft(input={},meta={}){
   const draft=clone(input)||{};
   const species=text(draft.species||meta.species);
-  const master=publicFixedFieldsForSpecies(species);
-  if(!master)return {draft,changed:false,warnings:[],species,master:null};
+  const speciesMaster=PUBLIC_FIXED_SPECIES_FIELDS[species]||null;
   const warnings=[];
-  for(const field of ['type','favorite_berry']){
-    const authoritative=master[field];
-    if(authoritative==null||authoritative==='')continue;
-    const candidate=draft[field];
+
+  // Species-fixed type wins only where independent public verification exists.
+  // For other species the observed type is left untouched; however, once a type
+  // is present, its berry is deterministic and comes from the canonical public
+  // type->berry master rather than from AI free text.
+  if(speciesMaster?.type){
+    const candidate=draft.type,authoritative=speciesMaster.type;
     if(candidate!==null&&candidate!==undefined&&candidate!==''&&!same(candidate,authoritative)){
-      const warning=fixedFieldWarning({field,candidate,authoritative,species,master});
+      const warning=fixedFieldWarning({field:'type',candidate,authoritative,species,sourceType:speciesMaster.source_type,sourceRefs:speciesMaster.source_refs});
       warnings.push(warning);addWarning(draft,warning);
     }
-    draft[field]=clone(authoritative);
+    draft.type=authoritative;
   }
-  draft.public_fixed_field_authority={
-    version:PUBLIC_FIXED_FIELD_AUTHORITY_VERSION,
+
+  const authoritativeBerry=berryNameForType(text(draft.type));
+  if(authoritativeBerry){
+    const candidate=draft.favorite_berry;
+    if(candidate!==null&&candidate!==undefined&&candidate!==''&&!same(candidate,authoritativeBerry)){
+      const warning=fixedFieldWarning({field:'favorite_berry',candidate,authoritative:authoritativeBerry,species,sourceType:'verified_public_type_to_berry_master',sourceRefs:[PUBLIC_BERRY_STRENGTH_VERSION]});
+      warnings.push(warning);addWarning(draft,warning);
+    }
+    draft.favorite_berry=authoritativeBerry;
+  }
+
+  const authoritativeFields=[];
+  if(speciesMaster?.type)authoritativeFields.push('type');
+  if(authoritativeBerry)authoritativeFields.push('favorite_berry');
+  if(authoritativeFields.length){
+    draft.public_fixed_field_authority={
+      version:PUBLIC_FIXED_FIELD_AUTHORITY_VERSION,
+      berry_master_version:PUBLIC_BERRY_STRENGTH_VERSION,
+      species:species||null,
+      fields:authoritativeFields,
+      species_source_type:speciesMaster?.source_type||null,
+      species_source_refs:[...(speciesMaster?.source_refs||[])],
+      species_verified_at:speciesMaster?.verified_at||null,
+      type_to_berry_master:true,
+    };
+  }
+  return {
+    draft,
+    changed:warnings.length>0||!same(input?.type,draft.type)||!same(input?.favorite_berry,draft.favorite_berry),
+    warnings,
     species,
-    fields:['type','favorite_berry'],
-    source_type:master.source_type,
-    source_refs:[...master.source_refs],
-    verified_at:master.verified_at,
+    species_master:speciesMaster?publicFixedFieldsForSpecies(species):null,
+    authoritative_berry:authoritativeBerry||null,
   };
-  return {draft,changed:warnings.length>0||!same(input?.type,draft.type)||!same(input?.favorite_berry,draft.favorite_berry),warnings,species,master};
 }
 
 function installNormalizeWrapper(scope,consistency){
@@ -137,7 +171,7 @@ function installNormalizeWrapper(scope,consistency){
         source_image_ref:revision?.source_image_ref||null,
         species:result.species,
         warning_count:result.warnings.length,
-        corrected_fields:['type','favorite_berry'],
+        corrected_fields:result.draft?.public_fixed_field_authority?.fields||[],
         ai_candidate_values:result.warnings.map(row=>({field:row.field,candidate:row.candidate,authoritative:row.authoritative})),
         player_sqlite_write:false,
       });
@@ -147,7 +181,7 @@ function installNormalizeWrapper(scope,consistency){
   Object.defineProperty(wrapped,'__v042744PublicFixedFieldAuthority',{value:PUBLIC_FIXED_FIELD_AUTHORITY_VERSION});
   consistency.normalizeRevision=wrapped;
   patchState.normalize_wrapped=true;
-  trace(scope,'v042744_public_fixed_field_normalizer_ready',{status:'completed',verified_species:Object.keys(PUBLIC_FIXED_SPECIES_FIELDS),player_sqlite_write:false});
+  trace(scope,'v042744_public_fixed_field_normalizer_ready',{status:'completed',verified_species:Object.keys(PUBLIC_FIXED_SPECIES_FIELDS),generic_type_to_berry:true,player_sqlite_write:false});
   return true;
 }
 
@@ -161,7 +195,7 @@ function sanitizeConfirmationEvent(scope,event,eventType){
     group_id:detail.group_id||null,
     species:result.species,
     warning_count:result.warnings.length,
-    corrected_fields:['type','favorite_berry'],
+    corrected_fields:result.draft?.public_fixed_field_authority?.fields||[],
     capture_phase:true,
     background_dom_write:false,
   });
@@ -194,7 +228,7 @@ export function attemptInstallDeferredReviewAuthority(scope=globalThis){
     trace(scope,'v042744_deferred_group_review_authority_ready',{
       status:'completed',attempts:patchState.attempts,normalize_wrapped:patchState.normalize_wrapped,
       capture_sanitizer_installed:patchState.capture_sanitizer_installed,event_guard_installed:true,
-      legacy_projection_retired:true,public_fixed_field_guard:true,no_new_mutation_observer:true,
+      legacy_projection_retired:true,public_fixed_field_guard:true,generic_type_to_berry:true,no_new_mutation_observer:true,
     });
     return true;
   }catch(error){
@@ -219,6 +253,7 @@ export function installDeferredReviewAuthority(scope=globalThis,{interval_ms=50,
   const api={
     version:GROUP_BOUND_REVIEW_RUNTIME_VERSION,
     fixed_field_version:PUBLIC_FIXED_FIELD_AUTHORITY_VERSION,
+    berry_master_version:PUBLIC_BERRY_STRENGTH_VERSION,
     attemptNow:attempt,
     getState:()=>clone(patchState),
     getPublicFixedFields:species=>clone(publicFixedFieldsForSpecies(species)),
@@ -229,7 +264,7 @@ export function installDeferredReviewAuthority(scope=globalThis,{interval_ms=50,
   if(!stopped&&typeof scope.setInterval==='function')timer=scope.setInterval(attempt,interval_ms);
   scope.addEventListener?.('DOMContentLoaded',attempt,{once:true});
   scope.addEventListener?.('load',attempt,{once:true});
-  trace(scope,'v042744_deferred_group_review_authority_bootstrap',{status:patchState.status,interval_ms,max_wait_ms,legacy_projection_retired:true});
+  trace(scope,'v042744_deferred_group_review_authority_bootstrap',{status:patchState.status,interval_ms,max_wait_ms,legacy_projection_retired:true,generic_type_to_berry:true});
   return api;
 }
 
