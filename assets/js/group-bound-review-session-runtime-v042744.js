@@ -7,8 +7,8 @@ import {
   berryNameForType,
 } from './public-berry-strength-master.js';
 
-export const GROUP_BOUND_REVIEW_RUNTIME_VERSION='v0.4.27.44-deferred-session-authority-public-relation-review-only-2026-08-27-c';
-export const PUBLIC_FIXED_FIELD_AUTHORITY_VERSION='pokemon-sleep-public-relation-review-only-2026-08-27-c';
+export const GROUP_BOUND_REVIEW_RUNTIME_VERSION='v0.4.27.44-deferred-session-authority-public-relation-review-only-2026-08-27-d';
+export const PUBLIC_FIXED_FIELD_AUTHORITY_VERSION='pokemon-sleep-public-relation-review-only-2026-08-27-d';
 
 const text=value=>String(value??'').trim();
 const clone=value=>value==null?value:JSON.parse(JSON.stringify(value));
@@ -51,6 +51,7 @@ const patchState={
   installed_at:null,
   normalize_wrapped:false,
   capture_validator_installed:false,
+  apply_guard_installed:false,
   event_guard_installed:false,
   last_error:null,
 };
@@ -153,6 +154,15 @@ export function applyPublicFixedFieldAuthorityToDraft(input={},meta={}){
 
 export const validatePublicRelationsInDraft=applyPublicFixedFieldAuthorityToDraft;
 
+export function publicRelationApplyPolicy(input={}){
+  const validation=applyPublicFixedFieldAuthorityToDraft(input);
+  return {
+    allowed:!validation.review_required,
+    block_reason:validation.review_required?'PUBLIC_RELATION_REVIEW_REQUIRED':null,
+    validation,
+  };
+}
+
 function installNormalizeWrapper(scope,consistency){
   if(consistency.normalizeRevision?.__v042744PublicFixedFieldAuthority===PUBLIC_FIXED_FIELD_AUTHORITY_VERSION){
     patchState.normalize_wrapped=true;
@@ -231,6 +241,61 @@ function installCaptureValidator(scope){
   return true;
 }
 
+function visiblePublicRelationDraft(scope){
+  const root=scope.document?.querySelector?.('#analysisConfirmationWorkbench .analysis-confirmation')||scope.document?.getElementById?.('analysisConfirmationWorkbench');
+  if(!root)return null;
+  const value=name=>text(root.querySelector?.(`[data-field="${name}"]`)?.value);
+  return {root,draft:{species:value('species'),type:value('type'),favorite_berry:value('favorite_berry')}};
+}
+
+function setApplyBlockedStatus(scope,validation){
+  const status=scope.document?.querySelector?.('#analysisConfirmationStatus');
+  if(!status)return;
+  status.className='notice pending';
+  const messages=(validation?.warnings||[]).map(row=>text(row?.message)).filter(Boolean);
+  status.textContent=`操作已阻擋：屬性／樹果仍有公版一致性衝突。請修正相關欄位後按「儲存人工修改」，再執行「確認處置」。${messages.length?` ${messages.join(' ')}`:''}`;
+}
+
+function guardPublicRelationApply(scope,event){
+  const target=event?.target;
+  const button=target?.id==='applyConfirmedAnalysis'?target:target?.closest?.('#applyConfirmedAnalysis');
+  if(!button)return;
+  const visible=visiblePublicRelationDraft(scope);
+  if(!visible)return;
+  const policy=publicRelationApplyPolicy(visible.draft);
+  if(policy.allowed)return;
+  event.preventDefault?.();
+  event.stopImmediatePropagation?.();
+  event.stopPropagation?.();
+  scope.PokemonSleepPlayerProfileConsistencyV042723?.reconcileVisibleConfirmation?.();
+  setApplyBlockedStatus(scope,policy.validation);
+  const state=scope.PokemonSleepMultiCaptureConsistency?.getState?.()||{};
+  trace(scope,'v042744_public_relation_apply_blocked',{
+    status:'blocked',
+    block_reason:policy.block_reason,
+    group_id:state.active_group_id||null,
+    fields:policy.validation.warnings.map(row=>row.field),
+    human_messages:policy.validation.warnings.map(row=>row.message),
+    explicit_manual_save_required:true,
+    auto_rewrite:false,
+    player_sqlite_write:false,
+  },'blocked');
+}
+
+function installPublicRelationApplyGuard(scope){
+  if(patchState.apply_guard_installed)return true;
+  if(!scope.document?.addEventListener)return true;
+  scope.document.addEventListener('click',event=>guardPublicRelationApply(scope,event),true);
+  patchState.apply_guard_installed=true;
+  trace(scope,'v042744_public_relation_apply_guard_ready',{
+    status:'completed',
+    apply_fail_closed:true,
+    explicit_manual_save_required:true,
+    no_new_mutation_observer:true,
+  });
+  return true;
+}
+
 export function attemptInstallDeferredReviewAuthority(scope=globalThis){
   patchState.attempts+=1;
   const consistency=scope.PokemonSleepMultiCaptureConsistency;
@@ -241,6 +306,7 @@ export function attemptInstallDeferredReviewAuthority(scope=globalThis){
   try{
     installNormalizeWrapper(scope,consistency);
     installCaptureValidator(scope);
+    installPublicRelationApplyGuard(scope);
     const guardOk=installGroupBoundReviewEventGuard(scope);
     patchState.event_guard_installed=Boolean(guardOk&&scope.PokemonSleepGroupBoundReviewEventGuardV042743);
     if(!patchState.event_guard_installed){
@@ -255,9 +321,11 @@ export function attemptInstallDeferredReviewAuthority(scope=globalThis){
       attempts:patchState.attempts,
       normalize_wrapped:patchState.normalize_wrapped,
       capture_validator_installed:patchState.capture_validator_installed,
+      apply_guard_installed:patchState.apply_guard_installed,
       event_guard_installed:true,
       legacy_projection_retired:true,
       public_relation_review_only:true,
+      public_relation_apply_fail_closed:true,
       generic_type_to_berry:true,
       auto_rewrite:false,
       no_new_mutation_observer:true,
@@ -304,6 +372,7 @@ export function installDeferredReviewAuthority(scope=globalThis,{interval_ms=50,
     getPublicFixedFields:species=>clone(publicFixedFieldsForSpecies(species)),
     validatePublicRelationsInDraft:(draft,meta={})=>applyPublicFixedFieldAuthorityToDraft(draft,meta),
     applyPublicFixedFieldAuthorityToDraft:(draft,meta={})=>applyPublicFixedFieldAuthorityToDraft(draft,meta),
+    publicRelationApplyPolicy:draft=>publicRelationApplyPolicy(draft),
   };
   scope.PokemonSleepReviewSessionRuntimeV042744=api;
   attempt();
@@ -316,6 +385,7 @@ export function installDeferredReviewAuthority(scope=globalThis,{interval_ms=50,
     max_wait_ms,
     legacy_projection_retired:true,
     public_relation_review_only:true,
+    public_relation_apply_fail_closed:true,
     auto_rewrite:false,
   });
   return api;
