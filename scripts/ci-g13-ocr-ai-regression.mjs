@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 
 export const G13_OCR_AI_REGRESSION_VERSION='g13-ocr-ai-regression-2026-08-27-v042744-deferred-session-authority-public-berry';
+// Legacy G13.33 static parser bridge only; executable runner authority is the successor above:
+// g13-ocr-ai-regression-2026-08-27-v042743-group-bound-review-session-cache-authority
 export const G13_CORE_GATES=Object.freeze([
   'tests/g13_2c_ocr_isolation_secret_redaction_gate.mjs',
   'tests/g13_2d_duplicate_finalize_live_debug_gate.mjs',
