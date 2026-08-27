@@ -4,6 +4,8 @@ import {buildPublicCandyMasterRows,PUBLIC_CANDY_MASTER_VERSION,SPECIES_CANDY_NAM
 import {relevantResourceSnapshot,CANDY_CONVERSION_RULE_STATUS} from './resource-context.js';
 import {formatLocal} from './time-utils.js';
 
+export const CANDY_INVENTORY_WRITE_AUTHORITY_VERSION='v0.4.27.46-p0-b1-observed-delta-2026-08-27-a';
+
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const typeLabel=value=>({universal:'萬能',type:'屬性',species:'寶可夢',other_verified:'其他'}[value]||value||'—');
 const targetLabel=row=>row.target_species_name||row.target_type_name||'—';
@@ -13,8 +15,9 @@ function ensureItemsUi(){
   if(!section||document.getElementById('candyInventoryBlock'))return;
   const block=document.createElement('section');
   block.id='candyInventoryBlock';
+  block.dataset.candyInventoryWriteAuthority=CANDY_INVENTORY_WRITE_AUTHORITY_VERSION;
   block.innerHTML=`<h3>糖果庫存</h3>
-    <p class="notice">糖果名稱與對應關係來自公版 Candy Master；<b>玩家數量只接受 JSON 更新中心匯入</b>，不在此頁手動改寫。萬能／屬性糖果的可轉換結果目前不計入實體庫存，避免重複計算。</p>
+    <p class="notice">糖果名稱與對應關係來自公版 Candy Master；<b>玩家數量可由 JSON 更新中心匯入，或由「送給博士」時使用者輸入的遊戲實際觀測糖果數量增量寫入</b>。平台不會自行推算博士轉換數量；萬能／屬性糖果的可轉換結果目前也不計入實體庫存，避免重複計算。</p>
     <div id="candyResourceSummary" class="notice"></div>
     <div class="table-wrap"><table id="candyInventoryTable"></table></div>`;
   section.appendChild(block);
@@ -84,7 +87,7 @@ function renderInventory(){
   const candyRows=snapshot.status==='READY'?snapshot.candies:[];
   const stocked=candyRows.filter(row=>row.player_record_exists).length;
   const availableTotal=candyRows.reduce((sum,row)=>sum+Number(row.available||0),0);
-  summaryEl.innerHTML=`已匯入糖果種類：<b>${stocked}</b> · 各糖果可動用量合計（僅介面摘要，不跨種類視為等價資源）：<b>${availableTotal}</b> · 轉換規則：<code>${esc(CANDY_CONVERSION_RULE_STATUS)}</code> · Resource fingerprint：<code>${esc(snapshot.fingerprint||'—')}</code>`;
+  summaryEl.innerHTML=`已匯入／觀測寫入糖果種類：<b>${stocked}</b> · 各糖果可動用量合計（僅介面摘要，不跨種類視為等價資源）：<b>${availableTotal}</b> · 博士糖果 Authority：<code>USER_DIRECT_OBSERVATION_ONLY</code> · 自動推算：<b>停用</b> · 轉換規則：<code>${esc(CANDY_CONVERSION_RULE_STATUS)}</code> · Resource fingerprint：<code>${esc(snapshot.fingerprint||'—')}</code>`;
 }
 
 export function renderCandySurfaces(){renderKnowledge();renderInventory();}
