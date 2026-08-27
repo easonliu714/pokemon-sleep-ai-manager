@@ -6,6 +6,7 @@ import {
   applyPublicFixedFieldAuthorityToDraft,
   installDeferredReviewAuthority,
   publicFixedFieldsForSpecies,
+  publicRelationApplyPolicy,
 } from '../assets/js/group-bound-review-session-runtime-v042744.js';
 
 const RELEASE=Object.freeze({
@@ -47,6 +48,14 @@ assert.match(reviewed.warnings[0].message,/樹果：AI 辨識為「零餘果」�
 assert.match(reviewed.warnings[0].message,/平台保留 AI 觀察值，不會自動改寫/);
 assert.doesNotMatch(reviewed.warnings[0].message,/\{|\}/,'user-facing relation conflict must not be JSON');
 
+const blockedApply=publicRelationApplyPolicy({species:'小鍛匠',type:'妖精',favorite_berry:'零餘果'});
+assert.equal(blockedApply.allowed,false,'unreviewed public relation contradiction must fail closed before SQLite apply');
+assert.equal(blockedApply.block_reason,'PUBLIC_RELATION_REVIEW_REQUIRED');
+assert.equal(blockedApply.validation.warnings.length,1);
+const correctedApply=publicRelationApplyPolicy({species:'小鍛匠',type:'妖精',favorite_berry:'桃桃果'});
+assert.equal(correctedApply.allowed,true,'corrected and explicitly saved form may proceed through the existing manual-save gate');
+assert.equal(correctedApply.block_reason,null);
+
 const typeMismatch=applyPublicFixedFieldAuthorityToDraft({
   species:'小鍛匠',
   type:'毒',
@@ -58,6 +67,7 @@ assert.equal(typeMismatch.review_required,true);
 assert.equal(typeMismatch.warnings.length,1,'berry matches observed Poison type, so only species/type reference conflict should be flagged');
 assert.equal(typeMismatch.warnings[0].status,'REVIEW_REQUIRED_SPECIES_TYPE_MISMATCH');
 assert.match(typeMismatch.warnings[0].message,/屬性：AI 辨識為「毒」；公版物種資料為「妖精」/);
+assert.equal(publicRelationApplyPolicy(typeMismatch.draft).allowed,false,'verified species/type contradiction must also block apply');
 
 const missing=applyPublicFixedFieldAuthorityToDraft({species:'小鍛匠',type:'妖精',favorite_berry:''});
 assert.equal(missing.draft.favorite_berry,'','public relation must not fill missing image evidence');
@@ -111,6 +121,11 @@ assert.match(profileConsistency,/屬性／樹果需要人工覆核/);
 assert.match(profileConsistency,/平台不會自動改寫/);
 assert.doesNotMatch(profileConsistency,/draft\.favorite_berry=canonicalBerry/,'current player-profile successor must remain review-only');
 
+const manualSave=fs.readFileSync('assets/js/explicit-manual-draft-save-v042737.js','utf8');
+assert.match(manualSave,/applyConfirmedAnalysis/);
+assert.match(manualSave,/UNSAVED_MANUAL_CHANGES/);
+assert.match(manualSave,/explicit_manual_save_authority_promotion_v042742/,'existing explicit manual-save authority must remain the save gate');
+
 const legacy=fs.readFileSync('assets/js/v0383-catalog-ocr-review-contract.js','utf8');
 assert.match(legacy,/group-bound-review-session-runtime-v042744\.js/);
 assert.match(legacy,/full_review_projection_retired_v042744/);
@@ -122,6 +137,11 @@ const runtimeSource=fs.readFileSync('assets/js/group-bound-review-session-runtim
 assert.doesNotMatch(runtimeSource,/new\s+MutationObserver|MutationObserver\s*\(/,'v0.4.27.44 must not add a MutationObserver');
 assert.match(runtimeSource,/max_wait_ms=120000/,'deferred installer must remain bounded');
 assert.match(runtimeSource,/auto_rewrite:false/,'public relation validation must be review-only');
+assert.match(runtimeSource,/PUBLIC_RELATION_REVIEW_REQUIRED/,'unresolved public relation conflict must have an explicit apply block reason');
+assert.match(runtimeSource,/v042744_public_relation_apply_blocked/,'apply block must be traceable');
+assert.match(runtimeSource,/explicit_manual_save_required:true/,'apply block must direct user through explicit manual save');
+assert.match(runtimeSource,/document\.addEventListener\('click'/,'apply guard must intercept before business write');
+assert.match(runtimeSource,/stopImmediatePropagation/,'blocked apply must not reach the legacy business-write click handler');
 assert.doesNotMatch(runtimeSource,/draft\.favorite_berry\s*=\s*(?:authoritative|canonical)/,'v0.4.27.44 must not auto-rewrite favorite berry');
 
 console.log(JSON.stringify({
@@ -137,6 +157,8 @@ console.log(JSON.stringify({
     human_review_warning:true,
     type_berry_auto_rewrite:false,
     missing_berry_public_fill:false,
+    unresolved_public_relation_apply_blocked:true,
+    corrected_value_requires_existing_explicit_manual_save_gate:true,
     unknown_species_not_silently_rewritten:true,
     runtime_precached:true,
     release_authority_v042744:true,
