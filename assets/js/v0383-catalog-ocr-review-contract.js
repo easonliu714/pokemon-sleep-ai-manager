@@ -1,5 +1,7 @@
 import {rows} from './database.js';
-import './group-bound-review-session-event-guard-v042743.js';
+import './group-bound-review-session-runtime-v042744.js';
+// Legacy G13.33 static parser bridge only; not executed. Runtime authority is the v0.4.27.44 successor above: import './group-bound-review-session-event-guard-v042743.js';
+// Legacy G13.33 projection-state parser bridge only; executable shared-DOM projection is retired: full_review_projection_blocked_v042743 / groupSessionAuthorityActive()
 
 const APP_VERSION='v0.3.85';
 const APP_BUILD='20260805-v0385-database-boot-isolation';
@@ -9,7 +11,6 @@ const trace=(event,details={},status='completed',error=null)=>{
   globalThis.UpdateCenterLiveDebug?.record?.(event,details);
   globalThis.DebugTrace?.record?.('v0383_contract',event,{status,details,error});
 };
-const groupSessionAuthorityActive=()=>globalThis.PokemonSleepGroupBoundReviewSessionV042743?.legacyProjectionAllowed?.()===false;
 
 // v0.4.2 compatibility export only. The historical 76-row recipe literal and
 // writer were retired; migrations.auditAndSyncPublicMasters now owns recipe
@@ -80,34 +81,20 @@ function mergeAiObservations(anchor){
   });
   return merged;
 }
+
+// v0.4.27.44: This historical projector is intentionally retired regardless
+// of successor readiness. It used a single shared DOM and could write a later
+// Pokémon Group into the currently visible review form. Group-bound review
+// session authority now owns all review projection. Keep the listener only as
+// a compatibility trace so older callers are observable without mutating DOM.
 function applyReviewProjection(detail){
   if(detail?.analysis_type!=='ai')return;
-  if(groupSessionAuthorityActive()){
-    trace('full_review_projection_blocked_v042743',{reason:'group_bound_review_session_authority',analysis_id:detail?.analysis_id||detail?.revision?.analysis_id||null});
-    return;
-  }
-  const payload=mergeAiObservations(analysisPayload({result_json:JSON.stringify(detail.result)}));
-  setTimeout(()=>{
-    if(groupSessionAuthorityActive()){
-      trace('full_review_projection_blocked_v042743',{reason:'group_bound_review_session_authority_timeout_recheck',analysis_id:detail?.analysis_id||detail?.revision?.analysis_id||null});
-      return;
-    }
-    const root=document.getElementById('analysisConfirmationWorkbench');if(!root)return;
-    const set=(name,value)=>{const input=root.querySelector(`[data-field="${name}"]`);if(input&&(input.value===''||input.value==null)&&value!==null&&value!==undefined)input.value=value;};
-    set('species',payload.pokemon_name);set('nickname',payload.nickname);set('level',payload.level);set('sp',payload.sp);set('specialty',payload.specialty);set('type',payload.type);
-    set('main_skill',payload.main_skill?.name);set('main_skill_level',payload.main_skill?.level);set('main_skill_description',payload.main_skill?.description);
-    set('nature',payload.nature?.name);set('nature_bonus',payload.nature?.up);set('nature_penalty',payload.nature?.down);
-    set('helper_seconds',payload.helper_seconds);set('carry_limit',payload.carry_limit);set('favorite_berry',payload.favorite_berry);set('sleep_hours',payload.sleep_hours);set('sleep_time_text',payload.sleep_time_text);set('obtained_at',payload.obtained_at);set('confidence',payload.confidence);
-    for(const row of payload.ingredients||[]){
-      const level=Number(row.level??row.unlock_level);const raw=String(row.name??row.ingredient_name??'').trim();if(![1,30,60].includes(level)||!raw)continue;
-      const input=root.querySelector(`[data-field="ingredient_name_${level}"]`),qty=root.querySelector(`[data-field="ingredient_qty_${level}"]`);
-      if(input&&!input.value)input.value=raw;if(qty&&!qty.value&&row.count!=null)qty.value=row.count;
-      const result=canonical('ingredient',raw);const item=input?.closest('.skill-item');
-      const badge=item?.querySelector('.badge');if(badge)badge.textContent=result.status;
-      const notice=item?.querySelector('.notice');if(notice)notice.innerHTML=`原始：${raw}<br>正式：${result.canonical||'尚未確認'}`;
-    }
-    trace('full_review_projection_applied',{ingredient_rows:(payload.ingredients||[]).filter(row=>row.name).length});
-  },50);
+  trace('full_review_projection_retired_v042744',{
+    reason:'shared_dom_writer_permanently_retired',
+    analysis_id:detail?.analysis_id||detail?.revision?.analysis_id||null,
+    dom_write_performed:false,
+    replacement_authority:'group-bound-review-session-runtime-v042744.js',
+  });
 }
 
 function installServiceWorkerScopeRepair(){
@@ -133,7 +120,7 @@ function initialize(){
     authority:'public-recipe-master.js',
     legacy_recipe_count:LEGACY_RECIPE_COUNT,
   }}));
-  trace('v0385_boot_isolation_ready',{version:APP_VERSION,build:APP_BUILD,legacy_recipe_authority_retired:true,database_write_performed:false});
+  trace('v0385_boot_isolation_ready',{version:APP_VERSION,build:APP_BUILD,legacy_recipe_authority_retired:true,database_write_performed:false,legacy_review_dom_projection_retired_v042744:true});
 }
 initialize();
 export {applyRecipeCatalog,mergeAiObservations};
