@@ -7,7 +7,7 @@ import {
   canonicalBerryName,
 } from './public-berry-strength-master.js';
 
-export const REVIEW_REFERENCE_HISTORY_UX_VERSION='v0.4.27.45-review-reference-evolution-history-ux-2026-08-27-a';
+export const REVIEW_REFERENCE_HISTORY_UX_VERSION='v0.4.27.45-review-reference-evolution-history-ux-2026-08-27-b';
 export const IMPORT_HISTORY_EXPORT_SCHEMA='pokemon-sleep-import-history-export/1.0';
 
 const text=value=>String(value??'').normalize('NFKC').trim();
@@ -26,12 +26,16 @@ export function resolvePublicBerryReference({species='',observed_type='',observe
   const rawBerry=text(observed_berry);
   const canonicalObserved=rawBerry?canonicalBerryName(rawBerry):'';
   const speciesReference=species_reference||null;
-  const referenceType=observedType||text(speciesReference?.type);
+  const verifiedSpeciesType=text(speciesReference?.type);
+  // A verified species→type reference outranks the AI-observed type for PUBLIC
+  // reference projection only. The AI type remains untouched as observation.
+  const referenceType=verifiedSpeciesType||observedType;
   const referenceBerry=referenceType?text(berryNameForType(referenceType)):text(speciesReference?.favorite_berry);
   const observedAuthority=rawBerry?berryStrengthAuthority(canonicalObserved):null;
   const aliasNormalized=Boolean(rawBerry&&canonicalObserved&&rawBerry!==canonicalObserved);
+  const typeReferenceConflict=Boolean(verifiedSpeciesType&&observedType&&verifiedSpeciesType!==observedType);
   let status='NO_PUBLIC_REFERENCE';
-  if(referenceBerry&&!rawBerry)status='AI_BLANK_PUBLIC_REFERENCE_AVAILABLE';
+  if(referenceBerry&&!rawBerry)status=typeReferenceConflict?'AI_BLANK_PUBLIC_SPECIES_REFERENCE_AVAILABLE':'AI_BLANK_PUBLIC_REFERENCE_AVAILABLE';
   else if(referenceBerry&&canonicalObserved&&canonicalObserved!==referenceBerry)status='REVIEW_REQUIRED_BERRY_PUBLIC_RELATION_MISMATCH';
   else if(referenceBerry&&canonicalObserved===referenceBerry&&aliasNormalized)status='PUBLIC_RELATION_MATCH_ALIAS_NORMALIZED';
   else if(referenceBerry&&canonicalObserved===referenceBerry)status='PUBLIC_RELATION_MATCH';
@@ -44,6 +48,8 @@ export function resolvePublicBerryReference({species='',observed_type='',observe
     species:normalizedSpecies||null,
     observed_type:observedType||null,
     reference_type:referenceType||null,
+    reference_type_basis:verifiedSpeciesType?'VERIFIED_SPECIES_REFERENCE':observedType?'AI_OBSERVED_TYPE':null,
+    type_reference_conflict:typeReferenceConflict,
     observed_berry:rawBerry||null,
     canonical_observed_berry:canonicalObserved||null,
     reference_berry:referenceBerry||null,
@@ -57,21 +63,25 @@ export function resolvePublicBerryReference({species='',observed_type='',observe
 
 export function berryReferenceHumanMessage(reference={}){
   const typeName=text(reference.reference_type);
+  const observedType=text(reference.observed_type);
   const raw=text(reference.observed_berry);
   const canonical=text(reference.canonical_observed_berry);
   const publicBerry=text(reference.reference_berry);
+  const typeBasis=reference.reference_type_basis==='VERIFIED_SPECIES_REFERENCE'?'公版物種屬性':'目前觀察屬性';
   switch(reference.status){
+    case 'AI_BLANK_PUBLIC_SPECIES_REFERENCE_AVAILABLE':
+      return `公版參考：AI 未辨識樹果，且目前觀察屬性「${observedType||'空白'}」與公版物種屬性不同；依公版物種屬性「${typeName}」，樹果參考值為「${publicBerry}」。請人工確認後自行選擇／輸入並按「儲存人工修改」。`;
     case 'AI_BLANK_PUBLIC_REFERENCE_AVAILABLE':
-      return `公版參考：AI 未辨識樹果；依「${typeName}」屬性公版關係，參考值為「${publicBerry}」。請人工確認後自行選擇／輸入並按「儲存人工修改」。`;
+      return `公版參考：AI 未辨識樹果；依${typeBasis}「${typeName}」的公版關係，參考值為「${publicBerry}」。請人工確認後自行選擇／輸入並按「儲存人工修改」。`;
     case 'REVIEW_REQUIRED_BERRY_PUBLIC_RELATION_MISMATCH':
-      return `樹果需要人工確認：目前欄位為「${raw}」；依「${typeName}」屬性公版關係，參考值為「${publicBerry}」。平台不會自動改寫。`;
+      return `樹果需要人工確認：目前欄位為「${raw}」；依${typeBasis}「${typeName}」的公版關係，參考值為「${publicBerry}」。平台不會自動改寫。`;
     case 'REVIEW_REQUIRED_UNKNOWN_BERRY_NAME':
       return `樹果名稱「${raw}」未匹配目前公版名稱。請從公版候選確認正確名稱後再儲存。`;
     case 'PUBLIC_RELATION_MATCH_ALIAS_NORMALIZED':
     case 'CANONICAL_BERRY_ALIAS_AVAILABLE':
       return `公版名稱參考：目前輸入「${raw}」可正名為「${canonical}」。請人工確認後儲存。`;
     case 'PUBLIC_RELATION_MATCH':
-      return `公版比對：目前樹果「${raw}」與「${typeName}」屬性公版關係一致。`;
+      return `公版比對：目前樹果「${raw}」與${typeBasis}「${typeName}」的公版關係一致。`;
     case 'CANONICAL_BERRY_NAME_MATCH':
       return `公版名稱比對：目前樹果「${raw}」為公版正式名稱。`;
     default:
@@ -145,7 +155,7 @@ export function decorateBerryReference(root=document.getElementById('analysisCon
   let note=holder.querySelector('[data-v042745-berry-reference]');if(!note){note=(section.ownerDocument||document).createElement('small');note.dataset.v042745BerryReference='true';holder.appendChild(note);}
   note.className=reference.review_required?'notice error':'notice';note.textContent=berryReferenceHumanMessage(reference);
   note.dataset.referenceStatus=reference.status;note.dataset.autoWrite='false';
-  trace('v042745_berry_public_reference_rendered',{status:reference.status,species:reference.species,observed_type:reference.observed_type,observed_berry:reference.observed_berry,reference_berry:reference.reference_berry,review_required:reference.review_required,auto_write:false});
+  trace('v042745_berry_public_reference_rendered',{status:reference.status,species:reference.species,observed_type:reference.observed_type,reference_type:reference.reference_type,reference_type_basis:reference.reference_type_basis,observed_berry:reference.observed_berry,reference_berry:reference.reference_berry,review_required:reference.review_required,auto_write:false});
   return reference;
 }
 
@@ -163,6 +173,10 @@ export function decorateEvolutionSemantics(root=document.getElementById('analysi
     let note=input.closest('.edit-field')?.querySelector?.(`[data-v042745-evolution-field="${field}"]`)||null;
     const semantic=evolutionRequirementSemantic({authority_status:authorityStatus,public_requirement_state:input.dataset.publicRequirementState,current_value:input.value});
     if(semantic.kind==='NONE'){note?.remove?.();continue;}
+    if(semantic.kind==='TERMINAL'){
+      note?.remove?.();
+      input.placeholder='已完全進化';input.title=semantic.detail;continue;
+    }
     if(!note){note=(section.ownerDocument||document).createElement('small');note.dataset.v042745EvolutionField=field;input.closest('.edit-field')?.appendChild(note);}
     note.className=semantic.kind==='NOT_REQUIRED_CONFLICT'?'notice error':'notice';note.textContent=semantic.detail;
     input.placeholder=semantic.label;input.title=semantic.detail;decorated+=1;
