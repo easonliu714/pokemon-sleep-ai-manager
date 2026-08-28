@@ -118,6 +118,7 @@ jobs:
           node scripts/v042712-confirmation-lifecycle-ux-contract.mjs
           node scripts/v042724-predecessor-v042723-runner.mjs
           node scripts/v042724-e3c6f-censored-series-observation-contract.mjs
+          node scripts/v042746-p0b1-professor-candy-observed-delta-contract.mjs
 
       - name: Verify unlocked Pokémon roster filters
         run: node scripts/pokemon-roster-filter-regression.mjs

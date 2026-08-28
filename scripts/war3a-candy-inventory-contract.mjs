@@ -14,6 +14,11 @@ import {buildScenarioTemplate,PROMPT_CATALOG} from '../assets/js/prompt-catalog.
 import {validateWorkflow} from '../assets/js/ai-workflow.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
+const parts=value=>String(value||'').replace(/^v/,'').split('.').map(part=>Number(part)||0);
+const atLeast=(current,minimum)=>{const left=parts(current),right=parts(minimum),size=Math.max(left.length,right.length);for(let index=0;index<size;index+=1){const a=left[index]||0,b=right[index]||0;if(a!==b)return a>b;}return true;};
+const versionSource=read('assets/js/version-authority.js');
+const currentVersion=versionSource.match(/app_version:\s*'([^']+)'/)?.[1]||'';
+const professorObservedDeltaWriter=atLeast(currentVersion,'v0.4.27.46');
 const masterRows=buildPublicCandyMasterRows();
 const byName=new Map(masterRows.map(row=>[row.candy_name,row]));
 
@@ -87,10 +92,21 @@ const resource=read('assets/js/resource-context.js');
 for(const token of ["CANDY_CONVERSION_RULE_STATUS='NOT_YET_VERIFIED'",'included_in_physical_totals:false','derived_options:[]','candy_catalog_state'])assert.ok(resource.includes(token),`resource double-counting guard missing: ${token}`);
 
 const ui=read('assets/js/candy-inventory-ui.js');
-for(const token of ['玩家數量只接受 JSON 更新中心匯入','candy_catalog_state','buildPublicCandyMasterRows','Resource fingerprint'])assert.ok(ui.includes(token),`Candy UI contract missing: ${token}`);
+for(const token of ['candy_catalog_state','buildPublicCandyMasterRows','Resource fingerprint'])assert.ok(ui.includes(token),`Candy UI contract missing: ${token}`);
 assert.equal(ui.includes('saveCandy'),false,'Candy quantity UI must remain read-only');
 const index=read('index.html');
 assert.ok(index.includes('./assets/js/candy-inventory-ui.js'),'Candy UI module must load in browser runtime');
+
+const professorTransfer=read('assets/js/pokemon-professor-transfer.js');
+const professorTransferUi=read('assets/js/pokemon-professor-transfer-ui.js');
+if(professorObservedDeltaWriter){
+  for(const token of ['玩家數量可由 JSON 更新中心匯入','遊戲實際觀測糖果數量增量寫入','USER_DIRECT_OBSERVATION_ONLY','自動推算：<b>停用</b>'])assert.ok(ui.includes(token),`v0.4.27.46+ governed Candy UI token missing: ${token}`);
+  for(const token of ["PROFESSOR_TRANSFER_CANDY_AUTHORITY='USER_DIRECT_OBSERVATION_ONLY'",'if(candyQuantity!==null)','quantity=candy_inventory.quantity+excluded.quantity',"inventory_mutation:candyInventoryApplied?'OBSERVED_DELTA_INCREMENT':'NO_MUTATION'",'automatic_quantity_inference:false'])assert.ok(professorTransfer.includes(token),`v0.4.27.46+ Professor observed-delta authority missing: ${token}`);
+  assert.ok(professorTransferUi.includes('留空＝只完成送博士狀態，不自行猜糖果數量'),'blank Professor observation must not mutate candy inventory');
+  assert.ok(index.includes('./assets/js/pokemon-professor-transfer-ui.js'),'Professor transfer UI must be loaded for the governed writer');
+}else{
+  assert.ok(ui.includes('玩家數量只接受 JSON 更新中心匯入'),'pre-v0.4.27.46 WAR3A must retain historical JSON-only Candy authority');
+}
 
 for(const file of ['assets/js/app.js','assets/js/backup-truth-restore.js'])assert.ok(read(file).includes("'candy_inventory'"),`${file} must include candy in JSON/verified backup scope`);
 
@@ -100,16 +116,20 @@ const docs=read('docs/PUBLIC_MASTER_DATABASE_VERSION_CONTRACT.md');
 for(const token of ['PUBLIC_CANDY_MASTER_VERSION','public_candy_master_version','candy_inventory.quantity','species candy naming','Candy Master rows contain no player quantity'])assert.ok(docs.includes(token),`normative Candy Master contract missing: ${token}`);
 
 const manual=read('assets/js/manual-editor.js');
-assert.equal(manual.includes('saveCandy'),false,'player candy quantity must not gain a parallel manual writer');
+assert.equal(manual.includes('saveCandy'),false,'player candy quantity must not gain a parallel arbitrary manual writer');
 
 console.log(JSON.stringify({
   status:'PASS',
   gate:'WAR3A_CANDY_INVENTORY_CONTRACT',
+  current_app_version:currentVersion,
   public_candy_master_version:PUBLIC_CANDY_MASTER_VERSION,
   fixed_verified_count:PUBLIC_CANDY_FIXED_MASTER.length,
   species_projection_count:masterRows.length-PUBLIC_CANDY_FIXED_MASTER.length,
   player_quantity_in_public_master:false,
-  player_write_authority:'UPDATE_CENTER_JSON_ONLY',
+  player_write_authority:professorObservedDeltaWriter?['UPDATE_CENTER_JSON','PROFESSOR_USER_DIRECT_OBSERVATION_DELTA']:'UPDATE_CENTER_JSON_ONLY',
+  arbitrary_manual_candy_writer:false,
+  professor_observed_delta_successor:professorObservedDeltaWriter,
+  automatic_professor_reward_inference:false,
   candy_inventory_migration:9,
   physical_vs_convertible_double_count_guard:true,
   candy_conversion_rule_status:'NOT_YET_VERIFIED',

@@ -19,6 +19,7 @@ const version=read('assets/js/version-authority.js');
 const currentVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const currentBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
 const currentCache=version.match(/cache_name:\s*'([^']+)'/)?.[1];
+const professorObservedDeltaWriter=versionAtLeast(currentVersion,'v0.4.27.46');
 assert.ok(versionAtLeast(currentVersion,'v0.4.7'),`historical v0.4.7 contract cannot run on older release: ${currentVersion}`);
 if(currentVersion==='v0.4.7'){
   assert.equal(currentBuild,'20260810-v047-candy-inventory-resource-context');
@@ -43,6 +44,8 @@ const migrations=read('assets/js/migrations.js');
 const importer=read('assets/js/importer.js');
 const resource=read('assets/js/resource-context.js');
 const candyUi=read('assets/js/candy-inventory-ui.js');
+const professorTransfer=read('assets/js/pokemon-professor-transfer.js');
+const professorTransferUi=read('assets/js/pokemon-professor-transfer-ui.js');
 const backup=read('assets/js/backup-truth-restore.js');
 const app=read('assets/js/app.js');
 const canonical=read('assets/js/canonical-registry.js');
@@ -56,8 +59,15 @@ assert.ok(migrations.includes('syncPublicCandyMaster'));
 assert.ok(migrations.includes('applyPublicCandyMasterSchema(db);applyCanonicalRegistry(db)'),'legacy canonical migration must establish Candy schema before reading it');
 for(const token of ["candy_inventory: ['candy_id']","SELECT candy_id FROM candy_master WHERE candy_name=?",'找不到公版糖果'])assert.ok(importer.includes(token),`importer Candy guard missing: ${token}`);
 for(const token of ["CANDY_CONVERSION_RULE_STATUS='NOT_YET_VERIFIED'",'included_in_physical_totals:false','derived_options:[]'])assert.ok(resource.includes(token),`resource conversion guard missing: ${token}`);
-assert.ok(candyUi.includes('玩家數量只接受 JSON 更新中心匯入'));
-assert.equal(candyUi.includes('saveCandy'),false);
+if(professorObservedDeltaWriter){
+  for(const token of ['玩家數量可由 JSON 更新中心匯入','送給博士','遊戲實際觀測糖果數量增量寫入','USER_DIRECT_OBSERVATION_ONLY'])assert.ok(candyUi.includes(token),`v0.4.27.46+ governed Candy UI token missing: ${token}`);
+  for(const token of ["PROFESSOR_TRANSFER_CANDY_AUTHORITY='USER_DIRECT_OBSERVATION_ONLY'",'if(candyQuantity!==null)','quantity=candy_inventory.quantity+excluded.quantity',"inventory_mutation:candyInventoryApplied?'OBSERVED_DELTA_INCREMENT':'NO_MUTATION'",'automatic_quantity_inference:false'])assert.ok(professorTransfer.includes(token),`v0.4.27.46+ Professor observed-delta contract missing: ${token}`);
+  assert.ok(professorTransferUi.includes('留空＝只完成送博士狀態，不自行猜糖果數量'),'blank Professor observation must remain a no-candy-mutation path');
+  assert.ok(index.includes('./assets/js/pokemon-professor-transfer-ui.js'),'governed Professor transfer UI must remain loaded');
+}else{
+  assert.ok(candyUi.includes('玩家數量只接受 JSON 更新中心匯入'),'pre-v0.4.27.46 successor must retain historical JSON-only Candy UI authority');
+}
+assert.equal(candyUi.includes('saveCandy'),false,'Candy quantity UI must remain read-only');
 assert.ok(index.includes('./assets/js/candy-inventory-ui.js'));
 assert.ok(backup.includes("'candy_inventory'"));
 assert.ok(app.includes("'candy_inventory'"));
@@ -69,6 +79,9 @@ const sw=read('service-worker.js');
 assert.ok(sw.includes("importScripts('./assets/js/version-authority.js')"));
 assert.ok(sw.includes('cache_name:CACHE'));
 assert.ok(sw.includes("url.pathname.endsWith('.js')"),'runtime JS must remain network-first/cached for supported online-load-once offline use');
+if(professorObservedDeltaWriter){
+  for(const asset of ['./assets/js/pokemon-professor-transfer.js','./assets/js/pokemon-professor-transfer-ui.js','./assets/js/candy-inventory-ui.js'])assert.ok(sw.includes(`'${asset}'`),`v0.4.27.46+ offline asset missing: ${asset}`);
+}
 
 console.log(JSON.stringify({
   status:'PASS',
@@ -78,7 +91,9 @@ console.log(JSON.stringify({
   exact_release_authority_enforced:currentVersion==='v0.4.7',
   sqlite_migration:9,
   public_candy_master:PUBLIC_CANDY_MASTER_VERSION,
-  player_candy_write_authority:'UPDATE_CENTER_JSON',
+  player_candy_write_authority:professorObservedDeltaWriter?['UPDATE_CENTER_JSON','PROFESSOR_USER_DIRECT_OBSERVATION_DELTA']:'UPDATE_CENTER_JSON',
+  professor_observed_delta_successor:professorObservedDeltaWriter,
+  automatic_professor_reward_inference:false,
   species_candy_name_projection:true,
   physical_vs_convertible_double_count_guard:true,
   candy_conversion_rule_status:'NOT_YET_VERIFIED',

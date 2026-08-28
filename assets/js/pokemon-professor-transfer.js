@@ -3,8 +3,9 @@ import {localIso} from './time-utils.js';
 import {speciesCandyName} from './public-candy-master.js';
 import {CANDY_CONVERSION_RULE_STATUS} from './resource-context.js';
 
-export const PROFESSOR_TRANSFER_VERSION='pokemon-professor-transfer-2026-08-19-b';
+export const PROFESSOR_TRANSFER_VERSION='pokemon-professor-transfer-2026-08-27-p0b1';
 export const PROFESSOR_TRANSFER_CANDY_RULE_STATUS=CANDY_CONVERSION_RULE_STATUS;
+export const PROFESSOR_TRANSFER_CANDY_AUTHORITY='USER_DIRECT_OBSERVATION_ONLY';
 
 const now=()=>localIso();
 const makeId=prefix=>`${prefix}-${globalThis.crypto?.randomUUID?.()||`${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
@@ -13,7 +14,7 @@ const trace=(event,detail={})=>{
   globalThis.DebugTrace?.record?.('pokemon_roster',event,{status:'completed',details:detail});
 };
 
-function normalizeObservedCandyQuantity(value){
+export function normalizeObservedCandyQuantity(value){
   if(value===null||value===undefined||value==='')return null;
   const quantity=Number(value);
   if(!Number.isInteger(quantity)||quantity<0)throw new Error('糖果數量必須是 0 以上整數，或留空表示尚未確認');
@@ -62,7 +63,7 @@ export async function transferPokemonToProfessor(pokemonId,{observedCandyQuantit
     }
     const after=rows('SELECT * FROM pokemon WHERE pokemon_id=?',[pokemonId])[0]||null;
     const transferEvidence={
-      schema:'pokemon-sleep-professor-transfer/1.0',
+      schema:'pokemon-sleep-professor-transfer/1.1',
       transfer_id:transferId,
       pokemon_id:pokemonId,
       pokemon_instance_id:before.pokemon_instance_id||null,
@@ -72,7 +73,9 @@ export async function transferPokemonToProfessor(pokemonId,{observedCandyQuantit
       candy_inventory_applied:candyInventoryApplied,
       candy_conversion_status:candyConversionStatus,
       deterministic_conversion_rule_status:PROFESSOR_TRANSFER_CANDY_RULE_STATUS,
-      quantity_authority:candyQuantity===null?'NOT_OBSERVED':'USER_DIRECT_OBSERVATION',
+      quantity_authority:candyQuantity===null?'NOT_OBSERVED':PROFESSOR_TRANSFER_CANDY_AUTHORITY,
+      inventory_write_authority:candyInventoryApplied?PROFESSOR_TRANSFER_CANDY_AUTHORITY:'NONE',
+      inventory_mutation:candyInventoryApplied?'OBSERVED_DELTA_INCREMENT':'NO_MUTATION',
       transferred_at:at,
       no_hard_delete:true,
     };
@@ -82,17 +85,18 @@ export async function transferPokemonToProfessor(pokemonId,{observedCandyQuantit
     ]);
     const auditId=`MANUAL-${Date.now()}-${Math.random().toString(16).slice(2,6)}`;
     run('INSERT INTO import_batches(update_id,schema_version,generated_at,imported_at,source,operation_count,result_json) VALUES(?,?,?,?,?,?,?)',[
-      auditId,'manual-professor-transfer-1.0',at,at,'pokemon_box_professor_transfer',1,JSON.stringify({status:'applied',transfer:transferEvidence}),
+      auditId,'manual-professor-transfer-1.1',at,at,'pokemon_box_professor_transfer',1,JSON.stringify({status:'applied',transfer:transferEvidence}),
     ]);
     run('INSERT INTO import_changes(update_id,operation_index,entity,action,key_json,before_json,after_json,status,message) VALUES(?,?,?,?,?,?,?,?,?)',[
-      auditId,0,'pokemon','sent_to_professor',JSON.stringify({pokemon_id:pokemonId}),JSON.stringify(before),JSON.stringify(after),'applied','寶可夢送給博士；資料保留、active roster 隱藏。',
+      auditId,0,'pokemon','sent_to_professor',JSON.stringify({pokemon_id:pokemonId}),JSON.stringify(before),JSON.stringify(after),'applied',
+      candyInventoryApplied
+        ?`寶可夢送給博士；資料保留，並依使用者實際觀測增加 ${candyName||'對應糖果'} ×${candyQuantity}。`
+        :'寶可夢送給博士；資料保留、active roster 隱藏；未自行推算糖果。',
     ]);
     commit();await persist();
-    trace('pokemon_sent_to_professor',{candy_conversion_status:candyConversionStatus,candy_inventory_applied:candyInventoryApplied,observed_candy_quantity:candyQuantity,deterministic_conversion_rule_status:PROFESSOR_TRANSFER_CANDY_RULE_STATUS});
-    globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:data-changed',{detail:{reason:'pokemon_sent_to_professor'}}));
+    trace('pokemon_sent_to_professor',{candy_conversion_status:candyConversionStatus,candy_inventory_applied:candyInventoryApplied,observed_candy_quantity:candyQuantity,quantity_authority:transferEvidence.quantity_authority,inventory_mutation:transferEvidence.inventory_mutation,deterministic_conversion_rule_status:PROFESSOR_TRANSFER_CANDY_RULE_STATUS});
+    globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:data-changed',{detail:{reason:'pokemon_sent_to_professor',candy_inventory_changed:candyInventoryApplied}}));
     globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:pokemon-evaluation-input-changed',{detail:{pokemon_ids:[String(pokemonId)],reason:'pokemon_sent_to_professor'}}));
-    // Existing app refresh contract currently listens to this event; keep it as a
-    // compatibility refresh signal until a generic roster-refresh event becomes authoritative.
     globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:analysis-confirmed-applied',{detail:{pokemon_id:pokemonId,mode:'sent_to_professor',reason:'pokemon_sent_to_professor',compatibility_refresh_only:true}}));
     return {pokemon:after,transfer:transferEvidence,candy_inventory:candyInventoryAfter};
   }catch(error){rollback();throw error;}
@@ -101,8 +105,10 @@ export async function transferPokemonToProfessor(pokemonId,{observedCandyQuantit
 export function professorTransferCandyGuidance(){
   return {
     deterministic_rule_status:PROFESSOR_TRANSFER_CANDY_RULE_STATUS,
+    quantity_authority:PROFESSOR_TRANSFER_CANDY_AUTHORITY,
     automatic_quantity_inference:false,
     observed_quantity_supported:true,
+    inventory_mutation:'OBSERVED_DELTA_INCREMENT_ONLY',
     message:PROFESSOR_TRANSFER_CANDY_RULE_STATUS==='NOT_YET_VERIFIED'
       ?'平台尚未有 Evidence-backed 博士轉換糖果數量規則；請輸入遊戲實際顯示的糖果數量，或留空只完成送博士狀態。'
       :'可依已驗證規則處理。',
