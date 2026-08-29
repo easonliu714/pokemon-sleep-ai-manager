@@ -19,6 +19,7 @@ const version=read('assets/js/version-authority.js');
 const app=version.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 const build=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cache=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
+const publicSpeciesAuthoritySuccessor=atLeast(app,'v0.4.27.47');
 assert.equal(atLeast(app,'v0.4.8.3'),true,`historical v0.4.8.3 contract cannot run on older release: ${app}`);
 if(app==='v0.4.8.3'){
   assert.equal(build,'20260810-v0483-houndour-camp-mobile-containment');
@@ -26,7 +27,7 @@ if(app==='v0.4.8.3'){
 }
 
 assert.equal(PUBLIC_POKEMON_KNOWLEDGE_VERSION,'pokemon-knowledge-2026-08-10-e');
-assert.equal(PUBLIC_CANDY_MASTER_VERSION,'public-candy-master-2026-08-10-d');
+assert.equal(PUBLIC_CANDY_MASTER_VERSION,publicSpeciesAuthoritySuccessor?'public-candy-master-2026-08-29-e':'public-candy-master-2026-08-10-d');
 assert.equal(EVOLUTION_COVERAGE_DIAGNOSTIC_SCHEMA,'pokemon-sleep-evolution-coverage-diagnostic/1.0');
 const bundle=auditPublicPokemonKnowledgeBundle();
 assert.equal(bundle.ok,true,bundle.errors.join('\n'));
@@ -83,4 +84,4 @@ if(app==='v0.4.8.3'){
 }
 assert.equal(read('assets/js/migrations.js').includes('VALUES(10,'),false,'v0.4.8.3+ must remain migration-10 free');
 
-console.log(JSON.stringify({status:'PASS',gate:'V0.4.8.3_RELEASE_HISTORICAL_CONTRACT',current_app_version:app,houndour_evidence_closed:true,target_live_unknown_expected:0,mobile_containment_preserved:true,mobile_containment_strategy:mobileContainment,sqlite_migration_added:false},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V0.4.8.3_RELEASE_HISTORICAL_CONTRACT',current_app_version:app,houndour_evidence_closed:true,target_live_unknown_expected:0,public_species_authority_successor:publicSpeciesAuthoritySuccessor,mobile_containment_preserved:true,mobile_containment_strategy:mobileContainment,sqlite_migration_added:false},null,2));
