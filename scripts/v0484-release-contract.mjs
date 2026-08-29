@@ -11,13 +11,14 @@ const version=read('assets/js/version-authority.js');
 const app=version.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 const build=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cache=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
+const publicSpeciesAuthoritySuccessor=atLeast(app,'v0.4.27.47');
 assert.equal(atLeast(app,'v0.4.8.4'),true,`historical v0.4.8.4 contract cannot run on older release: ${app}`);
 if(app==='v0.4.8.4'){
   assert.equal(build,'20260810-v0484-touch-first-camp-containment');
   assert.equal(cache,'pokemon-sleep-ai-v0.4.8.4-v0484-touch-first-camp-containment');
 }
 assert.equal(PUBLIC_POKEMON_KNOWLEDGE_VERSION,'pokemon-knowledge-2026-08-10-e');
-assert.equal(PUBLIC_CANDY_MASTER_VERSION,'public-candy-master-2026-08-10-d');
+assert.equal(PUBLIC_CANDY_MASTER_VERSION,publicSpeciesAuthoritySuccessor?'public-candy-master-2026-08-29-e':'public-candy-master-2026-08-10-d');
 const bundle=auditPublicPokemonKnowledgeBundle();
 assert.equal(bundle.ok,true,bundle.errors.join('\n'));
 assert.ok(bundle.manifest.evolution_route_rows>=79);
@@ -54,4 +55,4 @@ if(app==='v0.4.8.4'){
 }
 assert.equal(read('assets/js/migrations.js').includes('VALUES(10,'),false,'v0.4.8.4+ must not add SQLite migration 10');
 
-console.log(JSON.stringify({status:'PASS',gate:'V0.4.8.4_HISTORICAL_CONTAINMENT',current_app_version:app,mobile_camp_layout:mobileCampLayout,outer_containment:true,public_master_changed:false,player_rows_mutated:false,sqlite_migration_added:false},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V0.4.8.4_HISTORICAL_CONTAINMENT',current_app_version:app,mobile_camp_layout:mobileCampLayout,outer_containment:true,public_species_authority_successor:publicSpeciesAuthoritySuccessor,public_master_changed:false,player_rows_mutated:false,sqlite_migration_added:false},null,2));
