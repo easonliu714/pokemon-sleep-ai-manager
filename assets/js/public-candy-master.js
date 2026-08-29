@@ -1,7 +1,10 @@
 import {PUBLIC_BERRY_TYPES} from './shared-master-data.js';
-import {PUBLIC_EVOLUTION_MASTER,PUBLIC_EVOLUTION_STATUS_MASTER,PUBLIC_POKEMON_KNOWLEDGE_VERSION} from './public-pokemon-knowledge-master.js';
+import {
+  PUBLIC_POKEMON_SPECIES_AUTHORITY_VERSION,
+  publicPokemonNamesForLegacyCandyProjection,
+} from './public-pokemon-species-authority.js';
 
-export const PUBLIC_CANDY_MASTER_VERSION='public-candy-master-2026-08-10-d';
+export const PUBLIC_CANDY_MASTER_VERSION='public-candy-master-2026-08-29-e';
 export const SPECIES_CANDY_NAME_RULE_VERSION='species-candy-name-rule-zh-tw-2026-08-10-a';
 
 const OFFICIAL='Pokémon Sleep official zh-TW';
@@ -51,14 +54,7 @@ export function parseSpeciesCandyName(candyName){
 }
 
 export function publicPokemonNamesForCandy(){
-  const names=new Map();
-  const add=value=>{
-    const display=displayText(value),key=normalizeKey(value);
-    if(display&&key&&!names.has(key))names.set(key,display);
-  };
-  for(const row of PUBLIC_EVOLUTION_MASTER){add(row.from_species);add(row.to_species);}
-  for(const row of PUBLIC_EVOLUTION_STATUS_MASTER)add(row.species_name);
-  return [...names.values()].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
+  return publicPokemonNamesForLegacyCandyProjection();
 }
 
 export function buildPublicCandyMasterRows(){
@@ -73,9 +69,9 @@ export function buildPublicCandyMasterRows(){
       name_rule:SPECIES_CANDY_NAME_RULE_VERSION,
       verification_status:'DERIVED_FROM_PUBLIC_POKEMON_CANONICAL_NAME',
       source_type:'public_pokemon_name_projection',
-      source_name:'Public Pokémon Knowledge',
-      source_ref:PUBLIC_POKEMON_KNOWLEDGE_VERSION,
-      verified_at:'2026-08-10',
+      source_name:'Public Pokémon Species Authority (legacy Candy compatibility projection)',
+      source_ref:PUBLIC_POKEMON_SPECIES_AUTHORITY_VERSION,
+      verified_at:'2026-08-29',
       data_version:PUBLIC_CANDY_MASTER_VERSION,
     }));
   }
@@ -128,7 +124,7 @@ export function syncPublicCandyMaster(db){
     player_tables_untouched:true,
     fixed_verified_count:PUBLIC_CANDY_FIXED_MASTER.length,
     species_name_rule:SPECIES_CANDY_NAME_RULE_VERSION,
-    pokemon_name_authority:PUBLIC_POKEMON_KNOWLEDGE_VERSION,
+    pokemon_name_authority:PUBLIC_POKEMON_SPECIES_AUTHORITY_VERSION,
     species_projection_count:publicPokemonNamesForCandy().length,
     physical_inventory_only:true,
     conversion_projection_status:'NOT_YET_VERIFIED',
