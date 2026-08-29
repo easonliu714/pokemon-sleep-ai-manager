@@ -19,11 +19,12 @@ const atLeast=(current,minimum)=>{const left=parts(current),right=parts(minimum)
 
 const version=read('assets/js/version-authority.js');
 const app=version.match(/app_version:\s*'([^']+)'/)?.[1]||'';
+const publicSpeciesAuthoritySuccessor=atLeast(app,'v0.4.27.47');
 assert.equal(atLeast(app,'v0.4.8.1'),true,`DATA.EVO.1 requires v0.4.8.1 behavior or later: ${app}`);
 assert.equal(EVOLUTION_COVERAGE_DIAGNOSTIC_SCHEMA,'pokemon-sleep-evolution-coverage-diagnostic/1.0');
 assert.equal(EVOLUTION_COVERAGE_DIAGNOSTIC_VERSION,'data-evo1-evolution-coverage-diagnostic-2026-08-10-a');
 assert.equal(PUBLIC_POKEMON_KNOWLEDGE_VERSION,'pokemon-knowledge-2026-08-10-e');
-assert.equal(PUBLIC_CANDY_MASTER_VERSION,'public-candy-master-2026-08-10-d');
+assert.equal(PUBLIC_CANDY_MASTER_VERSION,publicSpeciesAuthoritySuccessor?'public-candy-master-2026-08-29-e':'public-candy-master-2026-08-10-d');
 
 const bundle=auditPublicPokemonKnowledgeBundle();
 assert.equal(bundle.ok,true,bundle.errors.join('\n'));
@@ -117,6 +118,7 @@ console.log(JSON.stringify({
   current_app_version:app,
   public_pokemon_knowledge_version:PUBLIC_POKEMON_KNOWLEDGE_VERSION,
   public_candy_master_version:PUBLIC_CANDY_MASTER_VERSION,
+  public_species_authority_successor:publicSpeciesAuthoritySuccessor,
   evolution_routes:bundle.manifest.evolution_route_rows,
   outgoing_species:bundle.manifest.evolution_from_species_rows,
   verified_terminal_species:bundle.manifest.evolution_verified_terminal_rows,
