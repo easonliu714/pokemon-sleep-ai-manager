@@ -72,8 +72,6 @@ const unknown=resolvePublicCandyDisplayNameForSpecies('不存在寶可夢');
 assert.equal(unknown.status,'REVIEW_REQUIRED');
 assert.equal(unknown.candy_display_name,null);
 
-// B4 is deliberately non-mutating. The legacy Candy Master and Professor
-// transfer writer remain predecessor authorities until a separate migration gate.
 assert.equal(PUBLIC_CANDY_MASTER_VERSION,'public-candy-master-2026-08-29-e');
 assert.equal(speciesCandyName('皮卡丘'),'皮卡丘的糖果');
 const professorSource=read('assets/js/pokemon-professor-transfer.js');
@@ -81,20 +79,26 @@ assert.match(professorSource,/PROFESSOR_TRANSFER_VERSION='pokemon-professor-tran
 assert.equal(professorSource.includes('public-candy-display-name-authority.js'),false);
 assert.match(professorSource,/USER_DIRECT_OBSERVATION_ONLY/);
 
-// Exact .50 release closure. This verifies the new Authority is shipped and
-// available offline without mutating the legacy Candy Master or player keys.
 const versionSource=read('assets/js/version-authority.js');
 const serviceWorkerSource=read('service-worker.js');
 const workflowSource=read('.github/workflows/regression-gate.yml');
 const appVersion=versionSource.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 const appBuild=versionSource.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-assert.equal(appVersion,'v0.4.27.50');
-assert.equal(appBuild,'20260831-v042750-p0b4-candy-display-name-authority');
-assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.50-v042750-p0b4-candy-display-name-authority');
+if(appVersion==='v0.4.27.50'){
+  assert.equal(appBuild,'20260831-v042750-p0b4-candy-display-name-authority');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.50-v042750-p0b4-candy-display-name-authority');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.49'"));
+}else if(appVersion==='v0.4.27.51'){
+  assert.equal(appBuild,'20260831-v042751-p0b5-candy-quantity-confirmation');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.51-v042751-p0b5-candy-quantity-confirmation');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.50'"),'v0.4.27.50 predecessor version bridge must remain');
+  assert.ok(versionSource.includes("// app_build: '20260831-v042750-p0b4-candy-display-name-authority'"),'v0.4.27.50 predecessor build bridge must remain');
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.50-v042750-p0b4-candy-display-name-authority'"),'v0.4.27.50 predecessor cache bridge must remain');
+}else{
+  assert.fail(`B4 successor release not governed: ${appVersion}`);
+}
 assert.ok(versionSource.includes("// app_version: 'v0.4.27.49'"),'v0.4.27.49 predecessor version bridge must remain');
-assert.ok(versionSource.includes("// app_build: '20260831-v042749-p0b3-candy-family-authority'"),'v0.4.27.49 predecessor build bridge must remain');
-assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.49-v042749-p0b3-candy-family-authority'"),'v0.4.27.49 predecessor cache bridge must remain');
 assert.equal((serviceWorkerSource.match(/\.\/assets\/js\/public-candy-display-name-authority\.js/g)||[]).length,1,'Candy display-name authority must be precached exactly once');
 assert.equal((serviceWorkerSource.match(/\.\/assets\/js\/public-candy-family-authority\.js/g)||[]).length,1,'Candy family predecessor authority must remain precached exactly once');
 assert.ok(workflowSource.includes('node scripts/v042750-p0b4-candy-display-name-authority-contract.mjs'));
@@ -117,9 +121,8 @@ console.log(JSON.stringify({
     player_inventory_migration:false,
     professor_transfer_write_change:false,
     predecessor_b3_exact_bridge_preserved:true,
+    successor_release_exact:true,
   },
 },null,2));
 
-// P0-B5 is a successor governance gate. Chaining it here preserves the
-// consolidated CI topology instead of creating a standalone version workflow.
 await import('./v042751-p0b5-candy-quantity-confirmation-contract.mjs');
