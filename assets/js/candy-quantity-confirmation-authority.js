@@ -102,8 +102,13 @@ export function compileCandyQuantityGovernedRecognitionToUpdatePackage(payload,i
     const index=match?Number(match[1])-1:-1;
     const observation=index>=0?observations[index]:null;
     if(!observation||unresolvedIds.has(observation.observation_id)||!isCandyQuantityExplicitlyConfirmed(observation))return [];
+    const candyId=clean(operation?.key?.candy_id);
+    if(!candyId)return [];
     return [{
       ...operation,
+      // candy_name is Recognition/display evidence, not a candy_inventory storage column.
+      // Canonicalize the write key to the physical table PK before importer Dry-Run/Apply.
+      key:{candy_id:candyId},
       evidence:{
         ...(operation.evidence||{}),
         quantity_candidate_source:'OCR_SCREENSHOT_HINT',
