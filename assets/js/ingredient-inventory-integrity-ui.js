@@ -6,10 +6,13 @@ import {
 import {
   INGREDIENT_INVENTORY_INTEGRITY_VERSION,
   buildIngredientAbsenceCandidates,
-  ingredientNamesFromUpdatePackage,
-  applyIngredientAbsenceConfirmations,
   validateIngredientAbsenceConfirmationPackage,
 } from './ingredient-inventory-integrity-contract.js';
+import {
+  INGREDIENT_INFERRED_ZERO_INTEGRITY_VERSION,
+  ingredientNamesWithDirectInventoryEvidence,
+  applyIngredientAbsenceConfirmationsWithInferredZeroPromotion,
+} from './ingredient-inferred-zero-integrity-v042748.js';
 
 const STYLE_ID='ingredientInventoryIntegrityStyle';
 const REVIEW_CLASS='ingredient-absence-review';
@@ -47,7 +50,7 @@ function reviewState(panel){
   const state=sourceState(panel),currentCoverage=coverage(panel);
   if(!state.compiled)return {...state,coverage:currentCoverage,candidates:[],confirmations:[],blocked_reason:null};
   const confirmations=confirmationsFrom(state);
-  const recognized=ingredientNamesFromUpdatePackage(state.compiled);
+  const recognized=ingredientNamesWithDirectInventoryEvidence(state.compiled);
   const candidates=buildIngredientAbsenceCandidates({coverage:currentCoverage,recognizedIngredientNames:recognized,establishedInventoryRows:establishedRows(),confirmations});
   let blockedReason=null;
   if(currentCoverage==='USER_CONFIRMED_COMPLETE'&&state.unresolved.length)blockedReason='請先完成 Public Master Recognition 的 AMBIGUOUS / UNMATCHED 覆核，再判斷完整庫存缺席項目。';
@@ -75,11 +78,11 @@ function render(){
   scheduled=false;ensureStyle();const panel=ingredientPanel();if(!panel)return;
   panel.querySelector(`.${REVIEW_CLASS}`)?.remove();
   const state=reviewState(panel);if(state.coverage!=='USER_CONFIRMED_COMPLETE'||!state.compiled)return;
-  const host=document.createElement('section');host.className=REVIEW_CLASS;host.dataset.integrityVersion=INGREDIENT_INVENTORY_INTEGRITY_VERSION;
+  const host=document.createElement('section');host.className=REVIEW_CLASS;host.dataset.integrityVersion=`${INGREDIENT_INVENTORY_INTEGRITY_VERSION}|${INGREDIENT_INFERRED_ZERO_INTEGRITY_VERSION}`;
   if(state.blocked_reason){host.innerHTML=`<b>完整庫存缺席覆核</b><span class="ingredient-integrity-badge">${esc(INGREDIENT_INVENTORY_INTEGRITY_VERSION)}</span><div class="ingredient-absence-blocked">${esc(state.blocked_reason)}</div>`;insert(panel,host);return;}
-  if(!state.candidates.length){host.innerHTML=`<b>完整庫存缺席覆核</b><span class="ingredient-integrity-badge">PASS</span><div class="notice">所有具玩家紀錄的缺席食材都已有可判定語意；未出現項目不會因 null / missing 自動歸零，也不會把 quantity=0 自動解讀為未解鎖。</div>`;insert(panel,host);return;}
+  if(!state.candidates.length){host.innerHTML=`<b>完整庫存缺席覆核</b><span class="ingredient-integrity-badge">PASS</span><div class="notice">所有具玩家紀錄的缺席食材都已有可判定語意；未出現項目不會因 null / missing 自動歸零，0 信心 screenshot-zero 也不會被當成直接畫面觀測。</div>`;insert(panel,host);return;}
   const unresolved=state.candidates.filter(item=>item.status!=='RESOLVED');
-  host.innerHTML=`<b>完整庫存中需要確認的缺席食材：${state.candidates.length}</b><span class="ingredient-integrity-badge">待確認 ${unresolved.length}</span><div class="notice">庫存數量與解鎖狀態是兩個不同欄位。quantity=0 可能代表「已解鎖但用完」或「尚未解鎖」；舊資料無法判斷時必須明確確認。</div>${state.candidates.map(item=>`<article class="ingredient-absence-card" data-name="${esc(item.ingredient_name)}"><div><b>${esc(item.ingredient_name)}</b> · 目前 SQLite 數量：<b>${item.previous_quantity}</b></div><div class="ingredient-absence-semantics">目前解鎖語意：${esc(item.unlock_state)} · ${esc(item.review_kind)}</div>${item.status==='RESOLVED'?`<div class="ingredient-absence-resolved">${esc(resolutionLabel(item.resolution))}</div>`:actionButtons(item)}</article>`).join('')}`;
+  host.innerHTML=`<b>完整庫存中需要確認的缺席食材：${state.candidates.length}</b><span class="ingredient-integrity-badge">待確認 ${unresolved.length}</span><div class="notice">庫存數量與解鎖狀態是兩個不同欄位。quantity=0 可能代表「已解鎖但用完」或「尚未解鎖」；AI 若因畫面缺席以 0 信心提出 quantity=0，也必須由你明確確認後才能 Dry-Run / Apply。</div>${state.candidates.map(item=>`<article class="ingredient-absence-card" data-name="${esc(item.ingredient_name)}"><div><b>${esc(item.ingredient_name)}</b> · 目前 SQLite 數量：<b>${item.previous_quantity}</b></div><div class="ingredient-absence-semantics">目前解鎖語意：${esc(item.unlock_state)} · ${esc(item.review_kind)}</div>${item.status==='RESOLVED'?`<div class="ingredient-absence-resolved">${esc(resolutionLabel(item.resolution))}</div>`:actionButtons(item)}</article>`).join('')}`;
   insert(panel,host);bindCards(panel,host,state);
 }
 function insert(panel,host){const issues=panel.querySelector('.uc-img-issues');if(issues)issues.insertAdjacentElement('afterend',host);else panel.appendChild(host);}
@@ -104,7 +107,7 @@ function commitResolution(panel,state,item,resolution){
     ]),
   ].filter(Boolean))];
   const confirmations=mergedConfirmations(state,item.ingredient_name,resolution,item.previous_quantity);
-  const payload=applyIngredientAbsenceConfirmations(state.compiled,confirmations,{sourceImageRefs:refs});
+  const payload=applyIngredientAbsenceConfirmationsWithInferredZeroPromotion(state.compiled,confirmations,{sourceImageRefs:refs});
   state.textarea.value=JSON.stringify(payload,null,2);state.textarea.dispatchEvent(new Event('input',{bubbles:true}));
   panel.querySelector('.uc-img-parse')?.click();setTimeout(schedule,0);
 }
