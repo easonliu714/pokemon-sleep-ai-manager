@@ -13,6 +13,10 @@ import {buildSparseObservedPatch,isObservedWriteValue} from './data-preservation
 import {rebaseWeeklyManualOverrideForImport} from './weekly-context-manual-override.js';
 import {assertPokemonVisualUpdatePackageSafe} from './pokemon-visual-update-preflight.js';
 import {
+  CANDY_QUANTITY_CONFIRMATION_ACTION,
+  CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION,
+} from './candy-quantity-confirmation-authority.js';
+import {
   FIRST_PARTY_OBSERVATION_UPDATE_ENTITY,
   FIRST_PARTY_OBSERVATION_UPDATE_SCENARIO,
   prepareFirstPartyIngredientObservationStorageData,
@@ -69,6 +73,20 @@ function validateProfileAudit(payload) {
   });
 }
 
+function validateCandyScreenshotQuantityAuthority(operation,index) {
+  if (operation.entity !== 'candy_inventory') return;
+  const data=operation.data||{},evidence=operation.evidence||{};
+  if (!hasOwn(data,'quantity') || !isMeaningful(data.quantity)) return;
+  const isScreenshotCandidate=evidence.source_type==='screenshot'||evidence.quantity_candidate_source==='OCR_SCREENSHOT_HINT';
+  if (!isScreenshotCandidate) return;
+  const label=`操作 ${index}`;
+  if (evidence.quantity_confirmed_by_user !== true) throw new Error(`${label}：截圖糖果 quantity 必須由使用者明確確認`);
+  if (evidence.quantity_confirmation_authority !== CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION) throw new Error(`${label}：截圖糖果 quantity_confirmation_authority 不相符`);
+  if (evidence.quantity_confirmation_action !== CANDY_QUANTITY_CONFIRMATION_ACTION) throw new Error(`${label}：截圖糖果 quantity_confirmation_action 不相符`);
+  if (!Object.is(evidence.confirmed_quantity,data.quantity)) throw new Error(`${label}：截圖糖果 confirmed_quantity 與 data.quantity 不一致`);
+  if (typeof evidence.quantity_confirmed_at !== 'string' || !evidence.quantity_confirmed_at.trim()) throw new Error(`${label}：截圖糖果缺少 quantity_confirmed_at`);
+}
+
 function validateEntityValues(operation, index) {
   const data = operation.data || {};
   const label = `操作 ${index}`;
@@ -84,6 +102,7 @@ function validateEntityValues(operation, index) {
       if (hasOwn(data, field) && isMeaningful(data[field]) && !validNonNegativeInteger(data[field])) throw new Error(`${label}：${field} 必須為 0 以上整數`);
     }
   }
+  validateCandyScreenshotQuantityAuthority(operation,index);
   if (operation.entity === 'recipes') {
     if (hasOwn(data, 'unlocked') && isMeaningful(data.unlocked) && ![true, false, 0, 1].includes(data.unlocked)) throw new Error(`${label}：unlocked 必須為 true/false 或 0/1`);
     for (const field of ['recipe_level', 'current_energy']) {
