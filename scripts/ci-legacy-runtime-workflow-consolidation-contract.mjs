@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-export const LEGACY_RUNTIME_WORKFLOW_CONSOLIDATION_VERSION='legacy-runtime-workflow-consolidation-2026-09-01-d-p5-successor-token-refresh';
+export const LEGACY_RUNTIME_WORKFLOW_CONSOLIDATION_VERSION='legacy-runtime-workflow-consolidation-2026-09-01-e-p5-consolidated-successor-refresh';
 
 const retiredWorkflows=Object.freeze([
   '.github/workflows/v03751-version-authority-gate.yml',
@@ -63,9 +63,8 @@ const p5RetiredCoreWrappers=Object.freeze([
   '.github/workflows/v0398-update-center-multiscenario.yml',
 ]);
 const p5CoreBehaviorTokens=Object.freeze([
-  'tests/test_v0396_general_json_audit_contract.py',
-  'tests/test_v0397_profile_completeness_contract.py',
-  'tests/test_v0398_update_center_multiscenario_contract.py',
+  'python scripts/p5-wrapper-side-by-side-parity-contract.py',
+  'node scripts/general-json-profile-update-center-predecessor-contract.mjs',
   'node scripts/p5-core-update-center-human-review-successor-contract.mjs',
 ]);
 
