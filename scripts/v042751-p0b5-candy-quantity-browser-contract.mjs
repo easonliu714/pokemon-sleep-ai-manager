@@ -8,6 +8,20 @@ try{
   const page=await context.newPage();
   await page.goto(base,{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>document.getElementById('dbStatus')?.textContent?.includes('就緒'),{timeout:60000});
+
+  // P0-B5 screenshot UI normally mounts only when Update Center creates its dynamic host.
+  // The regression gate boot page does not navigate into that view, so create the exact host
+  // and import a cache-busted copy of the real UI module. This validates mountability without
+  // weakening the production mount contract or depending on unrelated navigation state.
+  await page.evaluate(async()=>{
+    let host=document.getElementById('updateCenterDynamicContent');
+    if(!host){
+      host=document.createElement('div');
+      host.id='updateCenterDynamicContent';
+      document.body.appendChild(host);
+    }
+    await import('./assets/js/candy-quantity-screenshot-ui.js?gate=v042751-browser-mount');
+  });
   await page.waitForSelector('#candyQuantityScreenshotB5',{timeout:60000});
 
   const result=await page.evaluate(async()=>{
