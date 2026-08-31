@@ -6,13 +6,18 @@ const browser=await chromium.launch({headless:true});
 try{
   const context=await browser.newContext();
   const page=await context.newPage();
+  page.on('console',message=>console.log(`[B5-BROWSER:${message.type()}] ${message.text()}`));
+  page.on('pageerror',error=>console.error(`[B5-BROWSER:pageerror] ${error?.stack||error}`));
+  console.log('[B5-BROWSER] STAGE=BOOT START');
   await page.goto(base,{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>document.getElementById('dbStatus')?.textContent?.includes('就緒'),{timeout:60000});
+  console.log('[B5-BROWSER] STAGE=BOOT PASS');
 
   // P0-B5 screenshot UI normally mounts only when Update Center creates its dynamic host.
   // The regression gate boot page does not navigate into that view, so create the exact host
   // and import a cache-busted copy of the real UI module. This validates mountability without
   // weakening the production mount contract or depending on unrelated navigation state.
+  console.log('[B5-BROWSER] STAGE=UI_MOUNT START');
   await page.evaluate(async()=>{
     let host=document.getElementById('updateCenterDynamicContent');
     if(!host){
@@ -26,14 +31,19 @@ try{
   // CSS may keep the mounted panel hidden. This gate verifies exact DOM mountability here;
   // visibility/navigation is a separate live PWA concern and must not create a false CI failure.
   await page.waitForSelector('#candyQuantityScreenshotB5',{state:'attached',timeout:60000});
+  console.log('[B5-BROWSER] STAGE=UI_MOUNT PASS');
 
+  console.log('[B5-BROWSER] STAGE=TRANSACTION START');
   const result=await page.evaluate(async()=>{
+    const stage=name=>console.log(`[B5-TX] ${name}`);
+    stage('IMPORTS START');
     const governed=await import('./assets/js/candy-quantity-confirmation-authority.js?gate=v042751');
     const baseRecognition=await import('./assets/js/public-master-recognition.js?gate=v042751');
     const importer=await import('./assets/js/importer.js?gate=v042751');
     // importer.js binds the canonical queryless database singleton.
     const database=await import('./assets/js/database.js');
     if(!database.isDatabaseReady())await database.initializeDatabase();
+    stage('IMPORTS PASS');
 
     const snapshot=governed.buildPublicMasterCatalogSnapshot('candies');
     const candidate=snapshot.rows.find(row=>row?.candy_id&&row?.candy_name);
@@ -42,6 +52,7 @@ try{
       VALUES(?,?,0,datetime('now'),?)
       ON CONFLICT(candy_id) DO UPDATE SET quantity=excluded.quantity,safe_reserve=0,updated_at=excluded.updated_at,source_update_id=excluded.source_update_id`,
       [candidate.candy_id,5,'V042751-SEED']);
+    stage('SEED PASS');
 
     const recognition={
       schema:baseRecognition.PUBLIC_MASTER_RECOGNITION_SCHEMA,
@@ -63,13 +74,16 @@ try{
     const unsafeBase=baseRecognition.compilePublicMasterRecognitionToUpdatePackage(recognition,'candies',{allowedImageRefs:['candy-image-001']});
     let unsafeImporterError=null;
     try{importer.dryRun(unsafeBase.update_package);}catch(error){unsafeImporterError=String(error?.message||error);}
+    stage(`UNCONFIRMED_GATE PASS operations=${governedBefore.update_package.operations.length} unsafe_error=${Boolean(unsafeImporterError)}`);
 
     const confirmed=governed.confirmCandyScreenshotQuantity(recognition,'candies','candy-browser-001',{confirmedAt:'2026-08-31T11:11:00.000Z'});
     const compiled=governed.compileCandyQuantityGovernedRecognitionToUpdatePackage(confirmed,'candies',{allowedImageRefs:['candy-image-001']});
     const preview=importer.dryRun(compiled.update_package);
     const change=preview.changes[0]||null;
+    stage(`CONFIRMED_7_DRYRUN PASS ready=${preview.ready_count} conflict=${preview.conflict_count}`);
     const applied=await importer.applyPayload(compiled.update_package);
     const storedAfterSeven=database.rows('SELECT candy_id,quantity,safe_reserve,source_update_id FROM candy_inventory WHERE candy_id=?',[candidate.candy_id])[0]||null;
+    stage(`CONFIRMED_7_APPLY PASS stored=${storedAfterSeven?.quantity}`);
 
     const zeroRecognition={
       ...recognition,
@@ -79,8 +93,10 @@ try{
     const zeroConfirmed=governed.confirmCandyScreenshotQuantity(zeroRecognition,'candies','candy-browser-zero',{confirmedAt:'2026-08-31T11:13:00.000Z'});
     const zeroCompiled=governed.compileCandyQuantityGovernedRecognitionToUpdatePackage(zeroConfirmed,'candies',{allowedImageRefs:['candy-image-001']});
     const zeroPreview=importer.dryRun(zeroCompiled.update_package);
+    stage(`CONFIRMED_0_DRYRUN PASS ready=${zeroPreview.ready_count} conflict=${zeroPreview.conflict_count}`);
     await importer.applyPayload(zeroCompiled.update_package);
     const storedAfterZero=database.rows('SELECT candy_id,quantity,safe_reserve,source_update_id FROM candy_inventory WHERE candy_id=?',[candidate.candy_id])[0]||null;
+    stage(`CONFIRMED_0_APPLY PASS stored=${storedAfterZero?.quantity}`);
 
     return {
       uiPresent:Boolean(document.getElementById('candyQuantityScreenshotB5')),
@@ -97,6 +113,7 @@ try{
       storedAfterZero,
     };
   });
+  console.log('[B5-BROWSER] STAGE=TRANSACTION PASS');
 
   assert.equal(result.uiPresent,true);
   assert.equal(result.governedBefore.ok,false);
