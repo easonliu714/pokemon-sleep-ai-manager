@@ -14,7 +14,11 @@ try{
     const integrity=await import('./assets/js/ingredient-inventory-integrity-contract.js?gate=v042748');
     const successor=await import('./assets/js/ingredient-inferred-zero-integrity-v042748.js?gate=v042748');
     const importer=await import('./assets/js/importer.js?gate=v042748');
-    const database=await import('./assets/js/database.js?gate=v042748');
+    // importer.js statically imports the canonical queryless ./database.js module.
+    // Bind the test to that exact module instance; adding a ?gate query here would
+    // create a separate ES-module singleton with db=null and produce a false failure.
+    const database=await import('./assets/js/database.js');
+    if(!database.isDatabaseReady())await database.initializeDatabase();
 
     const snapshot=recognition.buildPublicMasterCatalogSnapshot('ingredients');
     const ingredientName='特選蛋';
