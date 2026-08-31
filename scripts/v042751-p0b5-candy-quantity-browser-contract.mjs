@@ -22,7 +22,10 @@ try{
     }
     await import('./assets/js/candy-quantity-screenshot-ui.js?gate=v042751-browser-mount');
   });
-  await page.waitForSelector('#candyQuantityScreenshotB5',{timeout:60000});
+  // The synthetic host is intentionally outside the active Update Center view, so production
+  // CSS may keep the mounted panel hidden. This gate verifies exact DOM mountability here;
+  // visibility/navigation is a separate live PWA concern and must not create a false CI failure.
+  await page.waitForSelector('#candyQuantityScreenshotB5',{state:'attached',timeout:60000});
 
   const result=await page.evaluate(async()=>{
     const governed=await import('./assets/js/candy-quantity-confirmation-authority.js?gate=v042751');
