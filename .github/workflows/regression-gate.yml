@@ -122,6 +122,7 @@ jobs:
           node scripts/v042747-p0b2-public-pokemon-species-authority-contract.mjs
           node scripts/v042748-ingredient-inferred-zero-integrity-contract.mjs
           node scripts/v042749-p0b3-candy-family-authority-contract.mjs
+          node scripts/v042750-p0b4-candy-display-name-authority-contract.mjs
 
       - name: Verify unlocked Pokémon roster filters
         run: node scripts/pokemon-roster-filter-regression.mjs
