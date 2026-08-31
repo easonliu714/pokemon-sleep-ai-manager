@@ -63,6 +63,8 @@ assert.equal(afterConfirmation.ok,true,afterConfirmation.errors?.join('\n'));
 assert.equal(afterConfirmation.unresolved.length,0);
 assert.equal(afterConfirmation.update_package.operations.length,1);
 assert.equal(afterConfirmation.update_package.operations[0].entity,'candy_inventory');
+assert.deepEqual(afterConfirmation.update_package.operations[0].key,{candy_id:candidate.candy_id},'candy screenshot storage key must canonicalize to physical candy_inventory PK only');
+assert.equal(Object.prototype.hasOwnProperty.call(afterConfirmation.update_package.operations[0].key,'candy_name'),false,'candy_name is display/recognition evidence, not a candy_inventory storage column');
 assert.equal(afterConfirmation.update_package.operations[0].data.quantity,12);
 assert.equal(afterConfirmation.update_package.operations[0].evidence.quantity_candidate_source,'OCR_SCREENSHOT_HINT');
 assert.equal(afterConfirmation.update_package.operations[0].evidence.quantity_confirmation_authority,CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION);
@@ -84,6 +86,7 @@ const zeroRecognition=recognition({quantity:0,observationId:'candy-observation-z
 const zeroConfirmed=confirmCandyScreenshotQuantity(zeroRecognition,'candies','candy-observation-zero',{confirmedAt:'2026-08-31T11:03:00.000Z'});
 const zeroCompile=compileCandyQuantityGovernedRecognitionToUpdatePackage(zeroConfirmed,'candies',{allowedImageRefs:['candy-image-001']});
 assert.equal(zeroCompile.ok,true);
+assert.deepEqual(zeroCompile.update_package.operations[0].key,{candy_id:candidate.candy_id});
 assert.equal(zeroCompile.update_package.operations[0].data.quantity,0);
 assert.equal(zeroCompile.update_package.operations[0].evidence.confirmed_quantity,0);
 
@@ -116,9 +119,6 @@ assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.51-v042751-p0b5-candy-quantity-
 assert.ok(versionSource.includes("// app_version: 'v0.4.27.50'"),'v0.4.27.50 predecessor version bridge must remain');
 assert.ok(versionSource.includes("// app_build: '20260831-v042750-p0b4-candy-display-name-authority'"),'v0.4.27.50 predecessor build bridge must remain');
 assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.50-v042750-p0b4-candy-display-name-authority'"),'v0.4.27.50 predecessor cache bridge must remain');
-// candy-inventory-ui is an install-time precached root. The service worker's
-// network-first script policy caches its new B5 module dependencies during the
-// required first online load, then serves them via querySafeCacheMatch offline.
 assert.equal((serviceWorkerSource.match(/\.\/assets\/js\/candy-inventory-ui\.js/g)||[]).length,1,'Candy inventory root must remain precached exactly once');
 assert.match(serviceWorkerSource,/const isScript=sameOrigin/);
 assert.match(serviceWorkerSource,/caches\.open\(CACHE\)\.then\(cache=>cache\.put\(event\.request,copy\)\)/);
@@ -133,7 +133,8 @@ console.log(JSON.stringify({
   semantics:{
     ai_quantity_candidate_only:true,identity_confirmation_not_quantity_confirmation:true,
     explicit_quantity_confirmation_required:true,confirmed_zero_is_valid:true,
-    unconfirmed_compiles_zero_writes:true,external_change_auto_sync_guaranteed:false,
-    professor_observed_delta_unchanged:true,predecessor_b4_exact_bridge_preserved:true,
+    unconfirmed_compiles_zero_writes:true,storage_key_candy_id_only:true,
+    external_change_auto_sync_guaranteed:false,professor_observed_delta_unchanged:true,
+    predecessor_b4_exact_bridge_preserved:true,
   },
 },null,2));
