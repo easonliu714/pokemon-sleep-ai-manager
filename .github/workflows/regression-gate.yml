@@ -120,6 +120,7 @@ jobs:
           node scripts/v042724-e3c6f-censored-series-observation-contract.mjs
           node scripts/v042746-p0b1-professor-candy-observed-delta-contract.mjs
           node scripts/v042747-p0b2-public-pokemon-species-authority-contract.mjs
+          node scripts/v042748-ingredient-inferred-zero-integrity-contract.mjs
 
       - name: Verify unlocked Pokémon roster filters
         run: node scripts/pokemon-roster-filter-regression.mjs
@@ -177,6 +178,11 @@ jobs:
         env:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/v042724-browser-contract.mjs
+
+      - name: Verify v0.4.27.48 ingredient inferred-zero Dry-Run / Apply transaction
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/v042748-ingredient-zero-browser-contract.mjs
 
       - name: Verify browser runtime and dynamic module loading
         env:
