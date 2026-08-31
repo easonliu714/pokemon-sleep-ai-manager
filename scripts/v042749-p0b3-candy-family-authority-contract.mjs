@@ -131,6 +131,22 @@ gate('B3 does not migrate legacy Candy Master or Professor observed-delta behavi
   assert.equal(professor.includes('public-candy-family-authority.js'),false);
 });
 
+gate('v0.4.27.49 release authority and offline wiring are exact',()=>{
+  const version=read('assets/js/version-authority.js');
+  const sw=read('service-worker.js');
+  const workflow=read('.github/workflows/regression-gate.yml');
+  const app=version.match(/app_version:\s*'([^']+)'/)?.[1]||'';
+  const build=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
+  const cache=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
+  assert.equal(app,'v0.4.27.49');
+  assert.equal(build,'20260831-v042749-p0b3-candy-family-authority');
+  assert.equal(cache,'pokemon-sleep-ai-v0.4.27.49-v042749-p0b3-candy-family-authority');
+  assert.ok(version.includes("// app_version: 'v0.4.27.48'"),'v0.4.27.48 predecessor parser bridge must remain');
+  assert.ok(sw.includes("'./assets/js/public-candy-family-authority.js'"));
+  assert.equal((sw.match(/\.\/assets\/js\/public-candy-family-authority\.js/g)||[]).length,1,'Candy family authority must be precached exactly once');
+  assert.ok(workflow.includes('node scripts/v042749-p0b3-candy-family-authority-contract.mjs'));
+});
+
 for(const result of tests)console.log(`- ${result.status} ${result.name}${result.error?` :: ${result.error}`:''}`);
 const failed=tests.filter(row=>row.status!=='PASS');
 console.log(JSON.stringify({
@@ -141,6 +157,9 @@ console.log(JSON.stringify({
   family_authority_version:PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION,
   governed_family_count:PUBLIC_CANDY_FAMILY_AUTHORITY_ROWS.length,
   direct_evidence_family_count:PUBLIC_CANDY_FAMILY_DIRECT_EVIDENCE_ROWS.length,
+  app_version:'v0.4.27.49',
+  app_build:'20260831-v042749-p0b3-candy-family-authority',
+  offline_precache:true,
   candy_display_name_authority:false,
   legacy_candy_master_migration:false,
   professor_transfer_write_behavior_changed:false,
