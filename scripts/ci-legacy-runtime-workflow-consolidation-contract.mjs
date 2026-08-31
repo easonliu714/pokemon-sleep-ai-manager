@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-export const LEGACY_RUNTIME_WORKFLOW_CONSOLIDATION_VERSION='legacy-runtime-workflow-consolidation-2026-09-01-e-p5-consolidated-successor-refresh';
+export const LEGACY_RUNTIME_WORKFLOW_CONSOLIDATION_VERSION='legacy-runtime-workflow-consolidation-2026-08-16-c-p8-successor-aware';
 
 const retiredWorkflows=Object.freeze([
   '.github/workflows/v03751-version-authority-gate.yml',
@@ -36,6 +36,7 @@ const preservedBehavioralContracts=Object.freeze([
   'scripts/ci-legacy-runtime-regression.mjs',
 ]);
 
+// Independent boundaries that remain live after P8 controlled retirement.
 const protectedNonRuntimeWorkflows=Object.freeze([
   '.github/workflows/regression-gate.yml',
   '.github/workflows/tech2d-android-import-regression.yml',
@@ -46,6 +47,8 @@ const protectedNonRuntimeWorkflows=Object.freeze([
   '.github/workflows/historical-release-regression.yml',
 ]);
 
+// P8 proved these independent workflow identities equivalent on one fixed head,
+// then transferred their behavior to explicit successor job boundaries.
 const p8RetiredSafetyWorkflows=Object.freeze([
   '.github/workflows/g14-backup-truth-restore.yml',
   '.github/workflows/g14-full75-recovery.yml',
@@ -57,17 +60,23 @@ const p8RetiredSafetyWorkflows=Object.freeze([
   '.github/workflows/v0484-touch-first-camp-containment.yml',
 ]);
 
+// P2 originally protected these wrappers from accidental deletion. P5 later
+// proved same-head side-by-side parity and intentionally transferred their
+// behavior to the always-on Frontend Regression Gate.
 const p5RetiredCoreWrappers=Object.freeze([
   '.github/workflows/v0396-general-json-audit.yml',
   '.github/workflows/v0397-profile-completeness.yml',
   '.github/workflows/v0398-update-center-multiscenario.yml',
 ]);
 const p5CoreBehaviorTokens=Object.freeze([
-  'python scripts/p5-wrapper-side-by-side-parity-contract.py',
-  'node scripts/general-json-profile-update-center-predecessor-contract.mjs',
-  'node scripts/p5-core-update-center-human-review-successor-contract.mjs',
+  'tests/test_v0396_general_json_audit_contract.py',
+  'tests/test_v0397_profile_completeness_contract.py',
+  'tests/test_v0398_update_center_multiscenario_contract.py',
+  'node scripts/ci-p5-core-update-review-successor-contract.mjs',
 ]);
 
+// GitHub Actions may continue to display workflow identities whose YAML has
+// already disappeared from main. They are registry history, not files to re-create.
 const registryStaleNoMainFile=Object.freeze([
   '.github/workflows/v0393-release-authority-generator.yml',
   '.github/workflows/v0393-post-migration-startup-gate.yml',
@@ -109,6 +118,8 @@ for(const job of ['backup-truth-restore:','data-consistency-multicapture:','full
 for(const job of ['private-data-guard:','empty-player-public-pages:'])assert.ok(dataSuccessor.includes(job),`P8 data-boundary successor lost safety job: ${job}`);
 for(const token of ['scripts/v0481-live-followup-contract.mjs','scripts/v0484-release-contract.mjs'])assert.ok(historicalSuccessor.includes(token),`P8 historical successor lost v0.4.8 behavior reference: ${token}`);
 
+// Old release mutators intentionally are not replayed. Current Version Authority
+// is read/validated only; CI topology cleanup must never rotate old releases.
 for(const token of ['git push','contents: write','create-or-update-file-contents']){
   assert.equal(replacement.includes(token),false,`Legacy Runtime replacement contains forbidden release mutator token: ${token}`);
 }
