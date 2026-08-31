@@ -107,3 +107,6 @@ try{
 
   console.log(JSON.stringify({status:'PASS',gate:'V042748_INGREDIENT_ZERO_BROWSER_DRYRUN_APPLY',result},null,2));
 }finally{await browser.close();}
+
+// P0-B5 successor transaction is chained here to preserve consolidated browser CI topology.
+await import('./v042751-p0b5-candy-quantity-browser-contract.mjs');
