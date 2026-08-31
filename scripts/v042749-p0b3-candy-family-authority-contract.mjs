@@ -15,6 +15,7 @@ const tests=[];
 const gate=(name,fn)=>{
   try{fn();tests.push({name,status:'PASS'});}catch(error){tests.push({name,status:'FAIL',error:String(error?.message||error)});}
 };
+const patchOf=version=>Number(String(version||'').match(/^v0\.4\.27\.(\d+)$/)?.[1]||-1);
 
 gate('B3 authority policy is explicit and display-name authority stays separate',()=>{
   assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION,'public-candy-family-authority-2026-08-31-a');
@@ -131,16 +132,23 @@ gate('B3 does not migrate legacy Candy Master or Professor observed-delta behavi
   assert.equal(professor.includes('public-candy-family-authority.js'),false);
 });
 
-gate('v0.4.27.49 release authority and offline wiring are exact',()=>{
+gate('v0.4.27.49 release authority remains exact under successor releases',()=>{
   const version=read('assets/js/version-authority.js');
   const sw=read('service-worker.js');
   const workflow=read('.github/workflows/regression-gate.yml');
   const app=version.match(/app_version:\s*'([^']+)'/)?.[1]||'';
   const build=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
   const cache=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-  assert.equal(app,'v0.4.27.49');
-  assert.equal(build,'20260831-v042749-p0b3-candy-family-authority');
-  assert.equal(cache,'pokemon-sleep-ai-v0.4.27.49-v042749-p0b3-candy-family-authority');
+  const patch=patchOf(app);
+  assert.ok(patch>=49,`B3 requires v0.4.27.49 or a later successor, got ${app}`);
+  if(patch===49){
+    assert.equal(build,'20260831-v042749-p0b3-candy-family-authority');
+    assert.equal(cache,'pokemon-sleep-ai-v0.4.27.49-v042749-p0b3-candy-family-authority');
+  }else{
+    assert.ok(version.includes("// app_version: 'v0.4.27.49'"),'v0.4.27.49 exact predecessor version bridge must remain');
+    assert.ok(version.includes("// app_build: '20260831-v042749-p0b3-candy-family-authority'"),'v0.4.27.49 exact predecessor build bridge must remain');
+    assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.49-v042749-p0b3-candy-family-authority'"),'v0.4.27.49 exact predecessor cache bridge must remain');
+  }
   assert.ok(version.includes("// app_version: 'v0.4.27.48'"),'v0.4.27.48 predecessor parser bridge must remain');
   assert.ok(sw.includes("'./assets/js/public-candy-family-authority.js'"));
   assert.equal((sw.match(/\.\/assets\/js\/public-candy-family-authority\.js/g)||[]).length,1,'Candy family authority must be precached exactly once');
@@ -149,6 +157,7 @@ gate('v0.4.27.49 release authority and offline wiring are exact',()=>{
 
 for(const result of tests)console.log(`- ${result.status} ${result.name}${result.error?` :: ${result.error}`:''}`);
 const failed=tests.filter(row=>row.status!=='PASS');
+const currentVersion=read('assets/js/version-authority.js').match(/app_version:\s*'([^']+)'/)?.[1]||'';
 console.log(JSON.stringify({
   gate:'V042749_P0B3_PUBLIC_CANDY_FAMILY_AUTHORITY_CONTRACT',
   status:failed.length?'FAIL':'PASS',
@@ -157,8 +166,9 @@ console.log(JSON.stringify({
   family_authority_version:PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION,
   governed_family_count:PUBLIC_CANDY_FAMILY_AUTHORITY_ROWS.length,
   direct_evidence_family_count:PUBLIC_CANDY_FAMILY_DIRECT_EVIDENCE_ROWS.length,
-  app_version:'v0.4.27.49',
-  app_build:'20260831-v042749-p0b3-candy-family-authority',
+  predecessor_app_version:'v0.4.27.49',
+  current_app_version:currentVersion,
+  successor_aware:patchOf(currentVersion)>=50,
   offline_precache:true,
   candy_display_name_authority:false,
   legacy_candy_master_migration:false,
