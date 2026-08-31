@@ -1,6 +1,10 @@
 import './uc-img-v04132-pot-capacity-bootstrap.js';
 import {rows,isDatabaseReady,isRescueReadonly} from './database.js';
 import {buildPublicCandyMasterRows,PUBLIC_CANDY_MASTER_VERSION,SPECIES_CANDY_NAME_RULE_VERSION} from './public-candy-master.js';
+import {
+  PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION,
+  resolvePublicCandyDisplayNameForSpecies,
+} from './public-candy-display-name-authority.js';
 import {relevantResourceSnapshot,CANDY_CONVERSION_RULE_STATUS} from './resource-context.js';
 import {formatLocal} from './time-utils.js';
 
@@ -10,14 +14,20 @@ const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt
 const typeLabel=value=>({universal:'萬能',type:'屬性',species:'寶可夢',other_verified:'其他'}[value]||value||'—');
 const targetLabel=row=>row.target_species_name||row.target_type_name||'—';
 
+function displayAuthorityForRow(row){
+  if(row?.candy_type!=='species'||!row?.target_species_name)return null;
+  return resolvePublicCandyDisplayNameForSpecies(row.target_species_name);
+}
+
 function ensureItemsUi(){
   const section=document.getElementById('items');
   if(!section||document.getElementById('candyInventoryBlock'))return;
   const block=document.createElement('section');
   block.id='candyInventoryBlock';
   block.dataset.candyInventoryWriteAuthority=CANDY_INVENTORY_WRITE_AUTHORITY_VERSION;
+  block.dataset.candyDisplayNameAuthority=PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION;
   block.innerHTML=`<h3>糖果庫存</h3>
-    <p class="notice">糖果名稱與對應關係來自公版 Candy Master；<b>玩家數量可由 JSON 更新中心匯入，或由「送給博士」時使用者輸入的遊戲實際觀測糖果數量增量寫入</b>。平台不會自行推算博士轉換數量；萬能／屬性糖果的可轉換結果目前也不計入實體庫存，避免重複計算。</p>
+    <p class="notice">糖果庫存仍以既有 <code>candy_id</code> 保存；<b>玩家數量可由 JSON 更新中心匯入，或由「送給博士」時使用者輸入的遊戲實際觀測糖果數量增量寫入</b>。P0-B4 只新增官方繁中糖果顯示名稱的唯讀 Authority，不遷移 candy_id、不改玩家數量，也不改博士 observed-delta 寫入語意。</p>
     <div id="candyResourceSummary" class="notice"></div>
     <div class="table-wrap"><table id="candyInventoryTable"></table></div>`;
   section.appendChild(block);
@@ -28,10 +38,11 @@ function ensureKnowledgeUi(){
   if(!panel||document.getElementById('candyMasterBlock'))return;
   const block=document.createElement('section');
   block.id='candyMasterBlock';
+  block.dataset.candyDisplayNameAuthority=PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION;
   block.innerHTML=`<h3>糖果公版 Master</h3>
-    <p class="notice">固定糖果採 Evidence-backed 名稱；「○○的糖果」由 Pokémon 公版名稱依 <code>${esc(SPECIES_CANDY_NAME_RULE_VERSION)}</code> 投影。此表不含任何玩家持有數量。</p>
+    <p class="notice">固定糖果仍採既有 Evidence-backed 名稱。舊版 species rows 的「○○的糖果」仍保留作 <b>legacy compatibility projection</b>，不再視為正式顯示名稱 Authority。P0-B4 只在有 Pokémon Sleep 官方繁中精確字串 evidence 時顯示家族層級的正式糖果名稱；未驗證 family 顯示 <code>REVIEW_REQUIRED</code>，不會由結構 root 或 Pokémon 名稱自動猜名。</p>
     <div class="table-wrap"><table id="candyMasterTable"></table></div>
-    <p class="notice">Candy Master：<b>${esc(PUBLIC_CANDY_MASTER_VERSION)}</b></p>`;
+    <p class="notice">Legacy Candy Master：<b>${esc(PUBLIC_CANDY_MASTER_VERSION)}</b> · Legacy species rule：<code>${esc(SPECIES_CANDY_NAME_RULE_VERSION)}</code> · Display-name Authority：<b>${esc(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION)}</b></p>`;
   panel.appendChild(block);
 }
 
@@ -39,7 +50,7 @@ function table(element,data,columns){
   if(!element)return;
   const head=columns.map(column=>`<th>${esc(column.label)}</th>`).join('');
   const body=data.map(row=>`<tr>${columns.map(column=>`<td>${column.render?column.render(row):esc(row[column.key])}</td>`).join('')}</tr>`).join('');
-  element.innerHTML=`<thead><tr>${head}</tr></thead><tbody>${body||'<tr><td colspan="8">目前沒有資料</td></tr>'}</tbody>`;
+  element.innerHTML=`<thead><tr>${head}</tr></thead><tbody>${body||'<tr><td colspan="9">目前沒有資料</td></tr>'}</tbody>`;
 }
 
 function candyMasterRows(){
@@ -50,14 +61,30 @@ function candyMasterRows(){
   }catch{return buildPublicCandyMasterRows();}
 }
 
+function authorityLabel(row){
+  if(row.candy_type!=='species')return '<span>既有固定 Evidence</span>';
+  const authority=displayAuthorityForRow(row);
+  if(authority?.status==='MATCH')return `<b>${esc(authority.candy_display_name)}</b>`;
+  return '<code>REVIEW_REQUIRED</code>';
+}
+
+function authorityEvidence(row){
+  if(row.candy_type!=='species')return esc(row.source_ref||'既有固定 Evidence');
+  const authority=displayAuthorityForRow(row);
+  if(authority?.status==='MATCH')return `<code>OFFICIAL_ZH_TW_EXACT</code>`;
+  return `<code>${esc(authority?.reason||'NOT_GOVERNED')}</code>`;
+}
+
 function renderKnowledge(){
   ensureKnowledgeUi();
   table(document.getElementById('candyMasterTable'),candyMasterRows(),[
-    {label:'糖果名稱',key:'candy_name'},
+    {label:'Legacy 名稱',key:'candy_name'},
+    {label:'B4 正式顯示名稱',render:authorityLabel},
     {label:'類型',render:row=>esc(typeLabel(row.candy_type))},
     {label:'對應目標',render:row=>esc(targetLabel(row))},
-    {label:'名稱來源',render:row=>row.candy_type==='species'?'Pokémon 名稱投影':'遊戲 Evidence'},
-    {label:'核對狀態',key:'verification_status'},
+    {label:'Legacy 名稱來源',render:row=>row.candy_type==='species'?'Legacy Pokémon 名稱投影（非 B4 Authority）':'遊戲 Evidence'},
+    {label:'B4 Evidence',render:authorityEvidence},
+    {label:'Legacy 核對狀態',key:'verification_status'},
     {label:'版本',key:'data_version'},
   ]);
 }
@@ -75,7 +102,8 @@ function renderInventory(){
   let data=[];
   try{data=rows(`SELECT * FROM candy_catalog_state WHERE player_record_exists=1 ORDER BY CASE candy_type WHEN 'universal' THEN 1 WHEN 'type' THEN 2 ELSE 3 END,candy_name`);}catch{}
   table(tableEl,data,[
-    {label:'糖果',key:'candy_name'},
+    {label:'Legacy 糖果',key:'candy_name'},
+    {label:'B4 正式顯示名稱',render:authorityLabel},
     {label:'類型',render:row=>esc(typeLabel(row.candy_type))},
     {label:'對象',render:row=>esc(targetLabel(row))},
     {label:'持有',key:'quantity'},
@@ -87,7 +115,7 @@ function renderInventory(){
   const candyRows=snapshot.status==='READY'?snapshot.candies:[];
   const stocked=candyRows.filter(row=>row.player_record_exists).length;
   const availableTotal=candyRows.reduce((sum,row)=>sum+Number(row.available||0),0);
-  summaryEl.innerHTML=`已匯入／觀測寫入糖果種類：<b>${stocked}</b> · 各糖果可動用量合計（僅介面摘要，不跨種類視為等價資源）：<b>${availableTotal}</b> · 博士糖果 Authority：<code>USER_DIRECT_OBSERVATION_ONLY</code> · 自動推算：<b>停用</b> · 轉換規則：<code>${esc(CANDY_CONVERSION_RULE_STATUS)}</code> · Resource fingerprint：<code>${esc(snapshot.fingerprint||'—')}</code>`;
+  summaryEl.innerHTML=`已匯入／觀測寫入糖果種類：<b>${stocked}</b> · 各糖果可動用量合計（僅介面摘要，不跨種類視為等價資源）：<b>${availableTotal}</b> · B4 Display Authority：<code>${esc(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION)}</code> · 玩家 storage key：<code>candy_id unchanged</code> · 博士糖果 Authority：<code>USER_DIRECT_OBSERVATION_ONLY</code> · 自動推算：<b>停用</b> · 轉換規則：<code>${esc(CANDY_CONVERSION_RULE_STATUS)}</code> · Resource fingerprint：<code>${esc(snapshot.fingerprint||'—')}</code>`;
 }
 
 export function renderCandySurfaces(){renderKnowledge();renderInventory();}
