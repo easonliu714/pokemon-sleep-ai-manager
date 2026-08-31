@@ -39,14 +39,9 @@ function recognition({status='MATCHED',quantity=12,observationId='candy-observat
     generated_at:generatedAt,
     visible_target_count:1,
     observations:[{
-      observation_id:observationId,
-      status,
-      observed_text:candidate.candy_name,
-      observed_data:{quantity},
+      observation_id:observationId,status,observed_text:candidate.candy_name,observed_data:{quantity},
       ...(status==='MATCHED'?{canonical_key:{candy_id:candidate.candy_id,candy_name:candidate.candy_name},canonical_name:candidate.candy_name}:{}),
-      source_image_ref:'candy-image-001',
-      confidence:0.98,
-      reason:'quantity visible in screenshot',
+      source_image_ref:'candy-image-001',confidence:0.98,reason:'quantity visible in screenshot',
     }],
   };
 }
@@ -76,8 +71,6 @@ assert.equal(afterConfirmation.update_package.operations[0].evidence.quantity_co
 assert.equal(afterConfirmation.update_package.operations[0].evidence.confirmed_quantity,12);
 assert.equal(afterConfirmation.update_package.operations[0].evidence.external_game_changes_auto_sync_guaranteed,false);
 
-// Identity confirmation is deliberately insufficient. An AMBIGUOUS row can be
-// resolved to the correct public identity and still remains quantity-review pending.
 const ambiguous=recognition({status:'AMBIGUOUS',quantity:9,observationId:'candy-observation-identity'});
 ambiguous.observations[0].candidate_names=[candidate.candy_name];
 const identityConfirmed=applyCandyGovernedRecognitionResolution(ambiguous,'candies','candy-observation-identity','MATCH',candidate.candy_name);
@@ -87,7 +80,6 @@ assert.equal(identityOnlyCompile.ok,false);
 assert.equal(identityOnlyCompile.update_package.operations.length,0);
 assert.equal(identityOnlyCompile.unresolved[0].reason,CANDY_QUANTITY_PENDING_REASON);
 
-// Explicit zero is a real value, never falsy/missing semantics.
 const zeroRecognition=recognition({quantity:0,observationId:'candy-observation-zero',generatedAt:'2026-08-31T11:02:00.000Z'});
 const zeroConfirmed=confirmCandyScreenshotQuantity(zeroRecognition,'candies','candy-observation-zero',{confirmedAt:'2026-08-31T11:03:00.000Z'});
 const zeroCompile=compileCandyQuantityGovernedRecognitionToUpdatePackage(zeroConfirmed,'candies',{allowedImageRefs:['candy-image-001']});
@@ -95,7 +87,6 @@ assert.equal(zeroCompile.ok,true);
 assert.equal(zeroCompile.update_package.operations[0].data.quantity,0);
 assert.equal(zeroCompile.update_package.operations[0].evidence.confirmed_quantity,0);
 
-// Prompt must tell both internal and external AI that quantity is merely a hint.
 const prompt=buildCandyQuantityGovernedRecognitionPrompt('candies',{sessionId:'contract-session',coverage:'PARTIAL',imageMap:[{image_ref:'candy-image-001',file_name:'candy.png'}]});
 assert.match(prompt,/OCR／視覺辨識候選值/);
 assert.match(prompt,/逐筆確認目前遊戲內糖果庫存數量/);
@@ -105,6 +96,8 @@ assert.match(prompt,/遊戲外部變動不保證自動同步/);
 const uiSource=read('assets/js/candy-quantity-screenshot-ui.js');
 const inventoryUiSource=read('assets/js/candy-inventory-ui.js');
 const professorSource=read('assets/js/pokemon-professor-transfer.js');
+const versionSource=read('assets/js/version-authority.js');
+const serviceWorkerSource=read('service-worker.js');
 assert.match(uiSource,/我已核對遊戲畫面，確認數量/);
 assert.match(uiSource,/OCR／AI 讀到的糖果數量只是候選值/);
 assert.match(uiSource,/compileCandyQuantityGovernedRecognitionToUpdatePackage/);
@@ -114,18 +107,33 @@ assert.match(professorSource,/PROFESSOR_TRANSFER_VERSION='pokemon-professor-tran
 assert.match(professorSource,/USER_DIRECT_OBSERVATION_ONLY/);
 assert.equal(professorSource.includes('candy-quantity-confirmation-authority.js'),false,'B5 must not alter Professor observed-delta authority');
 
+const appVersion=versionSource.match(/app_version:\s*'([^']+)'/)?.[1]||'';
+const appBuild=versionSource.match(/app_build:\s*'([^']+)'/)?.[1]||'';
+const cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
+assert.equal(appVersion,'v0.4.27.51');
+assert.equal(appBuild,'20260831-v042751-p0b5-candy-quantity-confirmation');
+assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.51-v042751-p0b5-candy-quantity-confirmation');
+assert.ok(versionSource.includes("// app_version: 'v0.4.27.50'"),'v0.4.27.50 predecessor version bridge must remain');
+assert.ok(versionSource.includes("// app_build: '20260831-v042750-p0b4-candy-display-name-authority'"),'v0.4.27.50 predecessor build bridge must remain');
+assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.50-v042750-p0b4-candy-display-name-authority'"),'v0.4.27.50 predecessor cache bridge must remain');
+// candy-inventory-ui is an install-time precached root. The service worker's
+// network-first script policy caches its new B5 module dependencies during the
+// required first online load, then serves them via querySafeCacheMatch offline.
+assert.equal((serviceWorkerSource.match(/\.\/assets\/js\/candy-inventory-ui\.js/g)||[]).length,1,'Candy inventory root must remain precached exactly once');
+assert.match(serviceWorkerSource,/const isScript=sameOrigin/);
+assert.match(serviceWorkerSource,/caches\.open\(CACHE\)\.then\(cache=>cache\.put\(event\.request,copy\)\)/);
+assert.match(serviceWorkerSource,/querySafeCacheMatch\(event\.request\)/);
+
 console.log(JSON.stringify({
-  status:'PASS',
-  gate:'V042751_P0B5_CANDY_QUANTITY_CONFIRMATION_AUTHORITY',
+  status:'PASS',gate:'V042751_P0B5_CANDY_QUANTITY_CONFIRMATION_AUTHORITY',
   authority_version:CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION,
   sample_candy:{candy_id:candidate.candy_id,candy_name:candidate.candy_name},
+  app_version:appVersion,app_build:appBuild,
+  offline_after_first_online_load:true,
   semantics:{
-    ai_quantity_candidate_only:true,
-    identity_confirmation_not_quantity_confirmation:true,
-    explicit_quantity_confirmation_required:true,
-    confirmed_zero_is_valid:true,
-    unconfirmed_compiles_zero_writes:true,
-    external_change_auto_sync_guaranteed:false,
-    professor_observed_delta_unchanged:true,
+    ai_quantity_candidate_only:true,identity_confirmation_not_quantity_confirmation:true,
+    explicit_quantity_confirmation_required:true,confirmed_zero_is_valid:true,
+    unconfirmed_compiles_zero_writes:true,external_change_auto_sync_guaranteed:false,
+    professor_observed_delta_unchanged:true,predecessor_b4_exact_bridge_preserved:true,
   },
 },null,2));
