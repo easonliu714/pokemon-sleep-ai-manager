@@ -119,3 +119,7 @@ console.log(JSON.stringify({
     predecessor_b3_exact_bridge_preserved:true,
   },
 },null,2));
+
+// P0-B5 is a successor governance gate. Chaining it here preserves the
+// consolidated CI topology instead of creating a standalone version workflow.
+await import('./v042751-p0b5-candy-quantity-confirmation-contract.mjs');
