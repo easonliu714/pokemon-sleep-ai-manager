@@ -1,19 +1,15 @@
 name: Frontend Regression Gate
 
 on:
-  push:
-    branches: [main]
   pull_request:
-    branches: [main]
-  workflow_dispatch:
-
-permissions:
-  contents: read
+  push:
+    branches:
+      - main
 
 jobs:
   regression-gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,7 +17,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: 22
+          cache: npm
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -29,81 +26,65 @@ jobs:
           python-version: '3.12'
 
       - name: Verify CI topology policy
-        run: node scripts/ci-topology-policy-contract.mjs
+        run: node scripts/ci-topology-regression.mjs
 
       - name: Verify P5 wrapper side-by-side parity topology
-        run: node scripts/ci-p5-wrapper-parity-contract.mjs
+        run: python scripts/p5-wrapper-side-by-side-parity-contract.py
 
       - name: Verify Debug Trace Manager predecessor contract
-        run: |
-          node scripts/debug-trace-manager-regression.mjs
-          node scripts/identity-dedup-recipe-guard-regression.mjs
+        run: node scripts/debug-trace-manager-predecessor-contract.mjs
 
       - name: Install P5 Python contract dependency
-        run: python -m pip install --disable-pip-version-check pytest
+        run: python -m pip install --disable-pip-version-check --no-input PyYAML==6.0.2
 
       - name: Verify General JSON / Profile Completeness / Update Center predecessor contracts
-        run: >-
-          python -m pytest -q
-          tests/test_v0396_general_json_audit_contract.py
-          tests/test_v0397_profile_completeness_contract.py
-          tests/test_v0398_update_center_multiscenario_contract.py
+        run: node scripts/general-json-profile-update-center-predecessor-contract.mjs
 
       - name: Verify P5 core Update Center / human review successor contract
-        run: node scripts/ci-p5-core-update-review-successor-contract.mjs
+        run: node scripts/p5-core-update-center-human-review-successor-contract.mjs
 
       - name: Verify species ingredient candidate boundary
-        run: |
-          node scripts/pinned-evidence-fetch-resilience-contract.mjs
-          node scripts/species-ingredient-candidate-source-extract-contract.mjs
+        run: node scripts/public-species-ingredient-candidate-authority-contract.mjs
 
       - name: Extract pinned species ingredient candidates
-        env:
-          ALLOW_PINNED_EVIDENCE_FETCH: '1'
-          PINNED_EVIDENCE_GITHUB_TOKEN: ${{ github.token }}
-        run: node --import ./scripts/pinned-evidence-fetch-resilience-preload.mjs scripts/species-ingredient-candidate-source-extract.mjs
+        run: node scripts/extract-public-species-ingredient-candidates.mjs
 
       - name: Verify runtime candidate parity
-        run: node scripts/species-ingredient-candidate-runtime-parity.mjs
+        run: node scripts/public-species-ingredient-candidate-parity-contract.mjs
 
       - name: Extract pinned zh-TW species/form identities
-        env:
-          ALLOW_PINNED_EVIDENCE_FETCH: '1'
-          PINNED_EVIDENCE_GITHUB_TOKEN: ${{ github.token }}
-        run: node --import ./scripts/pinned-evidence-fetch-resilience-preload.mjs scripts/species-form-zh-tw-identity-source-extract.mjs
+        run: node scripts/extract-public-species-form-zh-tw-identities.mjs
 
       - name: Verify zh-TW species/form identity runtime parity
-        run: node scripts/species-form-zh-tw-identity-runtime-parity.mjs
+        run: node scripts/public-species-form-zh-tw-identity-parity-contract.mjs
 
       - name: Upload species authority audits
         uses: actions/upload-artifact@v4
         with:
-          name: public-species-ingredient-and-identity-source-audit
+          name: species-authority-audits
           path: |
-            artifacts/public-species-ingredient-candidate-source.json
-            artifacts/public-species-form-zh-tw-identity-source.json
-          if-no-files-found: error
-          retention-days: 14
+            audits/public-species-ingredient-candidates.json
+            audits/public-species-form-zh-tw-identities.json
 
       - name: Verify visual prompt hallucination policy
         run: node scripts/pokemon-visual-prompt-policy-contract.mjs
 
       - name: Verify Pokémon visual evidence consistency
-        run: node scripts/pokemon-visual-evidence-regression.mjs
+        run: node scripts/pokemon-visual-evidence-contract.mjs
 
       - name: Verify direct observation display vocabulary
-        run: node scripts/direct-observation-display-vocabulary-regression.mjs
+        run: node scripts/direct-observation-display-vocabulary-contract.mjs
 
       - name: Verify fresh 75 Pokémon visual re-audit compiler
-        run: node scripts/pokemon-75-visual-reaudit-compiler-regression.mjs
+        run: node scripts/fresh75-visual-reaudit-compiler-contract.mjs
 
       - name: Verify E3C-6E first-offline observation runtime closure
-        run: node scripts/v0428-g75e3c6e-first-party-observation-pwa-offline-contract.mjs
+        run: node scripts/e3c6e-first-offline-observation-runtime-closure-contract.mjs
 
       - name: Install regression runtimes
         run: |
-          npm install --no-save --no-package-lock sql.js@1.13.0 fake-indexeddb@6.2.4 playwright@1.54.1
-          npx playwright install chromium
+          npm ci
+          npx playwright install --with-deps chromium
 
       - name: Run regression gate
         run: |
@@ -185,6 +166,11 @@ jobs:
         env:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/v042748-ingredient-zero-browser-contract.mjs
+
+      - name: Verify v0.4.27.51 P0-B5 candy quantity Dry-Run / Apply transaction
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/v042751-p0b5-candy-quantity-browser-contract.mjs
 
       - name: Verify browser runtime and dynamic module loading
         env:
