@@ -14,6 +14,8 @@ import {PUBLIC_EVOLUTION_MASTER,PUBLIC_EVOLUTION_STATUS_MASTER} from '../assets/
 import {
   PUBLIC_CANDY_MASTER_VERSION,
   PUBLIC_CANDY_LEGACY_COMPATIBILITY_EVIDENCE_ADDITIONS,
+  PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_ADDITIONS,
+  PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_POLICY,
   buildPublicCandyMasterRows,
   publicPokemonNamesForCandy,
 } from '../assets/js/public-candy-master.js';
@@ -25,6 +27,8 @@ const atLeast=(current,minimum)=>{const left=parts(current),right=parts(minimum)
 const versionSource=read('assets/js/version-authority.js');
 const currentAppVersion=versionSource.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 const candyGapIdentitySuccessor=atLeast(currentAppVersion,'v0.4.27.52');
+const candyScreenshotPromotionSuccessor=atLeast(currentAppVersion,'v0.4.27.54');
+const screenshotPromotionSpecies=['草苗龜','木守宮','小鍛匠','波加曼','水躍魚','摔角鷹人','火稚雞','菊草葉'];
 const tests=[];
 const gate=(name,fn)=>{
   try{fn();tests.push({name,status:'PASS'});}catch(error){tests.push({name,status:'FAIL',error:String(error?.message||error)});}
@@ -45,6 +49,7 @@ function expectedCandyProjectionWithGovernedOverlay(){
   const names=new Map();
   for(const name of historicalCandyProjection())names.set(normalize(name),name);
   if(candyGapIdentitySuccessor)names.set(normalize('小火焰猴'),'小火焰猴');
+  if(candyScreenshotPromotionSuccessor)for(const name of screenshotPromotionSpecies)names.set(normalize(name),name);
   return [...names.values()].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
 }
 
@@ -96,28 +101,53 @@ gate('B2 legacy Candy projection remains byte-for-byte; successor overlay is exa
   if(candyGapIdentitySuccessor){
     assert.deepEqual(PUBLIC_CANDY_LEGACY_COMPATIBILITY_EVIDENCE_ADDITIONS.map(row=>row.species_name),['小火焰猴']);
     assert.equal(publicCandyNames.filter(name=>name==='小火焰猴').length,1);
-    assert.equal(publicCandyNames.length,before.length+1,'v0.4.27.52 overlay may add exactly one targeted compatibility species');
+  }
+  if(candyScreenshotPromotionSuccessor){
+    assert.equal(PUBLIC_CANDY_MASTER_VERSION,'public-candy-master-2026-09-01-g');
+    assert.equal(PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_POLICY.trust_tier,'OFFICIAL_EQUIVALENT_FOR_VISIBLE_IN_GAME_IDENTITY');
+    assert.equal(PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_POLICY.player_quantity_promoted,false);
+    assert.deepEqual(PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_ADDITIONS.map(row=>row.species_name).sort(),[...screenshotPromotionSpecies].sort());
+    const expectedAdded=new Set(['小火焰猴',...screenshotPromotionSpecies].filter(name=>!before.includes(name)));
+    assert.equal(publicCandyNames.length,before.length+expectedAdded.size,'v0.4.27.54 may add only the exact evidence-bound compatibility/screenshot overlay');
+  }else if(candyGapIdentitySuccessor){
+    assert.equal(PUBLIC_CANDY_MASTER_VERSION,'public-candy-master-2026-09-01-f');
+    assert.equal(PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_ADDITIONS.length,0);
+    assert.equal(publicCandyNames.length,before.length+1,'v0.4.27.52/.53 overlay may add exactly one targeted compatibility species');
   }else{
     assert.deepEqual(publicCandyNames,before);
   }
 });
 
 gate('B2 still does not fabricate Candy rows for newly live species',()=>{
-  const forbidden=new Set(['小鍛匠','巧鍛匠','巨鍛匠']);
-  for(const name of forbidden)assert.equal(publicPokemonNamesForLegacyCandyProjection().includes(name),false,`${name} must wait for Candy family/display-name authority`);
+  const legacyForbidden=new Set(['小鍛匠','巧鍛匠','巨鍛匠']);
+  for(const name of legacyForbidden)assert.equal(publicPokemonNamesForLegacyCandyProjection().includes(name),false,`${name} must never be fabricated by the B2 legacy Candy projection`);
   const candyRows=buildPublicCandyMasterRows();
-  assert.equal(candyRows.some(row=>forbidden.has(row.target_species_name)),false);
-  if(candyGapIdentitySuccessor){
-    assert.equal(PUBLIC_CANDY_MASTER_VERSION,'public-candy-master-2026-09-01-f');
+  // `.54` may admit 小鍛匠 only because it has explicit in-game screenshot evidence;
+  // its evolutions remain forbidden until they independently gain Candy evidence.
+  for(const name of ['巧鍛匠','巨鍛匠'])assert.equal(candyRows.some(row=>row.target_species_name===name),false,`${name} still lacks Candy identity evidence`);
+  if(candyScreenshotPromotionSuccessor){
+    const tinkatink=candyRows.find(row=>row.target_species_name==='小鍛匠');
+    assert.ok(tinkatink,'v0.4.27.54 screenshot-evidenced Tinkatink Candy row missing');
+    assert.equal(tinkatink.verification_status,'GAME_SCREENSHOT_VERIFIED_SOURCE_CONTROLLED');
+    assert.equal(tinkatink.source_type,'game_screenshot_verified');
+    assert.match(tinkatink.source_ref,/^project-evidence:2026-09-01-p0b5-ingame-candy#/u);
+    assert.equal(Object.prototype.hasOwnProperty.call(tinkatink,'quantity'),false);
+    for(const species of screenshotPromotionSpecies){
+      const row=candyRows.find(item=>item.target_species_name===species);
+      assert.ok(row,`v0.4.27.54 screenshot promotion missing: ${species}`);
+      assert.equal(row.source_type,'game_screenshot_verified',species);
+      assert.equal(Object.prototype.hasOwnProperty.call(row,'quantity'),false,species);
+    }
+  }else if(candyGapIdentitySuccessor){
+    assert.equal(candyRows.some(row=>legacyForbidden.has(row.target_species_name)),false);
     const chimchar=candyRows.find(row=>row.target_species_name==='小火焰猴');
     assert.ok(chimchar,'v0.4.27.52 targeted Chimchar compatibility row missing');
     assert.equal(chimchar.verification_status,'REFERENCE_CANDY_FAMILY_LEGACY_COMPATIBILITY');
     assert.equal(chimchar.source_type,'reference_candy_family_legacy_projection');
     assert.match(chimchar.source_ref,/\/chimchar\.shtml$/u);
-    for(const row of candyRows.filter(row=>row.candy_type==='species'&&row.target_species_name!=='小火焰猴'))assert.equal(row.source_ref,PUBLIC_POKEMON_SPECIES_AUTHORITY_VERSION);
   }else{
+    assert.equal(candyRows.some(row=>legacyForbidden.has(row.target_species_name)),false);
     assert.match(PUBLIC_CANDY_MASTER_VERSION,/^public-candy-master-2026-08-29-[a-z]$/u);
-    for(const row of candyRows.filter(row=>row.candy_type==='species'))assert.equal(row.source_ref,PUBLIC_POKEMON_SPECIES_AUTHORITY_VERSION);
   }
 });
 
@@ -155,6 +185,7 @@ console.log(JSON.stringify({
   official_live_additions:PUBLIC_POKEMON_SPECIES_OFFICIAL_LIVE_ADDITIONS.map(row=>row.display_name_zh_tw),
   legacy_candy_projection_unchanged:true,
   candy_compatibility_overlay:candyGapIdentitySuccessor?['小火焰猴']:[],
+  candy_screenshot_promotion_overlay:candyScreenshotPromotionSuccessor?screenshotPromotionSpecies:[],
   candy_family_authority:false,
   candy_display_name_authority:false,
   player_write_authority:false,
