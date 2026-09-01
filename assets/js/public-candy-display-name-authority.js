@@ -2,8 +2,9 @@ import {
   PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION,
   resolvePublicCandyFamilyForSpecies,
 } from './public-candy-family-authority.js';
+import {publicCandyLocalAdmissionRows} from './public-candy-local-admission-authority.js';
 
-export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION='public-candy-display-name-authority-2026-09-01-d';
+export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION='public-candy-display-name-authority-2026-09-01-e';
 export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_STATUS='ACTIVE_EXPLICIT_FIRST_PARTY_ZH_TW_DISPLAY_NAME_AUTHORITY';
 
 const displayText=value=>String(value??'').trim();
@@ -27,8 +28,10 @@ const ingameEvidence=(reference_species_name,candy_display_name,source_ref)=>evi
   'POKEMON_SLEEP_INGAME_SCREENSHOT_OFFICIAL_EQUIVALENT_EXACT_STRING',
 );
 
-// Display names are literal evidence rows. Never derive them from a species,
-// structural root, family root, or `${species}的糖果` style string rule.
+// Source-controlled display names remain literal evidence rows. No display name
+// is synthesized from a species or structural root. P0-B6 may additionally
+// consume validated P0-B5/.53 local admissions dynamically below; those rows
+// preserve the exact user-confirmed in-game text and do not promote quantity.
 export const PUBLIC_CANDY_DISPLAY_NAME_EVIDENCE_ROWS=Object.freeze([
   evidence(
     '妙蛙種子',
@@ -92,7 +95,7 @@ function bindEvidenceRow(row){
   });
 }
 
-function buildAuthorityRows(){
+function buildStaticAuthorityRows(){
   const rows=PUBLIC_CANDY_DISPLAY_NAME_EVIDENCE_ROWS.map(bindEvidenceRow);
   const byFamily=new Map();
   for(const row of rows){
@@ -106,18 +109,72 @@ function buildAuthorityRows(){
   return Object.freeze(rows);
 }
 
-export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_ROWS=buildAuthorityRows();
-const MATCH_BY_FAMILY=new Map(
-  PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_ROWS
-    .filter(row=>row.status==='MATCH'&&row.family_id)
-    .map(row=>[row.family_id,row]),
-);
+const STATIC_PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_ROWS=buildStaticAuthorityRows();
+
+function localAdmissionAuthorityRows(){
+  const output=[];
+  let localRows=[];
+  try{localRows=publicCandyLocalAdmissionRows();}catch{return Object.freeze([]);}
+  for(const local of localRows){
+    const family=resolvePublicCandyFamilyForSpecies(local.target_species_name);
+    if(family.status!=='MATCH'||!family.family_id)continue;
+    output.push(Object.freeze({
+      reference_species_name:local.target_species_name,
+      candy_display_name:local.candy_name,
+      locale:'zh-TW',
+      source_type:local.source_type||'user_confirmed_game_screenshot_local_admission',
+      source_ref:local.source_ref||`local-admission:${local.observation_id||'unknown'}`,
+      verified_at:local.confirmed_at||null,
+      exact_display_string_authority:true,
+      local_admission_authority:true,
+      status:'MATCH',
+      reason:'USER_CONFIRMED_LOCAL_EXACT_CANDY_DISPLAY_NAME_BOUND_TO_FAMILY',
+      family_id:family.family_id,
+      family_authority_version:PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION,
+      member_species_names:Object.freeze([...(family.member_species_names||[])]),
+      candy_display_name_authority:true,
+    }));
+  }
+  return Object.freeze(output);
+}
+
+function currentAuthorityRowsInternal(){
+  const rows=[...STATIC_PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_ROWS];
+  const byFamily=new Map(rows.filter(row=>row.status==='MATCH'&&row.family_id).map(row=>[row.family_id,row]));
+  for(const local of localAdmissionAuthorityRows()){
+    const existing=byFamily.get(local.family_id);
+    if(existing){
+      if(normalizeKey(existing.candy_display_name)!==normalizeKey(local.candy_display_name)){
+        throw new Error(`public_candy_display_name_local_conflict:${local.family_id}:${existing.candy_display_name}:${local.candy_display_name}`);
+      }
+      continue;
+    }
+    rows.push(local);byFamily.set(local.family_id,local);
+  }
+  return Object.freeze(rows);
+}
+
+// Read-only dynamic Array facade. Existing P0-B6 consumers use Array.find();
+// resolving the facade at property access means a local admission committed in
+// the same browser session becomes immediately visible without a source reload.
+export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_ROWS=new Proxy([],{
+  get(_target,property){
+    const rows=currentAuthorityRowsInternal();
+    const value=Reflect.get(rows,property,rows);
+    return typeof value==='function'?value.bind(rows):value;
+  },
+  set(){return false;},
+  deleteProperty(){return false;},
+  defineProperty(){return false;},
+});
 
 export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY=Object.freeze({
   candy_family_authority_version:PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION,
   exact_official_zh_tw_string_required:true,
   ingame_screenshot_official_equivalent_exact_string_supported:true,
   real_device_user_revalidation_exact_string_supported:true,
+  local_user_confirmed_exact_string_supported:true,
+  local_admission_quantity_authority:false,
   structural_root_is_not_display_name_anchor:true,
   species_name_concatenation_forbidden:true,
   automatic_display_name_generation:false,
@@ -130,10 +187,14 @@ export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY=Object.freeze({
 });
 
 export function currentPublicCandyDisplayNameAuthorityRows(){
-  return Object.freeze(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_ROWS.map(row=>Object.freeze({
+  return Object.freeze(currentAuthorityRowsInternal().map(row=>Object.freeze({
     ...row,
     member_species_names:Object.freeze([...(row.member_species_names||[])]),
   })));
+}
+
+function authorityForFamily(familyId){
+  return currentAuthorityRowsInternal().find(row=>row.status==='MATCH'&&row.family_id===familyId&&row.candy_display_name_authority===true)||null;
 }
 
 export function resolvePublicCandyDisplayNameForSpecies(speciesName){
@@ -150,7 +211,7 @@ export function resolvePublicCandyDisplayNameForSpecies(speciesName){
       automatic_display_name_generation:false,
     });
   }
-  const authority=MATCH_BY_FAMILY.get(family.family_id);
+  const authority=authorityForFamily(family.family_id);
   if(!authority){
     return Object.freeze({
       status:'REVIEW_REQUIRED',
@@ -166,9 +227,9 @@ export function resolvePublicCandyDisplayNameForSpecies(speciesName){
   }
   return Object.freeze({
     status:'MATCH',
-    reason:'EXACT_FIRST_PARTY_ZH_TW_CANDY_DISPLAY_NAME',
+    reason:authority.local_admission_authority?'EXACT_USER_CONFIRMED_LOCAL_ZH_TW_CANDY_DISPLAY_NAME':'EXACT_FIRST_PARTY_ZH_TW_CANDY_DISPLAY_NAME',
     observed_species_name:displayText(speciesName),
-    canonical_species_name:family.canonical_species_name,
+    canonical_species_name:authority.reference_species_name,
     family_id:family.family_id,
     member_species_names:family.member_species_names,
     candy_display_name:authority.candy_display_name,
@@ -176,13 +237,14 @@ export function resolvePublicCandyDisplayNameForSpecies(speciesName){
     source_type:authority.source_type,
     source_ref:authority.source_ref,
     verified_at:authority.verified_at,
+    local_admission_authority:Boolean(authority.local_admission_authority),
     automatic_display_name_generation:false,
   });
 }
 
 export function resolvePublicCandyDisplayNameForFamilyId(familyId){
   const key=displayText(familyId);
-  const authority=MATCH_BY_FAMILY.get(key);
+  const authority=authorityForFamily(key);
   if(!authority){
     return Object.freeze({
       status:'REVIEW_REQUIRED',
@@ -195,13 +257,14 @@ export function resolvePublicCandyDisplayNameForFamilyId(familyId){
   }
   return Object.freeze({
     status:'MATCH',
-    reason:'EXACT_FIRST_PARTY_ZH_TW_CANDY_DISPLAY_NAME',
+    reason:authority.local_admission_authority?'EXACT_USER_CONFIRMED_LOCAL_ZH_TW_CANDY_DISPLAY_NAME':'EXACT_FIRST_PARTY_ZH_TW_CANDY_DISPLAY_NAME',
     family_id:authority.family_id,
     candy_display_name:authority.candy_display_name,
     candy_display_name_authority:true,
     source_type:authority.source_type,
     source_ref:authority.source_ref,
     verified_at:authority.verified_at,
+    local_admission_authority:Boolean(authority.local_admission_authority),
     automatic_display_name_generation:false,
   });
 }
