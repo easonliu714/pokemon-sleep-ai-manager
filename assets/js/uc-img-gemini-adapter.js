@@ -59,7 +59,7 @@ export function buildUcImgGeminiSchema(config,scenarioKey,{platformAuthority=nul
 }
 
 export function safeProviderErrorDetail(value){
-  let text=clean(value).replace(/[\u0000-\u001f\u007f]+/g,' ').replace(/\s+/g,' ');
+  let text=clean(value).replace(/[\u0000-\u001f\u007f]+/g,' ').replace(/\s+/g,' ').trim();
   if(!text)return '';
   text=text
     .replace(/AIza[0-9A-Za-z_-]{16,}/g,'[redacted-api-key]')
