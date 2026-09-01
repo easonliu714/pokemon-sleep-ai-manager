@@ -135,12 +135,13 @@ assert.match(version,/app_build:\s*'20260901-v042753-p0b5-canonical-key-gap-admi
 assert.match(version,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.53-v042753-p0b5-canonical-key-gap-admission-replay'/);
 assert.ok(version.includes("// app_version: 'v0.4.27.52'"));
 const sw=read('service-worker.js');
-assert.equal(occurrence(sw,"'./assets/js/public-candy-local-admission-authority.js'"),1,'local Candy admission authority must be precached exactly once');
-assert.equal(occurrence(sw,"'./assets/js/candy-public-master-admission-ui.js'"),1,'direct admission UI must be precached exactly once');
 assert.match(sw,/const isScript=sameOrigin/);
+assert.match(sw,/caches\.open\(CACHE\)\.then\(cache=>cache\.put\(event\.request,copy\)\)/,'new .53 modules must become offline-available after first online load through script network-first cache');
 const workflow=read('.github/workflows/regression-gate.yml');
-assert.equal(occurrence(workflow,'node scripts/v042753-p0b5-canonical-key-gap-admission-replay-contract.mjs'),1,'.53 contract must be wired exactly once into consolidated regression gate');
+assert.equal(occurrence(workflow,'node scripts/v042750-p0b4-candy-display-name-authority-contract.mjs'),1,'consolidated regression gate must retain the governed Candy predecessor chain root');
+const predecessor52=read('scripts/v042752-p0b5-gap-identity-raw-evidence-hotfix-contract.mjs');
+assert.equal(occurrence(predecessor52,"if(successor53)await import('./v042753-p0b5-canonical-key-gap-admission-replay-contract.mjs');"),1,'.52 successor bridge must invoke .53 contract exactly once');
 assert.equal(fs.existsSync('.github/workflows/v042753-p0b5-canonical-key-gap-admission-replay.yml'),false,'no standalone .53 workflow may bypass governed CI topology');
 assert.equal(CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION,'candy-quantity-confirmation-authority-2026-09-01-c');
 
-console.log(JSON.stringify({status:'PASS',gate:'V042753_P0B5_CANONICAL_KEY_DIRECT_ADMISSION_REPLAY',app_version:'v0.4.27.53',candy_master_version:PUBLIC_CANDY_MASTER_VERSION,local_admission_authority:PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION,semantics:{gemini_raw_immutable:true,candy_id_only_key_bridge:true,unmatched_direct_admission_single_confirmation_ui:true,source_controlled_gap_preload:false,local_public_identity_persistent:true,local_storage_readback_verified:true,sqlite_master_readback_and_compensating_rollback_wired:true,replay_same_observation_exact_only:true,replay_auto_quantity_write:false,player_quantity_in_public_master:false,professor_semantics_unchanged:true,family_id_consolidation:false,next_release_screenshot_global_promotion:true}},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V042753_P0B5_CANONICAL_KEY_DIRECT_ADMISSION_REPLAY',app_version:'v0.4.27.53',candy_master_version:PUBLIC_CANDY_MASTER_VERSION,local_admission_authority:PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION,semantics:{gemini_raw_immutable:true,candy_id_only_key_bridge:true,unmatched_direct_admission_single_confirmation_ui:true,source_controlled_gap_preload:false,local_public_identity_persistent:true,local_storage_readback_verified:true,sqlite_master_readback_and_compensating_rollback_wired:true,replay_same_observation_exact_only:true,replay_auto_quantity_write:false,player_quantity_in_public_master:false,professor_semantics_unchanged:true,family_id_consolidation:false,next_release_screenshot_global_promotion:true,consolidated_ci_successor_chain:true,offline_script_cache_after_online_load:true}},null,2));
