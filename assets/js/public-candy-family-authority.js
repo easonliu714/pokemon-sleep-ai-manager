@@ -3,8 +3,9 @@ import {
   PUBLIC_POKEMON_SPECIES_AUTHORITY_VERSION,
   resolvePublicPokemonSpeciesAuthority,
 } from './public-pokemon-species-authority.js';
+import {publicCandyLocalAdmissionRows} from './public-candy-local-admission-authority.js';
 
-export const PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION='public-candy-family-authority-2026-09-01-c';
+export const PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION='public-candy-family-authority-2026-09-01-d';
 export const PUBLIC_CANDY_FAMILY_AUTHORITY_STATUS='ACTIVE_GOVERNED_CANDY_FAMILY_MEMBERSHIP_AUTHORITY';
 
 const TINKATINK_BUNDLE_SOURCE='https://www.pokemonsleep.net/en/news/343238373339373232383036383230383732/';
@@ -24,11 +25,6 @@ function freezeFamilyRow(row){
   });
 }
 
-// Direct family evidence is kept explicit. This source states that the
-// Tinkatink-specific Main Skill Seed can be used on Tinkatink, Tinkatuff and
-// Tinkaton, and can be exchanged for Tinkatink Candy. That is direct evidence
-// that the three species share one Candy family. It does NOT grant authority
-// to synthesize a zh-TW Candy display string.
 export const PUBLIC_CANDY_FAMILY_DIRECT_EVIDENCE_ROWS=Object.freeze([
   freezeFamilyRow({
     family_id:'family_tinkatink_line',
@@ -44,14 +40,9 @@ export const PUBLIC_CANDY_FAMILY_DIRECT_EVIDENCE_ROWS=Object.freeze([
   }),
 ]);
 
-// First-party in-game Candy identities are official-equivalent evidence for the
-// exact observed species. When the public evolution graph already knows the
-// family, that structural family remains authoritative. Only when no B3 family
-// exists yet do we admit the exact observed species as a singleton fallback
-// family. This does NOT guess evolution members. The family_id uses the same
-// Public Species source-key root rule as structural families so a later
-// evolution-graph admission can supersede the singleton without inventing a
-// second identity namespace.
+// Source-controlled first-party Candy identities remain explicit evidence.
+// Local admissions are consumed dynamically below so a newly user-confirmed
+// exact in-game Candy identity does not require another source-code hotfix.
 export const PUBLIC_CANDY_FAMILY_INGAME_IDENTITY_FALLBACK_EVIDENCE_ROWS=Object.freeze([
   Object.freeze({species_name:'草苗龜',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_001'}),
   Object.freeze({species_name:'木守宮',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_002'}),
@@ -85,7 +76,6 @@ function buildEvolutionComponents(){
     if(!indegree.has(key))indegree.set(key,0);
     return key;
   };
-
   for(const edge of PUBLIC_EVOLUTION_MASTER){
     const from=addName(edge?.from_species),to=addName(edge?.to_species);
     if(!from||!to||from===to)continue;
@@ -94,7 +84,6 @@ function buildEvolutionComponents(){
     indegree.set(to,(indegree.get(to)||0)+1);
     edgeSources.push(Object.freeze({from,to,source_ref:displayText(edge?.source_ref)||null}));
   }
-
   const visited=new Set(),components=[];
   for(const start of sortZh(names.keys())){
     if(visited.has(start))continue;
@@ -151,8 +140,8 @@ function ingameIdentityFallbackFamilyRow(evidenceRow){
     family_id:`family_${idPart(rootSourceKey)}`,
     structural_root_species_name:rootName,
     member_species_names:[rootName],
-    authority_class:'INGAME_CANDY_IDENTITY_SINGLETON_FALLBACK',
-    verification_status:'INGAME_CANDY_IDENTITY_FAMILY_FALLBACK_VERIFIED',
+    authority_class:evidenceRow.authority_class||'INGAME_CANDY_IDENTITY_SINGLETON_FALLBACK',
+    verification_status:evidenceRow.verification_status||'INGAME_CANDY_IDENTITY_FAMILY_FALLBACK_VERIFIED',
     direct_candy_family_evidence:true,
     family_membership_authority:true,
     candy_display_name:null,
@@ -173,8 +162,6 @@ function buildAuthorityRows(){
     rows.push(row);
     for(const member of row.member_species_names)assigned.set(normalizeKey(member),row.family_id);
   };
-
-  // Direct multi-member evidence wins over the older public evolution graph.
   for(const row of PUBLIC_CANDY_FAMILY_DIRECT_EVIDENCE_ROWS)add(row);
   for(const component of PUBLIC_CANDY_FAMILY_EVOLUTION_COMPONENTS){
     const row=structuralFamilyRow(component);
@@ -182,8 +169,6 @@ function buildAuthorityRows(){
     if(row.member_species_names.some(member=>assigned.has(normalizeKey(member))))continue;
     add(row);
   }
-  // Screenshot fallback is last by design: it can fill an exact observed gap,
-  // but can never override a direct or structural family already governed.
   for(const evidenceRow of PUBLIC_CANDY_FAMILY_INGAME_IDENTITY_FALLBACK_EVIDENCE_ROWS){
     if(assigned.has(normalizeKey(evidenceRow.species_name)))continue;
     const row=ingameIdentityFallbackFamilyRow(evidenceRow);
@@ -198,6 +183,22 @@ for(const row of PUBLIC_CANDY_FAMILY_AUTHORITY_ROWS){
   for(const member of row.member_species_names)FAMILY_BY_MEMBER.set(normalizeKey(member),row);
 }
 
+function localAdmissionFallbackForSpecies(species){
+  try{
+    const admission=publicCandyLocalAdmissionRows().find(row=>normalizeKey(row.target_species_name)===normalizeKey(species.display_name_zh_tw));
+    if(!admission)return {status:'ABSENT',row:null};
+    const row=ingameIdentityFallbackFamilyRow({
+      species_name:admission.target_species_name,
+      source_ref:admission.source_ref||`local-admission:${admission.observation_id||'unknown'}`,
+      authority_class:'USER_CONFIRMED_LOCAL_CANDY_IDENTITY_SINGLETON_FALLBACK',
+      verification_status:'LOCAL_ADMISSION_CANDY_IDENTITY_FAMILY_FALLBACK_VERIFIED',
+    });
+    return row?{status:'MATCH',row}:{status:'INVALID',row:null};
+  }catch(error){
+    return {status:'INVALID',row:null,error:String(error?.message||error)};
+  }
+}
+
 export const PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY=Object.freeze({
   exact_species_authority_required:true,
   pokemon_species_authority_version:PUBLIC_POKEMON_SPECIES_AUTHORITY_VERSION,
@@ -205,8 +206,12 @@ export const PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY=Object.freeze({
   direct_candy_family_evidence_supported:true,
   evolution_connectivity_structural_family_supported:true,
   ingame_candy_identity_singleton_fallback_supported:true,
+  local_admission_exact_candy_identity_fallback_supported:true,
+  local_admission_user_confirmation_required:true,
   structural_family_precedes_ingame_singleton_fallback:true,
+  structural_family_precedes_local_admission_fallback:true,
   ingame_singleton_fallback_expands_to_unobserved_evolutions:false,
+  local_admission_fallback_expands_to_unobserved_evolutions:false,
   evolution_root_is_not_candy_display_name_anchor:true,
   candy_display_name_authority:false,
   candy_display_name_auto_generation:false,
@@ -218,6 +223,25 @@ export const PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY=Object.freeze({
 
 export function currentPublicCandyFamilyAuthorityRows(){
   return Object.freeze(PUBLIC_CANDY_FAMILY_AUTHORITY_ROWS.map(row=>freezeFamilyRow(row)));
+}
+
+function matchResult(speciesName,family,reason='EXACT_GOVERNED_PUBLIC_CANDY_FAMILY'){
+  return Object.freeze({
+    status:'MATCH',
+    reason,
+    observed_species_name:displayText(speciesName),
+    canonical_species_name:family.structural_root_species_name,
+    family_id:family.family_id,
+    structural_root_species_name:family.structural_root_species_name,
+    member_species_names:family.member_species_names,
+    authority_class:family.authority_class,
+    verification_status:family.verification_status,
+    direct_candy_family_evidence:family.direct_candy_family_evidence,
+    family_membership_authority:true,
+    candy_display_name:null,
+    candy_display_name_authority:false,
+    source_refs:family.source_refs,
+  });
 }
 
 export function resolvePublicCandyFamilyForSpecies(speciesName){
@@ -235,32 +259,28 @@ export function resolvePublicCandyFamilyForSpecies(speciesName){
     });
   }
   const family=FAMILY_BY_MEMBER.get(normalizeKey(species.display_name_zh_tw));
-  if(!family){
-    return Object.freeze({
-      status:'REVIEW_REQUIRED',
-      reason:'PUBLIC_CANDY_FAMILY_NOT_GOVERNED',
-      observed_species_name:displayText(speciesName),
-      canonical_species_name:species.display_name_zh_tw,
-      family_id:null,
-      family_membership_authority:false,
-      candy_display_name:null,
-      candy_display_name_authority:false,
-    });
-  }
+  if(family)return matchResult(speciesName,family);
+
+  // Systemic P0-B6 fallback: a P0-B5/.53 local admission is already a validated,
+  // user-confirmed exact in-game Candy identity. It may establish a singleton
+  // Candy-family identity for that exact target species without guessing any
+  // unobserved evolution members. The deterministic family id uses the same
+  // source-key root namespace as structural families, avoiding a second id if
+  // a future public evolution edge later governs the line.
+  const local=localAdmissionFallbackForSpecies(species);
+  if(local.status==='MATCH')return matchResult(speciesName,local.row,'USER_CONFIRMED_LOCAL_CANDY_IDENTITY_FAMILY_FALLBACK');
+  if(local.status==='INVALID')return Object.freeze({
+    status:'REVIEW_REQUIRED',reason:'LOCAL_CANDY_ADMISSION_INVALID',observed_species_name:displayText(speciesName),canonical_species_name:species.display_name_zh_tw,
+    family_id:null,family_membership_authority:false,candy_display_name:null,candy_display_name_authority:false,
+  });
   return Object.freeze({
-    status:'MATCH',
-    reason:'EXACT_GOVERNED_PUBLIC_CANDY_FAMILY',
+    status:'REVIEW_REQUIRED',
+    reason:'PUBLIC_CANDY_FAMILY_NOT_GOVERNED',
     observed_species_name:displayText(speciesName),
     canonical_species_name:species.display_name_zh_tw,
-    family_id:family.family_id,
-    structural_root_species_name:family.structural_root_species_name,
-    member_species_names:family.member_species_names,
-    authority_class:family.authority_class,
-    verification_status:family.verification_status,
-    direct_candy_family_evidence:family.direct_candy_family_evidence,
-    family_membership_authority:true,
+    family_id:null,
+    family_membership_authority:false,
     candy_display_name:null,
     candy_display_name_authority:false,
-    source_refs:family.source_refs,
   });
 }
