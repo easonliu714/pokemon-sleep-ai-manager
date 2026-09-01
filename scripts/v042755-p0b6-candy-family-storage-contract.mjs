@@ -17,6 +17,18 @@ assert.equal(pichu.family_id,pikachu.family_id,'Pichu/Pikachu must converge by g
 assert.equal(pichu.canonical_species_name,'皮卡丘','B4 reference species is the canonical storage representative');
 assert.equal(pichu.canonical_candy_display_name,'皮卡丘的糖果');
 
+const realDeviceInventorySpecies=['皮卡丘','伊布','波加曼','水躍魚','摔角鷹人','卡拉卡拉','達克萊伊','胖丁','寶寶暴龍','火稚雞','夢幻','拉帝歐斯','妙蛙種子','迷你龍','菊草葉','小火焰猴','小鍛匠','拉帝亞斯','草苗龜','木守宮'];
+for(const species of realDeviceInventorySpecies){
+  const storage=resolveCandyFamilyStorageForSpecies(species);
+  assert.equal(storage.status,'MATCH',`${species} must have writable governed family storage after real-device revalidation`);
+  assert.ok(storage.family_id,`${species} family id required`);
+  assert.ok(storage.canonical_species_name,`${species} canonical storage species required`);
+  assert.ok(storage.canonical_candy_display_name,`${species} exact Candy display authority required`);
+}
+assert.equal(resolveCandyFamilyStorageForSpecies('卡拉卡拉').canonical_candy_display_name,'卡拉卡拉的糖果');
+assert.equal(resolveCandyFamilyStorageForSpecies('夢幻').canonical_candy_display_name,'夢幻的糖果');
+assert.equal(resolveCandyFamilyStorageForSpecies('達克萊伊').canonical_candy_display_name,'達克萊伊的糖果');
+
 const olderDeltaThenSnapshot=reconcileCandyFamilyTimeline([
   {event_id:'delta-old',mutation_type:CANDY_MUTATION_TYPES.DELTA_EVENT,quantity_value:5,event_at:'2026-08-30T10:00:00.000Z'},
   {event_id:'snapshot-new',mutation_type:CANDY_MUTATION_TYPES.ABSOLUTE_SNAPSHOT,quantity_value:288,event_at:'2026-09-01T12:00:00.000Z'},
@@ -98,6 +110,7 @@ console.log(JSON.stringify({
   authority:CANDY_FAMILY_STORAGE_AUTHORITY_VERSION,
   migration_version:CANDY_FAMILY_STORAGE_MIGRATION_VERSION,
   pikachu_family_id:pichu.family_id,
+  real_device_inventory_species_count:realDeviceInventorySpecies.length,
   regressions:{older_delta_then_snapshot:olderDeltaThenSnapshot.current_quantity,snapshot_then_delta:snapshotThenDelta.current_quantity,explicit_zero:explicitZero.current_quantity,unknown_after_snapshot:unknownAfterSnapshot.status,same_timestamp:sameTimestamp.status},
   release_wiring:{version_authority:true,predecessor_54_bridge:true,service_worker_precache_exact_once:true,consolidated_static_gate:true,consolidated_browser_gate:true},
 },null,2));
