@@ -9,7 +9,7 @@ import {
   publicCandyLocalAdmissionRows,
 } from './public-candy-local-admission-authority.js';
 
-export const PUBLIC_CANDY_MASTER_VERSION='public-candy-master-2026-09-01-f';
+export const PUBLIC_CANDY_MASTER_VERSION='public-candy-master-2026-09-01-g';
 export const SPECIES_CANDY_NAME_RULE_VERSION='species-candy-name-rule-zh-tw-2026-08-10-a';
 
 const OFFICIAL='Pokémon Sleep official zh-TW';
@@ -39,10 +39,8 @@ export const PUBLIC_CANDY_FIXED_MASTER=Object.freeze([
   fixed('type_dragon_candy_s','龍屬性的糖果S','type','龍','project-evidence:2026-07-30-item-inventory','GAME_SCREENSHOT_VERIFIED'),
 ]);
 
-// Source-controlled compatibility additions remain intentionally narrow. .53
-// does NOT pre-admit the user's newly observed gaps here. Runtime admissions
-// live in the separately governed local overlay and are promoted globally only
-// by a later release after physical validation.
+// Narrow historical compatibility evidence kept from .52/.53. This remains
+// separate from the .54 first-party in-game screenshot promotion below.
 export const PUBLIC_CANDY_LEGACY_COMPATIBILITY_EVIDENCE_ADDITIONS=Object.freeze([
   Object.freeze({
     species_name:'小火焰猴',
@@ -50,6 +48,29 @@ export const PUBLIC_CANDY_LEGACY_COMPATIBILITY_EVIDENCE_ADDITIONS=Object.freeze(
     verification_status:'REFERENCE_CANDY_FAMILY_VERIFIED',
     evidence_note:'Pokémon Sleep reference lists 40/80 Chimchar Candy for the Chimchar evolution line.',
   }),
+]);
+
+// .54 evidence policy: a user-confirmed Pokémon Sleep in-game screenshot is an
+// official-equivalent first-party authority for the visible Candy identity/name.
+// Screenshot bytes and player quantities remain private and are never committed.
+export const PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_POLICY=Object.freeze({
+  trust_tier:'OFFICIAL_EQUIVALENT_FOR_VISIBLE_IN_GAME_IDENTITY',
+  public_species_exact_authority_required:true,
+  player_quantity_promoted:false,
+  screenshot_bytes_committed:false,
+  private_raw_json_committed:false,
+  family_id_consolidation:false,
+});
+
+export const PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_ADDITIONS=Object.freeze([
+  Object.freeze({species_name:'草苗龜',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_001',verification_status:'GAME_SCREENSHOT_VERIFIED',evidence_note:'User-confirmed Pokémon Sleep in-game Candy identity; player quantity excluded.'}),
+  Object.freeze({species_name:'木守宮',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_002',verification_status:'GAME_SCREENSHOT_VERIFIED',evidence_note:'User-confirmed Pokémon Sleep in-game Candy identity; player quantity excluded.'}),
+  Object.freeze({species_name:'小鍛匠',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_004',verification_status:'GAME_SCREENSHOT_VERIFIED',evidence_note:'User-confirmed Pokémon Sleep in-game Candy identity; player quantity excluded.'}),
+  Object.freeze({species_name:'波加曼',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_007',verification_status:'GAME_SCREENSHOT_VERIFIED',evidence_note:'User-confirmed Pokémon Sleep in-game Candy identity; player quantity excluded.'}),
+  Object.freeze({species_name:'水躍魚',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_008',verification_status:'GAME_SCREENSHOT_VERIFIED',evidence_note:'User-confirmed Pokémon Sleep in-game Candy identity; player quantity excluded.'}),
+  Object.freeze({species_name:'摔角鷹人',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_009',verification_status:'GAME_SCREENSHOT_VERIFIED',evidence_note:'User-confirmed Pokémon Sleep in-game Candy identity; player quantity excluded.'}),
+  Object.freeze({species_name:'火稚雞',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_014',verification_status:'GAME_SCREENSHOT_VERIFIED',evidence_note:'User-confirmed Pokémon Sleep in-game Candy identity; player quantity excluded.'}),
+  Object.freeze({species_name:'菊草葉',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_019',verification_status:'GAME_SCREENSHOT_VERIFIED',evidence_note:'User-confirmed Pokémon Sleep in-game Candy identity; player quantity excluded.'}),
 ]);
 
 // Keep authoritative zh-TW display strings byte-for-byte apart from outer
@@ -76,6 +97,18 @@ function compatibilityAdditionForSpecies(speciesName){
   return PUBLIC_CANDY_LEGACY_COMPATIBILITY_EVIDENCE_ADDITIONS.find(row=>normalizeKey(row.species_name)===key)||null;
 }
 
+function gameScreenshotAdditionForSpecies(speciesName){
+  const key=normalizeKey(speciesName);
+  return PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_ADDITIONS.find(row=>normalizeKey(row.species_name)===key)||null;
+}
+
+function addGovernedEvidenceSpecies(names,evidenceRow,errorPrefix){
+  const species=resolvePublicPokemonSpeciesAuthority(evidenceRow.species_name);
+  if(species.status!=='MATCH'||normalizeKey(species.display_name_zh_tw)!==normalizeKey(evidenceRow.species_name))throw new Error(`${errorPrefix}:${evidenceRow.species_name}`);
+  const display=displayText(species.display_name_zh_tw),key=normalizeKey(display);
+  if(display&&key&&!names.has(key))names.set(key,display);
+}
+
 export function publicPokemonNamesForCandy(){
   const names=new Map();
   const add=value=>{
@@ -83,18 +116,16 @@ export function publicPokemonNamesForCandy(){
     if(display&&key&&!names.has(key))names.set(key,display);
   };
   for(const name of publicPokemonNamesForLegacyCandyProjection())add(name);
-  for(const evidenceRow of PUBLIC_CANDY_LEGACY_COMPATIBILITY_EVIDENCE_ADDITIONS){
-    const species=resolvePublicPokemonSpeciesAuthority(evidenceRow.species_name);
-    if(species.status!=='MATCH')throw new Error(`public_candy_legacy_addition_species_not_governed:${evidenceRow.species_name}`);
-    add(species.display_name_zh_tw);
-  }
+  for(const evidenceRow of PUBLIC_CANDY_LEGACY_COMPATIBILITY_EVIDENCE_ADDITIONS)addGovernedEvidenceSpecies(names,evidenceRow,'public_candy_legacy_addition_species_not_governed');
+  for(const evidenceRow of PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_ADDITIONS)addGovernedEvidenceSpecies(names,evidenceRow,'public_candy_game_screenshot_species_not_governed');
   return [...names.values()].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
 }
 
 export function buildPublicCandyMasterRows(){
   const rows=[...PUBLIC_CANDY_FIXED_MASTER];
   for(const species of publicPokemonNamesForCandy()){
-    const addition=compatibilityAdditionForSpecies(species);
+    const compatibilityAddition=compatibilityAdditionForSpecies(species);
+    const screenshotAddition=gameScreenshotAdditionForSpecies(species);
     rows.push(Object.freeze({
       candy_id:`species_${candyIdPart(species)}`,
       candy_name:speciesCandyName(species),
@@ -102,19 +133,19 @@ export function buildPublicCandyMasterRows(){
       target_species_name:species,
       target_type_name:null,
       name_rule:SPECIES_CANDY_NAME_RULE_VERSION,
-      verification_status:addition?'REFERENCE_CANDY_FAMILY_LEGACY_COMPATIBILITY':'DERIVED_FROM_PUBLIC_POKEMON_CANONICAL_NAME',
-      source_type:addition?'reference_candy_family_legacy_projection':'public_pokemon_name_projection',
-      source_name:addition?'Pokémon Sleep Candy family reference + Public Pokémon Species Authority':'Public Pokémon Species Authority (legacy Candy compatibility projection)',
-      source_ref:addition?addition.source_ref:PUBLIC_POKEMON_SPECIES_AUTHORITY_VERSION,
-      verified_at:addition?'2026-09-01':'2026-08-29',
+      verification_status:screenshotAddition?'GAME_SCREENSHOT_VERIFIED_SOURCE_CONTROLLED':compatibilityAddition?'REFERENCE_CANDY_FAMILY_LEGACY_COMPATIBILITY':'DERIVED_FROM_PUBLIC_POKEMON_CANONICAL_NAME',
+      source_type:screenshotAddition?'game_screenshot_verified':compatibilityAddition?'reference_candy_family_legacy_projection':'public_pokemon_name_projection',
+      source_name:screenshotAddition?'User-confirmed Pokémon Sleep in-game screenshot':compatibilityAddition?'Pokémon Sleep Candy family reference + Public Pokémon Species Authority':'Public Pokémon Species Authority (legacy Candy compatibility projection)',
+      source_ref:screenshotAddition?screenshotAddition.source_ref:compatibilityAddition?compatibilityAddition.source_ref:PUBLIC_POKEMON_SPECIES_AUTHORITY_VERSION,
+      verified_at:(screenshotAddition||compatibilityAddition)?'2026-09-01':'2026-08-29',
       data_version:PUBLIC_CANDY_MASTER_VERSION,
     }));
   }
 
   // Local admissions are persistent Public Master overlays on this device only.
-  // They contain exact identity/evidence and never player quantity. A later
-  // source-controlled release may make an identical row global; exact duplicates
-  // are therefore ignored while non-identical id/name collisions fail closed.
+  // When a later source-controlled release promotes the same exact identity,
+  // the global row wins and the legacy local duplicate is ignored. Non-identical
+  // id/name collisions still fail closed.
   const ids=new Map(rows.map(row=>[row.candy_id,row]));
   const names=new Map(rows.map(row=>[normalizeKey(row.candy_name),row]));
   for(const local of publicCandyLocalAdmissionRows()){
@@ -177,6 +208,9 @@ export function syncPublicCandyMaster(db){
     pokemon_name_authority:PUBLIC_POKEMON_SPECIES_AUTHORITY_VERSION,
     species_projection_count:publicPokemonNamesForCandy().length,
     explicit_legacy_compatibility_evidence_addition_count:PUBLIC_CANDY_LEGACY_COMPATIBILITY_EVIDENCE_ADDITIONS.length,
+    game_screenshot_evidence_addition_count:PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_ADDITIONS.length,
+    game_screenshot_trust_tier:PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_POLICY.trust_tier,
+    game_screenshot_player_quantity_promoted:false,
     local_admission_authority:PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION,
     physical_inventory_only:true,
     conversion_projection_status:'NOT_YET_VERIFIED',
