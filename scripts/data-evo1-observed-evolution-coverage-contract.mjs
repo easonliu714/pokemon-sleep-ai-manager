@@ -20,11 +20,17 @@ const atLeast=(current,minimum)=>{const left=parts(current),right=parts(minimum)
 const version=read('assets/js/version-authority.js');
 const app=version.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 const publicSpeciesAuthoritySuccessor=atLeast(app,'v0.4.27.47');
+const candyGapIdentitySuccessor=atLeast(app,'v0.4.27.52');
 assert.equal(atLeast(app,'v0.4.8.1'),true,`DATA.EVO.1 requires v0.4.8.1 behavior or later: ${app}`);
 assert.equal(EVOLUTION_COVERAGE_DIAGNOSTIC_SCHEMA,'pokemon-sleep-evolution-coverage-diagnostic/1.0');
 assert.equal(EVOLUTION_COVERAGE_DIAGNOSTIC_VERSION,'data-evo1-evolution-coverage-diagnostic-2026-08-10-a');
 assert.equal(PUBLIC_POKEMON_KNOWLEDGE_VERSION,'pokemon-knowledge-2026-08-10-e');
-assert.equal(PUBLIC_CANDY_MASTER_VERSION,publicSpeciesAuthoritySuccessor?'public-candy-master-2026-08-29-e':'public-candy-master-2026-08-10-d');
+const expectedCandyMasterVersion=candyGapIdentitySuccessor?'public-candy-master-2026-09-01-f':publicSpeciesAuthoritySuccessor?'public-candy-master-2026-08-29-e':'public-candy-master-2026-08-10-d';
+assert.equal(PUBLIC_CANDY_MASTER_VERSION,expectedCandyMasterVersion);
+if(candyGapIdentitySuccessor){
+  assert.ok(version.includes("// app_version: 'v0.4.27.51'"),'v0.4.27.52+ must retain exact .51 predecessor bridge');
+  assert.ok(buildPublicCandyMasterRows().some(row=>row.candy_name==='小火焰猴的糖果'),'v0.4.27.52+ targeted Chimchar Candy compatibility candidate must remain');
+}
 
 const bundle=auditPublicPokemonKnowledgeBundle();
 assert.equal(bundle.ok,true,bundle.errors.join('\n'));
@@ -119,6 +125,7 @@ console.log(JSON.stringify({
   public_pokemon_knowledge_version:PUBLIC_POKEMON_KNOWLEDGE_VERSION,
   public_candy_master_version:PUBLIC_CANDY_MASTER_VERSION,
   public_species_authority_successor:publicSpeciesAuthoritySuccessor,
+  candy_gap_identity_successor:candyGapIdentitySuccessor,
   evolution_routes:bundle.manifest.evolution_route_rows,
   outgoing_species:bundle.manifest.evolution_from_species_rows,
   verified_terminal_species:bundle.manifest.evolution_verified_terminal_rows,
