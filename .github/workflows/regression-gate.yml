@@ -123,6 +123,7 @@ jobs:
           node scripts/v042748-ingredient-inferred-zero-integrity-contract.mjs
           node scripts/v042749-p0b3-candy-family-authority-contract.mjs
           node scripts/v042750-p0b4-candy-display-name-authority-contract.mjs
+          node scripts/v042755-p0b6-candy-family-storage-contract.mjs
 
       - name: Verify unlocked Pokémon roster filters
         run: node scripts/pokemon-roster-filter-regression.mjs
@@ -190,6 +191,11 @@ jobs:
         env:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/v042751-p0b5-candy-quantity-browser-contract.mjs
+
+      - name: Verify v0.4.27.55 P0-B6 candy family storage SQLite migration
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/v042755-p0b6-candy-family-storage-browser-contract.mjs
 
       - name: Verify browser runtime and dynamic module loading
         env:
