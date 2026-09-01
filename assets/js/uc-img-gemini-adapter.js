@@ -58,12 +58,22 @@ export function buildUcImgGeminiSchema(config,scenarioKey,{platformAuthority=nul
   return scenarioKey==='weekly'&&platformAuthority?constrainUcImgWeeklyJsonSchema(schema,platformAuthority):schema;
 }
 
-function safeAttemptFailureMessage(outcome){
+export function safeProviderErrorDetail(value){
+  let text=clean(value).replace(/[\u0000-\u001f\u007f]+/g,' ').replace(/\s+/g,' ');
+  if(!text)return '';
+  text=text
+    .replace(/AIza[0-9A-Za-z_-]{16,}/g,'[redacted-api-key]')
+    .replace(/([?&]key=)[^&\s]+/gi,'$1[redacted]');
+  return text.slice(0,240);
+}
+
+export function safeAttemptFailureMessage(outcome){
   const failed=[...(outcome?.attempts||[])].reverse().find(item=>item?.status==='FAILED')||outcome?.failure||null;
   const label=failed?.error_class||outcome?.reason||'all_projects_unavailable';
   const status=Number(failed?.http_status||0);
   const suffix=status?` (HTTP ${status})`:failed?.transport_kind==='fetch_exception'?' (browser transport)':'';
-  return `Gemini 分析暫停：${label}${suffix}`;
+  const detail=safeProviderErrorDetail(failed?.error_message);
+  return `Gemini 分析暫停：${label}${suffix}${detail?` — ${detail}`:''}`;
 }
 
 function normalizeProviderPayload(parsedPayload,config,scenarioKey,platformAuthority){
