@@ -72,7 +72,7 @@ const unknown=resolvePublicCandyDisplayNameForSpecies('不存在寶可夢');
 assert.equal(unknown.status,'REVIEW_REQUIRED');
 assert.equal(unknown.candy_display_name,null);
 
-assert.equal(PUBLIC_CANDY_MASTER_VERSION,'public-candy-master-2026-08-29-e');
+assert.ok(['public-candy-master-2026-08-29-e','public-candy-master-2026-09-01-f'].includes(PUBLIC_CANDY_MASTER_VERSION));
 assert.equal(speciesCandyName('皮卡丘'),'皮卡丘的糖果');
 const professorSource=read('assets/js/pokemon-professor-transfer.js');
 assert.match(professorSource,/PROFESSOR_TRANSFER_VERSION='pokemon-professor-transfer-2026-08-27-p0b1'/);
@@ -95,6 +95,12 @@ if(appVersion==='v0.4.27.50'){
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.50'"),'v0.4.27.50 predecessor version bridge must remain');
   assert.ok(versionSource.includes("// app_build: '20260831-v042750-p0b4-candy-display-name-authority'"),'v0.4.27.50 predecessor build bridge must remain');
   assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.50-v042750-p0b4-candy-display-name-authority'"),'v0.4.27.50 predecessor cache bridge must remain');
+}else if(appVersion==='v0.4.27.52'){
+  assert.equal(appBuild,'20260901-v042752-p0b5-gap-identity-raw-evidence-hotfix');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.52-v042752-p0b5-gap-identity-raw-evidence-hotfix');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.51'"),'v0.4.27.51 predecessor version bridge must remain');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.50'"),'v0.4.27.50 predecessor version bridge must remain');
+  assert.equal(PUBLIC_CANDY_MASTER_VERSION,'public-candy-master-2026-09-01-f','v0.4.27.52 must carry the targeted legacy Candy candidate hotfix');
 }else{
   assert.fail(`B4 successor release not governed: ${appVersion}`);
 }

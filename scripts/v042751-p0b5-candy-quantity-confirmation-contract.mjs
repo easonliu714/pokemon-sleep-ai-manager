@@ -18,7 +18,7 @@ const snapshot=buildPublicMasterCatalogSnapshot('candies');
 const candidate=snapshot.rows.find(row=>row.candy_id&&row.candy_name);
 assert.ok(candidate,'Candy Master must expose at least one stable candidate');
 
-assert.equal(CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION,'candy-quantity-confirmation-authority-2026-08-31-a');
+assert.equal(CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION,'candy-quantity-confirmation-authority-2026-09-01-b');
 assert.equal(CANDY_QUANTITY_CONFIRMATION_POLICY.screenshot_quantity_is_candidate_only,true);
 assert.equal(CANDY_QUANTITY_CONFIRMATION_POLICY.identity_confirmation_is_quantity_confirmation,false);
 assert.equal(CANDY_QUANTITY_CONFIRMATION_POLICY.explicit_user_confirmation_required_before_write,true);
@@ -27,6 +27,9 @@ assert.equal(CANDY_QUANTITY_CONFIRMATION_POLICY.missing_or_null_is_no_update,tru
 assert.equal(CANDY_QUANTITY_CONFIRMATION_POLICY.external_game_changes_auto_sync_guaranteed,false);
 assert.equal(CANDY_QUANTITY_CONFIRMATION_POLICY.professor_observed_delta_semantics_changed,false);
 assert.equal(CANDY_QUANTITY_CONFIRMATION_POLICY.player_quantity_write_authority,'USER_EXPLICIT_CONFIRMATION_ONLY');
+assert.equal(CANDY_QUANTITY_CONFIRMATION_POLICY.ai_identity_exact_display_match_required,true);
+assert.equal(CANDY_QUANTITY_CONFIRMATION_POLICY.public_master_gap_confirmation_is_terminal_review,true);
+assert.equal(CANDY_QUANTITY_CONFIRMATION_POLICY.public_master_gap_player_write,false);
 
 function recognition({status='MATCHED',quantity=12,observationId='candy-observation-001',generatedAt='2026-08-31T11:00:00.000Z'}={}){
   return {
@@ -95,6 +98,7 @@ assert.match(prompt,/OCR／視覺辨識候選值/);
 assert.match(prompt,/逐筆確認目前遊戲內糖果庫存數量/);
 assert.match(prompt,/看不到數量時省略，不得補 0/);
 assert.match(prompt,/遊戲外部變動不保證自動同步/);
+assert.match(prompt,/observed_text 必須與你選擇的 canonical candy_name 逐字一致/);
 
 const uiSource=read('assets/js/candy-quantity-screenshot-ui.js');
 const inventoryUiSource=read('assets/js/candy-inventory-ui.js');
@@ -104,6 +108,9 @@ const serviceWorkerSource=read('service-worker.js');
 assert.match(uiSource,/我已核對遊戲畫面，確認數量/);
 assert.match(uiSource,/OCR／AI 讀到的糖果數量只是候選值/);
 assert.match(uiSource,/compileCandyQuantityGovernedRecognitionToUpdatePackage/);
+assert.match(uiSource,/Gemini Raw JSON（唯讀、immutable）/);
+assert.match(uiSource,/Working \/ Resolved Recognition JSON/);
+assert.match(uiSource,/Compile \/ Update Package（唯讀）/);
 assert.match(inventoryUiSource,/candy-quantity-screenshot-ui\.js/);
 assert.match(inventoryUiSource,/USER_CONFIRMATION_REQUIRED/);
 assert.match(professorSource,/PROFESSOR_TRANSFER_VERSION='pokemon-professor-transfer-2026-08-27-p0b1'/);
@@ -113,12 +120,19 @@ assert.equal(professorSource.includes('candy-quantity-confirmation-authority.js'
 const appVersion=versionSource.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 const appBuild=versionSource.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-assert.equal(appVersion,'v0.4.27.51');
-assert.equal(appBuild,'20260831-v042751-p0b5-candy-quantity-confirmation');
-assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.51-v042751-p0b5-candy-quantity-confirmation');
+if(appVersion==='v0.4.27.51'){
+  assert.equal(appBuild,'20260831-v042751-p0b5-candy-quantity-confirmation');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.51-v042751-p0b5-candy-quantity-confirmation');
+}else if(appVersion==='v0.4.27.52'){
+  assert.equal(appBuild,'20260901-v042752-p0b5-gap-identity-raw-evidence-hotfix');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.52-v042752-p0b5-gap-identity-raw-evidence-hotfix');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.51'"),'v0.4.27.51 predecessor version bridge must remain');
+  assert.ok(versionSource.includes("// app_build: '20260831-v042751-p0b5-candy-quantity-confirmation'"),'v0.4.27.51 predecessor build bridge must remain');
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.51-v042751-p0b5-candy-quantity-confirmation'"),'v0.4.27.51 predecessor cache bridge must remain');
+}else{
+  assert.fail(`B5 successor release not governed: ${appVersion}`);
+}
 assert.ok(versionSource.includes("// app_version: 'v0.4.27.50'"),'v0.4.27.50 predecessor version bridge must remain');
-assert.ok(versionSource.includes("// app_build: '20260831-v042750-p0b4-candy-display-name-authority'"),'v0.4.27.50 predecessor build bridge must remain');
-assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.50-v042750-p0b4-candy-display-name-authority'"),'v0.4.27.50 predecessor cache bridge must remain');
 assert.equal((serviceWorkerSource.match(/\.\/assets\/js\/candy-inventory-ui\.js/g)||[]).length,1,'Candy inventory root must remain precached exactly once');
 assert.match(serviceWorkerSource,/const isScript=sameOrigin/);
 assert.match(serviceWorkerSource,/caches\.open\(CACHE\)\.then\(cache=>cache\.put\(event\.request,copy\)\)/);
@@ -135,6 +149,9 @@ console.log(JSON.stringify({
     explicit_quantity_confirmation_required:true,confirmed_zero_is_valid:true,
     unconfirmed_compiles_zero_writes:true,storage_key_candy_id_only:true,
     external_change_auto_sync_guaranteed:false,professor_observed_delta_unchanged:true,
-    predecessor_b4_exact_bridge_preserved:true,
+    predecessor_b4_exact_bridge_preserved:true,successor_release_exact:true,
+    provider_raw_json_immutable:true,
   },
 },null,2));
+
+if(appVersion==='v0.4.27.52')await import('./v042752-p0b5-gap-identity-raw-evidence-hotfix-contract.mjs');
