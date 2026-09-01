@@ -31,7 +31,7 @@ function ensureItemsUi(){
   block.dataset.candyDisplayNameAuthority=PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION;
   block.dataset.candyFamilyStorageAuthority=CANDY_FAMILY_STORAGE_AUTHORITY_VERSION;
   block.innerHTML=`<h3>糖果庫存</h3>
-    <p class="notice">P0-B6 起，species Candy 的玩家 current-state 會先依 Public Species → Candy Family → B4 Display-Name Authority 解析成唯一 canonical family storage。截圖／JSON quantity 是 <b>ABSOLUTE_SNAPSHOT</b>，仍需使用者明確確認；送給博士的遊戲實際觀測糖果數量是 <b>DELTA_EVENT</b>。Migration 不以相同顯示文字、模糊比對或任意加總合併，provenance／時間序不明時會 <code>HOLD</code>。</p>
+    <p class="notice">P0-B6 起，species Candy 的玩家 current-state 會先依 Public Species → Candy Family → B4 Display-Name Authority 解析成唯一 canonical family storage。<b>玩家數量可由 JSON 更新中心匯入</b>；截圖／JSON quantity 在具備對應 confirmation evidence 時是 <b>ABSOLUTE_SNAPSHOT</b>，截圖仍需使用者明確確認；送給博士的遊戲實際觀測糖果數量是 <b>DELTA_EVENT</b>。Migration 不以相同顯示文字、模糊比對或任意加總合併，provenance／時間序不明時會 <code>HOLD</code>。</p>
     <div id="candyResourceSummary" class="notice"></div>
     <div class="table-wrap"><table id="candyInventoryTable"></table></div>`;
   section.appendChild(block);
