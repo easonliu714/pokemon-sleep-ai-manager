@@ -15,13 +15,14 @@ import {PUBLIC_MASTER_RECOGNITION_SCHEMA,PUBLIC_MASTER_RECOGNITION_VERSION} from
 const read=path=>fs.readFileSync(path,'utf8');
 const versionSource=read('assets/js/version-authority.js');
 const appVersion=versionSource.match(/app_version:\s*'([^']+)'/)?.[1]||'';
-const successor53=appVersion==='v0.4.27.53';
+const successor54=appVersion==='v0.4.27.54';
+const successor53=['v0.4.27.53','v0.4.27.54'].includes(appVersion);
 const snapshot=buildPublicMasterCatalogSnapshot('candies');
 const chimchar=snapshot.rows.find(row=>row.candy_name==='小火焰猴的糖果');
 const monferno=snapshot.rows.find(row=>row.candy_name==='猛火猴的糖果');
 assert.ok(chimchar);assert.ok(monferno);assert.notEqual(chimchar.candy_id,monferno.candy_id);
-assert.equal(PUBLIC_CANDY_MASTER_VERSION,'public-candy-master-2026-09-01-f');
-assert.equal(PUBLIC_CANDY_LEGACY_COMPATIBILITY_EVIDENCE_ADDITIONS.length,1,'.53 must not pre-promote physical screenshot gaps into static master');
+assert.equal(PUBLIC_CANDY_MASTER_VERSION,successor54?'public-candy-master-2026-09-01-g':'public-candy-master-2026-09-01-f');
+assert.equal(PUBLIC_CANDY_LEGACY_COMPATIBILITY_EVIDENCE_ADDITIONS.length,1,'legacy compatibility additions remain exactly one');
 assert.equal(PUBLIC_CANDY_LEGACY_COMPATIBILITY_EVIDENCE_ADDITIONS[0].species_name,'小火焰猴');
 assert.ok(buildPublicCandyMasterRows().some(row=>row.candy_name==='小火焰猴的糖果'));
 
@@ -37,8 +38,8 @@ const quantityResolved=confirmCandyScreenshotQuantity(identityResolved,'candies'
 const resolved=compileCandyQuantityGovernedRecognitionToUpdatePackage(quantityResolved,'candies',{allowedImageRefs:['candy-image-001']});
 assert.equal(resolved.ok,true,resolved.errors?.join('\n'));assert.deepEqual(resolved.update_package.operations[0].key,{candy_id:chimchar.candy_id});assert.equal(resolved.update_package.operations[0].data.quantity,188);
 
-// Historical .52 terminal gap behavior remains valid for old Working JSON, but
-// .53 UI no longer requires this intermediate action before local admission.
+// Historical .52 terminal gap behavior remains valid for old Working JSON. .53+
+// UI no longer requires this intermediate action before local admission.
 const gapRaw=payload({observation_id:'unknown-gap',status:'UNMATCHED',observed_text:'未知但畫面確實存在的糖果',observed_data:{quantity:47},source_image_ref:'candy-image-001',confidence:0.95,reason:'PUBLIC_MASTER_NO_RELIABLE_MATCH'});
 const gapResolved=applyCandyGovernedRecognitionResolution(gapRaw,'candies','unknown-gap','MASTER_GAP');
 assert.equal(gapResolved.observations[0].user_resolution.action,CANDY_PUBLIC_MASTER_GAP_ACTION);
@@ -50,7 +51,11 @@ const uiSource=read('assets/js/candy-quantity-screenshot-ui.js');
 assert.match(uiSource,/provider_raw:''/);assert.match(uiSource,/working_raw:''/);assert.match(uiSource,/Gemini Raw JSON（唯讀、immutable）/);assert.match(uiSource,/EXACT_IDENTITY_MISMATCH/);assert.ok(!uiSource.includes('state.provider_raw=JSON.stringify(mutator'));
 const appBuild=versionSource.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(successor53){
+if(successor54){
+  assert.equal(appBuild,'20260901-v042754-p0b5-ingame-candy-master-promotion');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.54-v042754-p0b5-ingame-candy-master-promotion');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.53'"));
+}else if(successor53){
   assert.equal(appBuild,'20260901-v042753-p0b5-canonical-key-gap-admission-replay');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.53-v042753-p0b5-canonical-key-gap-admission-replay');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.52'"));
@@ -60,5 +65,5 @@ if(successor53){
 assert.ok(versionSource.includes("// app_version: 'v0.3.96'"));
 const professorSource=read('assets/js/pokemon-professor-transfer.js');assert.match(professorSource,/USER_DIRECT_OBSERVATION_ONLY/);assert.equal(professorSource.includes('candy-quantity-confirmation-authority.js'),false);
 
-console.log(JSON.stringify({status:'PASS',gate:'V042752_P0B5_GAP_IDENTITY_RAW_EVIDENCE_HOTFIX',app_version:appVersion,app_build:appBuild,candy_master_version:PUBLIC_CANDY_MASTER_VERSION,authority_version:CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION,semantics:{provider_raw_immutable:true,historical_master_gap_terminal_nonwrite:true,exact_candy_identity_gate:true,chimchar_cross_name_blocked:true,static_master_gap_preload:false,player_quantity_migration:false,family_candy_id_consolidation:false,professor_semantics_unchanged:true}},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V042752_P0B5_GAP_IDENTITY_RAW_EVIDENCE_HOTFIX',app_version:appVersion,app_build:appBuild,candy_master_version:PUBLIC_CANDY_MASTER_VERSION,authority_version:CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION,semantics:{provider_raw_immutable:true,historical_master_gap_terminal_nonwrite:true,exact_candy_identity_gate:true,chimchar_cross_name_blocked:true,source_controlled_screenshot_promotion:successor54,player_quantity_migration:false,family_candy_id_consolidation:false,professor_semantics_unchanged:true}},null,2));
 if(successor53)await import('./v042753-p0b5-canonical-key-gap-admission-replay-contract.mjs');
