@@ -17,6 +17,12 @@ import {
   CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION,
 } from './candy-quantity-confirmation-authority.js';
 import {
+  CANDY_FAMILY_STORAGE_AUTHORITY_VERSION,
+  CANDY_MUTATION_TYPES,
+  recordCandyInventoryEvent,
+  resolveCandyFamilyStorageForSpecies,
+} from './candy-family-storage-authority.js';
+import {
   FIRST_PARTY_OBSERVATION_UPDATE_ENTITY,
   FIRST_PARTY_OBSERVATION_UPDATE_SCENARIO,
   prepareFirstPartyIngredientObservationStorageData,
@@ -149,8 +155,19 @@ function existing(entity, key) {
   )[0] || null;
 }
 
+function canonicalCandyStorageKey(key) {
+  if (!isMeaningful(key?.candy_id)) return key;
+  const master=rows('SELECT candy_id,candy_name,candy_type,target_species_name FROM candy_master WHERE candy_id=?',[key.candy_id])[0]||null;
+  if(!master||master.candy_type!=='species')return {candy_id:key.candy_id};
+  const storage=resolveCandyFamilyStorageForSpecies(master.target_species_name);
+  if(storage.status!=='MATCH')throw new Error(`糖果 ${master.candy_name||master.candy_id} 尚無可寫入的家族 canonical storage：${storage.reason}`);
+  const canonical=rows("SELECT candy_id FROM candy_master WHERE candy_type='species' AND target_species_name=?",[storage.canonical_species_name])[0]||null;
+  if(!canonical?.candy_id)throw new Error(`糖果家族 ${storage.family_id} 缺少 canonical candy_master row`);
+  return {candy_id:canonical.candy_id};
+}
+
 function resolveOperationKey(operation) {
-  const key = { ...(operation.key || {}) };
+  let key = { ...(operation.key || {}) };
   if (operation.entity === 'recipes' && !isMeaningful(key.recipe_id) && isMeaningful(key.recipe_name)) {
     const master = rows('SELECT recipe_id FROM recipe_master WHERE recipe_name=?', [key.recipe_name])[0];
     const player = rows('SELECT recipe_id FROM recipes WHERE recipe_name=?', [key.recipe_name])[0];
@@ -158,9 +175,23 @@ function resolveOperationKey(operation) {
   }
   if (operation.entity === 'candy_inventory' && !isMeaningful(key.candy_id) && isMeaningful(key.candy_name)) {
     const master = rows('SELECT candy_id FROM candy_master WHERE candy_name=?', [key.candy_name])[0];
-    if (master?.candy_id) return { candy_id: master.candy_id };
+    if (master?.candy_id) key={candy_id:master.candy_id};
   }
+  if(operation.entity==='candy_inventory'&&isMeaningful(key.candy_id))return canonicalCandyStorageKey(key);
   return key;
+}
+
+function candyStorageForKey(key){
+  if(!isMeaningful(key?.candy_id))return null;
+  const master=rows('SELECT candy_id,candy_type,target_species_name FROM candy_master WHERE candy_id=?',[key.candy_id])[0]||null;
+  if(!master||master.candy_type!=='species')return null;
+  const storage=resolveCandyFamilyStorageForSpecies(master.target_species_name);
+  return storage.status==='MATCH'?{...storage,canonical_candy_id:key.candy_id}:null;
+}
+
+function candyAbsoluteEventAt(operation,payload){
+  const evidence=operation?.evidence||{};
+  return String(evidence.quantity_confirmed_at||evidence.observed_at||payload?.generated_at||localIso()).trim();
 }
 
 function sparseData(operation) {
@@ -175,12 +206,11 @@ function managedData(operation, key, before, inputData, payload) {
   }
   const data = { ...inputData };
   const hasPlayerChange = Object.keys(inputData).some((field) => !['updated_at', 'source_update_id'].includes(field));
-  // account_capacity.updated_at is NOT NULL; screenshot/public-master operations carry observed capacity only, so the importer owns the persistence timestamp.
   if (operation.entity === 'account_capacity' && hasPlayerChange) {
     if (!hasOwn(data, 'updated_at')) data.updated_at = localIso();
   }
   if (['ingredient_inventory', 'item_inventory','candy_inventory'].includes(operation.entity) && hasPlayerChange) {
-    if (!hasOwn(data, 'updated_at')) data.updated_at = localIso();
+    if (!hasOwn(data, 'updated_at')) data.updated_at = operation.entity==='candy_inventory'&&hasOwn(inputData,'quantity')?candyAbsoluteEventAt(operation,payload):localIso();
     if (!hasOwn(data, 'source_update_id')) data.source_update_id = payload.update_id;
   }
   if (operation.entity === 'recipes') {
@@ -304,13 +334,22 @@ export function dryRun(payload) {
     const sparse = sparseData(operation);
     const data = managedData(operation, key, before, sparse, payload);
     const audit = fieldAudit(operation, before, data);
+    const candyStorage=operation.entity==='candy_inventory'?candyStorageForKey(key):null;
+    const candyEventAt=candyStorage&&hasOwn(sparse,'quantity')?candyAbsoluteEventAt(operation,payload):null;
+    if(!conflict&&candyStorage&&candyEventAt){
+      const latest=rows('SELECT event_id,event_at FROM candy_inventory_events WHERE family_id=? ORDER BY event_at DESC,event_id DESC LIMIT 1',[candyStorage.family_id])[0]||null;
+      if(latest?.event_at&&String(latest.event_at)>String(candyEventAt)){
+        conflict=true;
+        message=`糖果家族 ${candyStorage.family_id} 已有較新的觀測事件 ${latest.event_at}；拒絕套用較舊 absolute snapshot ${candyEventAt}`;
+      }
+    }
     let after;
     if (['insert', 'update'].includes(effectiveAction)) after = { ...(before || {}), ...key, ...data };
     else if (operation.action === 'archive' && effectiveAction !== 'skip') after = { ...(before || {}), status: 'archived' };
     else after = before ? { ...before } : { ...key, ...data };
     const preservedCount = audit.filter((item) => item.decision === 'preserve_existing_empty_incoming').length;
     if (preservedCount && !message) message = `保留 ${preservedCount} 個既有非空欄位（incoming 為空）`;
-    changes.push({index,entity:operation.entity,requested_action:operation.action,effective_action:effectiveAction,original_key:operation.key,key,before,after,data,field_audit:audit,user_audit:operation.user_audit||null,status:conflict?'conflict':'ready',message});
+    changes.push({index,entity:operation.entity,requested_action:operation.action,effective_action:effectiveAction,original_key:operation.key,key,before,after,data,field_audit:audit,user_audit:operation.user_audit||null,candy_storage:candyStorage,candy_event_at:candyEventAt,status:conflict?'conflict':'ready',message});
   });
   const allFieldAudit = changes.flatMap((change) => change.field_audit || []);
   return {
@@ -328,6 +367,8 @@ export function dryRun(payload) {
       profile_confirmation_count:Array.isArray(payload.profile_audit_confirmations)?payload.profile_audit_confirmations.length:0,
       visual_evidence_declared:visualPreflight.declared===true,
       visual_evidence_status:visualPreflight.status,
+      candy_family_storage_authority:CANDY_FAMILY_STORAGE_AUTHORITY_VERSION,
+      candy_absolute_snapshot_count:changes.filter(item=>item.candy_storage&&item.candy_event_at&&item.status==='ready').length,
     },
     changes,
   };
@@ -377,6 +418,21 @@ export async function applyPayload(payload) {
         const keys=KEYS[operation.entity];
         run(`DELETE FROM ${quote(operation.entity)} WHERE ${keys.map(key=>`${quote(key)}=?`).join(' AND ')}`,keys.map(key=>change.key[key]));
       }
+      if(change.candy_storage&&change.candy_event_at&&hasOwn(operation.data||{},'quantity')&&isMeaningful(operation.data?.quantity)&&change.effective_action!=='skip'){
+        recordCandyInventoryEvent(run,{
+          event_id:`import:${payload.update_id}:${index}`,
+          family_id:change.candy_storage.family_id,
+          canonical_candy_id:change.key.candy_id,
+          source_candy_id:operation.key?.candy_id||change.key.candy_id,
+          mutation_type:CANDY_MUTATION_TYPES.ABSOLUTE_SNAPSHOT,
+          quantity_value:Number(change.after.quantity),
+          event_at:change.candy_event_at,
+          source_update_id:payload.update_id,
+          authority:operation.evidence?.quantity_confirmation_authority||'USER_IMPORT_ABSOLUTE_STATE_WRITE',
+          evidence:{operation_evidence:operation.evidence||{},original_key:operation.key||{},generated_at:payload.generated_at,source:payload.source||null},
+          created_at:localIso(),
+        });
+      }
       run('INSERT INTO import_changes(update_id,operation_index,entity,action,key_json,before_json,after_json,status,message) VALUES(?,?,?,?,?,?,?,?,?)',[payload.update_id,index,operation.entity,operation.action,JSON.stringify(change.key),change.before?JSON.stringify(change.before):null,change.after?JSON.stringify(change.after):null,change.effective_action==='skip'?'skipped':'applied',change.message||'']);
     });
     const resultJson = {
@@ -387,6 +443,8 @@ export async function applyPayload(payload) {
       profile_audit_confirmations:payload.profile_audit_confirmations||[],
       null_overwrite_policy:'preserve_existing_unless_clear_fields',
       explicit_zero_and_false_are_values:true,
+      candy_family_storage_authority:CANDY_FAMILY_STORAGE_AUTHORITY_VERSION,
+      candy_quantity_mutation_semantics:'ABSOLUTE_SNAPSHOT',
       ...(weeklyManualOverrideRebase?{weekly_manual_override_rebase:weeklyManualOverrideRebase}:{}),
     };
     run('INSERT INTO import_batches(update_id,schema_version,generated_at,imported_at,source,operation_count,result_json) VALUES(?,?,?,?,?,?,?)',[payload.update_id,String(payload.schema_version),payload.generated_at,localIso(),payload.source||'',payload.operations.length,JSON.stringify(resultJson)]);
