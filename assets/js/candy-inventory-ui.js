@@ -7,10 +7,11 @@ import {
   PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION,
   resolvePublicCandyDisplayNameForSpecies,
 } from './public-candy-display-name-authority.js';
+import {CANDY_FAMILY_STORAGE_AUTHORITY_VERSION} from './candy-family-storage-authority.js';
 import {relevantResourceSnapshot,CANDY_CONVERSION_RULE_STATUS} from './resource-context.js';
 import {formatLocal} from './time-utils.js';
 
-export const CANDY_INVENTORY_WRITE_AUTHORITY_VERSION='v0.4.27.46-p0-b1-observed-delta-2026-08-27-a';
+export const CANDY_INVENTORY_WRITE_AUTHORITY_VERSION='v0.4.27.55-p0-b6-family-storage-2026-09-01-a';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const typeLabel=value=>({universal:'萬能',type:'屬性',species:'寶可夢',other_verified:'其他'}[value]||value||'—');
@@ -28,8 +29,9 @@ function ensureItemsUi(){
   block.id='candyInventoryBlock';
   block.dataset.candyInventoryWriteAuthority=CANDY_INVENTORY_WRITE_AUTHORITY_VERSION;
   block.dataset.candyDisplayNameAuthority=PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION;
+  block.dataset.candyFamilyStorageAuthority=CANDY_FAMILY_STORAGE_AUTHORITY_VERSION;
   block.innerHTML=`<h3>糖果庫存</h3>
-    <p class="notice">糖果庫存仍以既有 <code>candy_id</code> 保存；<b>玩家數量可由 JSON 更新中心匯入，或由「送給博士」時使用者輸入的遊戲實際觀測糖果數量增量寫入</b>。P0-B5 的截圖／OCR 數量只作候選，必須逐筆由使用者核對目前遊戲畫面後才可進 Dry-Run；平台不保證遊戲外部變動自動同步。</p>
+    <p class="notice">P0-B6 起，species Candy 的玩家 current-state 會先依 Public Species → Candy Family → B4 Display-Name Authority 解析成唯一 canonical family storage。截圖／JSON quantity 是 <b>ABSOLUTE_SNAPSHOT</b>，仍需使用者明確確認；送給博士的遊戲實際觀測糖果數量是 <b>DELTA_EVENT</b>。Migration 不以相同顯示文字、模糊比對或任意加總合併，provenance／時間序不明時會 <code>HOLD</code>。</p>
     <div id="candyResourceSummary" class="notice"></div>
     <div class="table-wrap"><table id="candyInventoryTable"></table></div>`;
   section.appendChild(block);
@@ -94,6 +96,13 @@ function renderKnowledge(){
   ]);
 }
 
+function migrationAuditSummary(){
+  try{
+    const result=rows('SELECT status,COUNT(*) count FROM candy_family_storage_migration_audit GROUP BY status');
+    return Object.fromEntries(result.map(row=>[String(row.status),Number(row.count||0)]));
+  }catch{return {};}
+}
+
 function renderInventory(){
   ensureItemsUi();
   const tableEl=document.getElementById('candyInventoryTable');
@@ -107,7 +116,7 @@ function renderInventory(){
   let data=[];
   try{data=rows(`SELECT * FROM candy_catalog_state WHERE player_record_exists=1 ORDER BY CASE candy_type WHEN 'universal' THEN 1 WHEN 'type' THEN 2 ELSE 3 END,candy_name`);}catch{}
   table(tableEl,data,[
-    {label:'Legacy 糖果',key:'candy_name'},
+    {label:'Canonical / Legacy 糖果',key:'candy_name'},
     {label:'B4 正式顯示名稱',render:authorityLabel},
     {label:'類型',render:row=>esc(typeLabel(row.candy_type))},
     {label:'對象',render:row=>esc(targetLabel(row))},
@@ -120,7 +129,8 @@ function renderInventory(){
   const candyRows=snapshot.status==='READY'?snapshot.candies:[];
   const stocked=candyRows.filter(row=>row.player_record_exists).length;
   const availableTotal=candyRows.reduce((sum,row)=>sum+Number(row.available||0),0);
-  summaryEl.innerHTML=`已匯入／觀測寫入糖果種類：<b>${stocked}</b> · 各糖果可動用量合計（僅介面摘要，不跨種類視為等價資源）：<b>${availableTotal}</b> · B4 Display Authority：<code>${esc(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION)}</code> · 玩家 storage key：<code>candy_id unchanged</code> · 博士糖果 Authority：<code>USER_DIRECT_OBSERVATION_ONLY</code> · 截圖糖果 quantity：<code>USER_CONFIRMATION_REQUIRED</code> · 自動推算：<b>停用</b> · 轉換規則：<code>${esc(CANDY_CONVERSION_RULE_STATUS)}</code> · Resource fingerprint：<code>${esc(snapshot.fingerprint||'—')}</code>`;
+  const audit=migrationAuditSummary();
+  summaryEl.innerHTML=`已匯入／觀測寫入糖果種類：<b>${stocked}</b> · 各糖果可動用量合計（僅介面摘要，不跨種類視為等價資源）：<b>${availableTotal}</b> · Family migration：<code>APPLIED ${Number(audit.APPLIED||0)} / HOLD ${Number(audit.HOLD||0)} / NOOP ${Number(audit.NOOP||0)}</code> · B4 Display Authority：<code>${esc(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION)}</code> · Family Storage：<code>${esc(CANDY_FAMILY_STORAGE_AUTHORITY_VERSION)}</code> · 博士 quantity：<code>USER_DIRECT_OBSERVATION_ONLY → DELTA_EVENT</code> · 截圖 quantity：<code>USER_CONFIRMATION_REQUIRED → ABSOLUTE_SNAPSHOT</code> · missing/null：<code>NO_UPDATE</code> · explicit 0：<code>VALID</code> · 自動推算：<b>停用</b> · 轉換規則：<code>${esc(CANDY_CONVERSION_RULE_STATUS)}</code> · Resource fingerprint：<code>${esc(snapshot.fingerprint||'—')}</code>`;
 }
 
 export function renderCandySurfaces(){renderKnowledge();renderInventory();}
