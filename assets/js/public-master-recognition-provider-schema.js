@@ -1,7 +1,16 @@
 // Issue #420: Gemini provider-side Structured Output must remain compact.
 // Canonical identity authority stays in public-master-recognition.js post-response validation.
 
-export const PUBLIC_MASTER_PROVIDER_SCHEMA_VERSION='public-master-provider-schema-2026-09-01-a';
+import {
+  PUBLIC_MASTER_AI_STATUSES,
+  PUBLIC_MASTER_RECOGNITION_SCHEMA,
+  PUBLIC_MASTER_RECOGNITION_VERSION,
+  buildPublicMasterCatalogSnapshot,
+  getPublicMasterRecognitionDefinition,
+} from './public-master-recognition.js';
+import {augmentRecipeRecognitionJsonSchema} from './pot-capacity-authority.js';
+
+export const PUBLIC_MASTER_PROVIDER_SCHEMA_VERSION='public-master-provider-schema-2026-09-02-b';
 
 const clone=value=>JSON.parse(JSON.stringify(value));
 
@@ -52,4 +61,22 @@ export function buildCompactPublicMasterProviderSchema({
     required:['schema','recognition_version','scenario','authority','data_version','catalog_snapshot_id','generated_at','visible_target_count','observations'],
     additionalProperties:false,
   };
+}
+
+export function buildCompactPublicMasterProviderSchemaForInput(input){
+  const def=getPublicMasterRecognitionDefinition(input);
+  if(!def)throw new Error(`public_master_recognition_unsupported:${input}`);
+  const snapshot=buildPublicMasterCatalogSnapshot(def.scenario_key);
+  const schema=buildCompactPublicMasterProviderSchema({
+    recognitionSchema:PUBLIC_MASTER_RECOGNITION_SCHEMA,
+    recognitionVersion:PUBLIC_MASTER_RECOGNITION_VERSION,
+    scenario:snapshot.scenario,
+    authority:snapshot.authority,
+    dataVersion:snapshot.data_version,
+    catalogSnapshotId:snapshot.catalog_snapshot_id,
+    aiStatuses:PUBLIC_MASTER_AI_STATUSES,
+    canonicalKeyFields:snapshot.canonical_key_fields,
+    dataSchema:def.data_schema,
+  });
+  return def.scenario_key==='recipes'?augmentRecipeRecognitionJsonSchema(schema):schema;
 }
