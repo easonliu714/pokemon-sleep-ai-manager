@@ -3,11 +3,12 @@ import {
   resolvePublicCandyFamilyForSpecies,
 } from './public-candy-family-authority.js';
 
-export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION='public-candy-display-name-authority-2026-09-01-b';
+export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION='public-candy-display-name-authority-2026-09-01-c';
 export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_STATUS='ACTIVE_EXPLICIT_FIRST_PARTY_ZH_TW_DISPLAY_NAME_AUTHORITY';
 
 const displayText=value=>String(value??'').trim();
 const normalizeKey=value=>displayText(value).normalize('NFKC');
+const REAL_DEVICE_REVALIDATION_SOURCE='project-evidence:2026-09-01-p0b6-real-device-inventory-revalidation';
 
 const evidence=(reference_species_name,candy_display_name,source_ref,verified_at,source_type='OFFICIAL_POKEMON_SLEEP_ZH_TW_EXACT_STRING')=>Object.freeze({
   reference_species_name,
@@ -55,6 +56,15 @@ export const PUBLIC_CANDY_DISPLAY_NAME_EVIDENCE_ROWS=Object.freeze([
   ingameEvidence('摔角鷹人的糖果'.replace('的糖果',''),'摔角鷹人的糖果','project-evidence:2026-09-01-p0b5-ingame-candy#obs_009'),
   ingameEvidence('火稚雞','火稚雞的糖果','project-evidence:2026-09-01-p0b5-ingame-candy#obs_014'),
   ingameEvidence('菊草葉','菊草葉的糖果','project-evidence:2026-09-01-p0b5-ingame-candy#obs_019'),
+  ingameEvidence('卡拉卡拉','卡拉卡拉的糖果',`${REAL_DEVICE_REVALIDATION_SOURCE}#cubone`),
+  ingameEvidence('夢幻','夢幻的糖果',`${REAL_DEVICE_REVALIDATION_SOURCE}#mew`),
+  ingameEvidence('寶寶暴龍','寶寶暴龍的糖果',`${REAL_DEVICE_REVALIDATION_SOURCE}#tyrunt`),
+  ingameEvidence('小火焰猴','小火焰猴的糖果',`${REAL_DEVICE_REVALIDATION_SOURCE}#chimchar`),
+  ingameEvidence('拉帝亞斯','拉帝亞斯的糖果',`${REAL_DEVICE_REVALIDATION_SOURCE}#latias`),
+  ingameEvidence('拉帝歐斯','拉帝歐斯的糖果',`${REAL_DEVICE_REVALIDATION_SOURCE}#latios`),
+  ingameEvidence('胖丁','胖丁的糖果',`${REAL_DEVICE_REVALIDATION_SOURCE}#jigglypuff`),
+  ingameEvidence('迷你龍','迷你龍的糖果',`${REAL_DEVICE_REVALIDATION_SOURCE}#dratini`),
+  ingameEvidence('達克萊伊','達克萊伊的糖果',`${REAL_DEVICE_REVALIDATION_SOURCE}#darkrai`),
 ]);
 
 function bindEvidenceRow(row){
@@ -106,6 +116,7 @@ export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY=Object.freeze({
   candy_family_authority_version:PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION,
   exact_official_zh_tw_string_required:true,
   ingame_screenshot_official_equivalent_exact_string_supported:true,
+  real_device_user_revalidation_exact_string_supported:true,
   structural_root_is_not_display_name_anchor:true,
   species_name_concatenation_forbidden:true,
   automatic_display_name_generation:false,

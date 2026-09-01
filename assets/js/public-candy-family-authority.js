@@ -4,11 +4,12 @@ import {
   resolvePublicPokemonSpeciesAuthority,
 } from './public-pokemon-species-authority.js';
 
-export const PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION='public-candy-family-authority-2026-09-01-b';
+export const PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION='public-candy-family-authority-2026-09-01-c';
 export const PUBLIC_CANDY_FAMILY_AUTHORITY_STATUS='ACTIVE_GOVERNED_CANDY_FAMILY_MEMBERSHIP_AUTHORITY';
 
 const TINKATINK_BUNDLE_SOURCE='https://www.pokemonsleep.net/en/news/343238373339373232383036383230383732/';
 const TINKATINK_DEBUT_SOURCE='https://www.pokemonsleep.net/zh/news/343238363931353636383439313633323637/';
+const REAL_DEVICE_REVALIDATION_SOURCE='project-evidence:2026-09-01-p0b6-real-device-inventory-revalidation';
 const displayText=value=>String(value??'').trim();
 const normalizeKey=value=>displayText(value).normalize('NFKC');
 const idPart=value=>encodeURIComponent(normalizeKey(value)).replace(/%/g,'_').toLowerCase();
@@ -43,14 +44,14 @@ export const PUBLIC_CANDY_FAMILY_DIRECT_EVIDENCE_ROWS=Object.freeze([
   }),
 ]);
 
-// .54 established these exact in-game Candy identities as first-party,
-// official-equivalent evidence. When the public evolution graph already knows
-// the family, that structural family remains authoritative. Only when no B3
-// family exists yet do we admit the exact observed species as a singleton
-// fallback family. This does NOT guess evolution members. The family_id uses
-// the same Public Species source-key root rule as structural families so a
-// later evolution-graph admission can supersede the singleton without inventing
-// a second identity namespace.
+// First-party in-game Candy identities are official-equivalent evidence for the
+// exact observed species. When the public evolution graph already knows the
+// family, that structural family remains authoritative. Only when no B3 family
+// exists yet do we admit the exact observed species as a singleton fallback
+// family. This does NOT guess evolution members. The family_id uses the same
+// Public Species source-key root rule as structural families so a later
+// evolution-graph admission can supersede the singleton without inventing a
+// second identity namespace.
 export const PUBLIC_CANDY_FAMILY_INGAME_IDENTITY_FALLBACK_EVIDENCE_ROWS=Object.freeze([
   Object.freeze({species_name:'草苗龜',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_001'}),
   Object.freeze({species_name:'木守宮',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_002'}),
@@ -60,6 +61,15 @@ export const PUBLIC_CANDY_FAMILY_INGAME_IDENTITY_FALLBACK_EVIDENCE_ROWS=Object.f
   Object.freeze({species_name:'摔角鷹人',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_009'}),
   Object.freeze({species_name:'火稚雞',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_014'}),
   Object.freeze({species_name:'菊草葉',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_019'}),
+  Object.freeze({species_name:'卡拉卡拉',source_ref:`${REAL_DEVICE_REVALIDATION_SOURCE}#cubone`}),
+  Object.freeze({species_name:'夢幻',source_ref:`${REAL_DEVICE_REVALIDATION_SOURCE}#mew`}),
+  Object.freeze({species_name:'寶寶暴龍',source_ref:`${REAL_DEVICE_REVALIDATION_SOURCE}#tyrunt`}),
+  Object.freeze({species_name:'小火焰猴',source_ref:`${REAL_DEVICE_REVALIDATION_SOURCE}#chimchar`}),
+  Object.freeze({species_name:'拉帝亞斯',source_ref:`${REAL_DEVICE_REVALIDATION_SOURCE}#latias`}),
+  Object.freeze({species_name:'拉帝歐斯',source_ref:`${REAL_DEVICE_REVALIDATION_SOURCE}#latios`}),
+  Object.freeze({species_name:'胖丁',source_ref:`${REAL_DEVICE_REVALIDATION_SOURCE}#jigglypuff`}),
+  Object.freeze({species_name:'迷你龍',source_ref:`${REAL_DEVICE_REVALIDATION_SOURCE}#dratini`}),
+  Object.freeze({species_name:'達克萊伊',source_ref:`${REAL_DEVICE_REVALIDATION_SOURCE}#darkrai`}),
 ]);
 
 function buildEvolutionComponents(){
