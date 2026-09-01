@@ -5,6 +5,7 @@ import {
   PUBLIC_CANDY_FAMILY_AUTHORITY_ROWS,
   PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY,
   PUBLIC_CANDY_FAMILY_DIRECT_EVIDENCE_ROWS,
+  PUBLIC_CANDY_FAMILY_INGAME_IDENTITY_FALLBACK_EVIDENCE_ROWS,
   currentPublicCandyFamilyAuthorityRows,
   resolvePublicCandyFamilyForSpecies,
 } from '../assets/js/public-candy-family-authority.js';
@@ -18,7 +19,7 @@ const gate=(name,fn)=>{
 const patchOf=version=>Number(String(version||'').match(/^v0\.4\.27\.(\d+)$/)?.[1]||-1);
 
 gate('B3 authority policy is explicit and display-name authority stays separate',()=>{
-  assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION,'public-candy-family-authority-2026-08-31-a');
+  assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION,'public-candy-family-authority-2026-09-01-b');
   assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.family_membership_authority,true);
   assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.exact_species_authority_required,true);
   assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.candy_display_name_authority,false);
@@ -26,6 +27,9 @@ gate('B3 authority policy is explicit and display-name authority stays separate'
   assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.legacy_candy_master_migration_authority,false);
   assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.professor_transfer_write_behavior_changed,false);
   assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.player_write_authority,false);
+  assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.ingame_candy_identity_singleton_fallback_supported,true);
+  assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.structural_family_precedes_ingame_singleton_fallback,true);
+  assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.ingame_singleton_fallback_expands_to_unobserved_evolutions,false);
   assert.equal(PUBLIC_POKEMON_SPECIES_AUTHORITY_POLICY.candy_family_authority,false,'Species Authority must not become the Candy-family owner');
   assert.equal(PUBLIC_POKEMON_SPECIES_AUTHORITY_POLICY.candy_display_name_authority,false);
 });
@@ -41,7 +45,11 @@ gate('authority rows are deterministic and member assignments are unique',()=>{
     assert.equal(row.family_membership_authority,true);
     assert.equal(row.candy_display_name,null);
     assert.equal(row.candy_display_name_authority,false);
-    assert.ok(row.member_species_names.length>=2,'B3 must not silently invent singleton Candy families from missing evolution evidence');
+    if(row.member_species_names.length===1){
+      assert.equal(row.authority_class,'INGAME_CANDY_IDENTITY_SINGLETON_FALLBACK','singleton B3 families require exact first-party Candy identity evidence');
+      assert.equal(row.direct_candy_family_evidence,true);
+      assert.equal(row.source_refs.length,1);
+    }else assert.ok(row.member_species_names.length>=2);
   }
 });
 
@@ -58,6 +66,19 @@ gate('Tinkatink line has direct official Candy-family evidence without display-n
     assert.equal(result.candy_display_name,null);
     assert.equal(result.candy_display_name_authority,false);
     assert.ok(result.source_refs.some(ref=>ref.includes('pokemonsleep.net/en/news/')));
+  }
+});
+
+gate('.54 in-game Candy identities get B3 family coverage without guessing unobserved evolutions',()=>{
+  const expected=['草苗龜','木守宮','小鍛匠','波加曼','水躍魚','摔角鷹人','火稚雞','菊草葉'];
+  assert.deepEqual(PUBLIC_CANDY_FAMILY_INGAME_IDENTITY_FALLBACK_EVIDENCE_ROWS.map(row=>row.species_name),expected);
+  for(const species of expected){
+    const result=resolvePublicCandyFamilyForSpecies(species);
+    assert.equal(result.status,'MATCH',species);
+    if(result.authority_class==='INGAME_CANDY_IDENTITY_SINGLETON_FALLBACK'){
+      assert.deepEqual([...result.member_species_names],[species],`${species} fallback must not guess an evolution family`);
+      assert.match(result.source_refs[0],/^project-evidence:2026-09-01-p0b5-ingame-candy#obs_/);
+    }
   }
 });
 
@@ -122,14 +143,23 @@ gate('B3 introduces no circular Candy dependency, player persistence, or display
   ])assert.equal(source.includes(forbidden),false,forbidden);
 });
 
-gate('B3 does not migrate legacy Candy Master or Professor observed-delta behavior',()=>{
+gate('B3 itself does not migrate player storage; .55 successor owns canonical writes',()=>{
   const candy=read('assets/js/public-candy-master.js');
+  const familySource=read('assets/js/public-candy-family-authority.js');
   const professor=read('assets/js/pokemon-professor-transfer.js');
+  const version=read('assets/js/version-authority.js');
+  const patch=patchOf(version.match(/app_version:\s*'([^']+)'/)?.[1]||'');
   assert.ok(candy.includes('publicPokemonNamesForLegacyCandyProjection'));
   assert.ok(candy.includes('speciesCandyName(species)'));
-  assert.ok(professor.includes("PROFESSOR_TRANSFER_VERSION='pokemon-professor-transfer-2026-08-27-p0b1'"));
-  assert.ok(professor.includes("import {speciesCandyName} from './public-candy-master.js'"));
-  assert.equal(professor.includes('public-candy-family-authority.js'),false);
+  assert.equal(familySource.includes('candy_inventory'),false,'B3 remains identity-only even after B6 consumes it');
+  if(patch<55){
+    assert.ok(professor.includes("PROFESSOR_TRANSFER_VERSION='pokemon-professor-transfer-2026-08-27-p0b1'"));
+    assert.equal(professor.includes('candy-family-storage-authority.js'),false);
+  }else{
+    assert.match(professor,/pokemon-professor-transfer-2026-09-01-p0b6-family-storage/);
+    assert.match(professor,/candy-family-storage-authority\.js/);
+    assert.match(professor,/USER_DIRECT_OBSERVATION_ONLY/,'B6 may route the write key but must retain B1 quantity authority');
+  }
 });
 
 gate('v0.4.27.49 release authority remains exact under successor releases',()=>{
@@ -166,13 +196,14 @@ console.log(JSON.stringify({
   family_authority_version:PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION,
   governed_family_count:PUBLIC_CANDY_FAMILY_AUTHORITY_ROWS.length,
   direct_evidence_family_count:PUBLIC_CANDY_FAMILY_DIRECT_EVIDENCE_ROWS.length,
+  ingame_fallback_candidate_count:PUBLIC_CANDY_FAMILY_INGAME_IDENTITY_FALLBACK_EVIDENCE_ROWS.length,
   predecessor_app_version:'v0.4.27.49',
   current_app_version:currentVersion,
   successor_aware:patchOf(currentVersion)>=50,
   offline_precache:true,
   candy_display_name_authority:false,
   legacy_candy_master_migration:false,
-  professor_transfer_write_behavior_changed:false,
+  professor_transfer_write_behavior_changed:patchOf(currentVersion)>=55,
   player_write_authority:false,
 },null,2));
 if(failed.length)process.exitCode=1;
