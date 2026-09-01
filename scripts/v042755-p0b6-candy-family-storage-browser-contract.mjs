@@ -71,15 +71,32 @@ try{
     const rowsD=rows(dbD,'SELECT * FROM candy_inventory ORDER BY candy_id');
     const migration15D=rows(dbD,'SELECT version FROM schema_migrations WHERE version=15');
 
+    // Real-device boot hotfix regression. v15 was already marked complete, while its reconstructed
+    // event ledger contained local-offset timestamps such as 13:37+08. A later screenshot confirmation
+    // uses UTC Z. Boot must canonicalize the historical event text to UTC even though migration 15 itself
+    // is a no-op, so Dry-Run chronology does not compare different offsets lexicographically.
+    const dbE=new SQL.Database();schema(dbE);
+    const initialNoInventory=storage.applyCandyFamilyStorageMigration(dbE);
+    dbE.run(`INSERT INTO candy_inventory_events(event_id,family_id,canonical_candy_id,source_candy_id,mutation_type,quantity_value,event_at,source_update_id,authority,evidence_json,created_at)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?)`,[
+      'legacy-local-offset-event',storage.resolveCandyFamilyStorageForSpecies('皮卡丘').family_id,pikachu.candy_id,pikachu.candy_id,'ABSOLUTE_SNAPSHOT',288,
+      '2026-09-01T13:37:33+08:00','legacy-local-update','LEGACY_IMPORT_ABSOLUTE_STATE_WRITE','{}','2026-09-01T13:37:33+08:00',
+    ]);
+    const normalizationRerun=storage.applyCandyFamilyStorageMigration(dbE);
+    const normalizedEvent=rows(dbE,"SELECT event_at,created_at FROM candy_inventory_events WHERE event_id='legacy-local-offset-event'")[0]||null;
+
     return {
+      authorityVersion:storage.CANDY_FAMILY_STORAGE_AUTHORITY_VERSION,
       ids:{pichu:pichu.candy_id,pikachu:pikachu.candy_id},
       first,rowsA,eventsA,auditA,rerun,rerunRows,
       reverse,rowsB,
       ambiguous,rowsC,auditC,
       rollbackError,rowsD,migration15D,
+      initialNoInventory,normalizationRerun,normalizedEvent,
     };
   });
 
+  assert.equal(result.authorityVersion,'candy-family-storage-authority-2026-09-01-b');
   assert.equal(result.first.applied,1);
   assert.equal(result.first.held,0);
   assert.equal(result.rowsA.length,1,'delta + later snapshot must consolidate to one row');
@@ -105,6 +122,14 @@ try{
   assert.match(result.rollbackError||'',/forced_family_migration_abort/,'forced SQL failure must propagate');
   assert.equal(result.rowsD.length,2,'rollback must restore both legacy rows after failed migration');
   assert.equal(result.migration15D.length,0,'failed migration must not mark schema migration 15 complete');
+
+  assert.equal(result.initialNoInventory.no_op,false);
+  assert.equal(result.normalizationRerun.no_op,true,'already-applied v15 must stay idempotent while running timestamp maintenance');
+  assert.equal(result.normalizationRerun.database_changed,true,'timestamp normalization must request persistence on an existing device');
+  assert.equal(result.normalizationRerun.normalized_event_times,1);
+  assert.equal(result.normalizationRerun.invalid_event_times,0);
+  assert.equal(result.normalizedEvent.event_at,'2026-09-01T05:37:33.000Z');
+  assert.equal(result.normalizedEvent.created_at,'2026-09-01T05:37:33.000Z');
 
   console.log(JSON.stringify({status:'PASS',gate:'V042755_P0B6_CANDY_FAMILY_STORAGE_BROWSER_SQLITE',result},null,2));
 }finally{await browser.close();}
