@@ -3,21 +3,28 @@ import {
   resolvePublicCandyFamilyForSpecies,
 } from './public-candy-family-authority.js';
 
-export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION='public-candy-display-name-authority-2026-08-31-a';
-export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_STATUS='ACTIVE_EXPLICIT_OFFICIAL_ZH_TW_DISPLAY_NAME_AUTHORITY';
+export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION='public-candy-display-name-authority-2026-09-01-b';
+export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_STATUS='ACTIVE_EXPLICIT_FIRST_PARTY_ZH_TW_DISPLAY_NAME_AUTHORITY';
 
 const displayText=value=>String(value??'').trim();
 const normalizeKey=value=>displayText(value).normalize('NFKC');
 
-const evidence=(reference_species_name,candy_display_name,source_ref,verified_at)=>Object.freeze({
+const evidence=(reference_species_name,candy_display_name,source_ref,verified_at,source_type='OFFICIAL_POKEMON_SLEEP_ZH_TW_EXACT_STRING')=>Object.freeze({
   reference_species_name,
   candy_display_name,
   locale:'zh-TW',
-  source_type:'OFFICIAL_POKEMON_SLEEP_ZH_TW_EXACT_STRING',
+  source_type,
   source_ref,
   verified_at,
   exact_display_string_authority:true,
 });
+const ingameEvidence=(reference_species_name,candy_display_name,source_ref)=>evidence(
+  reference_species_name,
+  candy_display_name,
+  source_ref,
+  '2026-09-01',
+  'POKEMON_SLEEP_INGAME_SCREENSHOT_OFFICIAL_EQUIVALENT_EXACT_STRING',
+);
 
 // Display names are literal evidence rows. Never derive them from a species,
 // structural root, family root, or `${species}的糖果` style string rule.
@@ -40,6 +47,14 @@ export const PUBLIC_CANDY_DISPLAY_NAME_EVIDENCE_ROWS=Object.freeze([
     'https://www.pokemonsleep.net/zh/news/323030373835373533323933313933323137/',
     '2026-08-31',
   ),
+  ingameEvidence('草苗龜','草苗龜的糖果','project-evidence:2026-09-01-p0b5-ingame-candy#obs_001'),
+  ingameEvidence('木守宮','木守宮的糖果','project-evidence:2026-09-01-p0b5-ingame-candy#obs_002'),
+  ingameEvidence('小鍛匠','小鍛匠的糖果','project-evidence:2026-09-01-p0b5-ingame-candy#obs_004'),
+  ingameEvidence('波加曼','波加曼的糖果','project-evidence:2026-09-01-p0b5-ingame-candy#obs_007'),
+  ingameEvidence('水躍魚','水躍魚的糖果','project-evidence:2026-09-01-p0b5-ingame-candy#obs_008'),
+  ingameEvidence('摔角鷹人的糖果'.replace('的糖果',''),'摔角鷹人的糖果','project-evidence:2026-09-01-p0b5-ingame-candy#obs_009'),
+  ingameEvidence('火稚雞','火稚雞的糖果','project-evidence:2026-09-01-p0b5-ingame-candy#obs_014'),
+  ingameEvidence('菊草葉','菊草葉的糖果','project-evidence:2026-09-01-p0b5-ingame-candy#obs_019'),
 ]);
 
 function bindEvidenceRow(row){
@@ -58,7 +73,7 @@ function bindEvidenceRow(row){
   return Object.freeze({
     ...row,
     status:'MATCH',
-    reason:'OFFICIAL_ZH_TW_EXACT_CANDY_DISPLAY_NAME_BOUND_TO_GOVERNED_FAMILY',
+    reason:'FIRST_PARTY_EXACT_CANDY_DISPLAY_NAME_BOUND_TO_GOVERNED_FAMILY',
     family_id:family.family_id,
     family_authority_version:PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION,
     member_species_names:Object.freeze([...(family.member_species_names||[])]),
@@ -90,6 +105,7 @@ const MATCH_BY_FAMILY=new Map(
 export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY=Object.freeze({
   candy_family_authority_version:PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION,
   exact_official_zh_tw_string_required:true,
+  ingame_screenshot_official_equivalent_exact_string_supported:true,
   structural_root_is_not_display_name_anchor:true,
   species_name_concatenation_forbidden:true,
   automatic_display_name_generation:false,
@@ -126,7 +142,7 @@ export function resolvePublicCandyDisplayNameForSpecies(speciesName){
   if(!authority){
     return Object.freeze({
       status:'REVIEW_REQUIRED',
-      reason:'OFFICIAL_ZH_TW_CANDY_DISPLAY_NAME_NOT_VERIFIED',
+      reason:'FIRST_PARTY_ZH_TW_CANDY_DISPLAY_NAME_NOT_VERIFIED',
       observed_species_name:displayText(speciesName),
       canonical_species_name:family.canonical_species_name,
       family_id:family.family_id,
@@ -138,7 +154,7 @@ export function resolvePublicCandyDisplayNameForSpecies(speciesName){
   }
   return Object.freeze({
     status:'MATCH',
-    reason:'EXACT_OFFICIAL_ZH_TW_CANDY_DISPLAY_NAME',
+    reason:'EXACT_FIRST_PARTY_ZH_TW_CANDY_DISPLAY_NAME',
     observed_species_name:displayText(speciesName),
     canonical_species_name:family.canonical_species_name,
     family_id:family.family_id,
@@ -158,7 +174,7 @@ export function resolvePublicCandyDisplayNameForFamilyId(familyId){
   if(!authority){
     return Object.freeze({
       status:'REVIEW_REQUIRED',
-      reason:'OFFICIAL_ZH_TW_CANDY_DISPLAY_NAME_NOT_VERIFIED',
+      reason:'FIRST_PARTY_ZH_TW_CANDY_DISPLAY_NAME_NOT_VERIFIED',
       family_id:key||null,
       candy_display_name:null,
       candy_display_name_authority:false,
@@ -167,10 +183,11 @@ export function resolvePublicCandyDisplayNameForFamilyId(familyId){
   }
   return Object.freeze({
     status:'MATCH',
-    reason:'EXACT_OFFICIAL_ZH_TW_CANDY_DISPLAY_NAME',
+    reason:'EXACT_FIRST_PARTY_ZH_TW_CANDY_DISPLAY_NAME',
     family_id:authority.family_id,
     candy_display_name:authority.candy_display_name,
     candy_display_name_authority:true,
+    source_type:authority.source_type,
     source_ref:authority.source_ref,
     verified_at:authority.verified_at,
     automatic_display_name_generation:false,
