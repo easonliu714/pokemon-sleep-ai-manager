@@ -1,7 +1,7 @@
 import {executeWithCapabilityFailover} from './ai-provider-capability-failover.js';
 import {buildUpdatePackageJsonSchema} from './update-package-contract.js';
 import {supportsPublicMasterRecognition} from './public-master-recognition.js';
-import {buildCompactPublicMasterProviderSchemaForInput} from './public-master-recognition-provider-schema.js';
+import {PUBLIC_MASTER_PROVIDER_SCHEMA_VERSION,buildCompactPublicMasterProviderSchemaForInput} from './public-master-recognition-provider-schema.js';
 import {recoverExactUnlockedRecipeRecognition} from './recipe-recognition-exact-recovery.js';
 import {isUcImgOwnedMemoryBlob} from './uc-img-image-runtime.js';
 import {SCREENSHOT_PROMPT_SAFETY_VERSION,appendScreenshotPromptSafety} from './pokemon-visual-prompt-policy.js';
@@ -122,6 +122,7 @@ export async function analyzeUcImgScenarioWithGemini({scenarioKey,config,entries
   const usedModel=outcome.used_model||model;
   return {
     adapter_version:UC_IMG_GEMINI_ADAPTER_VERSION,
+    provider_schema_version:PUBLIC_MASTER_PROVIDER_SCHEMA_VERSION,
     prompt_safety_version:SCREENSHOT_PROMPT_SAFETY_VERSION,
     payload,
     raw_json:JSON.stringify(payload,null,2),
@@ -211,6 +212,7 @@ export function buildUcImgDiagnosticBundle({appVersion=null,session,scenarioKey,
     schema:UC_IMG_DIAGNOSTIC_SCHEMA,
     app_version:appVersion||null,
     adapter_version:UC_IMG_GEMINI_ADAPTER_VERSION,
+    provider_schema_version:providerMeta?.provider_schema_version||PUBLIC_MASTER_PROVIDER_SCHEMA_VERSION,
     prompt_safety_version:providerMeta?.prompt_safety_version||SCREENSHOT_PROMPT_SAFETY_VERSION,
     session_id:session?.session_id||null,
     scenario_key:scenarioKey||null,
