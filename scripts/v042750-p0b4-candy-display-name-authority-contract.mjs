@@ -15,7 +15,7 @@ const p0b6Successor=appVersion==='v0.4.27.55';
 
 assert.equal(
   PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION,
-  p0b6Successor?'public-candy-display-name-authority-2026-09-01-c':'public-candy-display-name-authority-2026-08-31-a',
+  p0b6Successor?'public-candy-display-name-authority-2026-09-01-d':'public-candy-display-name-authority-2026-08-31-a',
   'B4 authority version must be exact for the active release generation',
 );
 for(const [key,value] of Object.entries({exact_official_zh_tw_string_required:true,structural_root_is_not_display_name_anchor:true,species_name_concatenation_forbidden:true,automatic_display_name_generation:false,unverified_family_fail_closed:true,legacy_candy_master_mutation_authority:false,legacy_candy_id_remap_authority:false,candy_inventory_migration_authority:false,player_quantity_write_authority:false,professor_transfer_write_behavior_changed:false}))assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY[key],value,key);
@@ -27,7 +27,7 @@ if(p0b6Successor){
 const rows=currentPublicCandyDisplayNameAuthorityRows();
 const predecessorNames=['伊布的糖果','妙蛙種子的糖果','皮卡丘的糖果'];
 const p0b5IngameNames=['草苗龜的糖果','木守宮的糖果','小鍛匠的糖果','波加曼的糖果','水躍魚的糖果','摔角鷹人的糖果','火稚雞的糖果','菊草葉的糖果'];
-const p0b6RealDeviceNames=['卡拉卡拉的糖果','夢幻的糖果','寶寶暴龍的糖果','小火焰猴的糖果','拉帝亞斯的糖果','拉帝歐斯的糖果','胖丁的糖果','迷你龍的糖果','達克萊伊的糖果'];
+const p0b6RealDeviceNames=['卡拉卡拉的糖果','卡蒂狗的糖果','夢幻的糖果','寶寶暴龍的糖果','小火焰猴的糖果','拉帝亞斯的糖果','拉帝歐斯的糖果','胖丁的糖果','迷你龍的糖果','達克萊伊的糖果'];
 const expectedNames=p0b6Successor?[...predecessorNames,...p0b5IngameNames,...p0b6RealDeviceNames]:predecessorNames;
 assert.equal(rows.length,expectedNames.length);
 assert.equal(rows.every(row=>row.status==='MATCH'&&row.candy_display_name_authority===true),true);
@@ -55,6 +55,12 @@ if(p0b6Successor){
     assert.equal(row.source_type,'POKEMON_SLEEP_INGAME_SCREENSHOT_OFFICIAL_EQUIVALENT_EXACT_STRING');
     assert.match(row.source_ref,/^project-evidence:2026-09-01-p0b6-real-device-inventory-revalidation#/);
   }
+  const growlithe=resolvePublicCandyDisplayNameForSpecies('卡蒂狗');
+  const arcanine=resolvePublicCandyDisplayNameForSpecies('風速狗');
+  assert.equal(growlithe.status,'MATCH');
+  assert.equal(growlithe.candy_display_name,'卡蒂狗的糖果');
+  assert.equal(arcanine.status,'MATCH');
+  assert.equal(arcanine.candy_display_name,'卡蒂狗的糖果','Growlithe/Arcanine must share the observed exact family Candy display authority');
 }else{
   assert.equal(tinkatink.status,'REVIEW_REQUIRED');assert.equal(tinkatink.candy_display_name,null);
 }

@@ -3,7 +3,7 @@ import {
   resolvePublicCandyFamilyForSpecies,
 } from './public-candy-family-authority.js';
 
-export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION='public-candy-display-name-authority-2026-09-01-c';
+export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION='public-candy-display-name-authority-2026-09-01-d';
 export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_STATUS='ACTIVE_EXPLICIT_FIRST_PARTY_ZH_TW_DISPLAY_NAME_AUTHORITY';
 
 const displayText=value=>String(value??'').trim();
@@ -57,6 +57,7 @@ export const PUBLIC_CANDY_DISPLAY_NAME_EVIDENCE_ROWS=Object.freeze([
   ingameEvidence('火稚雞','火稚雞的糖果','project-evidence:2026-09-01-p0b5-ingame-candy#obs_014'),
   ingameEvidence('菊草葉','菊草葉的糖果','project-evidence:2026-09-01-p0b5-ingame-candy#obs_019'),
   ingameEvidence('卡拉卡拉','卡拉卡拉的糖果',`${REAL_DEVICE_REVALIDATION_SOURCE}#cubone`),
+  ingameEvidence('卡蒂狗','卡蒂狗的糖果',`${REAL_DEVICE_REVALIDATION_SOURCE}#growlithe`),
   ingameEvidence('夢幻','夢幻的糖果',`${REAL_DEVICE_REVALIDATION_SOURCE}#mew`),
   ingameEvidence('寶寶暴龍','寶寶暴龍的糖果',`${REAL_DEVICE_REVALIDATION_SOURCE}#tyrunt`),
   ingameEvidence('小火焰猴','小火焰猴的糖果',`${REAL_DEVICE_REVALIDATION_SOURCE}#chimchar`),

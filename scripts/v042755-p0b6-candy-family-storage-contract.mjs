@@ -21,7 +21,7 @@ assert.equal(pichu.family_id,pikachu.family_id,'Pichu/Pikachu must converge by g
 assert.equal(pichu.canonical_species_name,'皮卡丘','B4 reference species is the canonical storage representative');
 assert.equal(pichu.canonical_candy_display_name,'皮卡丘的糖果');
 
-const realDeviceInventorySpecies=['皮卡丘','伊布','波加曼','水躍魚','摔角鷹人','卡拉卡拉','達克萊伊','胖丁','寶寶暴龍','火稚雞','夢幻','拉帝歐斯','妙蛙種子','迷你龍','菊草葉','小火焰猴','小鍛匠','拉帝亞斯','草苗龜','木守宮'];
+const realDeviceInventorySpecies=['皮卡丘','伊布','波加曼','水躍魚','摔角鷹人','卡拉卡拉','卡蒂狗','達克萊伊','胖丁','寶寶暴龍','火稚雞','夢幻','拉帝歐斯','妙蛙種子','迷你龍','菊草葉','小火焰猴','小鍛匠','拉帝亞斯','草苗龜','木守宮'];
 for(const species of realDeviceInventorySpecies){
   const storage=resolveCandyFamilyStorageForSpecies(species);
   assert.equal(storage.status,'MATCH',`${species} must have writable governed family storage after real-device revalidation`);
@@ -30,6 +30,8 @@ for(const species of realDeviceInventorySpecies){
   assert.ok(storage.canonical_candy_display_name,`${species} exact Candy display authority required`);
 }
 assert.equal(resolveCandyFamilyStorageForSpecies('卡拉卡拉').canonical_candy_display_name,'卡拉卡拉的糖果');
+assert.equal(resolveCandyFamilyStorageForSpecies('卡蒂狗').canonical_candy_display_name,'卡蒂狗的糖果');
+assert.equal(resolveCandyFamilyStorageForSpecies('風速狗').canonical_candy_display_name,'卡蒂狗的糖果');
 assert.equal(resolveCandyFamilyStorageForSpecies('夢幻').canonical_candy_display_name,'夢幻的糖果');
 assert.equal(resolveCandyFamilyStorageForSpecies('達克萊伊').canonical_candy_display_name,'達克萊伊的糖果');
 
