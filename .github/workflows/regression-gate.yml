@@ -186,6 +186,11 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/v042748-ingredient-zero-browser-contract.mjs
 
+      - name: Verify v0.4.27.51 P0-B5 candy quantity Dry-Run / Apply transaction
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/v042751-p0b5-candy-quantity-browser-contract.mjs
+
       - name: Verify browser runtime and dynamic module loading
         env:
           BASE_URL: http://127.0.0.1:4173/
