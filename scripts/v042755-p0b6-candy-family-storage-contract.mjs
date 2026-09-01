@@ -5,9 +5,13 @@ import {
   CANDY_FAMILY_STORAGE_MIGRATION_VERSION,
   CANDY_FAMILY_STORAGE_POLICY,
   CANDY_MUTATION_TYPES,
+  canonicalCandyEventTimestamp,
   reconcileCandyFamilyTimeline,
   resolveCandyFamilyStorageForSpecies,
 } from '../assets/js/candy-family-storage-authority.js';
+
+assert.equal(CANDY_FAMILY_STORAGE_AUTHORITY_VERSION,'candy-family-storage-authority-2026-09-01-b');
+assert.equal(canonicalCandyEventTimestamp('2026-09-01T13:37:33+08:00'),'2026-09-01T05:37:33.000Z');
 
 const pichu=resolveCandyFamilyStorageForSpecies('皮丘');
 const pikachu=resolveCandyFamilyStorageForSpecies('皮卡丘');
@@ -43,6 +47,24 @@ const snapshotThenDelta=reconcileCandyFamilyTimeline([
 assert.equal(snapshotThenDelta.status,'READY');
 assert.equal(snapshotThenDelta.current_quantity,293,'later Professor delta must be added after the latest absolute snapshot');
 
+// Real-device regression: historical migration evidence used local +08:00 text while
+// screenshot quantity confirmation used UTC Z text. Lexicographic ISO comparison falsely
+// treated 13:37+08 as newer than 11:44Z even though the latter is 19:44 in Taiwan.
+const mixedOffsetOlderSnapshotThenNewSnapshot=reconcileCandyFamilyTimeline([
+  {event_id:'legacy-local-snapshot',mutation_type:CANDY_MUTATION_TYPES.ABSOLUTE_SNAPSHOT,quantity_value:270,event_at:'2026-09-01T13:37:33+08:00'},
+  {event_id:'new-utc-snapshot',mutation_type:CANDY_MUTATION_TYPES.ABSOLUTE_SNAPSHOT,quantity_value:288,event_at:'2026-09-01T11:44:00.000Z'},
+]);
+assert.equal(mixedOffsetOlderSnapshotThenNewSnapshot.status,'READY');
+assert.equal(mixedOffsetOlderSnapshotThenNewSnapshot.current_quantity,288,'later UTC absolute snapshot must supersede older +08:00 snapshot by instant, not string order');
+assert.equal(mixedOffsetOlderSnapshotThenNewSnapshot.baseline_event.event_id,'new-utc-snapshot');
+
+const mixedOffsetSnapshotThenProfessorDelta=reconcileCandyFamilyTimeline([
+  {event_id:'snapshot-local',mutation_type:CANDY_MUTATION_TYPES.ABSOLUTE_SNAPSHOT,quantity_value:288,event_at:'2026-09-01T13:37:33+08:00'},
+  {event_id:'professor-local',mutation_type:CANDY_MUTATION_TYPES.DELTA_EVENT,quantity_value:5,event_at:'2026-09-01T18:29:00+08:00'},
+]);
+assert.equal(mixedOffsetSnapshotThenProfessorDelta.status,'READY');
+assert.equal(mixedOffsetSnapshotThenProfessorDelta.current_quantity,293);
+
 const explicitZero=reconcileCandyFamilyTimeline([
   {event_id:'snapshot-zero',mutation_type:CANDY_MUTATION_TYPES.ABSOLUTE_SNAPSHOT,quantity_value:0,event_at:'2026-09-01T10:00:00.000Z'},
 ]);
@@ -57,10 +79,16 @@ assert.equal(unknownAfterSnapshot.reason,'UNKNOWN_PROVENANCE_AFTER_LATEST_SNAPSH
 
 const sameTimestamp=reconcileCandyFamilyTimeline([
   {event_id:'snapshot',mutation_type:CANDY_MUTATION_TYPES.ABSOLUTE_SNAPSHOT,quantity_value:288,event_at:'2026-09-01T10:00:00.000Z'},
-  {event_id:'delta',mutation_type:CANDY_MUTATION_TYPES.DELTA_EVENT,quantity_value:5,event_at:'2026-09-01T10:00:00.000Z'},
+  {event_id:'delta',mutation_type:CANDY_MUTATION_TYPES.DELTA_EVENT,quantity_value:5,event_at:'2026-09-01T18:00:00+08:00'},
 ]);
 assert.equal(sameTimestamp.status,'HOLD');
-assert.equal(sameTimestamp.reason,'AMBIGUOUS_SAME_TIMESTAMP_SNAPSHOT_AND_DELTA');
+assert.equal(sameTimestamp.reason,'AMBIGUOUS_SAME_TIMESTAMP_SNAPSHOT_AND_DELTA','same physical instant with different timezone text must remain ambiguous');
+
+const invalidTimestamp=reconcileCandyFamilyTimeline([
+  {event_id:'bad-time',mutation_type:CANDY_MUTATION_TYPES.ABSOLUTE_SNAPSHOT,quantity_value:288,event_at:'not-a-time'},
+]);
+assert.equal(invalidTimestamp.status,'HOLD');
+assert.equal(invalidTimestamp.reason,'INVALID_EVENT_TIMESTAMP');
 
 assert.equal(CANDY_FAMILY_STORAGE_MIGRATION_VERSION,15);
 assert.equal(CANDY_FAMILY_STORAGE_POLICY.display_text_dedupe,false);
@@ -69,6 +97,8 @@ assert.equal(CANDY_FAMILY_STORAGE_POLICY.species_string_guess,false);
 assert.equal(CANDY_FAMILY_STORAGE_POLICY.arbitrary_duplicate_sum,false);
 assert.equal(CANDY_FAMILY_STORAGE_POLICY.ambiguous_provenance,'HOLD_FAIL_CLOSED');
 assert.equal(CANDY_FAMILY_STORAGE_POLICY.explicit_zero_valid,true);
+assert.equal(CANDY_FAMILY_STORAGE_POLICY.timestamp_ordering,'PARSED_INSTANT_UTC_CANONICAL');
+assert.equal(CANDY_FAMILY_STORAGE_POLICY.mixed_timezone_offsets_supported,true);
 
 const databaseSource=fs.readFileSync(new URL('../assets/js/database.js',import.meta.url),'utf8');
 const importerSource=fs.readFileSync(new URL('../assets/js/importer.js',import.meta.url),'utf8');
@@ -88,6 +118,7 @@ assert.match(professorSource,/USER_DIRECT_OBSERVATION_ONLY/,'P0-B6 must preserve
 assert.match(uiSource,/Family migration/,'UI must expose migration outcome for physical validation');
 assert.match(storageSource,/BEGIN IMMEDIATE/);
 assert.match(storageSource,/ROLLBACK/);
+assert.match(storageSource,/normalizeExistingEventTimes/,'already-applied v15 devices must normalize mixed-offset event timestamps on boot');
 assert.ok(!storageSource.includes('quantity=candy_inventory.quantity+excluded.quantity'), 'migration itself must never blindly sum duplicate current rows');
 
 assert.match(versionSource,/app_version:\s*'v0\.4\.27\.55'/);
@@ -111,6 +142,6 @@ console.log(JSON.stringify({
   migration_version:CANDY_FAMILY_STORAGE_MIGRATION_VERSION,
   pikachu_family_id:pichu.family_id,
   real_device_inventory_species_count:realDeviceInventorySpecies.length,
-  regressions:{older_delta_then_snapshot:olderDeltaThenSnapshot.current_quantity,snapshot_then_delta:snapshotThenDelta.current_quantity,explicit_zero:explicitZero.current_quantity,unknown_after_snapshot:unknownAfterSnapshot.status,same_timestamp:sameTimestamp.status},
+  regressions:{older_delta_then_snapshot:olderDeltaThenSnapshot.current_quantity,snapshot_then_delta:snapshotThenDelta.current_quantity,mixed_offset_latest_snapshot:mixedOffsetOlderSnapshotThenNewSnapshot.current_quantity,mixed_offset_snapshot_then_delta:mixedOffsetSnapshotThenProfessorDelta.current_quantity,explicit_zero:explicitZero.current_quantity,unknown_after_snapshot:unknownAfterSnapshot.status,same_timestamp:sameTimestamp.status,invalid_timestamp:invalidTimestamp.status},
   release_wiring:{version_authority:true,predecessor_54_bridge:true,service_worker_precache_exact_once:true,consolidated_static_gate:true,consolidated_browser_gate:true},
 },null,2));

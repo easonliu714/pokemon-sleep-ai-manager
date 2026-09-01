@@ -7,7 +7,7 @@ import {
   PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_ROWS,
 } from './public-candy-display-name-authority.js';
 
-export const CANDY_FAMILY_STORAGE_AUTHORITY_VERSION='candy-family-storage-authority-2026-09-01-a';
+export const CANDY_FAMILY_STORAGE_AUTHORITY_VERSION='candy-family-storage-authority-2026-09-01-b';
 export const CANDY_FAMILY_STORAGE_MIGRATION_VERSION=15;
 export const CANDY_FAMILY_STORAGE_STATUS='ACTIVE_CANONICAL_FAMILY_STORAGE_WITH_CHRONOLOGY_RECONCILIATION';
 export const CANDY_MUTATION_TYPES=Object.freeze({
@@ -20,7 +20,9 @@ const validQuantity=value=>Number.isInteger(Number(value))&&Number(value)>=0;
 const parseJson=value=>{try{return value==null?null:JSON.parse(value);}catch{return null;}};
 const dbRows=(db,sql,params=[])=>{const statement=db.prepare(sql);statement.bind(params);const output=[];while(statement.step())output.push(statement.getAsObject());statement.free();return output;};
 const dbScalar=(db,sql,params=[])=>{const result=dbRows(db,sql,params);return result.length?Object.values(result[0])[0]:null;};
-const isoCompare=(a,b)=>String(a||'').localeCompare(String(b||''));
+const timestampMs=value=>{const text=String(value??'').trim();if(!text)return null;const parsed=Date.parse(text);return Number.isFinite(parsed)?parsed:null;};
+export const canonicalCandyEventTimestamp=value=>{const parsed=timestampMs(value);return parsed===null?null:new Date(parsed).toISOString();};
+const isoCompare=(a,b)=>{const am=timestampMs(a),bm=timestampMs(b);if(am!==null&&bm!==null)return am-bm;if(am!==null)return -1;if(bm!==null)return 1;return String(a||'').localeCompare(String(b||''));};
 const unique=values=>[...new Set(values.filter(Boolean))];
 
 function displayAuthorityForFamily(familyId){
@@ -65,21 +67,24 @@ export function resolveCandyFamilyStorageForSpecies(speciesName){
 }
 
 export function reconcileCandyFamilyTimeline(events,{unknown_rows=[]}={}){
-  const normalized=(events||[]).map(event=>({
+  const relevant=(events||[]).map(event=>({
     ...event,
     mutation_type:String(event?.mutation_type||''),
     quantity_value:Number(event?.quantity_value),
     event_at:String(event?.event_at||''),
     event_id:String(event?.event_id||''),
-  })).filter(event=>Object.values(CANDY_MUTATION_TYPES).includes(event.mutation_type)&&validQuantity(event.quantity_value)&&event.event_at);
+  })).filter(event=>Object.values(CANDY_MUTATION_TYPES).includes(event.mutation_type)&&validQuantity(event.quantity_value));
+  const invalidTime=relevant.find(event=>timestampMs(event.event_at)===null);
+  if(invalidTime)return Object.freeze({status:'HOLD',reason:'INVALID_EVENT_TIMESTAMP',current_quantity:null,baseline_event:null,post_snapshot_deltas:Object.freeze([]),invalid_event:invalidTime});
+  const normalized=relevant.map(event=>({...event,event_at:canonicalCandyEventTimestamp(event.event_at)}));
   normalized.sort((a,b)=>isoCompare(a.event_at,b.event_at)||a.event_id.localeCompare(b.event_id));
   const snapshots=normalized.filter(event=>event.mutation_type===CANDY_MUTATION_TYPES.ABSOLUTE_SNAPSHOT);
   if(!snapshots.length)return Object.freeze({status:'HOLD',reason:'NO_TRUSTED_ABSOLUTE_SNAPSHOT',current_quantity:null,baseline_event:null,post_snapshot_deltas:Object.freeze([])});
   const baseline=snapshots[snapshots.length-1];
-  const sameTimeDelta=normalized.find(event=>event.mutation_type===CANDY_MUTATION_TYPES.DELTA_EVENT&&event.event_at===baseline.event_at);
+  const sameTimeDelta=normalized.find(event=>event.mutation_type===CANDY_MUTATION_TYPES.DELTA_EVENT&&isoCompare(event.event_at,baseline.event_at)===0);
   if(sameTimeDelta)return Object.freeze({status:'HOLD',reason:'AMBIGUOUS_SAME_TIMESTAMP_SNAPSHOT_AND_DELTA',current_quantity:null,baseline_event:baseline,post_snapshot_deltas:Object.freeze([])});
   const postDeltas=normalized.filter(event=>event.mutation_type===CANDY_MUTATION_TYPES.DELTA_EVENT&&isoCompare(event.event_at,baseline.event_at)>0);
-  const unsafeUnknown=(unknown_rows||[]).filter(row=>!row?.updated_at||isoCompare(row.updated_at,baseline.event_at)>0);
+  const unsafeUnknown=(unknown_rows||[]).filter(row=>timestampMs(row?.updated_at)===null||isoCompare(row.updated_at,baseline.event_at)>0);
   if(unsafeUnknown.length)return Object.freeze({status:'HOLD',reason:'UNKNOWN_PROVENANCE_AFTER_LATEST_SNAPSHOT',current_quantity:null,baseline_event:baseline,post_snapshot_deltas:Object.freeze(postDeltas),unknown_rows:Object.freeze(unsafeUnknown)});
   const quantity=Number(baseline.quantity_value)+postDeltas.reduce((sum,event)=>sum+Number(event.quantity_value),0);
   return Object.freeze({status:'READY',reason:'LATEST_ABSOLUTE_PLUS_LATER_DELTAS',current_quantity:quantity,baseline_event:baseline,post_snapshot_deltas:Object.freeze(postDeltas)});
@@ -121,11 +126,27 @@ function ensureSchema(db){
   )`);
 }
 
+function normalizeExistingEventTimes(db){
+  const existing=dbRows(db,'SELECT event_id,event_at,created_at FROM candy_inventory_events');
+  let changed=0,invalid=0;
+  for(const row of existing){
+    const eventAt=canonicalCandyEventTimestamp(row.event_at);
+    if(!eventAt){invalid++;continue;}
+    const createdAt=canonicalCandyEventTimestamp(row.created_at)||eventAt;
+    if(eventAt===String(row.event_at||'')&&createdAt===String(row.created_at||''))continue;
+    db.run('UPDATE candy_inventory_events SET event_at=?,created_at=? WHERE event_id=?',[eventAt,createdAt,row.event_id]);
+    changed++;
+  }
+  return {changed,invalid};
+}
+
 function insertEvent(db,event){
-  if(!event?.event_id||!event?.family_id||!event?.canonical_candy_id||!Object.values(CANDY_MUTATION_TYPES).includes(event.mutation_type)||!validQuantity(event.quantity_value)||!event.event_at)return false;
+  const eventAt=canonicalCandyEventTimestamp(event?.event_at);
+  const createdAt=canonicalCandyEventTimestamp(event?.created_at)||eventAt;
+  if(!event?.event_id||!event?.family_id||!event?.canonical_candy_id||!Object.values(CANDY_MUTATION_TYPES).includes(event.mutation_type)||!validQuantity(event.quantity_value)||!eventAt)return false;
   db.run(`INSERT OR IGNORE INTO candy_inventory_events(event_id,family_id,canonical_candy_id,source_candy_id,mutation_type,quantity_value,event_at,source_update_id,authority,evidence_json,created_at)
     VALUES(?,?,?,?,?,?,?,?,?,?,?)`,[
-    event.event_id,event.family_id,event.canonical_candy_id,event.source_candy_id||null,event.mutation_type,Number(event.quantity_value),event.event_at,event.source_update_id||null,event.authority||'UNKNOWN',JSON.stringify(event.evidence||{}),event.created_at||event.event_at,
+    event.event_id,event.family_id,event.canonical_candy_id,event.source_candy_id||null,event.mutation_type,Number(event.quantity_value),eventAt,event.source_update_id||null,event.authority||'UNKNOWN',JSON.stringify(event.evidence||{}),createdAt,
   ]);
   return true;
 }
@@ -135,10 +156,12 @@ export function recordCandyInventoryEvent(runSql,event){
   if(!event?.event_id||!event?.family_id||!event?.canonical_candy_id)throw new Error('candy_inventory_event_identity_required');
   if(!Object.values(CANDY_MUTATION_TYPES).includes(event.mutation_type))throw new Error('candy_inventory_event_mutation_type_invalid');
   if(!validQuantity(event.quantity_value))throw new Error('candy_inventory_event_quantity_invalid');
-  if(!String(event.event_at||'').trim())throw new Error('candy_inventory_event_time_required');
+  const eventAt=canonicalCandyEventTimestamp(event.event_at);
+  if(!eventAt)throw new Error('candy_inventory_event_time_required');
+  const createdAt=canonicalCandyEventTimestamp(event.created_at)||eventAt;
   runSql(`INSERT INTO candy_inventory_events(event_id,family_id,canonical_candy_id,source_candy_id,mutation_type,quantity_value,event_at,source_update_id,authority,evidence_json,created_at)
     VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(event_id) DO NOTHING`,[
-    event.event_id,event.family_id,event.canonical_candy_id,event.source_candy_id||null,event.mutation_type,Number(event.quantity_value),event.event_at,event.source_update_id||null,event.authority||'UNKNOWN',JSON.stringify(event.evidence||{}),event.created_at||event.event_at,
+    event.event_id,event.family_id,event.canonical_candy_id,event.source_candy_id||null,event.mutation_type,Number(event.quantity_value),eventAt,event.source_update_id||null,event.authority||'UNKNOWN',JSON.stringify(event.evidence||{}),createdAt,
   ]);
 }
 
@@ -165,6 +188,8 @@ function legacyImportEvents(db,group,memberIds){
     const key=parseJson(change.key_json)||{},after=parseJson(change.after_json)||{};
     const candyId=String(after.candy_id||key.candy_id||'');
     if(!memberIds.has(candyId)||!validQuantity(after.quantity))continue;
+    const eventAt=canonicalCandyEventTimestamp(after.updated_at||change.imported_at||change.generated_at||'');
+    if(!eventAt)continue;
     events.push({
       event_id:`legacy-import:${change.update_id}:${change.operation_index}`,
       family_id:group.storage.family_id,
@@ -172,11 +197,11 @@ function legacyImportEvents(db,group,memberIds){
       source_candy_id:candyId,
       mutation_type:CANDY_MUTATION_TYPES.ABSOLUTE_SNAPSHOT,
       quantity_value:Number(after.quantity),
-      event_at:String(after.updated_at||change.imported_at||change.generated_at||''),
+      event_at:eventAt,
       source_update_id:change.update_id,
       authority:'LEGACY_IMPORT_ABSOLUTE_STATE_WRITE',
       evidence:{import_change_id:change.id,source:change.source||null,before:parseJson(change.before_json),after},
-      created_at:String(change.imported_at||after.updated_at||change.generated_at||''),
+      created_at:canonicalCandyEventTimestamp(change.imported_at||after.updated_at||change.generated_at||'')||eventAt,
     });
   }
   return events;
@@ -189,6 +214,8 @@ function legacyProfessorEvents(db,group,memberIds){
     const after=parseJson(row.after_json)||{},transfer=after.professor_transfer||{},inventoryAfter=after.candy_inventory_after||{};
     const candyId=String(inventoryAfter.candy_id||'');
     if(!memberIds.has(candyId)||transfer.inventory_mutation!=='OBSERVED_DELTA_INCREMENT'||transfer.candy_inventory_applied!==true||!validQuantity(transfer.observed_candy_quantity))continue;
+    const eventAt=canonicalCandyEventTimestamp(row.event_at||transfer.transferred_at||'');
+    if(!eventAt)continue;
     events.push({
       event_id:`legacy-professor:${row.history_id}`,
       family_id:group.storage.family_id,
@@ -196,11 +223,11 @@ function legacyProfessorEvents(db,group,memberIds){
       source_candy_id:candyId,
       mutation_type:CANDY_MUTATION_TYPES.DELTA_EVENT,
       quantity_value:Number(transfer.observed_candy_quantity),
-      event_at:String(row.event_at||transfer.transferred_at||''),
+      event_at:eventAt,
       source_update_id:row.source_update_id||null,
       authority:transfer.quantity_authority||'USER_DIRECT_OBSERVATION_ONLY',
       evidence:{history_id:row.history_id,professor_transfer:transfer,candy_inventory_before:after.candy_inventory_before||null,candy_inventory_after:inventoryAfter},
-      created_at:String(row.event_at||transfer.transferred_at||''),
+      created_at:eventAt,
     });
   }
   return events;
@@ -215,8 +242,9 @@ function auditFamily(db,{familyId,canonicalCandyId,status,reason,beforeRows,afte
 
 export function applyCandyFamilyStorageMigration(db){
   ensureSchema(db);
+  const timestampNormalization=normalizeExistingEventTimes(db);
   const alreadyApplied=Number(dbScalar(db,'SELECT COUNT(*) FROM schema_migrations WHERE version=?',[CANDY_FAMILY_STORAGE_MIGRATION_VERSION])||0)>0;
-  if(alreadyApplied)return {database_changed:false,migration_version:CANDY_FAMILY_STORAGE_MIGRATION_VERSION,applied:0,held:0,no_op:true};
+  if(alreadyApplied)return {database_changed:timestampNormalization.changed>0,migration_version:CANDY_FAMILY_STORAGE_MIGRATION_VERSION,applied:0,held:timestampNormalization.invalid,no_op:true,normalized_event_times:timestampNormalization.changed,invalid_event_times:timestampNormalization.invalid};
   const auditedAt=new Date().toISOString();
   let applied=0,held=0,unchanged=0;
   db.run('BEGIN IMMEDIATE');
@@ -268,7 +296,7 @@ export function applyCandyFamilyStorageMigration(db){
     }
     db.run('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(?,?)',[CANDY_FAMILY_STORAGE_MIGRATION_VERSION,auditedAt]);
     db.run('COMMIT');
-    return {database_changed:true,migration_version:CANDY_FAMILY_STORAGE_MIGRATION_VERSION,applied,held,unchanged,no_op:false};
+    return {database_changed:true,migration_version:CANDY_FAMILY_STORAGE_MIGRATION_VERSION,applied,held,unchanged,no_op:false,normalized_event_times:timestampNormalization.changed,invalid_event_times:timestampNormalization.invalid};
   }catch(error){try{db.run('ROLLBACK');}catch{}throw error;}
 }
 
@@ -285,4 +313,6 @@ export const CANDY_FAMILY_STORAGE_POLICY=Object.freeze({
   public_master_player_quantity:false,
   historical_evidence_preserved:true,
   migration_transaction:'BEGIN_IMMEDIATE_COMMIT_OR_ROLLBACK',
+  timestamp_ordering:'PARSED_INSTANT_UTC_CANONICAL',
+  mixed_timezone_offsets_supported:true,
 });
