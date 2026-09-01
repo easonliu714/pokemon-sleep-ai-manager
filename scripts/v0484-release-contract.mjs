@@ -13,17 +13,22 @@ const build=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cache=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
 const publicSpeciesAuthoritySuccessor=atLeast(app,'v0.4.27.47');
 const candyGapIdentitySuccessor=atLeast(app,'v0.4.27.52');
+const candyScreenshotPromotionSuccessor=atLeast(app,'v0.4.27.54');
 assert.equal(atLeast(app,'v0.4.8.4'),true,`historical v0.4.8.4 contract cannot run on older release: ${app}`);
 if(app==='v0.4.8.4'){
   assert.equal(build,'20260810-v0484-touch-first-camp-containment');
   assert.equal(cache,'pokemon-sleep-ai-v0.4.8.4-v0484-touch-first-camp-containment');
 }
 assert.equal(PUBLIC_POKEMON_KNOWLEDGE_VERSION,'pokemon-knowledge-2026-08-10-e');
-const expectedCandyMasterVersion=candyGapIdentitySuccessor?'public-candy-master-2026-09-01-f':publicSpeciesAuthoritySuccessor?'public-candy-master-2026-08-29-e':'public-candy-master-2026-08-10-d';
+const expectedCandyMasterVersion=candyScreenshotPromotionSuccessor?'public-candy-master-2026-09-01-g':candyGapIdentitySuccessor?'public-candy-master-2026-09-01-f':publicSpeciesAuthoritySuccessor?'public-candy-master-2026-08-29-e':'public-candy-master-2026-08-10-d';
 assert.equal(PUBLIC_CANDY_MASTER_VERSION,expectedCandyMasterVersion);
 if(candyGapIdentitySuccessor){
   assert.ok(version.includes("// app_version: 'v0.4.27.51'"),'v0.4.27.52+ must retain .51 predecessor bridge');
   assert.ok(buildPublicCandyMasterRows().some(row=>row.candy_name==='小火焰猴的糖果'),'v0.4.27.52+ targeted Chimchar Candy candidate must remain');
+}
+if(candyScreenshotPromotionSuccessor){
+  assert.ok(version.includes("// app_version: 'v0.4.27.53'"),'v0.4.27.54+ must retain .53 predecessor bridge');
+  assert.ok(buildPublicCandyMasterRows().some(row=>row.candy_name==='波加曼的糖果'),'v0.4.27.54+ screenshot-evidence Candy promotion must remain');
 }
 const bundle=auditPublicPokemonKnowledgeBundle();
 assert.equal(bundle.ok,true,bundle.errors.join('\n'));
@@ -61,4 +66,4 @@ if(app==='v0.4.8.4'){
 }
 assert.equal(read('assets/js/migrations.js').includes('VALUES(10,'),false,'v0.4.8.4+ must not add SQLite migration 10');
 
-console.log(JSON.stringify({status:'PASS',gate:'V0.4.8.4_HISTORICAL_CONTAINMENT',current_app_version:app,mobile_camp_layout:mobileCampLayout,outer_containment:true,public_species_authority_successor:publicSpeciesAuthoritySuccessor,candy_gap_identity_successor:candyGapIdentitySuccessor,public_master_changed:candyGapIdentitySuccessor,player_rows_mutated:false,sqlite_migration_added:false},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V0.4.8.4_HISTORICAL_CONTAINMENT',current_app_version:app,mobile_camp_layout:mobileCampLayout,outer_containment:true,public_species_authority_successor:publicSpeciesAuthoritySuccessor,candy_gap_identity_successor:candyGapIdentitySuccessor,candy_screenshot_promotion_successor:candyScreenshotPromotionSuccessor,public_master_changed:candyGapIdentitySuccessor,player_rows_mutated:false,sqlite_migration_added:false},null,2));
