@@ -92,6 +92,12 @@ try{
     };
     const zeroConfirmed=governed.confirmCandyScreenshotQuantity(zeroRecognition,'candies','candy-browser-zero',{confirmedAt:'2026-08-31T11:13:00.000Z'});
     const zeroCompiled=governed.compileCandyQuantityGovernedRecognitionToUpdatePackage(zeroConfirmed,'candies',{allowedImageRefs:['candy-image-001']});
+    // The two browser fixtures execute faster than a human can perform two independent
+    // Apply actions and can therefore share the platform CATALOG id's one-second clock bucket.
+    // Keep production duplicate-update protection intact; only give this second independent
+    // fixture a deterministic transaction identity so the gate measures explicit-zero semantics.
+    zeroCompiled.update_package.update_id='UPD-20260831111200-CATALOG-B5ZERO';
+    zeroCompiled.update_package.generated_at='2026-08-31T11:12:00.000Z';
     const zeroPreview=importer.dryRun(zeroCompiled.update_package);
     stage(`CONFIRMED_0_DRYRUN PASS ready=${zeroPreview.ready_count} conflict=${zeroPreview.conflict_count}`);
     await importer.applyPayload(zeroCompiled.update_package);
@@ -106,6 +112,7 @@ try{
       unsafeImporterError,
       confirmedResolution:confirmed.observations[0].user_resolution,
       compiledOperation:compiled.update_package.operations[0]||null,
+      updateIds:{seven:compiled.update_package.update_id,zero:zeroCompiled.update_package.update_id},
       preview:{ready_count:preview.ready_count,conflict_count:preview.conflict_count,change},
       applied,
       storedAfterSeven,
@@ -125,6 +132,7 @@ try{
   assert.equal(result.confirmedResolution.confirmed_quantity,7);
   assert.equal(result.compiledOperation.evidence.quantity_confirmed_by_user,true);
   assert.equal(result.compiledOperation.evidence.confirmed_quantity,7);
+  assert.notEqual(result.updateIds.seven,result.updateIds.zero,'independent browser fixture transactions must use distinct update_id values');
   assert.equal(result.preview.ready_count,1);
   assert.equal(result.preview.conflict_count,0);
   assert.equal(result.preview.change.after.quantity,7);
