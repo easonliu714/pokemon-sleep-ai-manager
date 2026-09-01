@@ -20,7 +20,14 @@ const tinkatink=resolvePublicCandyDisplayNameForSpecies('小鍛匠');assert.equa
 assert.equal(resolvePublicCandyDisplayNameForSpecies('不存在寶可夢').status,'REVIEW_REQUIRED');
 assert.ok(['public-candy-master-2026-09-01-f','public-candy-master-2026-09-01-g'].includes(PUBLIC_CANDY_MASTER_VERSION));
 assert.equal(speciesCandyName('皮卡丘'),'皮卡丘的糖果');
-const professorSource=read('assets/js/pokemon-professor-transfer.js');assert.match(professorSource,/PROFESSOR_TRANSFER_VERSION='pokemon-professor-transfer-2026-08-27-p0b1'/);assert.match(professorSource,/USER_DIRECT_OBSERVATION_ONLY/);assert.equal(professorSource.includes('public-candy-display-name-authority.js'),false);
+const professorSource=read('assets/js/pokemon-professor-transfer.js');
+assert.match(professorSource,/USER_DIRECT_OBSERVATION_ONLY/);
+assert.ok(
+  professorSource.includes("PROFESSOR_TRANSFER_VERSION='pokemon-professor-transfer-2026-08-27-p0b1'")
+  || professorSource.includes("PROFESSOR_TRANSFER_VERSION='pokemon-professor-transfer-2026-09-01-p0b6-family-storage'"),
+  'B4 predecessor must tolerate the governed P0-B6 Professor storage successor without changing B4 display authority',
+);
+assert.equal(professorSource.includes('public-candy-display-name-authority.js'),false);
 const versionSource=read('assets/js/version-authority.js'),serviceWorkerSource=read('service-worker.js'),workflowSource=read('.github/workflows/regression-gate.yml');
 const appVersion=versionSource.match(/app_version:\s*'([^']+)'/)?.[1]||'',appBuild=versionSource.match(/app_build:\s*'([^']+)'/)?.[1]||'',cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
 if(appVersion==='v0.4.27.50'){assert.equal(appBuild,'20260831-v042750-p0b4-candy-display-name-authority');assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.50-v042750-p0b4-candy-display-name-authority');}
@@ -28,6 +35,7 @@ else if(appVersion==='v0.4.27.51'){assert.equal(appBuild,'20260831-v042751-p0b5-
 else if(appVersion==='v0.4.27.52'){assert.equal(appBuild,'20260901-v042752-p0b5-gap-identity-raw-evidence-hotfix');assert.equal(PUBLIC_CANDY_MASTER_VERSION,'public-candy-master-2026-09-01-f');assert.ok(versionSource.includes("// app_version: 'v0.4.27.51'"));}
 else if(appVersion==='v0.4.27.53'){assert.equal(appBuild,'20260901-v042753-p0b5-canonical-key-gap-admission-replay');assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.53-v042753-p0b5-canonical-key-gap-admission-replay');assert.equal(PUBLIC_CANDY_MASTER_VERSION,'public-candy-master-2026-09-01-f','.53 local admission must not globally bump static master');assert.ok(versionSource.includes("// app_version: 'v0.4.27.52'"));}
 else if(appVersion==='v0.4.27.54'){assert.equal(appBuild,'20260901-v042754-p0b5-ingame-candy-master-promotion');assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.54-v042754-p0b5-ingame-candy-master-promotion');assert.equal(PUBLIC_CANDY_MASTER_VERSION,'public-candy-master-2026-09-01-g');assert.ok(versionSource.includes("// app_version: 'v0.4.27.53'"));}
+else if(appVersion==='v0.4.27.55'){assert.equal(appBuild,'20260901-v042755-p0b6-candy-family-storage-reconciliation');assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55-v042755-p0b6-candy-family-storage-reconciliation');assert.equal(PUBLIC_CANDY_MASTER_VERSION,'public-candy-master-2026-09-01-g');assert.ok(versionSource.includes("// app_version: 'v0.4.27.54'"));}
 else assert.fail(`B4 successor release not governed: ${appVersion}`);
 assert.ok(versionSource.includes("// app_version: 'v0.4.27.49'"));assert.equal((serviceWorkerSource.match(/\.\/assets\/js\/public-candy-display-name-authority\.js/g)||[]).length,1);assert.equal((serviceWorkerSource.match(/\.\/assets\/js\/public-candy-family-authority\.js/g)||[]).length,1);assert.ok(workflowSource.includes('node scripts/v042750-p0b4-candy-display-name-authority-contract.mjs'));
 console.log(JSON.stringify({status:'PASS',gate:'V042750_P0B4_PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY',authority_version:PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION,admitted_exact_zh_tw_display_name_rows:rows.length,verified_display_names:rows.map(row=>row.candy_display_name),app_version:appVersion,app_build:appBuild,semantics:{family_level_display_name_resolution:true,exact_official_zh_tw_evidence_only:true,unverified_family_review_required:true,legacy_candy_master_mutation:false,player_inventory_migration:false,professor_transfer_write_change:false,successor_release_exact:true}},null,2));
