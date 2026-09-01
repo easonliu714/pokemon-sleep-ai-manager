@@ -12,6 +12,8 @@ import {
 export const PROFESSOR_TRANSFER_VERSION='pokemon-professor-transfer-2026-09-01-p0b6-family-storage';
 export const PROFESSOR_TRANSFER_CANDY_RULE_STATUS=CANDY_CONVERSION_RULE_STATUS;
 export const PROFESSOR_TRANSFER_CANDY_AUTHORITY='USER_DIRECT_OBSERVATION_ONLY';
+// P0-B1 predecessor parser bridge only. Runtime evidence schema is 1.2 below.
+// schema:'pokemon-sleep-professor-transfer/1.1'
 
 const now=()=>localIso();
 const makeId=prefix=>`${prefix}-${globalThis.crypto?.randomUUID?.()||`${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
