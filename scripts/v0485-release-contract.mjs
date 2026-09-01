@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {PUBLIC_CAMP_BERRY_MASTER,PUBLIC_CAMP_BERRY_VERSION} from '../assets/js/public-camp-berry-master.js';
 import {PUBLIC_POKEMON_KNOWLEDGE_VERSION} from '../assets/js/public-pokemon-knowledge-master.js';
-import {PUBLIC_CANDY_MASTER_VERSION} from '../assets/js/public-candy-master.js';
+import {PUBLIC_CANDY_MASTER_VERSION,buildPublicCandyMasterRows} from '../assets/js/public-candy-master.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
 const parts=value=>String(value||'').replace(/^v/,'').split('.').map(part=>Number(part)||0);
@@ -12,6 +12,7 @@ const app=version.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 const build=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cache=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
 const publicSpeciesAuthoritySuccessor=atLeast(app,'v0.4.27.47');
+const candyGapIdentitySuccessor=atLeast(app,'v0.4.27.52');
 assert.equal(atLeast(app,'v0.4.8.5'),true,`v0.4.8.5 E3 contract cannot run on older release: ${app}`);
 if(app==='v0.4.8.5'){
   assert.equal(build,'20260810-v0485-compact-camp-table-density');
@@ -21,7 +22,12 @@ if(app==='v0.4.8.5'){
   assert.ok(['public-camp-berry-2026-08-10-a','public-camp-berry-2026-08-17-b-canonical-grape'].includes(PUBLIC_CAMP_BERRY_VERSION),`unexpected Camp Berry successor ${PUBLIC_CAMP_BERRY_VERSION}`);
 }
 assert.equal(PUBLIC_POKEMON_KNOWLEDGE_VERSION,'pokemon-knowledge-2026-08-10-e');
-assert.equal(PUBLIC_CANDY_MASTER_VERSION,publicSpeciesAuthoritySuccessor?'public-candy-master-2026-08-29-e':'public-candy-master-2026-08-10-d');
+const expectedCandyMasterVersion=candyGapIdentitySuccessor?'public-candy-master-2026-09-01-f':publicSpeciesAuthoritySuccessor?'public-candy-master-2026-08-29-e':'public-candy-master-2026-08-10-d';
+assert.equal(PUBLIC_CANDY_MASTER_VERSION,expectedCandyMasterVersion);
+if(candyGapIdentitySuccessor){
+  assert.ok(version.includes("// app_version: 'v0.4.27.51'"),'v0.4.27.52+ must preserve .51 predecessor release bridge');
+  assert.ok(buildPublicCandyMasterRows().some(row=>row.candy_name==='小火焰猴的糖果'),'v0.4.27.52+ targeted Chimchar compatibility Candy candidate must remain');
+}
 assert.equal(PUBLIC_CAMP_BERRY_MASTER.length,9);
 if(PUBLIC_CAMP_BERRY_VERSION==='public-camp-berry-2026-08-17-b-canonical-grape'){
   const golden=PUBLIC_CAMP_BERRY_MASTER.find(row=>row.camp_name==='黃金舊發電廠');
@@ -62,6 +68,7 @@ console.log(JSON.stringify({
   public_pokemon_knowledge_version:PUBLIC_POKEMON_KNOWLEDGE_VERSION,
   public_candy_master_version:PUBLIC_CANDY_MASTER_VERSION,
   public_species_authority_successor:publicSpeciesAuthoritySuccessor,
+  candy_gap_identity_successor:candyGapIdentitySuccessor,
   camp_rows:PUBLIC_CAMP_BERRY_MASTER.length,
   mobile_camp_layout:'COMPACT_CONTAINED_TABLE',
   one_row_per_camp:true,
