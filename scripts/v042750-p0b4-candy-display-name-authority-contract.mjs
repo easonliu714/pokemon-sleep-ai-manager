@@ -8,6 +8,7 @@ import {
   resolvePublicCandyDisplayNameForSpecies,
 } from '../assets/js/public-candy-display-name-authority.js';
 import {PUBLIC_CANDY_MASTER_VERSION,speciesCandyName} from '../assets/js/public-candy-master.js';
+import {resolveCandyFamilyStorageForSpecies} from '../assets/js/candy-family-storage-authority.js';
 import {
   PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION,
   PUBLIC_CANDY_LOCAL_ADMISSION_STORAGE_KEY,
@@ -56,25 +57,30 @@ if(p0b6Successor){
     const row=rows.find(item=>item.candy_display_name===displayName);assert.ok(row);assert.match(row.source_ref,/^project-evidence:2026-09-01-p0b6-real-device-inventory-revalidation#/);
   }
 
-  // Systemic regression: these species intentionally have no source-controlled
-  // B3/B4 per-species patch. A validated local admission alone must make the
-  // exact observed Candy label available immediately in the same session.
-  assert.equal(resolvePublicCandyDisplayNameForSpecies('喵喵').status,'REVIEW_REQUIRED');
-  assert.equal(resolvePublicCandyDisplayNameForSpecies('穿山鼠').status,'REVIEW_REQUIRED');
+  // Systemic regression: no source-controlled Meowth/Sandshrew B3/B4 row exists.
+  // A validated local admission must become family + display + canonical storage
+  // authority immediately in the same session, without another code hotfix.
+  for(const species of ['喵喵','穿山鼠']){
+    assert.equal(resolvePublicCandyDisplayNameForSpecies(species).status,'REVIEW_REQUIRED');
+    assert.equal(resolveCandyFamilyStorageForSpecies(species).status,'REVIEW_REQUIRED');
+  }
   withLocalAdmissions(['喵喵的糖果','穿山鼠的糖果'],()=>{
-    const meowth=resolvePublicCandyDisplayNameForSpecies('喵喵');
-    const sandshrew=resolvePublicCandyDisplayNameForSpecies('穿山鼠');
-    for(const [result,name] of [[meowth,'喵喵的糖果'],[sandshrew,'穿山鼠的糖果']]){
-      assert.equal(result.status,'MATCH');
-      assert.equal(result.candy_display_name,name);
-      assert.equal(result.local_admission_authority,true);
-      assert.equal(result.reason,'EXACT_USER_CONFIRMED_LOCAL_ZH_TW_CANDY_DISPLAY_NAME');
-      assert.equal(result.automatic_display_name_generation,false);
+    for(const [species,name] of [['喵喵','喵喵的糖果'],['穿山鼠','穿山鼠的糖果']]){
+      const display=resolvePublicCandyDisplayNameForSpecies(species);
+      assert.equal(display.status,'MATCH');
+      assert.equal(display.candy_display_name,name);
+      assert.equal(display.local_admission_authority,true);
+      assert.equal(display.reason,'EXACT_USER_CONFIRMED_LOCAL_ZH_TW_CANDY_DISPLAY_NAME');
+      assert.equal(display.automatic_display_name_generation,false);
+      const storage=resolveCandyFamilyStorageForSpecies(species);
+      assert.equal(storage.status,'MATCH',`${species} local admission must reach P0-B6 canonical storage`);
+      assert.equal(storage.canonical_candy_display_name,name);
+      assert.match(storage.family_id,/^family_/);
     }
-    assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_ROWS.some(row=>row.candy_display_name==='喵喵的糖果'),true,'dynamic Array facade must expose local admission to P0-B6 storage consumers');
+    assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_ROWS.some(row=>row.candy_display_name==='喵喵的糖果'),true);
     assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_ROWS.some(row=>row.candy_display_name==='穿山鼠的糖果'),true);
   });
-  assert.equal(resolvePublicCandyDisplayNameForSpecies('喵喵').status,'REVIEW_REQUIRED');
+  assert.equal(resolveCandyFamilyStorageForSpecies('喵喵').status,'REVIEW_REQUIRED','evidence absence must still fail closed');
 }
 
 assert.equal(resolvePublicCandyDisplayNameForSpecies('不存在寶可夢').status,'REVIEW_REQUIRED');
@@ -100,5 +106,5 @@ assert.ok(versionSource.includes("// app_version: 'v0.4.27.49'"));
 assert.equal((serviceWorkerSource.match(/\.\/assets\/js\/public-candy-display-name-authority\.js/g)||[]).length,1);
 assert.equal((serviceWorkerSource.match(/\.\/assets\/js\/public-candy-family-authority\.js/g)||[]).length,1);
 assert.ok(workflowSource.includes('node scripts/v042750-p0b4-candy-display-name-authority-contract.mjs'));
-console.log(JSON.stringify({status:'PASS',gate:'V042750_P0B4_PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY',authority_version:PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION,admitted_exact_zh_tw_display_name_rows:rows.length,verified_display_names:rows.map(row=>row.candy_display_name),app_version:appVersion,app_build:appBuild,semantics:{family_level_display_name_resolution:true,exact_first_party_zh_tw_evidence_only:true,local_admission_dynamic_fallback:p0b6Successor,unverified_family_review_required:true,automatic_display_name_generation:false,legacy_candy_master_mutation:false,player_inventory_migration:false,professor_transfer_write_change:false,successor_release_exact:true}},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V042750_P0B4_PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY',authority_version:PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION,admitted_exact_zh_tw_display_name_rows:rows.length,verified_display_names:rows.map(row=>row.candy_display_name),app_version:appVersion,app_build:appBuild,semantics:{family_level_display_name_resolution:true,exact_first_party_zh_tw_evidence_only:true,local_admission_dynamic_fallback:p0b6Successor,local_admission_reaches_canonical_storage:p0b6Successor,unverified_family_review_required:true,automatic_display_name_generation:false,legacy_candy_master_mutation:false,player_inventory_migration:false,professor_transfer_write_change:false,successor_release_exact:true}},null,2));
 await import('./v042751-p0b5-candy-quantity-confirmation-contract.mjs');
