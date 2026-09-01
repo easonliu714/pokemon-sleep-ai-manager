@@ -35,6 +35,7 @@ assert.equal(RECIPE_RECOGNITION_EXACT_RECOVERY_VERSION,'recipe-recognition-exact
 assert.ok([
   'uc-img-gemini-2026-08-17-d-live-recovery-schema',
   'uc-img-gemini-2026-08-19-v042713-feature-model-capability',
+  'uc-img-gemini-2026-09-02-v042755-compact-public-master-schema',
 ].includes(UC_IMG_GEMINI_ADAPTER_VERSION),`v0.4.27.4 UC.IMG live recovery successor is not governed: ${UC_IMG_GEMINI_ADAPTER_VERSION}`);
 assert.equal(UC_IMG_WEEKLY_PLATFORM_AUTHORITY_VERSION,'uc-img-weekly-platform-authority-2026-08-17-d-structured-semantic-schema');
 const weeklyProps=buildUcImgWeeklySemanticDataProperties();
@@ -64,8 +65,11 @@ const weekly=read('assets/js/uc-img-weekly-platform-authority.js');
 for(const token of ['紅色／粉紅色活動公告','unknown_effects','UC_IMG_WEEKLY_SEMANTIC_INTAKE_EMPTY','additionalProperties=false'])assert.ok(weekly.includes(token),`weekly semantic intake marker missing ${token}`);
 const adapter=read('assets/js/uc-img-gemini-adapter.js');
 for(const token of ['buildUcImgWeeklyPlatformAuthority','constrainUcImgWeeklyJsonSchema','applyUcImgWeeklyPlatformAuthority'])assert.ok(adapter.includes(token),`v0.4.27.4 UC.IMG live semantic boundary missing ${token}`);
-if(UC_IMG_GEMINI_ADAPTER_VERSION.includes('v042713-feature-model-capability')){
-  for(const token of ['executeWithCapabilityFailover','preferredModel:model','const feature=`uc_img_${scenarioKey}`'])assert.ok(adapter.includes(token),`v0.4.27.13 UC.IMG capability successor missing ${token}`);
+if(UC_IMG_GEMINI_ADAPTER_VERSION.includes('v042713-feature-model-capability')||UC_IMG_GEMINI_ADAPTER_VERSION.includes('v042755-compact-public-master-schema')){
+  for(const token of ['executeWithCapabilityFailover','preferredModel:model','const feature=`uc_img_${scenarioKey}`'])assert.ok(adapter.includes(token),`UC.IMG capability successor missing ${token}`);
+}
+if(UC_IMG_GEMINI_ADAPTER_VERSION.includes('v042755-compact-public-master-schema')){
+  for(const token of ['buildCompactPublicMasterProviderSchemaForInput','PUBLIC_MASTER_PROVIDER_SCHEMA_VERSION'])assert.ok(adapter.includes(token),`Issue #420 compact-schema successor missing ${token}`);
 }
 
 assert.equal(E3C6B_SCHEMA_MIGRATION_VERSION,11);
