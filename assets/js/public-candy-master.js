@@ -4,6 +4,10 @@ import {
   publicPokemonNamesForLegacyCandyProjection,
   resolvePublicPokemonSpeciesAuthority,
 } from './public-pokemon-species-authority.js';
+import {
+  PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION,
+  publicCandyLocalAdmissionRows,
+} from './public-candy-local-admission-authority.js';
 
 export const PUBLIC_CANDY_MASTER_VERSION='public-candy-master-2026-09-01-f';
 export const SPECIES_CANDY_NAME_RULE_VERSION='species-candy-name-rule-zh-tw-2026-08-10-a';
@@ -35,12 +39,10 @@ export const PUBLIC_CANDY_FIXED_MASTER=Object.freeze([
   fixed('type_dragon_candy_s','龍屬性的糖果S','type','龍','project-evidence:2026-07-30-item-inventory','GAME_SCREENSHOT_VERIFIED'),
 ]);
 
-// Explicit compatibility additions are intentionally narrow. They do not
-// promote an official zh-TW display-name authority and do not seed player
-// quantities. They only make a source-verified Candy family available to the
-// legacy candy_id layer so screenshot recognition can fail closed against the
-// correct base-family candidate instead of being forced toward a later-stage
-// evolution name.
+// Source-controlled compatibility additions remain intentionally narrow. .53
+// does NOT pre-admit the user's newly observed gaps here. Runtime admissions
+// live in the separately governed local overlay and are promoted globally only
+// by a later release after physical validation.
 export const PUBLIC_CANDY_LEGACY_COMPATIBILITY_EVIDENCE_ADDITIONS=Object.freeze([
   Object.freeze({
     species_name:'小火焰猴',
@@ -108,6 +110,22 @@ export function buildPublicCandyMasterRows(){
       data_version:PUBLIC_CANDY_MASTER_VERSION,
     }));
   }
+
+  // Local admissions are persistent Public Master overlays on this device only.
+  // They contain exact identity/evidence and never player quantity. A later
+  // source-controlled release may make an identical row global; exact duplicates
+  // are therefore ignored while non-identical id/name collisions fail closed.
+  const ids=new Map(rows.map(row=>[row.candy_id,row]));
+  const names=new Map(rows.map(row=>[normalizeKey(row.candy_name),row]));
+  for(const local of publicCandyLocalAdmissionRows()){
+    const idHit=ids.get(local.candy_id),nameHit=names.get(normalizeKey(local.candy_name));
+    if(idHit||nameHit){
+      if(idHit&&nameHit&&idHit===nameHit&&idHit.candy_id===local.candy_id&&normalizeKey(idHit.candy_name)===normalizeKey(local.candy_name))continue;
+      throw new Error(`public_candy_local_admission_collision:${local.candy_name}`);
+    }
+    const row=Object.freeze({...local,data_version:PUBLIC_CANDY_MASTER_VERSION});
+    rows.push(row);ids.set(row.candy_id,row);names.set(normalizeKey(row.candy_name),row);
+  }
   return Object.freeze(rows);
 }
 
@@ -159,6 +177,7 @@ export function syncPublicCandyMaster(db){
     pokemon_name_authority:PUBLIC_POKEMON_SPECIES_AUTHORITY_VERSION,
     species_projection_count:publicPokemonNamesForCandy().length,
     explicit_legacy_compatibility_evidence_addition_count:PUBLIC_CANDY_LEGACY_COMPATIBILITY_EVIDENCE_ADDITIONS.length,
+    local_admission_authority:PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION,
     physical_inventory_only:true,
     conversion_projection_status:'NOT_YET_VERIFIED',
   })]);
