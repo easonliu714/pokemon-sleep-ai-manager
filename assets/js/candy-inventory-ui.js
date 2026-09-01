@@ -1,5 +1,6 @@
 import './uc-img-v04132-pot-capacity-bootstrap.js';
 import './candy-quantity-screenshot-ui.js';
+import './candy-public-master-admission-ui.js';
 import {rows,isDatabaseReady,isRescueReadonly} from './database.js';
 import {buildPublicCandyMasterRows,PUBLIC_CANDY_MASTER_VERSION,SPECIES_CANDY_NAME_RULE_VERSION} from './public-candy-master.js';
 import {
@@ -41,7 +42,7 @@ function ensureKnowledgeUi(){
   block.id='candyMasterBlock';
   block.dataset.candyDisplayNameAuthority=PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION;
   block.innerHTML=`<h3>糖果公版 Master</h3>
-    <p class="notice">固定糖果仍採既有 Evidence-backed 名稱。舊版 species rows 的「○○的糖果」仍保留作 <b>legacy compatibility projection</b>，不再視為正式顯示名稱 Authority。P0-B4 只在有 Pokémon Sleep 官方繁中精確字串 evidence 時顯示家族層級的正式糖果名稱；未驗證 family 顯示 <code>REVIEW_REQUIRED</code>，不會由結構 root 或 Pokémon 名稱自動猜名。</p>
+    <p class="notice">固定糖果仍採既有 Evidence-backed 名稱。舊版 species rows 的「○○的糖果」仍保留作 <b>legacy compatibility projection</b>，不再視為正式顯示名稱 Authority。P0-B4 只在有 Pokémon Sleep 官方繁中精確字串 evidence 時顯示家族層級的正式糖果名稱；未驗證 family 顯示 <code>REVIEW_REQUIRED</code>，不會由結構 root 或 Pokémon 名稱自動猜名。.53 可由使用者在 UNMATCHED 當下建立本機 Public Candy identity overlay；這不會預先修改 source-controlled 公版，也不包含玩家 quantity。</p>
     <div class="table-wrap"><table id="candyMasterTable"></table></div>
     <p class="notice">Legacy Candy Master：<b>${esc(PUBLIC_CANDY_MASTER_VERSION)}</b> · Legacy species rule：<code>${esc(SPECIES_CANDY_NAME_RULE_VERSION)}</code> · Display-name Authority：<b>${esc(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION)}</b></p>`;
   panel.appendChild(block);
@@ -55,11 +56,14 @@ function table(element,data,columns){
 }
 
 function candyMasterRows(){
-  if(isRescueReadonly()||!isDatabaseReady())return buildPublicCandyMasterRows();
+  const built=buildPublicCandyMasterRows();
+  if(isRescueReadonly()||!isDatabaseReady())return built;
   try{
     const result=rows('SELECT * FROM candy_master ORDER BY CASE candy_type WHEN \'universal\' THEN 1 WHEN \'type\' THEN 2 ELSE 3 END,candy_name');
-    return result.length?result:buildPublicCandyMasterRows();
-  }catch{return buildPublicCandyMasterRows();}
+    if(!result.length)return built;
+    const ids=new Set(result.map(row=>row.candy_id));
+    return [...result,...built.filter(row=>!ids.has(row.candy_id))];
+  }catch{return built;}
 }
 
 function authorityLabel(row){
