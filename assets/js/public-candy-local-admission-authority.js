@@ -1,6 +1,6 @@
 import {resolvePublicPokemonSpeciesAuthority} from './public-pokemon-species-authority.js';
 
-export const PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION='public-candy-local-admission-2026-09-01-a';
+export const PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION='public-candy-local-admission-2026-09-01-b';
 export const PUBLIC_CANDY_LOCAL_ADMISSION_SCHEMA='pokemon-sleep-public-candy-local-admission/1.0';
 export const PUBLIC_CANDY_LOCAL_ADMISSION_STORAGE_KEY='pokemon-sleep-public-candy-local-admission-v1';
 export const PUBLIC_CANDY_LOCAL_ADMISSION_ACTION='USER_CONFIRMED_PUBLIC_CANDY_ADMISSION';
@@ -8,10 +8,12 @@ export const PUBLIC_CANDY_LOCAL_ADMISSION_ACTION='USER_CONFIRMED_PUBLIC_CANDY_AD
 export const PUBLIC_CANDY_LOCAL_ADMISSION_POLICY=Object.freeze({
   exact_observed_candy_name_required:true,
   public_species_exact_authority_required:true,
+  observation_must_be_unmatched:true,
   user_confirmation_required:true,
   player_quantity_stored:false,
   source_controlled_master_mutated:false,
   local_persistent_overlay:true,
+  storage_readback_verification:true,
   family_id_consolidation:false,
 });
 
@@ -84,20 +86,18 @@ export function publicCandyLocalAdmissionFingerprint(options={}){
   return hash.toString(16).padStart(8,'0');
 }
 
-export function admitPublicCandyFromObservedName({observedText,sourceImageRef,observationId,confirmedAt=new Date().toISOString(),storage=defaultStorage()}={}){
-  const species=parseObservedSpeciesCandyName(observedText);
+export function preparePublicCandyLocalAdmission({observation,confirmedAt=new Date().toISOString()}={}){
+  if(!observation||typeof observation!=='object'||Array.isArray(observation))throw new Error('Public Candy admission 需要 Recognition observation');
+  if(observation.status!=='UNMATCHED')throw new Error('只有 UNMATCHED observation 才能建立本機 Public Candy identity');
+  const species=parseObservedSpeciesCandyName(observation.observed_text);
   if(!species)throw new Error('畫面名稱必須是 exact「寶可夢名稱的糖果」才能建立 Public Candy identity');
   const authority=resolvePublicPokemonSpeciesAuthority(species);
   if(authority.status!=='MATCH'||authority.display_name_zh_tw!==species)throw new Error(`Public Pokémon species authority 尚未確認「${species}」；不能建立糖果公版`);
-  const candyName=`${species}的糖果`,candyId=localAdmissionCandyIdForSpecies(species);
-  const state=readPublicCandyLocalAdmissionState({storage});
-  const same=state.rows.find(row=>row.candy_id===candyId&&normalize(row.candy_name)===normalize(candyName));
-  if(same)return {status:'ALREADY_ADMITTED',row:Object.freeze(clone(same)),state};
-  const idCollision=state.rows.find(row=>row.candy_id===candyId),nameCollision=state.rows.find(row=>normalize(row.candy_name)===normalize(candyName));
-  if(idCollision||nameCollision)throw new Error(`Public Candy local admission identity 衝突：${candyName}`);
-  const row=validateRow({
-    candy_id:candyId,
-    candy_name:candyName,
+  const sourceImageRef=clean(observation.source_image_ref),observationId=clean(observation.observation_id);
+  if(!sourceImageRef||!observationId)throw new Error('Public Candy admission 需要 image / observation evidence');
+  return validateRow({
+    candy_id:localAdmissionCandyIdForSpecies(species),
+    candy_name:`${species}的糖果`,
     candy_type:'species',
     target_species_name:species,
     target_type_name:null,
@@ -105,15 +105,38 @@ export function admitPublicCandyFromObservedName({observedText,sourceImageRef,ob
     verification_status:'USER_CONFIRMED_GAME_SCREENSHOT_LOCAL_ADMISSION',
     source_type:'user_confirmed_game_screenshot_local_admission',
     source_name:'User-confirmed Pokémon Sleep in-game screenshot',
-    source_ref:`local-admission:${clean(sourceImageRef)}`,
-    source_image_ref:clean(sourceImageRef),
-    observation_id:clean(observationId),
+    source_ref:`local-admission:${sourceImageRef}`,
+    source_image_ref:sourceImageRef,
+    observation_id:observationId,
     confirmed_at:clean(confirmedAt),
     admission_action:PUBLIC_CANDY_LOCAL_ADMISSION_ACTION,
     authority_version:PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION,
-  },state.rows.length);
-  if(!row.source_image_ref||!row.observation_id)throw new Error('Public Candy admission 需要 image / observation evidence');
-  const next={...state,rows:[...state.rows,row]};
+  },0);
+}
+
+export function commitPublicCandyLocalAdmission(row,{storage=defaultStorage()}={}){
+  const prepared=validateRow(row,0);
+  const state=readPublicCandyLocalAdmissionState({storage});
+  const same=state.rows.find(item=>item.candy_id===prepared.candy_id&&normalize(item.candy_name)===normalize(prepared.candy_name));
+  if(same)return {status:'ALREADY_ADMITTED',row:Object.freeze(clone(same)),state};
+  const idCollision=state.rows.find(item=>item.candy_id===prepared.candy_id),nameCollision=state.rows.find(item=>normalize(item.candy_name)===normalize(prepared.candy_name));
+  if(idCollision||nameCollision)throw new Error(`Public Candy local admission identity 衝突：${prepared.candy_name}`);
+  const next={...state,rows:[...state.rows,prepared]};
   writeState(next,storage);
-  return {status:'CREATED',row:Object.freeze(clone(row)),state:next};
+  const verified=readPublicCandyLocalAdmissionState({storage});
+  const readback=verified.rows.find(item=>item.candy_id===prepared.candy_id&&normalize(item.candy_name)===normalize(prepared.candy_name));
+  if(!readback)throw new Error(`Public Candy local admission 儲存後 readback 驗證失敗：${prepared.candy_name}`);
+  return {status:'CREATED',row:Object.freeze(clone(readback)),state:verified};
+}
+
+export function removePublicCandyLocalAdmission(candyId,{storage=defaultStorage(),expectedObservationId=null}={}){
+  const id=clean(candyId),state=readPublicCandyLocalAdmissionState({storage});
+  const current=state.rows.find(row=>row.candy_id===id);
+  if(!current)return {status:'ABSENT',state};
+  if(expectedObservationId&&clean(current.observation_id)!==clean(expectedObservationId))throw new Error(`Public Candy local admission rollback ownership 不符：${id}`);
+  const next={...state,rows:state.rows.filter(row=>row.candy_id!==id)};
+  writeState(next,storage);
+  const verified=readPublicCandyLocalAdmissionState({storage});
+  if(verified.rows.some(row=>row.candy_id===id))throw new Error(`Public Candy local admission rollback readback 失敗：${id}`);
+  return {status:'REMOVED',state:verified};
 }
