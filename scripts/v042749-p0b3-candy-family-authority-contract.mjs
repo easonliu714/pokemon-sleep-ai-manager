@@ -19,7 +19,7 @@ const gate=(name,fn)=>{
 const patchOf=version=>Number(String(version||'').match(/^v0\.4\.27\.(\d+)$/)?.[1]||-1);
 
 gate('B3 authority policy is explicit and display-name authority stays separate',()=>{
-  assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION,'public-candy-family-authority-2026-09-01-b');
+  assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION,'public-candy-family-authority-2026-09-01-c');
   assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.family_membership_authority,true);
   assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.exact_species_authority_required,true);
   assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.candy_display_name_authority,false);
@@ -69,16 +69,24 @@ gate('Tinkatink line has direct official Candy-family evidence without display-n
   }
 });
 
-gate('.54 in-game Candy identities get B3 family coverage without guessing unobserved evolutions',()=>{
-  const expected=['草苗龜','木守宮','小鍛匠','波加曼','水躍魚','摔角鷹人','火稚雞','菊草葉'];
+gate('first-party in-game Candy identities get B3 family coverage without guessing unobserved evolutions',()=>{
+  const p0b5=['草苗龜','木守宮','小鍛匠','波加曼','水躍魚','摔角鷹人','火稚雞','菊草葉'];
+  const p0b6=['卡拉卡拉','夢幻','寶寶暴龍','小火焰猴','拉帝亞斯','拉帝歐斯','胖丁','迷你龍','達克萊伊'];
+  const expected=[...p0b5,...p0b6];
   assert.deepEqual(PUBLIC_CANDY_FAMILY_INGAME_IDENTITY_FALLBACK_EVIDENCE_ROWS.map(row=>row.species_name),expected);
   for(const species of expected){
     const result=resolvePublicCandyFamilyForSpecies(species);
     assert.equal(result.status,'MATCH',species);
     if(result.authority_class==='INGAME_CANDY_IDENTITY_SINGLETON_FALLBACK'){
       assert.deepEqual([...result.member_species_names],[species],`${species} fallback must not guess an evolution family`);
-      assert.match(result.source_refs[0],/^project-evidence:2026-09-01-p0b5-ingame-candy#obs_/);
+      assert.match(result.source_refs[0],/^project-evidence:2026-09-01-p0b(?:5-ingame-candy#obs_|6-real-device-inventory-revalidation#)/);
     }
+  }
+  for(const species of ['夢幻','拉帝亞斯','拉帝歐斯','達克萊伊']){
+    const result=resolvePublicCandyFamilyForSpecies(species);
+    assert.equal(result.status,'MATCH');
+    assert.equal(result.authority_class,'INGAME_CANDY_IDENTITY_SINGLETON_FALLBACK');
+    assert.deepEqual([...result.member_species_names],[species]);
   }
 });
 
