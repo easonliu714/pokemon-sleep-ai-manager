@@ -38,12 +38,13 @@ const storage=new FakeStorage();
 Object.defineProperty(globalThis,'localStorage',{value:storage,configurable:true});
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1]||'';
-const successor54=appVersion==='v0.4.27.54';
+const successor54=['v0.4.27.54','v0.4.27.55'].includes(appVersion);
+const successor55=appVersion==='v0.4.27.55';
 
 assert.equal(PUBLIC_CANDY_MASTER_VERSION,successor54?'public-candy-master-2026-09-01-g':'public-candy-master-2026-09-01-f');
 assert.equal(PUBLIC_CANDY_LEGACY_COMPATIBILITY_EVIDENCE_ADDITIONS.length,1,'legacy compatibility additions must remain exactly one');
 assert.equal(PUBLIC_CANDY_LEGACY_COMPATIBILITY_EVIDENCE_ADDITIONS[0].species_name,'小火焰猴');
-assert.equal(PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_ADDITIONS.length,successor54?8:0,'only .54 may globally promote the governed screenshot evidence set');
+assert.equal(PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_ADDITIONS.length,successor54?8:0,'.54+ must retain the governed source-controlled screenshot evidence set');
 assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION,'public-candy-local-admission-2026-09-01-b');
 assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_POLICY.observation_must_be_unmatched,true);
 assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_POLICY.player_quantity_stored,false);
@@ -74,8 +75,8 @@ assert.equal(matchedCompile.update_package.operations.length,0,'unconfirmed scre
 assert.equal(matchedCompile.summary.candy_quantity_pending_count,1);
 
 // Preserve .53 local-admission fallback on a governed species intentionally not
-// included in the .54 promotion set. This fixture is synthetic and carries no
-// user/private quantity evidence.
+// included in the .54 promotion set. P0-B6 may canonicalize governed B3+B4
+// families, but it must not fabricate a family for this ungoverned local overlay.
 const fallbackCandyName='托戈德瑪爾的糖果';
 assert.equal(buildPublicCandyMasterRows().some(row=>row.candy_name===fallbackCandyName),false,'fixture requires a future current-master gap');
 const gapRaw={schema:PUBLIC_MASTER_RECOGNITION_SCHEMA,recognition_version:PUBLIC_MASTER_RECOGNITION_VERSION,scenario:'candy_inventory_update',authority:'candy_master',data_version:snapshot.data_version,catalog_snapshot_id:snapshot.catalog_snapshot_id,generated_at:'2026-09-01T02:01:00.000Z',visible_target_count:1,observations:[{observation_id:'obs-future-gap',status:'UNMATCHED',observed_text:fallbackCandyName,observed_data:{quantity:7},source_image_ref:'synthetic-candy-image-001',confidence:0.95}]};
@@ -94,10 +95,10 @@ assert.equal(publicCandyLocalAdmissionRows().length,1);
 assert.notEqual(publicCandyLocalAdmissionFingerprint(),'none');
 assert.ok(storage.getItem(PUBLIC_CANDY_LOCAL_ADMISSION_STORAGE_KEY));
 assert.equal(buildPublicCandyMasterRows().some(row=>row.candy_name===fallbackCandyName),true,'local admission must remain a current Public Master fallback');
-const removed=removePublicCandyLocalAdmission(prepared.candy_id,{expectedObservationId:'obs-future-gap'});
+const removed=removePublicCandyLocalAdmission(prepared.candy_id,{storage,expectedObservationId:'obs-future-gap'});
 assert.equal(removed.status,'REMOVED');
-assert.equal(publicCandyLocalAdmissionRows().length,0,'compensating rollback must remove a newly-created local admission exactly');
-assert.equal(commitPublicCandyLocalAdmission(prepared).status,'CREATED');
+assert.equal(publicCandyLocalAdmissionRows({storage}).length,0,'compensating rollback must remove a newly-created local admission exactly');
+assert.equal(commitPublicCandyLocalAdmission(prepared,{storage}).status,'CREATED');
 
 const replay=replayCandyRecognitionAgainstCurrentMaster(gapRaw,'candies');
 assert.equal(JSON.stringify(gapRaw),gapBytes,'replay must not mutate Gemini Raw');
@@ -123,9 +124,9 @@ assert.deepEqual(confirmedCompile.update_package.operations[0].key,{candy_id:pre
 const localState=JSON.parse(storage.getItem(PUBLIC_CANDY_LOCAL_ADMISSION_STORAGE_KEY));
 localState.rows[0].quantity=7;
 storage.setItem(PUBLIC_CANDY_LOCAL_ADMISSION_STORAGE_KEY,JSON.stringify(localState));
-assert.throws(()=>publicCandyLocalAdmissionRows(),/禁止包含玩家 quantity/,'tampered local master with player quantity must fail closed');
+assert.throws(()=>publicCandyLocalAdmissionRows({storage}),/禁止包含玩家 quantity/,'tampered local master with player quantity must fail closed');
 storage.clear();
-commitPublicCandyLocalAdmission(prepared);
+commitPublicCandyLocalAdmission(prepared,{storage});
 
 const ui=read('assets/js/candy-public-master-admission-ui.js');
 assert.match(ui,/建立公版糖果並重新對應/);
@@ -144,7 +145,11 @@ assert.equal(professor.includes('candy-public-master-admission-ui.js'),false);
 
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(successor54){
+if(successor55){
+  assert.equal(appBuild,'20260901-v042755-p0b6-candy-family-storage-reconciliation');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55-v042755-p0b6-candy-family-storage-reconciliation');
+  assert.ok(version.includes("// app_version: 'v0.4.27.54'"));
+}else if(successor54){
   assert.equal(appBuild,'20260901-v042754-p0b5-ingame-candy-master-promotion');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.54-v042754-p0b5-ingame-candy-master-promotion');
   assert.ok(version.includes("// app_version: 'v0.4.27.53'"));
