@@ -10,6 +10,11 @@ import {
   resolvePublicCandyFamilyForSpecies,
 } from '../assets/js/public-candy-family-authority.js';
 import {PUBLIC_POKEMON_SPECIES_AUTHORITY_POLICY,resolvePublicPokemonSpeciesAuthority} from '../assets/js/public-pokemon-species-authority.js';
+import {
+  PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION,
+  PUBLIC_CANDY_LOCAL_ADMISSION_STORAGE_KEY,
+  preparePublicCandyLocalAdmission,
+} from '../assets/js/public-candy-local-admission-authority.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
 const tests=[];
@@ -17,9 +22,16 @@ const gate=(name,fn)=>{
   try{fn();tests.push({name,status:'PASS'});}catch(error){tests.push({name,status:'FAIL',error:String(error?.message||error)});}
 };
 const patchOf=version=>Number(String(version||'').match(/^v0\.4\.27\.(\d+)$/)?.[1]||-1);
+const withLocalAdmissions=(observedTexts,fn)=>{
+  const previous=globalThis.localStorage;
+  const rows=observedTexts.map((observed_text,index)=>preparePublicCandyLocalAdmission({observation:{status:'UNMATCHED',observed_text,source_image_ref:`fixture-image-${index+1}`,observation_id:`fixture-observation-${index+1}`},confirmedAt:`2026-09-01T13:30:0${index}.000Z`}));
+  const state=JSON.stringify({schema:'pokemon-sleep-public-candy-local-admission/1.0',authority_version:PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION,rows});
+  globalThis.localStorage={getItem:key=>key===PUBLIC_CANDY_LOCAL_ADMISSION_STORAGE_KEY?state:null,setItem(){},removeItem(){}};
+  try{return fn(rows);}finally{if(previous===undefined)delete globalThis.localStorage;else globalThis.localStorage=previous;}
+};
 
 gate('B3 authority policy is explicit and display-name authority stays separate',()=>{
-  assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION,'public-candy-family-authority-2026-09-01-c');
+  assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION,'public-candy-family-authority-2026-09-01-d');
   assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.family_membership_authority,true);
   assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.exact_species_authority_required,true);
   assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.candy_display_name_authority,false);
@@ -28,8 +40,12 @@ gate('B3 authority policy is explicit and display-name authority stays separate'
   assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.professor_transfer_write_behavior_changed,false);
   assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.player_write_authority,false);
   assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.ingame_candy_identity_singleton_fallback_supported,true);
+  assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.local_admission_exact_candy_identity_fallback_supported,true);
+  assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.local_admission_user_confirmation_required,true);
   assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.structural_family_precedes_ingame_singleton_fallback,true);
+  assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.structural_family_precedes_local_admission_fallback,true);
   assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.ingame_singleton_fallback_expands_to_unobserved_evolutions,false);
+  assert.equal(PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY.local_admission_fallback_expands_to_unobserved_evolutions,false);
   assert.equal(PUBLIC_POKEMON_SPECIES_AUTHORITY_POLICY.candy_family_authority,false,'Species Authority must not become the Candy-family owner');
   assert.equal(PUBLIC_POKEMON_SPECIES_AUTHORITY_POLICY.candy_display_name_authority,false);
 });
@@ -46,7 +62,7 @@ gate('authority rows are deterministic and member assignments are unique',()=>{
     assert.equal(row.candy_display_name,null);
     assert.equal(row.candy_display_name_authority,false);
     if(row.member_species_names.length===1){
-      assert.equal(row.authority_class,'INGAME_CANDY_IDENTITY_SINGLETON_FALLBACK','singleton B3 families require exact first-party Candy identity evidence');
+      assert.equal(row.authority_class,'INGAME_CANDY_IDENTITY_SINGLETON_FALLBACK','source-controlled singleton B3 families require exact first-party Candy identity evidence');
       assert.equal(row.direct_candy_family_evidence,true);
       assert.equal(row.source_refs.length,1);
     }else assert.ok(row.member_species_names.length>=2);
@@ -88,6 +104,24 @@ gate('first-party in-game Candy identities get B3 family coverage without guessi
     assert.equal(result.authority_class,'INGAME_CANDY_IDENTITY_SINGLETON_FALLBACK');
     assert.deepEqual([...result.member_species_names],[species]);
   }
+});
+
+gate('validated local Candy admissions close arbitrary hardcoded-family gaps without per-species source patches',()=>{
+  const beforeMeowth=resolvePublicCandyFamilyForSpecies('喵喵');
+  const beforeSandshrew=resolvePublicCandyFamilyForSpecies('穿山鼠');
+  assert.equal(beforeMeowth.status,'REVIEW_REQUIRED');
+  assert.equal(beforeSandshrew.status,'REVIEW_REQUIRED');
+  withLocalAdmissions(['喵喵的糖果','穿山鼠的糖果'],()=>{
+    for(const species of ['喵喵','穿山鼠']){
+      const result=resolvePublicCandyFamilyForSpecies(species);
+      assert.equal(result.status,'MATCH',species);
+      assert.equal(result.authority_class,'USER_CONFIRMED_LOCAL_CANDY_IDENTITY_SINGLETON_FALLBACK');
+      assert.equal(result.reason,'USER_CONFIRMED_LOCAL_CANDY_IDENTITY_FAMILY_FALLBACK');
+      assert.deepEqual([...result.member_species_names],[species]);
+      assert.match(result.family_id,/^family_/);
+    }
+  });
+  assert.equal(resolvePublicCandyFamilyForSpecies('喵喵').status,'REVIEW_REQUIRED','local fallback must disappear when its validated local evidence is absent');
 });
 
 gate('evolution-connected Pokémon resolve to one structural family, not one Candy row per species',()=>{
@@ -137,7 +171,7 @@ gate('unknown species fails closed before Candy-family resolution',()=>{
   }
 });
 
-gate('B3 introduces no circular Candy dependency, player persistence, or display-name synthesis',()=>{
+gate('B3 introduces no circular Candy master dependency, player persistence, or display-name synthesis',()=>{
   const source=read('assets/js/public-candy-family-authority.js');
   for(const forbidden of [
     "from './public-candy-master.js'",
@@ -149,6 +183,7 @@ gate('B3 introduces no circular Candy dependency, player persistence, or display
     'indexedDB.',
     'fetch(',
   ])assert.equal(source.includes(forbidden),false,forbidden);
+  assert.match(source,/publicCandyLocalAdmissionRows/,'B3 may consume the validated local admission authority but must not own its persistence');
 });
 
 gate('B3 itself does not migrate player storage; .55 successor owns canonical writes',()=>{
