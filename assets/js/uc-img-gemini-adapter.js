@@ -1,6 +1,7 @@
 import {executeWithCapabilityFailover} from './ai-provider-capability-failover.js';
 import {buildUpdatePackageJsonSchema} from './update-package-contract.js';
-import {buildPublicMasterRecognitionJsonSchema,supportsPublicMasterRecognition} from './public-master-recognition.js';
+import {supportsPublicMasterRecognition} from './public-master-recognition.js';
+import {buildCompactPublicMasterProviderSchemaForInput} from './public-master-recognition-provider-schema.js';
 import {recoverExactUnlockedRecipeRecognition} from './recipe-recognition-exact-recovery.js';
 import {isUcImgOwnedMemoryBlob} from './uc-img-image-runtime.js';
 import {SCREENSHOT_PROMPT_SAFETY_VERSION,appendScreenshotPromptSafety} from './pokemon-visual-prompt-policy.js';
@@ -11,7 +12,7 @@ import {
   constrainUcImgWeeklyJsonSchema,
 } from './uc-img-weekly-platform-authority.js';
 
-export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-08-19-v042713-feature-model-capability';
+export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-09-02-v042755-compact-public-master-schema';
 export const UC_IMG_DIAGNOSTIC_SCHEMA='pokemon-sleep-uc-img-ai-diagnostic/1.1';
 
 const clean=value=>String(value??'').trim();
@@ -52,7 +53,7 @@ export async function prepareGeminiImages(entries=[],fileMap=new Map()){
 
 export function buildUcImgGeminiSchema(config,scenarioKey,{platformAuthority=null}={}){
   if(!config?.scenario||!Array.isArray(config.entities))throw new Error('UC.IMG Gemini scenario contract 不完整');
-  if(supportsPublicMasterRecognition(config.scenario))return buildPublicMasterRecognitionJsonSchema(config.scenario);
+  if(supportsPublicMasterRecognition(config.scenario))return buildCompactPublicMasterProviderSchemaForInput(config.scenario);
   const schema=buildUpdatePackageJsonSchema({scenario:config.scenario,entities:config.entities,weekly:scenarioKey==='weekly'});
   return scenarioKey==='weekly'&&platformAuthority?constrainUcImgWeeklyJsonSchema(schema,platformAuthority):schema;
 }
