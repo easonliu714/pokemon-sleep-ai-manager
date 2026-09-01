@@ -101,6 +101,10 @@ else if(appVersion==='v0.4.27.53'){
   assert.equal(appBuild,'20260901-v042754-p0b5-ingame-candy-master-promotion');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.54-v042754-p0b5-ingame-candy-master-promotion');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.53'"));
+}else if(appVersion==='v0.4.27.55'){
+  assert.equal(appBuild,'20260901-v042755-p0b6-candy-family-storage-reconciliation');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55-v042755-p0b6-candy-family-storage-reconciliation');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.54'"));
 }else assert.fail(`B5 successor release not governed: ${appVersion}`);
 assert.ok(versionSource.includes("// app_version: 'v0.4.27.50'"));
 assert.equal((serviceWorkerSource.match(/\.\/assets\/js\/candy-inventory-ui\.js/g)||[]).length,1);
@@ -108,4 +112,4 @@ assert.match(serviceWorkerSource,/querySafeCacheMatch\(event\.request\)/);
 
 console.log(JSON.stringify({status:'PASS',gate:'V042751_P0B5_CANDY_QUANTITY_CONFIRMATION_AUTHORITY',authority_version:CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION,app_version:appVersion,app_build:appBuild,semantics:{ai_quantity_candidate_only:true,explicit_quantity_confirmation_required:true,confirmed_zero_is_valid:true,storage_key_candy_id_only:true,candy_id_only_gemini_key_bridge:true,provider_raw_json_immutable:true,professor_observed_delta_unchanged:true}},null,2));
 
-if(['v0.4.27.52','v0.4.27.53','v0.4.27.54'].includes(appVersion))await import('./v042752-p0b5-gap-identity-raw-evidence-hotfix-contract.mjs');
+if(['v0.4.27.52','v0.4.27.53','v0.4.27.54','v0.4.27.55'].includes(appVersion))await import('./v042752-p0b5-gap-identity-raw-evidence-hotfix-contract.mjs');

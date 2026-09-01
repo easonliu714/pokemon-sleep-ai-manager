@@ -103,7 +103,7 @@ const piplupRows=withDuplicate.filter(row=>normalize(row.candy_name)===normalize
 assert.equal(piplupRows.length,1,'global promotion must absorb an exact legacy local duplicate without collision');
 assert.equal(piplupRows[0].source_type,'game_screenshot_verified','source-controlled global authority must win over local duplicate');
 
-// Future gap fallback remains available after .54.
+// Future gap fallback remains available after .54 and its .55 successor.
 globalThis.localStorage?.clear?.();
 const futureName='托戈德瑪爾的糖果';
 assert.equal(buildPublicCandyMasterRows().some(row=>normalize(row.candy_name)===normalize(futureName)),false,'fixture must remain outside the .54 promotion set');
@@ -124,11 +124,21 @@ const professor=read('assets/js/pokemon-professor-transfer.js');
 assert.match(professor,/USER_DIRECT_OBSERVATION_ONLY/);
 assert.equal(professor.includes('PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_ADDITIONS'),false);
 const version=read('assets/js/version-authority.js');
-assert.match(version,/app_version:\s*'v0\.4\.27\.54'/);
-assert.match(version,/app_build:\s*'20260901-v042754-p0b5-ingame-candy-master-promotion'/);
-assert.match(version,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.54-v042754-p0b5-ingame-candy-master-promotion'/);
+const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1]||'';
+const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
+const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
+if(appVersion==='v0.4.27.54'){
+  assert.equal(appBuild,'20260901-v042754-p0b5-ingame-candy-master-promotion');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.54-v042754-p0b5-ingame-candy-master-promotion');
+}else if(appVersion==='v0.4.27.55'){
+  assert.equal(appBuild,'20260901-v042755-p0b6-candy-family-storage-reconciliation');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55-v042755-p0b6-candy-family-storage-reconciliation');
+  assert.ok(version.includes("// app_version: 'v0.4.27.54'"));
+  assert.ok(version.includes("// app_build: '20260901-v042754-p0b5-ingame-candy-master-promotion'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.54-v042754-p0b5-ingame-candy-master-promotion'"));
+}else assert.fail(`.54 promotion successor release not governed: ${appVersion}`);
 assert.ok(version.includes("// app_version: 'v0.4.27.53'"));
 assert.ok(version.includes("// app_version: 'v0.3.96'"));
 assert.equal(fs.existsSync('.github/workflows/v042754-p0b5-ingame-candy-master-promotion.yml'),false,'no standalone .54 workflow may bypass governed consolidated CI topology');
 
-console.log(JSON.stringify({status:'PASS',gate:'V042754_P0B5_INGAME_CANDY_MASTER_PROMOTION',app_version:'v0.4.27.54',candy_master_version:PUBLIC_CANDY_MASTER_VERSION,promotion_count:PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_ADDITIONS.length,promoted_species:expectedSpecies,semantics:{ingame_visible_identity_official_equivalent:true,public_species_prerequisite:true,fresh_profile_global_rows:true,private_quantity_promoted:false,screenshot_bytes_committed:false,private_raw_json_committed:false,provider_raw_immutable:true,local_duplicate_absorbed_by_global_authority:true,future_local_admission_fallback_preserved:true,family_id_consolidation:false,player_inventory_migration:false,professor_semantics_unchanged:true}},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V042754_P0B5_INGAME_CANDY_MASTER_PROMOTION',predecessor_app_version:'v0.4.27.54',current_app_version:appVersion,candy_master_version:PUBLIC_CANDY_MASTER_VERSION,promotion_count:PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_ADDITIONS.length,promoted_species:expectedSpecies,semantics:{ingame_visible_identity_official_equivalent:true,public_species_prerequisite:true,fresh_profile_global_rows:true,private_quantity_promoted:false,screenshot_bytes_committed:false,private_raw_json_committed:false,provider_raw_immutable:true,local_duplicate_absorbed_by_global_authority:true,future_local_admission_fallback_preserved:true,family_id_consolidation:false,player_inventory_migration_owned_by_this_phase:false,professor_semantics_unchanged:true,successor_p0b6_allowed:appVersion==='v0.4.27.55'}},null,2));

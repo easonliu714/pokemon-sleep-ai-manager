@@ -4,7 +4,7 @@ import {
   resolvePublicPokemonSpeciesAuthority,
 } from './public-pokemon-species-authority.js';
 
-export const PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION='public-candy-family-authority-2026-08-31-a';
+export const PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION='public-candy-family-authority-2026-09-01-b';
 export const PUBLIC_CANDY_FAMILY_AUTHORITY_STATUS='ACTIVE_GOVERNED_CANDY_FAMILY_MEMBERSHIP_AUTHORITY';
 
 const TINKATINK_BUNDLE_SOURCE='https://www.pokemonsleep.net/en/news/343238373339373232383036383230383732/';
@@ -41,6 +41,25 @@ export const PUBLIC_CANDY_FAMILY_DIRECT_EVIDENCE_ROWS=Object.freeze([
     candy_display_name_authority:false,
     source_refs:[TINKATINK_BUNDLE_SOURCE,TINKATINK_DEBUT_SOURCE],
   }),
+]);
+
+// .54 established these exact in-game Candy identities as first-party,
+// official-equivalent evidence. When the public evolution graph already knows
+// the family, that structural family remains authoritative. Only when no B3
+// family exists yet do we admit the exact observed species as a singleton
+// fallback family. This does NOT guess evolution members. The family_id uses
+// the same Public Species source-key root rule as structural families so a
+// later evolution-graph admission can supersede the singleton without inventing
+// a second identity namespace.
+export const PUBLIC_CANDY_FAMILY_INGAME_IDENTITY_FALLBACK_EVIDENCE_ROWS=Object.freeze([
+  Object.freeze({species_name:'草苗龜',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_001'}),
+  Object.freeze({species_name:'木守宮',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_002'}),
+  Object.freeze({species_name:'小鍛匠',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_004'}),
+  Object.freeze({species_name:'波加曼',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_007'}),
+  Object.freeze({species_name:'水躍魚',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_008'}),
+  Object.freeze({species_name:'摔角鷹人',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_009'}),
+  Object.freeze({species_name:'火稚雞',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_014'}),
+  Object.freeze({species_name:'菊草葉',source_ref:'project-evidence:2026-09-01-p0b5-ingame-candy#obs_019'}),
 ]);
 
 function buildEvolutionComponents(){
@@ -113,6 +132,25 @@ function structuralFamilyRow(component){
   });
 }
 
+function ingameIdentityFallbackFamilyRow(evidenceRow){
+  const species=resolvePublicPokemonSpeciesAuthority(evidenceRow.species_name);
+  if(species.status!=='MATCH'||normalizeKey(species.display_name_zh_tw)!==normalizeKey(evidenceRow.species_name))return null;
+  const rootName=displayText(species.display_name_zh_tw);
+  const rootSourceKey=displayText(species.source_keys?.[0])||rootName;
+  return freezeFamilyRow({
+    family_id:`family_${idPart(rootSourceKey)}`,
+    structural_root_species_name:rootName,
+    member_species_names:[rootName],
+    authority_class:'INGAME_CANDY_IDENTITY_SINGLETON_FALLBACK',
+    verification_status:'INGAME_CANDY_IDENTITY_FAMILY_FALLBACK_VERIFIED',
+    direct_candy_family_evidence:true,
+    family_membership_authority:true,
+    candy_display_name:null,
+    candy_display_name_authority:false,
+    source_refs:[evidenceRow.source_ref],
+  });
+}
+
 function buildAuthorityRows(){
   const rows=[],assigned=new Map();
   const add=row=>{
@@ -126,14 +164,20 @@ function buildAuthorityRows(){
     for(const member of row.member_species_names)assigned.set(normalizeKey(member),row.family_id);
   };
 
-  // Direct evidence wins over the older public evolution graph. This makes the
-  // overlay deterministic when a newly live family is later added to that graph.
+  // Direct multi-member evidence wins over the older public evolution graph.
   for(const row of PUBLIC_CANDY_FAMILY_DIRECT_EVIDENCE_ROWS)add(row);
   for(const component of PUBLIC_CANDY_FAMILY_EVOLUTION_COMPONENTS){
     const row=structuralFamilyRow(component);
     if(!row)continue;
     if(row.member_species_names.some(member=>assigned.has(normalizeKey(member))))continue;
     add(row);
+  }
+  // Screenshot fallback is last by design: it can fill an exact observed gap,
+  // but can never override a direct or structural family already governed.
+  for(const evidenceRow of PUBLIC_CANDY_FAMILY_INGAME_IDENTITY_FALLBACK_EVIDENCE_ROWS){
+    if(assigned.has(normalizeKey(evidenceRow.species_name)))continue;
+    const row=ingameIdentityFallbackFamilyRow(evidenceRow);
+    if(row)add(row);
   }
   return Object.freeze(rows.sort((a,b)=>a.family_id.localeCompare(b.family_id)));
 }
@@ -150,6 +194,9 @@ export const PUBLIC_CANDY_FAMILY_AUTHORITY_POLICY=Object.freeze({
   family_membership_authority:true,
   direct_candy_family_evidence_supported:true,
   evolution_connectivity_structural_family_supported:true,
+  ingame_candy_identity_singleton_fallback_supported:true,
+  structural_family_precedes_ingame_singleton_fallback:true,
+  ingame_singleton_fallback_expands_to_unobserved_evolutions:false,
   evolution_root_is_not_candy_display_name_anchor:true,
   candy_display_name_authority:false,
   candy_display_name_auto_generation:false,

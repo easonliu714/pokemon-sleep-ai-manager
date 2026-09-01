@@ -15,8 +15,9 @@ import {PUBLIC_MASTER_RECOGNITION_SCHEMA,PUBLIC_MASTER_RECOGNITION_VERSION} from
 const read=path=>fs.readFileSync(path,'utf8');
 const versionSource=read('assets/js/version-authority.js');
 const appVersion=versionSource.match(/app_version:\s*'([^']+)'/)?.[1]||'';
-const successor54=appVersion==='v0.4.27.54';
-const successor53=['v0.4.27.53','v0.4.27.54'].includes(appVersion);
+const successor54=['v0.4.27.54','v0.4.27.55'].includes(appVersion);
+const successor53=['v0.4.27.53','v0.4.27.54','v0.4.27.55'].includes(appVersion);
+const successor55=appVersion==='v0.4.27.55';
 const snapshot=buildPublicMasterCatalogSnapshot('candies');
 const chimchar=snapshot.rows.find(row=>row.candy_name==='小火焰猴的糖果');
 const monferno=snapshot.rows.find(row=>row.candy_name==='猛火猴的糖果');
@@ -51,7 +52,11 @@ const uiSource=read('assets/js/candy-quantity-screenshot-ui.js');
 assert.match(uiSource,/provider_raw:''/);assert.match(uiSource,/working_raw:''/);assert.match(uiSource,/Gemini Raw JSON（唯讀、immutable）/);assert.match(uiSource,/EXACT_IDENTITY_MISMATCH/);assert.ok(!uiSource.includes('state.provider_raw=JSON.stringify(mutator'));
 const appBuild=versionSource.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(successor54){
+if(successor55){
+  assert.equal(appBuild,'20260901-v042755-p0b6-candy-family-storage-reconciliation');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55-v042755-p0b6-candy-family-storage-reconciliation');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.54'"));
+}else if(successor54){
   assert.equal(appBuild,'20260901-v042754-p0b5-ingame-candy-master-promotion');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.54-v042754-p0b5-ingame-candy-master-promotion');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.53'"));

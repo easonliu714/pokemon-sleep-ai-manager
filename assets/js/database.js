@@ -1,6 +1,7 @@
 import {inspectDatabaseRecord,loadDatabaseBytes,loadDatabaseBytesInWorker,cancelWorkerDatabaseLoad,saveDatabaseBytes,createSnapshot} from './storage.js';
 import {DDL,SEED_SQL} from './schema.js';
 import {applyAllMigrations,applyFreshDatabaseBootstrap} from './migrations.js';
+import {applyCandyFamilyStorageMigration} from './candy-family-storage-authority.js';
 let SQL=null,db=null;
 let rescueReadonly=false;
 
@@ -19,6 +20,15 @@ function consumeForceLoad(){try{const enabled=sessionStorage.getItem(FORCE_LOAD_
 async function createReadonlyRescueDatabase(error){rescueReadonly=true;db=null;const detail={seeded:false,rescue:true,readonly:true,zero_sql:true,error_code:error.code,message:error.message,...error.details};emit('RESCUE_READY','救援／唯讀模式已就緒；未載入 SQL.js，也未讀取玩家 SQLite','completed',detail);emit('BOOTSTRAP_COMPLETE','啟動流程已在零 SQLite 救援模式完成','completed',detail);dispatchReadyAsync(detail);setTimeout(()=>{const status=document.getElementById('dbStatus'),warning=document.getElementById('storageWarning');if(status){status.textContent='救援／唯讀模式';status.className='badge warning';}if(warning){warning.textContent=`本機玩家資料尚未載入：${error.message}。目前僅可瀏覽公版頁面，不會寫入玩家資料。`;warning.classList.remove('hidden');}emit('APP_READY','App 已在零 SQLite 救援模式完成啟動','completed',detail);},0);return detail;}
 export async function inspectDatabaseBoot(){const inspection=await timeout(inspectDatabaseRecord(),8000,'本機資料庫 metadata 讀取');const byteLength=Number(inspection.metadata?.byte_length||0);return {...inspection,byte_length:byteLength,metadata_known:Boolean(inspection.metadata&&byteLength>=0)};}
 
+function applyCandyFamilyStorageLifecycle(database,migrationResult){
+  const candyFamilyStorage=applyCandyFamilyStorageMigration(database);
+  return {
+    ...(migrationResult||{}),
+    database_changed:Boolean(migrationResult?.database_changed)||Boolean(candyFamilyStorage.database_changed),
+    candy_family_storage:candyFamilyStorage,
+  };
+}
+
 export async function initializeDatabase(){
   const generation=++bootGeneration;
   try{
@@ -32,11 +42,11 @@ export async function initializeDatabase(){
     if(inspection.exists&&!forced)bytes=await timeout(loadDatabaseBytes(),30000,'本機 SQLite 讀取');if(generation!==bootGeneration)throw safeBootError('stale_boot_generation','資料讀取完成，但本次啟動已取消');
     const byteLength=bytes?.byteLength||0,restored=Boolean(bytes);emit('SQLITE_BYTES_READY',bytes?`本機資料庫讀取完成（${(byteLength/1048576).toFixed(1)} MB）`:'準備建立新資料庫','running',{byte_length:byteLength,restored,forced});await yieldToUi();emit('SQLITE_OPENING','正在開啟 SQLite 資料庫');db=bytes?new SQL.Database(new Uint8Array(bytes)):new SQL.Database();rescueReadonly=false;bytes=null;emit('SQLITE_SOURCE_BUFFER_RELEASED','原始 SQLite 傳輸緩衝區已釋放','completed',{byte_length:byteLength,restored});await yieldToUi();
     emit('SCHEMA_CHECKING','正在檢查資料庫結構');db.run(DDL);const isNew=(scalar('SELECT COUNT(*) FROM schema_migrations')||0)===0;let migrationResult;
-    if(isNew){emit('FRESH_DATABASE_BOOTSTRAP','正在建立全新用戶資料庫並載入完整公版主檔','running',{fresh_database:true});db.run(SEED_SQL);migrationResult=applyFreshDatabaseBootstrap(db);emit('FRESH_DATABASE_READY','全新用戶資料庫與公版主檔已建立','completed',{fresh_database:true,public_master:migrationResult.public_master});}
-    else{emit('MIGRATION_RUNNING','正在執行資料庫 Migration 與公版版本稽核');migrationResult=applyAllMigrations(db);emit('MIGRATION_COMPLETED','資料庫 Migration／公版版本稽核完成','completed',{byte_length:byteLength,restored,public_master:migrationResult.public_master});}
+    if(isNew){emit('FRESH_DATABASE_BOOTSTRAP','正在建立全新用戶資料庫並載入完整公版主檔','running',{fresh_database:true});db.run(SEED_SQL);migrationResult=applyFreshDatabaseBootstrap(db);migrationResult=applyCandyFamilyStorageLifecycle(db,migrationResult);emit('FRESH_DATABASE_READY','全新用戶資料庫與公版主檔已建立','completed',{fresh_database:true,public_master:migrationResult.public_master,candy_family_storage:migrationResult.candy_family_storage});}
+    else{emit('MIGRATION_RUNNING','正在執行資料庫 Migration 與公版版本稽核');migrationResult=applyAllMigrations(db);migrationResult=applyCandyFamilyStorageLifecycle(db,migrationResult);emit('MIGRATION_COMPLETED','資料庫 Migration／公版版本稽核完成','completed',{byte_length:byteLength,restored,public_master:migrationResult.public_master,candy_family_storage:migrationResult.candy_family_storage});}
     await yieldToUi();const persistRequired=!restored||Boolean(migrationResult?.database_changed);
     if(persistRequired){emit('BOOT_PERSIST_RUNNING',isNew?'正在儲存全新 SQLite 資料庫':'正在儲存必要的 Schema／公版主檔更新');await persist();emit('BOOT_PERSIST_COMPLETED','SQLite 必要更新已儲存','completed',{reason:isNew?'fresh_database':'schema_or_public_master_changed'});}else emit('BOOT_PERSIST_SKIPPED','Schema 與公版版本未變更；直接使用本機 SQLite','completed',{restored:true});
-    const seeded=isNew,detail={seeded,restored,boot_persist_skipped:!persistRequired,byte_length:byteLength,forced,worker_isolated:Boolean(forced),fresh_database:isNew,public_master:migrationResult?.public_master||null};emit('POST_MIGRATION_HANDOFF','資料庫階段完成；將控制權交還 App 首屏初始化','completed',detail);dispatchReadyAsync(detail);return {seeded,...detail};
+    const seeded=isNew,detail={seeded,restored,boot_persist_skipped:!persistRequired,byte_length:byteLength,forced,worker_isolated:Boolean(forced),fresh_database:isNew,public_master:migrationResult?.public_master||null,candy_family_storage:migrationResult?.candy_family_storage||null};emit('POST_MIGRATION_HANDOFF','資料庫階段完成；將控制權交還 App 首屏初始化','completed',detail);dispatchReadyAsync(detail);return {seeded,...detail};
   }catch(error){cancelWorkerDatabaseLoad();if(error?.safe_boot){emit('DATABASE_RESCUE_REQUIRED',error.message,'warning',{code:error.code,...error.details},error);return createReadonlyRescueDatabase(error);}emit('DATABASE_FAILED',`資料庫初始化失敗：${error?.message||error}`,'failed',{},error);throw error;}
 }
 
@@ -51,7 +61,7 @@ export function run(sql,params=[]){if(!db)throw new Error('database_not_ready');
 export async function persist(){if(!db)throw new Error('database_not_ready');if(rescueReadonly)throw new Error('readonly_rescue_mode');emit('SQLITE_PERSIST_RUNNING','正在儲存 SQLite');const exported=db.export();await timeout(saveDatabaseBytes(exported),30000,'SQLite 儲存');emit('SQLITE_PERSIST_COMPLETED','SQLite 儲存完成','completed',{byte_length:exported.byteLength});}
 export async function snapshot(reason){if(!db)throw new Error('database_not_ready');if(rescueReadonly)throw new Error('readonly_rescue_mode');emit('SQLITE_SNAPSHOT_RUNNING',`正在建立快照：${reason}`);const exported=db.export();const result=await timeout(createSnapshot(exported,reason),30000,'SQLite 快照');emit('SQLITE_SNAPSHOT_COMPLETED',`快照已建立：${reason}`);return result;}
 export function exportBytes(){if(rescueReadonly)throw new Error('readonly_rescue_mode');if(!db)throw new Error('database_not_ready');return db.export();}
-export async function replaceDatabase(bytes){emit('SQLITE_REPLACE_RUNNING','正在驗證並替換 SQLite 資料庫');if(db)db.close();db=new SQL.Database(bytes);rescueReadonly=false;const check=rows('PRAGMA integrity_check');if(!check.length||check[0].integrity_check!=='ok')throw new Error('SQLite integrity_check 未通過');db.run(DDL);const migrationResult=applyAllMigrations(db);await persist();dispatchReadyAsync({seeded:false,restored:true,replaced:true,public_master:migrationResult.public_master});}
+export async function replaceDatabase(bytes){emit('SQLITE_REPLACE_RUNNING','正在驗證並替換 SQLite 資料庫');if(db)db.close();db=new SQL.Database(bytes);rescueReadonly=false;const check=rows('PRAGMA integrity_check');if(!check.length||check[0].integrity_check!=='ok')throw new Error('SQLite integrity_check 未通過');db.run(DDL);let migrationResult=applyAllMigrations(db);migrationResult=applyCandyFamilyStorageLifecycle(db,migrationResult);await persist();dispatchReadyAsync({seeded:false,restored:true,replaced:true,public_master:migrationResult.public_master,candy_family_storage:migrationResult.candy_family_storage});}
 export function begin(){run('BEGIN IMMEDIATE');}
 export function commit(){run('COMMIT');}
 export function rollback(){try{run('ROLLBACK')}catch{}}

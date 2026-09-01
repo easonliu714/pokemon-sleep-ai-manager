@@ -1,8 +1,8 @@
 (function installVersionAuthority(scope) {
   const authority = Object.freeze({
-    app_version: 'v0.4.27.54',
-    app_build: '20260901-v042754-p0b5-ingame-candy-master-promotion',
-    cache_name: 'pokemon-sleep-ai-v0.4.27.54-v042754-p0b5-ingame-candy-master-promotion',
+    app_version: 'v0.4.27.55',
+    app_build: '20260901-v042755-p0b6-candy-family-storage-reconciliation',
+    cache_name: 'pokemon-sleep-ai-v0.4.27.55-v042755-p0b6-candy-family-storage-reconciliation',
     schema: 'pokemon-sleep-version-authority/1.0',
   });
   Object.defineProperty(scope, 'PokemonSleepVersionAuthority', {
@@ -14,6 +14,9 @@
 })(globalThis);
 
 // Legacy CI parser bridge only; not executed and not a release authority:
+// app_version: 'v0.4.27.54'
+// app_build: '20260901-v042754-p0b5-ingame-candy-master-promotion'
+// cache_name: 'pokemon-sleep-ai-v0.4.27.54-v042754-p0b5-ingame-candy-master-promotion'
 // app_version: 'v0.4.27.53'
 // app_build: '20260901-v042753-p0b5-canonical-key-gap-admission-replay'
 // cache_name: 'pokemon-sleep-ai-v0.4.27.53-v042753-p0b5-canonical-key-gap-admission-replay'
