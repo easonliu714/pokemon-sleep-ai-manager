@@ -38,14 +38,14 @@ function showHeartbeatWarning({blockedFor,stageAge}){
   const warning=document.getElementById('storageWarning');
   lastWarningText=formatStartupHeartbeatWarning({checkpoint:snapshot.checkpoint,blocked_ms:blockedFor});
   if(warning){warning.textContent=lastWarningText;warning.dataset.startupWatchdogWarning=WATCHDOG_MARKER;warning.classList.remove('hidden');}
-  debugTrace.record('startup','main_thread_block_detected',{status:'warning',details:{last_checkpoint:snapshot.checkpoint,checkpoint_is_causal:false,blocked_ms:blockedFor,stage_age_ms:stageAge,authority,authority_switch:false}});
+  debugTrace.record('startup','main_thread_block_detected',{status:'warning',details:{last_checkpoint:snapshot.checkpoint,checkpoint_is_causal:false,blocked_ms:blockedFor,stage_age_ms:stageAge,authority,authority_switch:false,automatic_retry_restarted:false}});
 }
 function clearRecoveredHeartbeatWarning(){
   if(!warningActive)return false;
   const snapshot=stallSnapshot;warningActive=false;recoveryStableFrames=0;stallSnapshot=null;
   const warning=document.getElementById('storageWarning');
   if(warning?.dataset?.startupWatchdogWarning===WATCHDOG_MARKER){if(warning.textContent===lastWarningText){warning.classList.add('hidden');warning.textContent='';}delete warning.dataset.startupWatchdogWarning;}
-  debugTrace.record('startup','main_thread_block_recovered',{status:'completed',details:{last_checkpoint:snapshot?.checkpoint||lastStage||'unknown',checkpoint_is_causal:false,max_blocked_ms:Number(snapshot?.blocked_ms||0),warning_cleared:true,authority_switch:false,authority}});
+  debugTrace.record('startup','main_thread_block_recovered',{status:'completed',details:{last_checkpoint:snapshot?.checkpoint||lastStage||'unknown',checkpoint_is_causal:false,max_blocked_ms:Number(snapshot?.blocked_ms||0),warning_cleared:true,authority_switch:false,automatic_retry_restarted:false,authority}});
   lastWarningText='';return true;
 }
 function startHeartbeat(){
