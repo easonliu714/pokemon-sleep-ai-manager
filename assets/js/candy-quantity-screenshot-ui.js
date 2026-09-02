@@ -26,7 +26,7 @@ const cfg=Object.freeze({
   label:'糖果庫存',
   entities:['candy_inventory'],
 });
-const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]));
+const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const clean=value=>String(value??'').trim();
 const token=()=>`${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
 
@@ -231,11 +231,12 @@ function mount(){
     const gapCount=state.result?.summary?.candy_public_master_gap_confirmed_count||confirmedGapRows().length;
     const identityPending=state.result?.summary?.candy_identity_pending_count||0;
     const operationCount=state.result?.update_package?.operations?.length||0;
-    const countState=state.result?.candy_visible_target_count||getCandyVisibleTargetCountState(workingPayload()||{});
+    const payload=workingPayload();
+    const countState=payload?(state.result?.candy_visible_target_count||getCandyVisibleTargetCountState(payload)):null;
     section.innerHTML=`<h3>糖果截圖庫存覆核 <small>P0-B5 / v0.4.27.55.1</small></h3>
       <p class="notice"><b>OCR／AI 讀到的糖果數量只是候選值，不會直接寫入。</b> 每一筆必須由你查看目前遊戲畫面後再按一次數量確認；identity MATCH 不等於 quantity 確認。0 是合法值，但也必須人工確認。平台不保證遊戲外部變動自動同步。</p>
       <p class="notice"><b>Candy identity exact gate：</b>Gemini 選擇的 canonical 糖果名稱若與畫面 observed_text 不一致，會強制回到人工 identity 覆核，不能直接確認 quantity。這可阻擋「小火焰猴的糖果 → 猛火猴的糖果」這類跨名稱誤綁。</p>
-      <p class="notice">Quantity Authority：<code>${esc(CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION)}</code> · Count Authority：<code>${esc(CANDY_VISIBLE_TARGET_COUNT_CONFIRMATION_AUTHORITY_VERSION)}</code> · Count Gate：<b>${esc(countState.gate_status||'—')}</b> · 已確認數量：<b>${confirmed}</b> · identity 待確認：<b>${identityPending}</b> · 已確認 Master gap：<b>${gapCount}</b> · 待覆核：<b>${pending.length}</b> · Provider：${esc(state.provider||'—')}</p>
+      <p class="notice">Quantity Authority：<code>${esc(CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION)}</code> · Count Authority：<code>${esc(CANDY_VISIBLE_TARGET_COUNT_CONFIRMATION_AUTHORITY_VERSION)}</code> · Count Gate：<b>${esc(countState?.gate_status||'—')}</b> · 已確認數量：<b>${confirmed}</b> · identity 待確認：<b>${identityPending}</b> · 已確認 Master gap：<b>${gapCount}</b> · 待覆核：<b>${pending.length}</b> · Provider：${esc(state.provider||'—')}</p>
       <label>選擇糖果庫存截圖 <input id="candyB5Files" type="file" accept="image/*" multiple></label>
       <div class="notice">已選：${state.entries.map(item=>esc(item.file_name)).join('、')||'尚未選擇'}</div>
       <div class="buttons"><button id="candyB5Gemini" ${state.entries.length&&!state.busy?'':'disabled'}>${state.busy?'Gemini 分析中…':'Gemini API 直接分析'}</button><button id="candyB5Prompt" ${state.entries.length?'':'disabled'}>複製外部 AI Prompt</button></div>
