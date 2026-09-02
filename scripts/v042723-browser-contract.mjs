@@ -3,13 +3,14 @@ import {chromium} from 'playwright';
 
 const base=process.env.BASE_URL||'http://127.0.0.1:4173/';
 const minimumPatch=23;
-const isSupportedVersion=version=>{const match=/^v0\.4\.27\.(\d+)$/.exec(String(version||''));return Boolean(match)&&Number(match[1])>=minimumPatch;};
+// Nested hotfixes (for example v0.4.27.55.1) are valid successors; preserve the minimum patch gate while allowing additional numeric components.
+const isSupportedVersion=version=>{const match=/^v0\.4\.27\.(\d+)(?:\.\d+)*$/.exec(String(version||''));return Boolean(match)&&Number(match[1])>=minimumPatch;};
 const browser=await chromium.launch({headless:true});
 try{
   const context=await browser.newContext();
   const page=await context.newPage();
   await page.goto(base,{waitUntil:'domcontentloaded'});
-  await page.waitForFunction((minimum)=>{const match=/^v0\.4\.27\.(\d+)$/.exec(String(globalThis.PokemonSleepVersionAuthority?.app_version||''));return Boolean(match)&&Number(match[1])>=minimum;},minimumPatch,{timeout:30000});
+  await page.waitForFunction((minimum)=>{const match=/^v0\.4\.27\.(\d+)(?:\.\d+)*$/.exec(String(globalThis.PokemonSleepVersionAuthority?.app_version||''));return Boolean(match)&&Number(match[1])>=minimum;},minimumPatch,{timeout:30000});
   await page.waitForFunction(()=>Boolean(globalThis.PokemonSleepPlayerProfileConsistencyV042723),{timeout:30000});
   await page.waitForFunction(()=>Boolean(globalThis.PokemonSleepPlayerEvolutionOverrideV042721),{timeout:30000});
   await page.waitForFunction(()=>Boolean(globalThis.PokemonSleepMultiCaptureConsistency),{timeout:30000});
