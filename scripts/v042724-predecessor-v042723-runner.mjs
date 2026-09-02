@@ -4,8 +4,16 @@ import {spawnSync} from 'node:child_process';
 const authorityPath='assets/js/version-authority.js';
 const original=fs.readFileSync(authorityPath,'utf8');
 const current=original.match(/app_version:\s*'([^']+)'/)?.[1]||null;
-const currentPatch=Number(/^v0\.4\.27\.(\d+)$/.exec(current||'')?.[1]);
-if(!Number.isInteger(currentPatch)||currentPatch<24)throw new Error(`V042724_PREDECESSOR_UNEXPECTED_VERSION:${current}`);
+const versionParts=value=>String(value||'').replace(/^v/,'').split('.').map(item=>Number(item)||0);
+const atLeast=(value,minimum)=>{
+  const a=versionParts(value),b=versionParts(minimum),n=Math.max(a.length,b.length);
+  for(let index=0;index<n;index+=1){
+    const left=a[index]||0,right=b[index]||0;
+    if(left!==right)return left>right;
+  }
+  return true;
+};
+if(!/^v\d+(?:\.\d+)+$/.test(current||'')||!atLeast(current,'v0.4.27.24'))throw new Error(`V042724_PREDECESSOR_UNEXPECTED_VERSION:${current}`);
 
 const staged=original
   .replace(/app_version:\s*'[^']+'/, "app_version: 'v0.4.27.23'")
@@ -28,4 +36,4 @@ try{
   fs.writeFileSync(authorityPath,original,'utf8');
 }
 
-console.log(JSON.stringify({status:'PASS',gate:'V042724_PREDECESSOR_V042723_REPLAY',current_version:current,current_patch:currentPatch,minimum_successor_patch:24,staged_version:'v0.4.27.23',contracts,current_authority_restored:true},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V042724_PREDECESSOR_V042723_REPLAY',current_version:current,minimum_successor_version:'v0.4.27.24',multi_component_successor_supported:true,staged_version:'v0.4.27.23',contracts,current_authority_restored:true},null,2));
