@@ -19,7 +19,9 @@ const read=path=>fs.readFileSync(path,'utf8');
 const versionSource=read('assets/js/version-authority.js'),serviceWorkerSource=read('service-worker.js'),workflowSource=read('.github/workflows/regression-gate.yml');
 const appVersion=versionSource.match(/app_version:\s*'([^']+)'/)?.[1]||'',appBuild=versionSource.match(/app_build:\s*'([^']+)'/)?.[1]||'',cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
 const p0b6Patch=Number(appVersion.match(/^v0\.4\.27\.(\d+)(?:\.\d+)*$/)?.[1]||-1);
+const p0b6Hotfix=Number(appVersion.match(/^v0\.4\.27\.55\.(\d+)(?:\.\d+)*$/)?.[1]||0);
 const p0b6Successor=p0b6Patch>=55;
+const localGapDurabilitySuccessor=p0b6Patch>55||(p0b6Patch===55&&p0b6Hotfix>=2);
 const withLocalAdmissions=(observedTexts,fn)=>{
   const previous=globalThis.localStorage;
   const rows=observedTexts.map((observed_text,index)=>preparePublicCandyLocalAdmission({observation:{status:'UNMATCHED',observed_text,source_image_ref:`fixture-image-${index+1}`,observation_id:`fixture-observation-${index+1}`},confirmedAt:`2026-09-01T13:40:0${index}.000Z`}));
@@ -28,13 +30,18 @@ const withLocalAdmissions=(observedTexts,fn)=>{
   try{return fn(rows);}finally{if(previous===undefined)delete globalThis.localStorage;else globalThis.localStorage=previous;}
 };
 
-assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION,p0b6Successor?'public-candy-display-name-authority-2026-09-01-e':'public-candy-display-name-authority-2026-08-31-a');
+assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION,localGapDurabilitySuccessor?'public-candy-display-name-authority-2026-09-02-f':p0b6Successor?'public-candy-display-name-authority-2026-09-01-e':'public-candy-display-name-authority-2026-08-31-a');
 for(const [key,value] of Object.entries({exact_official_zh_tw_string_required:true,structural_root_is_not_display_name_anchor:true,species_name_concatenation_forbidden:true,automatic_display_name_generation:false,unverified_family_fail_closed:true,legacy_candy_master_mutation_authority:false,legacy_candy_id_remap_authority:false,candy_inventory_migration_authority:false,player_quantity_write_authority:false,professor_transfer_write_behavior_changed:false}))assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY[key],value,key);
 if(p0b6Successor){
   assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.ingame_screenshot_official_equivalent_exact_string_supported,true);
   assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.real_device_user_revalidation_exact_string_supported,true);
   assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.local_user_confirmed_exact_string_supported,true);
   assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.local_admission_quantity_authority,false);
+}
+if(localGapDurabilitySuccessor){
+  assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.local_user_confirmed_precedes_public_same_name,true);
+  assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.local_public_name_conflict_fail_closed,true);
+  assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.local_admission_read_failure_fail_closed,true);
 }
 
 const rows=currentPublicCandyDisplayNameAuthorityRows();
@@ -112,5 +119,5 @@ assert.ok(versionSource.includes("// app_version: 'v0.4.27.49'"));
 assert.equal((serviceWorkerSource.match(/\.\/assets\/js\/public-candy-display-name-authority\.js/g)||[]).length,1);
 assert.equal((serviceWorkerSource.match(/\.\/assets\/js\/public-candy-family-authority\.js/g)||[]).length,1);
 assert.ok(workflowSource.includes('node scripts/v042750-p0b4-candy-display-name-authority-contract.mjs'));
-console.log(JSON.stringify({status:'PASS',gate:'V042750_P0B4_PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY',authority_version:PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION,admitted_exact_zh_tw_display_name_rows:rows.length,verified_display_names:rows.map(row=>row.candy_display_name),app_version:appVersion,app_build:appBuild,nested_hotfix_version_supported:p0b6Successor&&appVersion!=='v0.4.27.55',semantics:{family_level_display_name_resolution:true,exact_first_party_zh_tw_evidence_only:true,local_admission_dynamic_fallback:p0b6Successor,local_admission_reaches_canonical_storage:p0b6Successor,unverified_family_review_required:true,automatic_display_name_generation:false,legacy_candy_master_mutation:false,player_inventory_migration:false,professor_transfer_write_change:false,successor_release_exact:true}},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V042750_P0B4_PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY',authority_version:PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION,admitted_exact_zh_tw_display_name_rows:rows.length,verified_display_names:rows.map(row=>row.candy_display_name),app_version:appVersion,app_build:appBuild,nested_hotfix_version_supported:p0b6Successor&&appVersion!=='v0.4.27.55',local_gap_durability_successor:localGapDurabilitySuccessor,semantics:{family_level_display_name_resolution:true,exact_first_party_zh_tw_evidence_only:true,local_admission_dynamic_fallback:p0b6Successor,local_admission_reaches_canonical_storage:p0b6Successor,local_precedes_public_same_name:localGapDurabilitySuccessor,local_public_conflict_fail_closed:localGapDurabilitySuccessor,local_read_failure_fail_closed:localGapDurabilitySuccessor,unverified_family_review_required:true,automatic_display_name_generation:false,legacy_candy_master_mutation:false,player_inventory_migration:false,professor_transfer_write_change:false,successor_release_exact:true}},null,2));
 await import('./v042751-p0b5-candy-quantity-confirmation-contract.mjs');
