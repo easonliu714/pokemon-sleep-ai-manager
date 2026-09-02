@@ -12,12 +12,21 @@ const index=fs.readFileSync('index.html','utf8');
 const sandbox={};sandbox.globalThis=sandbox;vm.runInNewContext(versionSource,sandbox);
 const current=sandbox.PokemonSleepVersionAuthority;
 
-assert.match(storage,/IDB_VERSION\s*=\s*2/);
+// v0.4.27.55.3 advances only the browser IndexedDB container from v2 to v3
+// to add metadata-only snapshot listing. This is NOT a SQLite schema migration;
+// existing database/snapshots/metadata stores remain intact and the new store is additive.
+assert.match(storage,/IDB_VERSION\s*=\s*3/);
+assert.match(storage,/DB_STORE\s*=\s*["']database["']/);
+assert.match(storage,/SNAPSHOT_STORE\s*=\s*["']snapshots["']/);
+assert.match(storage,/SNAPSHOT_META_STORE\s*=\s*["']snapshot_metadata["']/);
 assert.match(storage,/META_STORE\s*=\s*["']metadata["']/);
+assert.match(storage,/if\(!db\.objectStoreNames\.contains\(SNAPSHOT_META_STORE\)\)db\.createObjectStore\(SNAPSHOT_META_STORE,\{keyPath:'id'\}\)/);
 assert.match(storage,/getKey\(DB_KEY\)/);
 assert.match(storage,/onblocked/);
 assert.match(storage,/onversionchange/);
 assert.match(storage,/byte_length/);
+assert.match(storage,/getAllKeys\(\)/,'snapshot payload enumeration must stay key-only after the v3 additive upgrade');
+assert.doesNotMatch(storage,/request\(SNAPSHOT_STORE,'readonly',store=>store\.getAll\(\)\)/,'safe boot must not materialize historical SQLite snapshot payloads just to list them');
 assert.match(database,/AUTO_LOAD_MAX_BYTES=48\*1024\*1024/);
 assert.match(database,/CONFIRM_LOAD_MAX_BYTES=128\*1024\*1024/);
 assert.match(database,/legacy_database_requires_confirmation/);
@@ -34,7 +43,7 @@ assert.match(releaseAuthority,/下載啟動紀錄/);
 assert.match(releaseAuthority,/service-worker(?:-v0387)?\.js/);
 assert.match(releaseAuthority,/detail\.rescue\|\|detail\.readonly/);
 // Historical v0.3.87 safety behavior must remain valid across later v0.x releases,
-// including nested numeric hotfix versions such as v0.4.27.55.1.
+// including nested numeric hotfix versions such as v0.4.27.55.3.
 assert.match(current.app_version,/^v0(?:\.\d+){2,}$/);
 assert.ok(current.app_build);
 assert.match(bootstrap,/version-authority\.js/);
@@ -43,4 +52,4 @@ assert.match(bootstrap,/authority\.app_build/);
 assert.match(sw,/importScripts\('\.\/assets\/js\/version-authority\.js'\)/);
 assert.match(sw,/cache_name:CACHE/);
 assert.ok(index.includes('bootstrap.js'));
-console.log(JSON.stringify({status:'PASS',gate:'v0387_safe_boot_contract',version:current.app_version,player_data_write:false,legacy_auto_read:false,index_authority:true,forward_compatible_release:true,nested_hotfix_semver_supported:true,worker_isolated_load:true,worker_lifecycle_race_closed:true,fresh_database_bootstrap:true,post_migration_dispatch_isolated:true,central_version_authority:true,public_master_local_first:true}));
+console.log(JSON.stringify({status:'PASS',gate:'v0387_safe_boot_contract',version:current.app_version,player_data_write:false,legacy_auto_read:false,index_authority:true,forward_compatible_release:true,nested_hotfix_semver_supported:true,worker_isolated_load:true,worker_lifecycle_race_closed:true,fresh_database_bootstrap:true,post_migration_dispatch_isolated:true,central_version_authority:true,public_master_local_first:true,indexeddb_version:3,snapshot_metadata_additive:true,snapshot_payload_list_materialized:false,sqlite_migration_unchanged:true}));
