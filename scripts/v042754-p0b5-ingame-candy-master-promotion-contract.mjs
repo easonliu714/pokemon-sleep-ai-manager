@@ -157,6 +157,14 @@ if(appVersion==='v0.4.27.54'){
   assert.ok(version.includes("// app_version: 'v0.4.27.55'"));
   assert.ok(version.includes("// app_build: '20260901-v042755-p0b6-candy-family-storage-reconciliation'"));
   assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55-v042755-p0b6-candy-family-storage-reconciliation'"));
+}else if(appVersion==='v0.4.27.55.3.1'){
+  assert.equal(appBuild,'20260902-v04275531-startup-idb-sw-reliability');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.1-v04275531-startup-idb-sw-reliability');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.2'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55'"));
+  assert.ok(version.includes("// app_build: '20260901-v042755-p0b6-candy-family-storage-reconciliation'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55-v042755-p0b6-candy-family-storage-reconciliation'"));
 }else assert.fail(`.54 promotion successor release not governed: ${appVersion}`);
 assert.ok(version.includes("// app_version: 'v0.4.27.53'"));
 assert.ok(version.includes("// app_version: 'v0.3.96'"));

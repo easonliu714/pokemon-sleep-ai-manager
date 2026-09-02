@@ -1,4 +1,4 @@
-import {inspectDatabaseRecord,loadDatabaseBytes,loadDatabaseBytesInWorker,cancelWorkerDatabaseLoad,saveDatabaseBytes,createSnapshot} from './storage.js';
+import {inspectDatabaseRecord,loadDatabaseBytes,loadDatabaseBytesInWorker,cancelWorkerDatabaseLoad,resetStorageConnection,saveDatabaseBytes,createSnapshot} from './storage.js';
 import {DDL,SEED_SQL} from './schema.js';
 import {applyAllMigrations,applyFreshDatabaseBootstrap} from './migrations.js';
 import {applyCandyFamilyStorageMigration} from './candy-family-storage-authority.js';
@@ -9,25 +9,36 @@ const AUTO_LOAD_MAX_BYTES=48*1024*1024;
 const CONFIRM_LOAD_MAX_BYTES=128*1024*1024;
 const MOBILE_SAFE_TRANSFER_BYTES=48*1024*1024;
 const FORCE_LOAD_KEY='pokemon-sleep-force-database-load-once';
+const METADATA_PROBE_TIMEOUT_MS=8000;
 let bootGeneration=0,readyDispatchGeneration=0;
-const timeout=(promise,ms,label)=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error(`${label}逾時（${Math.round(ms/1000)}秒）`)),ms);timer?.unref?.();Promise.resolve(promise).then(value=>{clearTimeout(timer);resolve(value);},error=>{clearTimeout(timer);reject(error);});});
+const timeout=(promise,ms,label)=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Object.assign(new Error(`${label}逾時（${Math.round(ms/1000)}秒）`),{code:'operation_timeout',timeout_ms:ms,label})),ms);timer?.unref?.();Promise.resolve(promise).then(value=>{clearTimeout(timer);resolve(value);},error=>{clearTimeout(timer);reject(error);});});
 const emit=(stage,message,status='running',details={},error=null)=>{if(typeof globalThis.dispatchEvent==='function'&&typeof globalThis.CustomEvent==='function')globalThis.dispatchEvent(new globalThis.CustomEvent('pokemon-sleep:startup-progress',{detail:{stage,message,status,details,error:error?.message||error||null}}));};
 const dispatchReadyAsync=detail=>{const dispatchGeneration=++readyDispatchGeneration;emit('DATABASE_READY_DISPATCH_SCHEDULED','資料庫已就緒；正在排程非同步 App 初始化','completed',{dispatch_generation:dispatchGeneration,...detail});setTimeout(()=>{const started=performance?.now?.()||Date.now();emit('DATABASE_READY_DISPATCH_START','正在通知 App 載入一般模式','running',{dispatch_generation:dispatchGeneration,...detail});try{globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:database-ready',{detail:{...detail,dispatch_generation:dispatchGeneration}}));emit('DATABASE_READY_DISPATCH_COMPLETED','資料庫就緒通知已完成','completed',{dispatch_generation:dispatchGeneration,elapsed_ms:Math.round((performance?.now?.()||Date.now())-started),...detail});}catch(error){emit('DATABASE_READY_DISPATCH_FAILED','資料庫就緒通知失敗','failed',{dispatch_generation:dispatchGeneration,...detail},error);}},0);};
 const safeBootError=(code,message,details={})=>Object.assign(new Error(message),{code,details,safe_boot:true});
 const yieldToUi=()=>new Promise(resolve=>setTimeout(resolve,0));
 function consumeForceLoad(){try{const enabled=sessionStorage.getItem(FORCE_LOAD_KEY)==='1';sessionStorage.removeItem(FORCE_LOAD_KEY);return enabled;}catch{return false;}}
 
-async function createReadonlyRescueDatabase(error){rescueReadonly=true;db=null;const detail={seeded:false,rescue:true,readonly:true,zero_sql:true,error_code:error.code,message:error.message,...error.details};emit('RESCUE_READY','救援／唯讀模式已就緒；未載入 SQL.js，也未讀取玩家 SQLite','completed',detail);emit('BOOTSTRAP_COMPLETE','啟動流程已在零 SQLite 救援模式完成','completed',detail);dispatchReadyAsync(detail);setTimeout(()=>{const status=document.getElementById('dbStatus'),warning=document.getElementById('storageWarning');if(status){status.textContent='救援／唯讀模式';status.className='badge warning';}if(warning){warning.textContent=`本機玩家資料尚未載入：${error.message}。目前僅可瀏覽公版頁面，不會寫入玩家資料。`;warning.classList.remove('hidden');}emit('APP_READY','App 已在零 SQLite 救援模式完成啟動','completed',detail);},0);return detail;}
-export async function inspectDatabaseBoot(){const inspection=await timeout(inspectDatabaseRecord(),8000,'本機資料庫 metadata 讀取');const byteLength=Number(inspection.metadata?.byte_length||0);return {...inspection,byte_length:byteLength,metadata_known:Boolean(inspection.metadata&&byteLength>=0)};}
+async function createReadonlyRescueDatabase(error){rescueReadonly=true;db=null;const detail={seeded:false,rescue:true,readonly:true,zero_sql:true,error_code:error.code,message:error.message,...error.details};emit('RESCUE_READY','救援／唯讀模式已就緒；未載入 SQL.js，也未讀取玩家 SQLite','completed',detail);emit('BOOTSTRAP_COMPLETE','啟動流程已在零 SQLite 救援模式完成','completed',detail);dispatchReadyAsync(detail);setTimeout(()=>{const status=document.getElementById('dbStatus'),warning=document.getElementById('storageWarning');if(status){status.textContent='救援／唯讀模式';status.className='badge warning';}if(warning){warning.textContent=`本機玩家資料尚未載入：${error.message}。目前僅可瀏覽公版頁面，不會寫入玩家資料。`;warning.classList.remove('hidden');}emit('RESCUE_UI_READY','救援 UI 已完成啟動','completed',detail);},0);return detail;}
 
-function applyCandyFamilyStorageLifecycle(database,migrationResult){
-  const candyFamilyStorage=applyCandyFamilyStorageMigration(database);
-  return {
-    ...(migrationResult||{}),
-    database_changed:Boolean(migrationResult?.database_changed)||Boolean(candyFamilyStorage.database_changed),
-    candy_family_storage:candyFamilyStorage,
-  };
+export async function inspectDatabaseBoot(){
+  try{
+    const inspection=await timeout(inspectDatabaseRecord(),METADATA_PROBE_TIMEOUT_MS,'本機資料庫 metadata 讀取');
+    const byteLength=Number(inspection.metadata?.byte_length||0);
+    return {...inspection,byte_length:byteLength,metadata_known:Boolean(inspection.metadata&&byteLength>=0)};
+  }catch(error){
+    if(error?.code==='operation_timeout'){
+      resetStorageConnection('metadata_probe_timeout');
+      throw safeBootError('database_metadata_probe_timeout_retryable','本機資料庫 metadata 暫時無回應；已安全中止本次連線嘗試，可重新載入後重試',{retryable:true,metadata_probe_timeout_ms:METADATA_PROBE_TIMEOUT_MS,connection_reset:true});
+    }
+    if(error?.retryable||error?.code==='indexeddb_blocked'||error?.code==='indexeddb_open_superseded'){
+      resetStorageConnection(error.code||'metadata_probe_retryable');
+      throw safeBootError('database_metadata_probe_retryable','本機資料庫暫時無法取得；已保持 fail-closed，可重新載入後重試',{retryable:true,source_code:error.code||null,connection_reset:true});
+    }
+    throw error;
+  }
 }
+
+function applyCandyFamilyStorageLifecycle(database,migrationResult){const candyFamilyStorage=applyCandyFamilyStorageMigration(database);return {...(migrationResult||{}),database_changed:Boolean(migrationResult?.database_changed)||Boolean(candyFamilyStorage.database_changed),candy_family_storage:candyFamilyStorage};}
 
 export async function initializeDatabase(){
   const generation=++bootGeneration;

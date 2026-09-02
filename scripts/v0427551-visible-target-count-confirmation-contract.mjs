@@ -116,11 +116,18 @@ if(appVersion==='v0.4.27.55.1'){
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.2-v0427552-local-gap-field-precedence');
   assert.ok(version.includes("// app_version: 'v0.4.27.55'"),'successor must retain .55 predecessor authority marker');
 }else if(appVersion==='v0.4.27.55.3'){
-  assert.ok(ui.includes('v0.4.27.55.3'),'performance successor UI must show the current .55.3 release label');
+  assert.ok(ui.includes('v0.4.27.55.3'),'performance successor UI must retain its owning .55.3 performance label');
   assert.equal(appBuild,'20260902-v0427553-mobile-snapshot-candy-ui-performance');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3-v0427553-mobile-snapshot-candy-ui-performance');
   assert.ok(version.includes("// app_version: 'v0.4.27.55.2'"),'performance successor must retain .55.2 predecessor authority marker');
   assert.ok(version.includes("// app_version: 'v0.4.27.55'"),'performance successor must retain .55 predecessor authority marker');
+}else if(appVersion==='v0.4.27.55.3.1'){
+  assert.ok(ui.includes("section.dataset.performanceAuthority='v0.4.27.55.3-mobile-incremental-confirmation'"),'startup-only successor must retain the exact .55.3 Candy performance authority instead of fabricating a .55.3.1 Candy UI release label');
+  assert.equal(appBuild,'20260902-v04275531-startup-idb-sw-reliability');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.1-v04275531-startup-idb-sw-reliability');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3'"),'startup hotfix must retain .55.3 predecessor authority marker');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.2'"),'startup hotfix must retain .55.2 predecessor authority marker');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55'"),'startup hotfix must retain .55 predecessor authority marker');
 }else{
   assert.fail(`visible-target-count successor release not governed: ${appVersion}`);
 }

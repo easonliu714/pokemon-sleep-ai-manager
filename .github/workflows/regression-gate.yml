@@ -105,6 +105,9 @@ jobs:
           npm install --no-save --no-package-lock sql.js@1.13.0 fake-indexeddb@6.2.4 playwright@1.54.1
           npx playwright install chromium
 
+      - name: Verify v0.4.27.55.3.1 startup reliability
+        run: node scripts/v04275531-startup-idb-sw-reliability-contract.mjs
+
       - name: Verify v0.4.27.55.3 mobile snapshot and Candy UI performance
         run: node scripts/v0427553-mobile-snapshot-candy-ui-performance-contract.mjs
 
