@@ -5,8 +5,17 @@ import {buildRecipeUnifiedWorkbenchProjection,RECIPE_UNIFIED_PLAYER_WORKBENCH_VE
 import {PUBLIC_RECIPE_MASTER} from '../assets/js/public-recipe-canonical-authority.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
-const versionTuple=value=>{const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$/);return match?match.slice(1).map(part=>Number(part||0)):null;};
-const versionAtLeast=(value,minimum)=>{const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;for(let i=0;i<4;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return true;};
+const versionTuple=value=>{
+  const text=String(value||'');
+  if(!/^v\d+(?:\.\d+){2,}$/.test(text))return null;
+  return text.slice(1).split('.').map(Number);
+};
+const versionAtLeast=(value,minimum)=>{
+  const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;
+  const length=Math.max(a.length,b.length);
+  for(let i=0;i<length;i++){const left=a[i]||0,right=b[i]||0;if(left!==right)return left>right;}
+  return true;
+};
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
@@ -96,7 +105,7 @@ const sw=read('service-worker.js');
 for(const asset of ['./assets/js/team-supply-readiness.js','./assets/js/v0415-ui-polish.js'])assert.ok(sw.includes(`'${asset}'`),`first-offline precache missing ${asset}`);
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'V0415_G72_TEAM_SUPPLY_MOBILE_UI',app_version:appVersion,
+  status:'PASS',gate:'V0415_G72_TEAM_SUPPLY_MOBILE_UI',app_version:appVersion,nested_hotfix_version_supported:true,
   team_supply:{team_members:supply.team_member_count,covered_recipe_count:supply.summary.team_capability_covered_recipe_count,partial_recipe_count:supply.summary.partial_team_coverage_recipe_count,no_source_recipe_count:supply.summary.no_team_source_recipe_count,production_rate_status:supply.production_rate_status,inventory_virtualization:false},
   recipe_summary:{total:recipeProjection.total_count,unlocked:recipeProjection.unlocked_count,locked:recipeProjection.locked_count,base_pot:recipeProjection.base_pot_capacity,verified_boosted_pot:recipeProjection.verified_boosted_pot_capacity,category_partition_complete:recipeProjection.category_partition_complete},
   diagnostics_mobile_wrap:true,first_offline_modules_precached:true,player_write:false,gemini_rate_authority:false,
