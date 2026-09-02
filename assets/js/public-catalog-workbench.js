@@ -19,6 +19,7 @@ const BUILD=globalThis.PokemonSleepVersionAuthority.app_build;
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const $=id=>document.getElementById(id);
 const PUBLIC_VIEWS=Object.freeze(['ingredients','items','recipes']);
+const isPublicView=view=>['ingredients','items','recipes'].includes(view);
 const GLOBAL_KEY='__PokemonSleepPublicCatalogWorkbenchV0427553';
 const runtime=globalThis[GLOBAL_KEY]||(globalThis[GLOBAL_KEY]={
   installed:false,
@@ -83,7 +84,7 @@ function renderItemCatalog(){
 }
 
 function renderView(view){
-  if(!PUBLIC_VIEWS.includes(view))return false;
+  if(!isPublicView(view))return false;
   if(view!=='recipes'&&!databaseReady())return false;
   const key=projectionKey(view);
   if(runtime.renderedKeys.get(view)===key){progress('RENDER_DEDUPED',`${view} 已是目前版次／玩家投影，不重建`,'completed',{view,fingerprint:runtime.publicFingerprint,local_revision:runtime.localRevision[view]||0});return true;}
@@ -109,7 +110,7 @@ async function drainRenderQueue(){
   finally{runtime.draining=false;if(runtime.completedGeneration<runtime.requestedGeneration)queueMicrotask(drainRenderQueue);}
 }
 function requestRender(view=activeView(),reason='unspecified'){
-  if(!PUBLIC_VIEWS.includes(view)){progress('RENDER_DEDUPED','目前分頁不需要公版表格重建','completed',{view,reason,fingerprint:runtime.publicFingerprint});return false;}
+  if(!isPublicView(view)){progress('RENDER_DEDUPED','目前分頁不需要公版表格重建','completed',{view,reason,fingerprint:runtime.publicFingerprint});return false;}
   const key=projectionKey(view);
   if(runtime.renderedKeys.get(view)===key){progress('RENDER_DEDUPED',`${view} 版次與本機投影均未變更`,'completed',{view,reason,fingerprint:runtime.publicFingerprint,local_revision:runtime.localRevision[view]||0});return false;}
   if(runtime.draining&&runtime.pendingView===view){progress('RENDER_DEDUPED',`${view} 已在目前 render queue，合併重複要求`,'completed',{view,reason,generation:runtime.requestedGeneration});return false;}
@@ -121,6 +122,17 @@ function markLocalProjectionDirty(entity){
   const view=publicCatalogProjectionViewForLocalEntity(entity);if(!view)return null;
   runtime.localRevision[view]=(runtime.localRevision[view]||0)+1;return view;
 }
+function emitLazyReady(authority,decision){
+  progress('PUBLIC_CATALOG_LAZY_READY','公版資料已完成版本判斷；後續僅在首次進入或玩家投影變更時載入','completed',{
+    build:BUILD,
+    fingerprint:authority.fingerprint,
+    version_match_bypass:decision.action==='VERSION_MATCH_BYPASS',
+    recipe_master_version:PUBLIC_RECIPE_MASTER_VERSION,
+    recipe_workbench_version:RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION,
+    first_entry_after_navigation:true,
+    cause_aware_generation_queue:true,
+  });
+}
 function handleDatabaseReady(event){
   const authority=evaluatePublicCatalogVersionAuthority(event?.detail?.public_master||{});
   const sentinel=lightweightIntegritySentinel();
@@ -129,6 +141,7 @@ function handleDatabaseReady(event){
   runtime.publicFingerprint=authority.fingerprint;
   runtime.publicExactMatch=decision.action==='VERSION_MATCH_BYPASS';
   progress('PUBLIC_CATALOG_VERSION_CHECK','已比對本機與 Release 公版資料版次','completed',{fingerprint:authority.fingerprint,applied_fingerprint:authority.applied_fingerprint,exact_match:authority.exact,updated:authority.updated,updated_authorities:authority.updated_authorities,persisted_fingerprint:persisted?.fingerprint||null,decision:decision.action,reason:decision.reason,integrity_sentinel:sentinel});
+  emitLazyReady(authority,decision);
   if(runtime.publicExactMatch){
     progress('VERSION_MATCH_BYPASS','公版版次與本機持久化 fingerprint 一致；略過全量公版 hydration／reconciliation／startup render','completed',{fingerprint:authority.fingerprint,integrity_sentinel:sentinel,player_sqlite_bypassed:false,local_authority_bypassed:false,migration_bypassed:false,player_state_refresh_bypassed:false});
     return;
@@ -147,7 +160,7 @@ function handleDatabaseReady(event){
     progress('PUBLIC_CATALOG_FINGERPRINT_PERSIST_FAILED','Public Master fingerprint metadata 無法持久化；本次不啟用 bypass','failed',{fingerprint:authority.fingerprint,error:error?.message||String(error)});
     return;
   }
-  if(PUBLIC_VIEWS.includes(activeView()))requestRender(activeView(),'database-ready-after-reconcile');
+  if(isPublicView(activeView()))requestRender(activeView(),'database-ready-after-reconcile');
 }
 function handleDataChanged(event){
   const detail=event?.detail||{};
@@ -165,6 +178,6 @@ function install(){
   document.querySelectorAll('nav button[data-view]').forEach(button=>button.addEventListener('click',()=>requestRender(button.dataset.view,'navigation')));
   window.addEventListener('pokemon-sleep:data-changed',handleDataChanged);
   window.addEventListener('pokemon-sleep:database-ready',handleDatabaseReady);
-  window.dispatchEvent(new CustomEvent('pokemon-sleep:public-catalog-ready',{detail:{build:BUILD,lazy_renderer:true,mutation_observer:false,global_singleton:true,persisted_public_fingerprint:true,public_version_match_bypass:true,local_change_does_not_invalidate_public_fingerprint:true,cause_aware_generation_queue:true,schema_compatible_items:true,ingredient_unlock_state_semantics:true,recipe_authority:PUBLIC_RECIPE_MASTER_VERSION,recipe_workbench_authority:RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION}}));
+  window.dispatchEvent(new CustomEvent('pokemon-sleep:public-catalog-ready',{detail:{build:BUILD,lazy_renderer:true,mutation_observer:false,first_entry_after_navigation:true,global_singleton:true,persisted_public_fingerprint:true,public_version_match_bypass:true,local_change_does_not_invalidate_public_fingerprint:true,cause_aware_generation_queue:true,schema_compatible_items:true,ingredient_unlock_state_semantics:true,recipe_authority:PUBLIC_RECIPE_MASTER_VERSION,recipe_workbench_authority:RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION}}));
 }
 if(document.readyState==='loading')window.addEventListener('DOMContentLoaded',install,{once:true});else install();
