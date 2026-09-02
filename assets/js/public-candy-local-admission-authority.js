@@ -1,13 +1,25 @@
 import {resolvePublicPokemonSpeciesAuthority} from './public-pokemon-species-authority.js';
+import {
+  MASTER_FIELD_PRECEDENCE_POLICY_VERSION,
+  resolveMasterFieldAuthority,
+} from './data-preservation-policy.js';
 
-export const PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION='public-candy-local-admission-2026-09-01-b';
+export const PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION='public-candy-local-admission-2026-09-02-c';
 export const PUBLIC_CANDY_LOCAL_ADMISSION_SCHEMA='pokemon-sleep-public-candy-local-admission/1.0';
 export const PUBLIC_CANDY_LOCAL_ADMISSION_STORAGE_KEY='pokemon-sleep-public-candy-local-admission-v1';
 export const PUBLIC_CANDY_LOCAL_ADMISSION_ACTION='USER_CONFIRMED_PUBLIC_CANDY_ADMISSION';
+const LEGACY_PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSIONS=Object.freeze(['public-candy-local-admission-2026-09-01-b']);
 
 export const PUBLIC_CANDY_LOCAL_ADMISSION_POLICY=Object.freeze({
   exact_observed_candy_name_required:true,
-  public_species_exact_authority_required:true,
+  public_species_exact_authority_required:false,
+  public_species_corroboration_only:true,
+  public_species_absence_blocks_admission:false,
+  local_user_confirmed_pokemon_name_primary:true,
+  local_user_confirmed_candy_name_primary:true,
+  public_master_supplemental_for_pokemon_candy_names:true,
+  public_master_may_overwrite_local_pokemon_candy_names:false,
+  public_name_completeness_attestation_required_before_public_primary:true,
   observation_must_be_unmatched:true,
   user_confirmation_required:true,
   player_quantity_stored:false,
@@ -15,6 +27,7 @@ export const PUBLIC_CANDY_LOCAL_ADMISSION_POLICY=Object.freeze({
   local_persistent_overlay:true,
   storage_readback_verification:true,
   family_id_consolidation:false,
+  field_precedence_policy_version:MASTER_FIELD_PRECEDENCE_POLICY_VERSION,
 });
 
 const clean=value=>String(value??'').trim();
@@ -37,18 +50,29 @@ export function localAdmissionCandyIdForSpecies(speciesName){
   return species?`species_${candyIdPart(species)}`:'';
 }
 
+function publicSpeciesCorroboration(species){
+  const authority=resolvePublicPokemonSpeciesAuthority(species);
+  const publicName=authority.status==='MATCH'?clean(authority.display_name_zh_tw):null;
+  const precedence=resolveMasterFieldAuthority({field:'pokemon_name_zh_tw',localValue:species,publicValue:publicName});
+  if(precedence.authority!=='LOCAL_PRIMARY_PUBLIC_SUPPLEMENT'||precedence.public_overwrite_allowed||precedence.effective!==species){
+    throw new Error(`Pokémon 名稱欄位 precedence contract 異常：${species}`);
+  }
+  return {authority,publicName,precedence};
+}
+
 function validateRow(row,index){
   const label=`local admission #${index+1}`;
   if(!row||typeof row!=='object'||Array.isArray(row))throw new Error(`${label} 格式錯誤`);
   const species=clean(row.target_species_name),candyName=clean(row.candy_name),candyId=clean(row.candy_id);
-  const speciesAuthority=resolvePublicPokemonSpeciesAuthority(species);
-  if(speciesAuthority.status!=='MATCH'||speciesAuthority.display_name_zh_tw!==species)throw new Error(`${label} Public Pokémon species authority 不成立：${species||'missing'}`);
-  if(candyName!==`${species}的糖果`)throw new Error(`${label} candy_name 必須與 exact species identity 一致`);
+  if(!species)throw new Error(`${label} 缺少 target_species_name`);
+  publicSpeciesCorroboration(species);
+  if(candyName!==`${species}的糖果`)throw new Error(`${label} candy_name 必須與 exact user-confirmed species identity 一致`);
   if(candyId!==localAdmissionCandyIdForSpecies(species))throw new Error(`${label} candy_id 不符合 deterministic identity`);
   if(row.candy_type!=='species')throw new Error(`${label} candy_type 必須為 species`);
   if(row.admission_action!==PUBLIC_CANDY_LOCAL_ADMISSION_ACTION)throw new Error(`${label} 缺少使用者 admission authority`);
   if(!clean(row.confirmed_at)||!clean(row.source_image_ref)||!clean(row.observation_id))throw new Error(`${label} evidence 不完整`);
   if(Object.prototype.hasOwnProperty.call(row,'quantity'))throw new Error(`${label} Public Master admission 禁止包含玩家 quantity`);
+  if(row.field_precedence_policy_version&&row.field_precedence_policy_version!==MASTER_FIELD_PRECEDENCE_POLICY_VERSION)throw new Error(`${label} field precedence policy version 不相符`);
   return Object.freeze({...clone(row),target_type_name:null});
 }
 
@@ -58,7 +82,8 @@ export function readPublicCandyLocalAdmissionState({storage=defaultStorage()}={}
   if(!raw)return defaultState();
   let parsed;
   try{parsed=JSON.parse(raw);}catch{throw new Error('Public Candy local admission storage JSON 損毀');}
-  if(parsed?.schema!==PUBLIC_CANDY_LOCAL_ADMISSION_SCHEMA||parsed?.authority_version!==PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION||!Array.isArray(parsed?.rows))throw new Error('Public Candy local admission storage schema/version 不相符');
+  const supportedAuthorityVersions=new Set([PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION,...LEGACY_PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSIONS]);
+  if(parsed?.schema!==PUBLIC_CANDY_LOCAL_ADMISSION_SCHEMA||!supportedAuthorityVersions.has(parsed?.authority_version)||!Array.isArray(parsed?.rows))throw new Error('Public Candy local admission storage schema/version 不相符');
   const rows=parsed.rows.map(validateRow),ids=new Set(),names=new Set();
   for(const row of rows){
     if(ids.has(row.candy_id))throw new Error(`Public Candy local admission candy_id 衝突：${row.candy_id}`);
@@ -88,11 +113,10 @@ export function publicCandyLocalAdmissionFingerprint(options={}){
 
 export function preparePublicCandyLocalAdmission({observation,confirmedAt=new Date().toISOString()}={}){
   if(!observation||typeof observation!=='object'||Array.isArray(observation))throw new Error('Public Candy admission 需要 Recognition observation');
-  if(observation.status!=='UNMATCHED')throw new Error('只有 UNMATCHED observation 才能建立本機 Public Candy identity');
+  if(observation.status!=='UNMATCHED')throw new Error('只有 UNMATCHED observation 才能建立本機 Candy identity');
   const species=parseObservedSpeciesCandyName(observation.observed_text);
-  if(!species)throw new Error('畫面名稱必須是 exact「寶可夢名稱的糖果」才能建立 Public Candy identity');
-  const authority=resolvePublicPokemonSpeciesAuthority(species);
-  if(authority.status!=='MATCH'||authority.display_name_zh_tw!==species)throw new Error(`Public Pokémon species authority 尚未確認「${species}」；不能建立糖果公版`);
+  if(!species)throw new Error('畫面名稱必須是 exact「寶可夢名稱的糖果」才能建立本機 Candy identity');
+  const {authority,publicName,precedence}=publicSpeciesCorroboration(species);
   const sourceImageRef=clean(observation.source_image_ref),observationId=clean(observation.observation_id);
   if(!sourceImageRef||!observationId)throw new Error('Public Candy admission 需要 image / observation evidence');
   return validateRow({
@@ -111,6 +135,13 @@ export function preparePublicCandyLocalAdmission({observation,confirmedAt=new Da
     confirmed_at:clean(confirmedAt),
     admission_action:PUBLIC_CANDY_LOCAL_ADMISSION_ACTION,
     authority_version:PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION,
+    field_precedence_policy_version:MASTER_FIELD_PRECEDENCE_POLICY_VERSION,
+    pokemon_name_authority:'LOCAL_PRIMARY_USER_CONFIRMED_GAME_SCREENSHOT',
+    candy_name_authority:'LOCAL_PRIMARY_USER_CONFIRMED_GAME_SCREENSHOT',
+    public_species_resolution_status:clean(authority.status),
+    public_species_display_name_zh_tw:publicName,
+    public_species_corroboration_decision:precedence.decision,
+    public_species_source_ref:authority.status==='MATCH'?clean(authority.source_ref)||null:null,
   },0);
 }
 
