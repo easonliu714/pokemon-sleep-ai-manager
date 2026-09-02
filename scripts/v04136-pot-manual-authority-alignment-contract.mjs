@@ -3,8 +3,17 @@ import fs from 'node:fs';
 import {resolveBasePotCapacity} from '../assets/js/pot-capacity-authority.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
-const versionTuple=value=>{const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$/);return match?match.slice(1).map(part=>Number(part||0)):null;};
-const versionAtLeast=(value,minimum)=>{const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;for(let i=0;i<4;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return true;};
+const versionTuple=value=>{
+  const text=String(value||'');
+  if(!/^v\d+(?:\.\d+){2,}$/.test(text))return null;
+  return text.slice(1).split('.').map(Number);
+};
+const versionAtLeast=(value,minimum)=>{
+  const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;
+  const length=Math.max(a.length,b.length);
+  for(let i=0;i<length;i++){const left=a[i]||0,right=b[i]||0;if(left!==right)return left>right;}
+  return true;
+};
 const ui=read('assets/js/weekly-context-ui-bridge.js');
 const manual=read('assets/js/weekly-context-manual-override.js');
 const store=read('assets/js/weekly-context-store.js');
@@ -56,6 +65,7 @@ console.log(JSON.stringify({
   status:'PASS',
   gate:'V0.4.13.6_POT_MANUAL_AUTHORITY_ALIGNMENT_SUCCESSOR_AWARE',
   app_version:appVersion,
+  nested_hotfix_version_supported:true,
   account_capacity_precedence:true,
   weekly_pot_new_override:false,
   manual_edit_routes_to_account_capacity:true,
