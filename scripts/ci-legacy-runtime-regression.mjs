@@ -54,7 +54,11 @@ currentPhase='boot-isolation-finalize';
 {
   for(const path of ['assets/js/database.js','assets/js/app.js','assets/js/bootstrap.js','assets/js/v0383-catalog-ocr-review-contract.js','assets/js/public-catalog-workbench.js','assets/js/recipe-unified-player-workbench.js','assets/js/version-authority.js'])assert.equal(fs.existsSync(path),true,`${path} missing`);
   const database=read('assets/js/database.js'),app=read('assets/js/app.js'),bootstrap=read('assets/js/bootstrap.js'),catalogContract=read('assets/js/v0383-catalog-ocr-review-contract.js'),catalog=read('assets/js/public-catalog-workbench.js'),recipeWorkbench=read('assets/js/recipe-unified-player-workbench.js');
-  assert.match(database,/BOOT_PERSIST_SKIPPED|boot_persist_skipped/);assert.match(database,/RESCUE_READY/);assert.match(database,/BOOTSTRAP_COMPLETE/);assert.match(database,/dispatchReady/);assert.match(database+bootstrap,/APP_READY/);
+  assert.match(database,/BOOT_PERSIST_SKIPPED|boot_persist_skipped/);assert.match(database,/RESCUE_READY/);assert.match(database,/BOOTSTRAP_COMPLETE/);assert.match(database,/dispatchReady/);
+  // Since v0.4.27.55.3.1 module bootstrap is explicitly not business-ready.
+  // Preserve the historical finalization requirement by binding APP_READY to the
+  // App hydration owner instead of requiring the database/bootstrap layers to claim it.
+  assert.match(app,/pokemon-sleep:app-ready|APP_READY/);assert.match(bootstrap,/modules_ready/);assert.doesNotMatch(bootstrap,/debugTrace\.record\('bootstrap','app_ready'/);
   assert.match(catalogContract,/database_write_performed:false/);assert.match(catalogContract,/PokemonSleepPublicRecipeRegistry/);
   assert.match(catalog,/item_catalog_state/);assert.match(catalog,/ingredient_catalog_state/);
   assert.match(catalog,/renderRecipeUnifiedWorkbench/,'public catalog must delegate Recipe ownership to unified workbench');
@@ -85,4 +89,4 @@ currentPhase='worker-isolation-lifecycle';
 
 currentPhase='mutation-guard';
 run('git',['diff','--exit-code'],{label:'legacy-runtime mutation guard'});
-console.log(JSON.stringify({status:'PASS',gate:'LEGACY_RUNTIME_REGRESSION',version:LEGACY_RUNTIME_REGRESSION_VERSION,existing_contract_count:existingContracts.length,embedded_behavior_groups:4,recipe_owner_successor_aware:true,player_data_write:false,release_authority_mutation:false},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'LEGACY_RUNTIME_REGRESSION',version:LEGACY_RUNTIME_REGRESSION_VERSION,existing_contract_count:existingContracts.length,embedded_behavior_groups:4,recipe_owner_successor_aware:true,app_ready_owner:'app_hydration',player_data_write:false,release_authority_mutation:false},null,2));
