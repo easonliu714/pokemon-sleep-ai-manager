@@ -18,6 +18,7 @@ const candyUiSource=fs.readFileSync(new URL('../assets/js/candy-quantity-screens
 const versionSource=fs.readFileSync(new URL('../assets/js/version-authority.js',import.meta.url),'utf8');
 const indexSource=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const publicCatalogSource=fs.readFileSync(new URL('../assets/js/public-catalog-workbench.js',import.meta.url),'utf8');
+const debugTraceSource=fs.readFileSync(new URL('../assets/js/debug-trace-manager.js',import.meta.url),'utf8');
 
 assert.match(storageSource,/const IDB_VERSION = 3;/);
 assert.match(storageSource,/const SNAPSHOT_META_STORE = "snapshot_metadata";/);
@@ -37,13 +38,26 @@ assert.match(startSource,/pokemon-sleep:app-ready/);
 assert.match(appSource,/ui_refresh_completed/);
 assert.match(appSource,/snapshot_list_metadata_only:true/);
 
-// Major settled views must exist in the initial document shell rather than being
-// created after data/network modules finish loading.
-for(const view of ['dashboard','pokemon','ingredients','items','recipes','updates','backup','knowledge','weekly','warroom','collection','guide']){
+// Settled top-level UI exists in the first HTML response. Runtime modules bind
+// controls and fill content; they do not need to grow the page shell after load.
+for(const view of ['dashboard','pokemon','ingredients','items','recipes','updates','backup','knowledge','weekly','warroom','collection','guide','diagnostics']){
   assert.match(indexSource,new RegExp(`<section id="${view}"`),`static shell missing view ${view}`);
   assert.match(indexSource,new RegExp(`data-view="${view}"`),`static shell missing nav ${view}`);
 }
 assert.match(indexSource,/id="updateCenterDynamicContent"/);
+assert.match(indexSource,/id="appVersion"/);
+assert.match(indexSource,/id="debugExportBtn"/);
+assert.match(indexSource,/id="debugBundleBtn"/);
+assert.match(indexSource,/id="debugEventTable"/);
+assert.match(debugTraceSource,/diagnostics_static_shell_bound/);
+assert.match(debugTraceSource,/section\.dataset\.debugTraceBound/);
+assert.match(debugTraceSource,/async export\(\)/);
+assert.match(debugTraceSource,/await nextPaint\(\)/);
+assert.match(debugTraceSource,/trace_export_handler_started/);
+assert.match(debugTraceSource,/build_ms:buildMs/);
+assert.match(debugTraceSource,/handler_ms:handlerMs/);
+assert.match(debugTraceSource,/pre_redacted:true/);
+assert.match(debugTraceSource,/buildReport\(\)\{this\.flush\(\{refresh_ui:false\}\)/);
 
 assert.match(candyUiSource,/v0\.4\.27\.55\.3/);
 assert.match(candyUiSource,/candy-quantity-screenshot-ui-2026-09-02-e-mobile-perf/);
@@ -97,6 +111,7 @@ assert.match(publicCatalogSource,/VERSION_MATCH_BYPASS/);
 assert.match(publicCatalogSource,/HYDRATE_STARTED/);
 assert.match(publicCatalogSource,/HYDRATE_COMPLETED/);
 assert.match(publicCatalogSource,/RENDER_DEDUPED/);
+assert.match(publicCatalogSource,/PUBLIC_CATALOG_LAZY_READY/);
 assert.match(publicCatalogSource,/persistPublicCatalogFingerprint/);
 assert.match(publicCatalogSource,/runtime\.draining&&runtime\.pendingView===view/,'same-view render requests must coalesce while a render is already queued');
 assert.match(publicCatalogSource,/global_singleton:true/,'duplicate URL identities must share one listener authority');
@@ -173,4 +188,4 @@ assert.equal(globalThis.PokemonSleepVersionAuthority?.app_version,'v0.4.27.55.3'
 assert.equal(globalThis.PokemonSleepVersionAuthority?.app_build,'20260902-v0427553-mobile-snapshot-candy-ui-performance');
 assert.equal(globalThis.PokemonSleepVersionAuthority?.cache_name,'pokemon-sleep-ai-v0.4.27.55.3-v0427553-mobile-snapshot-candy-ui-performance');
 
-console.log('v0.4.27.55.3 mobile snapshot / Candy incremental UI / persisted Public Master bypass contract PASS');
+console.log('v0.4.27.55.3 mobile snapshot / Candy incremental UI / static shell / persisted Public Master bypass contract PASS');
