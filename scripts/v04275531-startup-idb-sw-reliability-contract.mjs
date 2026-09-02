@@ -29,7 +29,10 @@ assert.match(databaseSource,/RESCUE_UI_READY/);
 
 assert.match(watchdogSource,/version_handoff_update_background_started/);
 assert.match(watchdogSource,/scheduleBackgroundServiceWorkerUpdate\(registration\)/);
-assert.doesNotMatch(watchdogSource,/await registration\.update\(\);/,'Service Worker update must not block live-version handoff');
+const liveHandoffSource=watchdogSource.slice(watchdogSource.indexOf('export async function enforceLiveVersionHandoff()'),watchdogSource.indexOf('export function getLastStartupStage'));
+assert.doesNotMatch(liveHandoffSource,/registration\.update\s*\(/,'Service Worker update must not block live-version handoff');
+assert.match(watchdogSource,/await registration\.update\(\)/,'background Service Worker refresh must still execute');
+assert.match(watchdogSource,/requestIdleCallback|setTimeout/,'background update must be scheduled off the immediate critical path');
 assert.match(watchdogSource,/update_on_critical_path:false/);
 
 assert.match(releaseSource,/STARTUP_SLOW_WARNING/);
