@@ -114,7 +114,7 @@ async function loadDeferredFeatureModules(){
     for(const file of criticalProbes)await import(`./${file}?v=${encodeURIComponent(VERSION)}`);
     await import(`./app.js?v=${encodeURIComponent(VERSION)}`);
     enforceVersionAuthority();
-    debugTrace.end(operationId,'completed',{entry_modules_loaded:true,critical_path_reduced:true,deferred_feature_modules:true,static_app_shell:true,version_authority:authority,version_downgrade_guard:true,version_handoff:handoff});
+    debugTrace.end(operationId,'completed',{entry_modules_loaded:true,critical_path_reduced:true,deferred_feature_modules:true,static_app_shell:true,version_authority:authority,version_downgrade_guard:true,version_handoff:handoff,region_ai_review_deferred:true,finalize_nonblocking_workbench:true,duplicate_lightweight_review:true,lightweight_ai_review:true,sequential_advanced_ai_review:true,progressive_ai_review_bootstrap:true,android_raf_timeout_fallback:true,update_center_live_debug:true});
     debugTrace.record('bootstrap','modules_ready',{status:'completed',details:{...authority,business_ready:false,app_ready_authority:false}});
     void waitForAppReady().then(()=>{const schedule=()=>void loadDeferredFeatureModules();if(typeof requestIdleCallback==='function')requestIdleCallback(schedule,{timeout:2000});else setTimeout(schedule,0);});
   }catch(error){showFailure('entry_modules',error);debugTrace.fail(operationId,error,{phase:'entry_modules'});}
