@@ -115,6 +115,12 @@ if(appVersion==='v0.4.27.55.1'){
   assert.equal(appBuild,'20260902-v0427552-local-gap-field-precedence');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.2-v0427552-local-gap-field-precedence');
   assert.ok(version.includes("// app_version: 'v0.4.27.55'"),'successor must retain .55 predecessor authority marker');
+}else if(appVersion==='v0.4.27.55.3'){
+  assert.ok(ui.includes('v0.4.27.55.3'),'performance successor UI must show the current .55.3 release label');
+  assert.equal(appBuild,'20260902-v0427553-mobile-snapshot-candy-ui-performance');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3-v0427553-mobile-snapshot-candy-ui-performance');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.2'"),'performance successor must retain .55.2 predecessor authority marker');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55'"),'performance successor must retain .55 predecessor authority marker');
 }else{
   assert.fail(`visible-target-count successor release not governed: ${appVersion}`);
 }

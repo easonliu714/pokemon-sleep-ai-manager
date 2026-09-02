@@ -202,8 +202,8 @@ assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.automatic_display_name_g
 assert.equal(CANDY_FAMILY_STORAGE_MIGRATION_VERSION,15);
 
 await import('../assets/js/version-authority.js');
-assert.equal(globalThis.PokemonSleepVersionAuthority?.app_version,'v0.4.27.55.2');
-assert.equal(globalThis.PokemonSleepVersionAuthority?.app_build,'20260902-v0427552-local-gap-field-precedence');
-assert.equal(globalThis.PokemonSleepVersionAuthority?.cache_name,'pokemon-sleep-ai-v0.4.27.55.2-v0427552-local-gap-field-precedence');
+assert.equal(globalThis.PokemonSleepVersionAuthority?.app_version,'v0.4.27.55.3');
+assert.equal(globalThis.PokemonSleepVersionAuthority?.app_build,'20260902-v0427553-mobile-snapshot-candy-ui-performance');
+assert.equal(globalThis.PokemonSleepVersionAuthority?.cache_name,'pokemon-sleep-ai-v0.4.27.55.3-v0427553-mobile-snapshot-candy-ui-performance');
 
-console.log('v0.4.27.55.2 local gap durability / field precedence contract PASS');
+console.log('v0.4.27.55.2 local gap durability / field precedence contract PASS on v0.4.27.55.3 successor');

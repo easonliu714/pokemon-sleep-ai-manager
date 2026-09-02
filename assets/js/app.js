@@ -16,6 +16,7 @@ import { setupG3Pages } from './g3-planning.js';
 import { formatLocal, localIso } from './time-utils.js';
 
 const $ = (id) => document.getElementById(id);
+const perfNow=()=>globalThis.performance?.now?.()??Date.now();
 const state = {
   payload: null,
   preview: null,
@@ -184,6 +185,7 @@ function renderItems() {
 }
 
 async function refresh() {
+  const refreshStarted=perfNow();
   const capacityLabels = {
     pot: '鍋子容量',
     ingredient_bag: '食材包',
@@ -261,6 +263,7 @@ async function refresh() {
       '<b>Phase G2 資料初始化完成</b><br>已套用版本化資料，不會覆蓋既有個人資料。';
     state.seeded = false;
   }
+  globalThis.DebugTrace?.record?.('app','ui_refresh_completed',{status:'completed',details:{elapsed_ms:Math.round((perfNow()-refreshStarted)*10)/10,snapshot_count:snapshots.length,snapshot_list_metadata_only:true}});
 }
 
 function download(bytes, name, type) {
@@ -487,6 +490,7 @@ function setupEventHandlers() {
 }
 
 async function start() {
+  const startAt=perfNow();
   try {
     setupPrompts();
     setupPokemonDetail(refresh);
@@ -499,9 +503,15 @@ async function start() {
     setupG3Pages();
     bindNavigation();
 
-    $('dbStatus').textContent = 'SQLite 已就緒';
-    $('dbStatus').className = 'badge ok';
+    $('dbStatus').textContent = 'SQLite 已就緒｜介面載入中…';
+    $('dbStatus').className = 'badge pending';
+    const hydrationStarted=perfNow();
     await refresh();
+    const hydrationMs=Math.round((perfNow()-hydrationStarted)*10)/10;
+    $('dbStatus').textContent = 'App 已就緒';
+    $('dbStatus').className = 'badge ok';
+    globalThis.DebugTrace?.record?.('app','app_hydration_ready',{status:'completed',details:{hydration_ms:hydrationMs,total_startup_ms:Math.round((perfNow()-startAt)*10)/10,database_ready_before_ui_ready:true}});
+    globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:app-ready',{detail:{hydration_ms:hydrationMs}}));
   } catch (error) {
     console.error('Application initialization failed', error);
     $('dbStatus').textContent = '初始化失敗';
