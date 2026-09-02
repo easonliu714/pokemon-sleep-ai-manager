@@ -1,7 +1,8 @@
 const IDB_NAME = "pokemon_sleep_ai_manager";
-const IDB_VERSION = 2;
+const IDB_VERSION = 3;
 const DB_STORE = "database";
 const SNAPSHOT_STORE = "snapshots";
+const SNAPSHOT_META_STORE = "snapshot_metadata";
 const META_STORE = "metadata";
 const DB_KEY = "primary";
 const META_KEY = "primary";
@@ -16,6 +17,9 @@ function startup(stage,message,status='running',details={}){
   }
 }
 
+const perfNow=()=>globalThis.performance?.now?.()??Date.now();
+const roundedMs=started=>Math.round((perfNow()-started)*10)/10;
+
 function openIdb(){
   if(connectionPromise)return connectionPromise;
   connectionPromise=new Promise((resolve,reject)=>{
@@ -25,6 +29,7 @@ function openIdb(){
       const db=req.result;
       if(!db.objectStoreNames.contains(DB_STORE))db.createObjectStore(DB_STORE);
       if(!db.objectStoreNames.contains(SNAPSHOT_STORE))db.createObjectStore(SNAPSHOT_STORE,{keyPath:'id'});
+      if(!db.objectStoreNames.contains(SNAPSHOT_META_STORE))db.createObjectStore(SNAPSHOT_META_STORE,{keyPath:'id'});
       if(!db.objectStoreNames.contains(META_STORE))db.createObjectStore(META_STORE);
     };
     req.onblocked=()=>{startup('INDEXEDDB_BLOCKED','本機儲存空間被其他分頁占用','warning');reject(new Error('indexeddb_blocked'));connectionPromise=null;};
@@ -107,21 +112,87 @@ export function loadDatabaseBytesInWorker({maxTransferBytes=48*1024*1024,hardTim
   });
 }
 
+function asArrayBuffer(bytes){
+  if(!(bytes instanceof Uint8Array))return bytes;
+  if(bytes.byteOffset===0&&bytes.byteLength===bytes.buffer.byteLength)return bytes.buffer;
+  return bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength);
+}
+
 export async function saveDatabaseBytes(bytes){
-  const buffer=bytes instanceof Uint8Array?bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength):bytes;
+  const buffer=asArrayBuffer(bytes);
   const metadata={byte_length:buffer?.byteLength||0,updated_at:new Date().toISOString(),format:'sqlite-arraybuffer',safe_boot_version:2};
   const db=await openIdb();
   await new Promise((resolve,reject)=>{const tx=db.transaction([DB_STORE,META_STORE],'readwrite');tx.objectStore(DB_STORE).put(buffer,DB_KEY);tx.objectStore(META_STORE).put(metadata,META_KEY);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error||new Error('indexeddb_save_failed'));tx.onabort=()=>reject(tx.error||new Error('indexeddb_save_aborted'));});
   return metadata;
 }
 
-export async function createSnapshot(bytes,reason){
-  const id=`SNAP-${new Date().toISOString().replace(/[-:.TZ]/g,'').slice(0,14)}-${Math.random().toString(16).slice(2,6)}`;
-  const buffer=bytes instanceof Uint8Array?bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength):bytes;
-  const item={id,created_at:new Date().toISOString(),reason,bytes:buffer};
-  await request(SNAPSHOT_STORE,'readwrite',store=>store.put(item));await pruneSnapshots(10);return id;
+function snapshotCreatedAtFromId(id){
+  const match=String(id||'').match(/^SNAP-(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})-/);
+  if(!match)return null;
+  const [,year,month,day,hour,minute,second]=match;
+  return `${year}-${month}-${day}T${hour}:${minute}:${second}.000Z`;
 }
-export async function listSnapshots(){const result=await request(SNAPSHOT_STORE,'readonly',store=>store.getAll());return (result||[]).sort((a,b)=>b.created_at.localeCompare(a.created_at));}
-async function pruneSnapshots(max){const items=await listSnapshots();const remove=items.slice(max);if(!remove.length)return;const db=await openIdb();await new Promise((resolve,reject)=>{const tx=db.transaction(SNAPSHOT_STORE,'readwrite');const store=tx.objectStore(SNAPSHOT_STORE);remove.forEach(item=>store.delete(item.id));tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error||new Error('snapshot_prune_failed'));});}
-export async function clearAllStorage(){const db=await openIdb();await new Promise((resolve,reject)=>{const tx=db.transaction([DB_STORE,SNAPSHOT_STORE,META_STORE],'readwrite');tx.objectStore(DB_STORE).clear();tx.objectStore(SNAPSHOT_STORE).clear();tx.objectStore(META_STORE).clear();tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error||new Error('indexeddb_clear_failed'));});}
+
+export async function createSnapshot(bytes,reason){
+  const createdAt=new Date().toISOString();
+  const id=`SNAP-${createdAt.replace(/[-:.TZ]/g,'').slice(0,14)}-${Math.random().toString(16).slice(2,6)}`;
+  const buffer=asArrayBuffer(bytes);
+  const item={id,created_at:createdAt,reason,bytes:buffer};
+  const metadata={id,created_at:createdAt,reason,byte_length:buffer?.byteLength||0};
+  const db=await openIdb();
+  const putStarted=perfNow();
+  await new Promise((resolve,reject)=>{
+    const tx=db.transaction([SNAPSHOT_STORE,SNAPSHOT_META_STORE],'readwrite');
+    tx.objectStore(SNAPSHOT_STORE).put(item);
+    tx.objectStore(SNAPSHOT_META_STORE).put(metadata);
+    tx.oncomplete=()=>resolve();
+    tx.onerror=()=>reject(tx.error||new Error('snapshot_write_failed'));
+    tx.onabort=()=>reject(tx.error||new Error('snapshot_write_aborted'));
+  });
+  const putMs=roundedMs(putStarted);
+  const pruneStarted=perfNow();
+  const pruneResult=await pruneSnapshots(10);
+  const pruneMs=roundedMs(pruneStarted);
+  startup('SQLITE_SNAPSHOT_STORAGE_COMPLETED','SQLite 快照已寫入本機儲存','completed',{id,byte_length:metadata.byte_length,idb_put_ms:putMs,prune_ms:pruneMs,pruned_count:pruneResult.removed_count,metadata_only_prune:true});
+  return id;
+}
+
+export async function listSnapshots(){
+  const started=perfNow();
+  const [metadataRows,snapshotKeys]=await Promise.all([
+    request(SNAPSHOT_META_STORE,'readonly',store=>store.getAll()),
+    request(SNAPSHOT_STORE,'readonly',store=>store.getAllKeys()),
+  ]);
+  const metadataById=new Map((metadataRows||[]).map(item=>[String(item.id),item]));
+  const items=(snapshotKeys||[]).map(key=>{
+    const id=String(key),metadata=metadataById.get(id);
+    return metadata||{id,created_at:snapshotCreatedAtFromId(id),reason:'Legacy snapshot（metadata unavailable）',byte_length:null,legacy_metadata:true};
+  }).sort((a,b)=>String(b.created_at||b.id).localeCompare(String(a.created_at||a.id)));
+  startup('SQLITE_SNAPSHOT_LIST_READY','快照清單已載入（metadata-only）','completed',{snapshot_count:items.length,elapsed_ms:roundedMs(started),snapshot_payload_bytes_materialized:false});
+  return items;
+}
+
+async function pruneSnapshots(max){
+  const keys=(await request(SNAPSHOT_STORE,'readonly',store=>store.getAllKeys())||[]).map(String).sort((a,b)=>b.localeCompare(a));
+  const remove=keys.slice(max);
+  if(!remove.length)return {removed_count:0};
+  const db=await openIdb();
+  await new Promise((resolve,reject)=>{
+    const stores=[SNAPSHOT_STORE,SNAPSHOT_META_STORE].filter(name=>db.objectStoreNames.contains(name));
+    const tx=db.transaction(stores,'readwrite');
+    const snapshotStore=tx.objectStore(SNAPSHOT_STORE);
+    const metaStore=db.objectStoreNames.contains(SNAPSHOT_META_STORE)?tx.objectStore(SNAPSHOT_META_STORE):null;
+    remove.forEach(id=>{snapshotStore.delete(id);metaStore?.delete(id);});
+    tx.oncomplete=()=>resolve();
+    tx.onerror=()=>reject(tx.error||new Error('snapshot_prune_failed'));
+    tx.onabort=()=>reject(tx.error||new Error('snapshot_prune_aborted'));
+  });
+  return {removed_count:remove.length};
+}
+
+export async function clearAllStorage(){
+  const db=await openIdb();
+  const stores=[DB_STORE,SNAPSHOT_STORE,SNAPSHOT_META_STORE,META_STORE].filter(name=>db.objectStoreNames.contains(name));
+  await new Promise((resolve,reject)=>{const tx=db.transaction(stores,'readwrite');stores.forEach(name=>tx.objectStore(name).clear());tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error||new Error('indexeddb_clear_failed'));tx.onabort=()=>reject(tx.error||new Error('indexeddb_clear_aborted'));});
+}
 export function closeStorageConnection(){cancelWorkerDatabaseLoad();Promise.resolve(connectionPromise).then(db=>db?.close?.()).catch(()=>{});connectionPromise=null;}
