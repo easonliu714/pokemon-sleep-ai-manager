@@ -125,6 +125,7 @@ jobs:
           node scripts/v042750-p0b4-candy-display-name-authority-contract.mjs
           node scripts/v042755-p0b6-candy-family-storage-contract.mjs
           node scripts/v0427551-visible-target-count-confirmation-contract.mjs
+          node scripts/v0427552-local-gap-field-precedence-contract.mjs
 
       - name: Verify unlocked Pokémon roster filters
         run: node scripts/pokemon-roster-filter-regression.mjs
