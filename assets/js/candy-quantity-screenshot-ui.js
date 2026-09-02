@@ -9,11 +9,16 @@ import {
   applyCandyGovernedRecognitionResolution,
   buildCandyQuantityGovernedRecognitionPrompt,
   buildPublicMasterCatalogSnapshot,
-  compileCandyQuantityGovernedRecognitionToUpdatePackage,
   isPublicMasterRecognitionPayload,
 } from './candy-quantity-confirmation-authority.js';
+import {
+  CANDY_VISIBLE_TARGET_COUNT_CONFIRMATION_AUTHORITY_VERSION,
+  applyCandyVisibleTargetCountResolution,
+  compileCandyVisibleTargetCountGovernedRecognitionToUpdatePackage,
+  getCandyVisibleTargetCountState,
+} from './candy-visible-target-count-authority.js';
 
-export const CANDY_QUANTITY_SCREENSHOT_UI_VERSION='candy-quantity-screenshot-ui-2026-09-01-b';
+export const CANDY_QUANTITY_SCREENSHOT_UI_VERSION='candy-quantity-screenshot-ui-2026-09-02-c';
 
 const cfg=Object.freeze({
   key:'candies',
@@ -21,7 +26,7 @@ const cfg=Object.freeze({
   label:'糖果庫存',
   entities:['candy_inventory'],
 });
-const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]));
 const clean=value=>String(value??'').trim();
 const token=()=>`${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
 
@@ -57,6 +62,7 @@ function mount(){
   section.id='candyQuantityScreenshotB5';
   section.className='panel';
   section.dataset.quantityAuthority=CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION;
+  section.dataset.visibleTargetCountAuthority=CANDY_VISIBLE_TARGET_COUNT_CONFIRMATION_AUTHORITY_VERSION;
   host.prepend(section);
 
   const refs=()=>state.entries.map(item=>item.image_ref);
@@ -64,16 +70,9 @@ function mount(){
   const prompt=()=>buildCandyQuantityGovernedRecognitionPrompt('candies',{sessionId:state.session_id,coverage:'PARTIAL',imageMap:imageMap()});
   const snapshot=()=>buildPublicMasterCatalogSnapshot('candies');
 
-  function workingObservations(){
-    try{
-      const value=extractJson(state.working_raw);
-      return Array.isArray(value?.observations)?value.observations:[];
-    }catch{return [];}
-  }
-
-  function confirmedGapRows(){
-    return workingObservations().filter(item=>item?.user_resolution?.action===CANDY_PUBLIC_MASTER_GAP_ACTION);
-  }
+  function workingPayload(){try{return extractJson(state.working_raw);}catch{return null;}}
+  function workingObservations(){const value=workingPayload();return Array.isArray(value?.observations)?value.observations:[];}
+  function confirmedGapRows(){return workingObservations().filter(item=>item?.user_resolution?.action===CANDY_PUBLIC_MASTER_GAP_ACTION);}
 
   function lockExternalRawIfNeeded(){
     if(state.provider_raw||!clean(state.working_raw))return;
@@ -87,7 +86,7 @@ function mount(){
       lockExternalRawIfNeeded();
       const working=extractJson(state.working_raw);
       if(!isPublicMasterRecognitionPayload(working))throw new Error('請貼入 candy_inventory_update Public Master Recognition JSON');
-      state.result=compileCandyQuantityGovernedRecognitionToUpdatePackage(working,'candies',{allowedImageRefs:refs()});
+      state.result=compileCandyVisibleTargetCountGovernedRecognitionToUpdatePackage(working,'candies',{allowedImageRefs:refs()});
     }catch(error){state.result={ok:false,errors:[error.message],warnings:[],unresolved:[],update_package:null,summary:{}};}
     render();
   }
@@ -96,8 +95,19 @@ function mount(){
     try{
       const working=extractJson(state.working_raw);
       state.working_raw=JSON.stringify(mutator(working),null,2);
+      state.preview=null;state.last_apply_summary=null;
       parse();
     }catch(error){alert(`覆核失敗：${error.message}`);}
+  }
+
+  function confirmVisibleTargetCount(){
+    const payload=workingPayload();if(!payload)return alert('請先解析 Recognition JSON。');
+    const countState=getCandyVisibleTargetCountState(payload);
+    const input=section.querySelector('#candyB5VisibleTargetCountInput');
+    const confirmedCount=Number(input?.value);
+    if(!Number.isInteger(confirmedCount)||confirmedCount<0)return alert('實際畫面項目數必須是 0 以上整數。');
+    if(!confirm(`Gemini 回報 visible_target_count=${countState.provider_visible_target_count}，實際輸出 observations=${countState.observations_length}。\n\n你輸入的原始遊戲畫面實際項目數：${confirmedCount}\n\n請只在已核對原始 Pokémon Sleep 畫面後按確定。這個動作不會修改 Gemini Raw JSON，也不會自動補齊漏辨識項目。`))return;
+    updateWorking(raw=>applyCandyVisibleTargetCountResolution(raw,'candies',confirmedCount));
   }
 
   function confirmQuantity(item){
@@ -174,6 +184,16 @@ function mount(){
     }catch(error){alert(`套用失敗：${error.message}`);}
   }
 
+  function countReviewHtml(){
+    const payload=workingPayload();if(!payload)return '';
+    const countState=getCandyVisibleTargetCountState(payload);
+    if(!countState.mismatch)return '';
+    const pass=countState.user_confirmed_matches_observations;
+    const confirmed=countState.user_confirmed_visible_target_count;
+    const delta=countState.delta===null?'—':countState.delta>0?`+${countState.delta}`:String(countState.delta);
+    return `<div class="uc-img-recognition" id="candyB5VisibleTargetCountReview"><b>畫面項目數覆核</b><p class="notice">Gemini 回報 visible_target_count=<b>${esc(countState.provider_visible_target_count)}</b>，但實際 observations.length=<b>${esc(countState.observations_length)}</b>，差異=<b>${esc(delta)}</b>。平台不會自動把兩者改成一致，以免漏辨識被靜默吞掉。</p>${pass?`<div class="status-ready">已人工核對原始畫面：實際共有 <b>${esc(confirmed)}</b> 筆，且與目前 observations.length 一致；Count Gate PASS。Provider 原值 ${esc(countState.provider_visible_target_count)} 仍保留在 Working/Raw evidence。</div>`:`<label>原始遊戲畫面實際項目數 <input id="candyB5VisibleTargetCountInput" type="number" min="0" step="1" value="${esc(countState.observations_length)}" style="max-width:8em"></label><div class="buttons"><button id="candyB5ConfirmVisibleTargetCount">我已核對原始畫面，確認共有 ${esc(countState.observations_length)} 筆</button></div><div class="status-conflict">Count Gate HOLD：必須人工確認實際畫面項目數；若實際數量不等於 observations.length，仍不可進 Dry-Run。</div>`}</div>`;
+  }
+
   function reviewHtml(){
     const unresolved=state.result?.unresolved||[];
     if(!unresolved.length)return '';
@@ -195,10 +215,10 @@ function mount(){
   function evidenceHtml(){
     const operationJson=state.result?.update_package?JSON.stringify(state.result.update_package,null,2):'';
     return `<details class="notice" id="candyB5Evidence" open><summary><b>Evidence / JSON 分層</b></summary>
-      <p><b>1. Gemini Raw JSON（唯讀、immutable）</b><br>這是 Gemini provider 原始回傳；人工 identity、Master gap、quantity 覆核永遠不會改寫此欄。來源：<code>${esc(state.provider_raw_source||'尚未建立')}</code></p>
+      <p><b>1. Gemini Raw JSON（唯讀、immutable）</b><br>這是 Gemini provider 原始回傳；人工 count、identity、Master gap、quantity 覆核永遠不會改寫此欄。來源：<code>${esc(state.provider_raw_source||'尚未建立')}</code></p>
       <textarea id="candyB5ProviderRaw" readonly style="width:100%;min-height:180px" placeholder="Gemini 成功後保留原始 provider JSON">${esc(state.provider_raw)}</textarea>
       <div class="buttons"><button id="candyB5CopyRaw" ${state.provider_raw?'':'disabled'}>複製 Gemini Raw JSON</button><button id="candyB5ResetWorking" ${state.provider_raw?'':'disabled'}>從 Raw 重設 Working JSON</button></div>
-      <p><b>2. Working / Resolved Recognition JSON</b><br>公版比對與人工覆核只修改這一層。外部 AI 流程第一次按「解析／覆核」時，會先把當下內容鎖定成 Raw evidence。</p>
+      <p><b>2. Working / Resolved Recognition JSON</b><br>人工 count、公版比對與人工覆核只修改這一層。外部 AI 流程第一次按「解析／覆核」時，會先把當下內容鎖定成 Raw evidence。</p>
       <textarea id="candyB5WorkingJson" style="width:100%;min-height:180px" placeholder="內部 Gemini 成功後自動填入；也可貼入外部 AI JSON">${esc(state.working_raw)}</textarea>
       <p><b>3. Compile / Update Package（唯讀）</b><br>這才是 Dry-Run 前的實際 operation/candy_id；Public Master gap 不會出現在 operations。</p>
       <textarea id="candyB5CompiledJson" readonly style="width:100%;min-height:180px">${esc(operationJson)}</textarea>
@@ -211,14 +231,16 @@ function mount(){
     const gapCount=state.result?.summary?.candy_public_master_gap_confirmed_count||confirmedGapRows().length;
     const identityPending=state.result?.summary?.candy_identity_pending_count||0;
     const operationCount=state.result?.update_package?.operations?.length||0;
-    section.innerHTML=`<h3>糖果截圖庫存覆核 <small>P0-B5 / .52 hotfix</small></h3>
+    const countState=state.result?.candy_visible_target_count||getCandyVisibleTargetCountState(workingPayload()||{});
+    section.innerHTML=`<h3>糖果截圖庫存覆核 <small>P0-B5 / v0.4.27.55.1</small></h3>
       <p class="notice"><b>OCR／AI 讀到的糖果數量只是候選值，不會直接寫入。</b> 每一筆必須由你查看目前遊戲畫面後再按一次數量確認；identity MATCH 不等於 quantity 確認。0 是合法值，但也必須人工確認。平台不保證遊戲外部變動自動同步。</p>
       <p class="notice"><b>Candy identity exact gate：</b>Gemini 選擇的 canonical 糖果名稱若與畫面 observed_text 不一致，會強制回到人工 identity 覆核，不能直接確認 quantity。這可阻擋「小火焰猴的糖果 → 猛火猴的糖果」這類跨名稱誤綁。</p>
-      <p class="notice">Authority：<code>${esc(CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION)}</code> · 已確認數量：<b>${confirmed}</b> · identity 待確認：<b>${identityPending}</b> · 已確認 Master gap：<b>${gapCount}</b> · 待覆核：<b>${pending.length}</b> · Provider：${esc(state.provider||'—')}</p>
+      <p class="notice">Quantity Authority：<code>${esc(CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION)}</code> · Count Authority：<code>${esc(CANDY_VISIBLE_TARGET_COUNT_CONFIRMATION_AUTHORITY_VERSION)}</code> · Count Gate：<b>${esc(countState.gate_status||'—')}</b> · 已確認數量：<b>${confirmed}</b> · identity 待確認：<b>${identityPending}</b> · 已確認 Master gap：<b>${gapCount}</b> · 待覆核：<b>${pending.length}</b> · Provider：${esc(state.provider||'—')}</p>
       <label>選擇糖果庫存截圖 <input id="candyB5Files" type="file" accept="image/*" multiple></label>
       <div class="notice">已選：${state.entries.map(item=>esc(item.file_name)).join('、')||'尚未選擇'}</div>
       <div class="buttons"><button id="candyB5Gemini" ${state.entries.length&&!state.busy?'':'disabled'}>${state.busy?'Gemini 分析中…':'Gemini API 直接分析'}</button><button id="candyB5Prompt" ${state.entries.length?'':'disabled'}>複製外部 AI Prompt</button></div>
       ${evidenceHtml()}
+      ${countReviewHtml()}
       <div class="buttons"><button id="candyB5Parse">解析／覆核</button><button id="candyB5Dry" ${state.result?.ok&&!pending.length&&operationCount>0?'':'disabled'}>Dry-Run</button><button id="candyB5Apply" ${state.preview&&state.preview.conflict_count===0&&state.result?.ok?'':'disabled'}>套用已確認數量</button></div>
       ${errors.map(value=>`<div class="status-conflict">錯誤：${esc(value)}</div>`).join('')}${warnings.map(value=>`<div>警告：${esc(value)}</div>`).join('')}
       ${reviewHtml()}
@@ -236,6 +258,8 @@ function mount(){
     section.querySelector('#candyB5Parse').onclick=parse;
     section.querySelector('#candyB5Dry').onclick=doDryRun;
     section.querySelector('#candyB5Apply').onclick=doApply;
+    const countButton=section.querySelector('#candyB5ConfirmVisibleTargetCount');if(countButton)countButton.onclick=confirmVisibleTargetCount;
+    const countInput=section.querySelector('#candyB5VisibleTargetCountInput');if(countInput)countInput.oninput=()=>{if(countButton)countButton.textContent=`我已核對原始畫面，確認共有 ${countInput.value} 筆`;};
     section.querySelectorAll('[data-kind="quantity"] [data-action="quantity"]').forEach(button=>button.onclick=()=>{const id=button.closest('[data-id]').dataset.id;confirmQuantity((state.result?.unresolved||[]).find(item=>item.observation_id===id));});
     section.querySelectorAll('[data-kind="identity"]').forEach(card=>{
       const item=(state.result?.unresolved||[]).find(row=>row.observation_id===card.dataset.id),select=card.querySelector('[data-candidate]');
