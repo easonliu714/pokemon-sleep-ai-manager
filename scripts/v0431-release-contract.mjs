@@ -8,12 +8,17 @@ const __filename=fileURLToPath(import.meta.url);
 const root=path.resolve(path.dirname(__filename),'..');
 const read=relative=>fs.readFileSync(path.join(root,relative),'utf8');
 const parseVersion=value=>{
-  const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$/);
-  return match?match.slice(1).map(part=>Number(part||0)):null;
+  const text=String(value||'');
+  if(!/^v\d+(?:\.\d+){2,}$/.test(text))return null;
+  return text.slice(1).split('.').map(Number);
 };
 const versionAtLeast=(actual,minimum)=>{
   const a=parseVersion(actual),b=parseVersion(minimum);if(!a||!b)return false;
-  for(let index=0;index<4;index+=1){if(a[index]!==b[index])return a[index]>b[index];}
+  const length=Math.max(a.length,b.length);
+  for(let index=0;index<length;index+=1){
+    const left=a[index]||0,right=b[index]||0;
+    if(left!==right)return left>right;
+  }
   return true;
 };
 
@@ -52,6 +57,7 @@ process.stdout.write(`${JSON.stringify({
   gate:'V0.4.3.1_CONTROLLED_SELECTOR_RELEASE_CONTRACT',
   app_version:app,
   minimum_release:'v0.4.3.1',
+  nested_hotfix_semver_supported:true,
   build,
   cache,
   controlled_selector_version:CONTROLLED_SELECTOR_VERSION,

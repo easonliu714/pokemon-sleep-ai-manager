@@ -21,7 +21,7 @@ const tests=[];
 const gate=(name,fn)=>{
   try{fn();tests.push({name,status:'PASS'});}catch(error){tests.push({name,status:'FAIL',error:String(error?.message||error)});}
 };
-const patchOf=version=>Number(String(version||'').match(/^v0\.4\.27\.(\d+)$/)?.[1]||-1);
+const patchOf=version=>Number(String(version||'').match(/^v0\.4\.27\.(\d+)(?:\.\d+)*$/)?.[1]||-1);
 const withLocalAdmissions=(observedTexts,fn)=>{
   const previous=globalThis.localStorage;
   const rows=observedTexts.map((observed_text,index)=>preparePublicCandyLocalAdmission({observation:{status:'UNMATCHED',observed_text,source_image_ref:`fixture-image-${index+1}`,observation_id:`fixture-observation-${index+1}`},confirmedAt:`2026-09-01T13:30:0${index}.000Z`}));

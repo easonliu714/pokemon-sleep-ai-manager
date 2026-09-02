@@ -38,7 +38,7 @@ assert.match(sw,/v0389-rescue-catalog-import\.js/);
 assert.match(sw,/public-item-master\.js/);
 const sandbox={globalThis:{}};vm.runInNewContext(versionAuthority,sandbox);
 const current=sandbox.globalThis.PokemonSleepVersionAuthority;
-assert.match(current.app_version,/^v\d+\.\d+\.\d+(?:\.\d+)?$/);
+assert.match(current.app_version,/^v\d+(?:\.\d+){2,}$/);
 assert.match(current.app_build,/^\d{8}-[a-z0-9-]+$/);
 assert.equal(current.cache_name,`pokemon-sleep-ai-${current.app_version}-${current.app_build.replace(/^\d{8}-/,'')}`);
 assert.match(index,/src="\.\/assets\/js\/bootstrap\.js"/);

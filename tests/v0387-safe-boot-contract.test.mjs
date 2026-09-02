@@ -33,8 +33,9 @@ assert.match(releaseAuthority,/(?:嘗試載入本機資料|載入玩家資料庫
 assert.match(releaseAuthority,/下載啟動紀錄/);
 assert.match(releaseAuthority,/service-worker(?:-v0387)?\.js/);
 assert.match(releaseAuthority,/detail\.rescue\|\|detail\.readonly/);
-// Historical v0.3.87 safety behavior must remain valid across later v0.x releases.
-assert.match(current.app_version,/^v0\.\d+\.\d+(?:\.\d+)?$/);
+// Historical v0.3.87 safety behavior must remain valid across later v0.x releases,
+// including nested numeric hotfix versions such as v0.4.27.55.1.
+assert.match(current.app_version,/^v0(?:\.\d+){2,}$/);
 assert.ok(current.app_build);
 assert.match(bootstrap,/version-authority\.js/);
 assert.match(bootstrap,/authority\.app_version/);
@@ -42,4 +43,4 @@ assert.match(bootstrap,/authority\.app_build/);
 assert.match(sw,/importScripts\('\.\/assets\/js\/version-authority\.js'\)/);
 assert.match(sw,/cache_name:CACHE/);
 assert.ok(index.includes('bootstrap.js'));
-console.log(JSON.stringify({status:'PASS',gate:'v0387_safe_boot_contract',version:current.app_version,player_data_write:false,legacy_auto_read:false,index_authority:true,forward_compatible_release:true,worker_isolated_load:true,worker_lifecycle_race_closed:true,fresh_database_bootstrap:true,post_migration_dispatch_isolated:true,central_version_authority:true,public_master_local_first:true}));
+console.log(JSON.stringify({status:'PASS',gate:'v0387_safe_boot_contract',version:current.app_version,player_data_write:false,legacy_auto_read:false,index_authority:true,forward_compatible_release:true,nested_hotfix_semver_supported:true,worker_isolated_load:true,worker_lifecycle_race_closed:true,fresh_database_bootstrap:true,post_migration_dispatch_isolated:true,central_version_authority:true,public_master_local_first:true}));

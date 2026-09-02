@@ -36,8 +36,8 @@ import {recipeScenarioAcceptsPotCapacity} from '../assets/js/uc-img-v04132-pot-c
 const read=path=>fs.readFileSync(path,'utf8');
 const signature=recipe=>[...(recipe.ingredients||[])].map(row=>`${row.ingredient_name}=${Number(row.quantity)}`).sort((a,b)=>a.localeCompare(b,'zh-Hant')).join('|');
 const expectedSignature=rows=>rows.map(([name,qty])=>`${name}=${qty}`).sort((a,b)=>a.localeCompare(b,'zh-Hant')).join('|');
-const versionTuple=value=>{const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$/);return match?match.slice(1).map(part=>Number(part||0)):null;};
-const versionAtLeast=(value,minimum)=>{const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;for(let i=0;i<4;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return true;};
+const versionTuple=value=>{const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)((?:\.\d+)*)$/);return match?[Number(match[1]),Number(match[2]),Number(match[3]),...String(match[4]||'').split('.').filter(Boolean).map(Number)]:null;};
+const versionAtLeast=(value,minimum)=>{const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;const n=Math.max(a.length,b.length);for(let i=0;i<n;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return true;};
 
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];

@@ -23,7 +23,7 @@ required = [
 for token in required:
     assert token in module, token
 
-version_match = re.search(r"app_version:\s*'(v\d+\.\d+\.\d+(?:\.\d+)?)'", authority)
+version_match = re.search(r"app_version:\s*'(v\d+(?:\.\d+){2,})'", authority)
 build_match = re.search(r"app_build:\s*'([^']+)'", authority)
 cache_match = re.search(r"cache_name:\s*'([^']+)'", authority)
 assert version_match and build_match and cache_match

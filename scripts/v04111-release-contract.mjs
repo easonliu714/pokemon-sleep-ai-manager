@@ -11,8 +11,8 @@ import {
 import {buildUpdatePackageId} from '../assets/js/update-package-contract.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
-const versionTuple=value=>{const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$/);return match?match.slice(1).map(part=>Number(part||0)):null;};
-const versionAtLeast=(value,minimum)=>{const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;for(let i=0;i<4;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return true;};
+const versionTuple=value=>{const text=String(value||'');if(!/^v\d+(?:\.\d+){2,}$/.test(text))return null;return text.slice(1).split('.').map(Number);};
+const versionAtLeast=(value,minimum)=>{const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;const length=Math.max(a.length,b.length);for(let i=0;i<length;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return true;};
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1];
@@ -107,7 +107,7 @@ const migrations=read('assets/js/migrations.js');
 assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.11.1 lineage must remain schema-migration-free');
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'V0.4.11.1_RELEASE_CONTRACT_SUCCESSOR_AWARE',app_version:appVersion,
+  status:'PASS',gate:'V0.4.11.1_RELEASE_CONTRACT_SUCCESSOR_AWARE',app_version:appVersion,nested_hotfix_version_supported:true,
   successor_v04112:versionAtLeast(appVersion,'v0.4.11.2'),successor_v04113:versionAtLeast(appVersion,'v0.4.11.3'),successor_v04114:versionAtLeast(appVersion,'v0.4.11.4'),successor_v0412:versionAtLeast(appVersion,'v0.4.12'),successor_v0413:versionAtLeast(appVersion,'v0.4.13'),successor_v04131:versionAtLeast(appVersion,'v0.4.13.1'),successor_v04132:versionAtLeast(appVersion,'v0.4.13.2'),
   orphan_screenshot_metadata_cleanup:true,restore_owner:'unified-screenshot-update-center',next_image_number_monotonic:true,
   non_applied_response_fail_closed:true,applied_history_preserved:true,

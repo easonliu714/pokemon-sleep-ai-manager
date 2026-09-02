@@ -7,8 +7,8 @@ import {PUBLIC_RECIPE_PROVENANCE,PUBLIC_RECIPE_UPCOMING_EVIDENCE} from '../asset
 const assert=(condition,message)=>{if(!condition)throw new Error(message);};
 const read=path=>fs.readFileSync(path,'utf8');
 function versionAtLeast(actual,minimum){
-  const parse=value=>{const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$/);return match?[Number(match[1]),Number(match[2]),Number(match[3]),Number(match[4]||0)]:null;};
-  const a=parse(actual),b=parse(minimum);if(!a||!b)return false;for(let i=0;i<4;i+=1){if(a[i]>b[i])return true;if(a[i]<b[i])return false;}return true;
+  const parse=value=>{const text=String(value||'');if(!/^v\d+(?:\.\d+){2,}$/.test(text))return null;return text.slice(1).split('.').map(Number);};
+  const a=parse(actual),b=parse(minimum);if(!a||!b)return false;const length=Math.max(a.length,b.length);for(let i=0;i<length;i+=1){const left=a[i]||0,right=b[i]||0;if(left>right)return true;if(left<right)return false;}return true;
 }
 
 const authoritySource=read('assets/js/version-authority.js');const sandbox={};sandbox.globalThis=sandbox;vm.runInNewContext(authoritySource,sandbox);const authority=sandbox.PokemonSleepVersionAuthority;
@@ -41,4 +41,4 @@ for(const row of PUBLIC_RECIPE_UPCOMING_EVIDENCE){
 const strategySources=['assets/js/recipe-strategy-projection.js','assets/js/pokemon-candidate-feature-projection.js','assets/js/pokemon-scoring-engine.js','assets/js/strategy-context-package.js','assets/js/strategy-gemini-contract.js'].map(read).join('\n');
 for(const forbidden of ['ai-project-pool-runtime.js','applyPayload(','INSERT INTO pokemon(','UPDATE pokemon SET'])assert(!strategySources.includes(forbidden),`deterministic_strategy_forbidden_dependency:${forbidden}`);
 
-console.log(JSON.stringify({status:'PASS',schema:'pokemon-sleep-v042-release-integration-contract/1.5',historical_contract_version:'v0.4.2',current_app_version:authority.app_version,build:authority.app_build,cache:authority.cache_name,historical_recipe_count:HISTORICAL_BASE_RECIPE_MASTER.length,current_active_recipe_count:CURRENT_RECIPE_MASTER.length,historical_recipe_ids_preserved:true,recipe_evidence_audit_rows:PUBLIC_RECIPE_UPCOMING_EVIDENCE.length,war_room_runtime_bootstraps:3,war_room_mount_requires_database_ready:true,migration_version:8,rescue_war_room_db_safe:true,strategy_context_scoring_adapter:true,offline_after_online_js_cache:true,direct_provider_apply:false,four_part_patch_version_supported:true,forward_compatible_release_authority:true},null,2));
+console.log(JSON.stringify({status:'PASS',schema:'pokemon-sleep-v042-release-integration-contract/1.5',historical_contract_version:'v0.4.2',current_app_version:authority.app_version,build:authority.app_build,cache:authority.cache_name,historical_recipe_count:HISTORICAL_BASE_RECIPE_MASTER.length,current_active_recipe_count:CURRENT_RECIPE_MASTER.length,historical_recipe_ids_preserved:true,recipe_evidence_audit_rows:PUBLIC_RECIPE_UPCOMING_EVIDENCE.length,war_room_runtime_bootstraps:3,war_room_mount_requires_database_ready:true,migration_version:8,rescue_war_room_db_safe:true,strategy_context_scoring_adapter:true,offline_after_online_js_cache:true,direct_provider_apply:false,four_part_patch_version_supported:true,nested_hotfix_version_supported:true,forward_compatible_release_authority:true},null,2));

@@ -10,8 +10,8 @@ import {PROMPT_CATALOG,buildScenarioTemplate} from '../assets/js/prompt-catalog.
 import {validateWorkflow} from '../assets/js/ai-workflow.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
-const versionTuple=value=>{const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$/);return match?match.slice(1).map(part=>Number(part||0)):null;};
-const versionAtLeast=(value,minimum)=>{const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;for(let i=0;i<4;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return true;};
+const versionTuple=value=>{const text=String(value||'');if(!/^v\d+(?:\.\d+){2,}$/.test(text))return null;return text.slice(1).split('.').map(Number);};
+const versionAtLeast=(value,minimum)=>{const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;const length=Math.max(a.length,b.length);for(let i=0;i<length;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return true;};
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
 assert.ok(versionAtLeast(appVersion,'v0.4.10.1'),'v0.4.10.1+ successor version must remain parseable');
@@ -64,7 +64,7 @@ assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.10.1+ root-contract s
 
 console.log(JSON.stringify({
   status:'PASS',gate:'V0.4.10.1_RELEASE_CONTRACT_SUCCESSOR_AWARE',
-  app_version:appVersion,
+  app_version:appVersion,nested_hotfix_version_supported:true,
   historical_behavior_compatible:true,
   exact_release_authority_enforced:exactRelease,
   shared_root_contract:true,

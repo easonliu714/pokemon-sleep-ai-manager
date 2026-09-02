@@ -50,7 +50,6 @@ for(const row of PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_ADDITIONS){
   assert.equal(Object.prototype.hasOwnProperty.call(row,'observed_data'),false);
 }
 
-// Fresh-profile proof: source-controlled rows must exist with no local admission.
 globalThis.localStorage?.clear?.();
 assert.equal(publicCandyLocalAdmissionRows().length,0);
 const freshRows=buildPublicCandyMasterRows();
@@ -64,9 +63,6 @@ for(const candyName of expectedNames){
   assert.equal(Object.prototype.hasOwnProperty.call(row,'quantity'),false,'global Public Candy row must never carry player quantity');
 }
 
-// Replay an old-provider style set containing only names/evidence, deliberately
-// omitting private player quantities. All eight formerly-unmatched identities
-// must become MATCHED from the source-controlled master without local admission.
 const snapshot=buildPublicMasterCatalogSnapshot('candies');
 const oldLike={
   schema:PUBLIC_MASTER_RECOGNITION_SCHEMA,
@@ -92,8 +88,6 @@ for(const observation of replay.payload.observations){
 const noQuantityCompile=compileCandyQuantityGovernedRecognitionToUpdatePackage(replay.payload,'candies',{allowedImageRefs:['synthetic-promotion-image']});
 assert.equal(noQuantityCompile.update_package.operations.length,0,'global identity promotion must never auto-write player quantity');
 
-// Existing-device migration safety: an old .53 local admission for an identity
-// now global must be tolerated as an exact duplicate, with the global row winning.
 const promotedObservation={observation_id:'old-local-promoted',status:'UNMATCHED',observed_text:'波加曼的糖果',observed_data:{},source_image_ref:'synthetic-old-local-image',confidence:1};
 const promotedLocal=preparePublicCandyLocalAdmission({observation:promotedObservation,confirmedAt:'2026-09-01T03:01:00.000Z'});
 commitPublicCandyLocalAdmission(promotedLocal);
@@ -103,7 +97,6 @@ const piplupRows=withDuplicate.filter(row=>normalize(row.candy_name)===normalize
 assert.equal(piplupRows.length,1,'global promotion must absorb an exact legacy local duplicate without collision');
 assert.equal(piplupRows[0].source_type,'game_screenshot_verified','source-controlled global authority must win over local duplicate');
 
-// Future gap fallback remains available after .54 and its .55 successor.
 globalThis.localStorage?.clear?.();
 const futureName='托戈德瑪爾的糖果';
 assert.equal(buildPublicCandyMasterRows().some(row=>normalize(row.candy_name)===normalize(futureName)),false,'fixture must remain outside the .54 promotion set');
@@ -136,9 +129,15 @@ if(appVersion==='v0.4.27.54'){
   assert.ok(version.includes("// app_version: 'v0.4.27.54'"));
   assert.ok(version.includes("// app_build: '20260901-v042754-p0b5-ingame-candy-master-promotion'"));
   assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.54-v042754-p0b5-ingame-candy-master-promotion'"));
+}else if(appVersion==='v0.4.27.55.1'){
+  assert.equal(appBuild,'20260902-v0427551-visible-target-count-confirmation');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.1-v0427551-visible-target-count-confirmation');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55'"));
+  assert.ok(version.includes("// app_build: '20260901-v042755-p0b6-candy-family-storage-reconciliation'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55-v042755-p0b6-candy-family-storage-reconciliation'"));
 }else assert.fail(`.54 promotion successor release not governed: ${appVersion}`);
 assert.ok(version.includes("// app_version: 'v0.4.27.53'"));
 assert.ok(version.includes("// app_version: 'v0.3.96'"));
 assert.equal(fs.existsSync('.github/workflows/v042754-p0b5-ingame-candy-master-promotion.yml'),false,'no standalone .54 workflow may bypass governed consolidated CI topology');
 
-console.log(JSON.stringify({status:'PASS',gate:'V042754_P0B5_INGAME_CANDY_MASTER_PROMOTION',predecessor_app_version:'v0.4.27.54',current_app_version:appVersion,candy_master_version:PUBLIC_CANDY_MASTER_VERSION,promotion_count:PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_ADDITIONS.length,promoted_species:expectedSpecies,semantics:{ingame_visible_identity_official_equivalent:true,public_species_prerequisite:true,fresh_profile_global_rows:true,private_quantity_promoted:false,screenshot_bytes_committed:false,private_raw_json_committed:false,provider_raw_immutable:true,local_duplicate_absorbed_by_global_authority:true,future_local_admission_fallback_preserved:true,family_id_consolidation:false,player_inventory_migration_owned_by_this_phase:false,professor_semantics_unchanged:true,successor_p0b6_allowed:appVersion==='v0.4.27.55'}},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V042754_P0B5_INGAME_CANDY_MASTER_PROMOTION',predecessor_app_version:'v0.4.27.54',current_app_version:appVersion,candy_master_version:PUBLIC_CANDY_MASTER_VERSION,promotion_count:PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_ADDITIONS.length,promoted_species:expectedSpecies,nested_hotfix_version_supported:appVersion==='v0.4.27.55.1',semantics:{ingame_visible_identity_official_equivalent:true,public_species_prerequisite:true,fresh_profile_global_rows:true,private_quantity_promoted:false,screenshot_bytes_committed:false,private_raw_json_committed:false,provider_raw_immutable:true,local_duplicate_absorbed_by_global_authority:true,future_local_admission_fallback_preserved:true,family_id_consolidation:false,player_inventory_migration_owned_by_this_phase:false,professor_semantics_unchanged:true,successor_p0b6_allowed:['v0.4.27.55','v0.4.27.55.1'].includes(appVersion)}},null,2));

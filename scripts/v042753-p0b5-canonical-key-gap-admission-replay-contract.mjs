@@ -38,8 +38,8 @@ const storage=new FakeStorage();
 Object.defineProperty(globalThis,'localStorage',{value:storage,configurable:true});
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1]||'';
-const successor54=['v0.4.27.54','v0.4.27.55'].includes(appVersion);
-const successor55=appVersion==='v0.4.27.55';
+const successor54=['v0.4.27.54','v0.4.27.55','v0.4.27.55.1'].includes(appVersion);
+const successor55=['v0.4.27.55','v0.4.27.55.1'].includes(appVersion);
 
 assert.equal(PUBLIC_CANDY_MASTER_VERSION,successor54?'public-candy-master-2026-09-01-g':'public-candy-master-2026-09-01-f');
 assert.equal(PUBLIC_CANDY_LEGACY_COMPATIBILITY_EVIDENCE_ADDITIONS.length,1,'legacy compatibility additions must remain exactly one');
@@ -145,7 +145,11 @@ assert.equal(professor.includes('candy-public-master-admission-ui.js'),false);
 
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(successor55){
+if(appVersion==='v0.4.27.55.1'){
+  assert.equal(appBuild,'20260902-v0427551-visible-target-count-confirmation');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.1-v0427551-visible-target-count-confirmation');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55'"));
+}else if(successor55){
   assert.equal(appBuild,'20260901-v042755-p0b6-candy-family-storage-reconciliation');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55-v042755-p0b6-candy-family-storage-reconciliation');
   assert.ok(version.includes("// app_version: 'v0.4.27.54'"));
@@ -169,5 +173,5 @@ assert.equal(occurrence(predecessor52,"if(successor53)await import('./v042753-p0
 assert.equal(fs.existsSync('.github/workflows/v042753-p0b5-canonical-key-gap-admission-replay.yml'),false,'no standalone .53 workflow may bypass governed CI topology');
 assert.equal(CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION,'candy-quantity-confirmation-authority-2026-09-01-c');
 
-console.log(JSON.stringify({status:'PASS',gate:'V042753_P0B5_CANONICAL_KEY_DIRECT_ADMISSION_REPLAY',app_version:appVersion,candy_master_version:PUBLIC_CANDY_MASTER_VERSION,local_admission_authority:PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION,semantics:{gemini_raw_immutable:true,candy_id_only_key_bridge:true,unmatched_direct_admission_single_confirmation_ui:true,source_controlled_screenshot_promotion:successor54,local_public_identity_persistent:true,local_storage_readback_verified:true,sqlite_master_readback_and_compensating_rollback_wired:true,replay_same_observation_exact_only:true,replay_auto_quantity_write:false,player_quantity_in_public_master:false,professor_semantics_unchanged:true,family_id_consolidation:false,local_admission_fallback_preserved:true,consolidated_ci_successor_chain:true,offline_script_cache_after_online_load:true}},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V042753_P0B5_CANONICAL_KEY_DIRECT_ADMISSION_REPLAY',app_version:appVersion,candy_master_version:PUBLIC_CANDY_MASTER_VERSION,local_admission_authority:PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION,nested_hotfix_version_supported:appVersion==='v0.4.27.55.1',semantics:{gemini_raw_immutable:true,candy_id_only_key_bridge:true,unmatched_direct_admission_single_confirmation_ui:true,source_controlled_screenshot_promotion:successor54,local_public_identity_persistent:true,local_storage_readback_verified:true,sqlite_master_readback_and_compensating_rollback_wired:true,replay_same_observation_exact_only:true,replay_auto_quantity_write:false,player_quantity_in_public_master:false,professor_semantics_unchanged:true,family_id_consolidation:false,local_admission_fallback_preserved:true,consolidated_ci_successor_chain:true,offline_script_cache_after_online_load:true}},null,2));
 if(successor54)await import('./v042754-p0b5-ingame-candy-master-promotion-contract.mjs');

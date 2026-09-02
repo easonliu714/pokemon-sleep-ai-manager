@@ -15,9 +15,9 @@ import {PUBLIC_MASTER_RECOGNITION_SCHEMA,PUBLIC_MASTER_RECOGNITION_VERSION} from
 const read=path=>fs.readFileSync(path,'utf8');
 const versionSource=read('assets/js/version-authority.js');
 const appVersion=versionSource.match(/app_version:\s*'([^']+)'/)?.[1]||'';
-const successor54=['v0.4.27.54','v0.4.27.55'].includes(appVersion);
-const successor53=['v0.4.27.53','v0.4.27.54','v0.4.27.55'].includes(appVersion);
-const successor55=appVersion==='v0.4.27.55';
+const successor54=['v0.4.27.54','v0.4.27.55','v0.4.27.55.1'].includes(appVersion);
+const successor53=['v0.4.27.53','v0.4.27.54','v0.4.27.55','v0.4.27.55.1'].includes(appVersion);
+const successor55=['v0.4.27.55','v0.4.27.55.1'].includes(appVersion);
 const snapshot=buildPublicMasterCatalogSnapshot('candies');
 const chimchar=snapshot.rows.find(row=>row.candy_name==='小火焰猴的糖果');
 const monferno=snapshot.rows.find(row=>row.candy_name==='猛火猴的糖果');
@@ -52,7 +52,11 @@ const uiSource=read('assets/js/candy-quantity-screenshot-ui.js');
 assert.match(uiSource,/provider_raw:''/);assert.match(uiSource,/working_raw:''/);assert.match(uiSource,/Gemini Raw JSON（唯讀、immutable）/);assert.match(uiSource,/EXACT_IDENTITY_MISMATCH/);assert.ok(!uiSource.includes('state.provider_raw=JSON.stringify(mutator'));
 const appBuild=versionSource.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(successor55){
+if(appVersion==='v0.4.27.55.1'){
+  assert.equal(appBuild,'20260902-v0427551-visible-target-count-confirmation');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.1-v0427551-visible-target-count-confirmation');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55'"));
+}else if(successor55){
   assert.equal(appBuild,'20260901-v042755-p0b6-candy-family-storage-reconciliation');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55-v042755-p0b6-candy-family-storage-reconciliation');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.54'"));
@@ -70,5 +74,5 @@ if(successor55){
 assert.ok(versionSource.includes("// app_version: 'v0.3.96'"));
 const professorSource=read('assets/js/pokemon-professor-transfer.js');assert.match(professorSource,/USER_DIRECT_OBSERVATION_ONLY/);assert.equal(professorSource.includes('candy-quantity-confirmation-authority.js'),false);
 
-console.log(JSON.stringify({status:'PASS',gate:'V042752_P0B5_GAP_IDENTITY_RAW_EVIDENCE_HOTFIX',app_version:appVersion,app_build:appBuild,candy_master_version:PUBLIC_CANDY_MASTER_VERSION,authority_version:CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION,semantics:{provider_raw_immutable:true,historical_master_gap_terminal_nonwrite:true,exact_candy_identity_gate:true,chimchar_cross_name_blocked:true,source_controlled_screenshot_promotion:successor54,player_quantity_migration:false,family_candy_id_consolidation:false,professor_semantics_unchanged:true}},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V042752_P0B5_GAP_IDENTITY_RAW_EVIDENCE_HOTFIX',app_version:appVersion,app_build:appBuild,candy_master_version:PUBLIC_CANDY_MASTER_VERSION,authority_version:CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION,nested_hotfix_version_supported:appVersion==='v0.4.27.55.1',semantics:{provider_raw_immutable:true,historical_master_gap_terminal_nonwrite:true,exact_candy_identity_gate:true,chimchar_cross_name_blocked:true,source_controlled_screenshot_promotion:successor54,player_quantity_migration:false,family_candy_id_consolidation:false,professor_semantics_unchanged:true}},null,2));
 if(successor53)await import('./v042753-p0b5-canonical-key-gap-admission-replay-contract.mjs');

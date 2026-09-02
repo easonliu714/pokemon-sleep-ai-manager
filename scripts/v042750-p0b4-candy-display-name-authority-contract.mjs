@@ -18,7 +18,8 @@ import {
 const read=path=>fs.readFileSync(path,'utf8');
 const versionSource=read('assets/js/version-authority.js'),serviceWorkerSource=read('service-worker.js'),workflowSource=read('.github/workflows/regression-gate.yml');
 const appVersion=versionSource.match(/app_version:\s*'([^']+)'/)?.[1]||'',appBuild=versionSource.match(/app_build:\s*'([^']+)'/)?.[1]||'',cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-const p0b6Successor=appVersion==='v0.4.27.55';
+const p0b6Patch=Number(appVersion.match(/^v0\.4\.27\.(\d+)(?:\.\d+)*$/)?.[1]||-1);
+const p0b6Successor=p0b6Patch>=55;
 const withLocalAdmissions=(observedTexts,fn)=>{
   const previous=globalThis.localStorage;
   const rows=observedTexts.map((observed_text,index)=>preparePublicCandyLocalAdmission({observation:{status:'UNMATCHED',observed_text,source_image_ref:`fixture-image-${index+1}`,observation_id:`fixture-observation-${index+1}`},confirmedAt:`2026-09-01T13:40:0${index}.000Z`}));
@@ -101,10 +102,15 @@ else if(appVersion==='v0.4.27.52'){assert.equal(appBuild,'20260901-v042752-p0b5-
 else if(appVersion==='v0.4.27.53'){assert.equal(appBuild,'20260901-v042753-p0b5-canonical-key-gap-admission-replay');}
 else if(appVersion==='v0.4.27.54'){assert.equal(appBuild,'20260901-v042754-p0b5-ingame-candy-master-promotion');}
 else if(appVersion==='v0.4.27.55'){assert.equal(appBuild,'20260901-v042755-p0b6-candy-family-storage-reconciliation');assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55-v042755-p0b6-candy-family-storage-reconciliation');assert.equal(PUBLIC_CANDY_MASTER_VERSION,'public-candy-master-2026-09-01-g');}
-else assert.fail(`B4 successor release not governed: ${appVersion}`);
+else if(p0b6Successor){
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55'"),'nested successor must retain v0.4.27.55 predecessor version');
+  assert.ok(versionSource.includes("// app_build: '20260901-v042755-p0b6-candy-family-storage-reconciliation'"),'nested successor must retain v0.4.27.55 predecessor build');
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55-v042755-p0b6-candy-family-storage-reconciliation'"),'nested successor must retain v0.4.27.55 predecessor cache');
+  assert.equal(PUBLIC_CANDY_MASTER_VERSION,'public-candy-master-2026-09-01-g');
+}else assert.fail(`B4 successor release not governed: ${appVersion}`);
 assert.ok(versionSource.includes("// app_version: 'v0.4.27.49'"));
 assert.equal((serviceWorkerSource.match(/\.\/assets\/js\/public-candy-display-name-authority\.js/g)||[]).length,1);
 assert.equal((serviceWorkerSource.match(/\.\/assets\/js\/public-candy-family-authority\.js/g)||[]).length,1);
 assert.ok(workflowSource.includes('node scripts/v042750-p0b4-candy-display-name-authority-contract.mjs'));
-console.log(JSON.stringify({status:'PASS',gate:'V042750_P0B4_PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY',authority_version:PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION,admitted_exact_zh_tw_display_name_rows:rows.length,verified_display_names:rows.map(row=>row.candy_display_name),app_version:appVersion,app_build:appBuild,semantics:{family_level_display_name_resolution:true,exact_first_party_zh_tw_evidence_only:true,local_admission_dynamic_fallback:p0b6Successor,local_admission_reaches_canonical_storage:p0b6Successor,unverified_family_review_required:true,automatic_display_name_generation:false,legacy_candy_master_mutation:false,player_inventory_migration:false,professor_transfer_write_change:false,successor_release_exact:true}},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V042750_P0B4_PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY',authority_version:PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION,admitted_exact_zh_tw_display_name_rows:rows.length,verified_display_names:rows.map(row=>row.candy_display_name),app_version:appVersion,app_build:appBuild,nested_hotfix_version_supported:p0b6Successor&&appVersion!=='v0.4.27.55',semantics:{family_level_display_name_resolution:true,exact_first_party_zh_tw_evidence_only:true,local_admission_dynamic_fallback:p0b6Successor,local_admission_reaches_canonical_storage:p0b6Successor,unverified_family_review_required:true,automatic_display_name_generation:false,legacy_candy_master_mutation:false,player_inventory_migration:false,professor_transfer_write_change:false,successor_release_exact:true}},null,2));
 await import('./v042751-p0b5-candy-quantity-confirmation-contract.mjs');
