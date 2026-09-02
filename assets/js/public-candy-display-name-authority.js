@@ -4,8 +4,8 @@ import {
 } from './public-candy-family-authority.js';
 import {publicCandyLocalAdmissionRows} from './public-candy-local-admission-authority.js';
 
-export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION='public-candy-display-name-authority-2026-09-01-e';
-export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_STATUS='ACTIVE_EXPLICIT_FIRST_PARTY_ZH_TW_DISPLAY_NAME_AUTHORITY';
+export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION='public-candy-display-name-authority-2026-09-02-f';
+export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_STATUS='ACTIVE_LOCAL_PRIMARY_PUBLIC_SUPPLEMENTAL_ZH_TW_DISPLAY_NAME_AUTHORITY';
 
 const displayText=value=>String(value??'').trim();
 const normalizeKey=value=>displayText(value).normalize('NFKC');
@@ -29,9 +29,9 @@ const ingameEvidence=(reference_species_name,candy_display_name,source_ref)=>evi
 );
 
 // Source-controlled display names remain literal evidence rows. No display name
-// is synthesized from a species or structural root. P0-B6 may additionally
-// consume validated P0-B5/.53 local admissions dynamically below; those rows
-// preserve the exact user-confirmed in-game text and do not promote quantity.
+// is synthesized from a species or structural root. Local user-confirmed rows
+// are durable authorities for Pokémon/Candy zh-TW names; public rows supplement
+// and corroborate them, but never silently overwrite a conflicting local name.
 export const PUBLIC_CANDY_DISPLAY_NAME_EVIDENCE_ROWS=Object.freeze([
   evidence(
     '妙蛙種子',
@@ -113,8 +113,9 @@ const STATIC_PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_ROWS=buildStaticAuthorityRows()
 
 function localAdmissionAuthorityRows(){
   const output=[];
-  let localRows=[];
-  try{localRows=publicCandyLocalAdmissionRows();}catch{return Object.freeze([]);}
+  // .55.2: do not swallow local authority migration/corruption errors. A local
+  // row that cannot be read is a HOLD condition, never equivalent to no row.
+  const localRows=publicCandyLocalAdmissionRows();
   for(const local of localRows){
     const family=resolvePublicCandyFamilyForSpecies(local.target_species_name);
     if(family.status!=='MATCH'||!family.family_id)continue;
@@ -127,6 +128,7 @@ function localAdmissionAuthorityRows(){
       verified_at:local.confirmed_at||null,
       exact_display_string_authority:true,
       local_admission_authority:true,
+      local_evidence_preserved:true,
       status:'MATCH',
       reason:'USER_CONFIRMED_LOCAL_EXACT_CANDY_DISPLAY_NAME_BOUND_TO_FAMILY',
       family_id:family.family_id,
@@ -139,24 +141,46 @@ function localAdmissionAuthorityRows(){
 }
 
 function currentAuthorityRowsInternal(){
-  const rows=[...STATIC_PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_ROWS];
-  const byFamily=new Map(rows.filter(row=>row.status==='MATCH'&&row.family_id).map(row=>[row.family_id,row]));
-  for(const local of localAdmissionAuthorityRows()){
-    const existing=byFamily.get(local.family_id);
-    if(existing){
-      if(normalizeKey(existing.candy_display_name)!==normalizeKey(local.candy_display_name)){
-        throw new Error(`public_candy_display_name_local_conflict:${local.family_id}:${existing.candy_display_name}:${local.candy_display_name}`);
-      }
-      continue;
+  const staticRows=[...STATIC_PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_ROWS];
+  const localRows=[...localAdmissionAuthorityRows()];
+  const staticByFamily=new Map(staticRows.filter(row=>row.status==='MATCH'&&row.family_id).map(row=>[row.family_id,row]));
+  const localByFamily=new Map();
+  for(const local of localRows){
+    const existingLocal=localByFamily.get(local.family_id);
+    if(existingLocal&&normalizeKey(existingLocal.candy_display_name)!==normalizeKey(local.candy_display_name)){
+      throw new Error(`public_candy_display_name_local_local_conflict:${local.family_id}:${existingLocal.candy_display_name}:${local.candy_display_name}`);
     }
-    rows.push(local);byFamily.set(local.family_id,local);
+    if(!existingLocal)localByFamily.set(local.family_id,local);
+  }
+
+  const rows=[];
+  const handledFamilies=new Set();
+  // Pokémon/Candy names are local-primary while public completeness remains
+  // unattested. Exact public rows corroborate; a mismatch fails closed.
+  for(const local of localRows){
+    if(handledFamilies.has(local.family_id))continue;
+    const publicRow=staticByFamily.get(local.family_id)||null;
+    if(publicRow&&normalizeKey(publicRow.candy_display_name)!==normalizeKey(local.candy_display_name)){
+      throw new Error(`public_candy_display_name_local_conflict:${local.family_id}:${publicRow.candy_display_name}:${local.candy_display_name}`);
+    }
+    rows.push(Object.freeze({
+      ...local,
+      public_corroborated:Boolean(publicRow),
+      public_source_ref:publicRow?.source_ref||null,
+      public_source_type:publicRow?.source_type||null,
+      reason:publicRow?'USER_CONFIRMED_LOCAL_CANDY_NAME_PUBLIC_CORROBORATED':'USER_CONFIRMED_LOCAL_CANDY_NAME_PUBLIC_SUPPLEMENT_MISSING',
+    }));
+    handledFamilies.add(local.family_id);
+  }
+  for(const row of staticRows){
+    if(row.status==='MATCH'&&row.family_id&&handledFamilies.has(row.family_id))continue;
+    rows.push(row);
   }
   return Object.freeze(rows);
 }
 
-// Read-only dynamic Array facade. Existing P0-B6 consumers use Array.find();
-// resolving the facade at property access means a local admission committed in
-// the same browser session becomes immediately visible without a source reload.
+// Read-only dynamic Array facade. Resolving at property access means a local
+// admission committed in the same browser session becomes immediately visible.
 export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_ROWS=new Proxy([],{
   get(_target,property){
     const rows=currentAuthorityRowsInternal();
@@ -170,10 +194,14 @@ export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_ROWS=new Proxy([],{
 
 export const PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY=Object.freeze({
   candy_family_authority_version:PUBLIC_CANDY_FAMILY_AUTHORITY_VERSION,
-  exact_official_zh_tw_string_required:true,
+  exact_official_zh_tw_string_supported:true,
   ingame_screenshot_official_equivalent_exact_string_supported:true,
   real_device_user_revalidation_exact_string_supported:true,
   local_user_confirmed_exact_string_supported:true,
+  local_name_precedes_public_name_while_public_completeness_unattested:true,
+  public_name_supplements_local_gap:true,
+  public_name_may_silently_overwrite_local_name:false,
+  local_admission_read_failure_silent_drop:false,
   local_admission_quantity_authority:false,
   structural_root_is_not_display_name_anchor:true,
   species_name_concatenation_forbidden:true,
@@ -215,7 +243,7 @@ export function resolvePublicCandyDisplayNameForSpecies(speciesName){
   if(!authority){
     return Object.freeze({
       status:'REVIEW_REQUIRED',
-      reason:'FIRST_PARTY_ZH_TW_CANDY_DISPLAY_NAME_NOT_VERIFIED',
+      reason:'FIRST_PARTY_OR_LOCAL_ZH_TW_CANDY_DISPLAY_NAME_NOT_VERIFIED',
       observed_species_name:displayText(speciesName),
       canonical_species_name:family.canonical_species_name,
       family_id:family.family_id,
@@ -238,6 +266,8 @@ export function resolvePublicCandyDisplayNameForSpecies(speciesName){
     source_ref:authority.source_ref,
     verified_at:authority.verified_at,
     local_admission_authority:Boolean(authority.local_admission_authority),
+    local_evidence_preserved:Boolean(authority.local_evidence_preserved),
+    public_corroborated:Boolean(authority.public_corroborated),
     automatic_display_name_generation:false,
   });
 }
@@ -248,7 +278,7 @@ export function resolvePublicCandyDisplayNameForFamilyId(familyId){
   if(!authority){
     return Object.freeze({
       status:'REVIEW_REQUIRED',
-      reason:'FIRST_PARTY_ZH_TW_CANDY_DISPLAY_NAME_NOT_VERIFIED',
+      reason:'FIRST_PARTY_OR_LOCAL_ZH_TW_CANDY_DISPLAY_NAME_NOT_VERIFIED',
       family_id:key||null,
       candy_display_name:null,
       candy_display_name_authority:false,
@@ -265,6 +295,8 @@ export function resolvePublicCandyDisplayNameForFamilyId(familyId){
     source_ref:authority.source_ref,
     verified_at:authority.verified_at,
     local_admission_authority:Boolean(authority.local_admission_authority),
+    local_evidence_preserved:Boolean(authority.local_evidence_preserved),
+    public_corroborated:Boolean(authority.public_corroborated),
     automatic_display_name_generation:false,
   });
 }
