@@ -101,10 +101,22 @@ assert.equal(staleState.gate_status,'HOLD');
 assert.equal(compileCandyVisibleTargetCountGovernedRecognitionToUpdatePackage(stale,'candies',{allowedImageRefs:['candy-image-001']}).ok,false,'stale count resolution must not clear a new mismatch');
 
 const ui=readFileSync(new URL('../assets/js/candy-quantity-screenshot-ui.js',import.meta.url),'utf8');
-for(const token of ['candyB5VisibleTargetCountReview','candyB5VisibleTargetCountInput','candyB5ConfirmVisibleTargetCount','applyCandyVisibleTargetCountResolution','v0.4.27.55.1'])assert.ok(ui.includes(token),`count review UI missing ${token}`);
+for(const token of ['candyB5VisibleTargetCountReview','candyB5VisibleTargetCountInput','candyB5ConfirmVisibleTargetCount','applyCandyVisibleTargetCountResolution'])assert.ok(ui.includes(token),`count review UI missing ${token}`);
 const version=readFileSync(new URL('../assets/js/version-authority.js',import.meta.url),'utf8');
-assert.match(version,/app_version: 'v0\.4\.27\.55\.1'/u);
-assert.match(version,/app_build: '20260902-v0427551-visible-target-count-confirmation'/u);
-assert.match(version,/cache_name: 'pokemon-sleep-ai-v0\.4\.27\.55\.1-v0427551-visible-target-count-confirmation'/u);
+const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1]||'';
+const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
+const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
+if(appVersion==='v0.4.27.55.1'){
+  assert.ok(ui.includes('v0.4.27.55.1'),'exact .55.1 UI must show the .55.1 release label');
+  assert.equal(appBuild,'20260902-v0427551-visible-target-count-confirmation');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.1-v0427551-visible-target-count-confirmation');
+}else if(appVersion==='v0.4.27.55.2'){
+  assert.ok(ui.includes('v0.4.27.55.2'),'successor UI must show the current .55.2 release label');
+  assert.equal(appBuild,'20260902-v0427552-local-gap-field-precedence');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.2-v0427552-local-gap-field-precedence');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55'"),'successor must retain .55 predecessor authority marker');
+}else{
+  assert.fail(`visible-target-count successor release not governed: ${appVersion}`);
+}
 
-console.log(`PASS v0.4.27.55.1 visible target count confirmation: provider=24 observations=20 default=HOLD wrong-confirm=HOLD user-confirm=PASS operations=20 raw=IMMUTABLE stale=HOLD authority=${CANDY_VISIBLE_TARGET_COUNT_CONFIRMATION_AUTHORITY_VERSION}`);
+console.log(`PASS v0.4.27.55.1 visible target count confirmation: current=${appVersion} provider=24 observations=20 default=HOLD wrong-confirm=HOLD user-confirm=PASS operations=20 raw=IMMUTABLE stale=HOLD authority=${CANDY_VISIBLE_TARGET_COUNT_CONFIRMATION_AUTHORITY_VERSION}`);

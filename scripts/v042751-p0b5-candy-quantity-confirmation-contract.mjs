@@ -80,19 +80,27 @@ const inventoryUiSource=read('assets/js/candy-inventory-ui.js');
 const professorSource=read('assets/js/pokemon-professor-transfer.js');
 const versionSource=read('assets/js/version-authority.js');
 const serviceWorkerSource=read('service-worker.js');
+const appVersion=versionSource.match(/app_version:\s*'([^']+)'/)?.[1]||'';
+const appBuild=versionSource.match(/app_build:\s*'([^']+)'/)?.[1]||'';
+const cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
+const p0b6Patch=Number(appVersion.match(/^v0\.4\.27\.(\d+)(?:\.\d+)*$/)?.[1]||-1);
+const p0b6Hotfix=Number(appVersion.match(/^v0\.4\.27\.55\.(\d+)(?:\.\d+)*$/)?.[1]||0);
+const p0b6Successor=p0b6Patch>=55;
+const localGapDurabilitySuccessor=p0b6Patch>55||(p0b6Patch===55&&p0b6Hotfix>=2);
 assert.match(uiSource,/我已核對遊戲畫面，確認數量/);
 assert.match(uiSource,/Gemini Raw JSON（唯讀、immutable）/);
-assert.match(admissionUiSource,/建立公版糖果並重新對應/);
+if(localGapDurabilitySuccessor){
+  assert.match(admissionUiSource,/建立本機糖果名稱並重新對應/);
+  assert.match(admissionUiSource,/不修改 GitHub 公版/);
+  assert.equal(admissionUiSource.includes('建立公版糖果並重新對應'),false,'v0.4.27.55.2+ must not mislabel local admission as GitHub public-master mutation');
+}else{
+  assert.match(admissionUiSource,/建立公版糖果並重新對應/);
+}
 assert.match(inventoryUiSource,/candy-quantity-screenshot-ui\.js/);
 assert.match(inventoryUiSource,/candy-public-master-admission-ui\.js/);
 assert.match(professorSource,/USER_DIRECT_OBSERVATION_ONLY/);
 assert.equal(professorSource.includes('candy-quantity-confirmation-authority.js'),false);
 
-const appVersion=versionSource.match(/app_version:\s*'([^']+)'/)?.[1]||'';
-const appBuild=versionSource.match(/app_build:\s*'([^']+)'/)?.[1]||'';
-const cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-const p0b6Patch=Number(appVersion.match(/^v0\.4\.27\.(\d+)(?:\.\d+)*$/)?.[1]||-1);
-const p0b6Successor=p0b6Patch>=55;
 if(appVersion==='v0.4.27.51')assert.equal(appBuild,'20260831-v042751-p0b5-candy-quantity-confirmation');
 else if(appVersion==='v0.4.27.52')assert.equal(appBuild,'20260901-v042752-p0b5-gap-identity-raw-evidence-hotfix');
 else if(appVersion==='v0.4.27.53'){
@@ -116,6 +124,6 @@ assert.ok(versionSource.includes("// app_version: 'v0.4.27.50'"));
 assert.equal((serviceWorkerSource.match(/\.\/assets\/js\/candy-inventory-ui\.js/g)||[]).length,1);
 assert.match(serviceWorkerSource,/querySafeCacheMatch\(event\.request\)/);
 
-console.log(JSON.stringify({status:'PASS',gate:'V042751_P0B5_CANDY_QUANTITY_CONFIRMATION_AUTHORITY',authority_version:CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION,app_version:appVersion,app_build:appBuild,nested_hotfix_version_supported:p0b6Successor&&appVersion!=='v0.4.27.55',semantics:{ai_quantity_candidate_only:true,explicit_quantity_confirmation_required:true,confirmed_zero_is_valid:true,storage_key_candy_id_only:true,candy_id_only_gemini_key_bridge:true,provider_raw_json_immutable:true,professor_observed_delta_unchanged:true}},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V042751_P0B5_CANDY_QUANTITY_CONFIRMATION_AUTHORITY',authority_version:CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION,app_version:appVersion,app_build:appBuild,nested_hotfix_version_supported:p0b6Successor&&appVersion!=='v0.4.27.55',local_gap_durability_successor:localGapDurabilitySuccessor,semantics:{ai_quantity_candidate_only:true,explicit_quantity_confirmation_required:true,confirmed_zero_is_valid:true,storage_key_candy_id_only:true,candy_id_only_gemini_key_bridge:true,provider_raw_json_immutable:true,local_admission_ui_truthful_scope:localGapDurabilitySuccessor,professor_observed_delta_unchanged:true}},null,2));
 
 if(['v0.4.27.52','v0.4.27.53','v0.4.27.54','v0.4.27.55'].includes(appVersion)||p0b6Successor)await import('./v042752-p0b5-gap-identity-raw-evidence-hotfix-contract.mjs');
