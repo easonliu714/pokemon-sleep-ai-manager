@@ -38,19 +38,32 @@ const storage=new FakeStorage();
 Object.defineProperty(globalThis,'localStorage',{value:storage,configurable:true});
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1]||'';
-const successor54=['v0.4.27.54','v0.4.27.55','v0.4.27.55.1'].includes(appVersion);
-const successor55=['v0.4.27.55','v0.4.27.55.1'].includes(appVersion);
+const patch=Number(appVersion.match(/^v0\.4\.27\.(\d+)(?:\.\d+)*$/)?.[1]||-1);
+const hotfix55=Number(appVersion.match(/^v0\.4\.27\.55\.(\d+)(?:\.\d+)*$/)?.[1]||0);
+const successor54=patch>=54;
+const successor55=patch>=55;
+const localGapDurabilitySuccessor=patch>55||(patch===55&&hotfix55>=2);
 
 assert.equal(PUBLIC_CANDY_MASTER_VERSION,successor54?'public-candy-master-2026-09-01-g':'public-candy-master-2026-09-01-f');
 assert.equal(PUBLIC_CANDY_LEGACY_COMPATIBILITY_EVIDENCE_ADDITIONS.length,1,'legacy compatibility additions must remain exactly one');
 assert.equal(PUBLIC_CANDY_LEGACY_COMPATIBILITY_EVIDENCE_ADDITIONS[0].species_name,'小火焰猴');
 assert.equal(PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_ADDITIONS.length,successor54?8:0,'.54+ must retain the governed source-controlled screenshot evidence set');
-assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION,'public-candy-local-admission-2026-09-01-b');
+assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION,localGapDurabilitySuccessor?'public-candy-local-admission-2026-09-02-c':'public-candy-local-admission-2026-09-01-b');
 assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_POLICY.observation_must_be_unmatched,true);
 assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_POLICY.player_quantity_stored,false);
 assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_POLICY.source_controlled_master_mutated,false);
 assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_POLICY.storage_readback_verification,true);
 assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_POLICY.family_id_consolidation,false);
+if(localGapDurabilitySuccessor){
+  assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_POLICY.public_species_exact_authority_required,false);
+  assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_POLICY.public_species_corroboration_only,true);
+  assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_POLICY.public_species_absence_blocks_admission,false);
+  assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_POLICY.local_user_confirmed_pokemon_name_primary,true);
+  assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_POLICY.local_user_confirmed_candy_name_primary,true);
+  assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_POLICY.public_master_may_overwrite_local_pokemon_candy_names,false);
+}else{
+  assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_POLICY.public_species_exact_authority_required,true);
+}
 assert.equal(publicCandyLocalAdmissionRows().length,0);
 assert.equal(publicCandyLocalAdmissionFingerprint(),'none');
 const masterSource=read('assets/js/public-candy-master.js');
@@ -74,9 +87,9 @@ assert.equal(matchedCompile.errors.length,0,matchedCompile.errors.join('\n'));
 assert.equal(matchedCompile.update_package.operations.length,0,'unconfirmed screenshot quantity must remain non-write');
 assert.equal(matchedCompile.summary.candy_quantity_pending_count,1);
 
-// Preserve .53 local-admission fallback on a governed species intentionally not
-// included in the .54 promotion set. P0-B6 may canonicalize governed B3+B4
-// families, but it must not fabricate a family for this ungoverned local overlay.
+// Preserve .53 local-admission fallback on a name intentionally not included in
+// the .54 source-controlled promotion set. .55.2 keeps the same exact-game-text
+// admission but no longer requires Public Species coverage as a prerequisite.
 const fallbackCandyName='托戈德瑪爾的糖果';
 assert.equal(buildPublicCandyMasterRows().some(row=>row.candy_name===fallbackCandyName),false,'fixture requires a future current-master gap');
 const gapRaw={schema:PUBLIC_MASTER_RECOGNITION_SCHEMA,recognition_version:PUBLIC_MASTER_RECOGNITION_VERSION,scenario:'candy_inventory_update',authority:'candy_master',data_version:snapshot.data_version,catalog_snapshot_id:snapshot.catalog_snapshot_id,generated_at:'2026-09-01T02:01:00.000Z',visible_target_count:1,observations:[{observation_id:'obs-future-gap',status:'UNMATCHED',observed_text:fallbackCandyName,observed_data:{quantity:7},source_image_ref:'synthetic-candy-image-001',confidence:0.95}]};
@@ -87,7 +100,13 @@ assert.equal(prepared.authority_version,PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_V
 assert.equal(Object.prototype.hasOwnProperty.call(prepared,'quantity'),false,'Public Master admission must never contain player quantity');
 assert.throws(()=>preparePublicCandyLocalAdmission({observation:{...gapRaw.observations[0],status:'MATCHED'}}),/只有 UNMATCHED/);
 assert.throws(()=>preparePublicCandyLocalAdmission({observation:{...gapRaw.observations[0],observed_text:'托戈德瑪爾'}}),/exact/);
-assert.throws(()=>preparePublicCandyLocalAdmission({observation:{...gapRaw.observations[0],observed_text:'不存在寶可夢的糖果'}}),/species authority/);
+if(localGapDurabilitySuccessor){
+  const privateOnly=preparePublicCandyLocalAdmission({observation:{...gapRaw.observations[0],observation_id:'local-only-species',observed_text:'不存在寶可夢的糖果'},confirmedAt:'2026-09-01T02:02:30.000Z'});
+  assert.equal(privateOnly.target_species_name,'不存在寶可夢');
+  assert.equal(privateOnly.public_species_resolution_status,'REVIEW_REQUIRED');
+}else{
+  assert.throws(()=>preparePublicCandyLocalAdmission({observation:{...gapRaw.observations[0],observed_text:'不存在寶可夢的糖果'}}),/species authority/);
+}
 
 const admission=commitPublicCandyLocalAdmission(prepared);
 assert.equal(admission.status,'CREATED');
@@ -129,9 +148,15 @@ storage.clear();
 commitPublicCandyLocalAdmission(prepared,{storage});
 
 const ui=read('assets/js/candy-public-master-admission-ui.js');
-assert.match(ui,/建立公版糖果並重新對應/);
-assert.match(ui,/是否直接建立「本機 Public Candy identity」並立即用同一筆 observation 重新對應/);
-assert.match(ui,/玩家 quantity 不會寫入 Public Master/);
+if(localGapDurabilitySuccessor){
+  assert.match(ui,/建立本機糖果名稱並重新對應/);
+  assert.match(ui,/不會直接修改 GitHub 公版/);
+  assert.match(ui,/Local-first \/ Public-supplemental/);
+}else{
+  assert.match(ui,/建立公版糖果並重新對應/);
+  assert.match(ui,/是否直接建立「本機 Public Candy identity」並立即用同一筆 observation 重新對應/);
+  assert.match(ui,/玩家 quantity 不會寫入 Public Master/);
+}
 assert.match(ui,/preparePublicCandyLocalAdmission/);
 assert.match(ui,/persistAdmissionPair/);
 assert.match(ui,/rollbackNewAdmissionPair/);
@@ -145,15 +170,19 @@ assert.equal(professor.includes('candy-public-master-admission-ui.js'),false);
 
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.1'){
+if(appVersion==='v0.4.27.55.2'){
+  assert.equal(appBuild,'20260902-v0427552-local-gap-field-precedence');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.2-v0427552-local-gap-field-precedence');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55'"));
+}else if(appVersion==='v0.4.27.55.1'){
   assert.equal(appBuild,'20260902-v0427551-visible-target-count-confirmation');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.1-v0427551-visible-target-count-confirmation');
   assert.ok(version.includes("// app_version: 'v0.4.27.55'"));
-}else if(successor55){
+}else if(appVersion==='v0.4.27.55'){
   assert.equal(appBuild,'20260901-v042755-p0b6-candy-family-storage-reconciliation');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55-v042755-p0b6-candy-family-storage-reconciliation');
   assert.ok(version.includes("// app_version: 'v0.4.27.54'"));
-}else if(successor54){
+}else if(appVersion==='v0.4.27.54'){
   assert.equal(appBuild,'20260901-v042754-p0b5-ingame-candy-master-promotion');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.54-v042754-p0b5-ingame-candy-master-promotion');
   assert.ok(version.includes("// app_version: 'v0.4.27.53'"));
@@ -173,5 +202,5 @@ assert.equal(occurrence(predecessor52,"if(successor53)await import('./v042753-p0
 assert.equal(fs.existsSync('.github/workflows/v042753-p0b5-canonical-key-gap-admission-replay.yml'),false,'no standalone .53 workflow may bypass governed CI topology');
 assert.equal(CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION,'candy-quantity-confirmation-authority-2026-09-01-c');
 
-console.log(JSON.stringify({status:'PASS',gate:'V042753_P0B5_CANONICAL_KEY_DIRECT_ADMISSION_REPLAY',app_version:appVersion,candy_master_version:PUBLIC_CANDY_MASTER_VERSION,local_admission_authority:PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION,nested_hotfix_version_supported:appVersion==='v0.4.27.55.1',semantics:{gemini_raw_immutable:true,candy_id_only_key_bridge:true,unmatched_direct_admission_single_confirmation_ui:true,source_controlled_screenshot_promotion:successor54,local_public_identity_persistent:true,local_storage_readback_verified:true,sqlite_master_readback_and_compensating_rollback_wired:true,replay_same_observation_exact_only:true,replay_auto_quantity_write:false,player_quantity_in_public_master:false,professor_semantics_unchanged:true,family_id_consolidation:false,local_admission_fallback_preserved:true,consolidated_ci_successor_chain:true,offline_script_cache_after_online_load:true}},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V042753_P0B5_CANONICAL_KEY_DIRECT_ADMISSION_REPLAY',app_version:appVersion,candy_master_version:PUBLIC_CANDY_MASTER_VERSION,local_admission_authority:PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION,nested_hotfix_version_supported:patch===55&&hotfix55>=1,local_gap_durability_successor:localGapDurabilitySuccessor,semantics:{gemini_raw_immutable:true,candy_id_only_key_bridge:true,unmatched_direct_admission_single_confirmation_ui:true,source_controlled_screenshot_promotion:successor54,local_public_identity_persistent:true,local_storage_readback_verified:true,sqlite_master_readback_and_compensating_rollback_wired:true,replay_same_observation_exact_only:true,replay_auto_quantity_write:false,player_quantity_in_public_master:false,public_species_is_corroboration_not_prerequisite:localGapDurabilitySuccessor,professor_semantics_unchanged:true,family_id_consolidation:false,local_admission_fallback_preserved:true,consolidated_ci_successor_chain:true,offline_script_cache_after_online_load:true}},null,2));
 if(successor54)await import('./v042754-p0b5-ingame-candy-master-promotion-contract.mjs');
