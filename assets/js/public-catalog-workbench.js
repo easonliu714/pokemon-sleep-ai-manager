@@ -6,12 +6,19 @@ import {PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-current-authority.js
 import {applyConfirmedRecipeDisplayNames} from './recipe-display-name-evidence.js';
 import {saveIngredient,saveItem} from './manual-editor.js';
 import {renderRecipeUnifiedWorkbench,RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION} from './recipe-unified-player-workbench.js';
+import {
+  evaluatePublicCatalogVersionAuthority,
+  readPersistedPublicCatalogFingerprint,
+  persistPublicCatalogFingerprint,
+  decidePublicCatalogStartup,
+  publicCatalogProjectionViewForLocalEntity,
+  shouldInvalidatePublicCatalogFingerprint,
+} from './public-catalog-startup-authority.js';
 
 const BUILD=globalThis.PokemonSleepVersionAuthority.app_build;
-const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]));
+const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const $=id=>document.getElementById(id);
 const PUBLIC_VIEWS=Object.freeze(['ingredients','items','recipes']);
-const AUTHORITY_KEYS=Object.freeze(['shared','recipes','items','candy','canonical','pokemon_knowledge']);
 const GLOBAL_KEY='__PokemonSleepPublicCatalogWorkbenchV0427553';
 const runtime=globalThis[GLOBAL_KEY]||(globalThis[GLOBAL_KEY]={
   installed:false,
@@ -30,16 +37,6 @@ const nextPaint=()=>new Promise(resolve=>requestAnimationFrame(()=>resolve()));
 
 function databaseReady(){try{return !isRescueReadonly()&&Number(rows('SELECT COUNT(*) AS count FROM schema_migrations')[0]?.count||0)>0;}catch{return false;}}
 function progress(stage,message,status='running',details={}){globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:startup-progress',{detail:{stage,message,status,details}}));}
-function canonicalAuthorityFingerprint(values={}){return AUTHORITY_KEYS.map(key=>`${key}=${String(values?.[key]??'MISSING')}`).join('|');}
-function evaluatePublicAuthority(detail={}){
-  const publicMaster=detail?.public_master||{};
-  const expected=publicMaster.expected||{};
-  const applied=publicMaster.applied||{};
-  const expectedComplete=AUTHORITY_KEYS.every(key=>expected[key]!=null&&String(expected[key]).length>0);
-  const exact=expectedComplete&&AUTHORITY_KEYS.every(key=>String(applied[key]??'')===String(expected[key]??''));
-  const fingerprint=canonicalAuthorityFingerprint(expected);
-  return {exact,fingerprint,expected,applied,updated:Boolean(publicMaster.updated),updated_authorities:[...(publicMaster.updated_authorities||[])]};
-}
 function lightweightIntegritySentinel(){
   if(!databaseReady())return {ok:false,reason:'DATABASE_NOT_READY'};
   try{
@@ -89,7 +86,7 @@ function renderView(view){
   if(!PUBLIC_VIEWS.includes(view))return false;
   if(view!=='recipes'&&!databaseReady())return false;
   const key=projectionKey(view);
-  if(runtime.renderedKeys.get(view)===key){progress('PUBLIC_CATALOG_RENDER_DEDUPED',`${view} 已是目前版次／玩家投影，不重建`,'completed',{view,fingerprint:runtime.publicFingerprint,local_revision:runtime.localRevision[view]||0});return true;}
+  if(runtime.renderedKeys.get(view)===key){progress('RENDER_DEDUPED',`${view} 已是目前版次／玩家投影，不重建`,'completed',{view,fingerprint:runtime.publicFingerprint,local_revision:runtime.localRevision[view]||0});return true;}
   progress('PUBLIC_CATALOG_RENDER_START',`正在載入${view}公版資料`,'running',{view,generation:runtime.requestedGeneration,fingerprint:runtime.publicFingerprint});
   try{
     let recipeProjection=null;
@@ -112,46 +109,62 @@ async function drainRenderQueue(){
   finally{runtime.draining=false;if(runtime.completedGeneration<runtime.requestedGeneration)queueMicrotask(drainRenderQueue);}
 }
 function requestRender(view=activeView(),reason='unspecified'){
-  if(!PUBLIC_VIEWS.includes(view)){progress('PUBLIC_CATALOG_RENDER_DEDUPED','目前分頁不需要公版表格重建','completed',{view,reason,fingerprint:runtime.publicFingerprint});return false;}
+  if(!PUBLIC_VIEWS.includes(view)){progress('RENDER_DEDUPED','目前分頁不需要公版表格重建','completed',{view,reason,fingerprint:runtime.publicFingerprint});return false;}
   const key=projectionKey(view);
-  if(runtime.renderedKeys.get(view)===key){progress('PUBLIC_CATALOG_RENDER_DEDUPED',`${view} 版次與本機投影均未變更`,'completed',{view,reason,fingerprint:runtime.publicFingerprint,local_revision:runtime.localRevision[view]||0});return false;}
+  if(runtime.renderedKeys.get(view)===key){progress('RENDER_DEDUPED',`${view} 版次與本機投影均未變更`,'completed',{view,reason,fingerprint:runtime.publicFingerprint,local_revision:runtime.localRevision[view]||0});return false;}
+  if(runtime.draining&&runtime.pendingView===view){progress('RENDER_DEDUPED',`${view} 已在目前 render queue，合併重複要求`,'completed',{view,reason,generation:runtime.requestedGeneration});return false;}
   runtime.pendingView=view;runtime.requestedGeneration+=1;
   progress('PUBLIC_CATALOG_RENDER_REQUESTED','已排程公版分頁載入','completed',{view,reason,generation:runtime.requestedGeneration,fingerprint:runtime.publicFingerprint});
   void drainRenderQueue();return true;
 }
 function markLocalProjectionDirty(entity){
-  const mapping={ingredient_inventory:'ingredients',item_inventory:'items',recipes:'recipes',recipe_status:'recipes'};
-  const view=mapping[String(entity||'')];if(!view)return null;
+  const view=publicCatalogProjectionViewForLocalEntity(entity);if(!view)return null;
   runtime.localRevision[view]=(runtime.localRevision[view]||0)+1;return view;
 }
 function handleDatabaseReady(event){
-  const authority=evaluatePublicAuthority(event?.detail||{});
+  const authority=evaluatePublicCatalogVersionAuthority(event?.detail?.public_master||{});
   const sentinel=lightweightIntegritySentinel();
+  const persisted=readPersistedPublicCatalogFingerprint();
+  const decision=decidePublicCatalogStartup({authority,integrity_ok:sentinel.ok,persisted});
   runtime.publicFingerprint=authority.fingerprint;
-  runtime.publicExactMatch=authority.exact&&sentinel.ok&&!authority.updated;
-  progress('PUBLIC_CATALOG_VERSION_CHECK','已比對本機與 Release 公版資料版次','completed',{fingerprint:authority.fingerprint,exact_match:authority.exact,updated:authority.updated,updated_authorities:authority.updated_authorities,integrity_sentinel:sentinel});
+  runtime.publicExactMatch=decision.action==='VERSION_MATCH_BYPASS';
+  progress('PUBLIC_CATALOG_VERSION_CHECK','已比對本機與 Release 公版資料版次','completed',{fingerprint:authority.fingerprint,applied_fingerprint:authority.applied_fingerprint,exact_match:authority.exact,updated:authority.updated,updated_authorities:authority.updated_authorities,persisted_fingerprint:persisted?.fingerprint||null,decision:decision.action,reason:decision.reason,integrity_sentinel:sentinel});
   if(runtime.publicExactMatch){
-    progress('PUBLIC_CATALOG_VERSION_MATCH_BYPASS','公版版次一致；略過全量公版 hydration／reconciliation','completed',{fingerprint:authority.fingerprint,integrity_sentinel:sentinel,player_sqlite_bypassed:false,local_authority_bypassed:false,migration_bypassed:false});
-  }else{
-    progress('PUBLIC_CATALOG_HYDRATE_COMPLETED','公版版本稽核已由資料庫階段完成；目前投影採最新 authority','completed',{fingerprint:authority.fingerprint,exact_match:authority.exact,updated_authorities:authority.updated_authorities,integrity_sentinel:sentinel});
-    runtime.renderedKeys.clear();
+    progress('VERSION_MATCH_BYPASS','公版版次與本機持久化 fingerprint 一致；略過全量公版 hydration／reconciliation／startup render','completed',{fingerprint:authority.fingerprint,integrity_sentinel:sentinel,player_sqlite_bypassed:false,local_authority_bypassed:false,migration_bypassed:false,player_state_refresh_bypassed:false});
+    return;
   }
-  progress('PUBLIC_CATALOG_LAZY_READY','公版資料採版次比對＋按頁單次投影','completed',{build:BUILD,fingerprint:runtime.publicFingerprint,version_match_bypass:runtime.publicExactMatch,recipe_master_version:PUBLIC_RECIPE_MASTER_VERSION,recipe_workbench_version:RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION});
-  requestRender(activeView(),'database-ready');
+  progress('HYDRATE_STARTED','公版 fingerprint 缺失／變更；確認資料庫階段 reconciliation 結果','running',{fingerprint:authority.fingerprint,reason:decision.reason,updated_authorities:authority.updated_authorities,integrity_sentinel:sentinel});
+  if(!authority.exact||!sentinel.ok){
+    runtime.renderedKeys.clear();
+    progress('PUBLIC_CATALOG_HYDRATE_FAILED','Public Master integrity 未達可持久化門檻；禁止版本 bypass','failed',{fingerprint:authority.fingerprint,reason:decision.reason,integrity_sentinel:sentinel});
+    return;
+  }
+  try{
+    const metadata=persistPublicCatalogFingerprint(authority.fingerprint);
+    runtime.renderedKeys.clear();
+    progress('HYDRATE_COMPLETED','公版 reconciliation 已完成並持久化小型 fingerprint metadata','completed',{fingerprint:authority.fingerprint,metadata_authority:metadata.authority_version,updated_authorities:authority.updated_authorities,player_sqlite_bypassed:false,migration_bypassed:false});
+  }catch(error){
+    progress('PUBLIC_CATALOG_FINGERPRINT_PERSIST_FAILED','Public Master fingerprint metadata 無法持久化；本次不啟用 bypass','failed',{fingerprint:authority.fingerprint,error:error?.message||String(error)});
+    return;
+  }
+  if(PUBLIC_VIEWS.includes(activeView()))requestRender(activeView(),'database-ready-after-reconcile');
 }
 function handleDataChanged(event){
   const detail=event?.detail||{};
-  if(detail.public_master_changed===true||detail.public_authority_changed===true){runtime.renderedKeys.clear();requestRender(activeView(),'public-authority-changed');return;}
+  if(shouldInvalidatePublicCatalogFingerprint(detail)){
+    runtime.publicExactMatch=false;runtime.publicFingerprint=null;runtime.renderedKeys.clear();
+    requestRender(activeView(),'public-authority-changed');return;
+  }
   const dirtyView=markLocalProjectionDirty(detail.entity);
-  if(!dirtyView){progress('PUBLIC_CATALOG_RENDER_DEDUPED','本機玩家資料變更不影響 Public Master fingerprint','completed',{reason:'unrelated-local-data-changed',entity:detail.entity||null,fingerprint:runtime.publicFingerprint});return;}
+  if(!dirtyView){progress('RENDER_DEDUPED','本機玩家資料變更不影響 Public Master fingerprint','completed',{reason:'unrelated-local-data-changed',entity:detail.entity||null,fingerprint:runtime.publicFingerprint});return;}
   if(activeView()===dirtyView)requestRender(dirtyView,'local-projection-changed');
 }
 function install(){
-  if(runtime.installed){progress('PUBLIC_CATALOG_RENDER_DEDUPED','Public Catalog runtime 已由另一 URL identity 安裝；略過重複 listener','completed',{reason:'global-singleton',build:BUILD});return;}
+  if(runtime.installed){progress('RENDER_DEDUPED','Public Catalog runtime 已由另一 URL identity 安裝；略過重複 listener','completed',{reason:'global-singleton',build:BUILD});return;}
   runtime.installed=true;
   document.querySelectorAll('nav button[data-view]').forEach(button=>button.addEventListener('click',()=>requestRender(button.dataset.view,'navigation')));
   window.addEventListener('pokemon-sleep:data-changed',handleDataChanged);
   window.addEventListener('pokemon-sleep:database-ready',handleDatabaseReady);
-  window.dispatchEvent(new CustomEvent('pokemon-sleep:public-catalog-ready',{detail:{build:BUILD,lazy_renderer:true,mutation_observer:false,global_singleton:true,public_version_match_bypass:true,local_change_does_not_invalidate_public_fingerprint:true,cause_aware_generation_queue:true,schema_compatible_items:true,ingredient_unlock_state_semantics:true,recipe_authority:PUBLIC_RECIPE_MASTER_VERSION,recipe_workbench_authority:RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION}}));
+  window.dispatchEvent(new CustomEvent('pokemon-sleep:public-catalog-ready',{detail:{build:BUILD,lazy_renderer:true,mutation_observer:false,global_singleton:true,persisted_public_fingerprint:true,public_version_match_bypass:true,local_change_does_not_invalidate_public_fingerprint:true,cause_aware_generation_queue:true,schema_compatible_items:true,ingredient_unlock_state_semantics:true,recipe_authority:PUBLIC_RECIPE_MASTER_VERSION,recipe_workbench_authority:RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION}}));
 }
 if(document.readyState==='loading')window.addEventListener('DOMContentLoaded',install,{once:true});else install();
