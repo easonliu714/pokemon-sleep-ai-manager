@@ -33,7 +33,7 @@ requireText(migrations,'force:true','fresh database force-loads public masters')
 requireText(migrations,'applied.shared!==expected.shared','shared version comparison');
 requireText(migrations,'applied.items!==expected.items','item version comparison');
 requireText(migrations,'applied.canonical!==expected.canonical','canonical version comparison');
-if(!/^v\d+\.\d+\.\d+(?:\.\d+)?$/.test(authority?.app_version||''))failures.push('central app version missing');
+if(!/^v\d+(?:\.\d+){2,}$/.test(authority?.app_version||''))failures.push('central app version missing');
 if(!authority?.app_build)failures.push('central build missing');
 if(!bootstrap.includes('version-authority.js')||!bootstrap.includes('authority.app_version'))failures.push('bootstrap does not consume central authority');
 if(!serviceWorker.includes("importScripts('./assets/js/version-authority.js')")||!serviceWorker.includes('cache_name:CACHE'))failures.push('service worker does not consume central authority');
@@ -49,4 +49,4 @@ const migrationCalls=[...migrations.matchAll(/if\(!hasMigration\(db,(\d+)\)\)/g)
 for(const version of [2,3,4,5,6,7,8])if(!migrationCalls.includes(version))failures.push(`missing migration guard v${version}`);
 try{new vm.Script(migrations.replace(/^import .*$/gm,'').replace(/export /g,''));}catch(error){failures.push(`migrations syntax: ${error.message}`);}
 if(failures.length){console.error(JSON.stringify({ok:false,failures},null,2));process.exit(1);}
-console.log(JSON.stringify({ok:true,version:authority.app_version,build:authority.app_build,scenarios:['cleared_browser_history','empty_indexeddb','database_cleared'],contracts:['fresh_bootstrap_loads_all_public_masters','existing_migrations_are_idempotent','unchanged_public_versions_skip_persist','changed_public_versions_upsert_master_only','central_version_authority','conditional_standard_catalog_schema_repair','strategy_snapshot_migration_v8_no_player_seed']},null,2));
+console.log(JSON.stringify({ok:true,version:authority.app_version,build:authority.app_build,nested_hotfix_semver_supported:true,scenarios:['cleared_browser_history','empty_indexeddb','database_cleared'],contracts:['fresh_bootstrap_loads_all_public_masters','existing_migrations_are_idempotent','unchanged_public_versions_skip_persist','changed_public_versions_upsert_master_only','central_version_authority','conditional_standard_catalog_schema_repair','strategy_snapshot_migration_v8_no_player_seed']},null,2));
