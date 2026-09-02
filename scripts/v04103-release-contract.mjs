@@ -3,8 +3,8 @@ import fs from 'node:fs';
 import {buildUpdatePackageJsonSchema} from '../assets/js/update-package-contract.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
-const versionTuple=value=>{const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$/);return match?match.slice(1).map(part=>Number(part||0)):null;};
-const versionAtLeast=(value,minimum)=>{const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;for(let i=0;i<4;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return true;};
+const versionTuple=value=>{const text=String(value||'');if(!/^v\d+(?:\.\d+){2,}$/.test(text))return null;return text.slice(1).split('.').map(Number);};
+const versionAtLeast=(value,minimum)=>{const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;const length=Math.max(a.length,b.length);for(let i=0;i<length;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return true;};
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const exactReleases={
@@ -35,4 +35,4 @@ const prompt=read('assets/js/prompt-catalog.js');assert.ok(prompt.includes('key.
 const workflow=read('assets/js/ai-workflow.js');assert.ok(workflow.includes('ingredient_inventory key 缺少 ingredient_name'));
 const recognition=read('assets/js/public-master-recognition.js');if(appVersion!=='v0.4.10.3'){assert.ok(recognition.includes("authority:'ingredient_master'"));assert.ok(recognition.includes("canonical_key_fields:Object.freeze(['ingredient_name'])"));assert.ok(recognition.includes('不得自行創造 ID 或 canonical 名稱'));}
 const migrations=read('assets/js/migrations.js');assert.equal(migrations.includes('VALUES(10,'),false,'v0.4.10.3 lineage remains schema-migration-free');
-console.log(JSON.stringify({status:'PASS',gate:'V0.4.10.3_RELEASE_CONTRACT_SUCCESSOR_AWARE',app_version:appVersion,canonical_ingredient_key:'ingredient_name',ai_invented_ingredient_id:false,early_validation:true,public_master_constrained_successor:appVersion!=='v0.4.10.3',successor_v04132:versionAtLeast(appVersion,'v0.4.13.2'),sqlite_migration_added:false,public_master_mutated:false},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V0.4.10.3_RELEASE_CONTRACT_SUCCESSOR_AWARE',app_version:appVersion,nested_hotfix_version_supported:true,canonical_ingredient_key:'ingredient_name',ai_invented_ingredient_id:false,early_validation:true,public_master_constrained_successor:appVersion!=='v0.4.10.3',successor_v04132:versionAtLeast(appVersion,'v0.4.13.2'),sqlite_migration_added:false,public_master_mutated:false},null,2));
