@@ -49,7 +49,12 @@ assert.equal(PUBLIC_CANDY_LEGACY_COMPATIBILITY_EVIDENCE_ADDITIONS.length,1,'lega
 assert.equal(PUBLIC_CANDY_LEGACY_COMPATIBILITY_EVIDENCE_ADDITIONS[0].species_name,'小火焰猴');
 assert.equal(PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_ADDITIONS.length,successor54?8:0,'.54+ must retain the governed source-controlled screenshot evidence set');
 assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION,localGapDurabilitySuccessor?'public-candy-local-admission-2026-09-02-c':'public-candy-local-admission-2026-09-01-b');
-assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_POLICY.observation_must_be_unmatched,true);
+if(localGapDurabilitySuccessor){
+  assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_POLICY.observation_must_be_unmatched_for_gap_admission,true);
+  assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_POLICY.matched_exact_screenshot_quantity_confirmation_may_persist_local_identity,true);
+}else{
+  assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_POLICY.observation_must_be_unmatched,true);
+}
 assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_POLICY.player_quantity_stored,false);
 assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_POLICY.source_controlled_master_mutated,false);
 assert.equal(PUBLIC_CANDY_LOCAL_ADMISSION_POLICY.storage_readback_verification,true);
@@ -202,5 +207,5 @@ assert.equal(occurrence(predecessor52,"if(successor53)await import('./v042753-p0
 assert.equal(fs.existsSync('.github/workflows/v042753-p0b5-canonical-key-gap-admission-replay.yml'),false,'no standalone .53 workflow may bypass governed CI topology');
 assert.equal(CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION,'candy-quantity-confirmation-authority-2026-09-01-c');
 
-console.log(JSON.stringify({status:'PASS',gate:'V042753_P0B5_CANONICAL_KEY_DIRECT_ADMISSION_REPLAY',app_version:appVersion,candy_master_version:PUBLIC_CANDY_MASTER_VERSION,local_admission_authority:PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION,nested_hotfix_version_supported:patch===55&&hotfix55>=1,local_gap_durability_successor:localGapDurabilitySuccessor,semantics:{gemini_raw_immutable:true,candy_id_only_key_bridge:true,unmatched_direct_admission_single_confirmation_ui:true,source_controlled_screenshot_promotion:successor54,local_public_identity_persistent:true,local_storage_readback_verified:true,sqlite_master_readback_and_compensating_rollback_wired:true,replay_same_observation_exact_only:true,replay_auto_quantity_write:false,player_quantity_in_public_master:false,public_species_is_corroboration_not_prerequisite:localGapDurabilitySuccessor,professor_semantics_unchanged:true,family_id_consolidation:false,local_admission_fallback_preserved:true,consolidated_ci_successor_chain:true,offline_script_cache_after_online_load:true}},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V042753_P0B5_CANONICAL_KEY_DIRECT_ADMISSION_REPLAY',app_version:appVersion,candy_master_version:PUBLIC_CANDY_MASTER_VERSION,local_admission_authority:PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION,nested_hotfix_version_supported:patch===55&&hotfix55>=1,local_gap_durability_successor:localGapDurabilitySuccessor,semantics:{gemini_raw_immutable:true,candy_id_only_key_bridge:true,unmatched_direct_admission_single_confirmation_ui:true,matched_exact_confirmation_may_persist_local_identity:localGapDurabilitySuccessor,source_controlled_screenshot_promotion:successor54,local_public_identity_persistent:true,local_storage_readback_verified:true,sqlite_master_readback_and_compensating_rollback_wired:true,replay_same_observation_exact_only:true,replay_auto_quantity_write:false,player_quantity_in_public_master:false,public_species_is_corroboration_not_prerequisite:localGapDurabilitySuccessor,professor_semantics_unchanged:true,family_id_consolidation:false,local_admission_fallback_preserved:true,consolidated_ci_successor_chain:true,offline_script_cache_after_online_load:true}},null,2));
 if(successor54)await import('./v042754-p0b5-ingame-candy-master-promotion-contract.mjs');
