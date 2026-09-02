@@ -2,8 +2,17 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {projectRecipePortfolioContention,RECIPE_PORTFOLIO_OBJECTIVES} from '../assets/js/recipe-portfolio-contention.js';
 
-const versionTuple=value=>{const match=String(value||'').match(/^v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$/);return match?match.slice(1).map(part=>Number(part||0)):null;};
-const versionAtLeast=(value,minimum)=>{const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;for(let i=0;i<4;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0);}return true;};
+const versionTuple=value=>{
+  const text=String(value||'');
+  if(!/^v\d+(?:\.\d+){2,}$/.test(text))return null;
+  return text.slice(1).split('.').map(Number);
+};
+const versionAtLeast=(value,minimum)=>{
+  const a=versionTuple(value),b=versionTuple(minimum);if(!a||!b)return false;
+  const length=Math.max(a.length,b.length);
+  for(let i=0;i<length;i++){const left=a[i]||0,right=b[i]||0;if(left!==right)return left>right;}
+  return true;
+};
 const version=fs.readFileSync('assets/js/version-authority.js','utf8');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1];
 assert.ok(versionAtLeast(appVersion,'v0.4.14'),`v0.4.14 verified-energy contract requires v0.4.14 or successor, got ${appVersion}`);

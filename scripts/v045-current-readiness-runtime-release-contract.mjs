@@ -9,8 +9,8 @@ const version=read('assets/js/version-authority.js');
 const app=version.match(/app_version:\s*'([^']+)'/)?.[1];
 const build=version.match(/app_build:\s*'([^']+)'/)?.[1];
 const cache=version.match(/cache_name:\s*'([^']+)'/)?.[1];
-const releaseMatch=String(app||'').match(/^v0\.4\.(\d+)(?:\.(\d+))?$/);
-assert.ok(releaseMatch,'current release must remain in v0.4.x family, including four-part patch versions, for this historical readiness baseline');
+const releaseMatch=String(app||'').match(/^v0\.4\.(\d+)(?:\.\d+)*$/);
+assert.ok(releaseMatch,'current release must remain in v0.4.x family, including nested hotfix versions, for this historical readiness baseline');
 assert.ok(Number(releaseMatch[1])>=5,'current release must be v0.4.5 or newer');
 if(app==='v0.4.5'){
   assert.equal(build,'20260810-v045-current-readiness-runtime-bridge');
@@ -53,6 +53,6 @@ for(const deterministic of [source,read('assets/js/pokemon-scoring-engine.js')])
 
 console.log(JSON.stringify({
   status:'PASS',gate:'V0.4.5_CURRENT_READINESS_RUNTIME_BASELINE',minimum_release:'v0.4.5',app_version:app,build,cache,
-  four_part_patch_version_supported:true,bridge_version:CURRENT_READINESS_SLOT_BRIDGE_VERSION,known_unlock_slots:4,unlocked_known_slots:2,current_readiness_score:50,
+  four_part_patch_version_supported:true,nested_hotfix_version_supported:true,bridge_version:CURRENT_READINESS_SLOT_BRIDGE_VERSION,known_unlock_slots:4,unlocked_known_slots:2,current_readiness_score:50,
   score_breakdown_ui:true,current_readiness_semantics:'UNLOCK_MATURITY_ONLY',inactive_dimensions_remain_null:true,schema_migration_added:false,player_data_write:false,gemini_used:false,
 },null,2));
