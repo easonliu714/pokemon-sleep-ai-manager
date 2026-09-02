@@ -8,6 +8,7 @@ import {
   buildPublicMasterRecognitionJsonSchema,
   compilePublicMasterRecognitionToUpdatePackage,
 } from '../assets/js/public-master-recognition.js';
+import {buildCompactPublicMasterProviderSchemaForInput} from '../assets/js/public-master-recognition-provider-schema.js';
 import {PUBLIC_INGREDIENT_NAMES} from '../assets/js/shared-master-data.js';
 import {PUBLIC_RECIPE_MASTER} from '../assets/js/public-recipe-canonical-authority.js';
 import {PUBLIC_RECIPE_MASTER as HISTORICAL_BASE_RECIPE_MASTER} from '../assets/js/public-recipe-master.js';
@@ -76,7 +77,11 @@ for(const key of ['ingredients','items','candies','recipes']){
 
 const ingredientSchema=buildPublicMasterRecognitionJsonSchema('ingredients');
 assert.deepEqual(ingredientSchema.properties.schema.enum,[PUBLIC_MASTER_RECOGNITION_SCHEMA]);assert.deepEqual(ingredientSchema.properties.observations.items.properties.status.enum,['MATCHED','AMBIGUOUS','UNMATCHED']);assert.equal(ingredientSchema.properties.observations.items.properties.canonical_key.properties.ingredient_name.enum.length,19);assert.equal('ingredient_id' in ingredientSchema.properties.observations.items.properties.canonical_key.properties,false);
-const runtimeIngredientSchema=buildUcImgGeminiSchema(UC_IMG_A_SCENARIOS.ingredients,'ingredients');assert.deepEqual(runtimeIngredientSchema,ingredientSchema,'Internal Gemini must use the same constrained ingredient schema');
+const compactIngredientSchema=buildCompactPublicMasterProviderSchemaForInput('ingredients');
+assert.equal('enum' in compactIngredientSchema.properties.observations.items.properties.canonical_key.properties.ingredient_name,false,'provider canonical key must not expand catalog enum');
+assert.equal('enum' in compactIngredientSchema.properties.observations.items.properties.canonical_name,false,'provider canonical name must not expand catalog enum');
+assert.equal('enum' in compactIngredientSchema.properties.observations.items.properties.candidate_names.items,false,'provider candidate names must not expand catalog enum');
+const runtimeIngredientSchema=buildUcImgGeminiSchema(UC_IMG_A_SCENARIOS.ingredients,'ingredients');assert.deepEqual(runtimeIngredientSchema,compactIngredientSchema,'Internal Gemini must use the governed compact ingredient provider schema');
 const runtimeRecipeSchema=buildUcImgGeminiSchema(UC_IMG_A_SCENARIOS.recipes,'recipes');assert.deepEqual(runtimeRecipeSchema.properties.schema.enum,[PUBLIC_MASTER_RECOGNITION_SCHEMA]);
 const recipePotCapacityObservation=Boolean(runtimeRecipeSchema.properties.capacity_observations);
 if(versionAtLeast(appVersion,'v0.4.13.2'))assert.equal(recipePotCapacityObservation,true,'Recipe successor must expose direct-visible base pot capacity observations');
