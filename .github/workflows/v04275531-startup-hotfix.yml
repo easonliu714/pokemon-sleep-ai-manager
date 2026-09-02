@@ -1,0 +1,48 @@
+name: v0.4.27.55.3.1 Startup Reliability
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'assets/js/storage.js'
+      - 'assets/js/database.js'
+      - 'assets/js/v0382-release-authority.js'
+      - 'assets/js/v0394-startup-watchdog.js'
+      - 'assets/js/bootstrap.js'
+      - 'assets/js/version-authority.js'
+      - 'service-worker.js'
+      - 'scripts/v04275531-startup-idb-sw-reliability-contract.mjs'
+      - 'scripts/v0427553-mobile-snapshot-candy-ui-performance-contract.mjs'
+      - '.github/workflows/v04275531-startup-hotfix.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'assets/js/storage.js'
+      - 'assets/js/database.js'
+      - 'assets/js/v0382-release-authority.js'
+      - 'assets/js/v0394-startup-watchdog.js'
+      - 'assets/js/bootstrap.js'
+      - 'assets/js/version-authority.js'
+      - 'service-worker.js'
+      - 'scripts/v04275531-startup-idb-sw-reliability-contract.mjs'
+      - 'scripts/v0427553-mobile-snapshot-candy-ui-performance-contract.mjs'
+      - '.github/workflows/v04275531-startup-hotfix.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  startup-reliability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install focused runtime
+        run: npm install --no-save --no-package-lock fake-indexeddb@6.2.4
+      - name: Verify v0.4.27.55.3.1 startup reliability contract
+        run: node scripts/v04275531-startup-idb-sw-reliability-contract.mjs
+      - name: Verify preserved v0.4.27.55.3 performance semantics
+        run: node scripts/v0427553-mobile-snapshot-candy-ui-performance-contract.mjs
