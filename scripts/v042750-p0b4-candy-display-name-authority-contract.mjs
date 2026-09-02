@@ -31,17 +31,21 @@ const withLocalAdmissions=(observedTexts,fn)=>{
 };
 
 assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION,localGapDurabilitySuccessor?'public-candy-display-name-authority-2026-09-02-f':p0b6Successor?'public-candy-display-name-authority-2026-09-01-e':'public-candy-display-name-authority-2026-08-31-a');
-for(const [key,value] of Object.entries({exact_official_zh_tw_string_required:true,structural_root_is_not_display_name_anchor:true,species_name_concatenation_forbidden:true,automatic_display_name_generation:false,unverified_family_fail_closed:true,legacy_candy_master_mutation_authority:false,legacy_candy_id_remap_authority:false,candy_inventory_migration_authority:false,player_quantity_write_authority:false,professor_transfer_write_behavior_changed:false}))assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY[key],value,key);
+for(const [key,value] of Object.entries({structural_root_is_not_display_name_anchor:true,species_name_concatenation_forbidden:true,automatic_display_name_generation:false,unverified_family_fail_closed:true,legacy_candy_master_mutation_authority:false,legacy_candy_id_remap_authority:false,candy_inventory_migration_authority:false,player_quantity_write_authority:false,professor_transfer_write_behavior_changed:false}))assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY[key],value,key);
+if(localGapDurabilitySuccessor){
+  assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.exact_official_zh_tw_string_supported,true);
+  assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.local_name_precedes_public_name_while_public_completeness_unattested,true);
+  assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.public_name_supplements_local_gap,true);
+  assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.public_name_may_silently_overwrite_local_name,false);
+  assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.local_admission_read_failure_silent_drop,false);
+}else{
+  assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.exact_official_zh_tw_string_required,true);
+}
 if(p0b6Successor){
   assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.ingame_screenshot_official_equivalent_exact_string_supported,true);
   assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.real_device_user_revalidation_exact_string_supported,true);
   assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.local_user_confirmed_exact_string_supported,true);
   assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.local_admission_quantity_authority,false);
-}
-if(localGapDurabilitySuccessor){
-  assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.local_user_confirmed_precedes_public_same_name,true);
-  assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.local_public_name_conflict_fail_closed,true);
-  assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.local_admission_read_failure_fail_closed,true);
 }
 
 const rows=currentPublicCandyDisplayNameAuthorityRows();
@@ -78,7 +82,7 @@ if(p0b6Successor){
       assert.equal(display.status,'MATCH');
       assert.equal(display.candy_display_name,name);
       assert.equal(display.local_admission_authority,true);
-      assert.equal(display.reason,'EXACT_USER_CONFIRMED_LOCAL_ZH_TW_CANDY_DISPLAY_NAME');
+      assert.equal(display.reason,localGapDurabilitySuccessor?'EXACT_USER_CONFIRMED_LOCAL_ZH_TW_CANDY_DISPLAY_NAME':'EXACT_USER_CONFIRMED_LOCAL_ZH_TW_CANDY_DISPLAY_NAME');
       assert.equal(display.automatic_display_name_generation,false);
       const storage=resolveCandyFamilyStorageForSpecies(species);
       assert.equal(storage.status,'MATCH',`${species} local admission must reach P0-B6 canonical storage`);
@@ -119,5 +123,5 @@ assert.ok(versionSource.includes("// app_version: 'v0.4.27.49'"));
 assert.equal((serviceWorkerSource.match(/\.\/assets\/js\/public-candy-display-name-authority\.js/g)||[]).length,1);
 assert.equal((serviceWorkerSource.match(/\.\/assets\/js\/public-candy-family-authority\.js/g)||[]).length,1);
 assert.ok(workflowSource.includes('node scripts/v042750-p0b4-candy-display-name-authority-contract.mjs'));
-console.log(JSON.stringify({status:'PASS',gate:'V042750_P0B4_PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY',authority_version:PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION,admitted_exact_zh_tw_display_name_rows:rows.length,verified_display_names:rows.map(row=>row.candy_display_name),app_version:appVersion,app_build:appBuild,nested_hotfix_version_supported:p0b6Successor&&appVersion!=='v0.4.27.55',local_gap_durability_successor:localGapDurabilitySuccessor,semantics:{family_level_display_name_resolution:true,exact_first_party_zh_tw_evidence_only:true,local_admission_dynamic_fallback:p0b6Successor,local_admission_reaches_canonical_storage:p0b6Successor,local_precedes_public_same_name:localGapDurabilitySuccessor,local_public_conflict_fail_closed:localGapDurabilitySuccessor,local_read_failure_fail_closed:localGapDurabilitySuccessor,unverified_family_review_required:true,automatic_display_name_generation:false,legacy_candy_master_mutation:false,player_inventory_migration:false,professor_transfer_write_change:false,successor_release_exact:true}},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V042750_P0B4_PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY',authority_version:PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION,admitted_exact_zh_tw_display_name_rows:rows.length,verified_display_names:rows.map(row=>row.candy_display_name),app_version:appVersion,app_build:appBuild,nested_hotfix_version_supported:p0b6Successor&&appVersion!=='v0.4.27.55',local_gap_durability_successor:localGapDurabilitySuccessor,semantics:{family_level_display_name_resolution:true,exact_first_party_zh_tw_evidence_only:!localGapDurabilitySuccessor,exact_first_party_zh_tw_evidence_supported:true,local_admission_dynamic_fallback:p0b6Successor,local_admission_reaches_canonical_storage:p0b6Successor,local_precedes_public_same_name:localGapDurabilitySuccessor,public_supplements_local_gap:localGapDurabilitySuccessor,local_public_conflict_fail_closed:localGapDurabilitySuccessor,local_read_failure_fail_closed:localGapDurabilitySuccessor,unverified_family_review_required:true,automatic_display_name_generation:false,legacy_candy_master_mutation:false,player_inventory_migration:false,professor_transfer_write_change:false,successor_release_exact:true}},null,2));
 await import('./v042751-p0b5-candy-quantity-confirmation-contract.mjs');
