@@ -108,9 +108,11 @@ jobs:
       - name: Verify v0.4.27.55.3 mobile snapshot and Candy UI performance
         run: node scripts/v0427553-mobile-snapshot-candy-ui-performance-contract.mjs
 
+      - name: Verify core frontend regression contract
+        run: node scripts/regression-gate.mjs
+
       - name: Run regression gate
         run: |
-          node scripts/regression-gate.mjs
           node scripts/ingredient-inventory-integrity-regression.mjs
           node scripts/v04275-predecessor-release-contract-runner.mjs
           node scripts/v04273-weekly-recipe-semantic-intake-contract.mjs
