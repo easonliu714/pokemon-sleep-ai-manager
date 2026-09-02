@@ -124,6 +124,7 @@ jobs:
           node scripts/v042749-p0b3-candy-family-authority-contract.mjs
           node scripts/v042750-p0b4-candy-display-name-authority-contract.mjs
           node scripts/v042755-p0b6-candy-family-storage-contract.mjs
+          node scripts/v0427551-visible-target-count-confirmation-contract.mjs
 
       - name: Verify unlocked Pokémon roster filters
         run: node scripts/pokemon-roster-filter-regression.mjs
