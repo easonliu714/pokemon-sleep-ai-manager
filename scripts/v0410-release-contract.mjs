@@ -12,11 +12,12 @@ import {
 
 const read=path=>fs.readFileSync(path,'utf8');
 const version=read('assets/js/version-authority.js');
-const current=version.match(/app_version:\s*'v(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?'/);
-assert.ok(current,'current release version must remain parseable');
-const tuple=current.slice(1).map(value=>Number(value||0));
-assert.ok(tuple[0]===0&&tuple[1]===4&&(tuple[2]>10||(tuple[2]===10&&tuple[3]>=0)),'current release must not regress below v0.4.10');
-if(tuple[2]===10&&tuple[3]===0){
+const currentText=version.match(/app_version:\s*'(v\d+(?:\.\d+){2,})'/)?.[1]||'';
+assert.match(currentText,/^v\d+(?:\.\d+){2,}$/,'current release version must remain parseable');
+const tuple=currentText.slice(1).split('.').map(Number);
+assert.ok(tuple[0]===0&&tuple[1]===4&&(tuple[2]>10||(tuple[2]===10&&(tuple[3]||0)>=0)),'current release must not regress below v0.4.10');
+const exactRelease=tuple[2]===10&&(tuple[3]||0)===0&&tuple.slice(4).every(value=>value===0);
+if(exactRelease){
   assert.equal(version.match(/app_build:\s*'([^']+)'/)?.[1],'20260811-v0410-unified-screenshot-update-center-a');
   assert.equal(version.match(/cache_name:\s*'([^']+)'/)?.[1],'pokemon-sleep-ai-v0.4.10-v0410-unified-screenshot-update-center-a');
 }
@@ -75,8 +76,8 @@ assert.ok(serviceWorker.includes("importScripts('./assets/js/version-authority.j
 assert.ok(serviceWorker.includes("url.pathname.endsWith('.js')"),'UC.IMG-A relies on established online-load-once dynamic JS caching');
 
 console.log(JSON.stringify({
-  status:'PASS',gate:'V0.4.10_RELEASE_CONTRACT_SUCCESSOR_AWARE',current_app_version:`v${tuple.join('.')}`,
-  historical_behavior_compatible:true,exact_release_authority_enforced:tuple[2]===10&&tuple[3]===0,
+  status:'PASS',gate:'V0.4.10_RELEASE_CONTRACT_SUCCESSOR_AWARE',current_app_version:currentText,nested_hotfix_version_supported:true,
+  historical_behavior_compatible:true,exact_release_authority_enforced:exactRelease,
   uc_img_a_version:UC_IMG_A_VERSION,uc_img_authority_date:ucImgAuthorityDate,
   scenarios:Object.values(UC_IMG_A_SCENARIOS).map(value=>value.scenario),multi_image:true,coverage_semantics:true,
   evidence_traceability:true,stale_response_guard:true,existing_dry_run_apply_bridge:true,screenshot_bytes_persisted:false,
