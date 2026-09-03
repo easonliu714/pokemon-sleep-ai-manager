@@ -93,16 +93,12 @@ const pageModuleGroups=Object.freeze({
     'identity-import-wizard-entry.js',
     'unified-import-analysis-workbench.js',
     'ocr-runtime-monitor.js',
+    'data1d1-ocr-thumbnail-region-confidence.js',
     'data1d1-ocr-overlay-preview-event-wiring.js',
     'data1d1-ocr-overlay-update-center-bootstrap.js',
   ]),
-  // backup-truth-restore.js remains a historical direct entry for now; do not
-  // import it again under a query-versioned ESM identity. Backup navigation only
-  // hydrates the metadata-only snapshot list.
   backup:Object.freeze([]),
-  knowledge:Object.freeze([
-    'shared-knowledge-ui.js',
-  ]),
+  knowledge:Object.freeze(['shared-knowledge-ui.js']),
 });
 const pageLoads=new Map();
 const moduleLoads=new Map();
@@ -129,102 +125,41 @@ async function loadPageModules(page){
   const promise=(async()=>{
     const started=performance.now();
     debugTrace.record('bootstrap','page_feature_load_started',{status:'started',details:{page,module_count:files.length,single_flight:true,navigation_only:true}});
-    for(const file of files){
-      await yieldToBrowser();
-      await importFeatureModule(file);
-    }
-    if(page==='updates'){
-      await hydrateUpdateCenterShells();
-      void startOcrOverlayForUpdates();
-    }
+    for(const file of files){await yieldToBrowser();await importFeatureModule(file);}
+    if(page==='updates'){await hydrateUpdateCenterShells();void startOcrOverlayForUpdates();}
     if(page==='backup')await hydrateBackupSnapshotPanel();
     debugTrace.record('bootstrap','page_feature_load_completed',{status:'completed',details:{page,module_count:files.length,elapsed_ms:Math.round(performance.now()-started),single_flight:true,navigation_only:true}});
     return {page,module_count:files.length,known_page:true};
   })().catch(error=>{pageLoads.delete(page);debugTrace.record('bootstrap','page_feature_load_failed',{status:'failed',details:{page},error});throw error;});
-  pageLoads.set(page,promise);
-  return promise;
+  pageLoads.set(page,promise);return promise;
 }
-
 async function hydrateBackupSnapshotPanel(){
-  const host=document.getElementById('snapshotList');
-  if(!host)return;
-  const started=performance.now();
-  host.dataset.pageHydration='loading';
+  const host=document.getElementById('snapshotList');if(!host)return;const started=performance.now();host.dataset.pageHydration='loading';
   try{
-    // app.js already imports these core modules with their canonical URL. Reuse that
-    // ESM identity so Backup navigation cannot create a second IndexedDB connection state.
-    const [{listSnapshots},{formatLocal}]=await Promise.all([
-      import('./storage.js'),
-      import('./time-utils.js'),
-    ]);
+    const [{listSnapshots},{formatLocal}]=await Promise.all([import('./storage.js'),import('./time-utils.js')]);
     const snapshots=await listSnapshots({force:true});
     const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-    host.innerHTML=snapshots.length?snapshots.map(item=>`<div class="snapshot"><b>${esc(item.reason)}</b><br><small>${esc(formatLocal(item.created_at))}</small></div>`).join(''):'尚無自動快照';
-    host.dataset.pageHydration='ready';
+    host.innerHTML=snapshots.length?snapshots.map(item=>`<div class="snapshot"><b>${esc(item.reason)}</b><br><small>${esc(formatLocal(item.created_at))}</small></div>`).join(''):'尚無自動快照';host.dataset.pageHydration='ready';
     debugTrace.record('bootstrap','backup_snapshot_page_hydrated',{status:'completed',details:{snapshot_count:snapshots.length,elapsed_ms:Math.round(performance.now()-started),metadata_only:true,navigation_only:true,core_module_identity_reused:true}});
   }catch(error){host.dataset.pageHydration='failed';debugTrace.record('bootstrap','backup_snapshot_page_hydration_failed',{status:'failed',error});}
 }
-
-async function hydrateUpdateCenterShells(){
-  document.querySelectorAll('[data-update-static-shell]').forEach(shell=>shell.dataset.hydrationState='ready');
-  const heading=document.getElementById('importHistoryHeading');
-  if(heading)heading.hidden=true;
-}
-
+async function hydrateUpdateCenterShells(){document.querySelectorAll('[data-update-static-shell]').forEach(shell=>shell.dataset.hydrationState='ready');const heading=document.getElementById('importHistoryHeading');if(heading)heading.hidden=true;}
 async function startOcrOverlayForUpdates(){
-  if(globalThis.OcrOverlayUpdateCenterBootstrap||!document.querySelector('#ocrThumbnailOverlaySlot'))return;
-  const started=performance.now();
-  try{
-    const {bootstrapOcrOverlayUpdateCenter}=await importFeatureModule('data1d1-ocr-overlay-update-center-bootstrap.js');
-    const instance=await bootstrapOcrOverlayUpdateCenter({timeoutMs:2000});
-    globalThis.OcrOverlayUpdateCenterBootstrap=instance;
-    debugTrace.record('ocr_thumbnail','ocr_thumbnail_overlay_bootstrap_deferred',{status:'completed',details:{elapsed_ms:Math.round(performance.now()-started),page_aware:true}});
-  }catch(error){
-    debugTrace.record('ocr_thumbnail','ocr_thumbnail_overlay_bootstrap_deferred',{status:'blocked',details:{reason:error?.message||String(error),page_aware:true}});
-  }
+  if(globalThis.OcrOverlayUpdateCenterBootstrap||!document.querySelector('#ocrThumbnailOverlaySlot'))return;const started=performance.now();
+  try{const {bootstrapOcrOverlayUpdateCenter}=await importFeatureModule('data1d1-ocr-overlay-update-center-bootstrap.js');const instance=await bootstrapOcrOverlayUpdateCenter({timeoutMs:2000});globalThis.OcrOverlayUpdateCenterBootstrap=instance;debugTrace.record('ocr_thumbnail','ocr_thumbnail_overlay_bootstrap_deferred',{status:'completed',details:{elapsed_ms:Math.round(performance.now()-started),page_aware:true}});}
+  catch(error){debugTrace.record('ocr_thumbnail','ocr_thumbnail_overlay_bootstrap_deferred',{status:'blocked',details:{reason:error?.message||String(error),page_aware:true}});}
 }
-
 function bindStaticHistoryExport(){
-  const button=document.getElementById('exportImportHistoryJsonBtnV042745');
-  if(!button||button.dataset.staticExportBound==='true')return;
-  button.dataset.staticExportBound='true';
-  button.addEventListener('click',async event=>{
-    event.preventDefault();event.stopPropagation();
-    const started=performance.now();
-    try{
-      const module=await importFeatureModule('review-reference-history-ux-v042745.js');
-      module.downloadImportHistoryJson({doc:document});
-      debugTrace.record('bootstrap','static_history_export_completed',{status:'completed',details:{elapsed_ms:Math.round(performance.now()-started)}});
-    }catch(error){alert(`匯出失敗：${error?.message||error}`);debugTrace.record('bootstrap','static_history_export_failed',{status:'failed',error});}
-  });
+  const button=document.getElementById('exportImportHistoryJsonBtnV042745');if(!button||button.dataset.staticExportBound==='true')return;button.dataset.staticExportBound='true';
+  button.addEventListener('click',async event=>{event.preventDefault();event.stopPropagation();const started=performance.now();try{const module=await importFeatureModule('review-reference-history-ux-v042745.js');module.downloadImportHistoryJson({doc:document});debugTrace.record('bootstrap','static_history_export_completed',{status:'completed',details:{elapsed_ms:Math.round(performance.now()-started)}});}catch(error){alert(`匯出失敗：${error?.message||error}`);debugTrace.record('bootstrap','static_history_export_failed',{status:'failed',error});}});
 }
-
 function bindPageAwareFeatureLoading(){
-  document.querySelectorAll('nav button[data-view]').forEach(button=>{
-    if(button.dataset.pageAwareBound==='true')return;
-    button.dataset.pageAwareBound='true';
-    button.addEventListener('click',()=>{void loadPageModules(button.dataset.view).catch(()=>{});},{capture:false});
-  });
-  globalThis.addEventListener('pokemon-sleep:identity-import-files-selected',()=>{void startOcrOverlayForUpdates();});
-  bindStaticHistoryExport();
-  globalThis.PokemonSleepPageFeatureLoaderV04275532=Object.freeze({
-    version:'v0.4.27.55.3.2-page-aware-static-shell',
-    loadPage:loadPageModules,
-    loadedPages:()=>[...pageLoads.keys()],
-    loadedModules:()=>[...moduleLoads.keys()],
-  });
+  document.querySelectorAll('nav button[data-view]').forEach(button=>{if(button.dataset.pageAwareBound==='true')return;button.dataset.pageAwareBound='true';button.addEventListener('click',()=>{void loadPageModules(button.dataset.view).catch(()=>{});},{capture:false});});
+  globalThis.addEventListener('pokemon-sleep:identity-import-files-selected',()=>{void startOcrOverlayForUpdates();});bindStaticHistoryExport();
+  globalThis.PokemonSleepPageFeatureLoaderV04275532=Object.freeze({version:'v0.4.27.55.3.2-page-aware-static-shell',loadPage:loadPageModules,loadedPages:()=>[...pageLoads.keys()],loadedModules:()=>[...moduleLoads.keys()]});
   debugTrace.record('bootstrap','page_feature_loader_ready',{status:'completed',details:{global_deferred_sweep:false,page_groups:Object.keys(pageModuleGroups),single_flight:true,yield_between_modules:true,backup_navigation_only:true}});
 }
-
 (async()=>{
   const operationId=debugTrace.begin('module_bootstrap',{probe_count:criticalProbes.length,critical_probe_count:criticalProbes.length,deferred_probe_count:0,page_aware_feature_loading:true,authority});
-  try{
-    const handoff=await enforceLiveVersionHandoff();if(handoff?.reloading)return;
-    for(const file of criticalProbes)await import(`./${file}?v=${encodeURIComponent(VERSION)}`);
-    await import(`./app.js?v=${encodeURIComponent(VERSION)}`);
-    enforceVersionAuthority();
-    bindPageAwareFeatureLoading();
-    debugTrace.end(operationId,'completed',{entry_modules_loaded:true,critical_path_reduced:true,global_deferred_sweep:false,page_aware_feature_loading:true,static_app_shell:true,version_authority:authority,version_downgrade_guard:true,version_handoff:handoff});
-    debugTrace.record('bootstrap','modules_ready',{status:'completed',details:{...authority,business_ready:false,app_ready_authority:false,page_aware_feature_loading:true}});
-  }catch(error){showFailure('entry_modules',error);debugTrace.fail(operationId,error,{phase:'entry_modules'});}
+  try{const handoff=await enforceLiveVersionHandoff();if(handoff?.reloading)return;for(const file of criticalProbes)await import(`./${file}?v=${encodeURIComponent(VERSION)}`);await import(`./app.js?v=${encodeURIComponent(VERSION)}`);enforceVersionAuthority();bindPageAwareFeatureLoading();debugTrace.end(operationId,'completed',{entry_modules_loaded:true,critical_path_reduced:true,global_deferred_sweep:false,page_aware_feature_loading:true,static_app_shell:true,version_authority:authority,version_downgrade_guard:true,version_handoff:handoff});debugTrace.record('bootstrap','modules_ready',{status:'completed',details:{...authority,business_ready:false,app_ready_authority:false,page_aware_feature_loading:true}});}catch(error){showFailure('entry_modules',error);debugTrace.fail(operationId,error,{phase:'entry_modules'});}
 })();
