@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {CANDY_FAMILY_STORAGE_MIGRATION_VERSION} from '../assets/js/candy-family-storage-authority.js';
 
 const read=path=>fs.readFileSync(path,'utf8');
 const bootstrap=read('assets/js/bootstrap.js');
 const storage=read('assets/js/storage.js');
 const html=read('index.html');
 const migrations=read('assets/js/migrations.js');
+const candyFamilyAuthority=read('assets/js/candy-family-storage-authority.js');
 const v5531=read('scripts/v04275531-startup-idb-sw-reliability-contract.mjs');
 const v553=read('scripts/v0427553-mobile-snapshot-candy-ui-performance-contract.mjs');
 const v552=read('scripts/v0427552-local-gap-field-precedence-contract.mjs');
@@ -68,14 +70,18 @@ assert.ok(!/\sopen(?:\s|=|>)/.test(detailsOpenTag),'import history must be close
 assert.match(bootstrap,/bindStaticHistoryExport/);
 assert.match(bootstrap,/downloadImportHistoryJson/);
 
-// 5) Frozen predecessor semantics are still physically present and Migration 15
-// remains the latest migration authority.
+// 5) Frozen predecessor semantics are still physically present. Migration 15's
+// canonical authority is candy-family-storage-authority.js; migrations.js composes
+// migration functions and intentionally does not duplicate that numeric constant.
 assert.ok(v5531.includes('v0.4.27.55.3.1'));
 assert.ok(v553.includes('snapshot_payload_bytes_materialized'));
 assert.ok(v553.includes('global_data_changed_dispatched:false'));
 assert.ok(v552.includes('Local-first')||v552.includes('LOCAL'));
-assert.match(migrations,/version\s*:\s*15|MIGRATION_VERSION\s*=\s*15|LATEST_MIGRATION\s*=\s*15/);
-assert.ok(!/version\s*:\s*1[6-9]|version\s*:\s*[2-9]\d/.test(migrations),'SQLite Migration must remain 15');
+assert.equal(CANDY_FAMILY_STORAGE_MIGRATION_VERSION,15,'SQLite Migration authority must remain frozen at 15');
+assert.match(candyFamilyAuthority,/CANDY_FAMILY_STORAGE_MIGRATION_VERSION\s*=\s*15/);
+assert.ok(!/CANDY_FAMILY_STORAGE_MIGRATION_VERSION\s*=\s*1[6-9]|CANDY_FAMILY_STORAGE_MIGRATION_VERSION\s*=\s*[2-9]\d/.test(candyFamilyAuthority),'SQLite Migration authority must not exceed 15');
+assert.match(migrations,/applyIngredientInventoryIdentityMigration/);
+assert.match(migrations,/applyPublicEventMasterSchemaMigration/);
 
 console.log(JSON.stringify({
   gate:'V04275532_PAGE_AWARE_STATIC_SHELL',
@@ -89,5 +95,5 @@ console.log(JSON.stringify({
   update_center_static_shell:true,
   import_history_default_collapsed:true,
   snapshot_payload_materialized:false,
-  migration:15,
+  migration:CANDY_FAMILY_STORAGE_MIGRATION_VERSION,
 },null,2));
