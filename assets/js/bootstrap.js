@@ -146,13 +146,17 @@ async function hydrateBackupSnapshotPanel(){
   const started=performance.now();
   host.dataset.pageHydration='loading';
   try{
-    const {listSnapshots}=await importFeatureModule('storage.js');
-    const {formatLocal}=await importFeatureModule('time-utils.js');
+    // app.js already imports these core modules with their canonical URL. Reuse that
+    // ESM identity so Backup navigation cannot create a second IndexedDB connection state.
+    const [{listSnapshots},{formatLocal}]=await Promise.all([
+      import('./storage.js'),
+      import('./time-utils.js'),
+    ]);
     const snapshots=await listSnapshots({force:true});
-    const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]));
+    const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     host.innerHTML=snapshots.length?snapshots.map(item=>`<div class="snapshot"><b>${esc(item.reason)}</b><br><small>${esc(formatLocal(item.created_at))}</small></div>`).join(''):'尚無自動快照';
     host.dataset.pageHydration='ready';
-    debugTrace.record('bootstrap','backup_snapshot_page_hydrated',{status:'completed',details:{snapshot_count:snapshots.length,elapsed_ms:Math.round(performance.now()-started),metadata_only:true,navigation_only:true}});
+    debugTrace.record('bootstrap','backup_snapshot_page_hydrated',{status:'completed',details:{snapshot_count:snapshots.length,elapsed_ms:Math.round(performance.now()-started),metadata_only:true,navigation_only:true,core_module_identity_reused:true}});
   }catch(error){host.dataset.pageHydration='failed';debugTrace.record('bootstrap','backup_snapshot_page_hydration_failed',{status:'failed',error});}
 }
 
