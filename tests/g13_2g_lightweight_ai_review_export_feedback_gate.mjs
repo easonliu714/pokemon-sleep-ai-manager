@@ -16,11 +16,19 @@ assert.match(live,/DISPLAY_ENTRIES=8/);
 assert.match(live,/RENDER_DELAY_MS=1500/);
 assert.match(live,/function omitted/);
 assert.doesNotMatch(live,/takeOverSingleItemAdvancedReview/);
-assert.match(bootstrap,/lightweight_ai_review:true/);
+const pageAware=bootstrap.includes('page_aware_feature_loading:true')&&bootstrap.includes('global_deferred_sweep:false');
+if(pageAware){
+  assert.match(bootstrap,/updates:Object\.freeze\(\[/);
+  assert.match(bootstrap,/'identity-import-wizard-entry\.js'/);
+  assert.match(bootstrap,/single_flight:true/);
+  assert.doesNotMatch(bootstrap,/const deferredProbes=/);
+}else{
+  assert.match(bootstrap,/lightweight_ai_review:true/);
+}
 assert.match(bootstrap,/20260803-g13-2j-android-raf-timeout-fallback/);
 assert.match(bootstrap,/20260803-g13-2i-progressive-ai-review-bootstrap/);
 assert.match(worker,/pokemon-sleep-ai-v0\.3\.68-g13-2j-android-raf-timeout-fallback/);
 assert.match(worker,/pokemon-sleep-ai-v0\.3\.67-g13-2i-progressive-ai-review-bootstrap/);
 assert.match(authority,/app_version:\s*'v\d+\.\d+\.\d+(?:\.\d+)?'/);
 assert.match(bootstrap,/authority\.app_version/);
-console.log(JSON.stringify({ok:true,gate:'G13.2G lightweight AI review and export feedback compatibility',version_authority:'central',compatibility:'bounded-deferred-live-debug'}));
+console.log(JSON.stringify({ok:true,gate:'G13.2G lightweight AI review and export feedback compatibility',version_authority:'central',compatibility:'bounded-deferred-live-debug',page_aware_loading:pageAware}));
