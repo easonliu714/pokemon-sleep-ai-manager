@@ -121,7 +121,7 @@ async function loadSnapshotMetadata(){
     const metadataById=await readSnapshotMetadata(db,snapshotKeys);
     const items=snapshotKeys.map(id=>{const metadata=metadataById.get(id);return metadata||{id,created_at:snapshotCreatedAtFromId(id),reason:'Legacy snapshot（metadata unavailable）',byte_length:null,legacy_metadata:true};}).sort((a,b)=>String(b.created_at||b.id).localeCompare(String(a.created_at||a.id)));
     snapshotMetadataCache=items;
-    startup('SQLITE_SNAPSHOT_LIST_READY','快照清單已載入（metadata-only）','completed',{snapshot_count:items.length,elapsed_ms:roundedMs(started),snapshot_payload_bytes_materialized:false,version_neutral_idb:true,page_deferred:true});
+    startup('SQLITE_SNAPSHOT_LIST_READY','快照清單已載入（metadata-only）','completed',{snapshot_count:items.length,elapsed_ms:roundedMs(started),snapshot_payload_bytes_materialized:false,version_neutral_idb:true,page_deferred:true,navigation_only:true});
     if(typeof globalThis.dispatchEvent==='function'&&typeof globalThis.CustomEvent==='function')globalThis.dispatchEvent(new globalThis.CustomEvent('pokemon-sleep:snapshot-metadata-ready',{detail:{snapshot_count:items.length}}));
     return items;
   })().finally(()=>{snapshotMetadataLoadPromise=null;});
@@ -130,8 +130,7 @@ async function loadSnapshotMetadata(){
 export async function listSnapshots({force=false}={}){
   const backupActive=typeof document!=='undefined'&&document.getElementById('backup')?.classList?.contains('active');
   if(!force&&typeof document!=='undefined'&&!backupActive){
-    if(!snapshotMetadataCache)setTimeout(()=>{void loadSnapshotMetadata().catch(error=>startup('SQLITE_SNAPSHOT_LIST_DEFERRED_FAILED','背景載入快照 metadata 失敗','warning',{message:error?.message||String(error)}));},0);
-    startup('SQLITE_SNAPSHOT_LIST_DEFERRED','快照清單延後至備份頁載入','completed',{snapshot_payload_bytes_materialized:false,app_ready_blocked:false,cached:Boolean(snapshotMetadataCache)});
+    startup('SQLITE_SNAPSHOT_LIST_DEFERRED','快照清單僅在進入備份還原頁時載入','completed',{snapshot_payload_bytes_materialized:false,app_ready_blocked:false,background_load_started:false,navigation_only:true,cached:Boolean(snapshotMetadataCache)});
     return snapshotMetadataCache?[...snapshotMetadataCache]:[];
   }
   return [...await loadSnapshotMetadata()];
