@@ -82,7 +82,7 @@ function enforceVersionAuthority(){const root=document.documentElement;const obs
 const observer=new MutationObserver(enforceVersionAuthority);observer.observe(document.documentElement,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['data-app-version','data-app-build']});addEventListener('pagehide',()=>observer.disconnect(),{once:true});
 function showFailure(label,error){console.error(`Module probe failed: ${label}`,error);debugTrace.record('bootstrap','module_probe_failed',{status:'failed',details:{label},error});if(status){status.textContent='載入失敗';status.className='badge error';}if(warning){warning.textContent=`前端模組載入失敗：${label}：${error?.message||error}。請至診斷中心匯出 JSON。`;warning.classList.remove('hidden');}}
 
-// v0.4.27.55.3.2: only startup authorities and DB-ready consumers stay on the
+// Current page-aware release: only startup authorities and DB-ready consumers stay on the
 // critical path. Feature modules are page-aware and are never swept globally.
 const criticalProbes=['runtime-version.js','v0382-release-authority.js','ingredient-probability-first-party-observation-ui.js'];
 const pageModuleGroups=Object.freeze({
@@ -157,7 +157,7 @@ function bindStaticHistoryExport(){
 function bindPageAwareFeatureLoading(){
   document.querySelectorAll('nav button[data-view]').forEach(button=>{if(button.dataset.pageAwareBound==='true')return;button.dataset.pageAwareBound='true';button.addEventListener('click',()=>{void loadPageModules(button.dataset.view).catch(()=>{});},{capture:false});});
   globalThis.addEventListener('pokemon-sleep:identity-import-files-selected',()=>{void startOcrOverlayForUpdates();});bindStaticHistoryExport();
-  globalThis.PokemonSleepPageFeatureLoaderV04275532=Object.freeze({version:'v0.4.27.55.3.2-page-aware-static-shell',loadPage:loadPageModules,loadedPages:()=>[...pageLoads.keys()],loadedModules:()=>[...moduleLoads.keys()]});
+  globalThis.PokemonSleepPageFeatureLoaderV04275532=Object.freeze({version:`${APP_VERSION}-page-aware-static-shell`,loadPage:loadPageModules,loadedPages:()=>[...pageLoads.keys()],loadedModules:()=>[...moduleLoads.keys()]});
   debugTrace.record('bootstrap','page_feature_loader_ready',{status:'completed',details:{global_deferred_sweep:false,page_groups:Object.keys(pageModuleGroups),single_flight:true,yield_between_modules:true,backup_navigation_only:true}});
 }
 (async()=>{
