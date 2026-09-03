@@ -118,7 +118,14 @@ assert.ok(schema.includes('CREATE TABLE IF NOT EXISTS ingredient_probability_obs
 assert.ok(migrations.includes('applyIngredientProbabilityObservationMigration'),'migration path missing observation table');
 for(const token of ['FIRST_PARTY_OBSERVATION_UPDATE_SCENARIO','FIRST_PARTY_OBSERVATION_UPDATE_ENTITY','validateFirstPartyIngredientObservationUpdateOperation','validateFirstPartyIngredientObservationUpdatePackage'])assert.ok(workflow.includes(token),`AI workflow missing manual observation wiring: ${token}`);
 for(const token of ['手動輸入','不使用 OCR','pokemon_id 不會進 Update Package','下載去識別聚合 JSON'])assert.ok(ui.includes(token),`mobile capture UI missing safety copy: ${token}`);
-for(const path of ['ingredient-probability-first-party-observation-contract.js','ingredient-probability-first-party-observation-update.js','ingredient-probability-first-party-observation-ui.js'])assert.ok(bootstrap.includes(path),`online startup probe missing E3C-6B module: ${path}`);
+const e3c6bModules=['ingredient-probability-first-party-observation-contract.js','ingredient-probability-first-party-observation-update.js','ingredient-probability-first-party-observation-ui.js'];
+const pageAware=bootstrap.includes('page_aware_feature_loading:true')&&bootstrap.includes('global_deferred_sweep:false');
+if(pageAware){
+  assert.ok(bootstrap.includes("'ingredient-probability-first-party-observation-ui.js'"),'page-aware startup must retain the E3C-6B UI critical consumer');
+  for(const dependency of e3c6bModules.slice(0,2))assert.ok(ui.includes(`'./${dependency}'`),`E3C-6B UI missing transitive dependency: ${dependency}`);
+}else{
+  for(const path of e3c6bModules)assert.ok(bootstrap.includes(path),`online startup probe missing E3C-6B module: ${path}`);
+}
 assert.ok(sw.includes("url.pathname.endsWith('.js')"),'service worker must network-first JavaScript modules');
 assert.ok(sw.includes('caches.open(CACHE).then(cache=>cache.put(event.request,copy))'),'service worker must retain fetched JS for later offline use');
 assert.ok(version.includes("app_version: 'v0.4.27'"),'E3C-6B must preserve v0.4.27 semantic release authority while Ingredient Probability remains HOLD');
@@ -131,5 +138,5 @@ console.log(JSON.stringify({
   private_identity_forbidden:true,deidentified_aggregate_only:true,manual_typed_counts_only:true,ocr_event_counts:false,
   destructive_clear_forbidden:true,self_activation_forbidden:true,offline_after_successful_online_start:true,
   release_authority_mutated:false,sample_sufficiency_for_activation:'NOT_DEFINED',ingredient_probability_status:registry.rules.ingredient_probability_per_help.status,
-  production_numeric_activation:'4/7',activation_authority_granted:false,
+  production_numeric_activation:'4/7',activation_authority_granted:false,page_aware_loading:pageAware,
 },null,2));
