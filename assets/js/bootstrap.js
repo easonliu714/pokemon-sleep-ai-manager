@@ -89,6 +89,7 @@ const pageModuleGroups=Object.freeze({
   updates:Object.freeze([
     'update-center-ui-guard.js',
     'update-center-live-debug.js',
+    'identity-convergence.js',
     'identity-confirmation-entry.js',
     'identity-import-wizard-entry.js',
     'unified-import-analysis-workbench.js',
