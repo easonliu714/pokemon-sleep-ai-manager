@@ -8,9 +8,17 @@ const storage=read('assets/js/storage.js');
 const html=read('index.html');
 const migrations=read('assets/js/migrations.js');
 const candyFamilyAuthority=read('assets/js/candy-family-storage-authority.js');
+const versionAuthority=read('assets/js/version-authority.js');
 const v5531=read('scripts/v04275531-startup-idb-sw-reliability-contract.mjs');
 const v553=read('scripts/v0427553-mobile-snapshot-candy-ui-performance-contract.mjs');
 const v552=read('scripts/v0427552-local-gap-field-precedence-contract.mjs');
+
+// 0) Release identity must describe the successor actually being delivered.
+// Keep the previous .55.3.1 authority only as a non-executed legacy parser bridge.
+assert.match(versionAuthority,/const authority = Object\.freeze\(\{[\s\S]*?app_version: 'v0\.4\.27\.55\.3\.2'/);
+assert.match(versionAuthority,/app_build: '20260903-v04275532-page-aware-static-shell'/);
+assert.match(versionAuthority,/cache_name: 'pokemon-sleep-ai-v0\.4\.27\.55\.3\.2-v04275532-page-aware-static-shell'/);
+assert.ok(versionAuthority.includes("// app_version: 'v0.4.27.55.3.1'"),'previous release identity must remain available only as legacy parser evidence');
 
 // 1) No post-App-Ready global deferred sweep. Page groups are explicit, memoized,
 // single-flight, and each feature import yields to the browser.
@@ -86,6 +94,7 @@ assert.match(migrations,/applyPublicEventMasterSchemaMigration/);
 console.log(JSON.stringify({
   gate:'V04275532_PAGE_AWARE_STATIC_SHELL',
   status:'PASS',
+  version:'v0.4.27.55.3.2',
   global_deferred_sweep:false,
   page_aware_single_flight:true,
   yield_between_modules:true,
