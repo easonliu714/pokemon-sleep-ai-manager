@@ -92,6 +92,8 @@ const pageModuleGroups=Object.freeze({
     'identity-confirmation-entry.js',
     'identity-import-wizard-entry.js',
     'unified-import-analysis-workbench.js',
+    'ocr-runtime-monitor.js',
+    'data1d1-ocr-overlay-preview-event-wiring.js',
     'data1d1-ocr-overlay-update-center-bootstrap.js',
   ]),
   // backup-truth-restore.js remains a historical direct entry for now; do not
