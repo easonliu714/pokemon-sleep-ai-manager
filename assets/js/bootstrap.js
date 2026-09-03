@@ -157,7 +157,7 @@ function bindStaticHistoryExport(){
 function bindPageAwareFeatureLoading(){
   document.querySelectorAll('nav button[data-view]').forEach(button=>{if(button.dataset.pageAwareBound==='true')return;button.dataset.pageAwareBound='true';button.addEventListener('click',()=>{void loadPageModules(button.dataset.view).catch(()=>{});},{capture:false});});
   globalThis.addEventListener('pokemon-sleep:identity-import-files-selected',()=>{void startOcrOverlayForUpdates();});bindStaticHistoryExport();
-  globalThis.PokemonSleepPageFeatureLoaderV04275532=Object.freeze({version:'v0.4.27.55.3.2-page-aware-static-shell',loadPage:loadPageModules,loadedPages:()=>[...pageLoads.keys()],loadedModules:()=>[...moduleLoads.keys()]});
+  globalThis.PokemonSleepPageFeatureLoaderV04275532=Object.freeze({version:`${APP_VERSION}-page-aware-static-shell`,loadPage:loadPageModules,loadedPages:()=>[...pageLoads.keys()],loadedModules:()=>[...moduleLoads.keys()]});
   debugTrace.record('bootstrap','page_feature_loader_ready',{status:'completed',details:{global_deferred_sweep:false,page_groups:Object.keys(pageModuleGroups),single_flight:true,yield_between_modules:true,backup_navigation_only:true}});
 }
 (async()=>{
