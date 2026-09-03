@@ -83,7 +83,7 @@ const observer=new MutationObserver(enforceVersionAuthority);observer.observe(do
 function showFailure(label,error){console.error(`Module probe failed: ${label}`,error);debugTrace.record('bootstrap','module_probe_failed',{status:'failed',details:{label},error});if(status){status.textContent='載入失敗';status.className='badge error';}if(warning){warning.textContent=`前端模組載入失敗：${label}：${error?.message||error}。請至診斷中心匯出 JSON。`;warning.classList.remove('hidden');}}
 
 // v0.4.27.55.3.2: only startup authorities and DB-ready consumers stay on the
-// critical path. Feature modules are now page-aware and never swept globally.
+// critical path. Feature modules are page-aware and are never swept globally.
 const criticalProbes=['runtime-version.js','v0382-release-authority.js','ingredient-probability-first-party-observation-ui.js'];
 const pageModuleGroups=Object.freeze({
   updates:Object.freeze([
@@ -94,9 +94,10 @@ const pageModuleGroups=Object.freeze({
     'unified-import-analysis-workbench.js',
     'data1d1-ocr-overlay-update-center-bootstrap.js',
   ]),
-  backup:Object.freeze([
-    'backup-truth-restore.js',
-  ]),
+  // backup-truth-restore.js remains a historical direct entry for now; do not
+  // import it again under a query-versioned ESM identity. Backup navigation only
+  // hydrates the metadata-only snapshot list.
+  backup:Object.freeze([]),
   knowledge:Object.freeze([
     'shared-knowledge-ui.js',
   ]),
@@ -105,6 +106,7 @@ const pageLoads=new Map();
 const moduleLoads=new Map();
 const yieldToBrowser=()=>new Promise(resolve=>{
   if(typeof requestIdleCallback==='function')requestIdleCallback(()=>resolve(),{timeout:120});
+  else if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>setTimeout(resolve,0));
   else setTimeout(resolve,0);
 });
 function importFeatureModule(file){
@@ -118,20 +120,21 @@ function importFeatureModule(file){
   return promise;
 }
 async function loadPageModules(page){
-  const files=pageModuleGroups[page]||[];
-  if(!files.length)return {page,module_count:0};
+  const knownPage=Object.prototype.hasOwnProperty.call(pageModuleGroups,page);
+  if(!knownPage)return {page,module_count:0,known_page:false};
+  const files=pageModuleGroups[page];
   if(pageLoads.has(page))return pageLoads.get(page);
   const promise=(async()=>{
     const started=performance.now();
-    debugTrace.record('bootstrap','page_feature_load_started',{status:'started',details:{page,module_count:files.length,single_flight:true}});
+    debugTrace.record('bootstrap','page_feature_load_started',{status:'started',details:{page,module_count:files.length,single_flight:true,navigation_only:true}});
     for(const file of files){
       await yieldToBrowser();
       await importFeatureModule(file);
     }
     if(page==='updates')await hydrateUpdateCenterShells();
     if(page==='backup')await hydrateBackupSnapshotPanel();
-    debugTrace.record('bootstrap','page_feature_load_completed',{status:'completed',details:{page,module_count:files.length,elapsed_ms:Math.round(performance.now()-started),single_flight:true}});
-    return {page,module_count:files.length};
+    debugTrace.record('bootstrap','page_feature_load_completed',{status:'completed',details:{page,module_count:files.length,elapsed_ms:Math.round(performance.now()-started),single_flight:true,navigation_only:true}});
+    return {page,module_count:files.length,known_page:true};
   })().catch(error=>{pageLoads.delete(page);debugTrace.record('bootstrap','page_feature_load_failed',{status:'failed',details:{page},error});throw error;});
   pageLoads.set(page,promise);
   return promise;
@@ -146,10 +149,10 @@ async function hydrateBackupSnapshotPanel(){
     const {listSnapshots}=await importFeatureModule('storage.js');
     const {formatLocal}=await importFeatureModule('time-utils.js');
     const snapshots=await listSnapshots({force:true});
-    const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]));
     host.innerHTML=snapshots.length?snapshots.map(item=>`<div class="snapshot"><b>${esc(item.reason)}</b><br><small>${esc(formatLocal(item.created_at))}</small></div>`).join(''):'尚無自動快照';
     host.dataset.pageHydration='ready';
-    debugTrace.record('bootstrap','backup_snapshot_page_hydrated',{status:'completed',details:{snapshot_count:snapshots.length,elapsed_ms:Math.round(performance.now()-started),metadata_only:true}});
+    debugTrace.record('bootstrap','backup_snapshot_page_hydrated',{status:'completed',details:{snapshot_count:snapshots.length,elapsed_ms:Math.round(performance.now()-started),metadata_only:true,navigation_only:true}});
   }catch(error){host.dataset.pageHydration='failed';debugTrace.record('bootstrap','backup_snapshot_page_hydration_failed',{status:'failed',error});}
 }
 
@@ -178,10 +181,16 @@ function bindPageAwareFeatureLoading(){
   document.querySelectorAll('nav button[data-view]').forEach(button=>{
     if(button.dataset.pageAwareBound==='true')return;
     button.dataset.pageAwareBound='true';
-    button.addEventListener('click',()=>{void loadPageModules(button.dataset.view);},{capture:false});
+    button.addEventListener('click',()=>{void loadPageModules(button.dataset.view).catch(()=>{});},{capture:false});
   });
   bindStaticHistoryExport();
-  debugTrace.record('bootstrap','page_feature_loader_ready',{status:'completed',details:{global_deferred_sweep:false,page_groups:Object.keys(pageModuleGroups),single_flight:true,yield_between_modules:true}});
+  globalThis.PokemonSleepPageFeatureLoaderV04275532=Object.freeze({
+    version:'v0.4.27.55.3.2-page-aware-static-shell',
+    loadPage:loadPageModules,
+    loadedPages:()=>[...pageLoads.keys()],
+    loadedModules:()=>[...moduleLoads.keys()],
+  });
+  debugTrace.record('bootstrap','page_feature_loader_ready',{status:'completed',details:{global_deferred_sweep:false,page_groups:Object.keys(pageModuleGroups),single_flight:true,yield_between_modules:true,backup_navigation_only:true}});
 }
 
 (async()=>{
