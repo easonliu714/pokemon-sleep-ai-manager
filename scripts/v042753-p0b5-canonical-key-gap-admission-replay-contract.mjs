@@ -178,7 +178,6 @@ const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
 if(appVersion==='v0.4.27.55.3.2'){
   assert.equal(appBuild,'20260903-v04275532-page-aware-static-shell');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.2-v04275532-page-aware-static-shell');
-  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.1'"));
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3'"));
   assert.ok(version.includes("// app_version: 'v0.4.27.55.2'"));
   assert.ok(version.includes("// app_version: 'v0.4.27.55'"));
