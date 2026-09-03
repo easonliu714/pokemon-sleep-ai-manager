@@ -165,6 +165,18 @@ if(appVersion==='v0.4.27.54'){
   assert.ok(version.includes("// app_version: 'v0.4.27.55'"));
   assert.ok(version.includes("// app_build: '20260901-v042755-p0b6-candy-family-storage-reconciliation'"));
   assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55-v042755-p0b6-candy-family-storage-reconciliation'"));
+}else if(appVersion==='v0.4.27.55.3.2'){
+  assert.equal(appBuild,'20260903-v04275532-page-aware-static-shell');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.2-v04275532-page-aware-static-shell');
+  const startupReliabilityContract=read('scripts/v04275531-startup-idb-sw-reliability-contract.mjs');
+  const frontendRegressionWorkflow=read('.github/workflows/regression-gate.yml');
+  assert.match(startupReliabilityContract,/normal IndexedDB open must be version-neutral/,' .55.3.1 startup reliability contract must remain explicit');
+  assert.match(frontendRegressionWorkflow,/node scripts\/v04275531-startup-idb-sw-reliability-contract\.mjs/,' .55.3.1 startup reliability contract must remain wired into Frontend Regression Gate');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.2'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55'"));
+  assert.ok(version.includes("// app_build: '20260901-v042755-p0b6-candy-family-storage-reconciliation'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55-v042755-p0b6-candy-family-storage-reconciliation'"));
 }else assert.fail(`.54 promotion successor release not governed: ${appVersion}`);
 assert.ok(version.includes("// app_version: 'v0.4.27.53'"));
 assert.ok(version.includes("// app_version: 'v0.3.96'"));
