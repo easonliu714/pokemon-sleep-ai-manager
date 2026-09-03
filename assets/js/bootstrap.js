@@ -82,42 +82,85 @@ function enforceVersionAuthority(){const root=document.documentElement;const obs
 const observer=new MutationObserver(enforceVersionAuthority);observer.observe(document.documentElement,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['data-app-version','data-app-build']});addEventListener('pagehide',()=>observer.disconnect(),{once:true});
 function showFailure(label,error){console.error(`Module probe failed: ${label}`,error);debugTrace.record('bootstrap','module_probe_failed',{status:'failed',details:{label},error});if(status){status.textContent='載入失敗';status.className='badge error';}if(warning){warning.textContent=`前端模組載入失敗：${label}：${error?.message||error}。請至診斷中心匯出 JSON。`;warning.classList.remove('hidden');}}
 
-// Only startup authorities and DB-ready consumers that must observe the one-shot
-// readiness event stay on the critical path. Heavy feature work remains deferred.
+// v0.4.27.55.3.2: only startup authorities and DB-ready consumers stay on the
+// critical path. Feature modules are page-aware and are never swept globally.
 const criticalProbes=['runtime-version.js','v0382-release-authority.js','ingredient-probability-first-party-observation-ui.js'];
-const deferredProbes=['storage.js','schema.js','seed-data.js','shared-master-schema.js','shared-master-data.js','public-empty-profile-master.js','canonical-registry.js','database.js','time-utils.js','pokemon-master-options.js','manual-editor.js','pokemon-detail.js','importer.js','ai-observation.js','ai-workflow.js','ai-key-vault.js','ai-project-pool-runtime.js','ai-project-pool-settings.js','ai-review-image-resolver.js','ai-review-queue-executor.js','ai-review-executor-controller.js','ai-review-executor-status-ui.js','prompt-catalog.js','g3-planning.js','identity-review.js','identity-convergence.js','identity-quality-guard.js','identity-dedup.js','identity-evidence-builder.js','ingredient-gap-engine.js','ingredient-probability-first-party-observation-contract.js','ingredient-probability-first-party-observation-update.js','ingredient-probability-first-party-observation-ui.js','update-center-ui-guard.js','update-center-live-debug.js','shared-knowledge-ui.js','recipe-render-guard.js','identity-candidate-engine.js','sqlite-identity-candidate-adapter.js','identity-confirmation-model.js','identity-confirmation-ui.js','identity-confirmation-entry.js','identity-import-wizard.js','identity-import-pipeline.js','pokemon-screenshot-grouping.js','pokemon-zip-manifest.js','pokemon-zip-adapter.js','data1-zip-inventory.js','data1-image-fingerprint.js','data1d-local-ocr-runtime.js','ocr-runtime-monitor.js','data1d-ocr-first-classifier.js','data1d1-ocr-runtime-ui.js','data1d1-ocr-review-package.js','data1d1-ocr-region-ai-consent.js','data1d1-ocr-region-ui.js','data1d1-manual-reocr.js','data1d1-ocr-thumbnail-region-confidence.js','data1d1-ocr-thumbnail-overlay-wiring.js','data1d1-ocr-overlay-lifecycle-events.js','data1d1-ocr-overlay-controller-integration.js','data1d1-ocr-overlay-update-center-mount.js','data1d1-ocr-overlay-update-center-bridge.js','data1d1-ocr-overlay-update-center-bootstrap.js','data1d1-ocr-overlay-preview-event-wiring.js','data1-inventory-review.js','data1-inventory-review-ui.js','jszip-loader.js','android-import-file-picker.js','screenshot-observation-bridge.js','identity-import-apply-operation.js','identity-import-transaction.js','identity-import-wizard-entry.js','unified-import-analysis-workbench.js','backup-truth-restore.js','public-catalog-workbench.js','v0382-image-byte-snapshot.js','v0383-catalog-ocr-review-contract.js','v0389-rescue-catalog-import.js'];
-
-// App Ready is already the final DB + hydration authority. Checking the visible final
-// badge closes the race where app-ready fires while bootstrap is still awaiting imports.
-function waitForAppReady(){if(document.getElementById('dbStatus')?.textContent==='App 已就緒')return Promise.resolve();return new Promise(resolve=>globalThis.addEventListener('pokemon-sleep:app-ready',()=>resolve(),{once:true}));}
-async function loadDeferredFeatureModules(){
+const pageModuleGroups=Object.freeze({
+  updates:Object.freeze([
+    'update-center-ui-guard.js',
+    'update-center-live-debug.js',
+    'identity-convergence.js',
+    'identity-confirmation-entry.js',
+    'identity-import-wizard-entry.js',
+    'unified-import-analysis-workbench.js',
+    'ocr-runtime-monitor.js',
+    'data1d1-ocr-thumbnail-region-confidence.js',
+    'data1d1-ocr-overlay-preview-event-wiring.js',
+    'data1d1-ocr-overlay-update-center-bootstrap.js',
+  ]),
+  backup:Object.freeze([]),
+  knowledge:Object.freeze(['shared-knowledge-ui.js']),
+});
+const pageLoads=new Map();
+const moduleLoads=new Map();
+const yieldToBrowser=()=>new Promise(resolve=>{
+  if(typeof requestIdleCallback==='function')requestIdleCallback(()=>resolve(),{timeout:120});
+  else if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>setTimeout(resolve,0));
+  else setTimeout(resolve,0);
+});
+function importFeatureModule(file){
+  if(moduleLoads.has(file))return moduleLoads.get(file);
   const started=performance.now();
-  debugTrace.record('bootstrap','deferred_module_load_started',{status:'started',details:{probe_count:deferredProbes.length,after_app_ready:true}});
-  try{
-    for(const file of deferredProbes)await import(`./${file}?v=${encodeURIComponent(VERSION)}`);
-    await import(`./shared-knowledge-ui.js?v=${encodeURIComponent(VERSION)}`);
-    await import(`./identity-confirmation-entry.js?v=${encodeURIComponent(VERSION)}`);
-    await import(`./identity-import-wizard-entry.js?v=${encodeURIComponent(VERSION)}`);
-    await import(`./unified-import-analysis-workbench.js?v=${encodeURIComponent(VERSION)}`);
-    await import(`./backup-truth-restore.js?v=${encodeURIComponent(VERSION)}`);
-    await import(`./public-catalog-workbench.js?v=${encodeURIComponent(VERSION)}`);
-    await import(`./v0389-rescue-catalog-import.js?v=${encodeURIComponent(VERSION)}`);
-    const {bootstrapOcrOverlayUpdateCenter}=await import(`./data1d1-ocr-overlay-update-center-bootstrap.js?v=${encodeURIComponent(VERSION)}`);
-    const startOverlay=()=>{if(globalThis.OcrOverlayUpdateCenterBootstrap||!document.querySelector('#ocrThumbnailOverlaySlot'))return;bootstrapOcrOverlayUpdateCenter({timeoutMs:2000}).then(instance=>{globalThis.OcrOverlayUpdateCenterBootstrap=instance;}).catch(error=>{debugTrace.record('ocr_thumbnail','ocr_thumbnail_overlay_bootstrap_deferred',{status:'blocked',details:{reason:error?.message||String(error)}});});};
-    startOverlay();globalThis.addEventListener('pokemon-sleep:identity-import-files-selected',()=>setTimeout(startOverlay,0));
-    debugTrace.record('bootstrap','deferred_module_load_completed',{status:'completed',details:{probe_count:deferredProbes.length,elapsed_ms:Math.round(performance.now()-started)}});
-  }catch(error){debugTrace.record('bootstrap','deferred_module_load_failed',{status:'failed',details:{phase:'post_app_ready'},error});}
+  const promise=import(`./${file}?v=${encodeURIComponent(VERSION)}`).then(value=>{
+    debugTrace.record('bootstrap','page_feature_module_loaded',{status:'completed',details:{file,elapsed_ms:Math.round(performance.now()-started)}});
+    return value;
+  }).catch(error=>{moduleLoads.delete(file);throw error;});
+  moduleLoads.set(file,promise);
+  return promise;
 }
-
-(async()=>{
-  const operationId=debugTrace.begin('module_bootstrap',{probe_count:criticalProbes.length+deferredProbes.length,critical_probe_count:criticalProbes.length,deferred_probe_count:deferredProbes.length,authority});
+async function loadPageModules(page){
+  const knownPage=Object.prototype.hasOwnProperty.call(pageModuleGroups,page);
+  if(!knownPage)return {page,module_count:0,known_page:false};
+  const files=pageModuleGroups[page];
+  if(pageLoads.has(page))return pageLoads.get(page);
+  const promise=(async()=>{
+    const started=performance.now();
+    debugTrace.record('bootstrap','page_feature_load_started',{status:'started',details:{page,module_count:files.length,single_flight:true,navigation_only:true}});
+    for(const file of files){await yieldToBrowser();await importFeatureModule(file);}
+    if(page==='updates'){await hydrateUpdateCenterShells();void startOcrOverlayForUpdates();}
+    if(page==='backup')await hydrateBackupSnapshotPanel();
+    debugTrace.record('bootstrap','page_feature_load_completed',{status:'completed',details:{page,module_count:files.length,elapsed_ms:Math.round(performance.now()-started),single_flight:true,navigation_only:true}});
+    return {page,module_count:files.length,known_page:true};
+  })().catch(error=>{pageLoads.delete(page);debugTrace.record('bootstrap','page_feature_load_failed',{status:'failed',details:{page},error});throw error;});
+  pageLoads.set(page,promise);return promise;
+}
+async function hydrateBackupSnapshotPanel(){
+  const host=document.getElementById('snapshotList');if(!host)return;const started=performance.now();host.dataset.pageHydration='loading';
   try{
-    const handoff=await enforceLiveVersionHandoff();if(handoff?.reloading)return;
-    for(const file of criticalProbes)await import(`./${file}?v=${encodeURIComponent(VERSION)}`);
-    await import(`./app.js?v=${encodeURIComponent(VERSION)}`);
-    enforceVersionAuthority();
-    debugTrace.end(operationId,'completed',{entry_modules_loaded:true,critical_path_reduced:true,deferred_feature_modules:true,static_app_shell:true,version_authority:authority,version_downgrade_guard:true,version_handoff:handoff,region_ai_review_deferred:true,finalize_nonblocking_workbench:true,duplicate_lightweight_review:true,lightweight_ai_review:true,sequential_advanced_ai_review:true,progressive_ai_review_bootstrap:true,android_raf_timeout_fallback:true,update_center_live_debug:true});
-    debugTrace.record('bootstrap','modules_ready',{status:'completed',details:{...authority,business_ready:false,app_ready_authority:false}});
-    void waitForAppReady().then(()=>{const schedule=()=>void loadDeferredFeatureModules();if(typeof requestIdleCallback==='function')requestIdleCallback(schedule,{timeout:2000});else setTimeout(schedule,0);});
-  }catch(error){showFailure('entry_modules',error);debugTrace.fail(operationId,error,{phase:'entry_modules'});}
+    const [{listSnapshots},{formatLocal}]=await Promise.all([import('./storage.js'),import('./time-utils.js')]);
+    const snapshots=await listSnapshots({force:true});
+    const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    host.innerHTML=snapshots.length?snapshots.map(item=>`<div class="snapshot"><b>${esc(item.reason)}</b><br><small>${esc(formatLocal(item.created_at))}</small></div>`).join(''):'尚無自動快照';host.dataset.pageHydration='ready';
+    debugTrace.record('bootstrap','backup_snapshot_page_hydrated',{status:'completed',details:{snapshot_count:snapshots.length,elapsed_ms:Math.round(performance.now()-started),metadata_only:true,navigation_only:true,core_module_identity_reused:true}});
+  }catch(error){host.dataset.pageHydration='failed';debugTrace.record('bootstrap','backup_snapshot_page_hydration_failed',{status:'failed',error});}
+}
+async function hydrateUpdateCenterShells(){document.querySelectorAll('[data-update-static-shell]').forEach(shell=>shell.dataset.hydrationState='ready');const heading=document.getElementById('importHistoryHeading');if(heading)heading.hidden=true;}
+async function startOcrOverlayForUpdates(){
+  if(globalThis.OcrOverlayUpdateCenterBootstrap||!document.querySelector('#ocrThumbnailOverlaySlot'))return;const started=performance.now();
+  try{const {bootstrapOcrOverlayUpdateCenter}=await importFeatureModule('data1d1-ocr-overlay-update-center-bootstrap.js');const instance=await bootstrapOcrOverlayUpdateCenter({timeoutMs:2000});globalThis.OcrOverlayUpdateCenterBootstrap=instance;debugTrace.record('ocr_thumbnail','ocr_thumbnail_overlay_bootstrap_deferred',{status:'completed',details:{elapsed_ms:Math.round(performance.now()-started),page_aware:true}});}
+  catch(error){debugTrace.record('ocr_thumbnail','ocr_thumbnail_overlay_bootstrap_deferred',{status:'blocked',details:{reason:error?.message||String(error),page_aware:true}});}
+}
+function bindStaticHistoryExport(){
+  const button=document.getElementById('exportImportHistoryJsonBtnV042745');if(!button||button.dataset.staticExportBound==='true')return;button.dataset.staticExportBound='true';
+  button.addEventListener('click',async event=>{event.preventDefault();event.stopPropagation();const started=performance.now();try{const module=await importFeatureModule('review-reference-history-ux-v042745.js');module.downloadImportHistoryJson({doc:document});debugTrace.record('bootstrap','static_history_export_completed',{status:'completed',details:{elapsed_ms:Math.round(performance.now()-started)}});}catch(error){alert(`匯出失敗：${error?.message||error}`);debugTrace.record('bootstrap','static_history_export_failed',{status:'failed',error});}});
+}
+function bindPageAwareFeatureLoading(){
+  document.querySelectorAll('nav button[data-view]').forEach(button=>{if(button.dataset.pageAwareBound==='true')return;button.dataset.pageAwareBound='true';button.addEventListener('click',()=>{void loadPageModules(button.dataset.view).catch(()=>{});},{capture:false});});
+  globalThis.addEventListener('pokemon-sleep:identity-import-files-selected',()=>{void startOcrOverlayForUpdates();});bindStaticHistoryExport();
+  globalThis.PokemonSleepPageFeatureLoaderV04275532=Object.freeze({version:'v0.4.27.55.3.2-page-aware-static-shell',loadPage:loadPageModules,loadedPages:()=>[...pageLoads.keys()],loadedModules:()=>[...moduleLoads.keys()]});
+  debugTrace.record('bootstrap','page_feature_loader_ready',{status:'completed',details:{global_deferred_sweep:false,page_groups:Object.keys(pageModuleGroups),single_flight:true,yield_between_modules:true,backup_navigation_only:true}});
+}
+(async()=>{
+  const operationId=debugTrace.begin('module_bootstrap',{probe_count:criticalProbes.length,critical_probe_count:criticalProbes.length,deferred_probe_count:0,page_aware_feature_loading:true,authority});
+  try{const handoff=await enforceLiveVersionHandoff();if(handoff?.reloading)return;for(const file of criticalProbes)await import(`./${file}?v=${encodeURIComponent(VERSION)}`);await import(`./app.js?v=${encodeURIComponent(VERSION)}`);enforceVersionAuthority();bindPageAwareFeatureLoading();debugTrace.end(operationId,'completed',{entry_modules_loaded:true,critical_path_reduced:true,global_deferred_sweep:false,page_aware_feature_loading:true,static_app_shell:true,version_authority:authority,version_downgrade_guard:true,version_handoff:handoff});debugTrace.record('bootstrap','modules_ready',{status:'completed',details:{...authority,business_ready:false,app_ready_authority:false,page_aware_feature_loading:true}});}catch(error){showFailure('entry_modules',error);debugTrace.fail(operationId,error,{phase:'entry_modules'});}
 })();

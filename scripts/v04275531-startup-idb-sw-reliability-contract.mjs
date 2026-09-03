@@ -45,9 +45,18 @@ assert.match(releaseSource,/APP_READY_REJECTED/);
 assert.match(releaseSource,/document\.documentElement\.dataset\.databaseReady!==\'true\'/);
 
 assert.match(bootstrapSource,/criticalProbes=/);
-assert.match(bootstrapSource,/deferredProbes=/);
-assert.match(bootstrapSource,/waitForAppReady/);
-assert.match(bootstrapSource,/deferred_module_load_started/);
+const legacyDeferredArchitecture=/const deferredProbes=/.test(bootstrapSource);
+const successorPageAwareArchitecture=/const pageModuleGroups=Object\.freeze\(/.test(bootstrapSource)&&/global_deferred_sweep:false/.test(bootstrapSource);
+assert.ok(legacyDeferredArchitecture||successorPageAwareArchitecture,'v0.4.27.55.3.1 deferred-startup contract must remain or be replaced only by the narrower page-aware successor');
+if(legacyDeferredArchitecture){
+  assert.match(bootstrapSource,/waitForAppReady/);
+  assert.match(bootstrapSource,/deferred_module_load_started/);
+}else{
+  assert.match(bootstrapSource,/pageLoads=new Map/);
+  assert.match(bootstrapSource,/moduleLoads=new Map/);
+  assert.match(bootstrapSource,/await yieldToBrowser\(\)/);
+  assert.doesNotMatch(bootstrapSource,/waitForAppReady\(\)\.then/,'successor must not restart an all-feature chain after APP_READY');
+}
 assert.match(bootstrapSource,/debugTrace\.record\('bootstrap','modules_ready'/);
 assert.doesNotMatch(bootstrapSource,/debugTrace\.record\('bootstrap','app_ready'/,'module bootstrap must not claim business-ready');
 assert.equal((appSource.match(/pokemon-sleep:app-ready/g)||[]).length,1,'App business-ready event must have a single production dispatch site');

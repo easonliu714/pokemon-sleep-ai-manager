@@ -33,7 +33,13 @@ assert.match(authority,/version-authority\.js/);
 assert.match(authority,/authority\.app_version/);
 assert.match(authority,/service-worker\.js/);
 assert.match(authority,/detail\.rescue\|\|detail\.readonly/);
-assert.match(bootstrap,/v0389-rescue-catalog-import\.js/);
+const pageAware=bootstrap.includes('page_aware_feature_loading:true')&&bootstrap.includes('global_deferred_sweep:false');
+if(pageAware){
+  assert.match(bootstrap,/pageModuleGroups/);
+  assert.doesNotMatch(bootstrap,/const deferredProbes=/);
+}else{
+  assert.match(bootstrap,/v0389-rescue-catalog-import\.js/);
+}
 assert.match(sw,/v0389-rescue-catalog-import\.js/);
 assert.match(sw,/public-item-master\.js/);
 const sandbox={globalThis:{}};vm.runInNewContext(versionAuthority,sandbox);
@@ -43,4 +49,4 @@ assert.match(current.app_build,/^\d{8}-[a-z0-9-]+$/);
 assert.equal(current.cache_name,`pokemon-sleep-ai-${current.app_version}-${current.app_build.replace(/^\d{8}-/,'')}`);
 assert.match(index,/src="\.\/assets\/js\/bootstrap\.js"/);
 assert.doesNotMatch(index,/bootstrap\.js\?v=/);
-console.log(`rescue catalog/import shared-authority contract PASS (${current.app_version})`);
+console.log(`rescue catalog/import shared-authority contract PASS (${current.app_version}, ${pageAware?'page-aware':'legacy-eager'})`);

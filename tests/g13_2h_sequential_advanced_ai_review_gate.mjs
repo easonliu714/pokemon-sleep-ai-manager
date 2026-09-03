@@ -7,12 +7,20 @@ const [wizard,bootstrap,worker,authority]=files.map(file=>fs.readFileSync(file,'
 for(const token of ['createSequentialAdvancedReview','sequential_single_item','items:[item]','optional-region-ai-advanced-item-started','optional-region-ai-advanced-item-completed','依序覆核選取圖片','上一張','下一張'])assert.match(wizard,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
 assert.doesNotMatch(wizard,/items:selectedItems,summary/);
 assert.match(bootstrap,/20260803-g13-2j-android-raf-timeout-fallback/);
-assert.match(bootstrap,/sequential_advanced_ai_review:true/);
-assert.match(bootstrap,/progressive_ai_review_bootstrap:true/);
-assert.match(bootstrap,/android_raf_timeout_fallback:true/);
 assert.match(bootstrap,/20260803-g13-2i-progressive-ai-review-bootstrap/);
+const pageAware=bootstrap.includes('page_aware_feature_loading:true')&&bootstrap.includes('global_deferred_sweep:false');
+if(pageAware){
+  assert.match(bootstrap,/updates:Object\.freeze\(\[/);
+  assert.match(bootstrap,/'identity-import-wizard-entry\.js'/);
+  assert.match(bootstrap,/single_flight:true/);
+  assert.doesNotMatch(bootstrap,/const deferredProbes=/);
+}else{
+  assert.match(bootstrap,/sequential_advanced_ai_review:true/);
+  assert.match(bootstrap,/progressive_ai_review_bootstrap:true/);
+  assert.match(bootstrap,/android_raf_timeout_fallback:true/);
+}
 assert.match(worker,/pokemon-sleep-ai-v0\.3\.68-g13-2j-android-raf-timeout-fallback/);
 assert.match(worker,/pokemon-sleep-ai-v0\.3\.67-g13-2i-progressive-ai-review-bootstrap/);
 assert.match(authority,/app_version:\s*'v0\.3\.\d+'/);
 assert.match(bootstrap,/authority\.app_version/);
-console.log(JSON.stringify({ok:true,gate:'G13.2H sequential advanced AI review compatibility',version_authority:'central'}));
+console.log(JSON.stringify({ok:true,gate:'G13.2H sequential advanced AI review compatibility',version_authority:'central',page_aware_loading:pageAware}));

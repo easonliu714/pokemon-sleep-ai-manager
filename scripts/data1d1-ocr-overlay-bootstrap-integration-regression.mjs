@@ -65,9 +65,16 @@ const overlayModules=[
   'data1d1-ocr-overlay-update-center-bridge.js',
   'data1d1-ocr-overlay-update-center-bootstrap.js'
 ];
+const pageAware=bootstrap.includes('page_aware_feature_loading:true')&&bootstrap.includes('global_deferred_sweep:false');
 for(const moduleName of overlayModules){
-  token(bootstrap,moduleName,'module_not_probed');
+  if(!pageAware)token(bootstrap,moduleName,'module_not_probed');
   token(worker,`./assets/js/${moduleName}`,'module_not_precached');
+}
+if(pageAware){
+  token(bootstrap,"'data1d1-ocr-overlay-update-center-bootstrap.js'",'page_aware_overlay_entry_missing');
+  token(overlayBootstrap,"'./data1d1-ocr-overlay-update-center-bridge.js'",'page_aware_overlay_dependency_missing');
+  token(bootstrap,'startOcrOverlayForUpdates','page_aware_overlay_start_missing');
+  token(bootstrap,'single_flight:true','page_aware_single_flight_missing');
 }
 
 const cacheBuildSuffix=build.replace(/^\d{8}-/,'');
@@ -86,5 +93,6 @@ console.log(JSON.stringify({
   build,
   cache_name:cacheName,
   checks:43,
+  page_aware_loading:pageAware,
   hardware_validation_required_next:true
 }));

@@ -37,9 +37,21 @@ assert "authority.app_build" in bootstrap
 assert "importScripts('./assets/js/version-authority.js')" in sw
 assert "cache_name:CACHE" in sw
 assert "backup-truth-restore.js" in index
-assert "backup-truth-restore.js" in bootstrap
+
+page_aware = "page_aware_feature_loading:true" in bootstrap and "global_deferred_sweep:false" in bootstrap
+if page_aware:
+    # v0.4.27.55.3.2 keeps Backup Truth/Restore on its historical direct index entry.
+    # The page-aware loader must not import it again under a query-versioned ESM
+    # identity; Backup navigation only hydrates metadata-only snapshot listing.
+    assert "backup:Object.freeze([])" in bootstrap
+    assert "if(page==='backup')await hydrateBackupSnapshotPanel()" in bootstrap
+    assert "listSnapshots({force:true})" in bootstrap
+    assert "importFeatureModule('backup-truth-restore.js')" not in bootstrap
+else:
+    assert "backup-truth-restore.js" in bootstrap
+
 assert "backup-truth-restore.js" in sw
 assert "app_version:APP_VERSION" in sw
 assert "build:APP_BUILD" in sw
 assert "bootstrap.js" in index
-print(f'G14.1 Backup Truth & Restore Verification: PASS ({active_version}, central authority)')
+print(f"G14.1 Backup Truth & Restore Verification: PASS ({active_version}, central authority, {'page-aware' if page_aware else 'legacy-eager'})")

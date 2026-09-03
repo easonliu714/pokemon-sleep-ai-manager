@@ -17,6 +17,14 @@ assert.match(wizard,/createLightweightReview/);
 assert.match(wizard,/createSequentialAdvancedReview/);
 assert.match(bootstrap,/APP_VERSION = 'v0\.3\.66'/);
 assert.match(bootstrap,/20260803-g13-2h-sequential-advanced-ai-review/);
-assert.match(bootstrap,/region_ai_review_deferred:true/);
+const pageAware=bootstrap.includes('page_aware_feature_loading:true')&&bootstrap.includes('global_deferred_sweep:false');
+if(pageAware){
+  assert.match(bootstrap,/updates:Object\.freeze\(\[/);
+  assert.match(bootstrap,/'identity-import-wizard-entry\.js'/);
+  assert.match(bootstrap,/single_flight:true/);
+  assert.doesNotMatch(bootstrap,/const deferredProbes=/);
+}else{
+  assert.match(bootstrap,/region_ai_review_deferred:true/);
+}
 assert.match(worker,/pokemon-sleep-ai-v0\.3\.66-g13-2h-sequential-advanced-ai-review/);
-console.log(JSON.stringify({ok:true,gate:'G13.2F region AI review deferred compatibility',version:'v0.3.66',advanced_mode:'sequential-single-item'}));
+console.log(JSON.stringify({ok:true,gate:'G13.2F region AI review deferred compatibility',version:'v0.3.66',advanced_mode:'sequential-single-item',page_aware_loading:pageAware}));
