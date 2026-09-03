@@ -31,7 +31,19 @@ const appVersion=sources.bootstrap.match(/APP_VERSION = '(v\d+\.\d+\.\d+)'/)?.[1
 const cache=sources.sw.match(/const CACHE = '([^']+)'/)?.[1];
 assert.ok(appVersion,'app_version_missing');assert.ok(cache?.startsWith(`pokemon-sleep-ai-${appVersion}-`),'service_worker_version_mismatch');
 const modules=['data1-zip-inventory.js','data1-inventory-review.js','data1-inventory-review-ui.js','data1-image-fingerprint.js','data1d-local-ocr-runtime.js','data1d-ocr-first-classifier.js','data1d1-ocr-runtime-ui.js','data1d1-ocr-review-package.js','data1d1-ocr-region-ai-consent.js','data1d1-ocr-region-ui.js','data1d1-ocr-thumbnail-region-confidence.js','data1d1-ocr-overlay-update-center-bootstrap.js','ai-project-pool-settings.js','debug-trace-manager.js','identity-import-wizard-entry.js','pokemon-screenshot-grouping.js','pokemon-zip-manifest.js','identity-import-transaction.js','jszip-loader.js','android-import-file-picker.js'];
-for(const moduleName of modules){assert.match(sources.bootstrap,new RegExp(moduleName.replaceAll('.','\\.')));assert.match(sources.sw,new RegExp(moduleName.replaceAll('.','\\.')));}
+const pageAwareSuccessor=/pageModuleGroups=Object\.freeze\(/.test(sources.bootstrap)&&/global_deferred_sweep:false/.test(sources.bootstrap);
+for(const moduleName of modules){
+  // Before .55.3.2 bootstrap listed every deferred/transitive module explicitly.
+  // The page-aware successor intentionally lists only entrypoints; transitive
+  // modules remain required in the offline Service Worker asset authority.
+  if(!pageAwareSuccessor)assert.match(sources.bootstrap,new RegExp(moduleName.replaceAll('.','\\.')));
+  assert.match(sources.sw,new RegExp(moduleName.replaceAll('.','\\.')));
+}
+if(pageAwareSuccessor){
+  for(const entry of ['identity-import-wizard-entry.js','data1d1-ocr-overlay-update-center-bootstrap.js'])assert.match(sources.bootstrap,new RegExp(entry.replaceAll('.','\\.')));
+  assert.match(sources.bootstrap,/single_flight:true/);
+  assert.match(sources.bootstrap,/yield_between_modules:true/);
+}
 matchTokens(sources.loader,['DEFAULT_JSZIP_URL','jszip_script_load_failed'],'loader');
 matchTokens(sources.picker,['IMAGE_ACCEPT','ZIP_ACCEPT','tech2dImageInput','tech2dZipInput','mixed_zip_and_images_not_allowed','single_zip_per_batch_required','createAndroidImportFilePicker','AbortController','pokemon-sleep:ocr-cancel-requested','unified_import_source_inspection'],'picker');
 matchTokens(sources.inventory,['source_image_ref','review_required','output_package_ref','validatePrivateZipInventory'],'inventory');matchTokens(sources.review,['filterInventoryItems','bulkPatchInventoryReview','buildReviewPackage'],'review');matchTokens(sources.reviewUi,['createInventoryReviewWorkbench','duplicate_gate_decision_applied','fingerprint_manifest_exported','review_package_exported'],'review_ui');matchTokens(sources.fingerprint,['sha256Hex','SHA-256','enrichInventoryWithFingerprints','duplicate_group_id'],'fingerprint');assert.doesNotMatch(sources.fingerprint,/btoa\(|base64/i);
