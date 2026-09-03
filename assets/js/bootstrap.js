@@ -131,7 +131,10 @@ async function loadPageModules(page){
       await yieldToBrowser();
       await importFeatureModule(file);
     }
-    if(page==='updates')await hydrateUpdateCenterShells();
+    if(page==='updates'){
+      await hydrateUpdateCenterShells();
+      void startOcrOverlayForUpdates();
+    }
     if(page==='backup')await hydrateBackupSnapshotPanel();
     debugTrace.record('bootstrap','page_feature_load_completed',{status:'completed',details:{page,module_count:files.length,elapsed_ms:Math.round(performance.now()-started),single_flight:true,navigation_only:true}});
     return {page,module_count:files.length,known_page:true};
@@ -166,6 +169,19 @@ async function hydrateUpdateCenterShells(){
   if(heading)heading.hidden=true;
 }
 
+async function startOcrOverlayForUpdates(){
+  if(globalThis.OcrOverlayUpdateCenterBootstrap||!document.querySelector('#ocrThumbnailOverlaySlot'))return;
+  const started=performance.now();
+  try{
+    const {bootstrapOcrOverlayUpdateCenter}=await importFeatureModule('data1d1-ocr-overlay-update-center-bootstrap.js');
+    const instance=await bootstrapOcrOverlayUpdateCenter({timeoutMs:2000});
+    globalThis.OcrOverlayUpdateCenterBootstrap=instance;
+    debugTrace.record('ocr_thumbnail','ocr_thumbnail_overlay_bootstrap_deferred',{status:'completed',details:{elapsed_ms:Math.round(performance.now()-started),page_aware:true}});
+  }catch(error){
+    debugTrace.record('ocr_thumbnail','ocr_thumbnail_overlay_bootstrap_deferred',{status:'blocked',details:{reason:error?.message||String(error),page_aware:true}});
+  }
+}
+
 function bindStaticHistoryExport(){
   const button=document.getElementById('exportImportHistoryJsonBtnV042745');
   if(!button||button.dataset.staticExportBound==='true')return;
@@ -187,6 +203,7 @@ function bindPageAwareFeatureLoading(){
     button.dataset.pageAwareBound='true';
     button.addEventListener('click',()=>{void loadPageModules(button.dataset.view).catch(()=>{});},{capture:false});
   });
+  globalThis.addEventListener('pokemon-sleep:identity-import-files-selected',()=>{void startOcrOverlayForUpdates();});
   bindStaticHistoryExport();
   globalThis.PokemonSleepPageFeatureLoaderV04275532=Object.freeze({
     version:'v0.4.27.55.3.2-page-aware-static-shell',
