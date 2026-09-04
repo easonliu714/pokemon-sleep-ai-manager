@@ -8,6 +8,7 @@ const twoStage=fs.readFileSync('assets/js/two-stage-forced-ocr-entry.js','utf8')
 const architecture=fs.readFileSync('docs/ARCHITECTURE_OCR_AI_CONFIRMATION_CONTRACT.md','utf8');
 const index=fs.readFileSync('index.html','utf8');
 const sw=fs.readFileSync('service-worker.js','utf8');
+const bootstrap=fs.readFileSync('assets/js/bootstrap.js','utf8');
 for(const file of ['assets/js/analysis-confirmation-workbench.js','assets/js/analysis-revision-store.js','assets/js/two-stage-forced-ocr-entry.js'])execFileSync(process.execPath,['--check',file]);
 assert.match(store,/pokemon-sleep:analysis-revision-saved/);
 assert.match(workbench,/多張圖片保留為 Observation/);
@@ -26,8 +27,13 @@ assert.doesNotMatch(workbench,/DELETE FROM pokemon_ingredients/);
 assert.doesNotMatch(workbench,/api[_-]?key/i);
 for(const token of ['GENERAL_SCALE=2','SMALL_TEXT_SCALE=4','forced_ocr_two_stage_started','forced_ocr_two_stage_completed','two_stage:true'])assert.match(twoStage,new RegExp(token));
 for(const token of ['general_scale = 2','small_text_scale = 4','Cross Check','Confidence Engine','人工確認','SQLite Transaction','OCR 不作為 Pokémon Sleep 中文欄位的最終真值來源','重複狀態不是「禁止分析」狀態'])assert.match(architecture,new RegExp(token));
-assert.match(index,/analysis-confirmation-workbench\.js/);
-assert.match(index,/two-stage-forced-ocr-entry\.js/);
+const eagerAnalysis=/analysis-confirmation-workbench\.js/.test(index);
+const eagerTwoStage=/two-stage-forced-ocr-entry\.js/.test(index);
+const pageAwareAnalysis=/updates:Object\.freeze\(\[[\s\S]*'analysis-confirmation-workbench\.js'/.test(bootstrap);
+const pageAwareTwoStage=/updates:Object\.freeze\(\[[\s\S]*'two-stage-forced-ocr-entry\.js'/.test(bootstrap);
+assert.ok(eagerAnalysis||pageAwareAnalysis,'analysis confirmation must remain reachable via eager or page-aware Update Center authority');
+assert.ok(eagerTwoStage||pageAwareTwoStage,'two-stage OCR must remain reachable via eager or page-aware Update Center authority');
+if(pageAwareAnalysis||pageAwareTwoStage){assert.match(bootstrap,/single_flight:true/);assert.match(bootstrap,/global_deferred_sweep:false/);}
 assert.match(sw,/analysis-confirmation-workbench\.js/);
 assert.match(sw,/two-stage-forced-ocr-entry\.js/);
 assert.match(sw,/v0\.3\.81-v0381-pokemon-detail-review-merge/);

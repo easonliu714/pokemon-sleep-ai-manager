@@ -118,5 +118,5 @@ const listed=await storage.listSnapshots();assert.equal(listed.length,10,'snapsh
 const reopened=await new Promise((resolve,reject)=>{const req=indexedDB.open(dbName);req.onerror=()=>reject(req.error);req.onsuccess=()=>resolve(req.result);});assert.equal(reopened.version,2,'metadata-only successor must not force v2→v3');const snapshotKeys=await new Promise((resolve,reject)=>{const tx=reopened.transaction('snapshots','readonly');const req=tx.objectStore('snapshots').getAllKeys();tx.oncomplete=()=>resolve(req.result);tx.onerror=()=>reject(tx.error);});assert.equal(snapshotKeys.length,10);reopened.close();
 
 await import('../assets/js/version-authority.js');
-assert.match(globalThis.PokemonSleepVersionAuthority?.app_version||'',/^v0\.4\.27\.55\.3(?:\.[12])?$/);
+assert.match(globalThis.PokemonSleepVersionAuthority?.app_version||'',/^v0\.4\.27\.55\.3(?:\.[1-9]\d*)?$/);
 console.log('v0.4.27.55.3 mobile snapshot / Candy incremental UI / static shell / persisted Public Master bypass contract PASS');

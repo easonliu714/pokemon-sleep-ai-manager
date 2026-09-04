@@ -7,7 +7,7 @@ import {
   snapshot,
 } from './database.js';
 import { dryRun, applyPayload } from './importer.js';
-import { listSnapshots, clearAllStorage } from './storage.js';
+import { clearAllStorage } from './storage.js';
 import { setupPokemonDetail, openPokemonDetail } from './pokemon-detail.js';
 import { validateWorkflow, approveReviewed } from './ai-workflow.js';
 import { saveIngredient, saveItem } from './manual-editor.js';
@@ -23,6 +23,7 @@ const state = {
   pokemon: [],
   seeded: false,
   workflow: null,
+  importHistoryKey: null,
 };
 
 const esc = (value) =>
@@ -54,15 +55,23 @@ function renderTable(element, data, columns, rowClass = '', rowAttrs = null) {
   element.innerHTML = `<thead><tr>${header}</tr></thead><tbody>${body}</tbody>`;
 }
 
+function activeView() {
+  return document.querySelector('.view.active')?.id || 'dashboard';
+}
+
 function bindNavigation() {
   document.querySelectorAll('nav button').forEach((button) => {
     button.onclick = () => {
+      const viewId = button.dataset.view;
       document.querySelectorAll('.view').forEach((view) => {
-        view.classList.toggle('active', view.id === button.dataset.view);
+        view.classList.toggle('active', view.id === viewId);
       });
       document.querySelectorAll('nav button').forEach((item) => {
         item.classList.toggle('active', item === button);
       });
+      globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:view-activated', {
+        detail: { view: viewId, source: 'primary-navigation', layout_committed: true },
+      }));
     };
   });
 }
@@ -184,6 +193,38 @@ function renderItems() {
   });
 }
 
+function refreshPokemonPage() {
+  state.pokemon = rows(
+    "SELECT * FROM pokemon WHERE status='active' " +
+    "ORDER BY CASE rating WHEN 'S+' THEN 1 WHEN 'S' THEN 2 WHEN 'A' THEN 3 WHEN 'B' THEN 4 ELSE 9 END, level DESC, species",
+  );
+  renderPokemon();
+  globalThis.DebugTrace?.record?.('app','page_hydration_completed',{status:'completed',details:{view:'pokemon',owner:'app.js',row_count:state.pokemon.length,single_owner:true}});
+}
+
+function renderImportHistory() {
+  const data = rows('SELECT * FROM import_batches ORDER BY imported_at DESC LIMIT 100');
+  const key=data.map(row=>`${row.update_id||''}:${row.imported_at||''}:${row.operation_count??''}`).join('|');
+  const table=$('historyTable');
+  if(state.importHistoryKey===key&&table?.tBodies?.length){
+    globalThis.DebugTrace?.record?.('app','page_hydration_deduped',{status:'completed',details:{view:'updates',surface:'import_history',reason:'unchanged-local-history',single_owner:true}});
+    return;
+  }
+  state.importHistoryKey=key;
+  renderTable(
+    table,
+    data,
+    [
+      { label: 'Update ID', key: 'update_id' },
+      { label: 'Schema', key: 'schema_version' },
+      { label: '來源', key: 'source' },
+      { label: '操作', key: 'operation_count' },
+      { label: '匯入時間', render: (row) => esc(formatLocal(row.imported_at)) },
+    ],
+  );
+  globalThis.DebugTrace?.record?.('app','page_hydration_completed',{status:'completed',details:{view:'updates',surface:'import_history',owner:'app.js',row_count:data.length,single_owner:true}});
+}
+
 async function refresh() {
   const refreshStarted=perfNow();
   const capacityLabels = {
@@ -213,43 +254,6 @@ async function refresh() {
     "ORDER BY CASE rating WHEN 'S+' THEN 1 WHEN 'S' THEN 2 WHEN 'A' THEN 3 WHEN 'B' THEN 4 ELSE 9 END",
   ).map((row) => `<span><b>${esc(row.rating || '未評級')}</b>：${row.count}</span>`).join('');
 
-  state.pokemon = rows(
-    "SELECT * FROM pokemon WHERE status='active' " +
-    "ORDER BY CASE rating WHEN 'S+' THEN 1 WHEN 'S' THEN 2 WHEN 'A' THEN 3 WHEN 'B' THEN 4 ELSE 9 END, level DESC, species",
-  );
-  renderPokemon();
-  renderIngredients();
-  renderItems();
-
-  renderTable(
-    $('recipeTable'),
-    rows('SELECT * FROM recipes ORDER BY category, recipe_name'),
-    [
-      { label: '分類', key: 'category' },
-      { label: '食譜', key: 'recipe_name' },
-      { label: '已開啟', render: (row) => (row.unlocked ? '是' : '否') },
-    ],
-  );
-
-  renderTable(
-    $('historyTable'),
-    rows('SELECT * FROM import_batches ORDER BY imported_at DESC LIMIT 100'),
-    [
-      { label: 'Update ID', key: 'update_id' },
-      { label: 'Schema', key: 'schema_version' },
-      { label: '來源', key: 'source' },
-      { label: '操作', key: 'operation_count' },
-      { label: '匯入時間', render: (row) => esc(formatLocal(row.imported_at)) },
-    ],
-  );
-
-  const snapshots = await listSnapshots();
-  $('snapshotList').innerHTML = snapshots.length
-    ? snapshots.map((item) =>
-      `<div class="snapshot"><b>${esc(item.reason)}</b><br><small>${esc(formatLocal(item.created_at))}</small></div>`,
-    ).join('')
-    : '尚無自動快照';
-
   const estimate = await navigator.storage?.estimate?.();
   const persistent = await navigator.storage?.persisted?.();
   $('storageSummary').innerHTML =
@@ -263,7 +267,18 @@ async function refresh() {
       '<b>Phase G2 資料初始化完成</b><br>已套用版本化資料，不會覆蓋既有個人資料。';
     state.seeded = false;
   }
-  globalThis.DebugTrace?.record?.('app','ui_refresh_completed',{status:'completed',details:{elapsed_ms:Math.round((perfNow()-refreshStarted)*10)/10,snapshot_count:snapshots.length,snapshot_list_metadata_only:true}});
+
+  const view=activeView();
+  if(view==='pokemon')refreshPokemonPage();
+  if(view==='updates')renderImportHistory();
+
+  globalThis.DebugTrace?.record?.('app','ui_refresh_completed',{status:'completed',details:{
+    elapsed_ms:Math.round((perfNow()-refreshStarted)*10)/10,
+    active_view:view,
+    dashboard_only_startup:true,
+    cross_page_render:false,
+    snapshot_list_metadata_only:true,
+  }});
 }
 
 function download(bytes, name, type) {
@@ -347,6 +362,13 @@ function loadUpdatePayload(payload) {
 }
 
 function setupEventHandlers() {
+  globalThis.addEventListener('pokemon-sleep:view-activated', (event) => {
+    const view=event?.detail?.view;
+    if(view==='dashboard')void refresh();
+    else if(view==='pokemon')refreshPokemonPage();
+    else if(view==='updates')renderImportHistory();
+  });
+
   ['pokemonSearch', 'ratingFilter', 'specialtyFilter'].forEach((id) => {
     $(id).oninput = renderPokemon;
   });

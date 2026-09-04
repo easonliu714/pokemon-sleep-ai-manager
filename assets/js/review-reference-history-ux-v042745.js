@@ -234,17 +234,66 @@ export function downloadImportHistoryJson({doc=document,queryRows=rows}={}){
 }
 
 export function enhanceImportHistoryUi(doc=document){
-  const heading=doc.getElementById('importHistoryHeading'),wrap=doc.getElementById('importHistoryWrap');if(!heading||!wrap)return false;
+  const heading=doc.getElementById('importHistoryHeading');
+  const wrap=doc.getElementById('importHistoryWrap');
+  const table=doc.getElementById('historyTable');
+  if(!wrap||!table)return false;
+
   let details=doc.getElementById('importHistoryDetailsV042745');
   if(!details){
-    details=doc.createElement('details');details.id='importHistoryDetailsV042745';details.dataset.defaultCollapsed='true';
-    const summary=doc.createElement('summary');summary.textContent='匯入歷程（預設收合，點此展開）';
-    const controls=doc.createElement('div');controls.className='buttons';
-    const exportButton=doc.createElement('button');exportButton.type='button';exportButton.id='exportImportHistoryJsonBtnV042745';exportButton.textContent='匯出匯入歷程 JSON';controls.appendChild(exportButton);
-    heading.replaceWith(details);details.append(summary,controls,wrap);exportButton.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();try{downloadImportHistoryJson({doc});}catch(error){alert(`匯出失敗：${error?.message||error}`);}});
+    details=doc.createElement('details');
+    details.id='importHistoryDetailsV042745';
+    details.dataset.defaultCollapsed='true';
+    details.dataset.domOwner='import-history';
+    const anchor=heading||wrap;
+    anchor.parentNode?.insertBefore(details,anchor);
   }
-  details.open=false;
-  trace('v042745_import_history_collapsed_ui_ready',{default_collapsed:true,json_export:true});return true;
+
+  let summary=details.querySelector(':scope > summary');
+  if(!summary){
+    summary=doc.createElement('summary');
+    summary.textContent='匯入歷程（預設收合，點此展開）';
+    details.prepend(summary);
+  }
+
+  let controls=details.querySelector(':scope > .buttons');
+  if(!controls){
+    controls=doc.createElement('div');
+    controls.className='buttons';
+    summary.insertAdjacentElement('afterend',controls);
+  }
+
+  let exportButton=doc.getElementById('exportImportHistoryJsonBtnV042745');
+  if(!exportButton){
+    exportButton=doc.createElement('button');
+    exportButton.type='button';
+    exportButton.id='exportImportHistoryJsonBtnV042745';
+    exportButton.textContent='匯出匯入歷程 JSON';
+  }
+  if(!controls.contains(exportButton))controls.appendChild(exportButton);
+  if(!details.contains(wrap))details.appendChild(wrap);
+  if(!wrap.contains(table))wrap.appendChild(table);
+  if(heading){heading.hidden=true;if(!details.contains(heading))details.insertBefore(heading,wrap);}
+
+  if(exportButton.dataset.historyExportBound!=='true'){
+    exportButton.dataset.historyExportBound='true';
+    exportButton.addEventListener('click',event=>{
+      event.preventDefault();event.stopPropagation();
+      try{downloadImportHistoryJson({doc});}catch(error){alert(`匯出失敗：${error?.message||error}`);}
+    });
+  }
+
+  details.dataset.domOwner='import-history';
+  details.dataset.wrapOwned=String(details.contains(wrap));
+  details.dataset.tableOwned=String(wrap.contains(table));
+  if(details.dataset.ownershipInitialized!=='true'){
+    details.open=false;
+    details.dataset.ownershipInitialized='true';
+  }
+
+  const valid=details.contains(wrap)&&wrap.contains(table)&&doc.querySelectorAll('#importHistoryDetailsV042745').length===1&&doc.querySelectorAll('#importHistoryWrap').length===1&&doc.querySelectorAll('#historyTable').length===1;
+  trace('v042745_import_history_collapsed_ui_ready',{default_collapsed:true,json_export:true,dom_ownership_valid:valid,details_contains_wrap:details.contains(wrap),wrap_contains_table:wrap.contains(table),single_owner:true});
+  return valid;
 }
 
 function scheduleReviewDecoration(){

@@ -36,7 +36,12 @@ assert 'catalogIsMissing' not in module
 assert 'ensureCatalogAuthority' not in module
 assert "[0,80,250,750,1500]" not in module
 assert "button.addEventListener('click',scheduleRender,true)" not in module
-assert "button.addEventListener('click',()=>requestRender(button.dataset.view,'navigation'))" in module
+legacy_direct_navigation = "button.addEventListener('click',()=>requestRender(button.dataset.view,'navigation'))" in module
+successor_navigation_authority = "window.addEventListener('pokemon-sleep:view-activated'" in module and "requestRender(event?.detail?.view||activeView(),'navigation')" in module
+assert legacy_direct_navigation or successor_navigation_authority, 'public catalog renderer must remain navigation-driven via legacy direct click or successor view-activated authority'
+if successor_navigation_authority:
+    assert 'single_owner_page_hydration:true' in module
+    assert 'navigation_event_authority:true' in module
 assert 'requestAnimationFrame' in module
 assert "['ingredients','items','recipes'].includes(view)" in module
 assert "view==='ingredients'" in module
@@ -147,10 +152,15 @@ else:
     assert "document.getElementById('referenceRecipeTable')" in shared_ui
     assert "document.getElementById('recipeTable')" not in shared_ui
 
-# Legacy application rendering remains for compatibility before canonical controller takeover.
+# Historical ingredient/item helpers remain parse-compatible, while a successor with
+# single-owner page hydration must not keep a second Recipe renderer in app.js.
 assert 'SELECT * FROM ingredient_inventory' in app
 assert 'SELECT *, MAX(0, quantity-safe_reserve)' in app
-assert "rows('SELECT * FROM recipes ORDER BY category, recipe_name')" in app
+if successor_navigation_authority and recipe_workbench_path.exists():
+    assert "rows('SELECT * FROM recipes ORDER BY category, recipe_name')" not in app
+    assert "document.getElementById('recipeTable')" in recipe_workbench
+else:
+    assert "rows('SELECT * FROM recipes ORDER BY category, recipe_name')" in app
 
 print({
     'ok': True,

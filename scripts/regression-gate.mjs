@@ -125,13 +125,14 @@ async function migrationFixtureGate(){
 async function knowledgeGate(){
   const master=await text('assets/js/shared-master-data.js');const ui=await text('assets/js/shared-knowledge-ui.js');const app=await text('assets/js/app.js');const catalog=await text('assets/js/public-catalog-workbench.js');const candy=await text('assets/js/public-candy-master.js');
   const expected={草:'金枕果',飛行:'椰木果',龍:'番荔果',毒:'零餘果'};for(const [type,berry] of Object.entries(expected))assert.ok(master.includes(`['${type}','${berry}']`),`berry mapping mismatch: ${type}→${berry}`);
-  assert.match(app,/\$\('recipeTable'\)/,'legacy application compatibility must keep recipeTable');
+  const appRefresh=functionBlock(app,'async function refresh()','function download');
   assert.match(catalog,/ingredient_catalog_state/u,'ingredient catalog view not used');
   assert.match(catalog,/canonical-ingredient-unlock/u,'ingredient catalog must expose unlock-state editor');
   assert.match(catalog,/item_catalog_state/u,'item public catalog view not used');
   const unifiedUrl=new URL('assets/js/recipe-unified-player-workbench.js',root);
   let unified=null;try{unified=await readFile(unifiedUrl,'utf8');}catch{}
   if(unified){
+    assert.doesNotMatch(appRefresh,/\$\('recipeTable'\)/u,'successor page hydration must not render Recipe DOM during startup refresh');
     assert.match(catalog,/renderRecipeUnifiedWorkbench\(\)/u,'public catalog shell must delegate Recipe rendering');
     assert.match(unified,/recipe_catalog_state/u,'unified recipe owner must use recipe catalog view');
     assert.match(unified,/document\.getElementById\('recipeTable'\)/u,'unified recipe owner must retain recipeTable');
@@ -139,6 +140,7 @@ async function knowledgeGate(){
     assert.doesNotMatch(ui,/personalRecipeAnalysisTable|referenceRecipeTable/u,'shared knowledge must retire duplicate recipe tables');
     assert.doesNotMatch(ui,/document\.getElementById\('recipeTable'\)/u,'shared knowledge must not overwrite unified recipeTable');
   }else{
+    assert.match(app,/\$\('recipeTable'\)/u,'historical app renderer must retain recipeTable when no unified recipe owner exists');
     assert.match(ui,/id="referenceRecipeTable"/,'reference recipe table is missing');
     assert.match(ui,/document\.getElementById\('referenceRecipeTable'\)/,'shared UI must render referenceRecipeTable');
     assert.doesNotMatch(ui,/table\(recipeTable,recipes/u,'shared recipes must not overwrite personal recipeTable');

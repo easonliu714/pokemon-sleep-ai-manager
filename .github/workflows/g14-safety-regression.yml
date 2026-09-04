@@ -120,8 +120,13 @@ jobs:
           grep -q "accepted_current_observation" assets/js/ai-workflow.js
       - name: Verify browser compatibility anchor
         run: |
-          grep -q 'src="./assets/js/full75-recovery-workbench.js"' index.html
-          ! grep -q 'full75-recovery-workbench.js?v=' index.html
+          if grep -q 'src="./assets/js/full75-recovery-workbench.js"' index.html; then
+            ! grep -q 'full75-recovery-workbench.js?v=' index.html
+          else
+            grep -q "'full75-recovery-workbench.js'" assets/js/bootstrap.js
+            grep -q 'global_deferred_sweep:false' assets/js/bootstrap.js
+            grep -q 'single_flight:true' assets/js/bootstrap.js
+          fi
           grep -q 'assets/js/version-authority.js' service-worker.js
           private_marker='PRIVATE-ABILITY-''FULL75-REFRESH'
           ! grep -R "$private_marker" assets .github docs --exclude='g14-full75-recovery.yml'

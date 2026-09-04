@@ -1,6 +1,3 @@
-import './uc-img-v04132-pot-capacity-bootstrap.js';
-import './candy-quantity-screenshot-ui.js';
-import './candy-public-master-admission-ui.js';
 import {rows,isDatabaseReady,isRescueReadonly} from './database.js';
 import {buildPublicCandyMasterRows,PUBLIC_CANDY_MASTER_VERSION,SPECIES_CANDY_NAME_RULE_VERSION} from './public-candy-master.js';
 import {
@@ -16,6 +13,7 @@ export const CANDY_INVENTORY_WRITE_AUTHORITY_VERSION='v0.4.27.55-p0-b6-family-st
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const typeLabel=value=>({universal:'萬能',type:'屬性',species:'寶可夢',other_verified:'其他'}[value]||value||'—');
 const targetLabel=row=>row.target_species_name||row.target_type_name||'—';
+const activeView=()=>document.querySelector('.view.active')?.id||'dashboard';
 
 function displayAuthorityForRow(row){
   if(row?.candy_type!=='species'||!row?.target_species_name)return null;
@@ -23,31 +21,35 @@ function displayAuthorityForRow(row){
 }
 
 function ensureItemsUi(){
-  const section=document.getElementById('items');
-  if(!section||document.getElementById('candyInventoryBlock'))return;
-  const block=document.createElement('section');
-  block.id='candyInventoryBlock';
-  block.dataset.candyInventoryWriteAuthority=CANDY_INVENTORY_WRITE_AUTHORITY_VERSION;
-  block.dataset.candyDisplayNameAuthority=PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION;
-  block.dataset.candyFamilyStorageAuthority=CANDY_FAMILY_STORAGE_AUTHORITY_VERSION;
-  block.innerHTML=`<h3>糖果庫存</h3>
-    <p class="notice">P0-B6 起，species Candy 的玩家 current-state 會先依 Public Species → Candy Family → B4 Display-Name Authority 解析成唯一 canonical family storage。<b>玩家數量可由 JSON 更新中心匯入，或由「送給博士」時使用者輸入的遊戲實際觀測糖果數量增量寫入</b>；截圖／JSON quantity 在具備對應 confirmation evidence 時是 <b>ABSOLUTE_SNAPSHOT</b>，截圖仍需使用者明確確認；送給博士的既有觀測增量能力在 P0-B6 以 <b>DELTA_EVENT</b> 記錄。Migration 不以相同顯示文字、模糊比對或任意加總合併，provenance／時間序不明時會 <code>HOLD</code>。</p>
-    <div id="candyResourceSummary" class="notice"></div>
-    <div class="table-wrap"><table id="candyInventoryTable"></table></div>`;
-  section.appendChild(block);
+  let slot=document.getElementById('itemsCandySlot');
+  if(!slot){
+    const section=document.getElementById('items');if(!section)return null;
+    slot=document.createElement('section');slot.id='itemsCandySlot';slot.className='panel loading-placeholder';slot.dataset.pageSlot='items-candy';slot.dataset.hydrationState='pending';section.appendChild(slot);
+  }
+  slot.dataset.candyInventoryWriteAuthority=CANDY_INVENTORY_WRITE_AUTHORITY_VERSION;
+  slot.dataset.candyDisplayNameAuthority=PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION;
+  slot.dataset.candyFamilyStorageAuthority=CANDY_FAMILY_STORAGE_AUTHORITY_VERSION;
+  if(!document.getElementById('candyInventoryTable')){
+    slot.innerHTML=`<h3>糖果庫存</h3>
+      <p class="notice">P0-B6 起，species Candy 的玩家 current-state 會先依 Public Species → Candy Family → B4 Display-Name Authority 解析成唯一 canonical family storage。<b>玩家數量可由 JSON 更新中心匯入，或由「送給博士」時使用者輸入的遊戲實際觀測糖果數量增量寫入</b>；截圖／JSON quantity 在具備對應 confirmation evidence 時是 <b>ABSOLUTE_SNAPSHOT</b>，截圖仍需使用者明確確認；送給博士的既有觀測增量能力在 P0-B6 以 <b>DELTA_EVENT</b> 記錄。Migration 不以相同顯示文字、模糊比對或任意加總合併，provenance／時間序不明時會 <code>HOLD</code>。</p>
+      <div id="candyResourceSummary" class="notice"></div>
+      <div class="table-wrap"><table id="candyInventoryTable"></table></div>`;
+  }
+  return slot;
 }
 
 function ensureKnowledgeUi(){
-  const panel=document.getElementById('sharedKnowledgePanel');
-  if(!panel||document.getElementById('candyMasterBlock'))return;
-  const block=document.createElement('section');
-  block.id='candyMasterBlock';
-  block.dataset.candyDisplayNameAuthority=PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION;
-  block.innerHTML=`<h3>糖果公版 Master</h3>
-    <p class="notice">固定糖果仍採既有 Evidence-backed 名稱。舊版 species rows 的「○○的糖果」仍保留作 <b>legacy compatibility projection</b>，不再視為正式顯示名稱 Authority。P0-B4 只在有 Pokémon Sleep 官方繁中精確字串 evidence 時顯示家族層級的正式糖果名稱；未驗證 family 顯示 <code>REVIEW_REQUIRED</code>，不會由結構 root 或 Pokémon 名稱自動猜名。.53 可由使用者在 UNMATCHED 當下建立本機 Public Candy identity overlay；這不會預先修改 source-controlled 公版，也不包含玩家 quantity。</p>
-    <div class="table-wrap"><table id="candyMasterTable"></table></div>
-    <p class="notice">Legacy Candy Master：<b>${esc(PUBLIC_CANDY_MASTER_VERSION)}</b> · Legacy species rule：<code>${esc(SPECIES_CANDY_NAME_RULE_VERSION)}</code> · Display-name Authority：<b>${esc(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION)}</b></p>`;
-  panel.appendChild(block);
+  const panel=document.getElementById('sharedKnowledgePanel');if(!panel)return null;
+  let slot=document.getElementById('knowledgeCandySlot');
+  if(!slot){slot=document.createElement('section');slot.id='knowledgeCandySlot';slot.className='loading-placeholder';slot.dataset.pageSlot='knowledge-candy';slot.dataset.hydrationState='pending';panel.appendChild(slot);}
+  slot.dataset.candyDisplayNameAuthority=PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION;
+  if(!document.getElementById('candyMasterTable')){
+    slot.innerHTML=`<h3>糖果公版 Master</h3>
+      <p class="notice">固定糖果仍採既有 Evidence-backed 名稱。舊版 species rows 的「○○的糖果」仍保留作 <b>legacy compatibility projection</b>，不再視為正式顯示名稱 Authority。P0-B4 只在有 Pokémon Sleep 官方繁中精確字串 evidence 時顯示家族層級的正式糖果名稱；未驗證 family 顯示 <code>REVIEW_REQUIRED</code>，不會由結構 root 或 Pokémon 名稱自動猜名。.53 可由使用者在 UNMATCHED 當下建立本機 Public Candy identity overlay；這不會預先修改 source-controlled 公版，也不包含玩家 quantity。</p>
+      <div class="table-wrap"><table id="candyMasterTable"></table></div>
+      <p class="notice">Legacy Candy Master：<b>${esc(PUBLIC_CANDY_MASTER_VERSION)}</b> · Legacy species rule：<code>${esc(SPECIES_CANDY_NAME_RULE_VERSION)}</code> · Display-name Authority：<b>${esc(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION)}</b></p>`;
+  }
+  return slot;
 }
 
 function table(element,data,columns){
@@ -83,7 +85,7 @@ function authorityEvidence(row){
 }
 
 function renderKnowledge(){
-  ensureKnowledgeUi();
+  const slot=ensureKnowledgeUi();if(!slot)return;
   table(document.getElementById('candyMasterTable'),candyMasterRows(),[
     {label:'Legacy 名稱',key:'candy_name'},
     {label:'B4 正式顯示名稱',render:authorityLabel},
@@ -94,6 +96,8 @@ function renderKnowledge(){
     {label:'Legacy 核對狀態',key:'verification_status'},
     {label:'版本',key:'data_version'},
   ]);
+  slot.dataset.hydrationState='ready';slot.classList.remove('loading-placeholder');
+  globalThis.DebugTrace?.record?.('candy','knowledge_candy_slot_hydrated',{status:'completed',details:{slot:'knowledgeCandySlot',single_owner:true,parent_preserved:true}});
 }
 
 function migrationAuditSummary(){
@@ -104,13 +108,14 @@ function migrationAuditSummary(){
 }
 
 function renderInventory(){
-  ensureItemsUi();
+  const slot=ensureItemsUi();if(!slot)return;
   const tableEl=document.getElementById('candyInventoryTable');
   const summaryEl=document.getElementById('candyResourceSummary');
   if(!tableEl||!summaryEl)return;
   if(!isDatabaseReady()||isRescueReadonly()){
     table(tableEl,[],[{label:'糖果',key:'candy_name'}]);
     summaryEl.textContent='玩家 SQLite 尚未載入；救援模式只提供公版糖果名稱，不讀取玩家數量。';
+    slot.dataset.hydrationState='ready';slot.classList.remove('loading-placeholder');
     return;
   }
   let data=[];
@@ -131,14 +136,28 @@ function renderInventory(){
   const availableTotal=candyRows.reduce((sum,row)=>sum+Number(row.available||0),0);
   const audit=migrationAuditSummary();
   summaryEl.innerHTML=`已匯入／觀測寫入糖果種類：<b>${stocked}</b> · 各糖果可動用量合計（僅介面摘要，不跨種類視為等價資源）：<b>${availableTotal}</b> · Family migration：<code>APPLIED ${Number(audit.APPLIED||0)} / HOLD ${Number(audit.HOLD||0)} / NOOP ${Number(audit.NOOP||0)}</code> · B4 Display Authority：<code>${esc(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION)}</code> · Family Storage：<code>${esc(CANDY_FAMILY_STORAGE_AUTHORITY_VERSION)}</code> · 博士 quantity：<code>USER_DIRECT_OBSERVATION_ONLY → DELTA_EVENT</code> · 截圖 quantity：<code>USER_CONFIRMATION_REQUIRED → ABSOLUTE_SNAPSHOT</code> · missing/null：<code>NO_UPDATE</code> · explicit 0：<code>VALID</code> · 自動推算：<b>停用</b> · 轉換規則：<code>${esc(CANDY_CONVERSION_RULE_STATUS)}</code> · Resource fingerprint：<code>${esc(snapshot.fingerprint||'—')}</code>`;
+  slot.dataset.hydrationState='ready';slot.classList.remove('loading-placeholder');
+  globalThis.DebugTrace?.record?.('candy','items_candy_slot_hydrated',{status:'completed',details:{slot:'itemsCandySlot',single_owner:true}});
 }
 
-export function renderCandySurfaces(){renderKnowledge();renderInventory();}
+export function renderCandySurfaces(){
+  const view=activeView();
+  if(view==='items')renderInventory();
+  else if(view==='knowledge')renderKnowledge();
+}
+
+function scheduleForView(view=activeView()){
+  if(view!=='items'&&view!=='knowledge')return;
+  setTimeout(()=>{if(activeView()!==view)return;if(view==='items')renderInventory();else renderKnowledge();},0);
+}
 
 function boot(){
-  ensureItemsUi();ensureKnowledgeUi();renderCandySurfaces();
-  document.querySelector('nav')?.addEventListener('click',()=>setTimeout(renderCandySurfaces,0));
-  window.addEventListener('pokemon-sleep:database-ready',()=>setTimeout(renderCandySurfaces,0));
-  window.addEventListener('pokemon-sleep:data-changed',()=>setTimeout(renderCandySurfaces,0));
+  // Layout-only bootstrap: establish stable slots without reading SQLite or rendering
+  // offscreen page content. Data hydration begins only for the activated page.
+  ensureItemsUi();ensureKnowledgeUi();
+  globalThis.addEventListener('pokemon-sleep:view-activated',event=>scheduleForView(event?.detail?.view));
+  window.addEventListener('pokemon-sleep:database-ready',()=>scheduleForView());
+  window.addEventListener('pokemon-sleep:data-changed',()=>scheduleForView());
+  if(activeView()==='items'||activeView()==='knowledge')scheduleForView();
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
