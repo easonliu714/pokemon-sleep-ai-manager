@@ -64,7 +64,15 @@ const quaxlyFamily=resolvePublicCandyFamilyForSpecies('潤水鴨'),quaxwellFamil
 const priorLocalStorage=globalThis.localStorage;try{const quaxlyStorage=new MemoryStorage();globalThis.localStorage=quaxlyStorage;const committed=commitPublicCandyLocalAdmission(confirmedPrepared,{storage:quaxlyStorage});assert.equal(committed.status,'CREATED');const quaxlyDisplay=resolvePublicCandyDisplayNameForSpecies('潤水鴨');assert.equal(quaxlyDisplay.status,'MATCH');assert.equal(quaxlyDisplay.candy_display_name,'潤水鴨的糖果');assert.equal(quaxlyDisplay.local_admission_authority,true);assert.equal(quaxlyDisplay.local_evidence_preserved,true);const pikachuStorage=new MemoryStorage();globalThis.localStorage=pikachuStorage;const pikachuPrepared=prepareConfirmedMatchedCandyLocalAdmission({observation:{observation_id:'obs-pikachu',status:'MATCHED',observed_text:'皮卡丘的糖果',canonical_name:'皮卡丘的糖果',canonical_key:{candy_id:localAdmissionCandyIdForSpecies('皮卡丘')},observed_data:{quantity:88},source_image_ref:'candy-image-002',confidence:0.99,user_resolution:{action:'USER_CONFIRMED_CANDY_QUANTITY',confirmed_at:iso,confirmed_quantity:88}}});commitPublicCandyLocalAdmission(pikachuPrepared,{storage:pikachuStorage});const pikachuDisplay=resolvePublicCandyDisplayNameForSpecies('皮卡丘');assert.equal(pikachuDisplay.status,'MATCH');assert.equal(pikachuDisplay.candy_display_name,'皮卡丘的糖果');assert.equal(pikachuDisplay.local_admission_authority,true);assert.equal(pikachuDisplay.public_corroborated,true);globalThis.localStorage=corruptStorage;assert.throws(()=>currentPublicCandyDisplayNameAuthorityRows(),/JSON 損毀/);}finally{if(priorLocalStorage===undefined)delete globalThis.localStorage;else globalThis.localStorage=priorLocalStorage;}
 assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION,'public-candy-display-name-authority-2026-09-02-f');assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.local_name_precedes_public_name_while_public_completeness_unattested,true);assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.public_name_may_silently_overwrite_local_name,false);assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.local_admission_read_failure_silent_drop,false);assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.automatic_display_name_generation,false);assert.equal(CANDY_FAMILY_STORAGE_MIGRATION_VERSION,15);
 await import('../assets/js/version-authority.js');
-assert.equal(globalThis.PokemonSleepVersionAuthority?.app_version,'v0.4.27.55.3.2');
-assert.equal(globalThis.PokemonSleepVersionAuthority?.app_build,'20260903-v04275532-page-aware-static-shell');
-assert.equal(globalThis.PokemonSleepVersionAuthority?.cache_name,'pokemon-sleep-ai-v0.4.27.55.3.2-v04275532-page-aware-static-shell');
-console.log('v0.4.27.55.2 local gap durability / field precedence contract PASS on v0.4.27.55.3.2 page-aware successor');
+const currentVersion=globalThis.PokemonSleepVersionAuthority?.app_version||'';
+const currentBuild=globalThis.PokemonSleepVersionAuthority?.app_build||'';
+const currentCache=globalThis.PokemonSleepVersionAuthority?.cache_name||'';
+if(currentVersion==='v0.4.27.55.3.3'){
+  assert.equal(currentBuild,'20260904-v04275533-page-hydration-authority');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3-v04275533-page-hydration-authority');
+}else{
+  assert.equal(currentVersion,'v0.4.27.55.3.2');
+  assert.equal(currentBuild,'20260903-v04275532-page-aware-static-shell');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.2-v04275532-page-aware-static-shell');
+}
+console.log(`v0.4.27.55.2 local gap durability / field precedence contract PASS on ${currentVersion} successor`);
