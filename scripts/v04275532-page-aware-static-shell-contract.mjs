@@ -62,7 +62,7 @@ assert.ok(html.includes('data-update-static-shell="candy"'));
 // 4) v0.4.27.45 history UX is visible from first paint: native details is closed by
 // default (no open attribute) and export remains available without waiting for the
 // Update Center feature bundle.
-assert.ok(html.includes('<details id="importHistoryDetailsV042745" data-default-collapsed="true">'));
+assert.match(html,/<details id="importHistoryDetailsV042745"[^>]*data-default-collapsed="true"[^>]*>/);
 assert.ok(html.includes('<summary>匯入歷程（預設收合，點此展開）</summary>'));
 assert.ok(html.includes('id="exportImportHistoryJsonBtnV042745"'));
 const detailsOpenTag=html.match(/<details id="importHistoryDetailsV042745"[^>]*>/)?.[0]||'';
