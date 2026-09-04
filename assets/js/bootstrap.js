@@ -89,10 +89,17 @@ const pageModuleGroups=Object.freeze({
   updates:Object.freeze([
     'update-center-ui-guard.js',
     'update-center-live-debug.js',
+    'uc-img-v04132-pot-capacity-bootstrap.js',
+    'candy-quantity-screenshot-ui.js',
+    'candy-public-master-admission-ui.js',
+    'analysis-confirmation-workbench.js',
     'identity-convergence.js',
     'identity-confirmation-entry.js',
     'identity-import-wizard-entry.js',
     'unified-import-analysis-workbench.js',
+    'data1d1-ocr-region-direct-minimal-hotfix.js',
+    'two-stage-forced-ocr-entry.js',
+    'full75-recovery-workbench.js',
     'ocr-runtime-monitor.js',
     'data1d1-ocr-thumbnail-region-confidence.js',
     'data1d1-ocr-overlay-preview-event-wiring.js',
@@ -144,7 +151,40 @@ async function hydrateBackupSnapshotPanel(){
     debugTrace.record('bootstrap','backup_snapshot_page_hydrated',{status:'completed',details:{snapshot_count:snapshots.length,elapsed_ms:Math.round(performance.now()-started),metadata_only:true,navigation_only:true,core_module_identity_reused:true}});
   }catch(error){host.dataset.pageHydration='failed';debugTrace.record('bootstrap','backup_snapshot_page_hydration_failed',{status:'failed',error});}
 }
-async function hydrateUpdateCenterShells(){document.querySelectorAll('[data-update-static-shell]').forEach(shell=>shell.dataset.hydrationState='ready');const heading=document.getElementById('importHistoryHeading');if(heading)heading.hidden=true;}
+async function hydrateUpdateCenterShells(){
+  await yieldToBrowser();
+  const shells={
+    candy:document.getElementById('updateCenterCandyStaticShell'),
+    analysis:document.getElementById('updateCenterAnalysisStaticShell'),
+    ocr:document.getElementById('updateCenterOcrStaticShell'),
+  };
+  const candyRoot=document.getElementById('candyQuantityScreenshotB5');
+  const screenshotRoot=document.getElementById('ucImgA');
+  const analysisRoot=document.getElementById('analysisConfirmationWorkbench');
+  const identityRoot=document.getElementById('identityImportWizardRoot');
+  const ownership={
+    candy:Boolean(candyRoot&&document.getElementById('updateCenterCandyMount')?.contains(candyRoot)),
+    analysis:Boolean(
+      screenshotRoot&&document.getElementById('updateCenterScreenshotMount')?.contains(screenshotRoot)&&
+      analysisRoot&&document.getElementById('updateCenterAnalysisMount')?.contains(analysisRoot)
+    ),
+    ocr:Boolean(identityRoot&&document.getElementById('updateCenterIdentityMount')?.contains(identityRoot)&&document.getElementById('ocrThumbnailOverlaySlot')),
+  };
+  for(const [key,shell] of Object.entries(shells)){
+    if(!shell)continue;
+    shell.dataset.hydrationState=ownership[key]?'ready':'failed';
+    shell.classList.toggle('loading-placeholder',!ownership[key]);
+  }
+  const details=document.getElementById('importHistoryDetailsV042745');
+  const wrap=document.getElementById('importHistoryWrap');
+  const table=document.getElementById('historyTable');
+  const importHistoryOwnership=Boolean(details&&wrap&&table&&details.contains(wrap)&&wrap.contains(table));
+  const heading=document.getElementById('importHistoryHeading');if(heading)heading.hidden=true;
+  const ready=Object.values(ownership).every(Boolean)&&importHistoryOwnership;
+  debugTrace.record('bootstrap','update_center_page_hydration_completed',{status:ready?'completed':'failed',details:{...ownership,import_history_dom_ownership:importHistoryOwnership,static_shell_is_mount_authority:true,single_owner_page_hydration:true}});
+  if(!ready)throw new Error(`update_center_page_hydration_incomplete:${JSON.stringify({...ownership,import_history_dom_ownership:importHistoryOwnership})}`);
+  globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:page-ready',{detail:{view:'updates',...ownership,import_history_dom_ownership:true}}));
+}
 async function startOcrOverlayForUpdates(){
   if(globalThis.OcrOverlayUpdateCenterBootstrap||!document.querySelector('#ocrThumbnailOverlaySlot'))return;const started=performance.now();
   try{const {bootstrapOcrOverlayUpdateCenter}=await importFeatureModule('data1d1-ocr-overlay-update-center-bootstrap.js');const instance=await bootstrapOcrOverlayUpdateCenter({timeoutMs:2000});globalThis.OcrOverlayUpdateCenterBootstrap=instance;debugTrace.record('ocr_thumbnail','ocr_thumbnail_overlay_bootstrap_deferred',{status:'completed',details:{elapsed_ms:Math.round(performance.now()-started),page_aware:true}});}
@@ -158,7 +198,7 @@ function bindPageAwareFeatureLoading(){
   document.querySelectorAll('nav button[data-view]').forEach(button=>{if(button.dataset.pageAwareBound==='true')return;button.dataset.pageAwareBound='true';button.addEventListener('click',()=>{void loadPageModules(button.dataset.view).catch(()=>{});},{capture:false});});
   globalThis.addEventListener('pokemon-sleep:identity-import-files-selected',()=>{void startOcrOverlayForUpdates();});bindStaticHistoryExport();
   globalThis.PokemonSleepPageFeatureLoaderV04275532=Object.freeze({version:`${APP_VERSION}-page-aware-static-shell`,loadPage:loadPageModules,loadedPages:()=>[...pageLoads.keys()],loadedModules:()=>[...moduleLoads.keys()]});
-  debugTrace.record('bootstrap','page_feature_loader_ready',{status:'completed',details:{global_deferred_sweep:false,page_groups:Object.keys(pageModuleGroups),single_flight:true,yield_between_modules:true,backup_navigation_only:true}});
+  debugTrace.record('bootstrap','page_feature_loader_ready',{status:'completed',details:{global_deferred_sweep:false,page_groups:Object.keys(pageModuleGroups),single_flight:true,yield_between_modules:true,backup_navigation_only:true,stable_page_slots:true,hydration_state_requires_real_mount:true}});
 }
 (async()=>{
   const operationId=debugTrace.begin('module_bootstrap',{probe_count:criticalProbes.length,critical_probe_count:criticalProbes.length,deferred_probe_count:0,page_aware_feature_loading:true,authority});
