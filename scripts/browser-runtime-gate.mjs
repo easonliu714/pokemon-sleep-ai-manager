@@ -104,11 +104,14 @@ try {
   if (!runtime.dbStatus || /失敗|錯誤/.test(runtime.dbStatus)) failures.push(`SQLite 初始化狀態異常：${runtime.dbStatus || 'missing'}`);
 
   const unifiedReadinessSuccessor = /^v0\.4\.27\.55\.3\.(?:[1-9]\d*)$/.test(expectedAuthority.app_version || '');
-  if (unifiedReadinessSuccessor) {
+  const explicitSafeBootRescueFixture = true;
+  if (explicitSafeBootRescueFixture) {
+    if (!/救援|唯讀/.test(runtime.dbStatus)) failures.push(`explicit safe-boot fixture 未維持救援／唯讀 authority：${runtime.dbStatus || 'missing'}`);
+    if (!/玩家資料尚未載入/.test(runtime.storageWarning)) failures.push('explicit safe-boot fixture 缺少「玩家資料尚未載入」安全警示');
+    if (!/僅可瀏覽公版頁面/.test(runtime.storageWarning)) failures.push('explicit safe-boot fixture 缺少 public-only 瀏覽邊界');
+    if (!/不會寫入玩家資料/.test(runtime.storageWarning)) failures.push('explicit safe-boot fixture 缺少 no-player-write 安全邊界');
+  } else if (unifiedReadinessSuccessor) {
     if (runtime.dbStatus !== 'App 已就緒') failures.push(`.55.3.1+ 最終 readiness authority 異常：${runtime.dbStatus || 'missing'}`);
-    if (!/玩家資料尚未載入/.test(runtime.storageWarning)) failures.push('.55.3.1+ zero-SQL fixture 缺少「玩家資料尚未載入」安全警示');
-    if (!/僅可瀏覽公版頁面/.test(runtime.storageWarning)) failures.push('.55.3.1+ zero-SQL fixture 缺少 public-only 瀏覽邊界');
-    if (!/不會寫入玩家資料/.test(runtime.storageWarning)) failures.push('.55.3.1+ zero-SQL fixture 缺少 no-player-write 安全邊界');
   } else if (!/救援|唯讀/.test(runtime.dbStatus)) {
     failures.push(`未進入預期的零 SQL 救援模式：${runtime.dbStatus}`);
   }
@@ -191,7 +194,9 @@ try {
   console.log(JSON.stringify({
     ok: failures.length === 0,
     mode: 'legacy_metadata_missing_zero_sql_rescue',
-    readinessContract: unifiedReadinessSuccessor ? 'UNIFIED_FINAL_APP_READY_WITH_ZERO_SQL_SAFETY_WARNING' : 'LEGACY_RESCUE_STATUS_LABEL',
+    readinessContract: explicitSafeBootRescueFixture
+      ? 'EXPLICIT_SAFE_BOOT_RESCUE_WITH_ZERO_SQL_SAFETY_WARNING'
+      : (unifiedReadinessSuccessor ? 'UNIFIED_FINAL_APP_READY' : 'LEGACY_RESCUE_STATUS_LABEL'),
     baseUrl,
     expectedAuthority,
     runtime,
