@@ -152,10 +152,15 @@ else:
     assert "document.getElementById('referenceRecipeTable')" in shared_ui
     assert "document.getElementById('recipeTable')" not in shared_ui
 
-# Legacy application rendering remains for compatibility before canonical controller takeover.
+# Historical ingredient/item helpers remain parse-compatible, while a successor with
+# single-owner page hydration must not keep a second Recipe renderer in app.js.
 assert 'SELECT * FROM ingredient_inventory' in app
 assert 'SELECT *, MAX(0, quantity-safe_reserve)' in app
-assert "rows('SELECT * FROM recipes ORDER BY category, recipe_name')" in app
+if successor_navigation_authority and recipe_workbench_path.exists():
+    assert "rows('SELECT * FROM recipes ORDER BY category, recipe_name')" not in app
+    assert "document.getElementById('recipeTable')" in recipe_workbench
+else:
+    assert "rows('SELECT * FROM recipes ORDER BY category, recipe_name')" in app
 
 print({
     'ok': True,
