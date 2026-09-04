@@ -23,6 +23,7 @@ const state = {
   pokemon: [],
   seeded: false,
   workflow: null,
+  importHistoryKey: null,
 };
 
 const esc = (value) =>
@@ -203,8 +204,15 @@ function refreshPokemonPage() {
 
 function renderImportHistory() {
   const data = rows('SELECT * FROM import_batches ORDER BY imported_at DESC LIMIT 100');
+  const key=data.map(row=>`${row.update_id||''}:${row.imported_at||''}:${row.operation_count??''}`).join('|');
+  const table=$('historyTable');
+  if(state.importHistoryKey===key&&table?.tBodies?.length){
+    globalThis.DebugTrace?.record?.('app','page_hydration_deduped',{status:'completed',details:{view:'updates',surface:'import_history',reason:'unchanged-local-history',single_owner:true}});
+    return;
+  }
+  state.importHistoryKey=key;
   renderTable(
-    $('historyTable'),
+    table,
     data,
     [
       { label: 'Update ID', key: 'update_id' },
