@@ -33,7 +33,6 @@ const runtime=globalThis[GLOBAL_KEY]||(globalThis[GLOBAL_KEY]={
   localRevision:{ingredients:0,items:0,recipes:0},
 });
 const activeView=()=>document.querySelector('.view.active')?.id||'dashboard';
-const yieldToUi=()=>new Promise(resolve=>setTimeout(resolve,0));
 const nextPaint=()=>new Promise(resolve=>requestAnimationFrame(()=>resolve()));
 
 function databaseReady(){try{return !isRescueReadonly()&&Number(rows('SELECT COUNT(*) AS count FROM schema_migrations')[0]?.count||0)>0;}catch{return false;}}
@@ -106,7 +105,7 @@ function renderView(view){
 }
 async function drainRenderQueue(){
   if(runtime.draining)return;runtime.draining=true;
-  try{while(runtime.completedGeneration<runtime.requestedGeneration){const generation=runtime.requestedGeneration;await yieldToUi();await nextPaint();const view=runtime.pendingView||activeView();if(activeView()===view)renderView(view);runtime.completedGeneration=generation;}}
+  try{while(runtime.completedGeneration<runtime.requestedGeneration){const generation=runtime.requestedGeneration;await nextPaint();const view=runtime.pendingView||activeView();if(activeView()===view)renderView(view);runtime.completedGeneration=generation;}}
   finally{runtime.draining=false;if(runtime.completedGeneration<runtime.requestedGeneration)queueMicrotask(drainRenderQueue);}
 }
 function requestRender(view=activeView(),reason='unspecified'){
@@ -175,9 +174,9 @@ function handleDataChanged(event){
 function install(){
   if(runtime.installed){progress('RENDER_DEDUPED','Public Catalog runtime 已由另一 URL identity 安裝；略過重複 listener','completed',{reason:'global-singleton',build:BUILD});return;}
   runtime.installed=true;
-  document.querySelectorAll('nav button[data-view]').forEach(button=>button.addEventListener('click',()=>requestRender(button.dataset.view,'navigation')));
+  window.addEventListener('pokemon-sleep:view-activated',event=>requestRender(event?.detail?.view||activeView(),'navigation'));
   window.addEventListener('pokemon-sleep:data-changed',handleDataChanged);
   window.addEventListener('pokemon-sleep:database-ready',handleDatabaseReady);
-  window.dispatchEvent(new CustomEvent('pokemon-sleep:public-catalog-ready',{detail:{build:BUILD,lazy_renderer:true,mutation_observer:false,first_entry_after_navigation:true,global_singleton:true,persisted_public_fingerprint:true,public_version_match_bypass:true,local_change_does_not_invalidate_public_fingerprint:true,cause_aware_generation_queue:true,schema_compatible_items:true,ingredient_unlock_state_semantics:true,recipe_authority:PUBLIC_RECIPE_MASTER_VERSION,recipe_workbench_authority:RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION}}));
+  window.dispatchEvent(new CustomEvent('pokemon-sleep:public-catalog-ready',{detail:{build:BUILD,lazy_renderer:true,mutation_observer:false,first_entry_after_navigation:true,global_singleton:true,persisted_public_fingerprint:true,public_version_match_bypass:true,local_change_does_not_invalidate_public_fingerprint:true,cause_aware_generation_queue:true,navigation_event_authority:true,single_owner_page_hydration:true,schema_compatible_items:true,ingredient_unlock_state_semantics:true,recipe_authority:PUBLIC_RECIPE_MASTER_VERSION,recipe_workbench_authority:RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION}}));
 }
 if(document.readyState==='loading')window.addEventListener('DOMContentLoaded',install,{once:true});else install();
