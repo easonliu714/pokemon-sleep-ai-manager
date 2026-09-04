@@ -1,5 +1,4 @@
 import './v0395-dom-render-scheduler.js';
-import './v03992-update-center-guided-ux.js';
 import {rows,isRescueReadonly} from './database.js';
 import {PUBLIC_BERRY_TYPES} from './shared-master-data.js';
 import {PUBLIC_NATURE_MASTER,PUBLIC_MAIN_SKILL_MASTER,PUBLIC_EVOLUTION_MASTER,PUBLIC_POKEMON_KNOWLEDGE_VERSION} from './public-pokemon-knowledge-master.js';
