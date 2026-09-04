@@ -36,7 +36,12 @@ assert 'catalogIsMissing' not in module
 assert 'ensureCatalogAuthority' not in module
 assert "[0,80,250,750,1500]" not in module
 assert "button.addEventListener('click',scheduleRender,true)" not in module
-assert "button.addEventListener('click',()=>requestRender(button.dataset.view,'navigation'))" in module
+legacy_direct_navigation = "button.addEventListener('click',()=>requestRender(button.dataset.view,'navigation'))" in module
+successor_navigation_authority = "window.addEventListener('pokemon-sleep:view-activated'" in module and "requestRender(event?.detail?.view||activeView(),'navigation')" in module
+assert legacy_direct_navigation or successor_navigation_authority, 'public catalog renderer must remain navigation-driven via legacy direct click or successor view-activated authority'
+if successor_navigation_authority:
+    assert 'single_owner_page_hydration:true' in module
+    assert 'navigation_event_authority:true' in module
 assert 'requestAnimationFrame' in module
 assert "['ingredients','items','recipes'].includes(view)" in module
 assert "view==='ingredients'" in module
