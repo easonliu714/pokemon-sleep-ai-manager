@@ -499,19 +499,26 @@ async function start() {
 
     const result = await initializeDatabase();
     state.seeded = Boolean(result?.seeded);
+    const explicitRescue = Boolean(result?.rescue && result?.readonly && result?.zero_sql);
 
     setupG3Pages();
     bindNavigation();
 
-    $('dbStatus').textContent = 'SQLite 已就緒｜介面載入中…';
-    $('dbStatus').className = 'badge pending';
+    $('dbStatus').textContent = explicitRescue ? '救援／唯讀模式｜介面載入中…' : 'SQLite 已就緒｜介面載入中…';
+    $('dbStatus').className = explicitRescue ? 'badge warning' : 'badge pending';
     const hydrationStarted=perfNow();
     await refresh();
     const hydrationMs=Math.round((perfNow()-hydrationStarted)*10)/10;
-    $('dbStatus').textContent = 'App 已就緒';
-    $('dbStatus').className = 'badge ok';
-    globalThis.DebugTrace?.record?.('app','app_hydration_ready',{status:'completed',details:{hydration_ms:hydrationMs,total_startup_ms:Math.round((perfNow()-startAt)*10)/10,database_ready_before_ui_ready:true}});
-    globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:app-ready',{detail:{hydration_ms:hydrationMs}}));
+    if (explicitRescue) {
+      $('dbStatus').textContent = '救援／唯讀模式';
+      $('dbStatus').className = 'badge warning';
+      globalThis.DebugTrace?.record?.('app','app_rescue_hydration_ready',{status:'completed',details:{hydration_ms:hydrationMs,total_startup_ms:Math.round((perfNow()-startAt)*10)/10,database_ready_before_ui_ready:false,rescue:true,readonly:true,zero_sql:true}});
+    } else {
+      $('dbStatus').textContent = 'App 已就緒';
+      $('dbStatus').className = 'badge ok';
+      globalThis.DebugTrace?.record?.('app','app_hydration_ready',{status:'completed',details:{hydration_ms:hydrationMs,total_startup_ms:Math.round((perfNow()-startAt)*10)/10,database_ready_before_ui_ready:true}});
+      globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:app-ready',{detail:{hydration_ms:hydrationMs}}));
+    }
   } catch (error) {
     console.error('Application initialization failed', error);
     $('dbStatus').textContent = '初始化失敗';
