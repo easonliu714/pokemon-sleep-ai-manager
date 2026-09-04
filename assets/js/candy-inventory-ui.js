@@ -1,6 +1,3 @@
-import './uc-img-v04132-pot-capacity-bootstrap.js';
-import './candy-quantity-screenshot-ui.js';
-import './candy-public-master-admission-ui.js';
 import {rows,isDatabaseReady,isRescueReadonly} from './database.js';
 import {buildPublicCandyMasterRows,PUBLIC_CANDY_MASTER_VERSION,SPECIES_CANDY_NAME_RULE_VERSION} from './public-candy-master.js';
 import {
