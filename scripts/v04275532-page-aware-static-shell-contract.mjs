@@ -97,3 +97,7 @@ console.log(JSON.stringify({
   snapshot_payload_materialized:false,
   migration:CANDY_FAMILY_STORAGE_MIGRATION_VERSION,
 },null,2));
+
+// Current release successor: the .55.3.2 contract remains frozen, then invokes
+// the additive .55.3.3 single-owner page hydration contract.
+await import('./v04275533-page-hydration-authority-contract.mjs');

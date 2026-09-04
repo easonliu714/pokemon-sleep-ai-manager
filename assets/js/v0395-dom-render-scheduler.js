@@ -18,47 +18,55 @@ function installDeferral(element){
     configurable:true,
     get(){return nativeInnerHtml.get.call(element);},
     set(value){
-      if(!isActive(element)){pending.set(element.id,String(value));progress('OFFSCREEN_RENDER_DEFERRED',`已延後 ${element.id} 的非首屏 DOM 建立`,'completed',{element_id:element.id,view:viewFor(element),html_length:String(value).length});return;}
+      if(!isActive(element)){
+        pending.set(element.id,String(value));
+        progress('OFFSCREEN_RENDER_DEFERRED',`已延後 ${element.id} 的非首屏 DOM 建立`,'completed',{element_id:element.id,view:viewFor(element),html_length:String(value).length,superseded_by_page_owner:['ingredientTable','itemTable','recipeTable','snapshotList'].includes(element.id)});
+        return;
+      }
       nativeInnerHtml.set.call(element,value);
     },
   });
 }
 function flush(id){
-  const element=document.getElementById(id);if(!element)return;
-  const value=pending.get(id);if(value!=null){pending.delete(id);nativeInnerHtml.set.call(element,value);progress('OFFSCREEN_RENDER_FLUSHED',`${id} 已於開啟頁面時建立`,'completed',{element_id:id,view:viewFor(element),html_length:value.length});}
+  const element=document.getElementById(id);if(!element)return false;
+  const value=pending.get(id);if(value==null)return false;
+  pending.delete(id);nativeInnerHtml.set.call(element,value);
+  progress('OFFSCREEN_RENDER_FLUSHED',`${id} 已於開啟頁面時建立`,'completed',{element_id:id,view:viewFor(element),html_length:value.length});
+  return true;
+}
+function discard(id,reason='single-owner-page-renderer'){
+  if(!pending.has(id))return false;
+  pending.delete(id);
+  progress('OFFSCREEN_RENDER_SUPERSEDED',`${id} 的舊版 deferred DOM 已丟棄，由分頁唯一 renderer 接管`,'completed',{element_id:id,reason,no_dom_commit:true});
+  return true;
 }
 function activateView(view){
-  const map={pokemon:['pokemonTable'],ingredients:['ingredientTable'],items:['itemTable'],recipes:['recipeTable'],updates:['historyTable'],backup:['snapshotList']};
-  for(const id of map[view]||[])flush(id);
-  if(view==='pokemon')setTimeout(()=>document.getElementById('pokemonSearch')?.dispatchEvent(new Event('input',{bubbles:true})),0);
-  if(['ingredients','items','recipes'].includes(view))setTimeout(()=>globalThis.dispatchEvent(new CustomEvent('pokemon-sleep:data-changed',{detail:{entity:'lazy_view',operation:'opened',view}})),0);
-}
-function waitForGeneralReady(detail){
-  progress('GENERAL_UI_BOOTSTRAP_START','資料庫完成，正在建立一般模式首屏','running',detail);
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    progress('DASHBOARD_FIRST_PAINT','一般模式首屏已完成兩次畫面更新','completed',detail);
-    const started=performance.now();
-    const poll=()=>{
-      const status=document.getElementById('dbStatus');
-      if(status?.classList.contains('ok')||status?.textContent?.includes('SQLite 已就緒')){
-        const elapsed=Math.round(performance.now()-started);
-        progress('GENERAL_UI_BOOTSTRAP_COMPLETED','一般模式首屏與資料摘要已完成','completed',{...detail,elapsed_ms:elapsed,deferred_elements:[...pending.keys()]});
-        globalThis.dispatchEvent(new CustomEvent('pokemon-sleep:app-ready',{detail:{...detail,elapsed_ms:elapsed,deferred_elements:[...pending.keys()]}}));
-        return;
-      }
-      if(performance.now()-started>45000){progress('GENERAL_UI_BOOTSTRAP_SLOW','一般模式仍在建立首屏；可展開啟動紀錄定位最後階段','warning',{...detail,deferred_elements:[...pending.keys()]});return;}
-      setTimeout(poll,100);
-    };
-    poll();
-  }));
+  const singleOwnerMap={ingredients:'ingredientTable',items:'itemTable',recipes:'recipeTable',backup:'snapshotList'};
+  if(view==='pokemon'){
+    flush('pokemonTable');
+    setTimeout(()=>document.getElementById('pokemonSearch')?.dispatchEvent(new Event('input',{bubbles:true})),0);
+  }else if(view==='updates'){
+    globalThis.PokemonSleepPageHydrationAuthorityV04275533?.canonicalizeImportHistoryDom?.();
+    flush('historyTable');
+    globalThis.PokemonSleepPageHydrationAuthorityV04275533?.canonicalizeImportHistoryDom?.();
+  }else if(singleOwnerMap[view]){
+    discard(singleOwnerMap[view]);
+  }
+  // Navigation is not a data mutation. v0.4.27.55.3.3 deliberately does NOT
+  // dispatch pokemon-sleep:data-changed for page opens.
+  globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:view-activated',{detail:{view,authority:'v0.4.27.55.3.3',navigation_is_data_mutation:false}}));
+  globalThis.PokemonSleepPageHydrationAuthorityV04275533?.hydrateView?.(view)?.catch?.(()=>{});
 }
 function install(){
   if(installed)return;installed=true;
   for(const id of deferredIds)installDeferral(document.getElementById(id));
   document.querySelector('nav')?.addEventListener('click',event=>{const button=event.target.closest('button[data-view]');if(button)activateView(button.dataset.view);},true);
-  globalThis.addEventListener('pokemon-sleep:database-ready',event=>{const detail=event.detail||{};if(detail.rescue||detail.readonly)return;waitForGeneralReady(detail);});
-  progress('DOM_RENDER_SCHEDULER_READY','非首屏大型表格已改為按頁建立','completed',{deferred_ids:[...deferredIds]});
+  globalThis.addEventListener('pokemon-sleep:database-ready',event=>{
+    const detail=event.detail||{};if(detail.rescue||detail.readonly)return;
+    progress('DOM_RENDER_SCHEDULER_DATABASE_READY','資料庫已就緒；非首屏 DOM 保持 deferred，等待唯一分頁 renderer','completed',{single_owner_page_render:true,app_ready_authority:false,deferred_elements:[...pending.keys()]});
+  });
+  progress('DOM_RENDER_SCHEDULER_READY','非首屏大型表格已改為按頁唯一 renderer 建立','completed',{deferred_ids:[...deferredIds],navigation_is_data_mutation:false,double_render_flush_removed:true});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
 
-globalThis.PokemonSleepV0395RenderScheduler=Object.freeze({version:authority.app_version,build:authority.app_build,pending:()=>[...pending.keys()],flush,activateView});
+globalThis.PokemonSleepV0395RenderScheduler=Object.freeze({version:authority.app_version,build:authority.app_build,pending:()=>[...pending.keys()],flush,discard,activateView});
