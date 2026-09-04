@@ -51,7 +51,7 @@ async function copyText(text){
 }
 
 function mount(){
-  const host=document.getElementById('updateCenterDynamicContent');
+  const host=document.getElementById('updateCenterCandyMount')||document.getElementById('updateCenterDynamicContent');
   if(!host||document.getElementById('candyQuantityScreenshotB5'))return false;
   const state={
     session_id:`candy-b5-${token()}`,
@@ -73,7 +73,7 @@ function mount(){
   section.dataset.visibleTargetCountAuthority=CANDY_VISIBLE_TARGET_COUNT_CONFIRMATION_AUTHORITY_VERSION;
   section.dataset.localCandyNameAuthority=PUBLIC_CANDY_LOCAL_ADMISSION_AUTHORITY_VERSION;
   section.dataset.performanceAuthority='v0.4.27.55.3-mobile-incremental-confirmation';
-  host.prepend(section);
+  host.replaceChildren(section);
 
   const refs=()=>state.entries.map(item=>item.image_ref);
   const imageMap=()=>state.entries.map(item=>({image_ref:item.image_ref,file_name:item.file_name}));
@@ -340,6 +340,9 @@ function mount(){
   }
 
   render();
+  const shell=document.getElementById('updateCenterCandyStaticShell');
+  if(shell){shell.dataset.hydrationState='ready';shell.classList.remove('loading-placeholder');}
+  globalThis.DebugTrace?.record?.('bootstrap','update_center_slot_hydrated',{status:'completed',details:{slot:'candy',mount:'updateCenterCandyMount',single_owner:true}});
   return true;
 }
 
