@@ -39,10 +39,23 @@ const weeklyTwo=structuredClone(weeklyPayload);weeklyTwo.update_id='TEST-weekly-
 weekly.object_url='blob:private-screenshot';weekly.image_available=true;const persisted=serializableScreenshotSession(session);assert.equal(persisted.entries[0].object_url,null);assert.equal(persisted.entries[0].image_available,false);assert.equal(persisted.entries[0].file_name,'weekly_event.png');
 
 const loader=fs.readFileSync(new URL('../assets/js/candy-inventory-ui.js',import.meta.url),'utf8');
-const directLoader=/import '\.\/unified-screenshot-update-center\.js';/.test(loader),bootstrapLoader=/import '\.\/uc-img-v04132-pot-capacity-bootstrap\.js';/.test(loader);
-assert.ok(directLoader||bootstrapLoader,'UC.IMG loader must directly load unified module or an explicit successor bootstrap');
-if(bootstrapLoader){const bootstrap=fs.readFileSync(new URL('../assets/js/uc-img-v04132-pot-capacity-bootstrap.js',import.meta.url),'utf8');assert.match(bootstrap,/from '\.\/unified-screenshot-update-center\.js'/);assert.match(bootstrap,/account_capacity/);assert.match(bootstrap,/recipeScenarioAcceptsPotCapacity/);}
+const pageLoader=fs.readFileSync(new URL('../assets/js/bootstrap.js',import.meta.url),'utf8');
+const directLoader=/import '\.\/unified-screenshot-update-center\.js';/.test(loader);
+const bootstrapLoader=/import '\.\/uc-img-v04132-pot-capacity-bootstrap\.js';/.test(loader);
+const pageAwareLoader=/updates:Object\.freeze\(\[[\s\S]*'uc-img-v04132-pot-capacity-bootstrap\.js'/.test(pageLoader);
+assert.ok(directLoader||bootstrapLoader||pageAwareLoader,'UC.IMG loader must be reachable through direct, successor bootstrap, or page-aware Update Center authority');
+if(bootstrapLoader||pageAwareLoader){
+  const bootstrap=fs.readFileSync(new URL('../assets/js/uc-img-v04132-pot-capacity-bootstrap.js',import.meta.url),'utf8');
+  assert.match(bootstrap,/from '\.\/unified-screenshot-update-center\.js'/);
+  assert.match(bootstrap,/account_capacity/);
+  assert.match(bootstrap,/recipeScenarioAcceptsPotCapacity/);
+}
+if(pageAwareLoader){
+  assert.match(pageLoader,/global_deferred_sweep:false/);
+  assert.match(pageLoader,/single_flight:true/);
+  assert.match(pageLoader,/updateCenterScreenshotMount/);
+}
 const source=fs.readFileSync(new URL('../assets/js/unified-screenshot-update-center.js',import.meta.url),'utf8');for(const token of ["from './ai-workflow.js'","from './importer.js'",'validateWorkflow','dryRun','applyPayload','multiple','USER_CONFIRMED_COMPLETE','PARTIAL','response_stale','screenshotScenarioRevision','Gemini API 直接分析','外部 AI Prompt','compilePublicMasterRecognitionToUpdatePackage','Public Master 對應待確認'])assert.ok(source.includes(token),`missing runtime contract token: ${token}`);
 assert.ok(!/indexedDB\.put\([^\n]*image|INSERT[^\n]*image_blob/i.test(source));assert.equal((source.match(/applyPayload\(/g)||[]).length,1,'UC.IMG must keep exactly one Apply bridge');
 
-console.log(JSON.stringify({status:'PASS',gate:'UC.IMG-A_SUCCESSOR_AWARE',version:UC_IMG_A_VERSION,authority_date:ucImgAuthorityDate,session_entries:session.entries.length,weekly_contract:'PASS',weekly_fixture_current_week:currentWeek,ingredient_public_master_recognition:'PASS',recipe_public_master_recognition:'PASS',legacy_update_package_parse:'PASS',image_ref_filename_mapping:'PASS',stale_response_guard:'PASS',evidence_ref_guard:'PASS',existing_importer_bridge:'PASS',loader_mode:bootstrapLoader?'successor_bootstrap':'direct',dual_mode:true},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'UC.IMG-A_SUCCESSOR_AWARE',version:UC_IMG_A_VERSION,authority_date:ucImgAuthorityDate,session_entries:session.entries.length,weekly_contract:'PASS',weekly_fixture_current_week:currentWeek,ingredient_public_master_recognition:'PASS',recipe_public_master_recognition:'PASS',legacy_update_package_parse:'PASS',image_ref_filename_mapping:'PASS',stale_response_guard:'PASS',evidence_ref_guard:'PASS',existing_importer_bridge:'PASS',loader_mode:pageAwareLoader?'page_aware_successor':bootstrapLoader?'successor_bootstrap':'direct',dual_mode:true},null,2));
