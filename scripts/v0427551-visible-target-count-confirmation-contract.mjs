@@ -128,6 +128,13 @@ if(appVersion==='v0.4.27.55.1'){
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3'"),'startup hotfix must retain .55.3 predecessor authority marker');
   assert.ok(version.includes("// app_version: 'v0.4.27.55.2'"),'startup hotfix must retain .55.2 predecessor authority marker');
   assert.ok(version.includes("// app_version: 'v0.4.27.55'"),'startup hotfix must retain .55 predecessor authority marker');
+}else if(appVersion==='v0.4.27.55.3.3'){
+  assert.ok(ui.includes("section.dataset.performanceAuthority='v0.4.27.55.3-mobile-incremental-confirmation'"),'page-hydration successor must preserve the exact .55.3 Candy performance authority');
+  assert.equal(appBuild,'20260904-v04275533-page-hydration-authority');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3-v04275533-page-hydration-authority');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3'"),'page-hydration successor must retain .55.3 predecessor authority marker');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.2'"),'page-hydration successor must retain .55.2 predecessor authority marker');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55'"),'page-hydration successor must retain .55 predecessor authority marker');
 }else if(appVersion==='v0.4.27.55.3.2'){
   assert.ok(ui.includes("section.dataset.performanceAuthority='v0.4.27.55.3-mobile-incremental-confirmation'"),'page-aware successor must preserve the exact .55.3 Candy performance authority');
   assert.equal(appBuild,'20260903-v04275532-page-aware-static-shell');
