@@ -89,6 +89,7 @@ const pageModuleGroups=Object.freeze({
   updates:Object.freeze([
     'update-center-ui-guard.js',
     'update-center-live-debug.js',
+    'v03992-update-center-guided-ux.js',
     'uc-img-v04132-pot-capacity-bootstrap.js',
     'candy-quantity-screenshot-ui.js',
     'candy-public-master-admission-ui.js',
