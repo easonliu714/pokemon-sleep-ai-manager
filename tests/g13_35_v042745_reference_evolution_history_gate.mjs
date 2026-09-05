@@ -127,6 +127,7 @@ const versionAuthority=fs.readFileSync('assets/js/version-authority.js','utf8');
 const serviceWorker=fs.readFileSync('service-worker.js','utf8');
 const evolutionAuthority=fs.readFileSync('assets/js/analysis-confirmation-evolution-authority.js','utf8');
 const appSource=fs.readFileSync('assets/js/app.js','utf8');
+const pageHydrationSource=fs.readFileSync('assets/js/page-hydration-authority-v04275533.js','utf8');
 const runner=fs.readFileSync('scripts/ci-g13-ocr-ai-regression.mjs','utf8');
 
 assert.match(versionAuthority,/app_version: 'v0\.4\.27\.45'/);
@@ -147,7 +148,7 @@ assert.match(source,/details\.open=false/,'import history must default to collap
 assert.match(source,/exportImportHistoryJsonBtnV042745/,'import history JSON export control must exist');
 assert.match(source,/SELECT \* FROM import_batches ORDER BY imported_at DESC/,'history export must query complete batch history');
 assert.doesNotMatch(source,/SELECT \* FROM import_batches ORDER BY imported_at DESC LIMIT 100/,'export must not inherit the visible-table 100-row cap');
-assert.match(appSource,/SELECT \* FROM import_batches ORDER BY imported_at DESC LIMIT 100/,'visible table may remain bounded for mobile rendering');
+assert.ok(/SELECT \* FROM import_batches ORDER BY imported_at DESC LIMIT 100/.test(appSource)||/SELECT \* FROM import_batches ORDER BY imported_at DESC LIMIT 100/.test(pageHydrationSource),'visible table may remain bounded for mobile rendering; page-aware successors may own this query outside startup app refresh');
 assert.match(evolutionAuthority,/VERIFIED_NOT_REQUIRED/);
 assert.match(evolutionAuthority,/VERIFIED_TERMINAL_CURRENT_SLEEP/);
 assert.match(source,/已完全進化/);
