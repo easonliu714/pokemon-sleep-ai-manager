@@ -123,9 +123,11 @@ async function migrationFixtureGate(){
 }
 
 async function knowledgeGate(){
-  const master=await text('assets/js/shared-master-data.js');const ui=await text('assets/js/shared-knowledge-ui.js');const app=await text('assets/js/app.js');const catalog=await text('assets/js/public-catalog-workbench.js');const candy=await text('assets/js/public-candy-master.js');
+  const master=await text('assets/js/shared-master-data.js');const ui=await text('assets/js/shared-knowledge-ui.js');const app=await text('assets/js/app.js');const catalog=await text('assets/js/public-catalog-workbench.js');const candy=await text('assets/js/public-candy-master.js');const version=await text('assets/js/version-authority.js');
   const expected={草:'金枕果',飛行:'椰木果',龍:'番荔果',毒:'零餘果'};for(const [type,berry] of Object.entries(expected))assert.ok(master.includes(`['${type}','${berry}']`),`berry mapping mismatch: ${type}→${berry}`);
-  assert.match(app,/\$\('recipeTable'\)/,'legacy application compatibility must keep recipeTable');
+  const pageHydrationSuccessor=version.includes("app_version: 'v0.4.27.55.3.3.1'");
+  if(pageHydrationSuccessor)assert.doesNotMatch(app,/\$\('recipeTable'\)/,'page-hydration successor must not materialize hidden recipeTable during App Ready');
+  else assert.match(app,/\$\('recipeTable'\)/,'legacy application compatibility must keep recipeTable');
   assert.match(catalog,/ingredient_catalog_state/u,'ingredient catalog view not used');
   assert.match(catalog,/canonical-ingredient-unlock/u,'ingredient catalog must expose unlock-state editor');
   assert.match(catalog,/item_catalog_state/u,'item public catalog view not used');
@@ -146,7 +148,7 @@ async function knowledgeGate(){
   }
   assert.match(candy,/PUBLIC_CANDY_MASTER_VERSION/u,'Candy Master authority missing');
   assert.doesNotMatch(candy,/\bquantity\s*:/u,'Public Candy Master must not contain player quantity fields');
-  console.log(`PASS knowledge UI: ${unified?'unified unlocked + locked recipe workbench':'personal/reference recipe tables'}; ingredient unlock state is explicit; Candy Master contains no player quantity`);
+  console.log(`PASS knowledge UI: ${unified?'unified unlocked + locked recipe workbench':'personal/reference recipe tables'}; ingredient unlock state is explicit; Candy Master contains no player quantity; pageHydrationSuccessor=${pageHydrationSuccessor}`);
 }
 
 async function serviceWorkerGate(){
