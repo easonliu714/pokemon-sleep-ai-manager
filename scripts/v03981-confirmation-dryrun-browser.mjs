@@ -11,7 +11,7 @@ page.on('pageerror',error=>browserDiagnostics.push({type:'pageerror',text:error?
 page.on('requestfailed',request=>browserDiagnostics.push({type:'requestfailed',url:request.url(),failure:request.failure()?.errorText||null}));
 
 async function startupDiagnostic(){
-  return page.evaluate(() => {
+  const evaluation=page.evaluate(() => {
     const manager=globalThis.DebugTrace;
     const sessionId=manager?.sessionId;
     return {
@@ -24,6 +24,8 @@ async function startupDiagnostic(){
       version:globalThis.PokemonSleepVersionAuthority||null,
     };
   }).catch(error=>({diagnostic_evaluation_failed:error?.message||String(error)}));
+  const deadline=new Promise(resolve=>setTimeout(()=>resolve({diagnostic_evaluation_timed_out:true}),1500));
+  return Promise.race([evaluation,deadline]);
 }
 
 try {
