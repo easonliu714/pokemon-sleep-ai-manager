@@ -90,14 +90,23 @@ export function canonicalizeImportHistoryDom(){
   }else syncHistoryCollapsed(details,content);
 
   if(!historyObserver){
+    const observe=()=>historyObserver?.observe(updates,{subtree:true,childList:true});
     historyObserver=new MutationObserver(()=>{
       if(historyRepairQueued)return;historyRepairQueued=true;
-      queueMicrotask(()=>{historyRepairQueued=false;const currentDetails=document.getElementById('importHistoryDetailsV042745'),currentContent=document.getElementById('importHistoryContentV042755331'),currentWrap=document.getElementById('importHistoryWrap'),currentTable=document.getElementById('historyTable');
+      // Ownership repair must never live in the MutationObserver microtask queue itself.
+      // Legacy/update-center mounts may move the same nodes during startup; yielding to a
+      // task prevents a repair ping-pong from starving App Ready and Playwright/browser input.
+      setTimeout(()=>{
+        historyRepairQueued=false;
+        const currentDetails=document.getElementById('importHistoryDetailsV042745'),currentContent=document.getElementById('importHistoryContentV042755331'),currentWrap=document.getElementById('importHistoryWrap'),currentTable=document.getElementById('historyTable');
         const broken=Boolean(currentDetails&&currentContent&&currentWrap&&currentTable&&(!currentDetails.contains(currentContent)||!currentContent.contains(currentWrap)||!currentWrap.contains(currentTable)));
-        if(broken)canonicalizeImportHistoryDom();
-      });
+        if(!broken)return;
+        historyObserver.disconnect();
+        try{canonicalizeImportHistoryDom();}
+        finally{observe();}
+      },0);
     });
-    historyObserver.observe(updates,{subtree:true,childList:true});
+    observe();
   }
   const ok=Boolean(details&&content&&wrap&&table&&details.contains(content)&&content.contains(wrap)&&wrap.contains(table)&&qsa('#importHistoryDetailsV042745').length===1&&qsa('#importHistoryWrap').length===1&&qsa('#historyTable').length===1);
   details.dataset.domOwnership=ok?'single-owner':'invalid';
