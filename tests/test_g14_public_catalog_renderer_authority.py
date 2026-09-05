@@ -5,6 +5,7 @@ module = (root / 'assets/js/public-catalog-workbench.js').read_text(encoding='ut
 recipe_workbench_path = root / 'assets/js/recipe-unified-player-workbench.js'
 recipe_workbench = recipe_workbench_path.read_text(encoding='utf-8') if recipe_workbench_path.exists() else ''
 app = (root / 'assets/js/app.js').read_text(encoding='utf-8')
+version = (root / 'assets/js/version-authority.js').read_text(encoding='utf-8')
 migrations = (root / 'assets/js/migrations.js').read_text(encoding='utf-8')
 database = (root / 'assets/js/database.js').read_text(encoding='utf-8')
 item_master = (root / 'assets/js/public-item-master.js').read_text(encoding='utf-8')
@@ -147,10 +148,18 @@ else:
     assert "document.getElementById('referenceRecipeTable')" in shared_ui
     assert "document.getElementById('recipeTable')" not in shared_ui
 
-# Legacy application rendering remains for compatibility before canonical controller takeover.
+# Legacy application rendering remains before the .55.3.3.1 page-hydration successor.
+# The successor intentionally removes hidden Recipe DOM materialization from App Ready;
+# recipeTable remains governed by public-catalog-workbench -> unified Recipe Workbench.
+is_page_hydration_successor = "app_version: 'v0.4.27.55.3.3.1'" in version
 assert 'SELECT * FROM ingredient_inventory' in app
 assert 'SELECT *, MAX(0, quantity-safe_reserve)' in app
-assert "rows('SELECT * FROM recipes ORDER BY category, recipe_name')" in app
+if is_page_hydration_successor:
+    assert "rows('SELECT * FROM recipes ORDER BY category, recipe_name')" not in app
+    assert "from './recipe-unified-player-workbench.js'" in module
+    assert 'renderRecipeUnifiedWorkbench()' in module
+else:
+    assert "rows('SELECT * FROM recipes ORDER BY category, recipe_name')" in app
 
 print({
     'ok': True,
@@ -162,6 +171,7 @@ print({
     'recipe_workbench_successor': recipe_workbench_path.exists(),
     'recipe_runtime_authority': 'public-recipe-current-authority.js',
     'recipe_base_fact_authority': 'public-recipe-master.js',
+    'page_hydration_successor': is_page_hydration_successor,
     'version_audit': True,
     'unchanged_version_persist': False,
     'mutation_observer': False,
