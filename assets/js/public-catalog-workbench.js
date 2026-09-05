@@ -31,10 +31,25 @@ const runtime=globalThis[GLOBAL_KEY]||(globalThis[GLOBAL_KEY]={
   publicExactMatch:false,
   renderedKeys:new Map(),
   localRevision:{ingredients:0,items:0,recipes:0},
+  prewarmed:new Map(),
 });
 const activeView=()=>document.querySelector('.view.active')?.id||'dashboard';
 const yieldToUi=()=>new Promise(resolve=>setTimeout(resolve,0));
 const nextPaint=()=>new Promise(resolve=>requestAnimationFrame(()=>resolve()));
+const idle=callback=>{if(typeof requestIdleCallback==='function')requestIdleCallback(callback,{timeout:900});else setTimeout(callback,0);};
+const pageProgress=(view,state,message,details={})=>globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:page-hydration-progress',{detail:{page:view,state,message,...details}}));
+function prewarmPublicViewData(view,{force=false}={}){
+  if(!['ingredients','items'].includes(view))return null;
+  if(runtime.prewarmed.has(view)&&!force)return runtime.prewarmed.get(view);
+  if(!databaseReady())return null;
+  const started=performance.now();
+  const data=view==='ingredients'
+    ?rows('SELECT * FROM ingredient_catalog_state ORDER BY ingredient_name')
+    :rows('SELECT * FROM item_catalog_state ORDER BY item_category,item_name');
+  runtime.prewarmed.set(view,data);
+  progress('PUBLIC_CATALOG_DATA_PREWARM_COMPLETED',`${view} 本機資料預熱完成`,'completed',{view,row_count:data.length,elapsed_ms:Math.round(performance.now()-started),dom_materialized:false});
+  return data;
+}
 
 function databaseReady(){try{return !isRescueReadonly()&&Number(rows('SELECT COUNT(*) AS count FROM schema_migrations')[0]?.count||0)>0;}catch{return false;}}
 function progress(stage,message,status='running',details={}){globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:startup-progress',{detail:{stage,message,status,details}}));}
@@ -66,7 +81,7 @@ function ingredientUnlockValue(row){
 
 function renderIngredientCatalog(){
   const table=$('ingredientTable');if(!table)return;
-  const data=rows('SELECT * FROM ingredient_catalog_state ORDER BY ingredient_name');
+  const data=prewarmPublicViewData('ingredients')||rows('SELECT * FROM ingredient_catalog_state ORDER BY ingredient_name');
   table.innerHTML=`<thead><tr><th>食材</th><th>數量</th><th>解鎖狀態</th><th>本機紀錄</th><th>主檔版本</th><th>操作</th></tr></thead><tbody>${data.map(row=>`<tr><td>${esc(row.ingredient_name)}</td><td><input class="inline-number canonical-ingredient-qty" type="number" min="0" value="${Number(row.quantity||0)}" data-name="${esc(row.ingredient_name)}"></td><td><select class="canonical-ingredient-unlock" data-name="${esc(row.ingredient_name)}"><option value="" ${ingredientUnlockValue(row)===''?'selected':''}>待確認／尚無證據</option><option value="1" ${ingredientUnlockValue(row)==='1'?'selected':''}>已解鎖</option><option value="0" ${ingredientUnlockValue(row)==='0'?'selected':''}>尚未解鎖</option></select><div class="muted">${esc(ingredientUnlockLabel(row))}</div></td><td>${row.player_record_exists?'有':'無'}</td><td>${esc(row.data_version||'')}</td><td><button class="canonical-save-ingredient" data-name="${esc(row.ingredient_name)}">儲存</button></td></tr>`).join('')}</tbody>`;
   table.querySelectorAll('.canonical-save-ingredient').forEach(button=>button.addEventListener('click',async()=>{
     const name=button.dataset.name,selector=CSS.escape(name),input=table.querySelector(`.canonical-ingredient-qty[data-name="${selector}"]`),unlock=table.querySelector(`.canonical-ingredient-unlock[data-name="${selector}"]`);
@@ -75,7 +90,7 @@ function renderIngredientCatalog(){
 }
 function renderItemCatalog(){
   const table=$('itemTable');if(!table)return;
-  const data=rows('SELECT * FROM item_catalog_state ORDER BY item_category,item_name');
+  const data=prewarmPublicViewData('items')||rows('SELECT * FROM item_catalog_state ORDER BY item_category,item_name');
   table.innerHTML=`<thead><tr><th>道具</th><th>分類</th><th>庫存</th><th>保留</th><th>可動用</th><th>功能／備註</th><th>主檔版本</th><th>操作</th></tr></thead><tbody>${data.map(row=>`<tr><td>${esc(row.item_name)}</td><td>${esc(row.item_category||'未分類')}</td><td><input class="inline-number canonical-item-qty" type="number" min="0" value="${Number(row.quantity||0)}" data-name="${esc(row.item_name)}"></td><td><input class="inline-number canonical-item-reserve" type="number" min="0" value="${Number(row.safe_reserve||0)}" data-name="${esc(row.item_name)}"></td><td>${Math.max(0,Number(row.quantity||0)-Number(row.safe_reserve||0))}</td><td><div class="notice"><strong>功能：</strong>${esc(row.effect_description_zh_tw||'官方說明待補')}</div><textarea class="inline-text canonical-item-note" data-name="${esc(row.item_name)}">${esc(row.recommendation||'')}</textarea></td><td>${esc(row.data_version||'')}</td><td><button class="canonical-save-item" data-name="${esc(row.item_name)}">儲存</button></td></tr>`).join('')}</tbody>`;
   table.querySelectorAll('.canonical-save-item').forEach(button=>button.addEventListener('click',async()=>{
     const name=button.dataset.name,selector=CSS.escape(name),q=table.querySelector(`.canonical-item-qty[data-name="${selector}"]`).value,reserve=table.querySelector(`.canonical-item-reserve[data-name="${selector}"]`).value,note=table.querySelector(`.canonical-item-note[data-name="${selector}"]`).value;
@@ -89,6 +104,7 @@ function renderView(view){
   const key=projectionKey(view);
   if(runtime.renderedKeys.get(view)===key){progress('RENDER_DEDUPED',`${view} 已是目前版次／玩家投影，不重建`,'completed',{view,fingerprint:runtime.publicFingerprint,local_revision:runtime.localRevision[view]||0});return true;}
   progress('PUBLIC_CATALOG_RENDER_START',`正在載入${view}公版資料`,'running',{view,generation:runtime.requestedGeneration,fingerprint:runtime.publicFingerprint});
+  pageProgress(view,'loading',`${view==='items'?'道具':view==='ingredients'?'食材':'食譜'}：使用本機預熱資料建立表格…`,{generation:runtime.requestedGeneration});
   try{
     let recipeProjection=null;
     if(view==='ingredients')renderIngredientCatalog();
@@ -101,8 +117,8 @@ function renderView(view){
       recipe_workbench_version:view==='recipes'?RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION:undefined,
       recipe_partition:view==='recipes'&&recipeProjection?`${recipeProjection.unlocked_count}+${recipeProjection.locked_count}=${recipeProjection.total_count}`:undefined,
       rescue_readonly:isRescueReadonly(),
-    });return true;
-  }catch(error){progress('PUBLIC_CATALOG_RENDER_FAILED',`${view}公版資料載入失敗`,'failed',{view,error:error.message});return false;}
+    });pageProgress(view,'ready',`${view==='items'?'道具':view==='ingredients'?'食材':'食譜'}：載入完成`,{generation:runtime.requestedGeneration});return true;
+  }catch(error){progress('PUBLIC_CATALOG_RENDER_FAILED',`${view}公版資料載入失敗`,'failed',{view,error:error.message});pageProgress(view,'failed',`${view==='items'?'道具':view==='ingredients'?'食材':'食譜'}：載入失敗`);return false;}
 }
 async function drainRenderQueue(){
   if(runtime.draining)return;runtime.draining=true;
@@ -120,7 +136,7 @@ function requestRender(view=activeView(),reason='unspecified'){
 }
 function markLocalProjectionDirty(entity){
   const view=publicCatalogProjectionViewForLocalEntity(entity);if(!view)return null;
-  runtime.localRevision[view]=(runtime.localRevision[view]||0)+1;return view;
+  runtime.localRevision[view]=(runtime.localRevision[view]||0)+1;runtime.prewarmed.delete(view);return view;
 }
 function emitLazyReady(authority,decision){
   progress('PUBLIC_CATALOG_LAZY_READY','公版資料已完成版本判斷；後續僅在首次進入或玩家投影變更時載入','completed',{
@@ -178,6 +194,7 @@ function install(){
   document.querySelectorAll('nav button[data-view]').forEach(button=>button.addEventListener('click',()=>requestRender(button.dataset.view,'navigation')));
   window.addEventListener('pokemon-sleep:data-changed',handleDataChanged);
   window.addEventListener('pokemon-sleep:database-ready',handleDatabaseReady);
+  window.addEventListener('pokemon-sleep:app-ready',()=>idle(()=>{try{prewarmPublicViewData('ingredients');prewarmPublicViewData('items');}catch(error){progress('PUBLIC_CATALOG_DATA_PREWARM_FAILED','本機公版投影預熱失敗','warning',{error:error?.message||String(error)});}}),{once:true});
   window.dispatchEvent(new CustomEvent('pokemon-sleep:public-catalog-ready',{detail:{build:BUILD,lazy_renderer:true,mutation_observer:false,first_entry_after_navigation:true,global_singleton:true,persisted_public_fingerprint:true,public_version_match_bypass:true,local_change_does_not_invalidate_public_fingerprint:true,cause_aware_generation_queue:true,schema_compatible_items:true,ingredient_unlock_state_semantics:true,recipe_authority:PUBLIC_RECIPE_MASTER_VERSION,recipe_workbench_authority:RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION}}));
 }
 if(document.readyState==='loading')window.addEventListener('DOMContentLoaded',install,{once:true});else install();
