@@ -18,6 +18,20 @@ let warningActive=false;
 let recoveryStableFrames=0;
 let stallSnapshot=null;
 let lastWarningText='';
+let pageHydrationHideTimer=null;
+const PAGE_LABELS=Object.freeze({updates:'更新中心',knowledge:'資料百科',items:'道具',ingredients:'食材',recipes:'食譜',backup:'備份還原',pokemon:'寶可夢'});
+function renderPageHydrationProgress(detail={}){
+  const badge=document.getElementById('pageLoadStatus');if(!badge)return;
+  const page=String(detail.page||'').trim(),state=String(detail.state||'loading').trim();
+  const label=detail.label||PAGE_LABELS[page]||page||'分頁';
+  const message=detail.message||`${label}：${state==='ready'?'載入完成':'本機資料載入中…'}`;
+  clearTimeout(pageHydrationHideTimer);
+  badge.textContent=message;badge.classList.remove('hidden','ok','pending','error');
+  badge.classList.add(state==='failed'?'error':state==='ready'?'ok':'pending');
+  badge.dataset.page=page;badge.dataset.pageHydrationState=state;
+  recordStage({stage:`PAGE_HYDRATION_${page||'UNKNOWN'}_${state.toUpperCase()}`,message,status:state==='failed'?'failed':state==='ready'?'completed':'running',details:{page,state,source:'page-hydration-watchdog'}});
+  if(state==='ready')pageHydrationHideTimer=setTimeout(()=>badge.classList.add('hidden'),1800);
+}
 
 function recordStage(detail={}){
   lastStage=detail.stage||'UNKNOWN';
@@ -26,6 +40,7 @@ function recordStage(detail={}){
   debugTrace.record('startup','startup_stage',{status:detail.status||'completed',details:{...detail,authority}});
 }
 addEventListener('pokemon-sleep:startup-progress',event=>recordStage(event.detail||{}));
+addEventListener('pokemon-sleep:page-hydration-progress',event=>renderPageHydrationProgress(event.detail||{}));
 
 export function formatStartupHeartbeatWarning({checkpoint='unknown',blocked_ms=0}={}){
   const seconds=Math.max(0,Math.round(Number(blocked_ms||0)/1000));

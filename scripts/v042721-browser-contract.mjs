@@ -3,6 +3,11 @@ import {chromium} from 'playwright';
 
 const base=process.env.BASE_URL||'http://127.0.0.1:4173/';
 const minimumPatch=21;
+const successorAuthority=Object.freeze({
+  app_version:'v0.4.27.55.3.3.1',
+  app_build:'20260905-v042755331-page-prewarm-collapsible-hydration',
+  cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.1-v042755331-page-prewarm-collapsible-hydration',
+});
 // Nested hotfixes (for example v0.4.27.55.1) are valid successors; preserve the minimum patch gate while allowing additional numeric components.
 const isSupportedVersion=version=>{const match=/^v0\.4\.27\.(\d+)(?:\.\d+)*$/.exec(String(version||''));return Boolean(match)&&Number(match[1])>=minimumPatch;};
 const browser=await chromium.launch({headless:true});
@@ -11,8 +16,29 @@ try{
   const page=await context.newPage();
   await page.goto(base,{waitUntil:'domcontentloaded'});
   await page.waitForFunction((minimum)=>{const match=/^v0\.4\.27\.(\d+)(?:\.\d+)*$/.exec(String(globalThis.PokemonSleepVersionAuthority?.app_version||''));return Boolean(match)&&Number(match[1])>=minimum;},minimumPatch,{timeout:30000});
+
+  const authority=await page.evaluate(()=>globalThis.PokemonSleepVersionAuthority||{});
+  if(authority.app_version===successorAuthority.app_version){
+    assert.equal(authority.app_build,successorAuthority.app_build);
+    assert.equal(authority.cache_name,successorAuthority.cache_name);
+
+    // v0.4.27.55.3.3.1 owns Analysis Confirmation through Update Center navigation hydration.
+    // Exercise the successor at the same lifecycle boundary as production: canonical App Ready first,
+    // then the real navigation owner. Do not invoke hydrateView() early from the test itself.
+    await page.waitForFunction(()=>{
+      const text=document.getElementById('dbStatus')?.textContent||'';
+      return text.includes('App 已就緒')||text.includes('初始化失敗')||text.includes('救援／唯讀模式');
+    },null,{timeout:30000});
+    const startupStatus=await page.locator('#dbStatus').textContent();
+    assert.equal(startupStatus,'App 已就緒',`canonical App Ready required before successor Update Center navigation; observed=${startupStatus||'missing'}`);
+
+    const updatesNav=page.locator('nav button[data-view="updates"]');
+    await updatesNav.waitFor({state:'visible',timeout:10000});
+    await updatesNav.click();
+    await page.waitForFunction(()=>document.getElementById('updates')?.classList.contains('active'),null,{timeout:10000});
+  }
+
   await page.waitForFunction(()=>Boolean(globalThis.PokemonSleepPlayerEvolutionOverrideV042721),{timeout:30000});
-  await page.waitForFunction(()=>document.getElementById('dbStatus')?.textContent?.includes('就緒'),{timeout:60000}).catch(()=>{});
 
   const result=await page.evaluate(async()=>{
     const revision={analysis_id:'v042721-browser-fixture',analysis_type:'ai',revision_no:1,source_image_ref:'fixture-captain-pikachu.png',provider:'fixture'};

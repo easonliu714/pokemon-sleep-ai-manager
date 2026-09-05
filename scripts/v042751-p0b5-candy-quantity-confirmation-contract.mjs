@@ -77,6 +77,7 @@ assert.match(prompt,/建立本機 Public Candy admission/);
 const uiSource=read('assets/js/candy-quantity-screenshot-ui.js');
 const admissionUiSource=read('assets/js/candy-public-master-admission-ui.js');
 const inventoryUiSource=read('assets/js/candy-inventory-ui.js');
+const pageHydrationSource=read('assets/js/page-hydration-authority-v04275533.js');
 const professorSource=read('assets/js/pokemon-professor-transfer.js');
 const versionSource=read('assets/js/version-authority.js');
 const serviceWorkerSource=read('service-worker.js');
@@ -87,6 +88,7 @@ const p0b6Patch=Number(appVersion.match(/^v0\.4\.27\.(\d+)(?:\.\d+)*$/)?.[1]||-1
 const p0b6Hotfix=Number(appVersion.match(/^v0\.4\.27\.55\.(\d+)(?:\.\d+)*$/)?.[1]||0);
 const p0b6Successor=p0b6Patch>=55;
 const localGapDurabilitySuccessor=p0b6Patch>55||(p0b6Patch===55&&p0b6Hotfix>=2);
+const pagePrewarmSuccessor=appVersion==='v0.4.27.55.3.3.1';
 assert.match(uiSource,/我已核對遊戲畫面，確認數量/);
 assert.match(uiSource,/Gemini Raw JSON（唯讀、immutable）/);
 if(localGapDurabilitySuccessor){
@@ -96,8 +98,22 @@ if(localGapDurabilitySuccessor){
 }else{
   assert.match(admissionUiSource,/建立公版糖果並重新對應/);
 }
-assert.match(inventoryUiSource,/candy-quantity-screenshot-ui\.js/);
-assert.match(inventoryUiSource,/candy-public-master-admission-ui\.js/);
+if(pagePrewarmSuccessor){
+  // .55.3.3.1 deliberately removes Update Center side-effect imports from the
+  // Candy inventory/Knowledge surface. The governed page hydrator is now the
+  // single owner that dynamically loads the screenshot UI and proves real mount
+  // readiness using inner controls. P0-B5 semantics remain unchanged above.
+  assert.doesNotMatch(inventoryUiSource,/candy-quantity-screenshot-ui\.js/,'page-prewarm successor must not eager-load Update Center screenshot analysis from Candy inventory');
+  assert.doesNotMatch(inventoryUiSource,/candy-public-master-admission-ui\.js/,'page-prewarm successor must not eager-load Update Center admission UI from Candy inventory');
+  assert.match(pageHydrationSource,/import\('\.\/candy-quantity-screenshot-ui\.js'\)/,'page hydrator must own governed Candy screenshot UI loading');
+  assert.match(pageHydrationSource,/candyRoot\.querySelector\('#candyB5Parse'\)/,'page hydrator must verify mounted Candy controls before ready');
+  assert.match(pageHydrationSource,/candyRoot\.querySelector\('#candyB5GateStatus'\)/,'page hydrator must verify the B5 gate control before ready');
+  assert.equal(appBuild,'20260905-v042755331-page-prewarm-collapsible-hydration');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.1-v042755331-page-prewarm-collapsible-hydration');
+}else{
+  assert.match(inventoryUiSource,/candy-quantity-screenshot-ui\.js/);
+  assert.match(inventoryUiSource,/candy-public-master-admission-ui\.js/);
+}
 assert.match(professorSource,/USER_DIRECT_OBSERVATION_ONLY/);
 assert.equal(professorSource.includes('candy-quantity-confirmation-authority.js'),false);
 
@@ -124,6 +140,6 @@ assert.ok(versionSource.includes("// app_version: 'v0.4.27.50'"));
 assert.equal((serviceWorkerSource.match(/\.\/assets\/js\/candy-inventory-ui\.js/g)||[]).length,1);
 assert.match(serviceWorkerSource,/querySafeCacheMatch\(event\.request\)/);
 
-console.log(JSON.stringify({status:'PASS',gate:'V042751_P0B5_CANDY_QUANTITY_CONFIRMATION_AUTHORITY',authority_version:CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION,app_version:appVersion,app_build:appBuild,nested_hotfix_version_supported:p0b6Successor&&appVersion!=='v0.4.27.55',local_gap_durability_successor:localGapDurabilitySuccessor,semantics:{ai_quantity_candidate_only:true,explicit_quantity_confirmation_required:true,confirmed_zero_is_valid:true,storage_key_candy_id_only:true,candy_id_only_gemini_key_bridge:true,provider_raw_json_immutable:true,local_admission_ui_truthful_scope:localGapDurabilitySuccessor,professor_observed_delta_unchanged:true}},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V042751_P0B5_CANDY_QUANTITY_CONFIRMATION_AUTHORITY',authority_version:CANDY_QUANTITY_CONFIRMATION_AUTHORITY_VERSION,app_version:appVersion,app_build:appBuild,nested_hotfix_version_supported:p0b6Successor&&appVersion!=='v0.4.27.55',local_gap_durability_successor:localGapDurabilitySuccessor,page_prewarm_successor:pagePrewarmSuccessor,semantics:{ai_quantity_candidate_only:true,explicit_quantity_confirmation_required:true,confirmed_zero_is_valid:true,storage_key_candy_id_only:true,candy_id_only_gemini_key_bridge:true,provider_raw_json_immutable:true,local_admission_ui_truthful_scope:localGapDurabilitySuccessor,professor_observed_delta_unchanged:true}},null,2));
 
 if(['v0.4.27.52','v0.4.27.53','v0.4.27.54','v0.4.27.55'].includes(appVersion)||p0b6Successor)await import('./v042752-p0b5-gap-identity-raw-evidence-hotfix-contract.mjs');

@@ -26,6 +26,8 @@ const parts=value=>String(value||'').replace(/^v/,'').split('.').map(part=>Numbe
 const atLeast=(current,minimum)=>{const left=parts(current),right=parts(minimum),size=Math.max(left.length,right.length);for(let index=0;index<size;index+=1){const a=left[index]||0,b=right[index]||0;if(a!==b)return a>b;}return true;};
 const versionSource=read('assets/js/version-authority.js');
 const currentAppVersion=versionSource.match(/app_version:\s*'([^']+)'/)?.[1]||'';
+const currentAppBuild=versionSource.match(/app_build:\s*'([^']+)'/)?.[1]||'';
+const currentCacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
 const candyGapIdentitySuccessor=atLeast(currentAppVersion,'v0.4.27.52');
 const candyScreenshotPromotionSuccessor=atLeast(currentAppVersion,'v0.4.27.54');
 const screenshotPromotionSpecies=['草苗龜','木守宮','小鍛匠','波加曼','水躍魚','摔角鷹人','火稚雞','菊草葉'];
@@ -162,8 +164,18 @@ gate('Candy no longer reconstructs the Pokémon species namespace itself',()=>{
 gate('release and offline wiring retain v0.4.27.47 exact predecessor',()=>{
   const sw=read('service-worker.js');
   const workflow=read('.github/workflows/regression-gate.yml');
-  assert.match(versionSource,/app_version:\s*'v0\.4\.27\.47'/u);
-  assert.match(versionSource,/app_build:\s*'20260829-v042747-p0b2-public-species-authority'/u);
+  if(currentAppVersion==='v0.4.27.47'){
+    assert.equal(currentAppBuild,'20260829-v042747-p0b2-public-species-authority');
+    assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.47-v042747-p0b2-public-species-authority');
+  }else if(currentAppVersion==='v0.4.27.55.3.3.1'){
+    assert.equal(currentAppBuild,'20260905-v042755331-page-prewarm-collapsible-hydration');
+    assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.1-v042755331-page-prewarm-collapsible-hydration');
+    assert.ok(versionSource.includes("// app_version: 'v0.4.27.47'"),'page-prewarm successor must retain exact P0-B2 v0.4.27.47 lineage marker');
+    assert.ok(versionSource.includes("// app_build: '20260829-v042747-p0b2-public-species-authority'"),'page-prewarm successor must retain exact P0-B2 build lineage marker');
+    assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.47-v042747-p0b2-public-species-authority'"),'page-prewarm successor must retain exact P0-B2 cache lineage marker');
+  }else{
+    assert.fail(`P0-B2 public-species successor release not governed: ${currentAppVersion}`);
+  }
   assert.ok(sw.includes("'./assets/js/public-pokemon-species-authority.js'"));
   assert.ok(workflow.includes('node scripts/v042747-p0b2-public-pokemon-species-authority-contract.mjs'));
 });

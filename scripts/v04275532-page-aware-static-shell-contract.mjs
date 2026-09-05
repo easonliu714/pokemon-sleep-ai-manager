@@ -21,7 +21,7 @@ assert.match(bootstrap,/const pageLoads=new Map\(\)/);
 assert.match(bootstrap,/const moduleLoads=new Map\(\)/);
 assert.match(bootstrap,/if\(pageLoads\.has\(page\)\)return pageLoads\.get\(page\)/);
 assert.match(bootstrap,/if\(moduleLoads\.has\(file\)\)return moduleLoads\.get\(file\)/);
-assert.match(bootstrap,/await yieldToBrowser\(\);\s*await importFeatureModule\(file\)/);
+assert.ok(/await yieldToBrowser\(\);\s*await importFeatureModule\(file\)/.test(bootstrap)||/if\(files\.length\)await yieldToBrowser\(\);\s*for\(const file of files\)\{await importFeatureModule\(file\);\}/.test(bootstrap),'page-aware successor must yield before feature materialization without restoring the global module sweep');
 assert.match(bootstrap,/global_deferred_sweep:false/);
 assert.match(bootstrap,/page_aware_feature_loading:true/);
 
@@ -88,7 +88,7 @@ console.log(JSON.stringify({
   status:'PASS',
   global_deferred_sweep:false,
   page_aware_single_flight:true,
-  yield_between_modules:true,
+  browser_yield_before_page_materialization:true,
   app_ready_snapshot_block:false,
   hidden_snapshot_background_load:false,
   backup_snapshot_navigation_only:true,

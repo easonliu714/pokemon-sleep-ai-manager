@@ -69,6 +69,7 @@ const APP_VERSION=authority.app_version;
 const VERSION=authority.app_build;
 const status=document.getElementById('dbStatus');
 const warning=document.getElementById('storageWarning');
+const pageProgress=(page,state,message,details={})=>globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:page-hydration-progress',{detail:{page,state,message,...details}}));
 
 document.documentElement.dataset.appVersion=APP_VERSION;
 document.documentElement.dataset.appBuild=VERSION;
@@ -122,7 +123,7 @@ function importFeatureModule(file){
 async function loadPageModules(page){
   const knownPage=Object.prototype.hasOwnProperty.call(pageModuleGroups,page);
   if(!knownPage){
-    await globalThis.PokemonSleepPageHydrationAuthorityV04275533?.hydrateView?.(page);
+    await (globalThis.PokemonSleepPageHydrationAuthorityV042755331||globalThis.PokemonSleepPageHydrationAuthorityV04275533)?.hydrateView?.(page);
     return {page,module_count:0,known_page:false};
   }
   const files=pageModuleGroups[page];
@@ -130,10 +131,12 @@ async function loadPageModules(page){
   const promise=(async()=>{
     const started=performance.now();
     debugTrace.record('bootstrap','page_feature_load_started',{status:'started',details:{page,module_count:files.length,single_flight:true,navigation_only:true,single_owner_render:true}});
-    for(const file of files){await yieldToBrowser();await importFeatureModule(file);}
+    pageProgress(page,'loading',`${page==='updates'?'更新中心':page==='knowledge'?'資料百科':page}：載入功能模組…`,{phase:'modules',module_count:files.length});
+    if(files.length)await yieldToBrowser();
+    for(const file of files){await importFeatureModule(file);}
     if(page==='updates'){await hydrateUpdateCenterShells();void startOcrOverlayForUpdates();}
     if(page==='backup')await hydrateBackupSnapshotPanel();
-    await globalThis.PokemonSleepPageHydrationAuthorityV04275533?.hydrateView?.(page);
+    await (globalThis.PokemonSleepPageHydrationAuthorityV042755331||globalThis.PokemonSleepPageHydrationAuthorityV04275533)?.hydrateView?.(page);
     debugTrace.record('bootstrap','page_feature_load_completed',{status:'completed',details:{page,module_count:files.length,elapsed_ms:Math.round(performance.now()-started),single_flight:true,navigation_only:true,single_owner_render:true}});
     return {page,module_count:files.length,known_page:true};
   })().catch(error=>{pageLoads.delete(page);debugTrace.record('bootstrap','page_feature_load_failed',{status:'failed',details:{page},error});throw error;});
@@ -150,7 +153,7 @@ async function hydrateBackupSnapshotPanel(){
   }catch(error){host.dataset.pageHydration='failed';debugTrace.record('bootstrap','backup_snapshot_page_hydration_failed',{status:'failed',error});}
 }
 async function hydrateUpdateCenterShells(){
-  const pageAuthority=globalThis.PokemonSleepPageHydrationAuthorityV04275533;
+  const pageAuthority=globalThis.PokemonSleepPageHydrationAuthorityV042755331||globalThis.PokemonSleepPageHydrationAuthorityV04275533;
   if(pageAuthority?.hydrateUpdateCenter){await pageAuthority.hydrateUpdateCenter();return;}
   document.querySelectorAll('[data-update-static-shell]').forEach(shell=>shell.dataset.hydrationState='pending');
   const heading=document.getElementById('importHistoryHeading');if(heading)heading.hidden=true;
@@ -168,6 +171,7 @@ function bindPageAwareFeatureLoading(){
   document.querySelectorAll('nav button[data-view]').forEach(button=>{if(button.dataset.pageAwareBound==='true')return;button.dataset.pageAwareBound='true';button.addEventListener('click',()=>{void loadPageModules(button.dataset.view).catch(()=>{});},{capture:false});});
   globalThis.addEventListener('pokemon-sleep:identity-import-files-selected',()=>{void startOcrOverlayForUpdates();});bindStaticHistoryExport();
   const api=Object.freeze({version:`${APP_VERSION}-page-hydration-authority`,loadPage:loadPageModules,loadedPages:()=>[...pageLoads.keys()],loadedModules:()=>[...moduleLoads.keys()]});
+  globalThis.PokemonSleepPageFeatureLoaderV042755331=api;
   globalThis.PokemonSleepPageFeatureLoaderV04275533=api;
   globalThis.PokemonSleepPageFeatureLoaderV04275532=api;
   debugTrace.record('bootstrap','page_feature_loader_ready',{status:'completed',details:{global_deferred_sweep:false,page_groups:Object.keys(pageModuleGroups),single_flight:true,yield_between_modules:true,backup_navigation_only:true,single_owner_render:true,navigation_is_data_mutation:false,canonical_esm_identity:true}});
