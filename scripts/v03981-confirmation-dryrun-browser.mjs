@@ -8,7 +8,12 @@ const page = await context.newPage();
 
 try {
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => document.getElementById('dbStatus')?.textContent?.includes('SQLite 已就緒'), null, { timeout: 30000 });
+  // v0.4.27.55.3.3.1 makes the startup-only refresh materially faster by no longer
+  // materializing hidden page DOM. The historical intermediate "SQLite 已就緒｜介面載入中…"
+  // state can therefore complete before Playwright attaches this waiter. Bind this
+  // browser predecessor contract to the stronger canonical App Ready authority instead
+  // of depending on observability of a transient intermediate badge.
+  await page.waitForFunction(() => document.getElementById('dbStatus')?.textContent?.includes('App 已就緒'), null, { timeout: 30000 });
 
   const updatesNav = page.locator('nav button[data-view="updates"]');
   await updatesNav.waitFor({ state: 'visible', timeout: 10000 });
@@ -92,7 +97,7 @@ try {
     assert.ok(trace.includes(required), `missing debug event ${required}`);
   }
 
-  console.log('PASS browser review UX: real Update Center navigation -> grouped 4 confirmations -> 0 -> Dry Run enabled -> formal Dry Run success -> review synchronized');
+  console.log('PASS browser review UX: canonical App Ready -> real Update Center navigation -> grouped 4 confirmations -> 0 -> Dry Run enabled -> formal Dry Run success -> review synchronized');
 } finally {
   await browser.close();
 }
