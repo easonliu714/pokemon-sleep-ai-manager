@@ -87,7 +87,6 @@ for(const observation of replay.payload.observations){
 }
 const noQuantityCompile=compileCandyQuantityGovernedRecognitionToUpdatePackage(replay.payload,'candies',{allowedImageRefs:['synthetic-promotion-image']});
 assert.equal(noQuantityCompile.update_package.operations.length,0,'global identity promotion must never auto-write player quantity');
-
 const version=read('assets/js/version-authority.js');
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 const patch=Number(appVersion.match(/^v0\.4\.27\.(\d+)(?:\.\d+)*$/)?.[1]||-1);
@@ -160,6 +159,15 @@ if(appVersion==='v0.4.27.54'){
 }else if(appVersion==='v0.4.27.55.3.1'){
   assert.equal(appBuild,'20260902-v04275531-startup-idb-sw-reliability');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.1-v04275531-startup-idb-sw-reliability');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.2'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55'"));
+  assert.ok(version.includes("// app_build: '20260901-v042755-p0b6-candy-family-storage-reconciliation'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55-v042755-p0b6-candy-family-storage-reconciliation'"));
+}else if(appVersion==='v0.4.27.55.3.3.1'){
+  assert.equal(appBuild,'20260905-v042755331-page-prewarm-collapsible-hydration');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.1-v042755331-page-prewarm-collapsible-hydration');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3'"));
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3'"));
   assert.ok(version.includes("// app_version: 'v0.4.27.55.2'"));
   assert.ok(version.includes("// app_version: 'v0.4.27.55'"));
