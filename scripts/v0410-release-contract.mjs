@@ -58,14 +58,20 @@ assert.ok(legacyBytePrivacyMarker||successorBytePrivacyContract,'v0.4.10+ UC.IMG
 assert.equal(/indexedDB\.put\([^\n]*image|INSERT[^\n]*image_blob/i.test(source),false,'screenshot bytes must not be persisted');
 
 const loader=read('assets/js/candy-inventory-ui.js');
+const pageHydrator=read('assets/js/page-hydration-authority-v04275533.js');
 const directLoader=loader.includes("import './unified-screenshot-update-center.js';");
 const successorBootstrap=loader.includes("import './uc-img-v04132-pot-capacity-bootstrap.js';");
-assert.ok(directLoader||successorBootstrap,'UC.IMG-A runtime loader missing');
+const pageHydratorLoader=pageHydrator.includes("import('./unified-screenshot-update-center.js')");
+assert.ok(directLoader||successorBootstrap||pageHydratorLoader,'UC.IMG-A runtime loader missing');
 if(successorBootstrap){
   const bootstrap=read('assets/js/uc-img-v04132-pot-capacity-bootstrap.js');
   assert.ok(bootstrap.includes("from './unified-screenshot-update-center.js'"),'successor bootstrap must load the same UC.IMG implementation');
   assert.ok(bootstrap.includes('account_capacity'),'successor bootstrap may only extend Recipe scenario authority explicitly');
   assert.ok(bootstrap.includes('recipeScenarioAcceptsPotCapacity'));
+}
+if(pageHydratorLoader){
+  assert.ok(pageHydrator.includes("page==='updates'?hydrateUpdateCenter():hydrateKnowledge()"),'page hydrator UC.IMG loader must remain governed by Update Center hydration');
+  assert.ok(pageHydrator.includes('update_center_page_hydrated'),'page hydrator must retain Update Center readiness evidence');
 }
 const promptCatalog=read('assets/js/prompt-catalog.js');
 for(const token of ['weekly_context_update','ingredient_inventory_update','recipe_status_update'])assert.ok(promptCatalog.includes(token),`existing prompt scenario missing ${token}`);
@@ -82,6 +88,6 @@ console.log(JSON.stringify({
   scenarios:Object.values(UC_IMG_A_SCENARIOS).map(value=>value.scenario),multi_image:true,coverage_semantics:true,
   evidence_traceability:true,stale_response_guard:true,existing_dry_run_apply_bridge:true,screenshot_bytes_persisted:false,
   screenshot_byte_privacy_contract:legacyBytePrivacyMarker?'legacy-label':'byte-lifecycle-successor',
-  loader_mode:successorBootstrap?'successor_bootstrap':'direct',single_uc_img_implementation:true,
+  loader_mode:pageHydratorLoader?'page_hydrator':successorBootstrap?'successor_bootstrap':'direct',single_uc_img_implementation:true,
   sqlite_migration_added:false,public_master_mutated:false,
 },null,2));
