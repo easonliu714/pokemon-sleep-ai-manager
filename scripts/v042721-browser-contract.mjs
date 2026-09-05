@@ -3,6 +3,11 @@ import {chromium} from 'playwright';
 
 const base=process.env.BASE_URL||'http://127.0.0.1:4173/';
 const minimumPatch=21;
+const successorAuthority=Object.freeze({
+  app_version:'v0.4.27.55.3.3.1',
+  app_build:'20260905-v042755331-page-prewarm-collapsible-hydration',
+  cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.1-v042755331-page-prewarm-collapsible-hydration',
+});
 // Nested hotfixes (for example v0.4.27.55.1) are valid successors; preserve the minimum patch gate while allowing additional numeric components.
 const isSupportedVersion=version=>{const match=/^v0\.4\.27\.(\d+)(?:\.\d+)*$/.exec(String(version||''));return Boolean(match)&&Number(match[1])>=minimumPatch;};
 const browser=await chromium.launch({headless:true});
@@ -11,6 +16,20 @@ try{
   const page=await context.newPage();
   await page.goto(base,{waitUntil:'domcontentloaded'});
   await page.waitForFunction((minimum)=>{const match=/^v0\.4\.27\.(\d+)(?:\.\d+)*$/.exec(String(globalThis.PokemonSleepVersionAuthority?.app_version||''));return Boolean(match)&&Number(match[1])>=minimum;},minimumPatch,{timeout:30000});
+
+  // v0.4.27.55.3.3.1 moved Analysis Confirmation ownership behind the governed Update Center page hydrator.
+  // Preserve the historical eager-load path for older releases, but exercise the successor through its canonical page owner instead of restoring a global eager import.
+  await page.evaluate(async expected=>{
+    const authority=globalThis.PokemonSleepVersionAuthority||{};
+    if(authority.app_version!==expected.app_version)return;
+    if(authority.app_build!==expected.app_build||authority.cache_name!==expected.cache_name){
+      throw new Error(`V042721_SUCCESSOR_AUTHORITY_MISMATCH:${authority.app_version}|${authority.app_build}|${authority.cache_name}`);
+    }
+    const hydration=await import('./assets/js/page-hydration-authority-v04275533.js');
+    const result=await hydration.hydrateView('updates');
+    if(!result?.ok)throw new Error(`V042721_SUCCESSOR_UPDATE_CENTER_HYDRATION_FAILED:${JSON.stringify(result||null)}`);
+  },successorAuthority);
+
   await page.waitForFunction(()=>Boolean(globalThis.PokemonSleepPlayerEvolutionOverrideV042721),{timeout:30000});
   await page.waitForFunction(()=>document.getElementById('dbStatus')?.textContent?.includes('就緒'),{timeout:60000}).catch(()=>{});
 
