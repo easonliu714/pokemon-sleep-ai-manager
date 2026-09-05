@@ -5,6 +5,26 @@ const baseUrl = process.env.POKEMON_SLEEP_TEST_URL || 'http://127.0.0.1:8080/';
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 980, height: 1897 } });
 const page = await context.newPage();
+const browserDiagnostics=[];
+page.on('console',message=>browserDiagnostics.push({type:'console',level:message.type(),text:message.text()}));
+page.on('pageerror',error=>browserDiagnostics.push({type:'pageerror',text:error?.stack||error?.message||String(error)}));
+page.on('requestfailed',request=>browserDiagnostics.push({type:'requestfailed',url:request.url(),failure:request.failure()?.errorText||null}));
+
+async function startupDiagnostic(){
+  return page.evaluate(() => {
+    const manager=globalThis.DebugTrace;
+    const sessionId=manager?.sessionId;
+    return {
+      db_status:document.getElementById('dbStatus')?.textContent||null,
+      db_status_class:document.getElementById('dbStatus')?.className||null,
+      storage_warning:document.getElementById('storageWarning')?.textContent||null,
+      storage_warning_hidden:document.getElementById('storageWarning')?.classList?.contains('hidden')??null,
+      startup_watchdog:globalThis.PokemonSleepStartupWatchdog?.getStartupWatchdogState?.()||null,
+      startup_events:(manager?.events||[]).filter(event=>event.session_id===sessionId&&['startup','service_worker','app'].includes(event.category)).slice(-30).map(event=>({category:event.category,event:event.event,status:event.status,details:event.details,error:event.error})),
+      version:globalThis.PokemonSleepVersionAuthority||null,
+    };
+  }).catch(error=>({diagnostic_evaluation_failed:error?.message||String(error)}));
+}
 
 try {
   await page.goto(baseUrl, { waitUntil: 'domcontentloaded' });
@@ -13,7 +33,24 @@ try {
   // state can therefore complete before Playwright attaches this waiter. Bind this
   // browser predecessor contract to the stronger canonical App Ready authority instead
   // of depending on observability of a transient intermediate badge.
-  await page.waitForFunction(() => document.getElementById('dbStatus')?.textContent?.includes('App 已就緒'), null, { timeout: 30000 });
+  // Keep the existing 30 s authority boundary, but fail early on explicit terminal
+  // rescue/initialization failure and print the exact startup evidence instead of
+  // masking the cause behind a generic waitForFunction timeout.
+  try{
+    await page.waitForFunction(() => {
+      const text=document.getElementById('dbStatus')?.textContent||'';
+      return text.includes('App 已就緒')||text.includes('初始化失敗')||text.includes('救援／唯讀模式');
+    }, null, { timeout: 30000 });
+  }catch(error){
+    const diagnostic=await startupDiagnostic();
+    console.error('STARTUP_AUTHORITY_TIMEOUT_DIAGNOSTIC',JSON.stringify({diagnostic,browser_diagnostics:browserDiagnostics.slice(-30)},null,2));
+    throw error;
+  }
+  const startup=await startupDiagnostic();
+  if(startup.db_status!=='App 已就緒'){
+    console.error('STARTUP_AUTHORITY_TERMINAL_FAILURE',JSON.stringify({diagnostic:startup,browser_diagnostics:browserDiagnostics.slice(-30)},null,2));
+  }
+  assert.equal(startup.db_status,'App 已就緒',`canonical App Ready required before legacy confirmation handshake; observed=${startup.db_status||'missing'}`);
 
   const updatesNav = page.locator('nav button[data-view="updates"]');
   await updatesNav.waitFor({ state: 'visible', timeout: 10000 });
