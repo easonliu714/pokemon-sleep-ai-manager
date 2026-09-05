@@ -218,37 +218,11 @@ async function refresh() {
     "ORDER BY CASE rating WHEN 'S+' THEN 1 WHEN 'S' THEN 2 WHEN 'A' THEN 3 WHEN 'B' THEN 4 ELSE 9 END, level DESC, species",
   );
   renderPokemon();
-  renderIngredients();
-  renderItems();
 
-  renderTable(
-    $('recipeTable'),
-    rows('SELECT * FROM recipes ORDER BY category, recipe_name'),
-    [
-      { label: '分類', key: 'category' },
-      { label: '食譜', key: 'recipe_name' },
-      { label: '已開啟', render: (row) => (row.unlocked ? '是' : '否') },
-    ],
-  );
-
-  renderTable(
-    $('historyTable'),
-    rows('SELECT * FROM import_batches ORDER BY imported_at DESC LIMIT 100'),
-    [
-      { label: 'Update ID', key: 'update_id' },
-      { label: 'Schema', key: 'schema_version' },
-      { label: '來源', key: 'source' },
-      { label: '操作', key: 'operation_count' },
-      { label: '匯入時間', render: (row) => esc(formatLocal(row.imported_at)) },
-    ],
-  );
-
-  const snapshots = await listSnapshots();
-  $('snapshotList').innerHTML = snapshots.length
-    ? snapshots.map((item) =>
-      `<div class="snapshot"><b>${esc(item.reason)}</b><br><small>${esc(formatLocal(item.created_at))}</small></div>`,
-    ).join('')
-    : '尚無自動快照';
+  // v0.4.27.55.3.3.1: App Ready owns only the dashboard / Pokémon startup surface.
+  // Large offscreen tables are data-prewarmed by their page authority and are
+  // materialized exactly once when that page (or a collapsed detail) is opened.
+  // Do not build hidden Ingredients / Items / Recipes / Import History / Backup DOM here.
 
   const estimate = await navigator.storage?.estimate?.();
   const persistent = await navigator.storage?.persisted?.();
@@ -263,7 +237,8 @@ async function refresh() {
       '<b>Phase G2 資料初始化完成</b><br>已套用版本化資料，不會覆蓋既有個人資料。';
     state.seeded = false;
   }
-  globalThis.DebugTrace?.record?.('app','ui_refresh_completed',{status:'completed',details:{elapsed_ms:Math.round((perfNow()-refreshStarted)*10)/10,snapshot_count:snapshots.length,snapshot_list_metadata_only:true}});
+  globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep-data-refreshed',{detail:{startup_surface_only:true,offscreen_dom_materialized:false}}));
+  globalThis.DebugTrace?.record?.('app','ui_refresh_completed',{status:'completed',details:{elapsed_ms:Math.round((perfNow()-refreshStarted)*10)/10,snapshot_count:null,snapshot_list_deferred:true,snapshot_list_metadata_only:true,offscreen_dom_materialized:false}});
 }
 
 function download(bytes, name, type) {
