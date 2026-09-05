@@ -28,12 +28,29 @@ assert.ok(index.includes('./assets/js/candy-inventory-ui.js'));
 assert.ok(sw.includes("'./assets/js/pokemon-professor-transfer.js'"));
 assert.ok(sw.includes("'./assets/js/pokemon-professor-transfer-ui.js'"));
 assert.ok(sw.includes("'./assets/js/candy-inventory-ui.js'"));
-// Version bump is added before merge; allow current predecessor during the first implementation commit.
-assert.match(version,/app_version:\s*'v0\.4\.27\.(?:45|46)'/u);
+
+// P0-B1's professor-candy semantics remain frozen after v0.4.27.46. Historical
+// implementation commits may still replay under .45/.46; the .55.3.3.1 page-prewarm
+// successor must preserve the exact P0-B1 lineage without pretending to own this feature.
+const currentVersion=version.match(/app_version:\s*'([^']+)'/u)?.[1]||'';
+const currentBuild=version.match(/app_build:\s*'([^']+)'/u)?.[1]||'';
+const currentCache=version.match(/cache_name:\s*'([^']+)'/u)?.[1]||'';
+if(currentVersion==='v0.4.27.45'||currentVersion==='v0.4.27.46'){
+  assert.match(version,/app_version:\s*'v0\.4\.27\.(?:45|46)'/u);
+}else if(currentVersion==='v0.4.27.55.3.3.1'){
+  assert.equal(currentBuild,'20260905-v042755331-page-prewarm-collapsible-hydration');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.1-v042755331-page-prewarm-collapsible-hydration');
+  assert.ok(version.includes("// app_version: 'v0.4.27.46'"),'page-prewarm successor must retain exact P0-B1 v0.4.27.46 lineage marker');
+  assert.ok(version.includes("// app_build: '20260828-v042746-p0b1-professor-candy-observed-authority'"),'page-prewarm successor must retain exact P0-B1 build lineage marker');
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.46-v042746-p0b1-professor-candy-observed-authority'"),'page-prewarm successor must retain exact P0-B1 cache lineage marker');
+}else{
+  assert.fail(`P0-B1 professor-candy successor release not governed: ${currentVersion}`);
+}
 
 console.log(JSON.stringify({
   status:'PASS',
   gate:'V042746_P0B1_PROFESSOR_CANDY_OBSERVED_DELTA',
+  current_version:currentVersion,
   authority:'USER_DIRECT_OBSERVATION_ONLY',
   automatic_professor_reward_inference:false,
   soft_delete:true,
