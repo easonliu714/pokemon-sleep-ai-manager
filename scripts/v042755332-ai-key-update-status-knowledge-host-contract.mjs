@@ -38,7 +38,7 @@ assert.match(vault,/pokemon-sleep-ai-key-vault/);
 assert.match(vault,/project-pool-v1/);
 
 assert.match(analysis,/root\.dataset\.analysisConfirmationReady='true'/,'analysis module must expose a stable readiness sentinel even without an active draft');
-assert.match(hydrator,/analysis\.dataset\?\.analysisConfirmationReady==='true'/);
+assert.match(hydrator,/analysis\?\.dataset\?\.analysisConfirmationReady==='true'/);
 assert.match(hydrator,/analysisRoot\.dataset\.analysisConfirmationReady==='true'/);
 assert.doesNotMatch(hydrator,/analysisRoot\.querySelector\('#analysisConfirmationStatus'\)/,'idle analysis placeholder must not be misclassified as an incomplete module');
 
