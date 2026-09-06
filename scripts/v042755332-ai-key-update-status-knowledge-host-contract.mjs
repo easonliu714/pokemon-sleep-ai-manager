@@ -29,7 +29,7 @@ assert.match(settings,/hasEncryptedProjectPool\(\)/);
 assert.match(settings,/loadEncryptedProjectPool\(\)/);
 assert.match(settings,/saveEncryptedProjectPool\(/);
 assert.match(settings,/publishPool\(restored\)/,'restored encrypted pool must become runtime authority');
-assert.match(settings,/id="aiProjectPoolSettings"/);
+assert.match(settings,/(?:id=["']aiProjectPoolSettings["']|\.id=["']aiProjectPoolSettings["'])/,'Gemini settings panel must retain the canonical aiProjectPoolSettings DOM identity');
 assert.match(settings,/id="aiApiKeysInput"/);
 assert.match(settings,/在此裝置加密保存 API Key/);
 assert.match(settings,/api_key_included:false/,'settings readiness diagnostics must never expose API keys');
