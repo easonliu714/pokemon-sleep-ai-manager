@@ -128,6 +128,15 @@ if(appVersion==='v0.4.27.55.1'){
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3'"),'startup hotfix must retain .55.3 predecessor authority marker');
   assert.ok(version.includes("// app_version: 'v0.4.27.55.2'"),'startup hotfix must retain .55.2 predecessor authority marker');
   assert.ok(version.includes("// app_version: 'v0.4.27.55'"),'startup hotfix must retain .55 predecessor authority marker');
+}else if(appVersion==='v0.4.27.55.3.3.2'){
+  assert.ok(ui.includes("section.dataset.performanceAuthority='v0.4.27.55.3-mobile-incremental-confirmation'"),'Gemini/update/knowledge successor must preserve the exact .55.3 Candy performance authority');
+  assert.equal(appBuild,'20260906-v042755332-ai-key-update-status-knowledge-host');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.2-v042755332-ai-key-update-status-knowledge-host');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.1'"),'Gemini/update/knowledge successor must retain .55.3.3.1 predecessor authority marker');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3'"),'Gemini/update/knowledge successor must retain .55.3.3 predecessor authority marker');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3'"),'Gemini/update/knowledge successor must retain .55.3 predecessor authority marker');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.2'"),'Gemini/update/knowledge successor must retain .55.2 predecessor authority marker');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55'"),'Gemini/update/knowledge successor must retain .55 predecessor authority marker');
 }else if(appVersion==='v0.4.27.55.3.3.1'){
   assert.ok(ui.includes("section.dataset.performanceAuthority='v0.4.27.55.3-mobile-incremental-confirmation'"),'page-prewarm successor must preserve the exact .55.3 Candy performance authority');
   assert.equal(appBuild,'20260905-v042755331-page-prewarm-collapsible-hydration');
