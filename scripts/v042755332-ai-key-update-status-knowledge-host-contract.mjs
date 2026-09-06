@@ -46,7 +46,7 @@ assert.match(hydrator,/ensureAiProjectPoolSettings\?\.\(\)/,'Update Center must 
 assert.match(hydrator,/missingPrimary\.push\('糖果截圖庫存覆核'\)/);
 assert.match(hydrator,/missingPrimary\.push\('AI／OCR 結果確認'\)/);
 assert.match(hydrator,/missingPrimary\.push\('Gemini Key 設定'\)/);
-assert.match(hydrator,/更新中心未完成:/,'failure status must identify the missing tools');
+assert.match(hydrator,/更新中心未完成：/,'failure status must identify the missing tools');
 assert.match(hydrator,/Gemini Key 已恢復/);
 assert.match(hydrator,/Gemini Key 尚未設定（仍可使用外部 AI Prompt）/);
 assert.match(hydrator,/ocr_optional:true/);
