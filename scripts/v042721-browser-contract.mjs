@@ -3,10 +3,15 @@ import {chromium} from 'playwright';
 
 const base=process.env.BASE_URL||'http://127.0.0.1:4173/';
 const minimumPatch=21;
-const successorAuthority=Object.freeze({
-  app_version:'v0.4.27.55.3.3.1',
-  app_build:'20260905-v042755331-page-prewarm-collapsible-hydration',
-  cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.1-v042755331-page-prewarm-collapsible-hydration',
+const successorAuthorities=Object.freeze({
+  'v0.4.27.55.3.3.2':Object.freeze({
+    app_build:'20260906-v042755332-ai-key-update-status-knowledge-host',
+    cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.2-v042755332-ai-key-update-status-knowledge-host',
+  }),
+  'v0.4.27.55.3.3.1':Object.freeze({
+    app_build:'20260905-v042755331-page-prewarm-collapsible-hydration',
+    cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.1-v042755331-page-prewarm-collapsible-hydration',
+  }),
 });
 // Nested hotfixes (for example v0.4.27.55.1) are valid successors; preserve the minimum patch gate while allowing additional numeric components.
 const isSupportedVersion=version=>{const match=/^v0\.4\.27\.(\d+)(?:\.\d+)*$/.exec(String(version||''));return Boolean(match)&&Number(match[1])>=minimumPatch;};
@@ -18,11 +23,12 @@ try{
   await page.waitForFunction((minimum)=>{const match=/^v0\.4\.27\.(\d+)(?:\.\d+)*$/.exec(String(globalThis.PokemonSleepVersionAuthority?.app_version||''));return Boolean(match)&&Number(match[1])>=minimum;},minimumPatch,{timeout:30000});
 
   const authority=await page.evaluate(()=>globalThis.PokemonSleepVersionAuthority||{});
-  if(authority.app_version===successorAuthority.app_version){
+  const successorAuthority=successorAuthorities[authority.app_version]||null;
+  if(successorAuthority){
     assert.equal(authority.app_build,successorAuthority.app_build);
     assert.equal(authority.cache_name,successorAuthority.cache_name);
 
-    // v0.4.27.55.3.3.1 owns Analysis Confirmation through Update Center navigation hydration.
+    // v0.4.27.55.3.3.1+ owns Analysis Confirmation through Update Center navigation hydration.
     // Exercise the successor at the same lifecycle boundary as production: canonical App Ready first,
     // then the real navigation owner. Do not invoke hydrateView() early from the test itself.
     await page.waitForFunction(()=>{

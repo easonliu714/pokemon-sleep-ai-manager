@@ -64,5 +64,22 @@ async function createPanel(){
   test.addEventListener('click',()=>discoverModels({automatic:false}));
   if(restore?.projects?.length){const restored={...restore,model:String(select.value||DEFAULT_MODEL).trim()||DEFAULT_MODEL,persistent:Boolean(persist.checked||restore.persistent)};publishPool(restored);setTimeout(()=>{discoverModels({automatic:true}).catch(()=>{});},0);}
 }
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',createPanel,{once:true});else createPanel();
+let settingsReadyPromise=null;
+export function ensureAiProjectPoolSettings(){
+  if(settingsReadyPromise)return settingsReadyPromise;
+  settingsReadyPromise=Promise.resolve().then(()=>createPanel()).then(()=>{
+    const pool=globalThis.PokemonSleepAiProjectPool||null;
+    const panel=globalThis.document?.getElementById?.('aiProjectPoolSettings')||null;
+    const detail={ready:Boolean(panel),project_count:Number(pool?.projects?.length||0),model:pool?.model||null,persistent:Boolean(pool?.persistent),encrypted_restore_available:Boolean(pool?.projects?.length&&pool?.persistent)};
+    globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:ai-project-pool-settings-ready',{detail}));
+    globalThis.DebugTrace?.record?.('ai_project_pool','ai_project_pool_settings_ready',{status:detail.ready?'completed':'warning',details:detail});
+    return detail;
+  }).catch(error=>{
+    settingsReadyPromise=null;
+    globalThis.DebugTrace?.record?.('ai_project_pool','ai_project_pool_settings_failed',{status:'failed',details:{api_key_included:false},error});
+    throw error;
+  });
+  return settingsReadyPromise;
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{void ensureAiProjectPoolSettings();},{once:true});else void ensureAiProjectPoolSettings();
 export {splitKeys,maskKey,testKey,DEFAULT_MODEL,buildProjects,MODEL_DISCOVERY_TIMEOUT_MS,chooseModel,withRuntimeModel,adoptRuntimeFallbackModel};

@@ -1,6 +1,6 @@
 import {debugTrace} from './debug-trace-manager.js';
 
-export const PAGE_HYDRATION_AUTHORITY_VERSION='v0.4.27.55.3.3.1-page-prewarm-collapsible-hydration-2026-09-05-a';
+export const PAGE_HYDRATION_AUTHORITY_VERSION='v0.4.27.55.3.3.2-ai-key-update-status-knowledge-host-2026-09-06-a';
 
 const pageLoads=new Map();
 const qs=(selector,root=document)=>root?.querySelector?.(selector)||null;
@@ -22,6 +22,7 @@ function markShell(shell,state,message=null){
 
 let historyObserver=null;
 let historyRepairQueued=false;
+let lastHistoryOwnershipTraceSignature='';
 let historyDataCache=null;
 let historyFormatLocal=null;
 async function prewarmImportHistory({force=false}={}){
@@ -110,7 +111,12 @@ export function canonicalizeImportHistoryDom(){
   }
   const ok=Boolean(details&&content&&wrap&&table&&details.contains(content)&&content.contains(wrap)&&wrap.contains(table)&&qsa('#importHistoryDetailsV042745').length===1&&qsa('#importHistoryWrap').length===1&&qsa('#historyTable').length===1);
   details.dataset.domOwnership=ok?'single-owner':'invalid';
-  trace('import_history_dom_ownership_checked',{ok,details_count:qsa('#importHistoryDetailsV042745').length,wrap_count:qsa('#importHistoryWrap').length,table_count:qsa('#historyTable').length,details_contains_content:details.contains(content),content_contains_wrap:content.contains(wrap),wrap_contains_table:wrap.contains(table),default_collapsed:!details.open,explicit_hidden_contract:true},ok?'completed':'failed');
+  const ownershipDetails={ok,details_count:qsa('#importHistoryDetailsV042745').length,wrap_count:qsa('#importHistoryWrap').length,table_count:qsa('#historyTable').length,details_contains_content:details.contains(content),content_contains_wrap:content.contains(wrap),wrap_contains_table:wrap.contains(table),default_collapsed:!details.open,explicit_hidden_contract:true};
+  const ownershipSignature=JSON.stringify(ownershipDetails);
+  if(!ok||ownershipSignature!==lastHistoryOwnershipTraceSignature){
+    lastHistoryOwnershipTraceSignature=ownershipSignature;
+    trace('import_history_dom_ownership_checked',ownershipDetails,ok?'completed':'failed');
+  }
   return {ok,details,content,wrap,table};
 }
 
@@ -158,7 +164,7 @@ function removeStaticPlaceholder(shell){for(const node of qsa(':scope > p.notice
 function mountReady(){
   const candy=document.getElementById('candyQuantityScreenshotB5');
   const analysis=document.getElementById('analysisConfirmationWorkbench');
-  return Boolean(candy?.querySelector('#candyB5Parse')&&candy?.querySelector('#candyB5GateStatus')&&analysis?.querySelector('#analysisConfirmationStatus'));
+  return Boolean(candy?.querySelector('#candyB5Parse')&&candy?.querySelector('#candyB5GateStatus')&&analysis?.dataset?.analysisConfirmationReady==='true');
 }
 function waitForUpdateCenterMounts(timeoutMs=4500){
   if(mountReady())return Promise.resolve(true);
@@ -180,13 +186,17 @@ export async function hydrateUpdateCenter(){
   markShell(analysisShell,'loading','正在載入 AI／OCR 結果確認…');
   markShell(ocrShell,'loading','正在載入進階 OCR／匯入工具…');
   canonicalizeImportHistoryDom();
-  await Promise.all([
+  const [aiSettings]=await Promise.all([
+    import('./ai-project-pool-settings.js'),
     import('./candy-quantity-screenshot-ui.js'),
     import('./analysis-confirmation-workbench.js'),
     import('./identity-import-wizard-entry.js'),
     import('./unified-screenshot-update-center.js'),
     import('./data1d1-ocr-overlay-preview-event-wiring.js'),
   ]);
+  let aiSettingsState=null,aiSettingsError=null;
+  try{aiSettingsState=await aiSettings.ensureAiProjectPoolSettings?.();}
+  catch(error){aiSettingsError=error;trace('update_center_ai_key_settings_restore_failed',{message:error?.message||String(error),api_key_included:false},'warning',error);}
   await waitForUpdateCenterMounts();
   const candyRoot=document.getElementById('candyQuantityScreenshotB5');
   const analysisHeading=document.getElementById('analysisConfirmationHeading');
@@ -199,16 +209,25 @@ export async function hydrateUpdateCenter(){
   moveIntoShell(identityHeading,ocrShell);moveIntoShell(identityRoot,ocrShell);moveIntoShell(screenshotRoot,ocrShell);
 
   const candyReady=Boolean(candyRoot&&candyShell?.contains(candyRoot)&&candyRoot.querySelector('#candyB5Parse')&&candyRoot.querySelector('#candyB5GateStatus'));
-  const analysisReady=Boolean(analysisRoot&&analysisShell?.contains(analysisRoot)&&analysisRoot.querySelector('#analysisConfirmationStatus'));
+  const analysisReady=Boolean(analysisRoot&&analysisShell?.contains(analysisRoot)&&analysisRoot.dataset.analysisConfirmationReady==='true');
+  const aiSettingsReady=Boolean(aiSettingsState?.ready&&document.getElementById('aiProjectPoolSettings'));
+  const aiProjectCount=Number(globalThis.PokemonSleepAiProjectPool?.projects?.length||aiSettingsState?.project_count||0);
+  const aiPersistent=Boolean(globalThis.PokemonSleepAiProjectPool?.persistent||aiSettingsState?.persistent);
   const ocrReady=Boolean((identityRoot||screenshotRoot)&&ocrShell&&(identityRoot?ocrShell.contains(identityRoot):true)&&(screenshotRoot?ocrShell.contains(screenshotRoot):true));
   if(candyReady){removeStaticPlaceholder(candyShell);markShell(candyShell,'ready');}else markShell(candyShell,'failed','糖果覆核工具尚未完成控制項掛載。');
-  if(analysisReady){removeStaticPlaceholder(analysisShell);markShell(analysisShell,'ready');}else markShell(analysisShell,'failed','AI／OCR 結果確認尚未完成控制項掛載。');
-  if(ocrReady){removeStaticPlaceholder(ocrShell);markShell(ocrShell,'ready');}else markShell(ocrShell,'pending','進階 OCR 工具等待匯入工作啟用。');
+  if(analysisReady){removeStaticPlaceholder(analysisShell);markShell(analysisShell,'ready');}else markShell(analysisShell,'failed','AI／OCR 結果確認模組尚未完成初始化。');
+  if(ocrReady){removeStaticPlaceholder(ocrShell);markShell(ocrShell,'ready');}else markShell(ocrShell,'pending','進階 OCR 工具為按需載入；目前未啟用。');
   canonicalizeImportHistoryDom();
-  const ok=candyReady&&analysisReady;
-  trace('update_center_page_hydrated',{ok,candy_ready:candyReady,analysis_ready:analysisReady,ocr_ready:ocrReady,elapsed_ms:Math.round(performance.now()-started),static_shell_real_mount_authority:true,root_only_ready_forbidden:true},ok?'completed':'warning');
-  pageProgress('updates',ok?'ready':'failed',ok?'更新中心：糖果／AI 覆核工具載入完成':'更新中心：仍有工具未完成載入',{candy_ready:candyReady,analysis_ready:analysisReady,ocr_ready:ocrReady});
-  return {ok,candy_ready:candyReady,analysis_ready:analysisReady,ocr_ready:ocrReady};
+  const missingPrimary=[];
+  if(!candyReady)missingPrimary.push('糖果截圖庫存覆核');
+  if(!analysisReady)missingPrimary.push('AI／OCR 結果確認');
+  if(!aiSettingsReady)missingPrimary.push('Gemini Key 設定');
+  const ok=missingPrimary.length===0;
+  const keySummary=aiSettingsError?'Gemini Key 安全儲存區讀取失敗，請至使用說明重新設定':aiProjectCount>0?`Gemini Key 已恢復 ${aiProjectCount} 組`:'Gemini Key 尚未設定（仍可使用外部 AI Prompt）';
+  const message=ok?`更新中心：主要工具載入完成；${keySummary}`:`更新中心未完成：${missingPrimary.join('、')}；${keySummary}`;
+  trace('update_center_page_hydrated',{ok,candy_ready:candyReady,analysis_ready:analysisReady,ai_settings_ready:aiSettingsReady,ai_project_count:aiProjectCount,ai_key_persistent:aiPersistent,ai_key_restore_failed:Boolean(aiSettingsError),ocr_ready:ocrReady,ocr_optional:true,missing_primary:missingPrimary,elapsed_ms:Math.round(performance.now()-started),static_shell_real_mount_authority:true,root_only_ready_forbidden:true,api_key_included:false},ok?'completed':'warning');
+  pageProgress('updates',ok?'ready':'failed',message,{candy_ready:candyReady,analysis_ready:analysisReady,ai_settings_ready:aiSettingsReady,ai_project_count:aiProjectCount,ocr_ready:ocrReady,ocr_optional:true,missing_primary:missingPrimary});
+  return {ok,candy_ready:candyReady,analysis_ready:analysisReady,ai_settings_ready:aiSettingsReady,ai_project_count:aiProjectCount,ocr_ready:ocrReady,missing_primary:missingPrimary};
 }
 
 export async function hydrateView(view){
@@ -242,7 +261,7 @@ function install(){
   const api=Object.freeze({version:PAGE_HYDRATION_AUTHORITY_VERSION,hydrateView,hydrateKnowledge,hydrateUpdateCenter,prewarmKnowledgeData,canonicalizeImportHistoryDom,prewarmImportHistory,materializeImportHistory,invalidatePage,loadedPages:()=>[...pageLoads.keys()]});
   globalThis.PokemonSleepPageHydrationAuthorityV042755331=api;
   globalThis.PokemonSleepPageHydrationAuthorityV04275533=api;
-  trace('page_hydration_authority_ready',{single_owner_render:true,navigation_is_not_data_mutation:true,import_history_dom_ownership:true,import_history_explicit_hidden_contract:true,knowledge_fixed_slots:true,candy_collapsed_lazy_materialization:true,page_data_idle_prewarm:true,update_center_real_mount_gate:true});
+  trace('page_hydration_authority_ready',{single_owner_render:true,navigation_is_not_data_mutation:true,import_history_dom_ownership:true,import_history_explicit_hidden_contract:true,import_history_trace_deduped:true,knowledge_fixed_slots:true,candy_collapsed_lazy_materialization:true,page_data_idle_prewarm:true,update_center_real_mount_gate:true,analysis_stable_ready_sentinel:true,ai_key_restore_before_update_ready:true,missing_tool_names_visible:true});
 }
 if(typeof document!=='undefined'){
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();

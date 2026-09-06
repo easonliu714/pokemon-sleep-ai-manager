@@ -13,16 +13,26 @@ const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 const appBuild=authority.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=authority.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
 
-if(appVersion==='v0.4.27.55.3.3.1'){
-  assert.equal(appBuild,'20260905-v042755331-page-prewarm-collapsible-hydration');
-  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.1-v042755331-page-prewarm-collapsible-hydration');
-  assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3'/,'successor must retain .55.3.3 predecessor bridge');
-}else{
-  assert.equal(appVersion,'v0.4.27.55.3.3');
-  assert.equal(appBuild,'20260904-v04275533-page-hydration-authority');
-  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3-v04275533-page-hydration-authority');
-}
+const releases={
+  'v0.4.27.55.3.3':{
+    build:'20260904-v04275533-page-hydration-authority',
+    cache:'pokemon-sleep-ai-v0.4.27.55.3.3-v04275533-page-hydration-authority',
+  },
+  'v0.4.27.55.3.3.1':{
+    build:'20260905-v042755331-page-prewarm-collapsible-hydration',
+    cache:'pokemon-sleep-ai-v0.4.27.55.3.3.1-v042755331-page-prewarm-collapsible-hydration',
+  },
+  'v0.4.27.55.3.3.2':{
+    build:'20260906-v042755332-ai-key-update-status-knowledge-host',
+    cache:'pokemon-sleep-ai-v0.4.27.55.3.3.2-v042755332-ai-key-update-status-knowledge-host',
+  },
+};
+assert.ok(releases[appVersion],'unsupported .55.3.3 successor: '+appVersion);
+assert.equal(appBuild,releases[appVersion].build);
+assert.equal(cacheName,releases[appVersion].cache);
 assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.2'/,'predecessor bridge must remain');
+if(appVersion==='v0.4.27.55.3.3.1'||appVersion==='v0.4.27.55.3.3.2')assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3'/);
+if(appVersion==='v0.4.27.55.3.3.2')assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.1'/);
 assert.match(sw,/importScripts\('\.\/assets\/js\/version-authority\.js'\)/);
 
 assert.match(bootstrap,/page-hydration-authority-v04275533\.js/);
@@ -64,4 +74,4 @@ console.log(JSON.stringify({
   migration:CANDY_FAMILY_STORAGE_MIGRATION_VERSION,
 },null,2));
 
-if(appVersion==='v0.4.27.55.3.3.1')await import('./v042755331-page-prewarm-collapsible-hydration-contract.mjs');
+if(appVersion==='v0.4.27.55.3.3.1'||appVersion==='v0.4.27.55.3.3.2')await import('./v042755331-page-prewarm-collapsible-hydration-contract.mjs');

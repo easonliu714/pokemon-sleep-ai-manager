@@ -88,6 +88,7 @@ function showFailure(label,error){console.error(`Module probe failed: ${label}`,
 const criticalProbes=['runtime-version.js','v0382-release-authority.js','ingredient-probability-first-party-observation-ui.js','page-hydration-authority-v04275533.js'];
 const pageModuleGroups=Object.freeze({
   updates:Object.freeze([
+    'ai-project-pool-settings.js',
     'update-center-ui-guard.js',
     'update-center-live-debug.js',
     'identity-convergence.js',
@@ -101,6 +102,7 @@ const pageModuleGroups=Object.freeze({
   ]),
   backup:Object.freeze([]),
   knowledge:Object.freeze(['shared-knowledge-ui.js']),
+  guide:Object.freeze(['ai-project-pool-settings.js']),
 });
 const pageLoads=new Map();
 const moduleLoads=new Map();

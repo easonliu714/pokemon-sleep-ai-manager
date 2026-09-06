@@ -14,15 +14,19 @@ function ensureStyle(){
 
 function ensureHost(){
   const panel=document.getElementById('sharedKnowledgePanel');
-  if(!panel||!document.getElementById('berryMasterTable'))return null;
+  const slot=document.getElementById('knowledgePokemonSlot')||panel;
+  if(!panel||!slot||!document.getElementById('berryMasterTable'))return null;
   let block=document.getElementById('publicPokemonKnowledgeCoverage');
-  if(block)return block;
+  if(block){
+    if(!slot.contains(block))slot.prepend(block);
+    return block;
+  }
   block=document.createElement('section');
   block.id='publicPokemonKnowledgeCoverage';
   block.className='public-coverage-block';
-  const firstHeading=panel.querySelector('h3');
-  if(firstHeading)panel.insertBefore(block,firstHeading);
-  else panel.prepend(block);
+  const firstHeading=slot.querySelector(':scope > h3');
+  if(firstHeading&&firstHeading.parentNode===slot)slot.insertBefore(block,firstHeading);
+  else slot.prepend(block);
   return block;
 }
 

@@ -88,7 +88,7 @@ const p0b6Patch=Number(appVersion.match(/^v0\.4\.27\.(\d+)(?:\.\d+)*$/)?.[1]||-1
 const p0b6Hotfix=Number(appVersion.match(/^v0\.4\.27\.55\.(\d+)(?:\.\d+)*$/)?.[1]||0);
 const p0b6Successor=p0b6Patch>=55;
 const localGapDurabilitySuccessor=p0b6Patch>55||(p0b6Patch===55&&p0b6Hotfix>=2);
-const pagePrewarmSuccessor=appVersion==='v0.4.27.55.3.3.1';
+const pagePrewarmSuccessor=['v0.4.27.55.3.3.1','v0.4.27.55.3.3.2'].includes(appVersion);
 assert.match(uiSource,/我已核對遊戲畫面，確認數量/);
 assert.match(uiSource,/Gemini Raw JSON（唯讀、immutable）/);
 if(localGapDurabilitySuccessor){
@@ -99,7 +99,7 @@ if(localGapDurabilitySuccessor){
   assert.match(admissionUiSource,/建立公版糖果並重新對應/);
 }
 if(pagePrewarmSuccessor){
-  // .55.3.3.1 deliberately removes Update Center side-effect imports from the
+  // .55.3.3.1+ deliberately removes Update Center side-effect imports from the
   // Candy inventory/Knowledge surface. The governed page hydrator is now the
   // single owner that dynamically loads the screenshot UI and proves real mount
   // readiness using inner controls. P0-B5 semantics remain unchanged above.
@@ -108,8 +108,13 @@ if(pagePrewarmSuccessor){
   assert.match(pageHydrationSource,/import\('\.\/candy-quantity-screenshot-ui\.js'\)/,'page hydrator must own governed Candy screenshot UI loading');
   assert.match(pageHydrationSource,/candyRoot\.querySelector\('#candyB5Parse'\)/,'page hydrator must verify mounted Candy controls before ready');
   assert.match(pageHydrationSource,/candyRoot\.querySelector\('#candyB5GateStatus'\)/,'page hydrator must verify the B5 gate control before ready');
-  assert.equal(appBuild,'20260905-v042755331-page-prewarm-collapsible-hydration');
-  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.1-v042755331-page-prewarm-collapsible-hydration');
+  if(appVersion==='v0.4.27.55.3.3.1'){
+    assert.equal(appBuild,'20260905-v042755331-page-prewarm-collapsible-hydration');
+    assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.1-v042755331-page-prewarm-collapsible-hydration');
+  }else{
+    assert.equal(appBuild,'20260906-v042755332-ai-key-update-status-knowledge-host');
+    assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.2-v042755332-ai-key-update-status-knowledge-host');
+  }
 }else{
   assert.match(inventoryUiSource,/candy-quantity-screenshot-ui\.js/);
   assert.match(inventoryUiSource,/candy-public-master-admission-ui\.js/);
