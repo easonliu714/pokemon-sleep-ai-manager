@@ -67,7 +67,10 @@ await import('../assets/js/version-authority.js');
 const currentVersion=globalThis.PokemonSleepVersionAuthority?.app_version||'';
 const currentBuild=globalThis.PokemonSleepVersionAuthority?.app_build||'';
 const currentCache=globalThis.PokemonSleepVersionAuthority?.cache_name||'';
-if(currentVersion==='v0.4.27.55.3.3.2'){
+if(currentVersion==='v0.4.27.55.3.3.3'){
+  assert.equal(currentBuild,'20260907-v042755333-candy-master-progressive-render');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.3-v042755333-candy-master-progressive-render');
+}else if(currentVersion==='v0.4.27.55.3.3.2'){
   assert.equal(currentBuild,'20260906-v042755332-ai-key-update-status-knowledge-host');
   assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.2-v042755332-ai-key-update-status-knowledge-host');
 }else if(currentVersion==='v0.4.27.55.3.3.1'){

@@ -17,6 +17,77 @@ const activeView=()=>document.querySelector('.view.active')?.id||'dashboard';
 const candyCache={ready:false,masterRows:null,inventoryRows:null,audit:null,resourceSnapshot:null,revision:0};
 const idle=callback=>{if(typeof requestIdleCallback==='function')requestIdleCallback(callback,{timeout:800});else setTimeout(callback,0);};
 const pageProgress=(state,message,details={})=>globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:page-hydration-progress',{detail:{page:activeView()==='knowledge'?'knowledge':'items',state,message,...details}}));
+const CANDY_MASTER_BATCH_SIZE=24;
+let candyMasterRenderGeneration=0;
+let candyMasterMaterializationPromise=null;
+const yieldToPaint=()=>new Promise(resolve=>{
+  if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>setTimeout(resolve,0));
+  else setTimeout(resolve,0);
+});
+
+function ensureCandyMasterProgressOverlay(){
+  let overlay=document.getElementById('candyMasterProgressOverlayV042755333');
+  if(overlay)return overlay;
+  overlay=document.createElement('div');
+  overlay.id='candyMasterProgressOverlayV042755333';
+  overlay.dataset.active='false';
+  overlay.setAttribute('role','dialog');
+  overlay.setAttribute('aria-modal','true');
+  overlay.setAttribute('aria-labelledby','candyMasterProgressTitleV042755333');
+  overlay.style.cssText='position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.42);padding:20px;box-sizing:border-box;';
+  overlay.innerHTML=`<section style="width:min(92vw,460px);background:#fff;border-radius:16px;padding:20px;box-shadow:0 12px 36px rgba(0,0,0,.28);">
+    <h3 id="candyMasterProgressTitleV042755333" style="margin:0 0 10px;">糖果資料載入中</h3>
+    <p id="candyMasterProgressMessageV042755333" style="margin:0 0 12px;">正在準備糖果公版 Master…</p>
+    <progress id="candyMasterProgressBarV042755333" max="100" value="0" style="width:100%;height:18px;"></progress>
+    <p id="candyMasterProgressCountV042755333" class="muted" style="margin:10px 0 0;">0 / 0（0%）</p>
+    <button id="candyMasterProgressCancelV042755333" type="button" style="margin-top:14px;">取消載入</button>
+  </section>`;
+  overlay.querySelector('#candyMasterProgressCancelV042755333')?.addEventListener('click',()=>{
+    cancelCandyMasterMaterialization('user-cancelled');
+    const details=document.getElementById('candyMasterDetailsV042755331');
+    if(details)details.open=false;
+  });
+  document.body.appendChild(overlay);
+  return overlay;
+}
+
+function showCandyMasterProgress(message='正在準備糖果公版 Master…'){
+  const overlay=ensureCandyMasterProgressOverlay();
+  overlay.dataset.active='true';
+  overlay.style.display='flex';
+  const messageEl=overlay.querySelector('#candyMasterProgressMessageV042755333');
+  if(messageEl)messageEl.textContent=message;
+  updateCandyMasterProgress(0,0,message);
+}
+
+function updateCandyMasterProgress(completed,total,message){
+  const overlay=ensureCandyMasterProgressOverlay();
+  const safeTotal=Math.max(0,Number(total)||0);
+  const safeCompleted=Math.min(safeTotal,Math.max(0,Number(completed)||0));
+  const percent=safeTotal?Math.round((safeCompleted/safeTotal)*100):0;
+  const bar=overlay.querySelector('#candyMasterProgressBarV042755333');
+  const count=overlay.querySelector('#candyMasterProgressCountV042755333');
+  const messageEl=overlay.querySelector('#candyMasterProgressMessageV042755333');
+  if(bar)bar.value=percent;
+  if(count)count.textContent=`${safeCompleted} / ${safeTotal}（${percent}%）`;
+  if(message&&messageEl)messageEl.textContent=message;
+}
+
+function hideCandyMasterProgress(){
+  const overlay=document.getElementById('candyMasterProgressOverlayV042755333');
+  if(!overlay)return;
+  overlay.dataset.active='false';
+  overlay.style.display='none';
+}
+
+function cancelCandyMasterMaterialization(reason='cancelled'){
+  candyMasterRenderGeneration+=1;
+  const overlay=document.getElementById('candyMasterProgressOverlayV042755333');
+  if(overlay?.dataset.active==='true'){
+    globalThis.DebugTrace?.record?.('ui_performance','candy_master_materialization_cancelled',{status:'completed',details:{reason}});
+    hideCandyMasterProgress();
+  }
+}
 
 function displayAuthorityForRow(row){
   if(row?.candy_type!=='species'||!row?.target_species_name)return null;
@@ -54,7 +125,10 @@ function ensureKnowledgeUi(){
   }else if(!candySlot.contains(details))candySlot.appendChild(details);
   if(details.dataset.candyToggleBound!=='true'){
     details.dataset.candyToggleBound='true';details.open=false;
-    details.addEventListener('toggle',()=>{if(details.open)void materializeCandyMaster();});
+    details.addEventListener('toggle',()=>{
+      if(details.open)void materializeCandyMaster();
+      else cancelCandyMasterMaterialization('details-collapsed');
+    });
   }
   panel.dataset.pageLayout='fixed';panel.classList.remove('loading-placeholder');
   return {panel,pokemonSlot,candySlot,details,content:document.getElementById('candyMasterContentV042755331')};
@@ -108,33 +182,86 @@ export function prewarmCandyData({force=false}={}){
   return {...candyCache};
 }
 
+function candyMasterRowHtml(row){
+  return `<tr><td>${esc(row.candy_name)}</td><td>${authorityLabel(row)}</td><td>${esc(typeLabel(row.candy_type))}</td><td>${esc(targetLabel(row))}</td><td>${row.candy_type==='species'?'Legacy Pokémon 名稱投影（非 B4 Authority）':'遊戲 Evidence'}</td><td>${authorityEvidence(row)}</td><td>${esc(row.verification_status)}</td><td>${esc(row.data_version)}</td></tr>`;
+}
+
 export async function materializeCandyMaster(){
   const ui=ensureKnowledgeUi();if(!ui)return false;
-  pageProgress('loading','資料百科：糖果 Master 表格建立中…',{surface:'candy-master'});
-  const cache=prewarmCandyData();
-  let block=document.getElementById('candyMasterBlock');
-  if(!block){
-    block=document.createElement('section');block.id='candyMasterBlock';
-    block.dataset.candyDisplayNameAuthority=PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION;
-    block.innerHTML=`<h3>糖果公版 Master</h3>
-      <p class="notice">固定糖果仍採既有 Evidence-backed 名稱。舊版 species rows 的「○○的糖果」仍保留作 <b>legacy compatibility projection</b>，不再視為正式顯示名稱 Authority。P0-B4 只在有 Pokémon Sleep 官方繁中精確字串 evidence 時顯示家族層級的正式糖果名稱；未驗證 family 顯示 <code>REVIEW_REQUIRED</code>。</p>
-      <div class="table-wrap"><table id="candyMasterTable"></table></div>
-      <p class="notice">Legacy Candy Master：<b>${esc(PUBLIC_CANDY_MASTER_VERSION)}</b> · Legacy species rule：<code>${esc(SPECIES_CANDY_NAME_RULE_VERSION)}</code> · Display-name Authority：<b>${esc(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION)}</b></p>`;
-    ui.content.replaceChildren(block);
+  if(candyMasterMaterializationPromise)return candyMasterMaterializationPromise;
+  const generation=++candyMasterRenderGeneration;
+  const started=performance.now();
+  const task=(async()=>{
+    showCandyMasterProgress('正在準備糖果公版 Master…');
+    pageProgress('loading','資料百科：糖果 Master 準備中…',{surface:'candy-master',phase:'prepare'});
+    globalThis.DebugTrace?.record?.('ui_performance','candy_master_materialization_started',{status:'running',details:{batch_size:CANDY_MASTER_BATCH_SIZE}});
+    await yieldToPaint();
+
+    const cache=prewarmCandyData();
+    let block=document.getElementById('candyMasterBlock');
+    if(!block){
+      block=document.createElement('section');block.id='candyMasterBlock';
+      block.dataset.candyDisplayNameAuthority=PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION;
+      block.innerHTML=`<h3>糖果公版 Master</h3>
+        <p class="notice">固定糖果仍採既有 Evidence-backed 名稱。舊版 species rows 的「○○的糖果」仍保留作 <b>legacy compatibility projection</b>，不再視為正式顯示名稱 Authority。P0-B4 只在有 Pokémon Sleep 官方繁中精確字串 evidence 時顯示家族層級的正式糖果名稱；未驗證 family 顯示 <code>REVIEW_REQUIRED</code>。</p>
+        <div class="table-wrap"><table id="candyMasterTable"></table></div>
+        <p class="notice">Legacy Candy Master：<b>${esc(PUBLIC_CANDY_MASTER_VERSION)}</b> · Legacy species rule：<code>${esc(SPECIES_CANDY_NAME_RULE_VERSION)}</code> · Display-name Authority：<b>${esc(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION)}</b></p>`;
+      ui.content.replaceChildren(block);
+    }
+
+    const tableEl=document.getElementById('candyMasterTable');
+    if(!tableEl)throw new Error('candy_master_table_missing');
+    if(ui.content.dataset.materialized==='true'&&tableEl.dataset.candyRevision===String(cache.revision)){
+      hideCandyMasterProgress();
+      pageProgress('ready',`資料百科：糖果 Master 已存在（${cache.masterRows.length} 筆）`,{surface:'candy-master',row_count:cache.masterRows.length,reused:true});
+      return true;
+    }
+
+    const total=cache.masterRows.length;
+    updateCandyMasterProgress(0,total,'正在建立糖果資料表…');
+    tableEl.innerHTML='<thead><tr><th>Legacy 名稱</th><th>B4 正式顯示名稱</th><th>類型</th><th>對應目標</th><th>Legacy 名稱來源</th><th>B4 Evidence</th><th>Legacy 核對狀態</th><th>版本</th></tr></thead><tbody></tbody>';
+    const tbody=tableEl.querySelector('tbody');
+    if(!tbody)throw new Error('candy_master_tbody_missing');
+    await yieldToPaint();
+
+    for(let start=0;start<total;start+=CANDY_MASTER_BATCH_SIZE){
+      if(generation!==candyMasterRenderGeneration||!ui.details.open){
+        pageProgress('idle','資料百科：糖果 Master 載入已取消',{surface:'candy-master',completed:start,total});
+        return false;
+      }
+      const end=Math.min(total,start+CANDY_MASTER_BATCH_SIZE);
+      const html=cache.masterRows.slice(start,end).map(candyMasterRowHtml).join('');
+      tbody.insertAdjacentHTML('beforeend',html);
+      const percent=total?Math.round((end/total)*100):100;
+      updateCandyMasterProgress(end,total,`正在建立糖果資料表… ${percent}%`);
+      pageProgress('loading',`資料百科：糖果 Master ${end}/${total}（${percent}%）`,{surface:'candy-master',phase:'rows',completed:end,total,percent});
+      if(end===total||end%CANDY_MASTER_BATCH_SIZE===0){
+        globalThis.DebugTrace?.record?.('ui_performance','candy_master_materialization_progress',{status:'running',details:{completed:end,total,percent}});
+      }
+      await yieldToPaint();
+    }
+
+    tableEl.dataset.candyRevision=String(cache.revision);
+    ui.content.dataset.materialized='true';ui.details.dataset.dataReady='true';
+    const elapsed=Math.round(performance.now()-started);
+    updateCandyMasterProgress(total,total,'糖果資料載入完成');
+    await yieldToPaint();
+    hideCandyMasterProgress();
+    globalThis.DebugTrace?.record?.('ui_performance','candy_master_materialization_completed',{status:'completed',details:{row_count:total,batch_size:CANDY_MASTER_BATCH_SIZE,elapsed_ms:elapsed}});
+    pageProgress('ready',`資料百科：糖果 Master 已建立（${total} 筆）`,{surface:'candy-master',row_count:total,elapsed_ms:elapsed,chunked:true});
+    return true;
+  })();
+
+  candyMasterMaterializationPromise=task;
+  try{return await task;}
+  catch(error){
+    hideCandyMasterProgress();
+    pageProgress('failed','資料百科：糖果 Master 載入失敗',{surface:'candy-master',error:error?.message||String(error)});
+    globalThis.DebugTrace?.record?.('ui_performance','candy_master_materialization_failed',{status:'failed',error});
+    throw error;
+  }finally{
+    if(candyMasterMaterializationPromise===task)candyMasterMaterializationPromise=null;
   }
-  table(document.getElementById('candyMasterTable'),cache.masterRows,[
-    {label:'Legacy 名稱',key:'candy_name'},
-    {label:'B4 正式顯示名稱',render:authorityLabel},
-    {label:'類型',render:row=>esc(typeLabel(row.candy_type))},
-    {label:'對應目標',render:row=>esc(targetLabel(row))},
-    {label:'Legacy 名稱來源',render:row=>row.candy_type==='species'?'Legacy Pokémon 名稱投影（非 B4 Authority）':'遊戲 Evidence'},
-    {label:'B4 Evidence',render:authorityEvidence},
-    {label:'Legacy 核對狀態',key:'verification_status'},
-    {label:'版本',key:'data_version'},
-  ]);
-  ui.content.dataset.materialized='true';ui.details.dataset.dataReady='true';
-  pageProgress('ready',`資料百科：糖果 Master 已建立（${cache.masterRows.length} 筆）`,{surface:'candy-master',row_count:cache.masterRows.length});
-  return true;
 }
 
 function renderKnowledge(){
@@ -189,6 +316,10 @@ export function renderCandySurfaces(){
 
 function invalidateCandyCache(){
   candyCache.ready=false;candyCache.masterRows=null;candyCache.inventoryRows=null;candyCache.audit=null;candyCache.resourceSnapshot=null;
+  candyMasterRenderGeneration+=1;
+  const content=document.getElementById('candyMasterContentV042755331');
+  if(content)content.dataset.materialized='false';
+  hideCandyMasterProgress();
 }
 function schedulePrewarm(){idle(()=>{try{prewarmCandyData();}catch(error){globalThis.DebugTrace?.record?.('page_hydration','candy_data_prewarm_failed',{status:'warning',error});}});}
 function boot(){

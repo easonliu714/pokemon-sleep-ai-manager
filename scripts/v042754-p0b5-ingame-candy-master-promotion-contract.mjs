@@ -128,7 +128,18 @@ assert.match(professor,/USER_DIRECT_OBSERVATION_ONLY/);
 assert.equal(professor.includes('PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_ADDITIONS'),false);
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.54'){
+if(appVersion==='v0.4.27.55.3.3.3'){
+  assert.equal(appBuild,'20260907-v042755333-candy-master-progressive-render');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.3-v042755333-candy-master-progressive-render');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.2'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.1'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.2'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55'"));
+  assert.ok(version.includes("// app_build: '20260901-v042755-p0b6-candy-family-storage-reconciliation'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55-v042755-p0b6-candy-family-storage-reconciliation'"));
+}else if(appVersion==='v0.4.27.54'){
   assert.equal(appBuild,'20260901-v042754-p0b5-ingame-candy-master-promotion');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.54-v042754-p0b5-ingame-candy-master-promotion');
 }else if(appVersion==='v0.4.27.55'){
