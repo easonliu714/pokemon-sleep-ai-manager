@@ -27,7 +27,7 @@ assert.match(candy,/pageProgress\('loading',`資料百科：糖果 Master \$\{en
 assert.match(candy,/tableEl\.dataset\.candyRevision===String\(cache\.revision\)/,'same cache revision must reuse materialized Candy DOM');
 assert.match(candy,/candy_master_materialization_completed/,'completion timing must be observable');
 assert.match(candy,/cancelCandyMasterMaterialization\('details-collapsed'\)/,'collapsing must cancel an in-flight materialization');
-assert.match(candy,/ui\.content\.dataset\.materialized='false'/,'data invalidation must mark the Candy table stale');
+assert.match(candy,/if\(content\)content\.dataset\.materialized='false'/,'data invalidation must mark the Candy table stale');
 assert.doesNotMatch(
   candy.slice(candy.indexOf('export async function materializeCandyMaster'),candy.indexOf('function renderKnowledge')),
   /table\(document\.getElementById\('candyMasterTable'\),cache\.masterRows/,
