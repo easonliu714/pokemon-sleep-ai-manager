@@ -11,10 +11,17 @@ const vault=read('assets/js/ai-key-vault.js');
 const analysis=read('assets/js/analysis-confirmation-workbench.js');
 const coverage=read('assets/js/v03993-public-knowledge-coverage-ui.js');
 const candy=read('assets/js/candy-quantity-screenshot-ui.js');
+const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 
-assert.match(authority,/app_version:\s*'v0\.4\.27\.55\.3\.3\.2'/);
-assert.match(authority,/app_build:\s*'20260906-v042755332-ai-key-update-status-knowledge-host'/);
-assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.2-v042755332-ai-key-update-status-knowledge-host'/);
+if(appVersion==='v0.4.27.55.3.3.3'){
+  assert.match(authority,/app_build:\s*'20260907-v042755333-candy-master-progressive-render'/);
+  assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.3-v042755333-candy-master-progressive-render'/);
+  assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.2'/,'exact .55.3.3.2 predecessor bridge must remain');
+}else{
+  assert.equal(appVersion,'v0.4.27.55.3.3.2');
+  assert.match(authority,/app_build:\s*'20260906-v042755332-ai-key-update-status-knowledge-host'/);
+  assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.2-v042755332-ai-key-update-status-knowledge-host'/);
+}
 assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.1'/,'exact .55.3.3.1 predecessor bridge must remain');
 
 assert.match(bootstrap,/updates:Object\.freeze\(\[\s*'ai-project-pool-settings\.js'/,'Update Center must restore the Gemini pool before internal AI use');
@@ -69,7 +76,7 @@ assert.equal(CANDY_FAMILY_STORAGE_MIGRATION_VERSION,15,'SQLite Migration 15 must
 console.log(JSON.stringify({
   gate:'V042755332_AI_KEY_UPDATE_STATUS_KNOWLEDGE_HOST',
   status:'PASS',
-  version:'v0.4.27.55.3.3.2',
+  version:appVersion,
   gemini_settings_guide_page_aware:true,
   gemini_key_restore_before_update_ready:true,
   key_count_zero_is_not_module_failure:true,
@@ -79,3 +86,5 @@ console.log(JSON.stringify({
   import_history_trace_deduped:true,
   migration:CANDY_FAMILY_STORAGE_MIGRATION_VERSION,
 },null,2));
+
+if(appVersion==='v0.4.27.55.3.3.3')await import('./v042755333-candy-master-progressive-render-contract.mjs');
