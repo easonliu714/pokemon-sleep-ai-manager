@@ -24,10 +24,22 @@ const successor332 = Object.freeze({
   build: '20260906-v042755332-ai-key-update-status-knowledge-host',
   cache: 'pokemon-sleep-ai-v0.4.27.55.3.3.2-v042755332-ai-key-update-status-knowledge-host',
 });
+const successor333 = Object.freeze({
+  version: 'v0.4.27.55.3.3.3',
+  build: '20260907-v042755333-candy-master-progressive-render',
+  cache: 'pokemon-sleep-ai-v0.4.27.55.3.3.3-v042755333-candy-master-progressive-render',
+});
 
 const live = authority.match(/const authority = Object\.freeze\(\{([\s\S]*?)\}\);/)?.[1] || '';
-assert.ok(live.includes(`app_version: '${successor332.version}'`) || live.includes(`app_version: '${successor331.version}'`) || live.includes(`app_version: '${successor.version}'`) || live.includes(`app_version: '${predecessor.version}'`), 'live authority must be .55.3.2, .55.3.3, .55.3.3.1, or governed .55.3.3.2 successor');
-if(live.includes(`app_version: '${successor332.version}'`)){
+assert.ok(live.includes(`app_version: '${successor333.version}'`) || live.includes(`app_version: '${successor332.version}'`) || live.includes(`app_version: '${successor331.version}'`) || live.includes(`app_version: '${successor.version}'`) || live.includes(`app_version: '${predecessor.version}'`), 'live authority must be .55.3.2, .55.3.3, .55.3.3.1, .55.3.3.2, or governed .55.3.3.3 successor');
+if(live.includes(`app_version: '${successor333.version}'`)){
+  assert.ok(live.includes(`app_build: '${successor333.build}'`), 'live .55.3.3.3 build mismatch');
+  assert.ok(live.includes(`cache_name: '${successor333.cache}'`), 'live .55.3.3.3 cache mismatch');
+  assert.ok(authority.includes(`// app_version: '${successor332.version}'`), '.55.3.3.2 predecessor bridge must remain present');
+  assert.ok(authority.includes(`// app_version: '${successor331.version}'`), '.55.3.3.1 predecessor bridge must remain present');
+  assert.ok(authority.includes(`// app_version: '${successor.version}'`), '.55.3.3 predecessor bridge must remain present');
+  assert.ok(authority.includes(`// app_version: '${predecessor.version}'`), '.55.3.2 predecessor bridge must remain present');
+}else if(live.includes(`app_version: '${successor332.version}'`)){
   assert.ok(live.includes(`app_build: '${successor332.build}'`), 'live .55.3.3.2 build mismatch');
   assert.ok(live.includes(`cache_name: '${successor332.cache}'`), 'live .55.3.3.2 cache mismatch');
   assert.ok(authority.includes(`// app_version: '${successor331.version}'`), '.55.3.3.1 predecessor bridge must remain present');
@@ -49,4 +61,4 @@ if(live.includes(`app_version: '${successor332.version}'`)){
 assert.match(sw, /importScripts\('\.\/assets\/js\/version-authority\.js'\)/, 'service worker must consume the central live version authority');
 assert.match(sw, /const \{app_version:APP_VERSION,app_build:APP_BUILD,cache_name:CACHE\}=self\.PokemonSleepVersionAuthority;/, 'service worker version/cache identity must be derived from the central authority');
 
-console.log('v0.4.27.55.3.2 predecessor / .55.3.3 / .55.3.3.1 / .55.3.3.2 successor release authority contract: PASS');
+console.log('v0.4.27.55.3.2 predecessor / .55.3.3 / .55.3.3.1 / .55.3.3.2 / .55.3.3.3 successor release authority contract: PASS');
