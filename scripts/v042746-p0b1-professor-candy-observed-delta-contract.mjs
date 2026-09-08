@@ -57,6 +57,12 @@ if(currentVersion==='v0.4.27.45'||currentVersion==='v0.4.27.46'){
   assert.ok(version.includes("// app_version: 'v0.4.27.46'"),'Candy Master progressive-render successor must retain exact P0-B1 v0.4.27.46 lineage marker');
   assert.ok(version.includes("// app_build: '20260828-v042746-p0b1-professor-candy-observed-authority'"),'Candy Master progressive-render successor must retain exact P0-B1 build lineage marker');
   assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.46-v042746-p0b1-professor-candy-observed-authority'"),'Candy Master progressive-render successor must retain exact P0-B1 cache lineage marker');
+}else if(currentVersion==='v0.4.27.55.3.3.4'){
+  assert.equal(currentBuild,'20260908-v042755334-page-status-visibility-watchdog');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.4-v042755334-page-status-visibility-watchdog');
+  assert.ok(version.includes("// app_version: 'v0.4.27.46'"),'Page-status/watchdog successor must retain exact P0-B1 v0.4.27.46 lineage marker');
+  assert.ok(version.includes("// app_build: '20260828-v042746-p0b1-professor-candy-observed-authority'"),'Page-status/watchdog successor must retain exact P0-B1 build lineage marker');
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.46-v042746-p0b1-professor-candy-observed-authority'"),'Page-status/watchdog successor must retain exact P0-B1 cache lineage marker');
 }else{
   assert.fail(`P0-B1 professor-candy successor release not governed: ${currentVersion}`);
 }

@@ -175,7 +175,17 @@ assert.equal(professor.includes('candy-public-master-admission-ui.js'),false);
 
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.3.3.3'){
+if(appVersion==='v0.4.27.55.3.3.4'){
+  assert.equal(appBuild,'20260908-v042755334-page-status-visibility-watchdog');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.4-v042755334-page-status-visibility-watchdog');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.3'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.2'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.1'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.2'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55'"));
+}else if(appVersion==='v0.4.27.55.3.3.3'){
   assert.equal(appBuild,'20260907-v042755333-candy-master-progressive-render');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.3-v042755333-candy-master-progressive-render');
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.2'"));

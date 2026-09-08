@@ -138,9 +138,14 @@ async function loadPageModules(page){
     for(const file of files){await importFeatureModule(file);}
     if(page==='updates'){await hydrateUpdateCenterShells();void startOcrOverlayForUpdates();}
     if(page==='backup')await hydrateBackupSnapshotPanel();
-    await (globalThis.PokemonSleepPageHydrationAuthorityV042755331||globalThis.PokemonSleepPageHydrationAuthorityV04275533)?.hydrateView?.(page);
-    debugTrace.record('bootstrap','page_feature_load_completed',{status:'completed',details:{page,module_count:files.length,elapsed_ms:Math.round(performance.now()-started),single_flight:true,navigation_only:true,single_owner_render:true}});
-    return {page,module_count:files.length,known_page:true};
+    const hydration=await (globalThis.PokemonSleepPageHydrationAuthorityV042755331||globalThis.PokemonSleepPageHydrationAuthorityV04275533)?.hydrateView?.(page);
+    const elapsedMs=Math.round(performance.now()-started);
+    debugTrace.record('bootstrap','page_feature_load_completed',{status:'completed',details:{page,module_count:files.length,elapsed_ms:elapsedMs,single_flight:true,navigation_only:true,single_owner_render:true,hydration_owned:Boolean(hydration?.owned)}});
+    if(!hydration?.owned){
+      const label=page==='guide'?'使用說明':page==='backup'?'備份還原':page;
+      pageProgress(page,'ready',`${label}：功能模組載入完成`,{phase:'modules',module_count:files.length,elapsed_ms:elapsedMs,generic_terminal:true});
+    }
+    return {page,module_count:files.length,known_page:true,hydration_owned:Boolean(hydration?.owned)};
   })().catch(error=>{pageLoads.delete(page);debugTrace.record('bootstrap','page_feature_load_failed',{status:'failed',details:{page},error});throw error;});
   pageLoads.set(page,promise);return promise;
 }
