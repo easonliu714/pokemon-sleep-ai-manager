@@ -12,6 +12,7 @@ import {
   applyG121AuthoritySchemaMigration,
   seedUnknownEvolutionItemAcquisitionRows,
   normalizeG121PlayerResourceRows,
+  upsertG121PlayerResourceState,
   G121_AUTHORITY_SCHEMA_MIGRATION_VERSION,
   G121_EVOLUTION_STATUS,
   G121_PLAYER_RESOURCE_KEYS,
@@ -58,6 +59,17 @@ for(const key of G121_PLAYER_RESOURCE_KEYS){
   assert.equal(normalized[key].known,false);
   assert.equal(normalized[key].numeric_value,null);
 }
+
+const knownZero=upsertG121PlayerResourceState(db,{resource_key:'dream_shards',knowledge_state:'KNOWN',numeric_value:0,updated_at:'2026-09-08T00:00:00.000Z',source_update_id:'fixture'});
+assert.equal(knownZero.numeric_value,0,'explicit KNOWN zero must be preserved');
+assert.equal(knownZero.knowledge_state,'KNOWN');
+const unknownAgain=upsertG121PlayerResourceState(db,{resource_key:'dream_shards',knowledge_state:'UNKNOWN',numeric_value:999,updated_at:'2026-09-08T00:01:00.000Z'});
+assert.equal(unknownAgain.numeric_value,null,'UNKNOWN must discard numeric payload rather than infer a value');
+assert.throws(()=>upsertG121PlayerResourceState(db,{resource_key:'sleep_points',knowledge_state:'KNOWN',numeric_value:-1}),/g121_invalid_numeric_resource/);
+assert.throws(()=>upsertG121PlayerResourceState(db,{resource_key:'diamonds',knowledge_state:'KNOWN',numeric_value:1.5}),/g121_invalid_numeric_resource/);
+assert.throws(()=>upsertG121PlayerResourceState(db,{resource_key:'premium_pass_state',knowledge_state:'KNOWN',text_value:'MAYBE'}),/g121_invalid_premium_pass_state/);
+const premium=upsertG121PlayerResourceState(db,{resource_key:'premium_pass_state',knowledge_state:'KNOWN',text_value:'ACTIVE',updated_at:'2026-09-08T00:02:00.000Z'});
+assert.equal(premium.text_value,'ACTIVE');
 
 const sample=rows('SELECT route_id,evolution_branch_id,from_species,to_species,effective_from,effective_until,confidence,effective_period_status FROM pokemon_evolution_master WHERE from_species=? LIMIT 1',['伊布'])[0];
 assert.ok(sample?.route_id?.startsWith('sleep-evolution:伊布→'));
