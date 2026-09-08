@@ -88,7 +88,7 @@ const p0b6Patch=Number(appVersion.match(/^v0\.4\.27\.(\d+)(?:\.\d+)*$/)?.[1]||-1
 const p0b6Hotfix=Number(appVersion.match(/^v0\.4\.27\.55\.(\d+)(?:\.\d+)*$/)?.[1]||0);
 const p0b6Successor=p0b6Patch>=55;
 const localGapDurabilitySuccessor=p0b6Patch>55||(p0b6Patch===55&&p0b6Hotfix>=2);
-const pagePrewarmSuccessor=['v0.4.27.55.3.3.1','v0.4.27.55.3.3.2','v0.4.27.55.3.3.3'].includes(appVersion);
+const pagePrewarmSuccessor=['v0.4.27.55.3.3.1','v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4'].includes(appVersion);
 assert.match(uiSource,/我已核對遊戲畫面，確認數量/);
 assert.match(uiSource,/Gemini Raw JSON（唯讀、immutable）/);
 if(localGapDurabilitySuccessor){
@@ -114,9 +114,12 @@ if(pagePrewarmSuccessor){
   }else if(appVersion==='v0.4.27.55.3.3.2'){
     assert.equal(appBuild,'20260906-v042755332-ai-key-update-status-knowledge-host');
     assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.2-v042755332-ai-key-update-status-knowledge-host');
-  }else{
+  }else if(appVersion==='v0.4.27.55.3.3.3'){
     assert.equal(appBuild,'20260907-v042755333-candy-master-progressive-render');
     assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.3-v042755333-candy-master-progressive-render');
+  }else{
+    assert.equal(appBuild,'20260908-v042755334-page-status-visibility-watchdog');
+    assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.4-v042755334-page-status-visibility-watchdog');
   }
 }else{
   assert.match(inventoryUiSource,/candy-quantity-screenshot-ui\.js/);
