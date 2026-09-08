@@ -7,7 +7,12 @@ const authority=read('assets/js/version-authority.js');
 const candy=read('assets/js/candy-inventory-ui.js');
 const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 
-if(appVersion==='v0.4.27.55.3.3.4'){
+if(appVersion==='v0.4.27.55.3.3.5'){
+  assert.match(authority,/app_build:\s*'20260908-v042755335-g121a-authority-closure'/);
+  assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.5-v042755335-g121a-authority-closure'/);
+  assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.4'/,'exact .55.3.3.4 predecessor bridge must remain');
+  assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.3'/,'exact .55.3.3.3 predecessor bridge must remain');
+}else if(appVersion==='v0.4.27.55.3.3.4'){
   assert.match(authority,/app_build:\s*'20260908-v042755334-page-status-visibility-watchdog'/);
   assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.4-v042755334-page-status-visibility-watchdog'/);
   assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.3'/,'exact .55.3.3.3 predecessor bridge must remain');
@@ -55,4 +60,4 @@ console.log(JSON.stringify({
   migration:CANDY_FAMILY_STORAGE_MIGRATION_VERSION,
 },null,2));
 
-if(appVersion==='v0.4.27.55.3.3.4')await import('./v042755334-page-status-visibility-watchdog-contract.mjs');
+if(appVersion==='v0.4.27.55.3.3.4'||appVersion==='v0.4.27.55.3.3.5')await import('./v042755334-page-status-visibility-watchdog-contract.mjs');
