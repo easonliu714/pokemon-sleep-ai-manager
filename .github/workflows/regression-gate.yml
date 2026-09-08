@@ -132,26 +132,59 @@ jobs:
       - name: Verify core frontend regression contract
         run: node scripts/regression-gate.mjs
 
-      - name: Run regression gate
-        run: |
-          node scripts/ingredient-inventory-integrity-regression.mjs
-          node scripts/v04275-predecessor-release-contract-runner.mjs
-          node scripts/v04273-weekly-recipe-semantic-intake-contract.mjs
-          node scripts/v04276-public-event-predecessor-contract-runner.mjs
-          node scripts/v04275-pe4-effective-weekly-consumer-banner-contract.mjs
-          node scripts/v04275-pe6-strategy-event-provenance-contract.mjs
-          node scripts/v04275-g72-effective-event-energy-authority-contract.mjs
-          node scripts/v042712-confirmation-lifecycle-ux-contract.mjs
-          node scripts/v042724-predecessor-v042723-runner.mjs
-          node scripts/v042724-e3c6f-censored-series-observation-contract.mjs
-          node scripts/v042746-p0b1-professor-candy-observed-delta-contract.mjs
-          node scripts/v042747-p0b2-public-pokemon-species-authority-contract.mjs
-          node scripts/v042748-ingredient-inferred-zero-integrity-contract.mjs
-          node scripts/v042749-p0b3-candy-family-authority-contract.mjs
-          node scripts/v042750-p0b4-candy-display-name-authority-contract.mjs
-          node scripts/v042755-p0b6-candy-family-storage-contract.mjs
-          node scripts/v0427551-visible-target-count-confirmation-contract.mjs
-          node scripts/v0427552-local-gap-field-precedence-contract.mjs
+      - name: Verify ingredient inventory integrity regression
+        run: node scripts/ingredient-inventory-integrity-regression.mjs
+
+      - name: Verify v0.4.27.5 predecessor release contract
+        run: node scripts/v04275-predecessor-release-contract-runner.mjs
+
+      - name: Verify v0.4.27.3 weekly recipe semantic intake
+        run: node scripts/v04273-weekly-recipe-semantic-intake-contract.mjs
+
+      - name: Verify v0.4.27.6 public event predecessor contract
+        run: node scripts/v04276-public-event-predecessor-contract-runner.mjs
+
+      - name: Verify PE4 effective weekly consumer banner
+        run: node scripts/v04275-pe4-effective-weekly-consumer-banner-contract.mjs
+
+      - name: Verify PE6 strategy event provenance
+        run: node scripts/v04275-pe6-strategy-event-provenance-contract.mjs
+
+      - name: Verify G7.2 effective event energy authority
+        run: node scripts/v04275-g72-effective-event-energy-authority-contract.mjs
+
+      - name: Verify confirmation lifecycle UX
+        run: node scripts/v042712-confirmation-lifecycle-ux-contract.mjs
+
+      - name: Verify v0.4.27.24 predecessor v0.4.27.23 contract
+        run: node scripts/v042724-predecessor-v042723-runner.mjs
+
+      - name: Verify E3C-6F censored series observation
+        run: node scripts/v042724-e3c6f-censored-series-observation-contract.mjs
+
+      - name: Verify P0-B1 professor Candy observed delta
+        run: node scripts/v042746-p0b1-professor-candy-observed-delta-contract.mjs
+
+      - name: Verify P0-B2 public Pokémon species authority
+        run: node scripts/v042747-p0b2-public-pokemon-species-authority-contract.mjs
+
+      - name: Verify ingredient inferred-zero integrity contract
+        run: node scripts/v042748-ingredient-inferred-zero-integrity-contract.mjs
+
+      - name: Verify P0-B3 Candy family authority
+        run: node scripts/v042749-p0b3-candy-family-authority-contract.mjs
+
+      - name: Verify P0-B4 Candy display-name authority
+        run: node scripts/v042750-p0b4-candy-display-name-authority-contract.mjs
+
+      - name: Verify P0-B6 Candy family storage contract
+        run: node scripts/v042755-p0b6-candy-family-storage-contract.mjs
+
+      - name: Verify visible target count confirmation contract
+        run: node scripts/v0427551-visible-target-count-confirmation-contract.mjs
+
+      - name: Verify local gap field precedence contract
+        run: node scripts/v0427552-local-gap-field-precedence-contract.mjs
 
       - name: Verify unlocked Pokémon roster filters
         run: node scripts/pokemon-roster-filter-regression.mjs
