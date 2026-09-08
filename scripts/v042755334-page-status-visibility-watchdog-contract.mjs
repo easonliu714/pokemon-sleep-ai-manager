@@ -7,9 +7,16 @@ const authority=read('assets/js/version-authority.js');
 const bootstrap=read('assets/js/bootstrap.js');
 const watchdog=read('assets/js/v0394-startup-watchdog.js');
 
-assert.match(authority,/app_version:\s*'v0\.4\.27\.55\.3\.3\.4'/);
-assert.match(authority,/app_build:\s*'20260908-v042755334-page-status-visibility-watchdog'/);
-assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.4-v042755334-page-status-visibility-watchdog'/);
+const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
+if(appVersion==='v0.4.27.55.3.3.5'){
+  assert.match(authority,/app_build:\s*'20260908-v042755335-g121a-authority-closure'/);
+  assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.5-v042755335-g121a-authority-closure'/);
+  assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.4'/,'exact .55.3.3.4 predecessor bridge must remain');
+}else{
+  assert.equal(appVersion,'v0.4.27.55.3.3.4');
+  assert.match(authority,/app_build:\s*'20260908-v042755334-page-status-visibility-watchdog'/);
+  assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.4-v042755334-page-status-visibility-watchdog'/);
+}
 assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.3'/,'exact .55.3.3.3 predecessor bridge must remain');
 
 assert.match(bootstrap,/const hydration=await .*hydrateView\?\.\(page\)/,'generic module loading must inspect page hydration ownership');
@@ -38,7 +45,7 @@ assert.equal(CANDY_FAMILY_STORAGE_MIGRATION_VERSION,15,'SQLite Migration 15 must
 console.log(JSON.stringify({
   gate:'V042755334_PAGE_STATUS_VISIBILITY_WATCHDOG',
   status:'PASS',
-  version:'v0.4.27.55.3.3.4',
+  version:appVersion,
   generic_page_terminal_ready:true,
   offscreen_status_ignored:true,
   stale_badge_cleared_on_navigation:true,
@@ -47,3 +54,5 @@ console.log(JSON.stringify({
   real_stall_detection_retained:true,
   migration:CANDY_FAMILY_STORAGE_MIGRATION_VERSION,
 },null,2));
+
+if(appVersion==='v0.4.27.55.3.3.5')await import('./g121a-authority-closure-contract.mjs');
