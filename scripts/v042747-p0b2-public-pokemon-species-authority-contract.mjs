@@ -185,6 +185,12 @@ gate('release and offline wiring retain v0.4.27.47 exact predecessor',()=>{
     assert.ok(versionSource.includes("// app_version: 'v0.4.27.47'"),'Candy Master progressive-render successor must retain exact P0-B2 v0.4.27.47 lineage marker');
     assert.ok(versionSource.includes("// app_build: '20260829-v042747-p0b2-public-species-authority'"),'Candy Master progressive-render successor must retain exact P0-B2 build lineage marker');
     assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.47-v042747-p0b2-public-species-authority'"),'Candy Master progressive-render successor must retain exact P0-B2 cache lineage marker');
+  }else if(currentAppVersion==='v0.4.27.55.3.3.4'){
+    assert.equal(currentAppBuild,'20260908-v042755334-page-status-visibility-watchdog');
+    assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.4-v042755334-page-status-visibility-watchdog');
+    assert.ok(versionSource.includes("// app_version: 'v0.4.27.47'"),'Page-status/watchdog successor must retain exact P0-B2 v0.4.27.47 lineage marker');
+    assert.ok(versionSource.includes("// app_build: '20260829-v042747-p0b2-public-species-authority'"),'Page-status/watchdog successor must retain exact P0-B2 build lineage marker');
+    assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.47-v042747-p0b2-public-species-authority'"),'Page-status/watchdog successor must retain exact P0-B2 cache lineage marker');
   }else{
     assert.fail(`P0-B2 public-species successor release not governed: ${currentAppVersion}`);
   }
