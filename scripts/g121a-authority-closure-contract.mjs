@@ -19,6 +19,15 @@ import {
 } from '../assets/js/g121-authority.js';
 import {CANDY_FAMILY_STORAGE_MIGRATION_VERSION} from '../assets/js/candy-family-storage-authority.js';
 
+const authoritySource=fs.readFileSync('assets/js/version-authority.js','utf8');
+const serviceWorkerSource=fs.readFileSync('service-worker.js','utf8');
+assert.match(authoritySource,/app_version:\s*'v0\.4\.27\.55\.3\.3\.5'/);
+assert.match(authoritySource,/app_build:\s*'20260908-v042755335-g121a-authority-closure'/);
+assert.match(authoritySource,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.5-v042755335-g121a-authority-closure'/);
+assert.match(authoritySource,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.4'/,'exact .55.3.3.4 predecessor bridge must remain');
+assert.match(serviceWorkerSource,/importScripts\('\.\/assets\/js\/version-authority\.js'\)/);
+assert.match(serviceWorkerSource,/PokemonSleepVersionAuthority/);
+
 const SQL=await initSqlJs();
 const db=new SQL.Database();
 db.run(DDL);
