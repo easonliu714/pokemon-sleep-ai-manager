@@ -225,6 +225,13 @@ export const PUBLIC_EVOLUTION_STATUS_MASTER=Object.freeze([
   EVO_STATUS_LIVE('黑魯加','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/houndoom.shtml'),
 ]);
 
+const hasColumn=(db,table,column)=>{
+  const statement=db.prepare(`PRAGMA table_info("${table}")`);
+  const names=[];while(statement.step())names.push(statement.getAsObject().name);statement.free();
+  return names.includes(column);
+};
+const addColumnIfMissing=(db,table,column,definition)=>{if(!hasColumn(db,table,column))db.run(`ALTER TABLE "${table}" ADD COLUMN "${column}" ${definition}`);};
+
 export function applyPublicPokemonKnowledgeSchema(db){
   db.run(`CREATE TABLE IF NOT EXISTS nature_master(
     nature_name TEXT PRIMARY KEY,positive_effect TEXT,negative_effect TEXT,description_zh_tw TEXT,
@@ -247,6 +254,12 @@ export function applyPublicPokemonKnowledgeSchema(db){
     species_name TEXT PRIMARY KEY,evolution_status TEXT NOT NULL,verification_status TEXT NOT NULL,
     source_type TEXT NOT NULL,source_name TEXT NOT NULL,source_ref TEXT,verified_at TEXT,data_version TEXT NOT NULL
   )`);
+  addColumnIfMissing(db,'pokemon_evolution_master','route_id','TEXT');
+  addColumnIfMissing(db,'pokemon_evolution_master','evolution_branch_id','TEXT');
+  addColumnIfMissing(db,'pokemon_evolution_master','effective_from','TEXT');
+  addColumnIfMissing(db,'pokemon_evolution_master','effective_until','TEXT');
+  addColumnIfMissing(db,'pokemon_evolution_master','confidence','REAL');
+  addColumnIfMissing(db,'pokemon_evolution_master','effective_period_status',"TEXT NOT NULL DEFAULT 'CURRENT_REFERENCE_NO_EFFECTIVE_WINDOW'");
   db.run('CREATE INDEX IF NOT EXISTS idx_public_evolution_from_species ON pokemon_evolution_master(from_species)');
   db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_g121_evolution_route_id ON pokemon_evolution_master(route_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_g121_evolution_branch_id ON pokemon_evolution_master(evolution_branch_id)');
