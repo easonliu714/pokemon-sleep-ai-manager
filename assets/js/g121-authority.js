@@ -202,3 +202,37 @@ export function normalizeG121PlayerResourceRows(rows=[]){
     }];
   }));
 }
+
+export function upsertG121PlayerResourceState(db,input={}){
+  const resourceKey=String(input.resource_key||'').trim();
+  if(!G121_PLAYER_RESOURCE_KEYS.includes(resourceKey))throw new Error(`g121_unknown_player_resource:${resourceKey}`);
+  const resourceKind=resourceKey==='premium_pass_state'?'enum':'numeric';
+  const knowledgeState=input.knowledge_state==='KNOWN'?'KNOWN':'UNKNOWN';
+  let numericValue=null,textValue=null;
+  if(knowledgeState==='KNOWN'){
+    if(resourceKind==='numeric'){
+      const value=Number(input.numeric_value);
+      if(!Number.isFinite(value)||value<0||!Number.isInteger(value))throw new Error(`g121_invalid_numeric_resource:${resourceKey}`);
+      numericValue=value;
+    }else{
+      const value=String(input.text_value||'').toUpperCase();
+      if(!['ACTIVE','INACTIVE'].includes(value))throw new Error('g121_invalid_premium_pass_state');
+      textValue=value;
+    }
+  }
+  const updatedAt=input.updated_at?String(input.updated_at):new Date().toISOString();
+  const sourceUpdateId=input.source_update_id==null?null:String(input.source_update_id);
+  db.run(`INSERT INTO player_resource_state(
+    resource_key,resource_kind,knowledge_state,numeric_value,text_value,updated_at,source_update_id,authority_version
+  ) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(resource_key) DO UPDATE SET
+    resource_kind=excluded.resource_kind,knowledge_state=excluded.knowledge_state,
+    numeric_value=excluded.numeric_value,text_value=excluded.text_value,updated_at=excluded.updated_at,
+    source_update_id=excluded.source_update_id,authority_version=excluded.authority_version`,[
+    resourceKey,resourceKind,knowledgeState,numericValue,textValue,updatedAt,sourceUpdateId,G121_PLAYER_RESOURCE_AUTHORITY_VERSION,
+  ]);
+  return {
+    resource_key:resourceKey,resource_kind:resourceKind,knowledge_state:knowledgeState,
+    numeric_value:numericValue,text_value:textValue,updated_at:updatedAt,source_update_id:sourceUpdateId,
+    authority_version:G121_PLAYER_RESOURCE_AUTHORITY_VERSION,
+  };
+}
