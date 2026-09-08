@@ -9,6 +9,7 @@ import {applyPublicPokemonKnowledgeSchema,applyPublicPokemonKnowledgeData,PUBLIC
 import {applyPublicCandyMasterSchema,syncPublicCandyMaster,PUBLIC_CANDY_MASTER_VERSION} from './public-candy-master.js';
 import {applyIngredientInventoryIdentityMigration,INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION} from './ingredient-inventory-integrity-contract.js';
 import {applyPublicEventMasterSchemaMigration,PUBLIC_EVENT_MASTER_SCHEMA_MIGRATION_VERSION} from './public-event-master-schema.js';
+import {applyG121AuthoritySchemaMigration,G121_AUTHORITY_SCHEMA_MIGRATION_VERSION,seedUnknownEvolutionItemAcquisitionRows} from './g121-authority.js';
 
 export const E3C6B_SCHEMA_MIGRATION_VERSION=11;
 
@@ -179,10 +180,12 @@ export function auditAndSyncPublicMasters(db,{force=false}={}){
 
 export function applyFreshDatabaseBootstrap(db){
   applySharedMasterSchema(db);applyPublicPokemonKnowledgeSchema(db);applyCandyInventoryMigration(db);applyIngredientProbabilityObservationMigration(db);applyPublicCandyMasterSchema(db);
-  applyIdentityMigration(db);applyGameDataMigration(db);applyPersonalRecipeMigration(db);applyCompletePokemonDetailMigration(db);applyWarRoomStrategySnapshotMigration(db);applyIngredientInventoryIdentityMigration(db);applyPublicEventMasterSchemaMigration(db);applyStandardCatalogCompatibilityMigration(db);
+  applyIdentityMigration(db);applyGameDataMigration(db);applyPersonalRecipeMigration(db);applyCompletePokemonDetailMigration(db);applyWarRoomStrategySnapshotMigration(db);applyIngredientInventoryIdentityMigration(db);applyPublicEventMasterSchemaMigration(db);applyG121AuthoritySchemaMigration(db);applyStandardCatalogCompatibilityMigration(db);
   db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(4,datetime('now'))`);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(6,datetime('now'))`);
   const publicMaster=auditAndSyncPublicMasters(db,{force:true});
-  return {database_changed:true,public_master:publicMaster};
+  const evolutionItems=rows(db,"SELECT item_name FROM item_master WHERE item_category='evolution' ORDER BY item_name").map(row=>row.item_name);
+  const g121Acquisition=seedUnknownEvolutionItemAcquisitionRows(db,evolutionItems);
+  return {database_changed:true,public_master:publicMaster,g121:{migration_version:G121_AUTHORITY_SCHEMA_MIGRATION_VERSION,item_acquisition:g121Acquisition}};
 }
 
 export function applyAllMigrations(db){
@@ -198,9 +201,14 @@ export function applyAllMigrations(db){
   if(!hasMigration(db,E3C6B_SCHEMA_MIGRATION_VERSION)){applyIngredientProbabilityObservationMigration(db);databaseChanged=true;}
   if(!hasMigration(db,INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION)){applyIngredientInventoryIdentityMigration(db);databaseChanged=true;}
   if(!hasMigration(db,PUBLIC_EVENT_MASTER_SCHEMA_MIGRATION_VERSION)){applyPublicEventMasterSchemaMigration(db);databaseChanged=true;}
+  let g121Migration=null;
+  if(!hasMigration(db,G121_AUTHORITY_SCHEMA_MIGRATION_VERSION)){g121Migration=applyG121AuthoritySchemaMigration(db);databaseChanged=true;}
+  else g121Migration=applyG121AuthoritySchemaMigration(db);
   if(applyStandardCatalogCompatibilityMigration(db))databaseChanged=true;
   const publicMaster=auditAndSyncPublicMasters(db);
-  return {database_changed:databaseChanged||publicMaster.updated,public_master:publicMaster};
+  const evolutionItems=rows(db,"SELECT item_name FROM item_master WHERE item_category='evolution' ORDER BY item_name").map(row=>row.item_name);
+  const g121Acquisition=seedUnknownEvolutionItemAcquisitionRows(db,evolutionItems);
+  return {database_changed:databaseChanged||publicMaster.updated||g121Acquisition.inserted>0,public_master:publicMaster,g121:{...g121Migration,item_acquisition:g121Acquisition}};
 }
 
 // v0.3.99.3 browser-only presentation guards. Dynamic imports keep migration
