@@ -19,12 +19,19 @@ let recoveryStableFrames=0;
 let stallSnapshot=null;
 let lastWarningText='';
 let pageHydrationHideTimer=null;
-const PAGE_LABELS=Object.freeze({updates:'更新中心',knowledge:'資料百科',items:'道具',ingredients:'食材',recipes:'食譜',backup:'備份還原',pokemon:'寶可夢'});
+let visibilityGraceUntil=performance.now()+1200;
+const PAGE_LABELS=Object.freeze({updates:'更新中心',knowledge:'資料百科',items:'道具',ingredients:'食材',recipes:'食譜',backup:'備份還原',pokemon:'寶可夢',guide:'使用說明',diagnostics:'診斷中心'});
+const activeView=()=>document.querySelector('.view.active')?.id||'';
 function renderPageHydrationProgress(detail={}){
   const badge=document.getElementById('pageLoadStatus');if(!badge)return;
   const page=String(detail.page||'').trim(),state=String(detail.state||'loading').trim();
   const label=detail.label||PAGE_LABELS[page]||page||'分頁';
   const message=detail.message||`${label}：${state==='ready'?'載入完成':'本機資料載入中…'}`;
+  const visiblePage=activeView();
+  if(page&&visiblePage&&page!==visiblePage){
+    recordStage({stage:`PAGE_HYDRATION_${page||'UNKNOWN'}_${state.toUpperCase()}`,message,status:state==='failed'?'failed':state==='ready'?'completed':'running',details:{page,state,source:'page-hydration-watchdog',offscreen:true,active_page:visiblePage}});
+    return;
+  }
   clearTimeout(pageHydrationHideTimer);
   badge.textContent=message;badge.classList.remove('hidden','ok','pending','error');
   badge.classList.add(state==='failed'?'error':state==='ready'?'ok':'pending');
@@ -63,12 +70,36 @@ function clearRecoveredHeartbeatWarning(){
   debugTrace.record('startup','main_thread_block_recovered',{status:'completed',details:{last_checkpoint:snapshot?.checkpoint||lastStage||'unknown',checkpoint_is_causal:false,max_blocked_ms:Number(snapshot?.blocked_ms||0),warning_cleared:true,authority_switch:false,automatic_retry_restarted:false,authority}});
   lastWarningText='';return true;
 }
+function resetHeartbeatForVisibility(reason){
+  const now=performance.now();
+  heartbeatAt=now;
+  recoveryStableFrames=0;
+  visibilityGraceUntil=now+1200;
+  const warningCleared=warningActive?clearRecoveredHeartbeatWarning():false;
+  debugTrace.record('startup','main_thread_watchdog_visibility_reset',{status:'completed',details:{reason,visibility:document.visibilityState,warning_cleared:warningCleared,grace_ms:1200,authority}});
+}
 function startHeartbeat(){
   const beat=()=>{const now=performance.now(),gap=now-heartbeatAt;heartbeatAt=now;if(warningActive){recoveryStableFrames=gap<1000?recoveryStableFrames+1:0;if(recoveryStableFrames>=RECOVERY_STABLE_FRAMES)clearRecoveredHeartbeatWarning();}requestAnimationFrame(beat);};
   requestAnimationFrame(beat);
-  watchdogTimer=setInterval(()=>{const now=performance.now();const blockedFor=Math.round(now-heartbeatAt);const stageAge=Math.round(now-lastStageAt);if(blockedFor<STARTUP_BLOCK_WARN_MS)return;showHeartbeatWarning({blockedFor,stageAge});},2000);
+  watchdogTimer=setInterval(()=>{
+    const now=performance.now();
+    if(document.visibilityState!=='visible'||now<visibilityGraceUntil){heartbeatAt=now;return;}
+    const blockedFor=Math.round(now-heartbeatAt),stageAge=Math.round(now-lastStageAt);
+    if(blockedFor<STARTUP_BLOCK_WARN_MS)return;
+    showHeartbeatWarning({blockedFor,stageAge});
+  },2000);
 }
 startHeartbeat();
+document.addEventListener('visibilitychange',()=>resetHeartbeatForVisibility(document.visibilityState==='visible'?'foreground-resume':'background-pause'));
+document.querySelector('nav')?.addEventListener('click',event=>{
+  const targetPage=event.target?.closest?.('button[data-view]')?.dataset?.view;
+  const badge=document.getElementById('pageLoadStatus');
+  if(targetPage&&badge?.dataset?.page&&badge.dataset.page!==targetPage){
+    clearTimeout(pageHydrationHideTimer);
+    badge.classList.add('hidden');
+    debugTrace.record('startup','page_hydration_badge_stale_cleared',{status:'completed',details:{from_page:badge.dataset.page,to_page:targetPage,authority}});
+  }
+});
 addEventListener('pagehide',()=>clearInterval(watchdogTimer),{once:true});
 
 function scheduleBackgroundServiceWorkerUpdate(registration){
