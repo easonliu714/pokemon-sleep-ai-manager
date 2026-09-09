@@ -27,11 +27,13 @@ function normalizeEvolutionRoute(row){
     evolution_branch_id:text(row.evolution_branch_id),
     from_species:text(row.from_species),
     to_species:text(row.to_species),
-    required_level:nullableNonNegativeInteger(row.required_level),
-    required_sleep_hours:nullableNonNegativeInteger(row.required_sleep_hours),
-    required_candy:nullableNonNegativeInteger(row.required_candy),
+    // Preserve raw requirement values so the deterministic evaluator can reject
+    // malformed authority instead of silently converting it into "no requirement".
+    required_level:row.required_level,
+    required_sleep_hours:row.required_sleep_hours,
+    required_candy:row.required_candy,
     required_item:text(row.required_item),
-    required_dream_shards:nullableNonNegativeInteger(row.required_dream_shards),
+    required_dream_shards:row.required_dream_shards,
     other_requirement:row.other_requirement==null?null:text(row.other_requirement),
     effective_from:row.effective_from==null?null:text(row.effective_from),
     effective_until:row.effective_until==null?null:text(row.effective_until),
