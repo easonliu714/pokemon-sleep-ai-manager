@@ -9,11 +9,12 @@ import {DDL,SEED_SQL} from '../assets/js/schema.js';
 import {applyAllMigrations,E3C6B_SCHEMA_MIGRATION_VERSION} from '../assets/js/migrations.js';
 import {INGREDIENT_INVENTORY_IDENTITY_MIGRATION_VERSION,INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION} from '../assets/js/ingredient-inventory-integrity-contract.js';
 import {PUBLIC_EVENT_MASTER_SCHEMA_MIGRATION_VERSION} from '../assets/js/public-event-master-schema.js';
+import {G121_AUTHORITY_SCHEMA_MIGRATION_VERSION} from '../assets/js/g121-authority.js';
 
 const root=new URL('../',import.meta.url);
 const text=async path=>readFile(new URL(path,root),'utf8');
 const require=createRequire(import.meta.url);
-const EXPECTED_SCHEMA_MIGRATIONS=Object.freeze([1,2,3,4,5,6,7,8,9,E3C6B_SCHEMA_MIGRATION_VERSION,INGREDIENT_INVENTORY_IDENTITY_MIGRATION_VERSION,INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION,PUBLIC_EVENT_MASTER_SCHEMA_MIGRATION_VERSION]);
+const EXPECTED_SCHEMA_MIGRATIONS=Object.freeze([1,2,3,4,5,6,7,8,9,E3C6B_SCHEMA_MIGRATION_VERSION,INGREDIENT_INVENTORY_IDENTITY_MIGRATION_VERSION,INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION,PUBLIC_EVENT_MASTER_SCHEMA_MIGRATION_VERSION,G121_AUTHORITY_SCHEMA_MIGRATION_VERSION]);
 
 function queryRows(db,sql){const statement=db.prepare(sql);const output=[];while(statement.step())output.push(statement.getAsObject());statement.free();return output;}
 function scalar(db,sql){const result=queryRows(db,sql);return result.length?Object.values(result[0])[0]:null;}
@@ -45,13 +46,14 @@ async function migrationStaticGate(){
   assert.match(publicEventSchema,/PUBLIC_EVENT_MASTER_SCHEMA_MIGRATION_VERSION=14/u,'public event master migration 14 authority missing');
   assert.match(publicEventSchema,/CREATE TABLE IF NOT EXISTS public_event_master/u,'public event master cache table missing');
   assert.match(publicEventSchema,/CREATE TABLE IF NOT EXISTS public_event_phase/u,'public event phase cache table missing');
+  assert.equal(G121_AUTHORITY_SCHEMA_MIGRATION_VERSION,16,'G12.1 authority migration 16 must remain explicit');
   assert.match(schema,/ingredient_inventory\(ingredient_name TEXT PRIMARY KEY,quantity INTEGER NOT NULL DEFAULT 0,unlocked INTEGER/u,'fresh schema missing ingredient unlock state');
   assert.match(ingredientIntegrity,/INGREDIENT_INVENTORY_IDENTITY_MIGRATION_VERSION=12/u,'migration 12 identity authority missing');
   assert.match(ingredientIntegrity,/INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION=13/u,'migration 13 unlock authority missing');
   assert.match(ingredientIntegrity,/ALTER TABLE ingredient_inventory ADD COLUMN unlocked INTEGER/u,'legacy unlock migration missing');
   assert.match(canonical,/CREATE TABLE IF NOT EXISTS canonical_term/u,'canonical term table missing');
   assert.match(canonical,/CREATE TABLE IF NOT EXISTS canonical_term_alias/u,'canonical alias table missing');
-  console.log('PASS migration structure: schema versions 1-9 + reserved gap 10 + migrations 11/12/13/14 and lifecycle hooks');
+  console.log('PASS migration structure: schema versions 1-9 + reserved gap 10 + migrations 11/12/13/14/16; P0-B6 migration 15 remains lifecycle-owned');
 }
 
 async function migrationFixtureGate(){

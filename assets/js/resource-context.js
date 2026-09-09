@@ -1,6 +1,7 @@
 import {rows,isDatabaseReady,isRescueReadonly} from './database.js';
+import {normalizeG121PlayerResourceRows,G121_PLAYER_RESOURCE_AUTHORITY_VERSION} from './g121-authority.js';
 
-export const RESOURCE_CONTEXT_VERSION='resource-context-2026-08-10-a';
+export const RESOURCE_CONTEXT_VERSION='resource-context-2026-09-08-b';
 export const CANDY_CONVERSION_RULE_STATUS='NOT_YET_VERIFIED';
 
 const stableSortObject=value=>{
@@ -19,8 +20,10 @@ const number=value=>Number(value||0);
 
 export function buildUnifiedResourceSnapshot(){
   if(!isDatabaseReady()||isRescueReadonly())return {
-    schema:'pokemon-sleep-resource-context/1.0',version:RESOURCE_CONTEXT_VERSION,status:'PLAYER_DATABASE_UNAVAILABLE',
-    ingredients:[],items:[],candies:[],candy_conversion:{rule_status:CANDY_CONVERSION_RULE_STATUS,derived_options:[],included_in_physical_totals:false},fingerprint:null,
+    schema:'pokemon-sleep-resource-context/2.0',version:RESOURCE_CONTEXT_VERSION,status:'PLAYER_DATABASE_UNAVAILABLE',
+    ingredients:[],items:[],candies:[],player_resources:normalizeG121PlayerResourceRows([]),
+    player_resource_authority:G121_PLAYER_RESOURCE_AUTHORITY_VERSION,
+    candy_conversion:{rule_status:CANDY_CONVERSION_RULE_STATUS,derived_options:[],included_in_physical_totals:false},fingerprint:null,
   };
   const ingredients=safeRows(`SELECT m.ingredient_name,COALESCE(i.quantity,0) quantity,CASE WHEN i.ingredient_name IS NULL THEN 0 ELSE 1 END player_record_exists,i.updated_at
       FROM ingredient_master m LEFT JOIN ingredient_inventory i ON i.ingredient_name=m.ingredient_name ORDER BY m.ingredient_name`).map(row=>({
@@ -36,9 +39,12 @@ export function buildUnifiedResourceSnapshot(){
     candy_id:row.candy_id,candy_name:row.candy_name,candy_type:row.candy_type,target_species_name:row.target_species_name||null,target_type_name:row.target_type_name||null,
     quantity:number(row.quantity),safe_reserve:number(row.safe_reserve),available:number(row.available),player_record_exists:Boolean(number(row.player_record_exists)),updated_at:row.updated_at||null,
   }));
+  const playerResources=normalizeG121PlayerResourceRows(safeRows(`SELECT resource_key,resource_kind,knowledge_state,numeric_value,text_value,updated_at,source_update_id,authority_version
+      FROM player_resource_state ORDER BY resource_key`));
   const payload={
-    schema:'pokemon-sleep-resource-context/1.0',version:RESOURCE_CONTEXT_VERSION,status:'READY',
-    ingredients,items,candies,
+    schema:'pokemon-sleep-resource-context/2.0',version:RESOURCE_CONTEXT_VERSION,status:'READY',
+    ingredients,items,candies,player_resources:playerResources,
+    player_resource_authority:G121_PLAYER_RESOURCE_AUTHORITY_VERSION,
     candy_conversion:{
       rule_status:CANDY_CONVERSION_RULE_STATUS,
       derived_options:[],

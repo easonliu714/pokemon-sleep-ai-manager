@@ -18,6 +18,8 @@ const pokemonKnowledge=read('assets/js/public-pokemon-knowledge-master.js');
 const itemMaster=read('assets/js/public-item-master.js');
 const sharedMasterSchema=read('assets/js/shared-master-schema.js');
 const resourceContext=read('assets/js/resource-context.js');
+const g121Authority=fs.existsSync('assets/js/g121-authority.js')?read('assets/js/g121-authority.js'):'';
+const authorityClosure=migrations.includes('G121_AUTHORITY_SCHEMA_MIGRATION_VERSION')&&g121Authority.includes('G121_AUTHORITY_SCHEMA_MIGRATION_VERSION=16');
 
 const STATUS=Object.freeze({READY:'READY',PARTIAL:'PARTIAL',MISSING:'MISSING'});
 
@@ -42,13 +44,16 @@ const audit={
   },
   dependencies:{
     public_evolution_master:{
-      status:STATUS.PARTIAL,
-      present:[
+      status:authorityClosure?STATUS.READY:STATUS.PARTIAL,
+      present:authorityClosure?[
+        'route_id','evolution_branch_id','from_species','to_species','required_level','required_sleep_hours','required_candy',
+        'required_item','other_requirement','effective_from','effective_until','confidence','effective_period_status','source_ref','verified_at','data_version',
+      ]:[
         'from_species','to_species','required_level','required_sleep_hours','required_candy',
         'required_item','other_requirement','source_ref','verified_at','data_version',
       ],
-      missing:['route_id/evolution_branch_id','effective_from','effective_until','confidence'],
-      minimum_next_change:'extend versioned public evolution route schema without inferring missing values',
+      missing:authorityClosure?[]:['route_id/evolution_branch_id','effective_from','effective_until','confidence'],
+      minimum_next_change:authorityClosure?null:'extend versioned public evolution route schema without inferring missing values',
     },
     public_item_identity:{
       status:STATUS.READY,
@@ -56,13 +61,13 @@ const audit={
       minimum_next_change:null,
     },
     public_item_acquisition_authority:{
-      status:STATUS.MISSING,
-      missing:[
+      status:authorityClosure?STATUS.PARTIAL:STATUS.MISSING,
+      missing:authorityClosure?['verified live acquisition facts for currently obtainable evolution items']:[
         'acquisition_type','shop_type','sleep_point_cost','diamond_cost','exchange_limit',
         'premium_only','mission_or_achievement','event_limited','bundle_name',
         'available_from','available_until','confidence',
       ],
-      minimum_next_change:'add a separate versioned acquisition authority with effective-period/source governance',
+      minimum_next_change:authorityClosure?'populate only source-verified acquisition rows; UNKNOWN rows remain fail-closed':'add a separate versioned acquisition authority with effective-period/source governance',
     },
     player_pokemon_identity:{
       status:STATUS.READY,
@@ -84,19 +89,19 @@ const audit={
       evidence:['item_inventory.quantity','item_inventory.safe_reserve','resource_context.items.available'],
     },
     dream_shards:{
-      status:STATUS.MISSING,
+      status:authorityClosure?STATUS.READY:STATUS.MISSING,
       minimum_next_change:'add explicit player-local resource field/table and expose nullable/known semantics in resource snapshot',
     },
     sleep_points:{
-      status:STATUS.MISSING,
+      status:authorityClosure?STATUS.READY:STATUS.MISSING,
       minimum_next_change:'add explicit player-local resource field/table and expose nullable/known semantics in resource snapshot',
     },
     diamonds:{
-      status:STATUS.MISSING,
+      status:authorityClosure?STATUS.READY:STATUS.MISSING,
       minimum_next_change:'add explicit player-local resource field/table and expose nullable/known semantics in resource snapshot',
     },
     premium_pass_state:{
-      status:STATUS.MISSING,
+      status:authorityClosure?STATUS.READY:STATUS.MISSING,
       minimum_next_change:'add explicit player-local tri-state/known semantics; never infer from shop availability',
     },
     shared_player_isolation:{
@@ -104,7 +109,7 @@ const audit={
       evidence:['public master tables are projected separately from player inventory tables','resource snapshot joins read-side only'],
     },
     g121_status_vocabulary:{
-      status:STATUS.MISSING,
+      status:authorityClosure?STATUS.READY:STATUS.MISSING,
       required:[
         'ready_now','missing_sleep_hours','missing_level','missing_candy','missing_item',
         'missing_dream_shards','time_window_pending','multiple_requirements_missing',
@@ -121,7 +126,10 @@ for(const field of ['from_species','to_species','required_level','required_sleep
   assert.ok(evoFields.has(field),`evolution master missing expected baseline field: ${field}`);
 }
 for(const field of ['effective_from','effective_until','confidence']){
-  assert.equal(evoFields.has(field),false,`G12.1A baseline unexpectedly gained ${field}; update audit classification intentionally`);
+  assert.equal(evoFields.has(field),authorityClosure,`G12.1A evolution authority field mismatch: ${field}`);
+}
+for(const field of ['route_id','evolution_branch_id','effective_period_status']){
+  assert.equal(evoFields.has(field),authorityClosure,`G12.1A route identity field mismatch: ${field}`);
 }
 assert.match(pokemonKnowledge,/CREATE TABLE IF NOT EXISTS pokemon_evolution_master/);
 assert.match(pokemonKnowledge,/required_sleep_hours REAL/);
@@ -131,7 +139,16 @@ assert.match(migrations,/CREATE UNIQUE INDEX IF NOT EXISTS idx_pokemon_instance_
 assert.match(schema,/CREATE TABLE IF NOT EXISTS item_inventory\(item_name TEXT PRIMARY KEY,quantity INTEGER NOT NULL DEFAULT 0,safe_reserve INTEGER NOT NULL DEFAULT 0/);
 assert.match(resourceContext,/ingredients,items,candies/);
 assert.match(resourceContext,/safe_reserve:number\(row\.safe_reserve\)/);
-assert.doesNotMatch(resourceContext,/dream_shards|sleep_points|diamonds|premium_pass/i,'current resource snapshot must still classify these G12 inputs as missing until explicitly implemented');
+if(authorityClosure){
+  assert.match(resourceContext,/player_resources:playerResources/);
+  assert.match(resourceContext,/normalizeG121PlayerResourceRows/);
+  assert.match(g121Authority,/dream_shards/);
+  assert.match(g121Authority,/sleep_points/);
+  assert.match(g121Authority,/diamonds/);
+  assert.match(g121Authority,/premium_pass_state/);
+}else{
+  assert.doesNotMatch(resourceContext,/dream_shards|sleep_points|diamonds|premium_pass/i,'baseline resource snapshot must classify these G12 inputs as missing');
+}
 assert.match(sharedMasterSchema,/CREATE TABLE IF NOT EXISTS item_master/);
 for(const field of ['item_name','item_category','effect_description_zh_tw','source_type','source_name','source_ref','verified_at','data_version']){
   assert.ok(itemFields.has(field),`item master missing expected baseline field: ${field}`);
@@ -144,15 +161,15 @@ const counts=Object.values(audit.dependencies).reduce((acc,row)=>{
   acc[row.status]=(acc[row.status]||0)+1;return acc;
 },{READY:0,PARTIAL:0,MISSING:0});
 
-assert.equal(audit.dependencies.public_evolution_master.status,STATUS.PARTIAL);
-assert.equal(audit.dependencies.public_item_acquisition_authority.status,STATUS.MISSING);
+assert.equal(audit.dependencies.public_evolution_master.status,authorityClosure?STATUS.READY:STATUS.PARTIAL);
+assert.equal(audit.dependencies.public_item_acquisition_authority.status,authorityClosure?STATUS.PARTIAL:STATUS.MISSING);
 assert.equal(audit.dependencies.player_pokemon_identity.status,STATUS.READY);
 assert.equal(audit.dependencies.player_instance_sleep_hours.status,STATUS.READY);
 assert.equal(audit.dependencies.canonical_family_candy.status,STATUS.READY);
-assert.equal(audit.dependencies.dream_shards.status,STATUS.MISSING);
-assert.equal(audit.dependencies.sleep_points.status,STATUS.MISSING);
-assert.equal(audit.dependencies.diamonds.status,STATUS.MISSING);
-assert.equal(audit.dependencies.premium_pass_state.status,STATUS.MISSING);
-assert.equal(audit.dependencies.g121_status_vocabulary.status,STATUS.MISSING);
+assert.equal(audit.dependencies.dream_shards.status,authorityClosure?STATUS.READY:STATUS.MISSING);
+assert.equal(audit.dependencies.sleep_points.status,authorityClosure?STATUS.READY:STATUS.MISSING);
+assert.equal(audit.dependencies.diamonds.status,authorityClosure?STATUS.READY:STATUS.MISSING);
+assert.equal(audit.dependencies.premium_pass_state.status,authorityClosure?STATUS.READY:STATUS.MISSING);
+assert.equal(audit.dependencies.g121_status_vocabulary.status,authorityClosure?STATUS.READY:STATUS.MISSING);
 
-console.log(JSON.stringify({...audit,summary:counts},null,2));
+console.log(JSON.stringify({...audit,authority_closure:authorityClosure,summary:counts},null,2));

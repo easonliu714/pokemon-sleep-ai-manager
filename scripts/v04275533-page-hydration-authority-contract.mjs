@@ -34,15 +34,20 @@ const releases={
     build:'20260908-v042755334-page-status-visibility-watchdog',
     cache:'pokemon-sleep-ai-v0.4.27.55.3.3.4-v042755334-page-status-visibility-watchdog',
   },
+  'v0.4.27.55.3.3.5':{
+    build:'20260908-v042755335-g121a-authority-closure',
+    cache:'pokemon-sleep-ai-v0.4.27.55.3.3.5-v042755335-g121a-authority-closure',
+  },
 };
 assert.ok(releases[appVersion],'unsupported .55.3.3 successor: '+appVersion);
 assert.equal(appBuild,releases[appVersion].build);
 assert.equal(cacheName,releases[appVersion].cache);
 assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.2'/,'predecessor bridge must remain');
-if(appVersion==='v0.4.27.55.3.3.1'||appVersion==='v0.4.27.55.3.3.2'||appVersion==='v0.4.27.55.3.3.3'||appVersion==='v0.4.27.55.3.3.4')assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3'/);
-if(appVersion==='v0.4.27.55.3.3.2'||appVersion==='v0.4.27.55.3.3.3'||appVersion==='v0.4.27.55.3.3.4')assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.1'/);
-if(appVersion==='v0.4.27.55.3.3.3'||appVersion==='v0.4.27.55.3.3.4')assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.2'/);
-if(appVersion==='v0.4.27.55.3.3.4')assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.3'/);
+if(appVersion==='v0.4.27.55.3.3.1'||appVersion==='v0.4.27.55.3.3.2'||appVersion==='v0.4.27.55.3.3.3'||appVersion==='v0.4.27.55.3.3.4'||appVersion==='v0.4.27.55.3.3.5')assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3'/);
+if(appVersion==='v0.4.27.55.3.3.2'||appVersion==='v0.4.27.55.3.3.3'||appVersion==='v0.4.27.55.3.3.4'||appVersion==='v0.4.27.55.3.3.5')assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.1'/);
+if(appVersion==='v0.4.27.55.3.3.3'||appVersion==='v0.4.27.55.3.3.4'||appVersion==='v0.4.27.55.3.3.5')assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.2'/);
+if(appVersion==='v0.4.27.55.3.3.4'||appVersion==='v0.4.27.55.3.3.5')assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.3'/);
+if(appVersion==='v0.4.27.55.3.3.5')assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.4'/);
 assert.match(sw,/importScripts\('\.\/assets\/js\/version-authority\.js'\)/);
 
 assert.match(bootstrap,/page-hydration-authority-v04275533\.js/);
@@ -84,4 +89,4 @@ console.log(JSON.stringify({
   migration:CANDY_FAMILY_STORAGE_MIGRATION_VERSION,
 },null,2));
 
-if(appVersion==='v0.4.27.55.3.3.1'||appVersion==='v0.4.27.55.3.3.2'||appVersion==='v0.4.27.55.3.3.3'||appVersion==='v0.4.27.55.3.3.4')await import('./v042755331-page-prewarm-collapsible-hydration-contract.mjs');
+if(appVersion==='v0.4.27.55.3.3.1'||appVersion==='v0.4.27.55.3.3.2'||appVersion==='v0.4.27.55.3.3.3'||appVersion==='v0.4.27.55.3.3.4'||appVersion==='v0.4.27.55.3.3.5')await import('./v042755331-page-prewarm-collapsible-hydration-contract.mjs');

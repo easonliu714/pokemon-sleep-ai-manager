@@ -88,7 +88,7 @@ const p0b6Patch=Number(appVersion.match(/^v0\.4\.27\.(\d+)(?:\.\d+)*$/)?.[1]||-1
 const p0b6Hotfix=Number(appVersion.match(/^v0\.4\.27\.55\.(\d+)(?:\.\d+)*$/)?.[1]||0);
 const p0b6Successor=p0b6Patch>=55;
 const localGapDurabilitySuccessor=p0b6Patch>55||(p0b6Patch===55&&p0b6Hotfix>=2);
-const pagePrewarmSuccessor=['v0.4.27.55.3.3.1','v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4'].includes(appVersion);
+const pagePrewarmSuccessor=['v0.4.27.55.3.3.1','v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5'].includes(appVersion);
 assert.match(uiSource,/我已核對遊戲畫面，確認數量/);
 assert.match(uiSource,/Gemini Raw JSON（唯讀、immutable）/);
 if(localGapDurabilitySuccessor){
@@ -99,10 +99,6 @@ if(localGapDurabilitySuccessor){
   assert.match(admissionUiSource,/建立公版糖果並重新對應/);
 }
 if(pagePrewarmSuccessor){
-  // .55.3.3.1+ deliberately removes Update Center side-effect imports from the
-  // Candy inventory/Knowledge surface. The governed page hydrator is now the
-  // single owner that dynamically loads the screenshot UI and proves real mount
-  // readiness using inner controls. P0-B5 semantics remain unchanged above.
   assert.doesNotMatch(inventoryUiSource,/candy-quantity-screenshot-ui\.js/,'page-prewarm successor must not eager-load Update Center screenshot analysis from Candy inventory');
   assert.doesNotMatch(inventoryUiSource,/candy-public-master-admission-ui\.js/,'page-prewarm successor must not eager-load Update Center admission UI from Candy inventory');
   assert.match(pageHydrationSource,/import\('\.\/candy-quantity-screenshot-ui\.js'\)/,'page hydrator must own governed Candy screenshot UI loading');
@@ -117,9 +113,12 @@ if(pagePrewarmSuccessor){
   }else if(appVersion==='v0.4.27.55.3.3.3'){
     assert.equal(appBuild,'20260907-v042755333-candy-master-progressive-render');
     assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.3-v042755333-candy-master-progressive-render');
-  }else{
+  }else if(appVersion==='v0.4.27.55.3.3.4'){
     assert.equal(appBuild,'20260908-v042755334-page-status-visibility-watchdog');
     assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.4-v042755334-page-status-visibility-watchdog');
+  }else{
+    assert.equal(appBuild,'20260908-v042755335-g121a-authority-closure');
+    assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.5-v042755335-g121a-authority-closure');
   }
 }else{
   assert.match(inventoryUiSource,/candy-quantity-screenshot-ui\.js/);

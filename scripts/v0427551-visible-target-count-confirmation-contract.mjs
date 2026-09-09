@@ -106,7 +106,12 @@ const version=readFileSync(new URL('../assets/js/version-authority.js',import.me
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.1'){
+if(appVersion==='v0.4.27.55.3.3.5'){
+  assert.ok(ui.includes("section.dataset.performanceAuthority='v0.4.27.55.3-mobile-incremental-confirmation'"),'G12.1A successor must preserve the exact .55.3 Candy performance authority');
+  assert.equal(appBuild,'20260908-v042755335-g121a-authority-closure');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.5-v042755335-g121a-authority-closure');
+  for(const predecessor of ['v0.4.27.55.3.3.4','v0.4.27.55.3.3.3','v0.4.27.55.3.3.2','v0.4.27.55.3.3.1','v0.4.27.55.3.3','v0.4.27.55.3','v0.4.27.55.2','v0.4.27.55'])assert.ok(version.includes(`// app_version: '${predecessor}'`),`G12.1A successor must retain predecessor authority marker ${predecessor}`);
+}else if(appVersion==='v0.4.27.55.1'){
   assert.ok(ui.includes('v0.4.27.55.1'),'exact .55.1 UI must show the .55.1 release label');
   assert.equal(appBuild,'20260902-v0427551-visible-target-count-confirmation');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.1-v0427551-visible-target-count-confirmation');

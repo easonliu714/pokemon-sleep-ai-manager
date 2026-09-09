@@ -55,7 +55,10 @@ export const PUBLIC_MAIN_SKILL_MASTER=Object.freeze([
 ]);
 
 const EVO=(from_species,to_species,required_level,required_sleep_hours,required_candy,required_item,other_requirement,source_ref)=>Object.freeze({
+  route_id:`sleep-evolution:${from_species}→${to_species}`,
+  evolution_branch_id:`sleep-evolution-branch:${from_species}`,
   from_species,to_species,required_level,required_sleep_hours,required_candy,required_item,other_requirement,
+  effective_from:null,effective_until:null,confidence:1.0,effective_period_status:'CURRENT_REFERENCE_NO_EFFECTIVE_WINDOW',
   source_ref,verification_status:'REFERENCE_VERIFIED',...BASE_SOURCE,
 });
 const EVO_STATUS=(species_name,evolution_status,source_ref,verification_status='REFERENCE_VERIFIED')=>Object.freeze({
@@ -222,6 +225,13 @@ export const PUBLIC_EVOLUTION_STATUS_MASTER=Object.freeze([
   EVO_STATUS_LIVE('黑魯加','VERIFIED_TERMINAL_CURRENT_SLEEP','https://www.serebii.net/pokemonsleep/pokemon/houndoom.shtml'),
 ]);
 
+const hasColumn=(db,table,column)=>{
+  const statement=db.prepare(`PRAGMA table_info("${table}")`);
+  const names=[];while(statement.step())names.push(statement.getAsObject().name);statement.free();
+  return names.includes(column);
+};
+const addColumnIfMissing=(db,table,column,definition)=>{if(!hasColumn(db,table,column))db.run(`ALTER TABLE "${table}" ADD COLUMN "${column}" ${definition}`);};
+
 export function applyPublicPokemonKnowledgeSchema(db){
   db.run(`CREATE TABLE IF NOT EXISTS nature_master(
     nature_name TEXT PRIMARY KEY,positive_effect TEXT,negative_effect TEXT,description_zh_tw TEXT,
@@ -232,8 +242,11 @@ export function applyPublicPokemonKnowledgeSchema(db){
     source_type TEXT NOT NULL,source_name TEXT NOT NULL,source_ref TEXT,verified_at TEXT,data_version TEXT NOT NULL
   )`);
   db.run(`CREATE TABLE IF NOT EXISTS pokemon_evolution_master(
+    route_id TEXT,evolution_branch_id TEXT,
     from_species TEXT NOT NULL,to_species TEXT NOT NULL,required_level INTEGER,required_sleep_hours REAL,required_candy INTEGER,
-    required_item TEXT,other_requirement TEXT,verification_status TEXT NOT NULL,
+    required_item TEXT,other_requirement TEXT,effective_from TEXT,effective_until TEXT,confidence REAL,
+    effective_period_status TEXT NOT NULL DEFAULT 'CURRENT_REFERENCE_NO_EFFECTIVE_WINDOW',
+    verification_status TEXT NOT NULL,
     source_type TEXT NOT NULL,source_name TEXT NOT NULL,source_ref TEXT,verified_at TEXT,data_version TEXT NOT NULL,
     PRIMARY KEY(from_species,to_species)
   )`);
@@ -241,7 +254,15 @@ export function applyPublicPokemonKnowledgeSchema(db){
     species_name TEXT PRIMARY KEY,evolution_status TEXT NOT NULL,verification_status TEXT NOT NULL,
     source_type TEXT NOT NULL,source_name TEXT NOT NULL,source_ref TEXT,verified_at TEXT,data_version TEXT NOT NULL
   )`);
+  addColumnIfMissing(db,'pokemon_evolution_master','route_id','TEXT');
+  addColumnIfMissing(db,'pokemon_evolution_master','evolution_branch_id','TEXT');
+  addColumnIfMissing(db,'pokemon_evolution_master','effective_from','TEXT');
+  addColumnIfMissing(db,'pokemon_evolution_master','effective_until','TEXT');
+  addColumnIfMissing(db,'pokemon_evolution_master','confidence','REAL');
+  addColumnIfMissing(db,'pokemon_evolution_master','effective_period_status',"TEXT NOT NULL DEFAULT 'CURRENT_REFERENCE_NO_EFFECTIVE_WINDOW'");
   db.run('CREATE INDEX IF NOT EXISTS idx_public_evolution_from_species ON pokemon_evolution_master(from_species)');
+  db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_g121_evolution_route_id ON pokemon_evolution_master(route_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_g121_evolution_branch_id ON pokemon_evolution_master(evolution_branch_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_public_evolution_status ON pokemon_evolution_status_master(evolution_status)');
 }
 
@@ -260,11 +281,17 @@ export function applyPublicPokemonKnowledgeData(db){
       [row.main_skill_name,row.description_zh_tw,row.verification_status,row.source_type,row.source_name,row.source_ref,row.verified_at,row.data_version]);
   }
   for(const row of PUBLIC_EVOLUTION_MASTER){
-    db.run(`INSERT INTO pokemon_evolution_master(from_species,to_species,required_level,required_sleep_hours,required_candy,required_item,other_requirement,verification_status,source_type,source_name,source_ref,verified_at,data_version)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(from_species,to_species) DO UPDATE SET required_level=excluded.required_level,required_sleep_hours=excluded.required_sleep_hours,
-      required_candy=excluded.required_candy,required_item=excluded.required_item,other_requirement=excluded.other_requirement,verification_status=excluded.verification_status,
+    db.run(`INSERT INTO pokemon_evolution_master(
+      route_id,evolution_branch_id,from_species,to_species,required_level,required_sleep_hours,required_candy,required_item,other_requirement,
+      effective_from,effective_until,confidence,effective_period_status,verification_status,source_type,source_name,source_ref,verified_at,data_version
+    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(from_species,to_species) DO UPDATE SET
+      route_id=excluded.route_id,evolution_branch_id=excluded.evolution_branch_id,required_level=excluded.required_level,
+      required_sleep_hours=excluded.required_sleep_hours,required_candy=excluded.required_candy,required_item=excluded.required_item,
+      other_requirement=excluded.other_requirement,effective_from=excluded.effective_from,effective_until=excluded.effective_until,
+      confidence=excluded.confidence,effective_period_status=excluded.effective_period_status,verification_status=excluded.verification_status,
       source_type=excluded.source_type,source_name=excluded.source_name,source_ref=excluded.source_ref,verified_at=excluded.verified_at,data_version=excluded.data_version`,
-      [row.from_species,row.to_species,row.required_level,row.required_sleep_hours,row.required_candy,row.required_item,row.other_requirement,row.verification_status,row.source_type,row.source_name,row.source_ref,row.verified_at,row.data_version]);
+      [row.route_id,row.evolution_branch_id,row.from_species,row.to_species,row.required_level,row.required_sleep_hours,row.required_candy,row.required_item,row.other_requirement,
+       row.effective_from,row.effective_until,row.confidence,row.effective_period_status,row.verification_status,row.source_type,row.source_name,row.source_ref,row.verified_at,row.data_version]);
   }
   for(const row of PUBLIC_EVOLUTION_STATUS_MASTER){
     db.run(`INSERT INTO pokemon_evolution_status_master(species_name,evolution_status,verification_status,source_type,source_name,source_ref,verified_at,data_version)
@@ -278,5 +305,6 @@ export function applyPublicPokemonKnowledgeData(db){
     nature_count:PUBLIC_NATURE_MASTER.length,main_skill_count:PUBLIC_MAIN_SKILL_MASTER.length,evolution_route_count:PUBLIC_EVOLUTION_MASTER.length,
     evolution_terminal_count:PUBLIC_EVOLUTION_STATUS_MASTER.length,
     missing_evolution_route_semantics:'UNKNOWN_NOT_YET_VERIFIED_AFTER_TERMINAL_TRIAGE',
+    g121_route_identity:true,g121_effective_period_semantics:'EXPLICIT_NULL_WITH_STATUS',g121_confidence_semantics:'SOURCE_VERIFICATION_ONLY',
   })]);
 }
