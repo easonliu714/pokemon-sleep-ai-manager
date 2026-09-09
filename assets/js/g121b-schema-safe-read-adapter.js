@@ -1,8 +1,4 @@
-import {
-  normalizeG121EvolutionMasterRow,
-  normalizeG121ItemAcquisitionRow,
-  normalizeG121PlayerResourceRows,
-} from './g121-authority.js';
+import {normalizeG121PlayerResourceRows} from './g121-authority.js';
 import {evaluateG121BDeterministicEvolutionStatus} from './g121b-deterministic-evolution-status.js';
 
 const text=value=>String(value??'').trim();
@@ -11,6 +7,7 @@ const nonNegativeInteger=value=>{
   const number=Number(value);
   return Number.isInteger(number)&&number>=0?number:null;
 };
+const nullableNonNegativeInteger=value=>value===null||value===undefined||value===''?null:nonNegativeInteger(value);
 const incomplete=(pokemonInstanceId,reason,details={})=>({
   status:'data_incomplete',
   reason,
@@ -21,6 +18,40 @@ const incomplete=(pokemonInstanceId,reason,details={})=>({
 function exactOne(rows,predicate){
   const matches=(Array.isArray(rows)?rows:[]).filter(predicate);
   return matches.length===1?{row:matches[0],count:1}:{row:null,count:matches.length};
+}
+
+function normalizeEvolutionRoute(row){
+  if(!row||typeof row!=='object')return null;
+  return {
+    route_id:text(row.route_id),
+    evolution_branch_id:text(row.evolution_branch_id),
+    from_species:text(row.from_species),
+    to_species:text(row.to_species),
+    required_level:nullableNonNegativeInteger(row.required_level),
+    required_sleep_hours:nullableNonNegativeInteger(row.required_sleep_hours),
+    required_candy:nullableNonNegativeInteger(row.required_candy),
+    required_item:text(row.required_item),
+    required_dream_shards:nullableNonNegativeInteger(row.required_dream_shards),
+    other_requirement:row.other_requirement==null?null:text(row.other_requirement),
+    effective_from:row.effective_from==null?null:text(row.effective_from),
+    effective_until:row.effective_until==null?null:text(row.effective_until),
+    effective_period_status:text(row.effective_period_status),
+    confidence:row.confidence==null?null:Number(row.confidence),
+  };
+}
+
+function normalizeAcquisitionRow(row){
+  return {
+    item_name:text(row?.item_name),
+    acquisition_type:text(row?.acquisition_type),
+    authority_status:text(row?.authority_status),
+    sleep_point_cost:nullableNonNegativeInteger(row?.sleep_point_cost),
+    diamond_cost:nullableNonNegativeInteger(row?.diamond_cost),
+    premium_only:row?.premium_only==null?null:Number(row.premium_only),
+    available_from:row?.available_from==null?null:text(row.available_from),
+    available_until:row?.available_until==null?null:text(row.available_until),
+    confidence:row?.confidence==null?null:Number(row.confidence),
+  };
 }
 
 function resolveCanonicalCandy(snapshot,pokemon){
@@ -71,7 +102,7 @@ export function evaluateG121BFromAuthoritativeSnapshot(snapshot={},request={}){
   const routeMatch=exactOne(snapshot.evolution_master_rows,row=>text(row?.route_id)===routeId&&text(row?.evolution_branch_id)===branchId);
   if(routeMatch.count===0)return incomplete(pokemonInstanceId,'missing_evolution_route_authority',{route_id:routeId,evolution_branch_id:branchId});
   if(routeMatch.count!==1)return incomplete(pokemonInstanceId,'ambiguous_evolution_route_authority',{route_id:routeId,evolution_branch_id:branchId,match_count:routeMatch.count});
-  const route=normalizeG121EvolutionMasterRow(routeMatch.row,request.now);
+  const route=normalizeEvolutionRoute(routeMatch.row);
 
   const canonicalFamilyCandy=resolveCanonicalCandy(snapshot,pokemon);
   if(route?.required_candy&&Number(route.required_candy)>0&&!canonicalFamilyCandy){
@@ -81,8 +112,7 @@ export function evaluateG121BFromAuthoritativeSnapshot(snapshot={},request={}){
   const items=resolveItemInventory(snapshot);
   if(!items)return incomplete(pokemonInstanceId,'ambiguous_item_inventory_authority',{route_id:routeId});
 
-  const acquisitionRows=(Array.isArray(snapshot.item_acquisition_rows)?snapshot.item_acquisition_rows:[])
-    .map(row=>normalizeG121ItemAcquisitionRow(row));
+  const acquisitionRows=(Array.isArray(snapshot.item_acquisition_rows)?snapshot.item_acquisition_rows:[]).map(normalizeAcquisitionRow);
   const playerResources=normalizeG121PlayerResourceRows(Array.isArray(snapshot.player_resource_state_rows)?snapshot.player_resource_state_rows:[]);
 
   const sleepHours=nonNegativeInteger(pokemon.sleep_hours);
@@ -91,8 +121,6 @@ export function evaluateG121BFromAuthoritativeSnapshot(snapshot={},request={}){
   return evaluateG121BDeterministicEvolutionStatus({
     pokemon_instance_id:pokemonInstanceId,
     sleep_hours:sleepHours,
-    // Deliberately passed only as ignored diagnostic evidence. The evaluator
-    // must never use this value in place of per-instance sleep_hours.
     account_total_sleep_time:snapshot.account_total_sleep_time,
     level,
     route,
