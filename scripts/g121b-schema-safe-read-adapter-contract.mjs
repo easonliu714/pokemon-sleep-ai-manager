@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {evaluateG121BFromAuthoritativeSnapshot} from '../assets/js/g121b-schema-safe-read-adapter.js';
+import {G121B_EVOLUTION_STATUS_READ_SCHEMA,readG121BDeterministicEvolutionStatus} from '../assets/js/g121b-evolution-status-read-api.js';
 
 const route={
   route_id:'sleep-evolution:皮卡丘→雷丘',
@@ -33,13 +34,30 @@ const ready=evaluateG121BFromAuthoritativeSnapshot(snapshot,request);
 assert.equal(ready.status,'ready_now');
 assert.equal(ready.pokemon_instance_id,'p-001');
 
+const apiReady=readG121BDeterministicEvolutionStatus(snapshot,request);
+assert.equal(apiReady.schema,G121B_EVOLUTION_STATUS_READ_SCHEMA);
+assert.equal(apiReady.status,'ready_now');
+assert.equal(apiReady.pokemon_instance_id,'p-001');
+assert.equal(apiReady.route_id,route.route_id);
+assert.equal(apiReady.evolution_branch_id,route.evolution_branch_id);
+assert.equal(apiReady.deterministic,true);
+assert.equal(apiReady.read_only,true);
+assert.equal(apiReady.ai_status_computation,false);
+
 const second=evaluateG121BFromAuthoritativeSnapshot(snapshot,{...request,pokemon_instance_id:'p-002'});
 assert.equal(second.status,'missing_sleep_hours','must bind sleep hours to requested instance only');
+const apiSecond=readG121BDeterministicEvolutionStatus(snapshot,{...request,pokemon_instance_id:'p-002'});
+assert.equal(apiSecond.status,'missing_sleep_hours');
+assert.equal(apiSecond.pokemon_instance_id,'p-002');
 
 const missingPerInstance=evaluateG121BFromAuthoritativeSnapshot({...snapshot,pokemon_rows:[{...snapshot.pokemon_rows[0],sleep_hours:null}]},request);
 assert.equal(missingPerInstance.status,'data_incomplete');
 assert.equal(missingPerInstance.reason,'missing_per_instance_sleep_hours');
 assert.equal(missingPerInstance.account_total_sleep_time_ignored,true,'account total must never substitute per-instance sleep hours');
+const apiMissingPerInstance=readG121BDeterministicEvolutionStatus({...snapshot,pokemon_rows:[{...snapshot.pokemon_rows[0],sleep_hours:null}]},request);
+assert.equal(apiMissingPerInstance.status,'data_incomplete');
+assert.equal(apiMissingPerInstance.reason,'missing_per_instance_sleep_hours');
+assert.equal(apiMissingPerInstance.ai_status_computation,false);
 
 const legacyCandyCannotSubstitute=evaluateG121BFromAuthoritativeSnapshot({...snapshot,canonical_family_candy_rows:[],legacy_species_candy_rows:[{species:'皮卡丘',quantity:999999}]},request);
 assert.equal(legacyCandyCannotSubstitute.status,'data_incomplete');
@@ -52,6 +70,10 @@ const acquisitionUnknown=evaluateG121BFromAuthoritativeSnapshot({...snapshot,ite
 assert.equal(acquisitionUnknown.status,'data_incomplete');
 assert.equal(acquisitionUnknown.reason,'missing_item_acquisition_authority');
 assert.equal(acquisitionUnknown.acquisition_guidance_suppressed,true);
+const apiAcquisitionUnknown=readG121BDeterministicEvolutionStatus({...snapshot,item_inventory_rows:[{item_name:'雷之石',quantity:0,safe_reserve:0}],item_acquisition_rows:[{item_name:'雷之石',acquisition_type:'unknown',authority_status:'MISSING_AUTHORITY',sleep_point_cost:null,diamond_cost:null}]},request);
+assert.equal(apiAcquisitionUnknown.status,'data_incomplete');
+assert.equal(apiAcquisitionUnknown.reason,'missing_item_acquisition_authority');
+assert.equal(apiAcquisitionUnknown.acquisition_guidance_suppressed,true);
 
 const unknownShards=evaluateG121BFromAuthoritativeSnapshot({...snapshot,player_resource_state_rows:resources.map(row=>row.resource_key==='dream_shards'?{...row,knowledge_state:'UNKNOWN',numeric_value:0}:row)},request);
 assert.equal(unknownShards.status,'data_incomplete');
@@ -69,4 +91,5 @@ console.log(JSON.stringify({
   gate:'G12.1B_SCHEMA_SAFE_READ_ADAPTER',status:'PASS',read_only:true,ai_status_computation:false,
   pokemon_instance_id_only:true,account_total_sleep_time_substitution:false,legacy_species_candy_consumed:false,
   canonical_family_candy:true,safe_reserve:true,missing_authority_fail_closed:true,
+  evolution_status_read_schema:G121B_EVOLUTION_STATUS_READ_SCHEMA,stable_read_envelope:true,
 },null,2));
