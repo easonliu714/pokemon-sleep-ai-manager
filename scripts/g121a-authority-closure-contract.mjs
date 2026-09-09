@@ -126,8 +126,9 @@ console.log(JSON.stringify({
   status_vocabulary:Object.values(G121_EVOLUTION_STATUS),
 },null,2));
 
-// G12.1B stays inside the approved Frontend Regression topology: successor
-// contracts execute from this existing authority-closure step rather than
-// introducing standalone workflows.
+// G12.1 successors stay inside the approved Frontend Regression topology:
+// successor contracts execute from this existing authority-closure step rather
+// than introducing standalone workflows.
 await import('./g121b-deterministic-evolution-status-contract.mjs');
 await import('./g121b-schema-safe-read-adapter-contract.mjs');
+await import('./g121c-explainable-evolution-recommendation-contract.mjs');
