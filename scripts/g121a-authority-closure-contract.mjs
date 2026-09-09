@@ -125,3 +125,8 @@ console.log(JSON.stringify({
   item_acquisition_missing_authority_fail_closed:true,
   status_vocabulary:Object.values(G121_EVOLUTION_STATUS),
 },null,2));
+
+// G12.1B stays inside the approved Frontend Regression topology: this successor
+// contract is executed by the existing G12.1A authority-closure step rather than
+// introducing a standalone workflow.
+await import('./g121b-deterministic-evolution-status-contract.mjs');
