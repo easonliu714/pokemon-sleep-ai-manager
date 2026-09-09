@@ -31,21 +31,23 @@ const requirementView=requirement=>({
     :exactGap(requirement)===0,
 });
 
-function acquisitionAuthority(snapshot,itemName){
+function acquisitionAuthority(snapshot,itemName,nowValue){
   if(!itemName)return {status:'NOT_REQUIRED',guidance:[]};
   const rows=(Array.isArray(snapshot?.item_acquisition_rows)?snapshot.item_acquisition_rows:[])
     .filter(row=>text(row.item_name)===itemName);
   if(!rows.length||rows.some(row=>['','UNKNOWN','MISSING_AUTHORITY'].includes(text(row.authority_status)))){
     return {status:'MISSING_AUTHORITY',guidance:[]};
   }
-  const now=Date.parse(snapshot?.now||'');
+  const now=Date.parse(nowValue||'');
   const guidance=[];
   for(const row of rows){
     const type=text(row.acquisition_type);
-    const until=row.effective_until?Date.parse(row.effective_until):null;
-    const from=row.effective_from?Date.parse(row.effective_from):null;
-    if((row.effective_until&&(!Number.isFinite(until)||(Number.isFinite(now)&&now>until)))||
-       (row.effective_from&&(!Number.isFinite(from)||(Number.isFinite(now)&&now<from)))){
+    const rawFrom=row.available_from??row.effective_from;
+    const rawUntil=row.available_until??row.effective_until;
+    const until=rawUntil?Date.parse(rawUntil):null;
+    const from=rawFrom?Date.parse(rawFrom):null;
+    if((rawUntil&&(!Number.isFinite(until)||(Number.isFinite(now)&&now>until)))||
+       (rawFrom&&(!Number.isFinite(from)||(Number.isFinite(now)&&now<from)))){
       return {status:'TIME_AUTHORITY_UNAVAILABLE',guidance:[]};
     }
     if(type==='regular_sleep_point_exchange'||type==='premium_sleep_point_exchange'){
@@ -118,7 +120,7 @@ export function readG121CExplainableEvolutionRecommendation(snapshot={},request=
   const completedRequirements=requirements.filter(row=>row.satisfied);
   const missingRequirements=requirements.filter(row=>!row.satisfied);
   const requiredItem=requirements.find(row=>row.kind==='item')?.item_name||null;
-  const acquisition=acquisitionAuthority(snapshot,requiredItem);
+  const acquisition=acquisitionAuthority(snapshot,requiredItem,request.now);
   const projection=sleepProjection(statusResult,recommendationAuthority.nightly_sleep);
   const authorityChecks={
     cultivation_value:verifiedBoolean(recommendationAuthority.cultivation_value),
