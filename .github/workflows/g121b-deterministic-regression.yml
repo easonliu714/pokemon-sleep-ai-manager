@@ -1,0 +1,27 @@
+name: G12.1B Deterministic Evolution Regression
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  g121b-deterministic-evolution:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify G12.1B deterministic evolution status
+        run: node scripts/g121b-deterministic-evolution-status-contract.mjs
