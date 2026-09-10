@@ -4,6 +4,7 @@ import {
   renderG121DBranchComparison,
 } from '../assets/js/g121d-evolution-recommendation-ui.js';
 
+const styleNodes=new Map();
 function makeContainer(){
   const grid={children:[],appendChild(node){this.children.push(node);}};
   return {
@@ -14,8 +15,11 @@ function makeContainer(){
     querySelector(selector){return selector==='.g121d-branch-grid'?grid:null;},
   };
 }
-
-globalThis.document={createElement(){return makeContainer();}};
+globalThis.document={
+  head:{appendChild(node){if(node?.id)styleNodes.set(node.id,node);}},
+  getElementById(id){return styleNodes.get(id)||null;},
+  createElement(tag){return tag==='style'?{id:'',textContent:''}:makeContainer();},
+};
 
 const base={
   schema:'evolution-recommendation/1.0',
@@ -59,6 +63,8 @@ assert.match(single.innerHTML,/資料不足／暫緩/,'ready_now must not be pro
 assert.match(single.innerHTML,/取得方式：資料不足／需確認/);
 assert.doesNotMatch(single.innerHTML,/Sleep Points \d+/,'missing acquisition authority must not create Sleep Points purchase claims');
 assert.doesNotMatch(single.innerHTML,/Diamonds \d+/,'missing acquisition authority must not create Diamond purchase claims');
+assert.ok(styleNodes.has('g121dEvolutionRecommendationStyles'),'responsive G12.1D style authority must materialize once');
+assert.match(styleNodes.get('g121dEvolutionRecommendationStyles').textContent,/repeat\(auto-fit/);
 
 const sleep=makeContainer();
 renderG121DEvolutionRecommendationCard(sleep,{
@@ -118,4 +124,5 @@ console.log(JSON.stringify({
   branch_comparison:true,
   shared_personal_isolation:true,
   invalid_envelope_fail_closed:true,
+  responsive_styles:true,
 },null,2));
