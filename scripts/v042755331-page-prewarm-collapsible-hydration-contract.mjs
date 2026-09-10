@@ -15,7 +15,15 @@ const knowledge=read('assets/js/shared-knowledge-ui.js');
 const catalog=read('assets/js/public-catalog-workbench.js');
 const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 
-if(appVersion==='v0.4.27.55.3.3.5'){
+if(appVersion==='v0.4.27.55.3.3.6'){
+  assert.match(authority,/app_build:\s*'20260910-v042755336-g121d-evolution-recommendation-ui'/);
+  assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.6-v042755336-g121d-evolution-recommendation-ui'/);
+  assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.5'/,'exact .55.3.3.5 predecessor bridge must remain');
+  assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.4'/,'exact .55.3.3.4 predecessor bridge must remain');
+  assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.3'/,'exact .55.3.3.3 predecessor bridge must remain');
+  assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.2'/,'exact .55.3.3.2 predecessor bridge must remain');
+  assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.1'/,'exact .55.3.3.1 predecessor bridge must remain');
+}else if(appVersion==='v0.4.27.55.3.3.5'){
   assert.match(authority,/app_build:\s*'20260908-v042755335-g121a-authority-closure'/);
   assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.5-v042755335-g121a-authority-closure'/);
   assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.4'/,'exact .55.3.3.4 predecessor bridge must remain');
@@ -97,7 +105,7 @@ for(const token of [
 
 assert.match(hydrator,/candyRoot\.querySelector\('#candyB5Parse'\)/);
 assert.match(hydrator,/candyRoot\.querySelector\('#candyB5GateStatus'\)/);
-if(appVersion==='v0.4.27.55.3.3.2'||appVersion==='v0.4.27.55.3.3.3'||appVersion==='v0.4.27.55.3.3.4'||appVersion==='v0.4.27.55.3.3.5')assert.match(hydrator,/analysisRoot\.dataset\.analysisConfirmationReady==='true'/);
+if(['v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6'].includes(appVersion))assert.match(hydrator,/analysisRoot\.dataset\.analysisConfirmationReady==='true'/);
 else assert.match(hydrator,/analysisRoot\.querySelector\('#analysisConfirmationStatus'\)/);
 assert.match(hydrator,/waitForUpdateCenterMounts/);
 assert.match(hydrator,/MutationObserver/);
@@ -127,4 +135,4 @@ console.log(JSON.stringify({
   migration:CANDY_FAMILY_STORAGE_MIGRATION_VERSION,
 },null,2));
 
-if(appVersion==='v0.4.27.55.3.3.2'||appVersion==='v0.4.27.55.3.3.3'||appVersion==='v0.4.27.55.3.3.4'||appVersion==='v0.4.27.55.3.3.5')await import('./v042755332-ai-key-update-status-knowledge-host-contract.mjs');
+if(['v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6'].includes(appVersion))await import('./v042755332-ai-key-update-status-knowledge-host-contract.mjs');
