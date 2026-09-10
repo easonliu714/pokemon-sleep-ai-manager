@@ -1,0 +1,60 @@
+name: G12.1E Evolution UI Regression
+
+on:
+  pull_request:
+    paths:
+      - 'assets/js/g121*.js'
+      - 'assets/js/bootstrap.js'
+      - 'assets/js/version-authority.js'
+      - 'service-worker.js'
+      - 'scripts/g121*.mjs'
+      - '.github/workflows/g121e-evolution-ui-regression.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'assets/js/g121*.js'
+      - 'assets/js/bootstrap.js'
+      - 'assets/js/version-authority.js'
+      - 'service-worker.js'
+      - 'scripts/g121*.mjs'
+      - '.github/workflows/g121e-evolution-ui-regression.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  deterministic-ui-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: G12.1D deterministic UI contract
+        run: node scripts/g121d-evolution-recommendation-ui-contract.mjs
+      - name: G12.1D local provider contract
+        run: node scripts/g121d-warroom-recommendation-provider-contract.mjs
+      - name: G12.1E mobile render smoke
+        run: node scripts/g121e-evolution-ui-mobile-render-smoke.mjs
+      - name: War Room page-aware binding contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F "warroom:Object.freeze([" assets/js/bootstrap.js
+          grep -F "g121d-evolution-recommendation-ui.js" assets/js/bootstrap.js
+          grep -F "g121d-warroom-recommendation-binding.js" assets/js/bootstrap.js
+          grep -F "pokemon-sleep:g121c-recommendations-ready" assets/js/g121d-warroom-recommendation-binding.js
+          grep -F "refreshG121DWarroomRecommendations" assets/js/g121d-warroom-recommendation-binding.js
+          grep -F "data_incomplete" assets/js/g121d-warroom-recommendation-binding.js
+          grep -F "readG121CExplainableEvolutionRecommendation" assets/js/g121d-warroom-recommendation-provider.js
+          grep -F "renderG121DRosterRecommendations" assets/js/g121d-evolution-recommendation-ui.js
+      - name: Read-side no-authority-escalation contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -E "(UPDATE|INSERT|DELETE|REPLACE)[[:space:]]" assets/js/g121d-evolution-recommendation-ui.js assets/js/g121d-warroom-recommendation-binding.js assets/js/g121d-warroom-recommendation-provider.js
+          ! grep -E "Gemini|generateContent|fetch\([^)]*api" assets/js/g121d-evolution-recommendation-ui.js assets/js/g121d-warroom-recommendation-binding.js assets/js/g121d-warroom-recommendation-provider.js
+          grep -F "ai_recommendation_decision===false" assets/js/g121d-evolution-recommendation-ui.js
+          grep -F "value.read_only===true" assets/js/g121d-evolution-recommendation-ui.js
+          grep -F "read_only:true" assets/js/g121d-warroom-recommendation-provider.js

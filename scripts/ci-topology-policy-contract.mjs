@@ -3,12 +3,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 
-export const CI_TOPOLOGY_POLICY_VERSION='ci-topology-policy-2026-08-16-h-p8-retirement';
+export const CI_TOPOLOGY_POLICY_VERSION='ci-topology-policy-2026-09-10-g121e-independent-boundary';
 const WORKFLOW_DIR='.github/workflows';
+const G121E_BOUNDARY_DOC='docs/G12_1E_CI_BOUNDARY.md';
 
 const APPROVED_MAIN_WORKFLOWS=Object.freeze([
   'data-boundary-regression.yml',
   'deploy-pages.yml',
+  'g121e-evolution-ui-regression.yml',
   'g14-safety-regression.yml',
   'historical-release-regression.yml',
   'js-syntax-check.yml',
@@ -34,6 +36,7 @@ const PROTECTED_INDEPENDENT_WORKFLOWS=Object.freeze([
   'recipe-regression.yml',
   'war-room-regression.yml',
   'g14-safety-regression.yml',
+  'g121e-evolution-ui-regression.yml',
 ]);
 
 const GRANDFATHERED_VERSION_SPECIFIC_WORKFLOWS=Object.freeze(
@@ -102,6 +105,7 @@ function replayTopologyContract(contract){
 }
 
 assert.equal(fs.existsSync(WORKFLOW_DIR),true,'workflow directory missing');
+assert.equal(fs.existsSync(G121E_BOUNDARY_DOC),true,'G12.1E independent workflow requires explicit boundary documentation');
 const actualWorkflowFiles=fs.readdirSync(WORKFLOW_DIR).filter(name=>/\.ya?ml$/i.test(name)).sort();
 const approvedWorkflowFiles=[...APPROVED_MAIN_WORKFLOWS].sort();
 assert.deepEqual(actualWorkflowFiles,approvedWorkflowFiles,'main workflow topology changed: new standalone workflows require explicit CI topology policy review; retired workflows must not silently reappear');
@@ -148,6 +152,8 @@ console.log(JSON.stringify({
   p8_retired_workflow_count:8,
   p8_retirement_complete:true,
   p8_js_syntax_retirement_decision:'RETAIN_INDEPENDENT_ISSUES_WRITE_AND_EXHAUSTIVE_ASSETS_JS_BOUNDARY',
+  g121e_independent_boundary_approved:true,
+  g121e_boundary_document:G121E_BOUNDARY_DOC,
   registry_stale_no_main_file_count:REGISTRY_STALE_NO_MAIN_FILE.length,
   actions_registry_is_authoritative:false,
   main_tree_is_topology_authority:true,
