@@ -92,9 +92,6 @@ assert.equal(matchedCompile.errors.length,0,matchedCompile.errors.join('\n'));
 assert.equal(matchedCompile.update_package.operations.length,0,'unconfirmed screenshot quantity must remain non-write');
 assert.equal(matchedCompile.summary.candy_quantity_pending_count,1);
 
-// Preserve .53 local-admission fallback on a name intentionally not included in
-// the .54 source-controlled promotion set. .55.2 keeps the same exact-game-text
-// admission but no longer requires Public Species coverage as a prerequisite.
 const fallbackCandyName='托戈德瑪爾的糖果';
 assert.equal(buildPublicCandyMasterRows().some(row=>row.candy_name===fallbackCandyName),false,'fixture requires a future current-master gap');
 const gapRaw={schema:PUBLIC_MASTER_RECOGNITION_SCHEMA,recognition_version:PUBLIC_MASTER_RECOGNITION_VERSION,scenario:'candy_inventory_update',authority:'candy_master',data_version:snapshot.data_version,catalog_snapshot_id:snapshot.catalog_snapshot_id,generated_at:'2026-09-01T02:01:00.000Z',visible_target_count:1,observations:[{observation_id:'obs-future-gap',status:'UNMATCHED',observed_text:fallbackCandyName,observed_data:{quantity:7},source_image_ref:'synthetic-candy-image-001',confidence:0.95}]};
@@ -175,7 +172,19 @@ assert.equal(professor.includes('candy-public-master-admission-ui.js'),false);
 
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.3.3.5'){
+if(appVersion==='v0.4.27.55.3.3.6'){
+  assert.equal(appBuild,'20260910-v042755336-g121d-evolution-recommendation-ui');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.6-v042755336-g121d-evolution-recommendation-ui');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.5'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.4'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.3'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.2'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.1'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.2'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55'"));
+}else if(appVersion==='v0.4.27.55.3.3.5'){
   assert.equal(appBuild,'20260908-v042755335-g121a-authority-closure');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.5-v042755335-g121a-authority-closure');
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.4'"));
