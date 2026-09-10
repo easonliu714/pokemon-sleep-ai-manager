@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-export const CI_P8_SAFETY_BOUNDARY_PARITY_VERSION='ci-p8-safety-boundary-retirement-2026-08-16-b';
+export const CI_P8_SAFETY_BOUNDARY_PARITY_VERSION='ci-p8-safety-boundary-retirement-2026-09-10-g121e-successor-aware';
 export const P8_SIDE_BY_SIDE_PARITY_PROOF=Object.freeze({
   pr:328,
   fixed_head:'9e000d2a989e67c0e644018641c07bc1406b810c',
@@ -22,6 +22,7 @@ const WORKFLOW_DIR='.github/workflows';
 const G14_SUCCESSOR='.github/workflows/g14-safety-regression.yml';
 const DATA_SUCCESSOR='.github/workflows/data-boundary-regression.yml';
 const HISTORICAL_SUCCESSOR='.github/workflows/historical-release-regression.yml';
+const G121E_SUCCESSOR='.github/workflows/g121e-evolution-ui-regression.yml';
 const HISTORICAL_RUNNER='scripts/ci-historical-release-regression.mjs';
 const SYNTAX_WORKFLOW='.github/workflows/js-syntax-check.yml';
 const RETIRED_PREDECESSORS=Object.freeze([
@@ -42,6 +43,7 @@ for(const name of RETIRED_PREDECESSORS){
 for(const successor of [G14_SUCCESSOR,DATA_SUCCESSOR,HISTORICAL_SUCCESSOR]){
   assert.equal(fs.existsSync(successor),true,`P8 successor missing: ${successor}`);
 }
+assert.equal(fs.existsSync(G121E_SUCCESSOR),true,'G12.1E independent evolution UI regression successor missing');
 
 const g14=read(G14_SUCCESSOR);
 assert.doesNotMatch(g14,/contents\s*:\s*write/i,'G14 successor must remain read-only');
@@ -131,23 +133,24 @@ assert.equal(P8_SIDE_BY_SIDE_PARITY_PROOF.main_push_in_progress,0,'P8A main push
 assert.equal(P8_SIDE_BY_SIDE_PARITY_PROOF.main_push_cancelled,0,'P8A main push must have zero cancelled workflows before retirement');
 
 const actual=fs.readdirSync(WORKFLOW_DIR).filter(name=>/\.ya?ml$/i.test(name));
-assert.equal(actual.length,12,'P8 retirement topology must be exactly 12 workflow YAML files');
+assert.equal(actual.length,13,'P8 retired baseline plus approved G12.1E independent successor must be exactly 13 workflow YAML files');
 
 console.log(JSON.stringify({
   status:'PASS',
   gate:'CI_P8_SAFETY_BOUNDARY_RETIREMENT',
   version:CI_P8_SAFETY_BOUNDARY_PARITY_VERSION,
-  phase:'P8B_CONTROLLED_RETIREMENT',
+  phase:'P8B_CONTROLLED_RETIREMENT_WITH_G121E_SUCCESSOR',
   parity_proof:P8_SIDE_BY_SIDE_PARITY_PROOF,
   retired_workflow_count:RETIRED_PREDECESSORS.length,
   retired_workflows:RETIRED_PREDECESSORS,
-  successor_workflows:['g14-safety-regression.yml','data-boundary-regression.yml','historical-release-regression.yml'],
+  successor_workflows:['g14-safety-regression.yml','data-boundary-regression.yml','historical-release-regression.yml','g121e-evolution-ui-regression.yml'],
   workflow_count_before_parity:18,
   workflow_count_during_parity:20,
-  workflow_count_after_retirement:actual.length,
-  net_workflow_reduction_from_p7_baseline:6,
+  workflow_count_after_p8_retirement:12,
+  workflow_count_current:actual.length,
+  approved_post_p8_independent_successors:1,
   target_band:'11-14',
-  target_band_met:true,
+  target_band_met:actual.length>=11&&actual.length<=14,
   js_syntax_retirement_evaluated:true,
   js_syntax_retirement_decision:'RETAIN_INDEPENDENT_ISSUES_WRITE_AND_EXHAUSTIVE_ASSETS_JS_BOUNDARY',
   trigger_policy:'PRESERVE_OR_WIDEN_UNION',
