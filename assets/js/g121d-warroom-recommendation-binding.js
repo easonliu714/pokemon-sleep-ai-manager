@@ -1,4 +1,5 @@
 import { mountG121DWarroomRecommendationUI } from './g121d-evolution-recommendation-ui.js';
+import { refreshG121DWarroomRecommendations } from './g121d-warroom-recommendation-provider.js';
 
 const state={envelopes:[],bound:false};
 
@@ -12,7 +13,7 @@ function render(){
   if(!container)return {rendered:false,reason:'missing_warroom_panel'};
   container.classList.remove('loading-placeholder');
   if(!state.envelopes.length){
-    container.innerHTML='<section class="g121d-evolution-card" data-authority-state="data_incomplete"><h3>進化建議</h3><p class="notice">資料不足／需確認：尚未取得 G12.1C deterministic recommendation envelope。</p></section>';
+    container.innerHTML='<section class="g121d-evolution-card" data-authority-state="data_incomplete"><h3>進化建議</h3><p class="notice">資料不足／需確認：目前沒有具有可驗證進化分支的本機個體 recommendation envelope。</p></section>';
     return {rendered:true,valid:false,reason:'missing_g121c_envelope'};
   }
   return mountG121DWarroomRecommendationUI({container,envelopes:state.envelopes});
@@ -46,3 +47,4 @@ globalThis.PokemonSleepG121DWarroomUI=Object.freeze({
 });
 
 bindG121DWarroomRecommendationUI();
+refreshG121DWarroomRecommendations({reason:'warroom-module-load'});
