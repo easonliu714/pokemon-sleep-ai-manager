@@ -90,7 +90,11 @@ for(const token of [
   "'./assets/js/public-berry-strength-master.js'",
 ])assert.ok(sw.includes(token),`v0.4.27.4 PWA cache contract missing ${token}`);
 const predecessor=read('scripts/v0423-predecessor-contract-runner.mjs');assert.ok(predecessor.includes("current==='v0.4.27.4'"),'historical Production bridge missing v0.4.27.4');
-const workflows=fs.readdirSync('.github/workflows').filter(name=>/\.ya?ml$/.test(name));assert.equal(workflows.length,12,'v0.4.27.4 successor must not alter consolidated workflow topology');
+const workflows=fs.readdirSync('.github/workflows').filter(name=>/\.ya?ml$/.test(name));
+const g121eWorkflow='g121e-evolution-ui-regression.yml';
+const g121eBoundaryPath='docs/G12_1E_CI_BOUNDARY.md';
+const g121eApproved=workflows.length===13&&workflows.includes(g121eWorkflow)&&fs.existsSync(g121eBoundaryPath)&&read(g121eBoundaryPath).includes('Status: APPROVED INDEPENDENT SAFETY/UI BOUNDARY')&&read(g121eBoundaryPath).includes('repository topology becomes 13 workflow YAML files');
+assert.ok(workflows.length===12||g121eApproved,'v0.4.27.4 successor topology may only advance from 12 to the explicitly approved G12.1E independent 13-workflow boundary');
 
 console.log(JSON.stringify({
   status:'PASS',
@@ -105,6 +109,7 @@ console.log(JSON.stringify({
   schema_migration_added:false,
   production_numeric_authority:'4/7_HOLD_INGREDIENT_PROBABILITY',
   workflow_count:workflows.length,
+  g121e_independent_boundary_approved:g121eApproved,
   android_pwa_live_validation_required:true,
   uc_img_successor_version:UC_IMG_GEMINI_ADAPTER_VERSION,
   roster_ui_successor:Boolean(rosterUi.includes('v042713-name-fallback')),
