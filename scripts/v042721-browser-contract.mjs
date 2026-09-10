@@ -4,6 +4,10 @@ import {chromium} from 'playwright';
 const base=process.env.BASE_URL||'http://127.0.0.1:4173/';
 const minimumPatch=21;
 const successorAuthorities=Object.freeze({
+  'v0.4.27.55.3.3.6':Object.freeze({
+    app_build:'20260910-v042755336-g121d-evolution-recommendation-ui',
+    cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.6-v042755336-g121d-evolution-recommendation-ui',
+  }),
   'v0.4.27.55.3.3.5':Object.freeze({
     app_build:'20260908-v042755335-g121a-authority-closure',
     cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.5-v042755335-g121a-authority-closure',
