@@ -103,6 +103,10 @@ const pageModuleGroups=Object.freeze({
   backup:Object.freeze([]),
   knowledge:Object.freeze(['shared-knowledge-ui.js']),
   guide:Object.freeze(['ai-project-pool-settings.js']),
+  warroom:Object.freeze([
+    'g121d-evolution-recommendation-ui.js',
+    'g121d-warroom-recommendation-binding.js',
+  ]),
 });
 const pageLoads=new Map();
 const moduleLoads=new Map();
@@ -142,7 +146,7 @@ async function loadPageModules(page){
     const elapsedMs=Math.round(performance.now()-started);
     debugTrace.record('bootstrap','page_feature_load_completed',{status:'completed',details:{page,module_count:files.length,elapsed_ms:elapsedMs,single_flight:true,navigation_only:true,single_owner_render:true,hydration_owned:Boolean(hydration?.owned)}});
     if(!hydration?.owned){
-      const label=page==='guide'?'使用說明':page==='backup'?'備份還原':page;
+      const label=page==='guide'?'使用說明':page==='backup'?'備份還原':page==='warroom'?'戰情室':page;
       pageProgress(page,'ready',`${label}：功能模組載入完成`,{phase:'modules',module_count:files.length,elapsed_ms:elapsedMs,generic_terminal:true});
     }
     return {page,module_count:files.length,known_page:true,hydration_owned:Boolean(hydration?.owned)};
