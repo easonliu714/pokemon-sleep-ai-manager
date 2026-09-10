@@ -49,7 +49,7 @@ assert.equal(cacheName,releases[appVersion].cache);
 assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.2'/,'predecessor bridge must remain');
 if(['v0.4.27.55.3.3.1','v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6'].includes(appVersion))assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3'/);
 if(['v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6'].includes(appVersion))assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.1'/);
-if(['v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6'].includes(appVersion))assert.match(authority,/\/ app_version: 'v0\.4\.27\.55\.3\.3\.2'/);
+if(['v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6'].includes(appVersion))assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.2'/);
 if(['v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6'].includes(appVersion))assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.3'/);
 if(['v0.4.27.55.3.3.5','v0.4.27.55.3.3.6'].includes(appVersion))assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.4'/);
 if(appVersion==='v0.4.27.55.3.3.6')assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.5'/);
