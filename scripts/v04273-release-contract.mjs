@@ -70,6 +70,10 @@ assert.equal(production.active_verified_dimensions.length,4,'Production active n
 assert.equal(production.rules.ingredient_probability_per_help.status,'NOT_YET_VERIFIED');
 assert.equal(production.numeric_rate_model_status,'NOT_YET_VERIFIED');
 const sw=read('service-worker.js');for(const token of ['pokemon-sleep-ai-v0.4.27.2-v04272-ingredient-unlock-semantics-hotfix','public-camp-berry-master.js','uc-img-weekly-platform-authority.js','public-master-recognition.js','public-berry-strength-master.js','shared-master-data.js'])assert.ok(sw.includes(token),`PWA cache contract missing ${token}`);
-const workflows=fs.readdirSync('.github/workflows').filter(name=>/\.ya?ml$/.test(name));assert.equal(workflows.length,12,'v0.4.27.3 successor must not change consolidated workflow topology');
+const workflows=fs.readdirSync('.github/workflows').filter(name=>/\.ya?ml$/.test(name));
+const g121eWorkflow='g121e-evolution-ui-regression.yml';
+const g121eBoundaryPath='docs/G12_1E_CI_BOUNDARY.md';
+const g121eApproved=workflows.length===13&&workflows.includes(g121eWorkflow)&&fs.existsSync(g121eBoundaryPath)&&read(g121eBoundaryPath).includes('Status: APPROVED INDEPENDENT SAFETY/UI BOUNDARY')&&read(g121eBoundaryPath).includes('repository topology becomes 13 workflow YAML files');
+assert.ok(workflows.length===12||g121eApproved,'v0.4.27.3 successor topology may only advance from 12 to the explicitly approved G12.1E independent 13-workflow boundary');
 
-console.log(JSON.stringify({status:'PASS',gate:'V0.4.27.3_RELEASE_CONTRACT_SUCCESSOR_AWARE',app_version:authority.app_version,canonical_grepa:'萄葡果',locked_recipe_placeholder_review_required:false,weekly_platform_only_fail_closed:true,schema_migration_added:false,production_numeric_authority:`${production.active_verified_dimensions.length}/7_HOLD_INGREDIENT_PROBABILITY`,workflow_count:workflows.length,android_pwa_live_validation_required:true},null,2));
+console.log(JSON.stringify({status:'PASS',gate:'V0.4.27.3_RELEASE_CONTRACT_SUCCESSOR_AWARE',app_version:authority.app_version,canonical_grepa:'萄葡果',locked_recipe_placeholder_review_required:false,weekly_platform_only_fail_closed:true,schema_migration_added:false,production_numeric_authority:`${production.active_verified_dimensions.length}/7_HOLD_INGREDIENT_PROBABILITY`,workflow_count:workflows.length,g121e_independent_boundary_approved:g121eApproved,android_pwa_live_validation_required:true},null,2));
