@@ -5,16 +5,28 @@ const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({
 const text=value=>String(value??'').trim();
 const ARRAY_KEYS=Object.freeze(['completed_requirements','missing_requirements','acquisition_guidance','warnings']);
 
+function ensureG121DStyles(){
+  if(document.getElementById('g121dEvolutionRecommendationStyles'))return;
+  const style=document.createElement('style');
+  style.id='g121dEvolutionRecommendationStyles';
+  style.textContent=`
+    .g121d-roster-grid{display:grid;gap:1rem}
+    .g121d-roster-group{border:1px solid currentColor;border-radius:.75rem;padding:.25rem .75rem}
+    .g121d-roster-group>summary{cursor:pointer;padding:.75rem 0;font-weight:700}
+    .g121d-roster-body{padding:.25rem 0 .75rem}
+    .g121d-branch-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr));gap:.75rem}
+    .g121d-evolution-card{min-width:0}
+    .g121d-requirements{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr));gap:.75rem}
+    .g121d-evolution-card code{overflow-wrap:anywhere}
+  `;
+  document.head.appendChild(style);
+}
+
 function exactEnvelope(value){
   return Boolean(value&&typeof value==='object'&&
     value.schema==='evolution-recommendation/1.0'&&
     value.deterministic===true&&value.read_only===true&&
     value.ai_recommendation_decision===false&&text(value.pokemon_instance_id));
-}
-
-function authorityLabel(status){
-  if(status==='VERIFIED'||status==='NOT_REQUIRED')return '已驗證';
-  return '資料不足／需確認';
 }
 
 function requirementLabel(row={}){
@@ -88,6 +100,7 @@ export function buildG121DEvolutionRecommendationCardModel(envelope){
 
 export function renderG121DEvolutionRecommendationCard(container,envelope,options={}){
   if(!container)return {rendered:false,reason:'missing_container'};
+  ensureG121DStyles();
   const model=buildG121DEvolutionRecommendationCardModel(envelope);
   if(!model.valid){
     container.innerHTML='<section class="g121d-evolution-card" data-authority-state="data_incomplete"><h3>進化建議</h3><p class="notice">資料不足／需確認。未取得唯一且可驗證的 deterministic recommendation envelope。</p></section>';
@@ -114,6 +127,7 @@ export function renderG121DEvolutionRecommendationCard(container,envelope,option
 
 export function renderG121DBranchComparison(container,envelopes=[],options={}){
   if(!container)return {rendered:false,reason:'missing_container'};
+  ensureG121DStyles();
   const models=envelopes.map(buildG121DEvolutionRecommendationCardModel).filter(model=>model.valid);
   const identities=new Set(models.map(model=>model.pokemon_instance_id));
   if(models.length!==envelopes.length||identities.size!==1){
@@ -130,10 +144,44 @@ export function renderG121DBranchComparison(container,envelopes=[],options={}){
   return {rendered:true,valid:true,branch_count:models.length,pokemon_instance_id:models[0]?.pokemon_instance_id||null};
 }
 
+export function renderG121DRosterRecommendations(container,envelopes=[]){
+  if(!container)return {rendered:false,reason:'missing_container'};
+  ensureG121DStyles();
+  const models=envelopes.map(buildG121DEvolutionRecommendationCardModel);
+  if(!envelopes.length||models.some(model=>!model.valid)){
+    container.innerHTML='<section class="g121d-evolution-card" data-authority-state="data_incomplete"><h3>進化建議</h3><p class="notice">資料不足／需確認：目前沒有可安全呈現的個體進化 recommendation envelope。</p></section>';
+    return {rendered:true,valid:false};
+  }
+  const groups=new Map();
+  for(const model of models){
+    if(!groups.has(model.pokemon_instance_id))groups.set(model.pokemon_instance_id,[]);
+    groups.get(model.pokemon_instance_id).push(model);
+  }
+  container.innerHTML='<section class="g121d-roster" data-g121d-roster="verified"><div class="section-head"><h3>個體進化建議</h3><span class="badge"></span></div><p class="notice">依 pokemon_instance_id 分組；每個群組內只比較該個體的可驗證進化分支。</p><div class="g121d-roster-grid"></div></section>';
+  container.querySelector('.g121d-roster .badge').textContent=`${groups.size} 隻個體`;
+  const grid=container.querySelector('.g121d-roster-grid');
+  let index=0;
+  for(const [pokemonInstanceId,groupModels] of groups){
+    const details=document.createElement('details');
+    details.className='g121d-roster-group';
+    if(index===0)details.open=true;
+    const currentLabel=groupModels[0]?.envelope?.current_label||'目前個體';
+    details.innerHTML=`<summary>${esc(currentLabel)}｜${groupModels.length} 個進化分支｜<code>${esc(pokemonInstanceId)}</code></summary><div class="g121d-roster-body"></div>`;
+    grid.appendChild(details);
+    const body=details.querySelector('.g121d-roster-body');
+    if(groupModels.length>1)renderG121DBranchComparison(body,groupModels.map(model=>model.envelope));
+    else renderG121DEvolutionRecommendationCard(body,groupModels[0].envelope);
+    index+=1;
+  }
+  return {rendered:true,valid:true,pokemon_instance_count:groups.size,branch_count:models.length};
+}
+
 export function mountG121DWarroomRecommendationUI({container=document.getElementById('warroomPanel'),envelopes=[]}={}){
   if(!container)return {mounted:false,reason:'missing_warroom_panel'};
   // G12.1D is deliberately presentation-only. The caller must pass G12.1C envelopes;
   // this module performs no DB reads, mutation, status calculation, gap calculation or AI call.
+  const identities=new Set(envelopes.filter(exactEnvelope).map(row=>text(row.pokemon_instance_id)));
+  if(identities.size>1)return renderG121DRosterRecommendations(container,envelopes);
   return envelopes.length>1
     ?renderG121DBranchComparison(container,envelopes)
     :renderG121DEvolutionRecommendationCard(container,envelopes[0]);
