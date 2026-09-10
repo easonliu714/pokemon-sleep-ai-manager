@@ -1,15 +1,102 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import FDBFactory from 'fake-indexeddb/lib/FDBFactory.js';
+import 'fake-indexeddb/auto';
 import {CANDY_FAMILY_STORAGE_MIGRATION_VERSION} from '../assets/js/candy-family-storage-authority.js';
-import {shouldInvalidatePublicCatalogFingerprint,publicCatalogProjectionViewForLocalEntity} from '../assets/js/public-catalog-fingerprint-policy.js';
+import {
+  canonicalPublicCatalogFingerprint,
+  evaluatePublicCatalogVersionAuthority,
+  persistPublicCatalogFingerprint,
+  readPersistedPublicCatalogFingerprint,
+  decidePublicCatalogStartup,
+  publicCatalogProjectionViewForLocalEntity,
+  shouldInvalidatePublicCatalogFingerprint,
+} from '../assets/js/public-catalog-startup-authority.js';
 
-const read=path=>fs.readFileSync(path,'utf8');
-const publicCatalogSource=read('assets/js/public-catalog-workbench.js');
-const versionSource=read('assets/js/version-authority.js');
-globalThis.indexedDB=new FDBFactory();
-globalThis.window=globalThis;
+const storageSource=fs.readFileSync(new URL('../assets/js/storage.js',import.meta.url),'utf8');
+const appSource=fs.readFileSync(new URL('../assets/js/app.js',import.meta.url),'utf8');
+const candyUiSource=fs.readFileSync(new URL('../assets/js/candy-quantity-screenshot-ui.js',import.meta.url),'utf8');
+const versionSource=fs.readFileSync(new URL('../assets/js/version-authority.js',import.meta.url),'utf8');
+const indexSource=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const publicCatalogSource=fs.readFileSync(new URL('../assets/js/public-catalog-workbench.js',import.meta.url),'utf8');
+const debugTraceSource=fs.readFileSync(new URL('../assets/js/debug-trace-manager.js',import.meta.url),'utf8');
 
+// .55.3.1+ preserves metadata-only snapshots while removing the .55.3-only
+// IndexedDB v3 dependency. Existing v2/v3 databases open at their current version.
+assert.match(storageSource,/indexedDB\.open\(IDB_NAME\)/);
+assert.doesNotMatch(storageSource,/indexedDB\.open\(IDB_NAME\s*,\s*3\s*\)/);
+assert.match(storageSource,/LEGACY_SNAPSHOT_META_STORE = "snapshot_metadata"/);
+assert.match(storageSource,/SNAPSHOT_META_PREFIX = "snapshot:"/);
+assert.match(storageSource,/store=>store\.getAllKeys\(\)/);
+assert.doesNotMatch(storageSource,/request\(SNAPSHOT_STORE,'readonly',store=>store\.getAll\(\)\)/);
+assert.match(storageSource,/snapshot_payload_bytes_materialized:false/);
+assert.match(storageSource,/metadata_only_prune:true/);
+assert.match(storageSource,/Legacy snapshot（metadata unavailable）/);
+
+const startSource=appSource.slice(appSource.indexOf('async function start()'));
+const dbInitIndex=startSource.indexOf('await initializeDatabase()');
+const dbReadyIndex=startSource.indexOf("SQLite 已就緒｜介面載入中…");
+const refreshIndex=startSource.indexOf('await refresh()');
+const appReadyIndex=startSource.indexOf("App 已就緒");
+assert.ok(dbInitIndex>=0&&dbReadyIndex>dbInitIndex&&refreshIndex>dbReadyIndex&&appReadyIndex>refreshIndex,'DB READY / UI hydration / APP READY ordering must be explicit');
+assert.match(startSource,/pokemon-sleep:app-ready/);
+assert.match(appSource,/ui_refresh_completed/);
+assert.match(appSource,/snapshot_list_metadata_only:true/);
+
+for(const view of ['dashboard','pokemon','ingredients','items','recipes','updates','backup','knowledge','weekly','warroom','collection','guide','diagnostics']){
+  assert.match(indexSource,new RegExp(`<section id="${view}"`),`static shell missing view ${view}`);
+  assert.match(indexSource,new RegExp(`data-view="${view}"`),`static shell missing nav ${view}`);
+}
+assert.match(indexSource,/id="updateCenterDynamicContent"/);
+assert.match(indexSource,/id="appVersion"/);
+assert.match(indexSource,/id="debugExportBtn"/);
+assert.match(indexSource,/id="debugBundleBtn"/);
+assert.match(indexSource,/id="debugEventTable"/);
+assert.match(debugTraceSource,/diagnostics_static_shell_bound/);
+assert.match(debugTraceSource,/section\.dataset\.debugTraceBound/);
+assert.match(debugTraceSource,/async export\(\)/);
+assert.match(debugTraceSource,/await nextPaint\(\)/);
+assert.match(debugTraceSource,/trace_export_handler_started/);
+assert.match(debugTraceSource,/build_ms:buildMs/);
+assert.match(debugTraceSource,/handler_ms:handlerMs/);
+assert.match(debugTraceSource,/pre_redacted:true/);
+assert.match(debugTraceSource,/buildReport\(\)\{this\.flush\(\{refresh_ui:false\}\)/);
+
+assert.match(candyUiSource,/v0\.4\.27\.55\.3/);
+assert.match(candyUiSource,/candy-quantity-screenshot-ui-2026-09-02-e-mobile-perf/);
+assert.match(candyUiSource,/parse\(\{renderUi:false\}\)/);
+assert.match(candyUiSource,/refreshIncrementalConfirmationUi/);
+assert.match(candyUiSource,/durable_readback_preserved:true/);
+assert.match(candyUiSource,/global_data_changed_dispatched:false/);
+assert.match(candyUiSource,/global_refresh_deferred_until_apply:true/);
+assert.match(candyUiSource,/commitPublicCandyLocalAdmission\(prepared\)/);
+assert.match(candyUiSource,/prepareConfirmedMatchedCandyLocalAdmission/);
+assert.equal((candyUiSource.match(/pokemon-sleep:data-changed/g)||[]).length,1,'quantity confirmation must not broadcast a global data-changed event; Apply owns the single global refresh');
+assert.doesNotMatch(candyUiSource,/source:'candy_quantity_local_name_authority'/);
+assert.match(candyUiSource,/source:'candy_quantity_screenshot_b5'/);
+
+const expected={shared:'S1',recipes:'R1',items:'I1',candy:'C1',canonical:'K1',pokemon_knowledge:'P1'};
+const exactPublicMaster={expected,applied:{...expected},updated:false,updated_authorities:[]};
+const exactAuthority=evaluatePublicCatalogVersionAuthority(exactPublicMaster);
+assert.equal(exactAuthority.exact,true);
+assert.equal(exactAuthority.fingerprint,canonicalPublicCatalogFingerprint(expected));
+const memoryStorage={value:new Map(),getItem(key){return this.value.get(key)??null;},setItem(key,value){this.value.set(key,value);}};
+persistPublicCatalogFingerprint(exactAuthority.fingerprint,memoryStorage);
+const persisted=readPersistedPublicCatalogFingerprint(memoryStorage);
+assert.equal(persisted.fingerprint,exactAuthority.fingerprint);
+const bypassDecision=decidePublicCatalogStartup({authority:exactAuthority,integrity_ok:true,persisted});
+assert.equal(bypassDecision.action,'VERSION_MATCH_BYPASS');
+let fullHydrateCalls=0;if(bypassDecision.action!=='VERSION_MATCH_BYPASS')fullHydrateCalls+=1;
+assert.equal(fullHydrateCalls,0,'exact fingerprint match must call full hydrate zero times');
+const missingDecision=decidePublicCatalogStartup({authority:exactAuthority,integrity_ok:true,persisted:null});
+assert.equal(missingDecision.action,'HYDRATE_REQUIRED');assert.equal(missingDecision.reason,'PERSISTED_FINGERPRINT_MISSING');
+const mismatchedPersisted={fingerprint:`${exactAuthority.fingerprint}|stale=1`};
+assert.equal(decidePublicCatalogStartup({authority:exactAuthority,integrity_ok:true,persisted:mismatchedPersisted}).action,'HYDRATE_REQUIRED');
+const reconciledAuthority=evaluatePublicCatalogVersionAuthority({...exactPublicMaster,updated:true,updated_authorities:['recipes']});
+assert.equal(decidePublicCatalogStartup({authority:reconciledAuthority,integrity_ok:true,persisted}).action,'HYDRATE_REQUIRED');
+const badApplied={...expected,recipes:'R0'};const mismatchAuthority=evaluatePublicCatalogVersionAuthority({expected,applied:badApplied,updated:false});
+assert.equal(mismatchAuthority.exact,false);assert.equal(decidePublicCatalogStartup({authority:mismatchAuthority,integrity_ok:true,persisted}).action,'HYDRATE_REQUIRED');
+assert.equal(decidePublicCatalogStartup({authority:exactAuthority,integrity_ok:false,persisted}).action,'HYDRATE_REQUIRED');
+assert.equal(publicCatalogProjectionViewForLocalEntity('ingredient_inventory'),'ingredients');
 assert.equal(publicCatalogProjectionViewForLocalEntity('item_inventory'),'items');
 assert.equal(publicCatalogProjectionViewForLocalEntity('unrelated_player_state'),null);
 assert.equal(shouldInvalidatePublicCatalogFingerprint({entity:'ingredient_inventory'}),false,'local player mutation must not invalidate Public Master fingerprint');
