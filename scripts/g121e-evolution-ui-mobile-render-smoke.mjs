@@ -21,6 +21,7 @@ globalThis.document={
   createElement(tag){return tag==='style'?{id:'',textContent:''}:makeContainer();},
 };
 
+const longSource='https://example.com/pokemon-sleep/evolution/reference/with/a/very/long/path/that/must/wrap/on/mobile?species=eevee&branch=umbreon&authority=verified-source-reference';
 const base={
   schema:'evolution-recommendation/1.0',
   deterministic:true,
@@ -47,7 +48,7 @@ const base={
   acquisition_guidance_authority:'MISSING_AUTHORITY',
   acquisition_guidance:[],
   warnings:[],
-  source:'g121c-test-double',
+  source:longSource,
   verified_at:'2026-09-10T06:00:00Z',
   confidence:'VERIFIED',
 };
@@ -63,8 +64,17 @@ assert.match(single.innerHTML,/資料不足／暫緩/,'ready_now must not be pro
 assert.match(single.innerHTML,/取得方式：資料不足／需確認/);
 assert.doesNotMatch(single.innerHTML,/Sleep Points \d+/,'missing acquisition authority must not create Sleep Points purchase claims');
 assert.doesNotMatch(single.innerHTML,/Diamonds \d+/,'missing acquisition authority must not create Diamond purchase claims');
+assert.match(single.innerHTML,/g121d-source-meta/,'source metadata must have dedicated wrapping ownership');
+assert.match(single.innerHTML,/example\.com\/pokemon-sleep\/evolution\/reference/,'long source URL must remain visible');
+assert.match(single.innerHTML,/verified_at：2026-09-10T06:00:00Z/,'verified_at must remain visible');
+assert.match(single.innerHTML,/confidence：VERIFIED/,'confidence must remain visible');
 assert.ok(styleNodes.has('g121dEvolutionRecommendationStyles'),'responsive G12.1D style authority must materialize once');
-assert.match(styleNodes.get('g121dEvolutionRecommendationStyles').textContent,/repeat\(auto-fit/);
+const responsiveCss=styleNodes.get('g121dEvolutionRecommendationStyles').textContent;
+assert.match(responsiveCss,/repeat\(auto-fit/);
+assert.match(responsiveCss,/\.g121d-source-meta\{[^}]*min-width:0/);
+assert.match(responsiveCss,/\.g121d-source-meta\{[^}]*max-width:100%/);
+assert.match(responsiveCss,/\.g121d-source-meta\{[^}]*overflow-wrap:anywhere/);
+assert.match(responsiveCss,/\.g121d-source-meta\{[^}]*word-break:break-word/);
 
 const sleep=makeContainer();
 renderG121DEvolutionRecommendationCard(sleep,{
@@ -102,6 +112,8 @@ assert.equal(branchResult.branch_count,2);
 assert.equal(branchContainer.grid.children.length,2);
 assert.match(branchContainer.grid.children[0].innerHTML,/水伊布/);
 assert.match(branchContainer.grid.children[1].innerHTML,/雷伊布/);
+assert.match(branchContainer.grid.children[0].innerHTML,/example\.com\/pokemon-sleep\/evolution\/reference/,'long source must remain visible in multi-branch mobile card');
+assert.match(branchContainer.grid.children[1].innerHTML,/g121d-source-meta/,'multi-branch card must keep governed wrapping class');
 
 const isolation=makeContainer();
 const isolationResult=renderG121DBranchComparison(isolation,[base,{...branchB,pokemon_instance_id:'other-instance'}]);
@@ -118,6 +130,8 @@ console.log(JSON.stringify({
   status:'PASS',
   single_card:true,
   required_fields_visible:true,
+  source_url_wrap_authority:true,
+  source_verified_at_confidence_visible:true,
   ready_now_not_auto_recommended:true,
   missing_acquisition_fail_closed:true,
   nightly_projection_authority:true,

@@ -1,7 +1,13 @@
 import { mountG121DWarroomRecommendationUI } from './g121d-evolution-recommendation-ui.js';
 import { refreshG121DWarroomRecommendations } from './g121d-warroom-recommendation-provider.js';
+import { ensureG121DWarroomRecommendationSlot,G121D_WARROOM_RECOMMENDATION_SLOT_ID } from './g121d-warroom-recommendation-slot.js';
 
 const state={envelopes:[],bound:false};
+
+function ensureRecommendationSlot(){
+  const panel=document.getElementById('warroomPanel');
+  return ensureG121DWarroomRecommendationSlot(panel,document);
+}
 
 function normalizeEnvelopes(value){
   const rows=Array.isArray(value)?value:(value?[value]:[]);
@@ -9,7 +15,7 @@ function normalizeEnvelopes(value){
 }
 
 function render(){
-  const container=document.getElementById('warroomPanel');
+  const container=ensureRecommendationSlot();
   if(!container)return {rendered:false,reason:'missing_warroom_panel'};
   container.classList.remove('loading-placeholder');
   if(!state.envelopes.length){
@@ -37,7 +43,7 @@ export function bindG121DWarroomRecommendationUI(){
 }
 
 export function getG121DWarroomRecommendationBindingState(){
-  return Object.freeze({bound:state.bound,envelope_count:state.envelopes.length});
+  return Object.freeze({bound:state.bound,envelope_count:state.envelopes.length,slot_id:G121D_WARROOM_RECOMMENDATION_SLOT_ID});
 }
 
 globalThis.PokemonSleepG121DWarroomUI=Object.freeze({

@@ -1,32 +1,15 @@
 import {rows,isDatabaseReady,isRescueReadonly} from './database.js';
-import {resolveCandyFamilyStorageForSpecies} from './candy-family-storage-authority.js';
 import {readG121CExplainableEvolutionRecommendation} from './g121c-explainable-evolution-recommendation.js';
+import {evaluateG121DEvolutionVariantRouteAuthority} from './g121d-evolution-variant-authority.js';
+import {resolveG121DCanonicalCandyRead} from './g121d-candy-read-authority.js';
 import {debugTrace} from './debug-trace-manager.js';
 
-export const G121D_WARROOM_PROVIDER_VERSION='g121d-warroom-provider-2026-09-10-a';
+export const G121D_WARROOM_PROVIDER_VERSION='g121d-warroom-provider-2026-09-11-c';
 
 const text=value=>String(value??'').normalize('NFKC').trim();
 const safeRows=(sql,params=[])=>{try{return rows(sql,params);}catch{return [];}};
-const exactOne=values=>Array.isArray(values)&&values.length===1?values[0]:null;
 const activeWarroom=()=>document.querySelector('.view.active')?.id==='warroom';
 let refreshTimer=null;
-
-function canonicalCandyRowsForPokemon(pokemon,mappingByFamily,inventoryByCandy){
-  const species=text(pokemon.current_species||pokemon.species);
-  const family=resolveCandyFamilyStorageForSpecies(species);
-  if(family.status!=='MATCH'||!family.family_id)return {family_id:null,rows:[]};
-  const mappings=mappingByFamily.get(family.family_id)||[];
-  const mapping=exactOne(mappings);
-  if(!mapping?.canonical_candy_id)return {family_id:family.family_id,rows:[]};
-  const inventory=inventoryByCandy.get(mapping.canonical_candy_id)||[];
-  const row=exactOne(inventory);
-  const quantity=Number(row?.quantity);
-  if(!Number.isInteger(quantity)||quantity<0)return {family_id:family.family_id,rows:[]};
-  return {
-    family_id:family.family_id,
-    rows:[{candy_family_id:family.family_id,quantity,knowledge_state:'KNOWN'}],
-  };
-}
 
 function recommendationAuthorityForPokemon(){
   // G12.1C intentionally requires independently VERIFIED cultivation value,
@@ -50,8 +33,11 @@ export function buildG121DWarroomRecommendationEnvelopes(){
     FROM item_acquisition_master ORDER BY item_name,acquisition_id`);
   const playerResourceRows=safeRows(`SELECT resource_key,resource_kind,knowledge_state,numeric_value,text_value,updated_at,source_update_id,authority_version
     FROM player_resource_state ORDER BY resource_key`);
-  const familyMappings=safeRows(`SELECT family_id,canonical_candy_id,status,reason
-    FROM candy_family_storage_migration_audit WHERE canonical_candy_id IS NOT NULL ORDER BY family_id`);
+  // Runtime candy identity is derived from the governed family resolver plus the
+  // canonical species master row. The migration audit remains historical evidence
+  // only and is intentionally not queried by this read path.
+  const candyMasterRows=safeRows(`SELECT candy_id,candy_name,candy_type,target_species_name
+    FROM candy_master WHERE candy_type='species' ORDER BY target_species_name,candy_id`);
   const candyInventoryRows=safeRows('SELECT candy_id,quantity FROM candy_inventory ORDER BY candy_id');
 
   const routesBySpecies=new Map();
@@ -61,29 +47,32 @@ export function buildG121DWarroomRecommendationEnvelopes(){
     if(!routesBySpecies.has(key))routesBySpecies.set(key,[]);
     routesBySpecies.get(key).push(route);
   }
-  const mappingByFamily=new Map();
-  for(const mapping of familyMappings){
-    const key=text(mapping.family_id);
-    if(!key)continue;
-    if(!mappingByFamily.has(key))mappingByFamily.set(key,[]);
-    mappingByFamily.get(key).push(mapping);
-  }
-  const inventoryByCandy=new Map();
-  for(const inventory of candyInventoryRows){
-    const key=text(inventory.candy_id);
-    if(!key)continue;
-    if(!inventoryByCandy.has(key))inventoryByCandy.set(key,[]);
-    inventoryByCandy.get(key).push(inventory);
-  }
 
   const envelopes=[];
   const now=new Date().toISOString();
   for(const pokemon of pokemonRows){
     const pokemonInstanceId=text(pokemon.pokemon_instance_id);
     const currentSpecies=text(pokemon.current_species||pokemon.species);
+    if(!pokemonInstanceId||!currentSpecies)continue;
+
+    const variantAuthority=evaluateG121DEvolutionVariantRouteAuthority(pokemon);
+    if(!variantAuthority.allowed){
+      debugTrace.record('warroom','g121d_variant_route_excluded',{status:'excluded',details:{
+        pokemon_instance_id:pokemonInstanceId,
+        current_species:currentSpecies,
+        nickname:text(pokemon.nickname)||null,
+        reason:variantAuthority.reason,
+        variant:variantAuthority.variant,
+        identity_source:variantAuthority.identity_source,
+        identity_value:variantAuthority.identity_value,
+        ordinary_species_route_forbidden:variantAuthority.ordinary_species_route_forbidden,
+      }});
+      continue;
+    }
+
     const routes=routesBySpecies.get(currentSpecies)||[];
-    if(!pokemonInstanceId||!currentSpecies||!routes.length)continue;
-    const candy=canonicalCandyRowsForPokemon(pokemon,mappingByFamily,inventoryByCandy);
+    if(!routes.length)continue;
+    const candy=resolveG121DCanonicalCandyRead(currentSpecies,{candy_master_rows:candyMasterRows,candy_inventory_rows:candyInventoryRows});
     const snapshot={
       pokemon_rows:[{
         pokemon_instance_id:pokemonInstanceId,
@@ -94,7 +83,7 @@ export function buildG121DWarroomRecommendationEnvelopes(){
         candy_family_id:candy.family_id,
       }],
       evolution_master_rows:routes,
-      canonical_family_candy_rows:candy.rows,
+      canonical_family_candy_rows:candy.canonical_family_candy_rows,
       item_inventory_rows:itemInventoryRows,
       item_acquisition_rows:acquisitionRows,
       player_resource_state_rows:playerResourceRows,
@@ -114,6 +103,13 @@ export function buildG121DWarroomRecommendationEnvelopes(){
         source_verified_at:route.verified_at||null,
         route_confidence:route.confidence??null,
         provider_version:G121D_WARROOM_PROVIDER_VERSION,
+        candy_read_authority:Object.freeze({
+          status:candy.status,
+          reason:candy.reason,
+          family_id:candy.family_id,
+          canonical_candy_id:candy.canonical_candy_id,
+          player_record_exists:candy.player_record_exists,
+        }),
       }));
     }
   }

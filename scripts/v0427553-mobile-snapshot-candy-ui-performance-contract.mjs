@@ -79,7 +79,7 @@ const exactPublicMaster={expected,applied:{...expected},updated:false,updated_au
 const exactAuthority=evaluatePublicCatalogVersionAuthority(exactPublicMaster);
 assert.equal(exactAuthority.exact,true);
 assert.equal(exactAuthority.fingerprint,canonicalPublicCatalogFingerprint(expected));
-const memoryStorage={value:new Map(),getItem(key){return this.value.get(key)??null;},setItem(key,value){this.value.set(key,value);}};
+const memoryStorage={value:new Map(),getItem(key){return this.value.get(key)??null;},setItem(key,value){this.value.set(key,String(value));}};
 persistPublicCatalogFingerprint(exactAuthority.fingerprint,memoryStorage);
 const persisted=readPersistedPublicCatalogFingerprint(memoryStorage);
 assert.equal(persisted.fingerprint,exactAuthority.fingerprint);
@@ -105,8 +105,8 @@ assert.match(publicCatalogSource,/PUBLIC_CATALOG_VERSION_CHECK/);assert.match(pu
 
 assert.equal(CANDY_FAMILY_STORAGE_MIGRATION_VERSION,15,'SQLite migration authority must remain frozen at 15');
 // Governed .55.3 successors preserve this performance contract unchanged; only
-// the release-version whitelist advances through .55.3.3.
-assert.match(versionSource,/app_version: 'v0\.4\.27\.55\.3(?:\.[12]|\.3(?:\.[123456])?)?'/);
+// the release-version whitelist advances through .55.3.3.7.
+assert.match(versionSource,/app_version: 'v0\.4\.27\.55\.3(?:\.[12]|\.3(?:\.[1234567])?)?'/);
 assert.match(versionSource,/app_version: 'v0\.4\.27\.55\.2'/);
 
 const dbName='pokemon_sleep_ai_manager';
@@ -120,5 +120,5 @@ const listed=await storage.listSnapshots();assert.equal(listed.length,10,'snapsh
 const reopened=await new Promise((resolve,reject)=>{const req=indexedDB.open(dbName);req.onerror=()=>reject(req.error);req.onsuccess=()=>resolve(req.result);});assert.equal(reopened.version,2,'metadata-only successor must not force v2→v3');const snapshotKeys=await new Promise((resolve,reject)=>{const tx=reopened.transaction('snapshots','readonly');const req=tx.objectStore('snapshots').getAllKeys();tx.oncomplete=()=>resolve(req.result);tx.onerror=()=>reject(tx.error);});assert.equal(snapshotKeys.length,10);reopened.close();
 
 await import('../assets/js/version-authority.js');
-assert.match(globalThis.PokemonSleepVersionAuthority?.app_version||'',/^v0\.4\.27\.55\.3(?:\.[12]|\.3(?:\.[123456])?)?$/);
+assert.match(globalThis.PokemonSleepVersionAuthority?.app_version||'',/^v0\.4\.27\.55\.3(?:\.[12]|\.3(?:\.[1234567])?)?$/);
 console.log('v0.4.27.55.3 mobile snapshot / Candy incremental UI / static shell / persisted Public Master bypass contract PASS');

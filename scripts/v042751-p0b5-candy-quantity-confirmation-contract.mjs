@@ -88,7 +88,7 @@ const p0b6Patch=Number(appVersion.match(/^v0\.4\.27\.(\d+)(?:\.\d+)*$/)?.[1]||-1
 const p0b6Hotfix=Number(appVersion.match(/^v0\.4\.27\.55\.(\d+)(?:\.\d+)*$/)?.[1]||0);
 const p0b6Successor=p0b6Patch>=55;
 const localGapDurabilitySuccessor=p0b6Patch>55||(p0b6Patch===55&&p0b6Hotfix>=2);
-const pagePrewarmSuccessor=['v0.4.27.55.3.3.1','v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6'].includes(appVersion);
+const pagePrewarmSuccessor=['v0.4.27.55.3.3.1','v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7'].includes(appVersion);
 assert.match(uiSource,/我已核對遊戲畫面，確認數量/);
 assert.match(uiSource,/Gemini Raw JSON（唯讀、immutable）/);
 if(localGapDurabilitySuccessor){
@@ -119,11 +119,15 @@ if(pagePrewarmSuccessor){
   }else if(appVersion==='v0.4.27.55.3.3.5'){
     assert.equal(appBuild,'20260908-v042755335-g121a-authority-closure');
     assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.5-v042755335-g121a-authority-closure');
-  }else{
-    assert.equal(appVersion,'v0.4.27.55.3.3.6');
+  }else if(appVersion==='v0.4.27.55.3.3.6'){
     assert.equal(appBuild,'20260910-v042755336-g121d-evolution-recommendation-ui');
     assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.6-v042755336-g121d-evolution-recommendation-ui');
     assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.5'"),'G12.1D/E successor must retain exact .55.3.3.5 predecessor marker');
+  }else{
+    assert.equal(appVersion,'v0.4.27.55.3.3.7');
+    assert.equal(appBuild,'20260911-v042755337-g121d-real-device-closure');
+    assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.7-v042755337-g121d-real-device-closure');
+    assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.6'"),'G12.1D/E real-device closure successor must retain exact .55.3.3.6 predecessor marker');
   }
 }else{
   assert.match(inventoryUiSource,/candy-quantity-screenshot-ui\.js/);

@@ -13,11 +13,13 @@ function ensureG121DStyles(){
     .g121d-roster-grid{display:grid;gap:1rem}
     .g121d-roster-group{border:1px solid currentColor;border-radius:.75rem;padding:.25rem .75rem}
     .g121d-roster-group>summary{cursor:pointer;padding:.75rem 0;font-weight:700}
-    .g121d-roster-body{padding:.25rem 0 .75rem}
-    .g121d-branch-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr));gap:.75rem}
-    .g121d-evolution-card{min-width:0}
-    .g121d-requirements{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr));gap:.75rem}
-    .g121d-evolution-card code{overflow-wrap:anywhere}
+    .g121d-roster-body{padding:.25rem 0 .75rem;min-width:0}
+    .g121d-branch-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr));gap:.75rem;min-width:0}
+    .g121d-branch-grid>div{min-width:0}
+    .g121d-evolution-card{min-width:0;max-width:100%}
+    .g121d-requirements{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr));gap:.75rem;min-width:0}
+    .g121d-evolution-card code{overflow-wrap:anywhere;word-break:break-word;max-width:100%}
+    .g121d-source-meta{min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:break-word;white-space:normal}
   `;
   document.head.appendChild(style);
 }
@@ -120,7 +122,7 @@ export function renderG121DEvolutionRecommendationCard(container,envelope,option
     <div class="g121d-requirements"><div><b>已完成條件</b>${completed.length?`<ul>${completed.map(row=>`<li>${row}</li>`).join('')}</ul>`:'<p>無</p>'}</div><div><b>缺少條件</b>${missing.length?`<ul>${missing.map(row=>`<li>${row}</li>`).join('')}</ul>`:'<p>無</p>'}</div></div>
     <p>${projectionText(e)}</p>
     <p>${acquisitionText(e)}</p>
-    <p class="notice">${metaText(e)}</p>
+    <p class="notice g121d-source-meta">${metaText(e)}</p>
   </section>`;
   return {rendered:true,valid:true,pokemon_instance_id:model.pokemon_instance_id};
 }
