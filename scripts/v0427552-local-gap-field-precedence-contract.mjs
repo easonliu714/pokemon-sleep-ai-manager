@@ -67,7 +67,10 @@ await import('../assets/js/version-authority.js');
 const currentVersion=globalThis.PokemonSleepVersionAuthority?.app_version||'';
 const currentBuild=globalThis.PokemonSleepVersionAuthority?.app_build||'';
 const currentCache=globalThis.PokemonSleepVersionAuthority?.cache_name||'';
-if(currentVersion==='v0.4.27.55.3.3.6'){
+if(currentVersion==='v0.4.27.55.3.3.7'){
+  assert.equal(currentBuild,'20260911-v042755337-g121d-real-device-closure');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.7-v042755337-g121d-real-device-closure');
+}else if(currentVersion==='v0.4.27.55.3.3.6'){
   assert.equal(currentBuild,'20260910-v042755336-g121d-evolution-recommendation-ui');
   assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.6-v042755336-g121d-evolution-recommendation-ui');
 }else if(currentVersion==='v0.4.27.55.3.3.5'){
