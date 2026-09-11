@@ -2,22 +2,25 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const provider=fs.readFileSync(new URL('../assets/js/g121d-warroom-recommendation-provider.js',import.meta.url),'utf8');
+const candyRead=fs.readFileSync(new URL('../assets/js/g121d-candy-read-authority.js',import.meta.url),'utf8');
 const binding=fs.readFileSync(new URL('../assets/js/g121d-warroom-recommendation-binding.js',import.meta.url),'utf8');
 const ui=fs.readFileSync(new URL('../assets/js/g121d-evolution-recommendation-ui.js',import.meta.url),'utf8');
 
 assert.match(provider,/rows,isDatabaseReady,isRescueReadonly/,'provider must read through canonical database API');
-assert.match(provider,/resolveCandyFamilyStorageForSpecies/,'provider must bind Candy through P0-B6 family authority');
+assert.match(provider,/resolveG121DCanonicalCandyRead/,'provider must bind Candy through governed runtime read authority');
+assert.match(candyRead,/resolveCandyFamilyStorageForSpecies/,'Candy runtime read authority must derive family identity from P0-B6 governed resolver');
 assert.match(provider,/readG121CExplainableEvolutionRecommendation/,'provider must consume G12.1C rather than recompute status in UI');
 assert.match(provider,/SELECT pokemon_instance_id,current_species,species,nickname,level,sleep_hours,status/);
 assert.match(provider,/FROM pokemon_evolution_master/);
 assert.match(provider,/FROM item_inventory/);
 assert.match(provider,/FROM item_acquisition_master/);
 assert.match(provider,/FROM player_resource_state/);
-assert.match(provider,/FROM candy_family_storage_migration_audit/);
-assert.match(provider,/FROM candy_inventory/);
+assert.match(provider,/FROM candy_master WHERE candy_type='species'/,'runtime Candy identity must use canonical species master rows');
+assert.match(provider,/FROM candy_inventory ORDER BY candy_id/,'runtime Candy quantity must come from player inventory rows');
+assert.doesNotMatch(provider,/candy_family_storage_migration_audit/,'migration audit is historical governance evidence, not runtime mapping authority');
 assert.match(provider,/pokemon_instance_id:pokemonInstanceId/);
 assert.match(provider,/candy_family_id:candy\.family_id/);
-assert.match(provider,/recommendationAuthorityForPokemon\(\)/);
+assert.match(provider,/recommendationAuthorityForPokemon\(pokemon\)/);
 assert.match(provider,/return \{\};/,'unverified War Room scoring must not be coerced into recommendation authority');
 assert.match(provider,/pokemon-sleep:g121c-recommendations-ready/);
 assert.match(provider,/read_only:true/);
@@ -43,6 +46,8 @@ console.log(JSON.stringify({
   g121c_consumer:true,
   pokemon_instance_id_exact:true,
   p0b6_family_candy:true,
+  migration_audit_runtime_authority:false,
+  canonical_player_inventory_unknown_preserved:true,
   account_sleep_substitution:false,
   ai_decision:false,
   multi_instance_grouping:true,
