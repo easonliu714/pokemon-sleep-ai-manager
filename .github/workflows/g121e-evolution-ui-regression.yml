@@ -33,6 +33,8 @@ jobs:
           node-version: '22'
       - name: G12.1D deterministic UI contract
         run: node scripts/g121d-evolution-recommendation-ui-contract.mjs
+      - name: G12.1D War Room slot ownership contract
+        run: node scripts/g121d-warroom-recommendation-slot-contract.mjs
       - name: G12.1D local provider contract
         run: node scripts/g121d-warroom-recommendation-provider-contract.mjs
       - name: G12.1E mobile render smoke
