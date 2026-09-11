@@ -172,7 +172,20 @@ assert.equal(professor.includes('candy-public-master-admission-ui.js'),false);
 
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.3.3.6'){
+if(appVersion==='v0.4.27.55.3.3.7'){
+  assert.equal(appBuild,'20260911-v042755337-g121d-real-device-closure');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.7-v042755337-g121d-real-device-closure');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.6'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.5'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.4'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.3'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.2'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.1'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.2'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55'"));
+}else if(appVersion==='v0.4.27.55.3.3.6'){
   assert.equal(appBuild,'20260910-v042755336-g121d-evolution-recommendation-ui');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.6-v042755336-g121d-evolution-recommendation-ui');
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.5'"));
