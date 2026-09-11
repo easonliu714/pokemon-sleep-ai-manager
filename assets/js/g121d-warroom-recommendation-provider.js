@@ -1,9 +1,10 @@
 import {rows,isDatabaseReady,isRescueReadonly} from './database.js';
 import {resolveCandyFamilyStorageForSpecies} from './candy-family-storage-authority.js';
 import {readG121CExplainableEvolutionRecommendation} from './g121c-explainable-evolution-recommendation.js';
+import {evaluateG121DEvolutionVariantRouteAuthority} from './g121d-evolution-variant-authority.js';
 import {debugTrace} from './debug-trace-manager.js';
 
-export const G121D_WARROOM_PROVIDER_VERSION='g121d-warroom-provider-2026-09-10-a';
+export const G121D_WARROOM_PROVIDER_VERSION='g121d-warroom-provider-2026-09-11-b';
 
 const text=value=>String(value??'').normalize('NFKC').trim();
 const safeRows=(sql,params=[])=>{try{return rows(sql,params);}catch{return [];}};
@@ -81,8 +82,25 @@ export function buildG121DWarroomRecommendationEnvelopes(){
   for(const pokemon of pokemonRows){
     const pokemonInstanceId=text(pokemon.pokemon_instance_id);
     const currentSpecies=text(pokemon.current_species||pokemon.species);
+    if(!pokemonInstanceId||!currentSpecies)continue;
+
+    const variantAuthority=evaluateG121DEvolutionVariantRouteAuthority(pokemon);
+    if(!variantAuthority.allowed){
+      debugTrace.record('warroom','g121d_variant_route_excluded',{status:'excluded',details:{
+        pokemon_instance_id:pokemonInstanceId,
+        current_species:currentSpecies,
+        nickname:text(pokemon.nickname)||null,
+        reason:variantAuthority.reason,
+        variant:variantAuthority.variant,
+        identity_source:variantAuthority.identity_source,
+        identity_value:variantAuthority.identity_value,
+        ordinary_species_route_forbidden:variantAuthority.ordinary_species_route_forbidden,
+      }});
+      continue;
+    }
+
     const routes=routesBySpecies.get(currentSpecies)||[];
-    if(!pokemonInstanceId||!currentSpecies||!routes.length)continue;
+    if(!routes.length)continue;
     const candy=canonicalCandyRowsForPokemon(pokemon,mappingByFamily,inventoryByCandy);
     const snapshot={
       pokemon_rows:[{
