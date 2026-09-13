@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {resolveCandyFamilyStorageForSpecies} from '../assets/js/candy-family-storage-authority.js';
+import {resolvePublicCandyFamilyForSpecies} from '../assets/js/public-candy-family-authority.js';
 import {resolveG121DCanonicalCandyRead} from '../assets/js/g121d-candy-read-authority.js';
 
 const species='皮卡丘';
@@ -30,6 +31,7 @@ assert.equal(known.quantity,40,'legacy per-species quantity must not be double-c
 assert.equal(known.canonical_family_candy_rows.length,1);
 assert.equal(known.canonical_family_candy_rows[0].quantity,40);
 assert.equal(known.canonical_family_candy_rows[0].knowledge_state,'KNOWN');
+assert.equal(known.resolution_mode,'STORAGE_CANONICAL_SPECIES');
 assert.notEqual(known.reason,'missing_canonical_family_candy_authority','normal governed family must not depend on migration-audit row');
 
 const absent=resolveG121DCanonicalCandyRead(species,{
@@ -49,6 +51,49 @@ const zero=resolveG121DCanonicalCandyRead(species,{
 assert.equal(zero.status,'KNOWN','an actual player inventory row with integer zero is known zero');
 assert.equal(zero.player_record_exists,true);
 assert.equal(zero.quantity,0);
+
+// .55.3.3.8 real-device regression: 波克比 has a governed evolution-family
+// identity even when a separate zh-TW Candy display-name anchor is not present.
+// Runtime read authority may use that governed family only when candy_master has
+// exactly one species row inside the family. This closes the Togepi read gap
+// without synthesizing a Candy name or guessing a species.
+const togepiSpecies='波克比';
+const togepiFamily=resolvePublicCandyFamilyForSpecies(togepiSpecies);
+assert.equal(togepiFamily.status,'MATCH','Togepi must have governed public Candy-family membership');
+assert.ok(togepiFamily.family_id);
+assert.ok((togepiFamily.member_species_names||[]).includes(togepiSpecies));
+const togepiMasterSpecies=togepiSpecies;
+const togepiCandyId='fixture:togepi-family-candy';
+const togepiKnown=resolveG121DCanonicalCandyRead(togepiSpecies,{
+  candy_master_rows:[{candy_id:togepiCandyId,candy_name:'fixture exact observed master',candy_type:'species',target_species_name:togepiMasterSpecies}],
+  candy_inventory_rows:[{candy_id:togepiCandyId,quantity:20}],
+});
+assert.equal(togepiKnown.status,'KNOWN','exactly one master row inside governed Togepi family must be readable');
+assert.equal(togepiKnown.family_id,togepiFamily.family_id);
+assert.equal(togepiKnown.canonical_candy_id,togepiCandyId);
+assert.equal(togepiKnown.quantity,20);
+assert.equal(togepiKnown.resolution_mode,'GOVERNED_FAMILY_EXACT_MASTER');
+
+const togepiUnknownInventory=resolveG121DCanonicalCandyRead(togepiSpecies,{
+  candy_master_rows:[{candy_id:togepiCandyId,candy_name:'fixture exact observed master',candy_type:'species',target_species_name:togepiMasterSpecies}],
+  candy_inventory_rows:[],
+});
+assert.equal(togepiUnknownInventory.status,'UNKNOWN');
+assert.equal(togepiUnknownInventory.reason,'canonical_family_player_inventory_unknown');
+assert.equal(togepiUnknownInventory.quantity,null,'missing Togepi player inventory remains UNKNOWN, never zero');
+
+const secondMember=(togepiFamily.member_species_names||[]).find(name=>name!==togepiMasterSpecies);
+if(secondMember){
+  const ambiguous=resolveG121DCanonicalCandyRead(togepiSpecies,{
+    candy_master_rows:[
+      {candy_id:togepiCandyId,candy_name:'fixture 1',candy_type:'species',target_species_name:togepiMasterSpecies},
+      {candy_id:'fixture:togepi-family-candy-2',candy_name:'fixture 2',candy_type:'species',target_species_name:secondMember},
+    ],
+    candy_inventory_rows:[{candy_id:togepiCandyId,quantity:20}],
+  });
+  assert.equal(ambiguous.status,'UNKNOWN','multiple family member master rows must fail closed');
+  assert.equal(ambiguous.reason,'ambiguous_canonical_candy_master_rows');
+}
 
 const providerSource=fs.readFileSync(new URL('../assets/js/g121d-warroom-recommendation-provider.js',import.meta.url),'utf8');
 assert.doesNotMatch(providerSource,/candy_family_storage_migration_audit/,'migration audit must not be runtime lookup authority');
