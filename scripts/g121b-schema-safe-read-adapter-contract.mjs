@@ -52,32 +52,72 @@ assert.equal(apiSecond.pokemon_instance_id,'p-002');
 
 const missingPerInstance=evaluateG121BFromAuthoritativeSnapshot({...snapshot,pokemon_rows:[{...snapshot.pokemon_rows[0],sleep_hours:null}]},request);
 assert.equal(missingPerInstance.status,'data_incomplete');
-assert.equal(missingPerInstance.reason,'missing_per_instance_sleep_hours');
+assert.equal(missingPerInstance.reason,'authoritative_requirements_incomplete');
+assert.ok(missingPerInstance.unknown_reasons.includes('missing_per_instance_sleep_hours'));
+assert.equal(missingPerInstance.requirement_states.sleep_hours,'UNKNOWN');
 assert.equal(missingPerInstance.account_total_sleep_time_ignored,true,'account total must never substitute per-instance sleep hours');
 const apiMissingPerInstance=readG121BDeterministicEvolutionStatus({...snapshot,pokemon_rows:[{...snapshot.pokemon_rows[0],sleep_hours:null}]},request);
 assert.equal(apiMissingPerInstance.status,'data_incomplete');
-assert.equal(apiMissingPerInstance.reason,'missing_per_instance_sleep_hours');
+assert.equal(apiMissingPerInstance.reason,'authoritative_requirements_incomplete');
+assert.ok(apiMissingPerInstance.unknown_reasons.includes('missing_per_instance_sleep_hours'));
 assert.equal(apiMissingPerInstance.ai_status_computation,false);
 
 const legacyCandyCannotSubstitute=evaluateG121BFromAuthoritativeSnapshot({...snapshot,canonical_family_candy_rows:[],legacy_species_candy_rows:[{species:'皮卡丘',quantity:999999}]},request);
 assert.equal(legacyCandyCannotSubstitute.status,'data_incomplete');
-assert.equal(legacyCandyCannotSubstitute.reason,'missing_canonical_family_candy_authority');
+assert.equal(legacyCandyCannotSubstitute.reason,'authoritative_requirements_incomplete');
+assert.ok(legacyCandyCannotSubstitute.unknown_reasons.includes('missing_canonical_family_candy_authority'));
+assert.equal(legacyCandyCannotSubstitute.requirement_states.candy,'UNKNOWN');
+assert.equal(legacyCandyCannotSubstitute.requirement_states.sleep_hours,'SATISFIED','Candy UNKNOWN must not erase known sleep status');
+
+// Real-device closure fixture: 8.5 hours is valid per-instance progress (510 min),
+// while missing canonical Candy family authority remains UNKNOWN without erasing
+// the deterministic 50h sleep requirement or its 41.5h remaining gap.
+const togepiRoute={
+  route_id:'sleep-evolution:波克比→波克基古',
+  evolution_branch_id:'sleep-evolution-branch:波克比',
+  from_species:'波克比',to_species:'波克基古',required_level:null,required_sleep_hours:50,
+  required_candy:20,required_item:null,required_dream_shards:null,other_requirement:null,
+  effective_from:null,effective_until:null,effective_period_status:'CURRENT_REFERENCE_NO_EFFECTIVE_WINDOW',confidence:1,
+};
+const togepiSnapshot={
+  ...snapshot,
+  pokemon_rows:[{pokemon_instance_id:'p-togepi',species:'波克比',level:14,sleep_hours:8.5,candy_family_id:null}],
+  evolution_master_rows:[togepiRoute],
+  canonical_family_candy_rows:[],
+  item_inventory_rows:[],
+};
+const togepiResult=evaluateG121BFromAuthoritativeSnapshot(togepiSnapshot,{
+  pokemon_instance_id:'p-togepi',route_id:togepiRoute.route_id,evolution_branch_id:togepiRoute.evolution_branch_id,now:'2026-09-09T00:00:00.000Z',
+});
+assert.equal(togepiResult.status,'data_incomplete');
+assert.equal(togepiResult.reason,'authoritative_requirements_incomplete');
+assert.equal(togepiResult.requirement_states.sleep_hours,'MISSING');
+assert.equal(togepiResult.requirement_states.candy,'UNKNOWN');
+assert.ok(togepiResult.unknown_reasons.includes('missing_canonical_family_candy_authority'));
+const togepiSleep=togepiResult.requirements.find(row=>row.kind==='sleep_hours');
+assert.equal(togepiSleep.current,8.5,'fractional player sleep hours must survive the schema-safe adapter');
+assert.equal(togepiSleep.remaining,41.5,'50h - 8.5h must retain exact deterministic gap');
 
 const reserve=evaluateG121BFromAuthoritativeSnapshot({...snapshot,item_inventory_rows:[{item_name:'雷之石',quantity:1,safe_reserve:1}],item_acquisition_rows:[{item_name:'雷之石',acquisition_type:'mission',authority_status:'REFERENCE_VERIFIED'}]},request);
 assert.equal(reserve.status,'missing_item');
 
 const acquisitionUnknown=evaluateG121BFromAuthoritativeSnapshot({...snapshot,item_inventory_rows:[{item_name:'雷之石',quantity:0,safe_reserve:0}],item_acquisition_rows:[{item_name:'雷之石',acquisition_type:'unknown',authority_status:'MISSING_AUTHORITY',sleep_point_cost:null,diamond_cost:null}]},request);
 assert.equal(acquisitionUnknown.status,'data_incomplete');
-assert.equal(acquisitionUnknown.reason,'missing_item_acquisition_authority');
+assert.equal(acquisitionUnknown.reason,'authoritative_requirements_incomplete');
+assert.ok(acquisitionUnknown.unknown_reasons.includes('missing_item_acquisition_authority'));
+assert.equal(acquisitionUnknown.requirement_states.item,'MISSING');
 assert.equal(acquisitionUnknown.acquisition_guidance_suppressed,true);
 const apiAcquisitionUnknown=readG121BDeterministicEvolutionStatus({...snapshot,item_inventory_rows:[{item_name:'雷之石',quantity:0,safe_reserve:0}],item_acquisition_rows:[{item_name:'雷之石',acquisition_type:'unknown',authority_status:'MISSING_AUTHORITY',sleep_point_cost:null,diamond_cost:null}]},request);
 assert.equal(apiAcquisitionUnknown.status,'data_incomplete');
-assert.equal(apiAcquisitionUnknown.reason,'missing_item_acquisition_authority');
+assert.equal(apiAcquisitionUnknown.reason,'authoritative_requirements_incomplete');
+assert.ok(apiAcquisitionUnknown.unknown_reasons.includes('missing_item_acquisition_authority'));
 assert.equal(apiAcquisitionUnknown.acquisition_guidance_suppressed,true);
 
 const unknownShards=evaluateG121BFromAuthoritativeSnapshot({...snapshot,player_resource_state_rows:resources.map(row=>row.resource_key==='dream_shards'?{...row,knowledge_state:'UNKNOWN',numeric_value:0}:row)},request);
 assert.equal(unknownShards.status,'data_incomplete');
-assert.equal(unknownShards.reason,'missing_dream_shards_authority');
+assert.equal(unknownShards.reason,'authoritative_requirements_incomplete');
+assert.ok(unknownShards.unknown_reasons.includes('missing_dream_shards_authority'));
+assert.equal(unknownShards.requirement_states.dream_shards,'UNKNOWN');
 
 const duplicateInstance=evaluateG121BFromAuthoritativeSnapshot({...snapshot,pokemon_rows:[snapshot.pokemon_rows[0],snapshot.pokemon_rows[0]]},request);
 assert.equal(duplicateInstance.status,'data_incomplete');
@@ -91,5 +131,6 @@ console.log(JSON.stringify({
   gate:'G12.1B_SCHEMA_SAFE_READ_ADAPTER',status:'PASS',read_only:true,ai_status_computation:false,
   pokemon_instance_id_only:true,account_total_sleep_time_substitution:false,legacy_species_candy_consumed:false,
   canonical_family_candy:true,safe_reserve:true,missing_authority_fail_closed:true,
+  fractional_sleep_hours:true,partial_known_requirement_semantics:true,
   evolution_status_read_schema:G121B_EVOLUTION_STATUS_READ_SCHEMA,stable_read_envelope:true,
 },null,2));

@@ -4,7 +4,7 @@ import {evaluateG121DEvolutionVariantRouteAuthority} from './g121d-evolution-var
 import {resolveG121DCanonicalCandyRead} from './g121d-candy-read-authority.js';
 import {debugTrace} from './debug-trace-manager.js';
 
-export const G121D_WARROOM_PROVIDER_VERSION='g121d-warroom-provider-2026-09-11-c';
+export const G121D_WARROOM_PROVIDER_VERSION='g121d-warroom-provider-2026-09-13-a';
 
 const text=value=>String(value??'').normalize('NFKC').trim();
 const safeRows=(sql,params=[])=>{try{return rows(sql,params);}catch{return [];}};
@@ -21,7 +21,11 @@ function recommendationAuthorityForPokemon(){
 export function buildG121DWarroomRecommendationEnvelopes(){
   if(!isDatabaseReady()||isRescueReadonly())return Object.freeze([]);
 
-  const pokemonRows=safeRows(`SELECT pokemon_instance_id,current_species,species,nickname,level,sleep_hours,status
+  // G12.1 .55.3.3.8: original_label is part of the governed variant identity.
+  // Do not project a reduced pokemon row into the fail-closed variant resolver;
+  // otherwise special instances such as Captain Pikachu can be mistaken for the
+  // ordinary species route and incorrectly receive Pikachu -> Raichu.
+  const pokemonRows=safeRows(`SELECT pokemon_instance_id,original_label,current_species,species,nickname,level,sleep_hours,status
     FROM pokemon
     WHERE status='active' AND pokemon_instance_id IS NOT NULL AND pokemon_instance_id<>''
     ORDER BY COALESCE(NULLIF(nickname,''),COALESCE(NULLIF(current_species,''),species)),pokemon_instance_id`);
@@ -61,6 +65,7 @@ export function buildG121DWarroomRecommendationEnvelopes(){
         pokemon_instance_id:pokemonInstanceId,
         current_species:currentSpecies,
         nickname:text(pokemon.nickname)||null,
+        original_label:text(pokemon.original_label)||null,
         reason:variantAuthority.reason,
         variant:variantAuthority.variant,
         identity_source:variantAuthority.identity_source,

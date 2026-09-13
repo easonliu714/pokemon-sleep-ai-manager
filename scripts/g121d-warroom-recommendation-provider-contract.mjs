@@ -10,7 +10,9 @@ assert.match(provider,/rows,isDatabaseReady,isRescueReadonly/,'provider must rea
 assert.match(provider,/resolveG121DCanonicalCandyRead/,'provider must bind Candy through governed runtime read authority');
 assert.match(candyRead,/resolveCandyFamilyStorageForSpecies/,'Candy runtime read authority must derive family identity from P0-B6 governed resolver');
 assert.match(provider,/readG121CExplainableEvolutionRecommendation/,'provider must consume G12.1C rather than recompute status in UI');
-assert.match(provider,/SELECT pokemon_instance_id,current_species,species,nickname,level,sleep_hours,status/);
+assert.match(provider,/SELECT pokemon_instance_id,original_label,current_species,species,nickname,level,sleep_hours,status/,'War Room projection must preserve original_label before fail-closed variant resolution');
+assert.match(provider,/evaluateG121DEvolutionVariantRouteAuthority\(pokemon\)/,'provider must evaluate the full governed variant identity projection');
+assert.match(provider,/ordinary_species_route_forbidden:variantAuthority\.ordinary_species_route_forbidden/,'variant exclusion trace must preserve ordinary-route prohibition evidence');
 assert.match(provider,/FROM pokemon_evolution_master/);
 assert.match(provider,/FROM item_inventory/);
 assert.match(provider,/FROM item_acquisition_master/);
@@ -45,6 +47,8 @@ console.log(JSON.stringify({
   sqlite_read_only:true,
   g121c_consumer:true,
   pokemon_instance_id_exact:true,
+  variant_original_label_preserved:true,
+  captain_pikachu_fail_closed_projection:true,
   p0b6_family_candy:true,
   migration_audit_runtime_authority:false,
   canonical_player_inventory_unknown_preserved:true,

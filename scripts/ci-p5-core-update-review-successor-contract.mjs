@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import {validateWorkflow} from '../assets/js/ai-workflow.js';
 import {buildScenarioReviewSummary} from '../assets/js/update-review-summary.js';
 
-export const CI_P5_CORE_UPDATE_REVIEW_SUCCESSOR_VERSION='ci-p5-core-update-review-successor-2026-08-19-b-registered-date-compat';
+export const CI_P5_CORE_UPDATE_REVIEW_SUCCESSOR_VERSION='ci-p5-core-update-review-successor-2026-09-13-c-g121-public-evolution-readonly';
 export const PREDECESSOR_RUNTIME_FIXTURE=Object.freeze({
   workflow:'v0399-human-readable-diff-review.yml',
   historical_runtime:'v0.4.1',
@@ -96,7 +96,11 @@ assert.ok(DETAIL.includes("['登錄日期',p.registered_at||p.obtained_at]"),'re
 assert.equal(DETAIL.includes("['入手日期',p.obtained_at]"),false,'legacy obtained_at must not render as a separate Pokemon detail field');
 assert.equal(DETAIL.includes("input('obtained_at'"),false,'legacy obtained_at must not remain in manual detail editor');
 assert.equal(MANUAL.includes("'obtained_at'"),false,'manual editor must preserve legacy obtained_at rather than overwrite it');
-for(const token of ['resolvePublicMainSkillName','PUBLIC_MAIN_SKILL_MASTER','mainSkillDisplay(p,knowledge)','mainSkillDescriptionDisplay(p,knowledge)','原始玩家觀察值仍保留於 SQLite','個體／匯入條件優先','公版進化條件','公版引用'])assert.ok(DETAIL.includes(token),`Pokemon detail successor missing token: ${token}`);
+for(const token of ['resolvePublicMainSkillName','PUBLIC_MAIN_SKILL_MASTER','mainSkillDisplay(p,knowledge)','mainSkillDescriptionDisplay(p,knowledge)','原始玩家觀察值仍保留於 SQLite','公版進化條件（唯讀）','只用於顯示與判定，不由一般個體編輯覆寫','公版引用'])assert.ok(DETAIL.includes(token),`Pokemon detail successor missing token: ${token}`);
+assert.equal(DETAIL.includes('個體／匯入條件優先'),false,'legacy player evolution requirement override must remain retired');
+for(const field of ['evolution_level_required','evolution_sleep_hours_required','evolution_candy_required','evolution_item_required','evolution_other_requirement']){
+  assert.equal(DETAIL.includes(`input('${field}'`),false,`Public Evolution Master field must not be editable from pokemon detail: ${field}`);
+}
 for(const token of ['遊戲畫面若出現「一起睡覺的時間」','sleep_time_text:null,sleep_hours:null','不得由等級、入手日期或其他欄位推算'])assert.ok(OBS.includes(token),`Observation successor missing token: ${token}`);
 
 for(const token of ['ingredient_inventory_update','item_inventory_update','食材庫存資料','道具庫存資料','不包含玩家寶可夢能力更新'])assert.ok(REVIEW_SUMMARY.includes(token),`review summary successor missing token: ${token}`);
@@ -117,6 +121,7 @@ console.log(JSON.stringify({
   scenario_review_summary:true,
   human_readable_review:true,
   game_native_sleep_semantics:true,
+  public_evolution_master_readonly:true,
   registered_date_legacy_display_fallback:true,
   non_executable_manifest_guard:true,
   repository_mutation:false,

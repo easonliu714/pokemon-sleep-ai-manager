@@ -7,6 +7,11 @@ const nonNegativeInteger=value=>{
   const number=Number(value);
   return Number.isInteger(number)&&number>=0?number:null;
 };
+const nonNegativeNumber=value=>{
+  if(value===null||value===undefined||value==='')return null;
+  const number=Number(value);
+  return Number.isFinite(number)&&number>=0?number:null;
+};
 const nullableNonNegativeInteger=value=>value===null||value===undefined||value===''?null:nonNegativeInteger(value);
 const incomplete=(pokemonInstanceId,reason,details={})=>({
   status:'data_incomplete',
@@ -88,6 +93,10 @@ function resolveItemInventory(snapshot){
  * deterministic G12.1B evaluator. It never writes, never invokes AI, never
  * substitutes account-total sleep time, and never consumes legacy per-species
  * Candy quantities.
+ *
+ * Missing canonical-family Candy authority is intentionally passed through as
+ * UNKNOWN instead of globally aborting evaluation. This preserves independently
+ * authoritative level/sleep/item requirements while keeping UNKNOWN != 0.
  */
 export function evaluateG121BFromAuthoritativeSnapshot(snapshot={},request={}){
   const pokemonInstanceId=text(request.pokemon_instance_id);
@@ -106,10 +115,9 @@ export function evaluateG121BFromAuthoritativeSnapshot(snapshot={},request={}){
   if(routeMatch.count!==1)return incomplete(pokemonInstanceId,'ambiguous_evolution_route_authority',{route_id:routeId,evolution_branch_id:branchId,match_count:routeMatch.count});
   const route=normalizeEvolutionRoute(routeMatch.row);
 
+  // Do not early-return when Candy authority is unavailable. The deterministic
+  // evaluator must retain known sleep/level/item facts and mark only Candy UNKNOWN.
   const canonicalFamilyCandy=resolveCanonicalCandy(snapshot,pokemon);
-  if(route?.required_candy&&Number(route.required_candy)>0&&!canonicalFamilyCandy){
-    return incomplete(pokemonInstanceId,'missing_canonical_family_candy_authority',{route_id:routeId});
-  }
 
   const items=resolveItemInventory(snapshot);
   if(!items)return incomplete(pokemonInstanceId,'ambiguous_item_inventory_authority',{route_id:routeId});
@@ -117,7 +125,11 @@ export function evaluateG121BFromAuthoritativeSnapshot(snapshot={},request={}){
   const acquisitionRows=(Array.isArray(snapshot.item_acquisition_rows)?snapshot.item_acquisition_rows:[]).map(normalizeAcquisitionRow);
   const playerResources=normalizeG121PlayerResourceRows(Array.isArray(snapshot.player_resource_state_rows)?snapshot.player_resource_state_rows:[]);
 
-  const sleepHours=nonNegativeInteger(pokemon.sleep_hours);
+  // Player sleep progress is allowed to be fractional hours in storage because the
+  // detail editor canonicalizes minute input through hours (e.g. 510 min = 8.5 h).
+  // Do not use the integer validator here or valid half/quarter-hour progress would
+  // collapse to UNKNOWN before deterministic requirement evaluation.
+  const sleepHours=nonNegativeNumber(pokemon.sleep_hours);
   const level=nonNegativeInteger(pokemon.level);
 
   return evaluateG121BDeterministicEvolutionStatus({
