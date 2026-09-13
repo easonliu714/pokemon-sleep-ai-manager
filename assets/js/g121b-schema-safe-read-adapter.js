@@ -7,6 +7,11 @@ const nonNegativeInteger=value=>{
   const number=Number(value);
   return Number.isInteger(number)&&number>=0?number:null;
 };
+const nonNegativeNumber=value=>{
+  if(value===null||value===undefined||value==='')return null;
+  const number=Number(value);
+  return Number.isFinite(number)&&number>=0?number:null;
+};
 const nullableNonNegativeInteger=value=>value===null||value===undefined||value===''?null:nonNegativeInteger(value);
 const incomplete=(pokemonInstanceId,reason,details={})=>({
   status:'data_incomplete',
@@ -120,7 +125,11 @@ export function evaluateG121BFromAuthoritativeSnapshot(snapshot={},request={}){
   const acquisitionRows=(Array.isArray(snapshot.item_acquisition_rows)?snapshot.item_acquisition_rows:[]).map(normalizeAcquisitionRow);
   const playerResources=normalizeG121PlayerResourceRows(Array.isArray(snapshot.player_resource_state_rows)?snapshot.player_resource_state_rows:[]);
 
-  const sleepHours=nonNegativeInteger(pokemon.sleep_hours);
+  // Player sleep progress is allowed to be fractional hours in storage because the
+  // detail editor canonicalizes minute input through hours (e.g. 510 min = 8.5 h).
+  // Do not use the integer validator here or valid half/quarter-hour progress would
+  // collapse to UNKNOWN before deterministic requirement evaluation.
+  const sleepHours=nonNegativeNumber(pokemon.sleep_hours);
   const level=nonNegativeInteger(pokemon.level);
 
   return evaluateG121BDeterministicEvolutionStatus({
