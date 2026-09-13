@@ -13,6 +13,11 @@ const asNonNegativeInteger=value=>{
   const number=Number(value);
   return Number.isInteger(number)&&number>=0?number:null;
 };
+const asNonNegativeNumber=value=>{
+  if(value===null||value===undefined||value==='')return null;
+  const number=Number(value);
+  return Number.isFinite(number)&&number>=0?number:null;
+};
 const knownNumeric=resource=>resource?.knowledge_state==='KNOWN'&&Number.isInteger(Number(resource.numeric_value))&&Number(resource.numeric_value)>=0;
 const knownPremium=resource=>resource?.knowledge_state==='KNOWN'&&['ACTIVE','INACTIVE'].includes(String(resource.text_value||''));
 const asInstant=value=>{
@@ -94,14 +99,14 @@ export function evaluateG121BDeterministicEvolutionStatus(input={}){
     else pushRequirement('level',{kind:'level',required:requiredLevel,current:level},requirementState(level,requiredLevel));
   }
 
-  const requiredSleepHours=asNonNegativeInteger(route.required_sleep_hours);
+  const requiredSleepHours=asNonNegativeNumber(route.required_sleep_hours);
   if(route.required_sleep_hours!=null&&requiredSleepHours===null)return incomplete('invalid_required_sleep_hours',{pokemon_instance_id:pokemonInstanceId,route_id:routeId});
   if(requiredSleepHours!==null){
-    const sleepHours=asNonNegativeInteger(input.sleep_hours);
+    const sleepHours=asNonNegativeNumber(input.sleep_hours);
     if(sleepHours===null){
       pushUnknown('sleep_hours',{kind:'sleep_hours',required:requiredSleepHours,current:null,account_total_sleep_time_ignored:true},'missing_per_instance_sleep_hours');
     }else{
-      pushRequirement('sleep_hours',{kind:'sleep_hours',required:requiredSleepHours,current:sleepHours},requirementState(sleepHours,requiredSleepHours));
+      pushRequirement('sleep_hours',{kind:'sleep_hours',required:requiredSleepHours,current:sleepHours,remaining:Math.max(0,requiredSleepHours-sleepHours)},requirementState(sleepHours,requiredSleepHours));
     }
   }
 
