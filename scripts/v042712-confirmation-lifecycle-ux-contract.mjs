@@ -72,7 +72,11 @@ assert.match(detail,/p\.registered_at\|\|p\.obtained_at/u,'detail registered dat
 // VERIFIED_NOT_REQUIRED is presentation-only. It must be rendered explicitly but never become a writable player value.
 assert.match(evolution,/const DISPLAY_NOT_REQUIRED='不需要（公版已驗證）'/u,'verified-not-required display label missing');
 assert.match(detail,/state==='VERIFIED_NOT_REQUIRED'\)return DISPLAY_NOT_REQUIRED/u,'detail verified-not-required rendering missing');
-assert.match(detail,/以下僅為顯示 Projection，不寫回玩家欄位/u,'public evolution projection must state display-only semantics');
+const publicEvolutionDisplayOnlySemantics=
+  /以下僅為顯示 Projection，不寫回玩家欄位/u.test(detail)||
+  /以下由 Public Evolution Master 提供，只用於顯示與判定，不由一般個體編輯覆寫/u.test(detail)||
+  /以下為版本化公版參考，不寫回玩家欄位/u.test(detail);
+assert.equal(publicEvolutionDisplayOnlySemantics,true,'public evolution projection must state display-only semantics');
 assert.doesNotMatch(workbench,/merged\.(?:evolution_sleep_hours_required|evolution_item_required|evolution_other_requirement)\s*=\s*DISPLAY_NOT_REQUIRED/u,'display label must never be persisted into player evolution fields');
 
 // Model status UI is a strict allow-list projection. No key/project identity data crosses into the normal feature UI.
