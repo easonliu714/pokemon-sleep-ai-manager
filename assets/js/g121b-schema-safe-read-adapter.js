@@ -88,6 +88,10 @@ function resolveItemInventory(snapshot){
  * deterministic G12.1B evaluator. It never writes, never invokes AI, never
  * substitutes account-total sleep time, and never consumes legacy per-species
  * Candy quantities.
+ *
+ * Missing canonical-family Candy authority is intentionally passed through as
+ * UNKNOWN instead of globally aborting evaluation. This preserves independently
+ * authoritative level/sleep/item requirements while keeping UNKNOWN != 0.
  */
 export function evaluateG121BFromAuthoritativeSnapshot(snapshot={},request={}){
   const pokemonInstanceId=text(request.pokemon_instance_id);
@@ -106,10 +110,9 @@ export function evaluateG121BFromAuthoritativeSnapshot(snapshot={},request={}){
   if(routeMatch.count!==1)return incomplete(pokemonInstanceId,'ambiguous_evolution_route_authority',{route_id:routeId,evolution_branch_id:branchId,match_count:routeMatch.count});
   const route=normalizeEvolutionRoute(routeMatch.row);
 
+  // Do not early-return when Candy authority is unavailable. The deterministic
+  // evaluator must retain known sleep/level/item facts and mark only Candy UNKNOWN.
   const canonicalFamilyCandy=resolveCanonicalCandy(snapshot,pokemon);
-  if(route?.required_candy&&Number(route.required_candy)>0&&!canonicalFamilyCandy){
-    return incomplete(pokemonInstanceId,'missing_canonical_family_candy_authority',{route_id:routeId});
-  }
 
   const items=resolveItemInventory(snapshot);
   if(!items)return incomplete(pokemonInstanceId,'ambiguous_item_inventory_authority',{route_id:routeId});
