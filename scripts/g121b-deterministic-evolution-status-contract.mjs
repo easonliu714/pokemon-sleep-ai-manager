@@ -92,7 +92,7 @@ assert.equal(missingCandyAuthority.requirement_states.sleep_hours,G121B_REQUIREM
 const partialKnownTogepi=evaluateG121BDeterministicEvolutionStatus({
   ...base,
   route:{...baseRoute,route_id:'sleep-evolution:波克比→波克基古',evolution_branch_id:'sleep-evolution-branch:波克比',from_species:'波克比',to_species:'波克基古',required_level:null,required_sleep_hours:50,required_candy:20,required_item:null,required_dream_shards:null},
-  sleep_hours:8,
+  sleep_hours:8.5,
   canonical_family_candy:{knowledge_state:'UNKNOWN',quantity:null,candy_family_id:null},
 });
 assert.equal(partialKnownTogepi.status,G121B_DETERMINISTIC_STATUS.DATA_INCOMPLETE);
@@ -100,6 +100,9 @@ assert.equal(partialKnownTogepi.requirement_states.sleep_hours,G121B_REQUIREMENT
 assert.equal(partialKnownTogepi.requirement_states.candy,G121B_REQUIREMENT_STATE.UNKNOWN);
 assert.deepEqual(partialKnownTogepi.missing_requirements,['sleep_hours']);
 assert.ok(partialKnownTogepi.unknown_reasons.includes('missing_canonical_family_candy_authority'));
+const togepiSleepRequirement=partialKnownTogepi.requirements.find(row=>row.kind==='sleep_hours');
+assert.equal(togepiSleepRequirement.current,8.5,'8.5h player progress must remain numeric and not collapse to UNKNOWN');
+assert.equal(togepiSleepRequirement.remaining,41.5,'50h - 8.5h must preserve a deterministic 41.5h gap');
 
 const missingDreamShards=evaluateG121BDeterministicEvolutionStatus({
   ...base,
@@ -193,6 +196,7 @@ console.log(JSON.stringify({
   status:'PASS',
   pokemon_instance_id_only:true,
   per_instance_sleep_hours:true,
+  fractional_sleep_hours:true,
   account_total_sleep_time_substitution:false,
   canonical_family_candy:true,
   partial_known_requirement_semantics:true,
