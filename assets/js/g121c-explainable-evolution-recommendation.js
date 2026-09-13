@@ -15,21 +15,28 @@ const nonNegativeInteger=value=>{
 };
 const verifiedBoolean=row=>row?.authority_status==='VERIFIED'&&typeof row.value==='boolean'?row.value:null;
 const exactGap=requirement=>{
+  if(requirement?.state==='UNKNOWN'||requirement?.state==='NOT_APPLICABLE')return null;
   const required=Number(requirement?.required);
   const current=Number(requirement?.current);
   return Number.isFinite(required)&&Number.isFinite(current)?Math.max(0,required-current):null;
 };
-const requirementView=requirement=>({
-  kind:requirement.kind,
-  item_name:requirement.item_name||null,
-  candy_family_id:requirement.candy_family_id||null,
-  required:requirement.required??null,
-  current:requirement.current??null,
-  gap:exactGap(requirement),
-  satisfied:requirement.kind==='other_requirement'
-    ?requirement.satisfied===true
-    :exactGap(requirement)===0,
-});
+const requirementView=requirement=>{
+  const state=text(requirement?.state)||(
+    requirement?.kind==='other_requirement'
+      ?(requirement?.satisfied===true?'SATISFIED':requirement?.satisfied===false?'MISSING':'UNKNOWN')
+      :(exactGap(requirement)===0?'SATISFIED':exactGap(requirement)===null?'UNKNOWN':'MISSING')
+  );
+  return {
+    kind:requirement.kind,
+    item_name:requirement.item_name||null,
+    candy_family_id:requirement.candy_family_id||null,
+    required:requirement.required??null,
+    current:requirement.current??null,
+    gap:state==='UNKNOWN'||state==='NOT_APPLICABLE'?null:exactGap(requirement),
+    state,
+    satisfied:state==='SATISFIED',
+  };
+};
 
 function acquisitionAuthority(snapshot,itemName,nowValue){
   if(!itemName)return {status:'NOT_REQUIRED',guidance:[]};
@@ -69,8 +76,10 @@ function acquisitionAuthority(snapshot,itemName,nowValue){
 
 function sleepProjection(statusResult,nightlySleepAuthority){
   const sleepRequirement=(statusResult.requirements||[]).find(row=>row.kind==='sleep_hours');
-  const remaining=sleepRequirement?exactGap(sleepRequirement):null;
-  if(remaining===null)return {sleep_hours_remaining:null,remaining_nights:null,completion_date:null,projection_status:'NOT_APPLICABLE'};
+  if(!sleepRequirement)return {sleep_hours_remaining:null,remaining_nights:null,completion_date:null,projection_status:'NOT_APPLICABLE'};
+  if(sleepRequirement.state==='UNKNOWN')return {sleep_hours_remaining:null,remaining_nights:null,completion_date:null,projection_status:'MISSING_AUTHORITY'};
+  const remaining=exactGap(sleepRequirement);
+  if(remaining===null)return {sleep_hours_remaining:null,remaining_nights:null,completion_date:null,projection_status:'MISSING_AUTHORITY'};
   if(remaining===0)return {sleep_hours_remaining:0,remaining_nights:0,completion_date:null,projection_status:'COMPLETE'};
   const nightly=Number(nightlySleepAuthority?.nightly_sleep_hours);
   if(nightlySleepAuthority?.authority_status!=='VERIFIED'||!Number.isFinite(nightly)||nightly<=0){
@@ -105,23 +114,33 @@ const failClosed=(statusResult,reason,details={})=>({
  * G12.1C explains the deterministic G12.1B result without changing status.
  * Recommendation authority (cultivation value, team need, opportunity cost)
  * must itself be VERIFIED before a ready_now route can become recommend_now.
+ * Partial-known deterministic facts are preserved even when another requirement
+ * is UNKNOWN; UNKNOWN is never projected as NOT_APPLICABLE or numeric zero.
  */
 export function readG121CExplainableEvolutionRecommendation(snapshot={},request={},recommendationAuthority={}){
   const statusResult=readG121BDeterministicEvolutionStatus(snapshot,request);
+  const requirements=(statusResult.requirements||[]).map(requirementView);
+  const completedRequirements=requirements.filter(row=>row.state==='SATISFIED');
+  const missingRequirements=requirements.filter(row=>row.state==='MISSING');
+  const unknownRequirements=requirements.filter(row=>row.state==='UNKNOWN');
+  const requiredItem=requirements.find(row=>row.kind==='item')?.item_name||null;
+  const projection=sleepProjection(statusResult,recommendationAuthority.nightly_sleep);
+
   if(statusResult.status==='data_incomplete'){
     return failClosed(statusResult,statusResult.reason||'g121b_data_incomplete',{
       deterministic_status:statusResult.status,
+      can_evolve_now:false,
+      completed_requirements:completedRequirements,
+      missing_requirements:missingRequirements,
+      unknown_requirements:unknownRequirements,
+      requirement_states:statusResult.requirement_states||{},
+      ...projection,
       acquisition_guidance_authority:statusResult.acquisition_guidance_suppressed?'MISSING_AUTHORITY':'NOT_EVALUATED',
-      warnings:[statusResult.reason||'g121b_data_incomplete'],
+      warnings:[...(statusResult.unknown_reasons||[]),statusResult.reason||'g121b_data_incomplete'].filter((value,index,array)=>value&&array.indexOf(value)===index),
     });
   }
 
-  const requirements=(statusResult.requirements||[]).map(requirementView);
-  const completedRequirements=requirements.filter(row=>row.satisfied);
-  const missingRequirements=requirements.filter(row=>!row.satisfied);
-  const requiredItem=requirements.find(row=>row.kind==='item')?.item_name||null;
   const acquisition=acquisitionAuthority(snapshot,requiredItem,request.now);
-  const projection=sleepProjection(statusResult,recommendationAuthority.nightly_sleep);
   const authorityChecks={
     cultivation_value:verifiedBoolean(recommendationAuthority.cultivation_value),
     team_need:verifiedBoolean(recommendationAuthority.team_need),
@@ -159,6 +178,8 @@ export function readG121CExplainableEvolutionRecommendation(snapshot={},request=
     can_evolve_now:statusResult.status==='ready_now',
     completed_requirements:completedRequirements,
     missing_requirements:missingRequirements,
+    unknown_requirements:unknownRequirements,
+    requirement_states:statusResult.requirement_states||{},
     ...projection,
     acquisition_guidance_authority:acquisition.status,
     acquisition_guidance:acquisition.status==='VERIFIED'?acquisition.guidance:[],
