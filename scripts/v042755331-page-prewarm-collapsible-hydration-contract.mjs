@@ -15,7 +15,11 @@ const knowledge=read('assets/js/shared-knowledge-ui.js');
 const catalog=read('assets/js/public-catalog-workbench.js');
 const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 
-if(appVersion==='v0.4.27.55.3.3.7'){
+if(appVersion==='v0.4.27.55.3.3.8'){
+  assert.match(authority,/app_build:\s*'20260913-v042755338-g121-authority-parity-real-device-closure'/);
+  assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.8-v042755338-g121-authority-parity-real-device-closure'/);
+  for(const predecessor of ['7','6','5','4','3','2','1'])assert.match(authority,new RegExp(`// app_version: 'v0\\.4\\.27\\.55\\.3\\.3\\.${predecessor}'`),`exact .55.3.3.${predecessor} predecessor bridge must remain`);
+}else if(appVersion==='v0.4.27.55.3.3.7'){
   assert.match(authority,/app_build:\s*'20260911-v042755337-g121d-real-device-closure'/);
   assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.7-v042755337-g121d-real-device-closure'/);
   assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.6'/,'exact .55.3.3.6 predecessor bridge must remain');
@@ -114,7 +118,7 @@ for(const token of [
 
 assert.match(hydrator,/candyRoot\.querySelector\('#candyB5Parse'\)/);
 assert.match(hydrator,/candyRoot\.querySelector\('#candyB5GateStatus'\)/);
-if(['v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7'].includes(appVersion))assert.match(hydrator,/analysisRoot\.dataset\.analysisConfirmationReady==='true'/);
+if(['v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8'].includes(appVersion))assert.match(hydrator,/analysisRoot\.dataset\.analysisConfirmationReady==='true'/);
 else assert.match(hydrator,/analysisRoot\.querySelector\('#analysisConfirmationStatus'\)/);
 assert.match(hydrator,/waitForUpdateCenterMounts/);
 assert.match(hydrator,/MutationObserver/);
@@ -144,4 +148,4 @@ console.log(JSON.stringify({
   migration:CANDY_FAMILY_STORAGE_MIGRATION_VERSION,
 },null,2));
 
-if(['v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7'].includes(appVersion))await import('./v042755332-ai-key-update-status-knowledge-host-contract.mjs');
+if(['v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8'].includes(appVersion))await import('./v042755332-ai-key-update-status-knowledge-host-contract.mjs');

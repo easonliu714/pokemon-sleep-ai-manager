@@ -55,7 +55,15 @@ const uiSource=read('assets/js/candy-quantity-screenshot-ui.js');
 assert.match(uiSource,/provider_raw:''/);assert.match(uiSource,/working_raw:''/);assert.match(uiSource,/Gemini Raw JSON（唯讀、immutable）/);assert.match(uiSource,/EXACT_IDENTITY_MISMATCH/);assert.ok(!uiSource.includes('state.provider_raw=JSON.stringify(mutator'));
 const appBuild=versionSource.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.3.3.7'){
+if(appVersion==='v0.4.27.55.3.3.8'){
+  assert.equal(appBuild,'20260913-v042755338-g121-authority-parity-real-device-closure');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.8-v042755338-g121-authority-parity-real-device-closure');
+  for(const predecessor of ['7','6','5','4','3','2','1'])assert.ok(versionSource.includes(`// app_version: 'v0.4.27.55.3.3.${predecessor}'`));
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3'"));
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3'"));
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.2'"));
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55'"));
+}else if(appVersion==='v0.4.27.55.3.3.7'){
   assert.equal(appBuild,'20260911-v042755337-g121d-real-device-closure');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.7-v042755337-g121d-real-device-closure');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.6'"));
