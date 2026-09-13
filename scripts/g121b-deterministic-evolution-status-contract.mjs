@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   evaluateG121BDeterministicEvolutionStatus,
   G121B_DETERMINISTIC_STATUS,
+  G121B_REQUIREMENT_STATE,
 } from '../assets/js/g121b-deterministic-evolution-status.js';
 
 const baseRoute={
@@ -52,6 +53,9 @@ assert.deepEqual(Object.values(G121B_DETERMINISTIC_STATUS),[
   'data_incomplete',
   'evolution_not_recommended_yet',
 ]);
+assert.deepEqual(Object.values(G121B_REQUIREMENT_STATE),[
+  'SATISFIED','MISSING','UNKNOWN','NOT_APPLICABLE',
+]);
 
 const ready=evaluateG121BDeterministicEvolutionStatus(base);
 assert.equal(ready.status,G121B_DETERMINISTIC_STATUS.READY_NOW);
@@ -62,11 +66,15 @@ assert.deepEqual(ready.missing_requirements,[]);
 
 const missingSleepAuthority=evaluateG121BDeterministicEvolutionStatus({...base,sleep_hours:null});
 assert.equal(missingSleepAuthority.status,G121B_DETERMINISTIC_STATUS.DATA_INCOMPLETE);
-assert.equal(missingSleepAuthority.reason,'missing_per_instance_sleep_hours');
+assert.equal(missingSleepAuthority.reason,'authoritative_requirements_incomplete');
+assert.ok(missingSleepAuthority.unknown_reasons.includes('missing_per_instance_sleep_hours'));
+assert.equal(missingSleepAuthority.requirement_states.sleep_hours,G121B_REQUIREMENT_STATE.UNKNOWN);
+assert.equal(missingSleepAuthority.requirement_states.level,G121B_REQUIREMENT_STATE.SATISFIED);
 assert.equal(missingSleepAuthority.account_total_sleep_time_ignored,true,'account total sleep time must never substitute per-instance sleep hours');
 
 const missingSleep=evaluateG121BDeterministicEvolutionStatus({...base,sleep_hours:20});
 assert.equal(missingSleep.status,G121B_DETERMINISTIC_STATUS.MISSING_SLEEP_HOURS);
+assert.equal(missingSleep.requirement_states.sleep_hours,G121B_REQUIREMENT_STATE.MISSING);
 
 const missingLevel=evaluateG121BDeterministicEvolutionStatus({...base,level:10});
 assert.equal(missingLevel.status,G121B_DETERMINISTIC_STATUS.MISSING_LEVEL);
@@ -76,7 +84,22 @@ assert.equal(missingCandy.status,G121B_DETERMINISTIC_STATUS.MISSING_CANDY);
 
 const missingCandyAuthority=evaluateG121BDeterministicEvolutionStatus({...base,canonical_family_candy:{knowledge_state:'UNKNOWN',quantity:999,candy_family_id:'pikachu-family'}});
 assert.equal(missingCandyAuthority.status,G121B_DETERMINISTIC_STATUS.DATA_INCOMPLETE);
-assert.equal(missingCandyAuthority.reason,'missing_canonical_family_candy_authority');
+assert.equal(missingCandyAuthority.reason,'authoritative_requirements_incomplete');
+assert.ok(missingCandyAuthority.unknown_reasons.includes('missing_canonical_family_candy_authority'));
+assert.equal(missingCandyAuthority.requirement_states.candy,G121B_REQUIREMENT_STATE.UNKNOWN);
+assert.equal(missingCandyAuthority.requirement_states.sleep_hours,G121B_REQUIREMENT_STATE.SATISFIED,'Candy UNKNOWN must not erase known sleep status');
+
+const partialKnownTogepi=evaluateG121BDeterministicEvolutionStatus({
+  ...base,
+  route:{...baseRoute,route_id:'sleep-evolution:波克比→波克基古',evolution_branch_id:'sleep-evolution-branch:波克比',from_species:'波克比',to_species:'波克基古',required_level:null,required_sleep_hours:50,required_candy:20,required_item:null,required_dream_shards:null},
+  sleep_hours:8,
+  canonical_family_candy:{knowledge_state:'UNKNOWN',quantity:null,candy_family_id:null},
+});
+assert.equal(partialKnownTogepi.status,G121B_DETERMINISTIC_STATUS.DATA_INCOMPLETE);
+assert.equal(partialKnownTogepi.requirement_states.sleep_hours,G121B_REQUIREMENT_STATE.MISSING);
+assert.equal(partialKnownTogepi.requirement_states.candy,G121B_REQUIREMENT_STATE.UNKNOWN);
+assert.deepEqual(partialKnownTogepi.missing_requirements,['sleep_hours']);
+assert.ok(partialKnownTogepi.unknown_reasons.includes('missing_canonical_family_candy_authority'));
 
 const missingDreamShards=evaluateG121BDeterministicEvolutionStatus({
   ...base,
@@ -89,7 +112,9 @@ const unknownDreamShards=evaluateG121BDeterministicEvolutionStatus({
   player_resources:{...knownResources,dream_shards:{knowledge_state:'UNKNOWN',numeric_value:0}},
 });
 assert.equal(unknownDreamShards.status,G121B_DETERMINISTIC_STATUS.DATA_INCOMPLETE);
-assert.equal(unknownDreamShards.reason,'missing_dream_shards_authority');
+assert.equal(unknownDreamShards.reason,'authoritative_requirements_incomplete');
+assert.ok(unknownDreamShards.unknown_reasons.includes('missing_dream_shards_authority'));
+assert.equal(unknownDreamShards.requirement_states.dream_shards,G121B_REQUIREMENT_STATE.UNKNOWN);
 
 const missingItem=evaluateG121BDeterministicEvolutionStatus({
   ...base,
@@ -106,7 +131,9 @@ const safeReserveBlocks=evaluateG121BDeterministicEvolutionStatus({
   item_acquisition_rows:[{item_name:'雷之石',acquisition_type:'unknown',authority_status:'MISSING_AUTHORITY',sleep_point_cost:null,diamond_cost:null}],
 });
 assert.equal(safeReserveBlocks.status,G121B_DETERMINISTIC_STATUS.DATA_INCOMPLETE);
-assert.equal(safeReserveBlocks.reason,'missing_item_acquisition_authority');
+assert.equal(safeReserveBlocks.reason,'authoritative_requirements_incomplete');
+assert.ok(safeReserveBlocks.unknown_reasons.includes('missing_item_acquisition_authority'));
+assert.equal(safeReserveBlocks.requirement_states.item,G121B_REQUIREMENT_STATE.MISSING);
 assert.equal(safeReserveBlocks.acquisition_guidance_suppressed,true,'MISSING_AUTHORITY must fail closed');
 
 const noFabricatedSleepPointCost=evaluateG121BDeterministicEvolutionStatus({
@@ -116,7 +143,8 @@ const noFabricatedSleepPointCost=evaluateG121BDeterministicEvolutionStatus({
   item_acquisition_rows:[{item_name:'雷之石',acquisition_type:'regular_sleep_point_exchange',authority_status:'REFERENCE_VERIFIED',sleep_point_cost:null}],
 });
 assert.equal(noFabricatedSleepPointCost.status,G121B_DETERMINISTIC_STATUS.DATA_INCOMPLETE);
-assert.equal(noFabricatedSleepPointCost.reason,'missing_sleep_point_cost_authority');
+assert.equal(noFabricatedSleepPointCost.reason,'authoritative_requirements_incomplete');
+assert.ok(noFabricatedSleepPointCost.unknown_reasons.includes('missing_sleep_point_cost_authority'));
 
 const unknownSleepPoints=evaluateG121BDeterministicEvolutionStatus({
   ...base,
@@ -126,7 +154,8 @@ const unknownSleepPoints=evaluateG121BDeterministicEvolutionStatus({
   player_resources:{...knownResources,sleep_points:{knowledge_state:'UNKNOWN',numeric_value:0}},
 });
 assert.equal(unknownSleepPoints.status,G121B_DETERMINISTIC_STATUS.DATA_INCOMPLETE);
-assert.equal(unknownSleepPoints.reason,'missing_sleep_points_authority');
+assert.equal(unknownSleepPoints.reason,'authoritative_requirements_incomplete');
+assert.ok(unknownSleepPoints.unknown_reasons.includes('missing_sleep_points_authority'));
 
 const futureWindow=evaluateG121BDeterministicEvolutionStatus({...base,route:{...baseRoute,effective_from:'2026-10-01T00:00:00.000Z',effective_period_status:'FUTURE'}});
 assert.equal(futureWindow.status,G121B_DETERMINISTIC_STATUS.TIME_WINDOW_PENDING);
@@ -147,7 +176,9 @@ const missingOtherAuthority=evaluateG121BDeterministicEvolutionStatus({
   route:{...baseRoute,other_requirement:'deterministic external condition'},
 });
 assert.equal(missingOtherAuthority.status,G121B_DETERMINISTIC_STATUS.DATA_INCOMPLETE);
-assert.equal(missingOtherAuthority.reason,'missing_other_requirement_authority');
+assert.equal(missingOtherAuthority.reason,'authoritative_requirements_incomplete');
+assert.ok(missingOtherAuthority.unknown_reasons.includes('missing_other_requirement_authority'));
+assert.equal(missingOtherAuthority.requirement_states.other_requirement,G121B_REQUIREMENT_STATE.UNKNOWN);
 
 const ambiguousConfidence=evaluateG121BDeterministicEvolutionStatus({...base,route:{...baseRoute,confidence:0.8}});
 assert.equal(ambiguousConfidence.status,G121B_DETERMINISTIC_STATUS.DATA_INCOMPLETE);
@@ -164,10 +195,12 @@ console.log(JSON.stringify({
   per_instance_sleep_hours:true,
   account_total_sleep_time_substitution:false,
   canonical_family_candy:true,
+  partial_known_requirement_semantics:true,
   safe_reserve:true,
   player_resource_unknown_fail_closed:true,
   missing_acquisition_authority_fail_closed:true,
   fabricated_sleep_point_or_diamond_cost:false,
   ai_status_computation:false,
   vocabulary:Object.values(G121B_DETERMINISTIC_STATUS),
+  requirement_states:Object.values(G121B_REQUIREMENT_STATE),
 },null,2));
