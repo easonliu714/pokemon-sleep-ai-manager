@@ -56,6 +56,11 @@ const releases = Object.freeze([
     build: '20260913-v042755338-g121-authority-parity-real-device-closure',
     cache: 'pokemon-sleep-ai-v0.4.27.55.3.3.8-v042755338-g121-authority-parity-real-device-closure',
   }),
+  Object.freeze({
+    version: 'v0.4.27.55.3.3.9',
+    build: '20260914-v042755339-duration-berry-visual-authority',
+    cache: 'pokemon-sleep-ai-v0.4.27.55.3.3.9-v042755339-duration-berry-visual-authority',
+  }),
 ]);
 
 const live = authority.match(/const authority = Object\.freeze\(\{([\s\S]*?)\}\);/)?.[1] || '';
