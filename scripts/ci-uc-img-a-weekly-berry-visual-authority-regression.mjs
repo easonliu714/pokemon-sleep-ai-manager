@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {validateWorkflow} from '../assets/js/ai-workflow.js';
 import {
   buildWeeklyBerryVisualPromptAddon,
   evaluateWeeklyBerryVisualEnvelope,
@@ -34,6 +35,13 @@ assert.ok(result.review.some(item=>item.kind==='weekly_field_confidence_missing'
 assert.equal(result.summary.ai_is_rule_authority,false);
 assert.equal(result.summary.unknown_is_absent,false);
 
+const ownerWorkflow=validateWorkflow(structuredClone(observedOwnerPayload));
+assert.ok(ownerWorkflow.review.some(item=>item.kind==='weekly_berry_visual_surface_unreported'),'AI screenshot workflow must fail closed when berry visual surface is unreported');
+assert.ok(ownerWorkflow.review.some(item=>item.kind==='weekly_field_confidence_missing'),'AI screenshot workflow must require field-scoped weekly confidence');
+assert.equal(ownerWorkflow.summary.weekly_berry_visual_contract,'REVIEW_REQUIRED');
+assert.equal(ownerWorkflow.summary.weekly_berry_ai_is_rule_authority,false);
+assert.equal(ownerWorkflow.summary.weekly_berry_unknown_is_absent,false);
+
 const threeObserved=structuredClone(observedOwnerPayload);
 threeObserved.operations[0].evidence.field_confidence={dish_category:0.98,week_start:0.98};
 threeObserved.visual_observation_summary={favorite_berry_icon_count:3,complete:true};
@@ -56,6 +64,11 @@ assert.equal(result.ok,false,'observed-only berry icons must remain review gated
 assert.equal(stripWeeklyBerryVisualEnvelope(threeObserved).visual_observations,undefined);
 assert.equal(stripWeeklyBerryVisualEnvelope(threeObserved).visual_observation_summary,undefined);
 assert.equal(stripWeeklyBerryVisualEnvelope(threeObserved).operations[0].data.dish_category,'咖哩／濃湯');
+
+const observedWorkflow=validateWorkflow(structuredClone(threeObserved));
+assert.equal(observedWorkflow.summary.weekly_berry_icon_count,3);
+assert.equal(observedWorkflow.summary.weekly_berry_unresolved_count,3);
+assert.equal(observedWorkflow.review.filter(item=>item.kind==='weekly_berry_visual_observation').length,3);
 
 const candidate=structuredClone(threeObserved);
 candidate.visual_observations[0]={
@@ -90,6 +103,11 @@ assert.equal(result.review.length,0);
 assert.equal(result.ok,true);
 assert.equal(result.summary.verified_count,3);
 
+const verifiedWorkflow=validateWorkflow(structuredClone(governedVerified));
+assert.equal(verifiedWorkflow.summary.weekly_berry_visual_contract,'PASS');
+assert.equal(verifiedWorkflow.summary.weekly_berry_unresolved_count,0);
+assert.equal(verifiedWorkflow.review.filter(item=>String(item.kind||'').startsWith('weekly_berry_visual')).length,0);
+
 const countMismatch=structuredClone(threeObserved);
 countMismatch.visual_observations.pop();
 result=evaluateWeeklyBerryVisualEnvelope(countMismatch,{allowedImageRefs:['image-140']});
@@ -114,6 +132,13 @@ assert.equal(result.errors.length,0,result.errors.join('\n'));
 assert.equal(result.review.length,0);
 assert.equal(result.ok,true,'explicitly reviewed zero-icon surface is distinct from unreported/unknown');
 
+const nonScreenshotWeekly=structuredClone(observedOwnerPayload);
+nonScreenshotWeekly.source='manual_json_import';
+delete nonScreenshotWeekly.visual_observation_summary;
+delete nonScreenshotWeekly.visual_observations;
+const nonScreenshotWorkflow=validateWorkflow(nonScreenshotWeekly);
+assert.equal(nonScreenshotWorkflow.review.some(item=>String(item.kind||'').startsWith('weekly_berry_visual')),false,'non-screenshot weekly imports must not acquire UC.IMG-A visual obligations');
+
 const prompt=buildWeeklyBerryVisualPromptAddon();
 for(const token of ['visual_observation_summary','visual_observations','OBSERVED','CANDIDATE','VERIFIED','AI_VISUAL_CANDIDATE_ONLY','CANONICAL_BERRY_ICON_AUTHORITY','field-scoped'])assert.ok(prompt.includes(token),`prompt contract missing ${token}`);
 
@@ -123,9 +148,11 @@ assert.equal(UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT.unknown_is_absent,false);
 
 console.log('UC_IMG_A_WEEKLY_BERRY_VISUAL_AUTHORITY_REGRESSION=PASS');
 console.log('OWNER_SAMPLE_CLASSIFICATION=INCOMPLETE_REVIEW_REQUIRED');
+console.log('OWNER_SAMPLE_WORKFLOW_GATE=REVIEW_REQUIRED');
 console.log('OWNER_SAMPLE_TEXT_PARTIAL_KNOWN=PRESERVED');
 console.log('VISIBLE_BERRY_SLOTS=3');
 console.log('AI_VISUAL_CANDIDATE_IS_RULE_AUTHORITY=FALSE');
 console.log('UNKNOWN_IS_NO_BERRY_REQUIREMENT=FALSE');
 console.log('FAKE_AI_VERIFIED=REJECTED');
 console.log('CANONICAL_RESOLVER_VERIFIED=PASS');
+console.log('NON_SCREENSHOT_WEEKLY_VISUAL_OBLIGATION=FALSE');
