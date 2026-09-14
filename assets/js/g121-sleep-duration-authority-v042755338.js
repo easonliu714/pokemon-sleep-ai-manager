@@ -1,16 +1,20 @@
-// v0.4.27.55.3.3.8 G12.1
+// v0.4.27.55.3.3.9 successor of G12.1 duration authority
 // Player-owned sleep progress duration authority.
 // Public Evolution Master requirements are intentionally outside this module.
 
 const DECIMAL_HOURS_RE = /^(?:\d+(?:\.\d+)?|\.\d+)$/;
-const HHMM_RE = /^(\d+):(\d{2})$/;
+// Hours are intentionally unbounded in digit count; only the minute field is fixed-width.
+// Optional whitespace around ':' is accepted because mobile keyboards may insert spacing.
+const HHMM_RE = /^(\d+)\s*:\s*(\d{2})$/;
 
 /**
  * Parse player-entered duration to canonical total minutes.
  * Supported contracts:
- *   "8.5"  => 510 minutes (decimal hours; never 8:05)
- *   "1.25" => 75 minutes
- *   "08:30" => 510 minutes (explicit HH:MM)
+ *   "8.5"     => 510 minutes (decimal hours; never 8:05)
+ *   "1.25"    => 75 minutes
+ *   "08:30"   => 510 minutes (explicit HH:MM)
+ *   "1100:25" => 66025 minutes
+ *   "1100 : 25" => 66025 minutes (mobile-friendly whitespace)
  * Empty input returns null. Invalid/negative/non-finite input throws.
  */
 export function parsePlayerSleepDurationToMinutes(input) {
@@ -63,11 +67,12 @@ export function formatPlayerSleepMinutes(totalMinutes) {
 }
 
 export const G121_SLEEP_DURATION_CONTRACT = Object.freeze({
-  version: 'v0.4.27.55.3.3.8',
+  version: 'v0.4.27.55.3.3.9',
   browse_unit: 'minutes',
   edit_inputs: Object.freeze(['decimal_hours', 'HH:MM']),
   decimal_example: Object.freeze({input: '8.5', minutes: 510}),
   hhmm_example: Object.freeze({input: '08:30', minutes: 510}),
+  long_hhmm_example: Object.freeze({input: '1100 : 25', minutes: 66025}),
   storage_column: 'pokemon.sleep_hours',
   public_evolution_requirement_mutable: false,
 });
