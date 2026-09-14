@@ -60,10 +60,25 @@ function readyTemplate(key,imageRef){
       ...operation.data,
       event_effects:{meal_category_forced:true},
     }:operation.data,
-    evidence:{...operation.evidence,source_image_ref:imageRef,source_image_refs:[imageRef]},
+    evidence:{
+      ...operation.evidence,
+      source_image_ref:imageRef,
+      source_image_refs:[imageRef],
+      ...(key==='weekly'?{
+        field_confidence:{week_start:1,camp:1,dish_category:1,event_name:1},
+      }:{}),
+    },
     review_required:false,
     user_audit:{accepted_current_observation:true},
   }));
+  if(key==='weekly'){
+    // .55.3.3.9: a screenshot-derived Weekly payload must explicitly report
+    // the berry-icon visual surface. This generic root-contract fixture has no
+    // visible berry icons, so it records a complete zero-count observation
+    // instead of silently omitting the visual surface.
+    payload.visual_observation_summary={favorite_berry_icon_count:0,complete:true};
+    payload.visual_observations=[];
+  }
   return payload;
 }
 let result=validateScreenshotScenarioPayload(session,'ingredients',readyTemplate('ingredients',ingredient.image_ref));
@@ -107,6 +122,7 @@ console.log(JSON.stringify({
   prompt_catalog_checked:v11Keys,
   pokemon_observation_v2_untouched:true,
   weekly_parse:true,
+  weekly_visual_surface_explicit:true,
   ingredient_parse:true,
   recipe_parse:true,
   legacy_gemini_shape_fail_closed:true,
