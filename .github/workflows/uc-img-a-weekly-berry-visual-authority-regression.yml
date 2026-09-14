@@ -1,0 +1,34 @@
+name: UC.IMG-A Weekly Berry Visual Authority
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'hotfix/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: uc-img-a-weekly-berry-visual-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  weekly-berry-visual-authority:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify weekly image-only berry visual authority
+        run: node scripts/ci-uc-img-a-weekly-berry-visual-authority-regression.mjs
+      - name: Verify syntax
+        run: |
+          node --check assets/js/uc-img-a-weekly-berry-visual-authority-v042755339.js
+          node --check scripts/ci-uc-img-a-weekly-berry-visual-authority-regression.mjs
+      - name: Verify no tracked test mutation
+        shell: bash
+        run: test -z "$(git status --porcelain --untracked-files=no)"
