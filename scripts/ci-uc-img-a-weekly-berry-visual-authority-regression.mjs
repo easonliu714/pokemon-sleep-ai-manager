@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
+import {PROMPT_CATALOG} from '../assets/js/prompt-catalog.js';
 import {validateWorkflow} from '../assets/js/ai-workflow.js';
 import {
   buildWeeklyBerryVisualPromptAddon,
   evaluateWeeklyBerryVisualEnvelope,
+  installWeeklyBerryVisualPromptAddon,
   stripWeeklyBerryVisualEnvelope,
   UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT,
 } from '../assets/js/uc-img-a-weekly-berry-visual-authority-v042755339.js';
@@ -142,6 +144,12 @@ assert.equal(nonScreenshotWorkflow.review.some(item=>String(item.kind||'').start
 const prompt=buildWeeklyBerryVisualPromptAddon();
 for(const token of ['visual_observation_summary','visual_observations','OBSERVED','CANDIDATE','VERIFIED','AI_VISUAL_CANDIDATE_ONLY','CANONICAL_BERRY_ICON_AUTHORITY','field-scoped'])assert.ok(prompt.includes(token),`prompt contract missing ${token}`);
 
+const installedPrompt=installWeeklyBerryVisualPromptAddon();
+assert.equal(installedPrompt,PROMPT_CATALOG.weekly.prompt,'installed prompt must use the canonical weekly Prompt Catalog object');
+assert.ok(PROMPT_CATALOG.weekly.prompt.includes('UC.IMG-A .55.3.3.9 image-only berry contract:'),'weekly production prompt must include UC.IMG-A berry visual authority');
+assert.equal((PROMPT_CATALOG.weekly.prompt.match(/UC\.IMG-A \.55\.3\.3\.9 image-only berry contract:/g)||[]).length,1,'prompt installation must be idempotent');
+for(const token of ['visual_observation_summary','visual_observations','AI_VISUAL_CANDIDATE_ONLY','CANONICAL_BERRY_ICON_AUTHORITY','field-scoped'])assert.ok(PROMPT_CATALOG.weekly.prompt.includes(token),`production weekly prompt missing ${token}`);
+
 assert.equal(UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT.version,'v0.4.27.55.3.3.9');
 assert.equal(UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT.ai_is_rule_authority,false);
 assert.equal(UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT.unknown_is_absent,false);
@@ -156,3 +164,4 @@ console.log('UNKNOWN_IS_NO_BERRY_REQUIREMENT=FALSE');
 console.log('FAKE_AI_VERIFIED=REJECTED');
 console.log('CANONICAL_RESOLVER_VERIFIED=PASS');
 console.log('NON_SCREENSHOT_WEEKLY_VISUAL_OBLIGATION=FALSE');
+console.log('WEEKLY_PRODUCTION_PROMPT_INTEGRATION=PASS');
