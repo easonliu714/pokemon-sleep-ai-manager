@@ -1,3 +1,5 @@
+import {PROMPT_CATALOG} from './prompt-catalog.js';
+
 // v0.4.27.55.3.3.9 UC.IMG-A
 // Govern image-only weekly favorite-berry observations without promoting AI guesses
 // into Shared/Public deterministic authority.
@@ -17,10 +19,22 @@ export const UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT = Object.freeze({
 const clone = value => JSON.parse(JSON.stringify(value));
 const isFiniteConfidence = value => value === null || value === undefined ||
   (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1);
+const WEEKLY_BERRY_PROMPT_SENTINEL='UC.IMG-A .55.3.3.9 image-only berry contract:';
 
 export function buildWeeklyBerryVisualPromptAddon(){
-  return `UC.IMG-A .55.3.3.9 image-only berry contract:\n- Weekly screenshot visual review is mandatory even when OCR text is sufficient.\n- Add root visual_observation_summary={favorite_berry_icon_count:<0..3>,complete:true}.\n- Add one root visual_observations item per visible favorite-berry icon with observation_type=favorite_berry_icon, slot=1..3, source_image_ref, status, confidence and authority.\n- If the icon is visible but its canonical name is not deterministically resolved, use status=OBSERVED or CANDIDATE, review_required=true and never write favorite_berry_1..3.\n- AI visual guesses are candidates only: authority=AI_VISUAL_CANDIDATE_ONLY. They are never Shared/Public rule authority.\n- VERIFIED is allowed only when an exact governed resolver supplies authority=CANONICAL_BERRY_ICON_AUTHORITY and canonical_berry_name.\n- UNKNOWN/unresolved does not mean no berry requirement and must not be converted to 0/null overwrite.\n- Text confidence is field-scoped: operation.evidence.field_confidence must carry confidence for observed weekly text fields; a single operation confidence must not claim the whole image is resolved.`;
+  return `${WEEKLY_BERRY_PROMPT_SENTINEL}\n- Weekly screenshot visual review is mandatory even when OCR text is sufficient.\n- Add root visual_observation_summary={favorite_berry_icon_count:<0..3>,complete:true}.\n- Add one root visual_observations item per visible favorite-berry icon with observation_type=favorite_berry_icon, slot=1..3, source_image_ref, status, confidence and authority.\n- If the icon is visible but its canonical name is not deterministically resolved, use status=OBSERVED or CANDIDATE, review_required=true and never write favorite_berry_1..3.\n- AI visual guesses are candidates only: authority=AI_VISUAL_CANDIDATE_ONLY. They are never Shared/Public rule authority.\n- VERIFIED is allowed only when an exact governed resolver supplies authority=CANONICAL_BERRY_ICON_AUTHORITY and canonical_berry_name.\n- UNKNOWN/unresolved does not mean no berry requirement and must not be converted to 0/null overwrite.\n- Text confidence is field-scoped: operation.evidence.field_confidence must carry confidence for observed weekly text fields; a single operation confidence must not claim the whole image is resolved.`;
 }
+
+export function installWeeklyBerryVisualPromptAddon(){
+  const weekly=PROMPT_CATALOG?.weekly;
+  if(!weekly || typeof weekly.prompt!=='string')throw new Error('PROMPT_CATALOG.weekly prompt authority is unavailable.');
+  if(!weekly.prompt.includes(WEEKLY_BERRY_PROMPT_SENTINEL))weekly.prompt=`${weekly.prompt}\n\n${buildWeeklyBerryVisualPromptAddon()}`;
+  return weekly.prompt;
+}
+
+// ai-workflow imports this module before UC.IMG-A builds either its internal Gemini
+// prompt or external fallback prompt, so the same governed contract reaches both paths.
+installWeeklyBerryVisualPromptAddon();
 
 export function stripWeeklyBerryVisualEnvelope(sourcePayload){
   const payload=clone(sourcePayload||{});
