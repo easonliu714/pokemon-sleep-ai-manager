@@ -29,9 +29,19 @@ export function stripWeeklyBerryVisualEnvelope(sourcePayload){
   return payload;
 }
 
+function weeklyEvidenceImageRefs(source){
+  const operation=Array.isArray(source?.operations)?source.operations.find(op=>op?.entity==='weekly_context'):null;
+  if(!operation)return [];
+  const refs=[];
+  if(operation.evidence?.source_image_ref)refs.push(operation.evidence.source_image_ref);
+  if(Array.isArray(operation.evidence?.source_image_refs))refs.push(...operation.evidence.source_image_refs);
+  return [...new Set(refs.filter(Boolean))];
+}
+
 export function evaluateWeeklyBerryVisualEnvelope(sourcePayload,{allowedImageRefs=[]}={}){
   const source=sourcePayload&&typeof sourcePayload==='object'?sourcePayload:{};
-  const allowed=new Set((allowedImageRefs||[]).filter(Boolean));
+  const explicitAllowed=(allowedImageRefs||[]).filter(Boolean);
+  const allowed=new Set(explicitAllowed.length?explicitAllowed:weeklyEvidenceImageRefs(source));
   const observations=Array.isArray(source.visual_observations)?source.visual_observations:[];
   const summary=source.visual_observation_summary&&typeof source.visual_observation_summary==='object'
     ?source.visual_observation_summary:null;
