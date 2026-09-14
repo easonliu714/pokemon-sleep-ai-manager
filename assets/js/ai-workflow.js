@@ -1,6 +1,7 @@
 import {AI_OBSERVATION_PROMPT,buildObservationTemplate,normalizeObservationPayload,validateObservationPayload} from './ai-observation.js';
 import {isWeeklyContextPayload,prepareWeeklyContextPayloadForImporter,validateWeeklyContextImportPayload} from './weekly-context-import-contract.js';
 import {UPDATE_PACKAGE_REQUIRED_ROOT,legacyUpdatePackageEnvelopeGuidance} from './update-package-contract.js';
+import {evaluateWeeklyBerryVisualEnvelope} from './uc-img-a-weekly-berry-visual-authority-v042755339.js';
 import {
   FIRST_PARTY_OBSERVATION_UPDATE_ENTITY,
   FIRST_PARTY_OBSERVATION_UPDATE_SCENARIO,
@@ -143,6 +144,18 @@ function validateUpdatePackage(payload){
   return {errors:[...new Set(errors)],warnings:[...new Set(warnings)],review,summary:{scenario:payload.scenario||'general',operation_count:payload.operations.length,entity_counts:counts,review_required_count:review.length,empty_field_count:emptyFieldCount,explicit_zero_count:explicitZeroCount,explicit_false_count:explicitFalseCount,profile_confirmation_count:confirmations.length,null_overwrite_policy:'preserve_existing_unless_clear_fields'}};
 }
 
+function weeklyBerryVisualReviewEntry(item,index){
+  return {
+    index:null,
+    operation_id:`weekly-berry-visual-${item?.slot??index+1}`,
+    entity:'weekly_context',
+    key:null,
+    evidence:item?.source_image_ref?{source_image_ref:item.source_image_ref}:null,
+    kind:item?.kind||'weekly_berry_visual_review',
+    visual_review:item,
+  };
+}
+
 export function validateWorkflow(payload){
   if(typeof payload==='string'||payload?.schema_version==='2.0-observation'||Array.isArray(payload?.observations))return validateObservationPayload(payload);
   let weeklyPreparation=null;
@@ -156,6 +169,18 @@ export function validateWorkflow(payload){
     result.summary.weekly_context_authority=weekly.authority||null;
     result.summary.weekly_context_week_start=weekly.week_start||null;
     result.summary.weekly_context_repairs=[...(weeklyPreparation?.repairs||[])];
+    if(payload?.source==='ai_screenshot_analysis'){
+      const visual=evaluateWeeklyBerryVisualEnvelope(payload);
+      result.errors.push(...visual.errors);
+      result.warnings.push(...visual.warnings);
+      result.review.push(...visual.review.map(weeklyBerryVisualReviewEntry));
+      result.summary.weekly_berry_visual_contract=visual.ok?'PASS':'REVIEW_REQUIRED';
+      result.summary.weekly_berry_visual_surface_complete=visual.summary.visual_surface_complete;
+      result.summary.weekly_berry_icon_count=visual.summary.favorite_berry_icon_count;
+      result.summary.weekly_berry_unresolved_count=visual.summary.unresolved_count;
+      result.summary.weekly_berry_ai_is_rule_authority=visual.summary.ai_is_rule_authority;
+      result.summary.weekly_berry_unknown_is_absent=visual.summary.unknown_is_absent;
+    }
     result.errors=[...new Set(result.errors)];
     result.warnings=[...new Set(result.warnings)];
   }
