@@ -13,6 +13,9 @@ const exact = [
   ['8.5', 510],
   ['1.25', 75],
   ['08:30', 510],
+  ['08 : 30', 510],
+  ['1100:25', 66025],
+  ['1100 : 25', 66025],
   ['0:05', 5],
   ['0', 0],
 ];
@@ -21,7 +24,7 @@ for (const [input, expected] of exact) {
 }
 assert.equal(parsePlayerSleepDurationToMinutes(''), null);
 
-for (const invalid of ['8:60', '-1', '-0.5', 'abc', '8h30m', '8:5']) {
+for (const invalid of ['8:60', '1100:60', '1100:2', '-1', '-0.5', 'abc', '8h30m', '8:5']) {
   assert.throws(() => parsePlayerSleepDurationToMinutes(invalid), undefined, `must reject ${invalid}`);
 }
 
@@ -31,8 +34,14 @@ assert.equal(storedHours, 8.5);
 assert.equal(storedHoursToSleepMinutes(storedHours), 510);
 assert.equal(formatPlayerSleepMinutes(510), '510 分鐘');
 
+const longMinutes = parsePlayerSleepDurationToMinutes('1100 : 25');
+assert.equal(longMinutes, 66025);
+assert.equal(storedHoursToSleepMinutes(sleepMinutesToStoredHours(longMinutes)), 66025);
+
+assert.equal(G121_SLEEP_DURATION_CONTRACT.version, 'v0.4.27.55.3.3.9');
 assert.equal(G121_SLEEP_DURATION_CONTRACT.browse_unit, 'minutes');
 assert.deepEqual(G121_SLEEP_DURATION_CONTRACT.edit_inputs, ['decimal_hours', 'HH:MM']);
+assert.deepEqual(G121_SLEEP_DURATION_CONTRACT.long_hhmm_example, {input: '1100 : 25', minutes: 66025});
 assert.equal(G121_SLEEP_DURATION_CONTRACT.public_evolution_requirement_mutable, false);
 
 // Integration contract: detail UI must consume the duration authority and must not
@@ -61,6 +70,8 @@ for (const field of [
 console.log('G121_SLEEP_DURATION_AUTHORITY_REGRESSION=PASS');
 console.log('DECIMAL_8_5_MINUTES=510');
 console.log('HHMM_08_30_MINUTES=510');
+console.log('LONG_HHMM_1100_25_MINUTES=66025');
+console.log('LONG_HHMM_WHITESPACE=PASS');
 console.log('ROUND_TRIP_MINUTES=510');
 console.log('DETAIL_BROWSE_UNIT=MINUTES');
 console.log('DETAIL_PUBLIC_EVOLUTION_WRITE_ISOLATION=PASS');

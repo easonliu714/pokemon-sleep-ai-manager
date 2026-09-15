@@ -220,6 +220,15 @@ gate('release and offline wiring retain v0.4.27.47 exact predecessor',()=>{
     assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.7'"),'G12.1 authority-parity successor must retain exact .55.3.3.7 predecessor marker');
     assert.ok(versionSource.includes("// app_build: '20260911-v042755337-g121d-real-device-closure'"),'G12.1 authority-parity successor must retain exact .55.3.3.7 predecessor build marker');
     assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.7-v042755337-g121d-real-device-closure'"),'G12.1 authority-parity successor must retain exact .55.3.3.7 predecessor cache marker');
+  }else if(currentAppVersion==='v0.4.27.55.3.3.9'){
+    assert.equal(currentAppBuild,'20260914-v042755339-duration-berry-visual-authority');
+    assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.9-v042755339-duration-berry-visual-authority');
+    assert.ok(versionSource.includes("// app_version: 'v0.4.27.47'"),'.55.3.3.9 successor must retain exact P0-B2 v0.4.27.47 lineage marker');
+    assert.ok(versionSource.includes("// app_build: '20260829-v042747-p0b2-public-species-authority'"),'.55.3.3.9 successor must retain exact P0-B2 build lineage marker');
+    assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.47-v042747-p0b2-public-species-authority'"),'.55.3.3.9 successor must retain exact P0-B2 cache lineage marker');
+    assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.8'"),'.55.3.3.9 successor must retain exact .55.3.3.8 predecessor marker');
+    assert.ok(versionSource.includes("// app_build: '20260913-v042755338-g121-authority-parity-real-device-closure'"),'.55.3.3.9 successor must retain exact .55.3.3.8 predecessor build marker');
+    assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.8-v042755338-g121-authority-parity-real-device-closure'"),'.55.3.3.9 successor must retain exact .55.3.3.8 predecessor cache marker');
   }else{
     assert.fail(`P0-B2 public-species successor release not governed: ${currentAppVersion}`);
   }

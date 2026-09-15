@@ -13,7 +13,11 @@ const coverage=read('assets/js/v03993-public-knowledge-coverage-ui.js');
 const candy=read('assets/js/candy-quantity-screenshot-ui.js');
 const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 
-if(appVersion==='v0.4.27.55.3.3.8'){
+if(appVersion==='v0.4.27.55.3.3.9'){
+  assert.match(authority,/app_build:\s*'20260914-v042755339-duration-berry-visual-authority'/);
+  assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.9-v042755339-duration-berry-visual-authority'/);
+  for(const predecessor of ['8','7','6','5','4','3','2'])assert.match(authority,new RegExp(`// app_version: 'v0\\.4\\.27\\.55\\.3\\.3\\.${predecessor}'`),`exact .55.3.3.${predecessor} predecessor bridge must remain`);
+}else if(appVersion==='v0.4.27.55.3.3.8'){
   assert.match(authority,/app_build:\s*'20260913-v042755338-g121-authority-parity-real-device-closure'/);
   assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.8-v042755338-g121-authority-parity-real-device-closure'/);
   for(const predecessor of ['7','6','5','4','3','2'])assert.match(authority,new RegExp(`// app_version: 'v0\\.4\\.27\\.55\\.3\\.3\\.${predecessor}'`),`exact .55.3.3.${predecessor} predecessor bridge must remain`);
@@ -117,4 +121,4 @@ console.log(JSON.stringify({
   migration:CANDY_FAMILY_STORAGE_MIGRATION_VERSION,
 },null,2));
 
-if(['v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8'].includes(appVersion))await import('./v042755333-candy-master-progressive-render-contract.mjs');
+if(['v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9'].includes(appVersion))await import('./v042755333-candy-master-progressive-render-contract.mjs');

@@ -80,6 +80,8 @@ jobs:
         run: node scripts/v04136-pot-manual-authority-alignment-contract.mjs
       - name: Verify UC.IMG-A executable contract
         run: node scripts/uc-img-a-contract.mjs
+      - name: Verify UC.IMG-A weekly image-only berry visual authority
+        run: node scripts/ci-uc-img-a-weekly-berry-visual-authority-regression.mjs
       - name: Verify Internal Gemini dual-mode contract
         run: node scripts/uc-img-internal-gemini-contract.mjs
       - name: Verify ingredient key hotfix contract
@@ -139,6 +141,7 @@ jobs:
           node --check assets/js/uc-img-session-lifecycle.js
           node --check assets/js/uc-img-image-runtime.js
           node --check assets/js/uc-img-weekly-platform-authority.js
+          node --check assets/js/uc-img-a-weekly-berry-visual-authority-v042755339.js
           node --check assets/js/public-master-recognition.js
           node --check assets/js/public-recipe-alias-master.js
           node --check assets/js/public-recipe-canonical-authority.js
@@ -161,6 +164,7 @@ jobs:
           node --check scripts/v04136-pot-manual-authority-alignment-contract.mjs
           node --check scripts/ci-p6a-ucimg-wrapper-parity-contract.mjs
           node --check scripts/ci-p6b-screenshot-pipeline-parity-contract.mjs
+          node --check scripts/ci-uc-img-a-weekly-berry-visual-authority-regression.mjs
           node --check scripts/public-master-recognition-contract.mjs
           node --check scripts/v04111-uc-img-session-timestamp-contract.mjs
           node --check scripts/v04112-android-eager-image-bytes-contract.mjs
