@@ -4,8 +4,9 @@
 
 const DECIMAL_HOURS_RE = /^(?:\d+(?:\.\d+)?|\.\d+)$/;
 // Hours are intentionally unbounded in digit count; only the minute field is fixed-width.
-// Optional whitespace around ':' is accepted because mobile keyboards may insert spacing.
-const HHMM_RE = /^(\d+)\s*:\s*(\d{2})$/;
+// Optional whitespace around ':' and the fullwidth mobile colon are accepted because
+// mobile keyboards / IMEs may emit either punctuation form.
+const HHMM_RE = /^(\d+)\s*[:：]\s*(\d{2})$/;
 
 /**
  * Parse player-entered duration to canonical total minutes.
@@ -15,6 +16,7 @@ const HHMM_RE = /^(\d+)\s*:\s*(\d{2})$/;
  *   "08:30"   => 510 minutes (explicit HH:MM)
  *   "1100:25" => 66025 minutes
  *   "1100 : 25" => 66025 minutes (mobile-friendly whitespace)
+ *   "1214：22" => 72862 minutes (fullwidth mobile punctuation)
  * Empty input returns null. Invalid/negative/non-finite input throws.
  */
 export function parsePlayerSleepDurationToMinutes(input) {
