@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {evaluateWeeklyBerryVisualEnvelope} from '../assets/js/uc-img-a-weekly-berry-visual-authority-v042755339.js';
+import {validateWorkflow} from '../assets/js/ai-workflow.js';
 
 const fixtureUrl=new URL('./fixtures/v0427553310_business_outcome_telemetry.json',import.meta.url);
 const fixture=JSON.parse(await readFile(fixtureUrl,'utf8'));
@@ -55,6 +56,11 @@ assert.equal(slots.assertions.review_required,true);
 // drops image-only berry slots or treats operation confidence / HTTP 200 as authority.
 const sourceImageRef='owner-predecessor-weekly.png';
 const productionPayload={
+  schema_version:'2.0',
+  package_id:'v0427553310-owner-predecessor',
+  generated_at:'2026-09-16T00:00:00.000Z',
+  source:'ai_screenshot_analysis',
+  scenario:'weekly_context_update',
   visual_observation_summary:{favorite_berry_icon_count:3,complete:true},
   visual_observations:slots.business.visual_slots.map(row=>({
     observation_type:'favorite_berry_icon',
@@ -66,8 +72,11 @@ const productionPayload={
     review_required:true,
   })),
   operations:[{
+    operation_id:'weekly-context-owner-predecessor',
     entity:'weekly_context',
-    data:{week_start:'2026-09-14',dish_category:'咖哩／濃湯'},
+    action:'upsert',
+    key:{context_id:'weekly:2026-09-14'},
+    data:{week_start:'2026-09-14',dish_category:'咖哩／濃湯',context_authority:'UPDATE_CENTER_JSON'},
     evidence:{source_image_ref:sourceImageRef,confidence:slots.transport.operation_confidence},
   }],
 };
@@ -83,5 +92,15 @@ assert.ok(evaluated.review.some(row=>row.kind==='weekly_field_confidence_missing
 assert.deepEqual(evaluated.clean_payload.visual_observations,undefined,'clean payload must not leak visual candidate envelope into ordinary persistence');
 assert.deepEqual(evaluated.clean_payload.visual_observation_summary,undefined,'clean payload must not leak visual summary into ordinary persistence');
 
+const workflow=validateWorkflow(structuredClone(productionPayload));
+assert.equal(workflow.summary.business_outcome,'REVIEW_REQUIRED','HTTP 200 transport must not collapse governed review into PASS');
+assert.ok(workflow.summary.business_warning_count>=1,'REVIEW_REQUIRED must expose at least one business warning');
+assert.equal(workflow.summary.business_error_count,0,'review-only outcome is not a validation error');
+assert.ok(workflow.summary.business_review_required_count>=3,'all unresolved slot reviews must remain visible');
+assert.equal(workflow.summary.business_unresolved_slot_count,3,'business telemetry must expose unresolved slot count');
+assert.match(workflow.summary.business_reason,/unresolved_visual_slots/,'business reason must expose slot blocker');
+assert.match(workflow.summary.business_reason,/review_required/,'business reason must expose review blocker');
+
 console.log('V0427553310_BUSINESS_OUTCOME_TELEMETRY_REGRESSION_GATE=PASS');
 console.log('V0427553310_PRODUCTION_UC_IMG_A_SLOT_BINDING=PASS');
+console.log('V0427553310_WORKFLOW_BUSINESS_TELEMETRY_BINDING=PASS');
