@@ -16,6 +16,11 @@ const exact = [
   ['08 : 30', 510],
   ['1100:25', 66025],
   ['1100 : 25', 66025],
+  // .55.3.3.9 owner real-device predecessor: long duration must survive
+  // mobile punctuation/spacing variants without being reinterpreted as decimal hours.
+  ['1214:22', 72862],
+  ['1214：22', 72862],
+  ['1214 : 22', 72862],
   ['0:05', 5],
   ['0', 0],
 ];
@@ -24,7 +29,7 @@ for (const [input, expected] of exact) {
 }
 assert.equal(parsePlayerSleepDurationToMinutes(''), null);
 
-for (const invalid of ['8:60', '1100:60', '1100:2', '-1', '-0.5', 'abc', '8h30m', '8:5']) {
+for (const invalid of ['8:60', '1100:60', '1100:2', '1214：60', '-1', '-0.5', 'abc', '8h30m', '8:5']) {
   assert.throws(() => parsePlayerSleepDurationToMinutes(invalid), undefined, `must reject ${invalid}`);
 }
 
@@ -37,6 +42,13 @@ assert.equal(formatPlayerSleepMinutes(510), '510 分鐘');
 const longMinutes = parsePlayerSleepDurationToMinutes('1100 : 25');
 assert.equal(longMinutes, 66025);
 assert.equal(storedHoursToSleepMinutes(sleepMinutesToStoredHours(longMinutes)), 66025);
+
+for (const input of ['1214:22', '1214：22', '1214 : 22']) {
+  const minutes = parsePlayerSleepDurationToMinutes(input);
+  assert.equal(minutes, 72862, `${input} canonical minutes`);
+  const persistedHours = sleepMinutesToStoredHours(minutes);
+  assert.equal(storedHoursToSleepMinutes(persistedHours), 72862, `${input} UI -> storage -> reload round-trip`);
+}
 
 assert.equal(G121_SLEEP_DURATION_CONTRACT.version, 'v0.4.27.55.3.3.9');
 assert.equal(G121_SLEEP_DURATION_CONTRACT.browse_unit, 'minutes');
@@ -72,6 +84,9 @@ console.log('DECIMAL_8_5_MINUTES=510');
 console.log('HHMM_08_30_MINUTES=510');
 console.log('LONG_HHMM_1100_25_MINUTES=66025');
 console.log('LONG_HHMM_WHITESPACE=PASS');
+console.log('OWNER_PREDECESSOR_1214_22_MINUTES=72862');
+console.log('OWNER_PREDECESSOR_FULLWIDTH_COLON=PASS');
+console.log('OWNER_PREDECESSOR_ROUND_TRIP=PASS');
 console.log('ROUND_TRIP_MINUTES=510');
 console.log('DETAIL_BROWSE_UNIT=MINUTES');
 console.log('DETAIL_PUBLIC_EVOLUTION_WRITE_ISOLATION=PASS');
