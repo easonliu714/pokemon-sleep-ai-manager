@@ -32,8 +32,6 @@ export function installWeeklyBerryVisualPromptAddon(){
   return weekly.prompt;
 }
 
-// ai-workflow imports this module before UC.IMG-A builds either its internal Gemini
-// prompt or external fallback prompt, so the same governed contract reaches both paths.
 installWeeklyBerryVisualPromptAddon();
 
 export function stripWeeklyBerryVisualEnvelope(sourcePayload){
@@ -65,10 +63,7 @@ export function evaluateWeeklyBerryVisualEnvelope(sourcePayload,{allowedImageRef
   const seenSlots=new Set();
 
   if(!summary || summary.complete!==true){
-    review.push({
-      kind:'weekly_berry_visual_surface_unreported',
-      reason:'Weekly screenshot berry-icon surface must be explicitly reviewed; missing/unreported is not equivalent to no berry requirement.',
-    });
+    review.push({kind:'weekly_berry_visual_surface_unreported',reason:'Weekly screenshot berry-icon surface must be explicitly reviewed; missing/unreported is not equivalent to no berry requirement.'});
   }
 
   const count=summary?.favorite_berry_icon_count;
@@ -82,49 +77,31 @@ export function evaluateWeeklyBerryVisualEnvelope(sourcePayload,{allowedImageRef
 
   observations.forEach((item,index)=>{
     const label=`visual_observations[${index}]`;
-    if(item?.observation_type!==UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT.observation_type){
-      errors.push(`${label}.observation_type must be favorite_berry_icon.`);
-    }
-    if(!Number.isInteger(item?.slot)||item.slot<1||item.slot>3){
-      errors.push(`${label}.slot must be 1, 2, or 3.`);
-    }else if(seenSlots.has(item.slot)){
-      errors.push(`${label}.slot duplicates slot ${item.slot}.`);
-    }else seenSlots.add(item.slot);
-
-    if(!item?.source_image_ref){
-      errors.push(`${label}.source_image_ref is required.`);
-    }else if(allowed.size && !allowed.has(item.source_image_ref)){
-      errors.push(`${label}.source_image_ref is not assigned to the weekly scenario: ${item.source_image_ref}`);
-    }
+    if(item?.observation_type!==UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT.observation_type)errors.push(`${label}.observation_type must be favorite_berry_icon.`);
+    if(!Number.isInteger(item?.slot)||item.slot<1||item.slot>3)errors.push(`${label}.slot must be 1, 2, or 3.`);
+    else if(seenSlots.has(item.slot))errors.push(`${label}.slot duplicates slot ${item.slot}.`);
+    else seenSlots.add(item.slot);
+    if(!item?.source_image_ref)errors.push(`${label}.source_image_ref is required.`);
+    else if(allowed.size&&!allowed.has(item.source_image_ref))errors.push(`${label}.source_image_ref is not assigned to the weekly scenario: ${item.source_image_ref}`);
     if(!isFiniteConfidence(item?.confidence))errors.push(`${label}.confidence must be null or a number from 0 to 1.`);
-
     if(!UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT.statuses.includes(item?.status)){
       errors.push(`${label}.status must be OBSERVED, CANDIDATE, or VERIFIED.`);
       return;
     }
-
     if(item.status==='OBSERVED'){
-      if(item.authority!==UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT.observed_authority){
-        errors.push(`${label}.authority must be AI_VISUAL_OBSERVATION_ONLY for OBSERVED.`);
-      }
+      if(item.authority!==UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT.observed_authority)errors.push(`${label}.authority must be AI_VISUAL_OBSERVATION_ONLY for OBSERVED.`);
       if(item.review_required!==true)errors.push(`${label}.review_required must be true while OBSERVED is unresolved.`);
       review.push({kind:'weekly_berry_visual_observation',slot:item.slot,status:item.status,source_image_ref:item.source_image_ref});
     }
-
     if(item.status==='CANDIDATE'){
-      if(item.authority!==UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT.candidate_authority){
-        errors.push(`${label}.authority must be AI_VISUAL_CANDIDATE_ONLY for CANDIDATE.`);
-      }
+      if(item.authority!==UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT.candidate_authority)errors.push(`${label}.authority must be AI_VISUAL_CANDIDATE_ONLY for CANDIDATE.`);
       if(typeof item.candidate_name!=='string'||!item.candidate_name.trim())errors.push(`${label}.candidate_name is required for CANDIDATE.`);
       if(item.review_required!==true)errors.push(`${label}.review_required must be true for AI visual candidates.`);
       if(item.canonical_berry_name)errors.push(`${label} may not set canonical_berry_name before VERIFIED resolution.`);
       review.push({kind:'weekly_berry_visual_candidate',slot:item.slot,status:item.status,candidate_name:item.candidate_name||null,source_image_ref:item.source_image_ref});
     }
-
     if(item.status==='VERIFIED'){
-      if(item.authority!==UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT.verified_authority){
-        errors.push(`${label}.authority must be CANONICAL_BERRY_ICON_AUTHORITY for VERIFIED.`);
-      }
+      if(item.authority!==UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT.verified_authority)errors.push(`${label}.authority must be CANONICAL_BERRY_ICON_AUTHORITY for VERIFIED.`);
       if(typeof item.canonical_berry_name!=='string'||!item.canonical_berry_name.trim())errors.push(`${label}.canonical_berry_name is required for VERIFIED.`);
       if(item.review_required===true)warnings.push(`${label} is VERIFIED but still marked review_required=true.`);
     }
@@ -134,22 +111,24 @@ export function evaluateWeeklyBerryVisualEnvelope(sourcePayload,{allowedImageRef
   if(weeklyOp){
     const observedTextFields=['week_start','camp','dish_category','event_name'].filter(key=>weeklyOp.data?.[key]!==undefined&&weeklyOp.data?.[key]!==null);
     const fieldConfidence=weeklyOp.evidence?.field_confidence;
-    if(observedTextFields.length && (!fieldConfidence||typeof fieldConfidence!=='object'||Array.isArray(fieldConfidence))){
-      review.push({
-        kind:'weekly_field_confidence_missing',
-        fields:observedTextFields,
-        reason:'Operation-level confidence is too coarse; observed weekly text fields require field-scoped confidence.',
-      });
+    if(observedTextFields.length&&(!fieldConfidence||typeof fieldConfidence!=='object'||Array.isArray(fieldConfidence))){
+      review.push({kind:'weekly_field_confidence_missing',fields:observedTextFields,reason:'Operation-level confidence is too coarse; observed weekly text fields require field-scoped confidence.'});
     }else if(fieldConfidence){
       for(const key of observedTextFields){
-        if(!isFiniteConfidence(fieldConfidence[key])||fieldConfidence[key]===null||fieldConfidence[key]===undefined){
-          errors.push(`operation.evidence.field_confidence.${key} must be a number from 0 to 1.`);
-        }
+        if(!isFiniteConfidence(fieldConfidence[key])||fieldConfidence[key]===null||fieldConfidence[key]===undefined)errors.push(`operation.evidence.field_confidence.${key} must be a number from 0 to 1.`);
       }
     }
   }
 
   const unresolvedCount=observations.filter(item=>item?.status!=='VERIFIED').length;
+  const blockerSlots=[...new Set(review.filter(row=>row.kind==='weekly_berry_visual_observation'||row.kind==='weekly_berry_visual_candidate').map(row=>row.slot).filter(Number.isInteger))].sort((a,b)=>a-b);
+  const dryRunReasons=[];
+  if(blockerSlots.length)dryRunReasons.push('unresolved_visual_slots');
+  if(review.some(row=>row.kind==='weekly_field_confidence_missing'))dryRunReasons.push('field_confidence_missing');
+  if(review.some(row=>row.kind==='weekly_berry_visual_surface_unreported'))dryRunReasons.push('visual_surface_unreported');
+  if(errors.length)dryRunReasons.push('validation_errors');
+  const blockerCount=review.length+errors.length;
+
   return {
     ok:errors.length===0&&review.length===0,
     errors:[...new Set(errors)],
@@ -162,6 +141,10 @@ export function evaluateWeeklyBerryVisualEnvelope(sourcePayload,{allowedImageRef
       observation_count:observations.length,
       unresolved_count:unresolvedCount,
       verified_count:observations.length-unresolvedCount,
+      blocker_count:blockerCount,
+      blocker_slots:blockerSlots,
+      dry_run_outcome:blockerCount>0?'HOLD':'PASS',
+      dry_run_hold_reason:dryRunReasons.join(',')||null,
       ai_is_rule_authority:false,
       unknown_is_absent:false,
     },
