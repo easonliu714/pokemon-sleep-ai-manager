@@ -156,6 +156,30 @@ function weeklyBerryVisualReviewEntry(item,index){
   };
 }
 
+function applyBusinessOutcomeTelemetry(result){
+  const errors=Array.isArray(result?.errors)?result.errors:[];
+  const warnings=Array.isArray(result?.warnings)?result.warnings:[];
+  const review=Array.isArray(result?.review)?result.review:[];
+  const weeklyUnresolved=Number(result?.summary?.weekly_berry_unresolved_count)||0;
+  const reasons=[];
+  if(errors.length)reasons.push('validation_errors');
+  if(weeklyUnresolved>0)reasons.push('unresolved_visual_slots');
+  if(review.length)reasons.push('review_required');
+  const outcome=errors.length?'HOLD':review.length?'REVIEW_REQUIRED':'PASS';
+  // REVIEW_REQUIRED is a governed business warning even when transport/Gemini returned
+  // HTTP 200. Keep transport status separate from the domain outcome so diagnostics can
+  // never report an all-clean request while owner action is still required.
+  const businessWarningCount=warnings.length+(outcome==='REVIEW_REQUIRED'?Math.max(1,review.length):0);
+  const businessErrorCount=errors.length+(outcome==='HOLD'&&errors.length===0?1:0);
+  result.summary.business_outcome=outcome;
+  result.summary.business_warning_count=businessWarningCount;
+  result.summary.business_error_count=businessErrorCount;
+  result.summary.business_reason=reasons.join(',')||null;
+  result.summary.business_review_required_count=review.length;
+  result.summary.business_unresolved_slot_count=weeklyUnresolved;
+  return result;
+}
+
 export function validateWorkflow(payload){
   if(typeof payload==='string'||payload?.schema_version==='2.0-observation'||Array.isArray(payload?.observations))return validateObservationPayload(payload);
   let weeklyPreparation=null;
@@ -184,7 +208,7 @@ export function validateWorkflow(payload){
     result.errors=[...new Set(result.errors)];
     result.warnings=[...new Set(result.warnings)];
   }
-  return result;
+  return applyBusinessOutcomeTelemetry(result);
 }
 
 export function approveReviewed(payload){
