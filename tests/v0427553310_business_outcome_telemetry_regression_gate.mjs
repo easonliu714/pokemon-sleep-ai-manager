@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import {evaluateWeeklyBerryVisualEnvelope} from '../assets/js/uc-img-a-weekly-berry-visual-authority-v042755339.js';
 
 const fixtureUrl=new URL('./fixtures/v0427553310_business_outcome_telemetry.json',import.meta.url);
 const fixture=JSON.parse(await readFile(fixtureUrl,'utf8'));
@@ -49,4 +50,38 @@ assert.equal(slots.assertions.candidate_must_not_auto_verify,true);
 assert.equal(slots.assertions.operation_confidence_must_not_authorize_slots,true);
 assert.equal(slots.assertions.review_required,true);
 
+// Bind the frozen predecessor evidence to the production UC.IMG-A evaluator. This
+// prevents a fixture-only PASS from hiding a regression where production silently
+// drops image-only berry slots or treats operation confidence / HTTP 200 as authority.
+const sourceImageRef='owner-predecessor-weekly.png';
+const productionPayload={
+  visual_observation_summary:{favorite_berry_icon_count:3,complete:true},
+  visual_observations:slots.business.visual_slots.map(row=>({
+    observation_type:'favorite_berry_icon',
+    slot:row.slot,
+    source_image_ref:sourceImageRef,
+    status:'OBSERVED',
+    confidence:null,
+    authority:'AI_VISUAL_OBSERVATION_ONLY',
+    review_required:true,
+  })),
+  operations:[{
+    entity:'weekly_context',
+    data:{week_start:'2026-09-14',dish_category:'咖哩／濃湯'},
+    evidence:{source_image_ref:sourceImageRef,confidence:slots.transport.operation_confidence},
+  }],
+};
+const evaluated=evaluateWeeklyBerryVisualEnvelope(productionPayload,{allowedImageRefs:[sourceImageRef]});
+assert.equal(evaluated.ok,false,'three unresolved production observations must remain REVIEW_REQUIRED');
+assert.equal(evaluated.summary.observation_count,3,'production evaluator must retain all three visible slots');
+assert.equal(evaluated.summary.unresolved_count,3,'all three unresolved slots must remain blockers');
+assert.equal(evaluated.summary.verified_count,0,'operation confidence must not auto-verify slots');
+assert.equal(evaluated.summary.ai_is_rule_authority,false);
+assert.equal(evaluated.summary.unknown_is_absent,false);
+assert.deepEqual(evaluated.review.filter(row=>row.kind==='weekly_berry_visual_observation').map(row=>row.slot),[1,2,3]);
+assert.ok(evaluated.review.some(row=>row.kind==='weekly_field_confidence_missing'),'operation-level confidence alone must leave field-scoped confidence review required');
+assert.deepEqual(evaluated.clean_payload.visual_observations,undefined,'clean payload must not leak visual candidate envelope into ordinary persistence');
+assert.deepEqual(evaluated.clean_payload.visual_observation_summary,undefined,'clean payload must not leak visual summary into ordinary persistence');
+
 console.log('V0427553310_BUSINESS_OUTCOME_TELEMETRY_REGRESSION_GATE=PASS');
+console.log('V0427553310_PRODUCTION_UC_IMG_A_SLOT_BINDING=PASS');
