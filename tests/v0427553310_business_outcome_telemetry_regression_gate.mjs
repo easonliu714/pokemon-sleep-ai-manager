@@ -92,6 +92,14 @@ assert.ok(evaluated.review.some(row=>row.kind==='weekly_field_confidence_missing
 assert.deepEqual(evaluated.clean_payload.visual_observations,undefined,'clean payload must not leak visual candidate envelope into ordinary persistence');
 assert.deepEqual(evaluated.clean_payload.visual_observation_summary,undefined,'clean payload must not leak visual summary into ordinary persistence');
 
+// .55.3.3.10 regression-first contract: unresolved slot authority must be exported as
+// explicit blockers and a deterministic Dry-run HOLD reason, not inferred later from UI.
+assert.equal(evaluated.summary.blocker_count,4,'3 unresolved slots + missing field-scoped confidence must remain explicit blockers');
+assert.deepEqual(evaluated.summary.blocker_slots,[1,2,3],'slot blockers must preserve exact visual slot identity');
+assert.equal(evaluated.summary.dry_run_outcome,'HOLD','unresolved visual authority must fail closed in Dry-run');
+assert.match(evaluated.summary.dry_run_hold_reason,/unresolved_visual_slots/,'Dry-run reason must expose unresolved visual slots');
+assert.match(evaluated.summary.dry_run_hold_reason,/field_confidence_missing/,'Dry-run reason must expose missing field-scoped confidence');
+
 const workflow=validateWorkflow(structuredClone(productionPayload));
 assert.equal(workflow.summary.business_outcome,'REVIEW_REQUIRED','HTTP 200 transport must not collapse governed review into PASS');
 assert.ok(workflow.summary.business_warning_count>=1,'REVIEW_REQUIRED must expose at least one business warning');
@@ -103,4 +111,5 @@ assert.match(workflow.summary.business_reason,/review_required/,'business reason
 
 console.log('V0427553310_BUSINESS_OUTCOME_TELEMETRY_REGRESSION_GATE=PASS');
 console.log('V0427553310_PRODUCTION_UC_IMG_A_SLOT_BINDING=PASS');
+console.log('V0427553310_SLOT_BLOCKER_DRY_RUN_REGRESSION=PASS');
 console.log('V0427553310_WORKFLOW_BUSINESS_TELEMETRY_BINDING=PASS');
