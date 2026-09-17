@@ -1,0 +1,31 @@
+name: v0.4.27.55.3.3.10 Successor Regression
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  successor-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify duration parser save round-trip authority
+        run: node scripts/ci-g121-sleep-duration-authority-regression.mjs
+
+      - name: Verify business outcome telemetry authority
+        run: node tests/v0427553310_business_outcome_telemetry_regression_gate.mjs
+
+      - name: Verify Update Center mobile UC.IMG-A navigation authority
+        run: node tests/v0427553310_update_center_mobile_navigation_regression_gate.mjs
