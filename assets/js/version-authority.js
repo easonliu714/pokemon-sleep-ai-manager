@@ -21,3 +21,5 @@
 // app_version: 'v0.4.13.2'
 // app_build: '20260812-v04132-pot-authority-recipe78'
 // cache_name: 'pokemon-sleep-ai-v0.4.13.2-v04132-pot-authority-recipe78'
+// app_version: 'v0.3.97'
+// app_version: 'v0.3.96'
