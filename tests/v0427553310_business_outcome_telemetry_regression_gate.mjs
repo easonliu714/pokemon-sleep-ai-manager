@@ -55,12 +55,16 @@ assert.equal(slots.assertions.review_required,true);
 // prevents a fixture-only PASS from hiding a regression where production silently
 // drops image-only berry slots or treats operation confidence / HTTP 200 as authority.
 const sourceImageRef='owner-predecessor-weekly.png';
+// This must be a valid Update Package v1.1 weekly envelope. Otherwise the workflow
+// correctly emits HOLD for envelope violations and the telemetry assertion would be
+// testing malformed transport data rather than the intended REVIEW_REQUIRED domain path.
 const productionPayload={
-  schema_version:'2.0',
-  package_id:'v0427553310-owner-predecessor',
-  generated_at:'2026-09-16T00:00:00.000Z',
+  schema_version:'1.1',
+  update_id:'UPD-20260917000000-V0427553310-TELEMETRY',
+  generated_at:'2026-09-17T00:00:00.000Z',
   source:'ai_screenshot_analysis',
   scenario:'weekly_context_update',
+  context_authority:'UPDATE_CENTER_JSON',
   visual_observation_summary:{favorite_berry_icon_count:3,complete:true},
   visual_observations:slots.business.visual_slots.map(row=>({
     observation_type:'favorite_berry_icon',
@@ -75,8 +79,8 @@ const productionPayload={
     operation_id:'weekly-context-owner-predecessor',
     entity:'weekly_context',
     action:'upsert',
-    key:{context_id:'weekly:2026-09-14'},
-    data:{week_start:'2026-09-14',dish_category:'咖哩／濃湯',context_authority:'UPDATE_CENTER_JSON',updated_at:'2026-09-16T00:00:00.000Z'},
+    key:{context_id:'weekly_context_2026-09-14_import'},
+    data:{week_start:'2026-09-14',dish_category:'咖哩／濃湯',context_authority:'UPDATE_CENTER_JSON',updated_at:'2026-09-17T00:00:00.000Z'},
     evidence:{source_image_ref:sourceImageRef,confidence:slots.transport.operation_confidence},
   }],
 };
