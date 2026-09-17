@@ -84,6 +84,9 @@
 // app_version: 'v0.4.27.47'
 // app_build: '20260829-v042747-p0b2-public-species-authority'
 // cache_name: 'pokemon-sleep-ai-v0.4.27.47-v042747-p0b2-public-species-authority'
+// Historical G14 data-consistency parser bridge; exact literals are inert comments only.
+// app_version: 'v0.4.27.9'
+// app_build: 'v04279-confirmation-multicapture-authority-hotfix'
 // app_version: 'v0.4.22.1'
 // app_build: '20260813-v04221-recipe-formula-authority-audit'
 // app_version: 'v0.4.13.6'
