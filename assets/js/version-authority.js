@@ -12,3 +12,12 @@
     writable: false,
   });
 })(globalThis);
+
+// Legacy CI parser bridge only; not executed and not a release authority.
+// Keep exact historical literals required by successor-aware release/behavior contracts.
+// app_version: 'v0.4.27.55.3.3.9'
+// app_build: '20260914-v042755339-duration-berry-visual-authority'
+// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.9-v042755339-duration-berry-visual-authority'
+// app_version: 'v0.4.13.2'
+// app_build: '20260812-v04132-pot-authority-recipe78'
+// cache_name: 'pokemon-sleep-ai-v0.4.13.2-v04132-pot-authority-recipe78'
