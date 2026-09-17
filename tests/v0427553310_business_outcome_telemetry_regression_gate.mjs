@@ -76,7 +76,7 @@ const productionPayload={
     entity:'weekly_context',
     action:'upsert',
     key:{context_id:'weekly:2026-09-14'},
-    data:{week_start:'2026-09-14',dish_category:'咖哩／濃湯',context_authority:'UPDATE_CENTER_JSON'},
+    data:{week_start:'2026-09-14',dish_category:'咖哩／濃湯',context_authority:'UPDATE_CENTER_JSON',updated_at:'2026-09-16T00:00:00.000Z'},
     evidence:{source_image_ref:sourceImageRef,confidence:slots.transport.operation_confidence},
   }],
 };
