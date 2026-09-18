@@ -10,6 +10,13 @@ import {
   confirmWeeklyObservedTextFields,
   resolveWeeklyBerryVisualCandidate,
 } from '../assets/js/uc-img-a-weekly-berry-visual-authority-v042755339.js';
+import {weeklyBerryOptions} from '../assets/js/unified-screenshot-update-center.js';
+
+const publicBerryOptions=weeklyBerryOptions();
+assert.equal(publicBerryOptions.length,18,'weekly manual resolver must expose the complete canonical Public Berry authority');
+assert.ok(publicBerryOptions.includes('桃桃果'));
+assert.ok(publicBerryOptions.includes('文柚果'));
+assert.ok(!publicBerryOptions.includes('甜桃果'),'provider guess must not silently become a canonical selector option');
 
 const ownerRaw={
   schema_version:'1.1',
