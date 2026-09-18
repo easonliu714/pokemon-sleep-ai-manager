@@ -6,8 +6,8 @@ export const UC_IMG_WEEKLY_PLATFORM_AUTHORITY_VERSION='uc-img-weekly-platform-au
 
 const clone=value=>JSON.parse(JSON.stringify(value));
 const clean=value=>String(value??'').trim();
-const WEEKLY_SEMANTIC_FIELDS=Object.freeze(['camp','dish_category','event_name','event_effects','base_notes']);
 const WEEKLY_PROVIDER_BERRY_FIELDS=Object.freeze(['favorite_berry_1','favorite_berry_2','favorite_berry_3']);
+const WEEKLY_SEMANTIC_FIELDS=Object.freeze(['camp','dish_category',...WEEKLY_PROVIDER_BERRY_FIELDS,'event_name','event_effects','base_notes']);
 const semanticMeaningful=value=>{
   if(value===null||value===undefined||value==='')return false;
   if(Array.isArray(value))return value.length>0;
@@ -99,6 +99,9 @@ export function buildUcImgWeeklySemanticDataProperties(){
   return {
     camp:{type:'string'},
     dish_category:{type:'string',enum:['咖哩／濃湯','沙拉','甜點／飲料']},
+    favorite_berry_1:{type:'string'},
+    favorite_berry_2:{type:'string'},
+    favorite_berry_3:{type:'string'},
     event_name:{type:'string'},
     event_effects:buildUcImgWeeklyEventEffectsJsonSchema(),
     base_notes:{type:'string'},
@@ -152,6 +155,7 @@ export function constrainUcImgWeeklyJsonSchema(schema,authority){
       updated_at:{type:'string',enum:[authority.updated_at]},
     };
     operation.properties.data.additionalProperties=false;
+    for(const field of WEEKLY_PROVIDER_BERRY_FIELDS)delete operation.properties.data.properties[field];
     requireField(operation.properties.data,'week_start');requireField(operation.properties.data,'updated_at');
     const evidence=operation.properties.evidence;
     if(evidence){
