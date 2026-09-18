@@ -68,10 +68,6 @@ if(p0b6Successor){
   for(const displayName of p0b6RealDeviceNames){
     const row=rows.find(item=>item.candy_display_name===displayName);assert.ok(row);assert.match(row.source_ref,/^project-evidence:2026-09-01-p0b6-real-device-inventory-revalidation#/);
   }
-
-  // Systemic regression: no source-controlled Meowth/Sandshrew B3/B4 row exists.
-  // A validated local admission must become family + display + canonical storage
-  // authority immediately in the same session, without another code hotfix.
   for(const species of ['喵喵','穿山鼠']){
     assert.equal(resolvePublicCandyDisplayNameForSpecies(species).status,'REVIEW_REQUIRED');
     assert.equal(resolveCandyFamilyStorageForSpecies(species).status,'REVIEW_REQUIRED');
@@ -82,7 +78,7 @@ if(p0b6Successor){
       assert.equal(display.status,'MATCH');
       assert.equal(display.candy_display_name,name);
       assert.equal(display.local_admission_authority,true);
-      assert.equal(display.reason,localGapDurabilitySuccessor?'EXACT_USER_CONFIRMED_LOCAL_ZH_TW_CANDY_DISPLAY_NAME':'EXACT_USER_CONFIRMED_LOCAL_ZH_TW_CANDY_DISPLAY_NAME');
+      assert.equal(display.reason,'EXACT_USER_CONFIRMED_LOCAL_ZH_TW_CANDY_DISPLAY_NAME');
       assert.equal(display.automatic_display_name_generation,false);
       const storage=resolveCandyFamilyStorageForSpecies(species);
       assert.equal(storage.status,'MATCH',`${species} local admission must reach P0-B6 canonical storage`);
@@ -124,4 +120,3 @@ assert.equal((serviceWorkerSource.match(/\.\/assets\/js\/public-candy-display-na
 assert.equal((serviceWorkerSource.match(/\.\/assets\/js\/public-candy-family-authority\.js/g)||[]).length,1);
 assert.ok(workflowSource.includes('node scripts/v042750-p0b4-candy-display-name-authority-contract.mjs'));
 console.log(JSON.stringify({status:'PASS',gate:'V042750_P0B4_PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY',authority_version:PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION,admitted_exact_zh_tw_display_name_rows:rows.length,verified_display_names:rows.map(row=>row.candy_display_name),app_version:appVersion,app_build:appBuild,nested_hotfix_version_supported:p0b6Successor&&appVersion!=='v0.4.27.55',local_gap_durability_successor:localGapDurabilitySuccessor,semantics:{family_level_display_name_resolution:true,exact_first_party_zh_tw_evidence_only:!localGapDurabilitySuccessor,exact_first_party_zh_tw_evidence_supported:true,local_admission_dynamic_fallback:p0b6Successor,local_admission_reaches_canonical_storage:p0b6Successor,local_precedes_public_same_name:localGapDurabilitySuccessor,public_supplements_local_gap:localGapDurabilitySuccessor,local_public_conflict_fail_closed:localGapDurabilitySuccessor,local_read_failure_fail_closed:localGapDurabilitySuccessor,unverified_family_review_required:true,automatic_display_name_generation:false,legacy_candy_master_mutation:false,player_inventory_migration:false,professor_transfer_write_change:false,successor_release_exact:true}},null,2));
-await import('./v042751-p0b5-candy-quantity-confirmation-contract.mjs');
