@@ -229,6 +229,18 @@ gate('release and offline wiring retain v0.4.27.47 exact predecessor',()=>{
     assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.8'"),'.55.3.3.9 successor must retain exact .55.3.3.8 predecessor marker');
     assert.ok(versionSource.includes("// app_build: '20260913-v042755338-g121-authority-parity-real-device-closure'"),'.55.3.3.9 successor must retain exact .55.3.3.8 predecessor build marker');
     assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.8-v042755338-g121-authority-parity-real-device-closure'"),'.55.3.3.9 successor must retain exact .55.3.3.8 predecessor cache marker');
+  }else if(currentAppVersion==='v0.4.27.55.3.3.10'){
+    assert.equal(currentAppBuild,'20260917-v0427553310-real-device-followup');
+    assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.10-v0427553310-real-device-followup');
+    assert.ok(versionSource.includes("// app_version: 'v0.4.27.47'"),'.55.3.3.10 successor must retain exact P0-B2 v0.4.27.47 lineage marker');
+    assert.ok(versionSource.includes("// app_build: '20260829-v042747-p0b2-public-species-authority'"),'.55.3.3.10 successor must retain exact P0-B2 build lineage marker');
+    assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.9'"),'.10 successor must retain exact .9 predecessor marker');
+  }else if(currentAppVersion==='v0.4.27.55.3.3.11'){
+    assert.equal(currentAppBuild,'20260918-v0427553311-ucimg-real-device-closure');
+    assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.11-v0427553311-ucimg-real-device-closure');
+    assert.ok(versionSource.includes("// app_version: 'v0.4.27.47'"),'.55.3.3.11 successor must retain exact P0-B2 v0.4.27.47 lineage marker');
+    assert.ok(versionSource.includes("// app_build: '20260829-v042747-p0b2-public-species-authority'"),'.55.3.3.11 successor must retain exact P0-B2 build lineage marker');
+    assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.10'"),'.11 successor must retain exact .10 predecessor marker');
   }else{
     assert.fail(`P0-B2 public-species successor release not governed: ${currentAppVersion}`);
   }
