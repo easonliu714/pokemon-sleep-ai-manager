@@ -6,6 +6,10 @@ import {
   normalizeUcImgWeeklyProviderPayload,
 } from '../assets/js/uc-img-weekly-platform-authority.js';
 import {validateWorkflow} from '../assets/js/ai-workflow.js';
+import {
+  confirmWeeklyObservedTextFields,
+  resolveWeeklyBerryVisualCandidate,
+} from '../assets/js/uc-img-a-weekly-berry-visual-authority-v042755339.js';
 
 const ownerRaw={
   schema_version:'1.1',
@@ -50,6 +54,26 @@ const slotReview=workflow.review.filter(row=>row.kind==='weekly_berry_visual_can
 assert.equal(slotReview.length,3,'owner physical FAIL must become three actionable slot reviews');
 assert.equal(workflow.summary.weekly_berry_unresolved_count,3);
 assert.notEqual(workflow.summary.business_outcome,'PASS');
+
+let resolved=structuredClone(normalized);
+resolved=resolveWeeklyBerryVisualCandidate(resolved,1,'公版樹果A',{confirmedAt:'2026-09-18T05:00:00.000Z'});
+resolved=resolveWeeklyBerryVisualCandidate(resolved,2,'公版樹果B',{confirmedAt:'2026-09-18T05:00:01.000Z'});
+resolved=resolveWeeklyBerryVisualCandidate(resolved,3,'公版樹果C',{confirmedAt:'2026-09-18T05:00:02.000Z'});
+let beforeTextConfirmation=validateWorkflow(structuredClone(resolved));
+assert.ok(beforeTextConfirmation.review.some(row=>row.kind==='weekly_field_confidence_missing'),'operation-level confidence must still require explicit text-field resolution');
+resolved=confirmWeeklyObservedTextFields(resolved,{confirmedAt:'2026-09-18T05:00:03.000Z'});
+const resolvedWorkflow=validateWorkflow(structuredClone(resolved));
+assert.equal(resolvedWorkflow.errors.length,0,resolvedWorkflow.errors.join('\n'));
+assert.equal(resolvedWorkflow.review.length,0,'all actionable weekly blockers must be resolvable before Dry Run');
+assert.equal(resolvedWorkflow.summary.weekly_berry_unresolved_count,0);
+assert.equal(resolvedWorkflow.summary.business_outcome,'PASS');
+assert.equal(resolved.operations[0].review_required,false);
+assert.deepEqual(
+  [resolved.operations[0].data.favorite_berry_1,resolved.operations[0].data.favorite_berry_2,resolved.operations[0].data.favorite_berry_3],
+  ['公版樹果A','公版樹果B','公版樹果C'],
+  'only explicit slot confirmation may write favorite berry fields',
+);
+assert.deepEqual(resolved.operations[0].evidence.user_confirmed_fields,['week_start','dish_category']);
 
 const authority=buildUcImgWeeklyPlatformAuthority(new Date('2026-09-18T04:43:57.996Z'));
 const schema=constrainUcImgWeeklyJsonSchema(buildUpdatePackageJsonSchema({
