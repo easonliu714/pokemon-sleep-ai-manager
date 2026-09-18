@@ -14,4 +14,9 @@ assert.ok(nav.includes("'#ucImgA'"),'weekly/ingredient/recipe cards must converg
 assert.ok(nav.includes("'#candyQuantityScreenshotB5'"),'candy task must target the candy screenshot analyzer');
 assert.ok(nav.includes("'#identityImportWizardRoot'"),'pokemon detail task must target Advanced OCR / AI import wizard');
 assert.ok(nav.includes('scrollIntoView'),'task cards must perform mobile-friendly in-page navigation');
+
+const shared=fs.readFileSync(new URL('../assets/js/unified-screenshot-update-center.js',import.meta.url),'utf8');
+assert.ok(shared.includes('provider_raw_response'),'internal provider raw must be retained independently from working JSON');
+assert.ok(shared.includes('Provider Raw JSON（唯讀稽核，不參與覆核修改）'),'mobile review must expose immutable provider raw audit');
+assert.ok(shared.includes('Working / Normalized JSON（覆核與 Dry Run 使用）'),'normalized review payload must not be mislabeled as provider raw');
 console.log('V0427553311_UPDATE_CENTER_TASK_NAVIGATION_GATE=PASS');
