@@ -13,7 +13,7 @@ import {
   isPublicMasterRecognitionPayload,
   supportsPublicMasterRecognition,
 } from './public-master-recognition.js';
-import {rows,isDatabaseReady} from './database.js';
+import {PUBLIC_BERRY_STRENGTH_MASTER} from './public-berry-strength-master.js';
 import {confirmWeeklyObservedTextFields,resolveWeeklyBerryVisualCandidate} from './uc-img-a-weekly-berry-visual-authority-v042755339.js';
 
 export const UC_IMG_A_VERSION='uc-img-a-2026-08-12-e-attempt-lifecycle-diagnostic';
@@ -203,9 +203,8 @@ const previewHtml=preview=>!preview?.changes?.length?'<div class="notice">尚無
 function candidateOptions(item,allOptions){const preferred=[...(item.candidate_names||[])],ordered=[...preferred,...allOptions.filter(name=>!preferred.includes(name))];return `<option value="">請選擇公版候選</option>${ordered.map(name=>`<option value="${esc(name)}">${esc(name)}</option>`).join('')}`;}
 function recognitionReviewHtml(result){const unresolved=result?.recognition?.unresolved||[];if(!unresolved.length)return '';const allOptions=result.recognition.catalog_options||[];return `<section class="uc-img-recognition"><b>Public Master 對應待確認：${unresolved.length}</b><div class="notice">相近名稱只作候選，不會自動寫入。所有未匹配項目都必須由使用者處理後才能 Dry Run。</div>${unresolved.map(item=>{const gap=item.user_resolution?.action==='PUBLIC_MASTER_GAP_CONFIRMED';return `<article class="uc-img-recognition-card" data-observation-id="${esc(item.observation_id)}"><div><b>${esc(item.status)}</b> · ${esc(item.observed_text||'未讀到文字')} · ${esc(item.source_image_ref||'—')} · confidence=${esc(item.confidence??'—')}</div><div class="notice">辨識值：<code>${esc(JSON.stringify(item.observed_data||{}))}</code>${item.reason?` · ${esc(item.reason)}`:''}</div>${gap?'<div class="uc-img-gap">已標記為 Public Master gap；仍禁止套用，待後續公版 Evidence 治理。</div>':''}<select class="uc-img-rec-candidate">${candidateOptions(item,allOptions)}</select><div class="uc-img-recognition-actions"><button data-rec-action="MATCH">確認公版候選</button><button data-rec-action="IGNORE">辨識誤判／忽略</button><button data-rec-action="MASTER_GAP">標記公版缺口</button></div></article>`;}).join('')}</section>`;}
 
-function weeklyBerryOptions(){
-  if(!isDatabaseReady())return [];
-  try{return rows('SELECT berry_name FROM berry_master ORDER BY berry_name').map(row=>String(row.berry_name||'').trim()).filter(Boolean);}catch{return [];}
+export function weeklyBerryOptions(){
+  return [...new Set(PUBLIC_BERRY_STRENGTH_MASTER.map(row=>String(row.berry_name||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-TW'));
 }
 function weeklyBerryReviewHtml(result,key){
   if(key!=='weekly')return '';
