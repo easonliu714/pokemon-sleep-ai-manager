@@ -1,0 +1,68 @@
+{
+  "contract_version": "v0.4.27.55.3.3.10",
+  "purpose": "Regression fixture separating transport success from governed business outcome for UC.IMG-A real-device follow-up.",
+  "invariants": {
+    "http_200_is_not_business_success": true,
+    "high_confidence_is_not_verification_authority": true,
+    "unknown_is_not_zero": true,
+    "raw_screenshot_immutable": true
+  },
+  "cases": [
+    {
+      "id": "http200_review_required_must_emit_business_warning",
+      "transport": {
+        "http_status": 200,
+        "request_completed": true
+      },
+      "business": {
+        "outcome": "REVIEW_REQUIRED",
+        "reason": "missing_exact_governed_visual_authority",
+        "warning_count_min": 1,
+        "error_count_min": 0
+      },
+      "assertions": {
+        "warning_count_zero_forbidden": true,
+        "transport_success_must_not_override_business_outcome": true
+      }
+    },
+    {
+      "id": "http200_hold_must_emit_business_error_or_hold_trace",
+      "transport": {
+        "http_status": 200,
+        "request_completed": true
+      },
+      "business": {
+        "outcome": "HOLD",
+        "reason": "unresolved_visual_slots",
+        "unresolved_slot_count": 3
+      },
+      "assertions": {
+        "all_clean_trace_forbidden": true,
+        "business_reason_required": true,
+        "unresolved_slot_count_required": 3
+      }
+    },
+    {
+      "id": "three_visual_slots_observed_not_silently_omitted",
+      "transport": {
+        "http_status": 200,
+        "request_completed": true,
+        "operation_confidence": 0.98
+      },
+      "business": {
+        "outcome": "REVIEW_REQUIRED",
+        "visual_slots": [
+          {"slot": 1, "state": "OBSERVED", "resolved_authority": null},
+          {"slot": 2, "state": "OBSERVED", "resolved_authority": null},
+          {"slot": 3, "state": "OBSERVED", "resolved_authority": null}
+        ]
+      },
+      "assertions": {
+        "visual_slot_count": 3,
+        "candidate_must_not_auto_verify": true,
+        "operation_confidence_must_not_authorize_slots": true,
+        "review_required": true
+      }
+    }
+  ]
+}
