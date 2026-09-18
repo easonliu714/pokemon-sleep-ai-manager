@@ -10,6 +10,7 @@ import {
   buildUcImgWeeklyPlatformAuthority,
   buildUcImgWeeklyPlatformPromptInstruction,
   constrainUcImgWeeklyJsonSchema,
+  normalizeUcImgWeeklyProviderPayload,
 } from './uc-img-weekly-platform-authority.js';
 
 export const UC_IMG_GEMINI_ADAPTER_VERSION='uc-img-gemini-2026-09-02-v042755-compact-public-master-schema';
@@ -82,6 +83,7 @@ function normalizeProviderPayload(parsedPayload,config,scenarioKey,platformAutho
     recovery=recoverExactUnlockedRecipeRecognition(payload);
     payload=recovery.payload;
   }
+  if(scenarioKey==='weekly')payload=normalizeUcImgWeeklyProviderPayload(payload);
   if(platformAuthority)payload=applyUcImgWeeklyPlatformAuthority(payload,platformAuthority);
   return {payload,recovery};
 }
