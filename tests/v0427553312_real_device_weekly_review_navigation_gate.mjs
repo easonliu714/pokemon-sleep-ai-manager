@@ -66,7 +66,9 @@ assert.ok(
   'platform-injected week_start must not require AI field confidence when observed image fields are already field-scoped',
 );
 assert.equal(workflow.summary.weekly_berry_unresolved_count,3);
-assert.equal(workflow.summary.business_outcome,'HOLD');
+// No hard validation error remains after normalization; unresolved governed slots are
+// therefore REVIEW_REQUIRED (not PASS), preserving HTTP200 != business success.
+assert.equal(workflow.summary.business_outcome,'REVIEW_REQUIRED');
 
 let resolved=structuredClone(normalized);
 resolved=resolveWeeklyBerryVisualCandidate(resolved,1,'桃桃果',{confirmedAt:'2026-09-20T15:00:00.000Z'});
