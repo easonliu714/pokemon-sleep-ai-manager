@@ -41,6 +41,60 @@ export function stripWeeklyBerryVisualEnvelope(sourcePayload){
   return payload;
 }
 
+function weeklyOperation(payload){
+  return Array.isArray(payload?.operations)?payload.operations.find(op=>op?.entity==='weekly_context'):null;
+}
+function observedWeeklyTextFields(operation){
+  return ['week_start','camp','dish_category','event_name'].filter(key=>operation?.data?.[key]!==undefined&&operation?.data?.[key]!==null);
+}
+function hasFieldConfidence(operation,fields){
+  const fieldConfidence=operation?.evidence?.field_confidence;
+  return Boolean(fieldConfidence&&typeof fieldConfidence==='object'&&!Array.isArray(fieldConfidence)&&fields.every(key=>isFiniteConfidence(fieldConfidence[key])&&fieldConfidence[key]!==null&&fieldConfidence[key]!==undefined));
+}
+function hasManualFieldConfirmation(operation,fields){
+  const confirmed=new Set(Array.isArray(operation?.evidence?.user_confirmed_fields)?operation.evidence.user_confirmed_fields:[]);
+  return fields.every(key=>confirmed.has(key));
+}
+function recomputeWeeklyOperationReviewRequired(payload){
+  const operation=weeklyOperation(payload);
+  if(!operation)return payload;
+  const observations=Array.isArray(payload.visual_observations)?payload.visual_observations:[];
+  const textFields=observedWeeklyTextFields(operation);
+  const visualResolved=observations.every(item=>item?.status==='VERIFIED');
+  const textResolved=!textFields.length||hasFieldConfidence(operation,textFields)||hasManualFieldConfirmation(operation,textFields);
+  operation.review_required=!(visualResolved&&textResolved);
+  return payload;
+}
+
+export function resolveWeeklyBerryVisualCandidate(sourcePayload,slot,canonicalBerryName,{confirmedAt=new Date().toISOString()}={}){
+  const payload=clone(sourcePayload||{});
+  const name=String(canonicalBerryName??'').trim();
+  if(!Number.isInteger(slot)||slot<1||slot>3)throw new Error('weekly_berry_slot_invalid');
+  if(!name)throw new Error('weekly_berry_canonical_name_required');
+  const observations=Array.isArray(payload.visual_observations)?payload.visual_observations:[];
+  const item=observations.find(row=>row?.slot===slot);
+  if(!item)throw new Error(`weekly_berry_slot_${slot}_missing`);
+  item.status='VERIFIED';
+  item.authority=UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT.verified_authority;
+  item.canonical_berry_name=name;
+  item.review_required=false;
+  item.user_confirmation={method:'USER_CONFIRMED_CANONICAL_SELECTOR',confirmed_at:confirmedAt};
+  const operation=weeklyOperation(payload);
+  if(operation){
+    operation.data={...(operation.data||{}),[`favorite_berry_${slot}`]:name};
+  }
+  return recomputeWeeklyOperationReviewRequired(payload);
+}
+
+export function confirmWeeklyObservedTextFields(sourcePayload,{confirmedAt=new Date().toISOString()}={}){
+  const payload=clone(sourcePayload||{});
+  const operation=weeklyOperation(payload);
+  if(!operation)return payload;
+  const fields=observedWeeklyTextFields(operation);
+  operation.evidence={...(operation.evidence||{}),user_confirmed_fields:[...fields],user_confirmed_fields_at:confirmedAt};
+  return recomputeWeeklyOperationReviewRequired(payload);
+}
+
 function weeklyEvidenceImageRefs(source){
   const operation=Array.isArray(source?.operations)?source.operations.find(op=>op?.entity==='weekly_context'):null;
   if(!operation)return [];
@@ -107,15 +161,17 @@ export function evaluateWeeklyBerryVisualEnvelope(sourcePayload,{allowedImageRef
     }
   });
 
-  const weeklyOp=Array.isArray(source.operations)?source.operations.find(op=>op?.entity==='weekly_context'):null;
+  const weeklyOp=weeklyOperation(source);
   if(weeklyOp){
-    const observedTextFields=['week_start','camp','dish_category','event_name'].filter(key=>weeklyOp.data?.[key]!==undefined&&weeklyOp.data?.[key]!==null);
+    const observedTextFields=observedWeeklyTextFields(weeklyOp);
     const fieldConfidence=weeklyOp.evidence?.field_confidence;
+    const manuallyConfirmed=hasManualFieldConfirmation(weeklyOp,observedTextFields);
     if(observedTextFields.length&&(!fieldConfidence||typeof fieldConfidence!=='object'||Array.isArray(fieldConfidence))){
-      review.push({kind:'weekly_field_confidence_missing',fields:observedTextFields,reason:'Operation-level confidence is too coarse; observed weekly text fields require field-scoped confidence.'});
+      if(manuallyConfirmed)warnings.push('Observed weekly text fields were confirmed by the owner; operation-level AI confidence was not promoted to field authority.');
+      else review.push({kind:'weekly_field_confidence_missing',fields:observedTextFields,reason:'Operation-level confidence is too coarse; observed weekly text fields require field-scoped confidence or explicit owner confirmation.'});
     }else if(fieldConfidence){
       for(const key of observedTextFields){
-        if(!isFiniteConfidence(fieldConfidence[key])||fieldConfidence[key]===null||fieldConfidence[key]===undefined)errors.push(`operation.evidence.field_confidence.${key} must be a number from 0 to 1.`);
+        if((!isFiniteConfidence(fieldConfidence[key])||fieldConfidence[key]===null||fieldConfidence[key]===undefined)&&!manuallyConfirmed)errors.push(`operation.evidence.field_confidence.${key} must be a number from 0 to 1 or be explicitly confirmed by the owner.`);
       }
     }
   }

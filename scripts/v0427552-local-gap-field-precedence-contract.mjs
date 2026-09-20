@@ -67,7 +67,13 @@ await import('../assets/js/version-authority.js');
 const currentVersion=globalThis.PokemonSleepVersionAuthority?.app_version||'';
 const currentBuild=globalThis.PokemonSleepVersionAuthority?.app_build||'';
 const currentCache=globalThis.PokemonSleepVersionAuthority?.cache_name||'';
-if(currentVersion==='v0.4.27.55.3.3.9'){
+if(currentVersion==='v0.4.27.55.3.3.11'){
+  assert.equal(currentBuild,'20260918-v0427553311-ucimg-real-device-closure');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.11-v0427553311-ucimg-real-device-closure');
+}else if(currentVersion==='v0.4.27.55.3.3.10'){
+  assert.equal(currentBuild,'20260917-v0427553310-real-device-followup');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.10-v0427553310-real-device-followup');
+}else if(currentVersion==='v0.4.27.55.3.3.9'){
   assert.equal(currentBuild,'20260914-v042755339-duration-berry-visual-authority');
   assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.9-v042755339-duration-berry-visual-authority');
 }else if(currentVersion==='v0.4.27.55.3.3.8'){
