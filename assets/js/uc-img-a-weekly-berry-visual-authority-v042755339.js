@@ -45,7 +45,10 @@ function weeklyOperation(payload){
   return Array.isArray(payload?.operations)?payload.operations.find(op=>op?.entity==='weekly_context'):null;
 }
 function observedWeeklyTextFields(operation){
-  return ['week_start','camp','dish_category','event_name'].filter(key=>operation?.data?.[key]!==undefined&&operation?.data?.[key]!==null);
+  return ['week_start','camp','dish_category','event_name','base_notes'].filter(key=>operation?.data?.[key]!==undefined&&operation?.data?.[key]!==null);
+}
+function reviewableWeeklyTextFields(operation){
+  return ['camp','dish_category','event_name','base_notes'].filter(key=>operation?.data?.[key]!==undefined&&operation?.data?.[key]!==null);
 }
 function hasFieldConfidence(operation,fields){
   const fieldConfidence=operation?.evidence?.field_confidence;
@@ -59,7 +62,7 @@ function recomputeWeeklyOperationReviewRequired(payload){
   const operation=weeklyOperation(payload);
   if(!operation)return payload;
   const observations=Array.isArray(payload.visual_observations)?payload.visual_observations:[];
-  const textFields=observedWeeklyTextFields(operation);
+  const textFields=reviewableWeeklyTextFields(operation);
   const visualResolved=observations.every(item=>item?.status==='VERIFIED');
   const textResolved=!textFields.length||hasFieldConfidence(operation,textFields)||hasManualFieldConfirmation(operation,textFields);
   operation.review_required=!(visualResolved&&textResolved);
@@ -163,16 +166,13 @@ export function evaluateWeeklyBerryVisualEnvelope(sourcePayload,{allowedImageRef
 
   const weeklyOp=weeklyOperation(source);
   if(weeklyOp){
-    const observedTextFields=observedWeeklyTextFields(weeklyOp);
+    const observedTextFields=reviewableWeeklyTextFields(weeklyOp);
     const fieldConfidence=weeklyOp.evidence?.field_confidence;
     const manuallyConfirmed=hasManualFieldConfirmation(weeklyOp,observedTextFields);
-    if(observedTextFields.length&&(!fieldConfidence||typeof fieldConfidence!=='object'||Array.isArray(fieldConfidence))){
+    const missingConfidenceFields=observedTextFields.filter(key=>!fieldConfidence||typeof fieldConfidence!=='object'||Array.isArray(fieldConfidence)||!isFiniteConfidence(fieldConfidence[key])||fieldConfidence[key]===null||fieldConfidence[key]===undefined);
+    if(missingConfidenceFields.length){
       if(manuallyConfirmed)warnings.push('Observed weekly text fields were confirmed by the owner; operation-level AI confidence was not promoted to field authority.');
-      else review.push({kind:'weekly_field_confidence_missing',fields:observedTextFields,reason:'Operation-level confidence is too coarse; observed weekly text fields require field-scoped confidence or explicit owner confirmation.'});
-    }else if(fieldConfidence){
-      for(const key of observedTextFields){
-        if((!isFiniteConfidence(fieldConfidence[key])||fieldConfidence[key]===null||fieldConfidence[key]===undefined)&&!manuallyConfirmed)errors.push(`operation.evidence.field_confidence.${key} must be a number from 0 to 1 or be explicitly confirmed by the owner.`);
-      }
+      else review.push({kind:'weekly_field_confidence_missing',fields:missingConfidenceFields,reason:'Observed weekly image fields without field-scoped confidence require explicit owner confirmation; platform-injected time fields are not AI confidence obligations.'});
     }
   }
 
