@@ -26,12 +26,13 @@ const releases={
   'v0.4.27.55.3.3.9':{build:'20260914-v042755339-duration-berry-visual-authority',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.9-v042755339-duration-berry-visual-authority'},
   'v0.4.27.55.3.3.10':{build:'20260917-v0427553310-real-device-followup',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.10-v0427553310-real-device-followup'},
   'v0.4.27.55.3.3.11':{build:'20260918-v0427553311-ucimg-real-device-closure',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.11-v0427553311-ucimg-real-device-closure'},
+  'v0.4.27.55.3.3.12':{build:'20260920-v0427553312-weekly-review-navigation-real-device-closure',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.12-v0427553312-weekly-review-navigation-real-device-closure'},
 };
 assert.ok(releases[appVersion],'unsupported .55.3.3 successor: '+appVersion);
 assert.equal(appBuild,releases[appVersion].build);
 assert.equal(cacheName,releases[appVersion].cache);
 assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.2'/,'predecessor bridge must remain');
-const ordered=['v0.4.27.55.3.3','v0.4.27.55.3.3.1','v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11'];
+const ordered=['v0.4.27.55.3.3','v0.4.27.55.3.3.1','v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12'];
 const currentIndex=ordered.indexOf(appVersion);
 for(let i=0;i<currentIndex;i++)assert.ok(authority.includes(`// app_version: '${ordered[i]}'`),`predecessor bridge missing ${ordered[i]}`);
 assert.match(sw,/importScripts\('\.\/assets\/js\/version-authority\.js'\)/);
