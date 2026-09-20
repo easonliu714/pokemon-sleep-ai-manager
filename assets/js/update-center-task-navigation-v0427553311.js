@@ -23,7 +23,8 @@ function stickyMainNavOffset(){
 export function scrollTaskTargetToTop(target,{behavior='smooth'}={}){
   if(!target?.getBoundingClientRect)return false;
   const top=Math.max(0,target.getBoundingClientRect().top+window.scrollY-stickyMainNavOffset());
-  window.scrollTo({top,behavior});
+  if(typeof window.scrollTo==='function')window.scrollTo({top,behavior});
+  else target.scrollIntoView({behavior,block:'start'});
   return true;
 }
 
