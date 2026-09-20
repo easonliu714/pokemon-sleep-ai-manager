@@ -71,6 +71,11 @@ const releases = Object.freeze([
     build: '20260918-v0427553311-ucimg-real-device-closure',
     cache: 'pokemon-sleep-ai-v0.4.27.55.3.3.11-v0427553311-ucimg-real-device-closure',
   }),
+  Object.freeze({
+    version: 'v0.4.27.55.3.3.12',
+    build: '20260920-v0427553312-weekly-review-navigation-real-device-closure',
+    cache: 'pokemon-sleep-ai-v0.4.27.55.3.3.12-v0427553312-weekly-review-navigation-real-device-closure',
+  }),
 ]);
 
 const live = authority.match(/const authority = Object\.freeze\(\{([\s\S]*?)\}\);/)?.[1] || '';
