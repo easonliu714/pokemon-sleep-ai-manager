@@ -44,6 +44,24 @@ const ownerDiagnostic={
   })),
 };
 
+// This regression owns the 2026-09-14 owner week. validateWorkflow deliberately
+// enforces current-week eligibility, so freeze the clock around workflow validation;
+// otherwise the fixture becomes malformed after the calendar rolls to 2026-09-21
+// and masks the Gate 3/4 authority semantics this successor regression is meant to own.
+function validateAtOwnerWeek(payload){
+  const NativeDate=Date;
+  const frozenNow='2026-09-20T16:00:00.000Z';
+  globalThis.Date=class extends NativeDate{
+    constructor(...args){super(...(args.length?args:[frozenNow]));}
+    static now(){return new NativeDate(frozenNow).getTime();}
+  };
+  try{
+    return validateWorkflow(payload);
+  }finally{
+    globalThis.Date=NativeDate;
+  }
+}
+
 const frozen=structuredClone(ownerDiagnostic);
 const normalized=normalizeUcImgWeeklyProviderPayload(ownerDiagnostic);
 assert.deepEqual(ownerDiagnostic,frozen,'provider/raw diagnostic evidence must stay immutable');
@@ -54,7 +72,7 @@ assert.ok(
 );
 assert.equal(normalized.operations[0].review_required,true,'unresolved visual slots must force operation review');
 
-let workflow=validateWorkflow(structuredClone(normalized));
+let workflow=validateAtOwnerWeek(structuredClone(normalized));
 assert.equal(workflow.errors.length,0,workflow.errors.join('\n'));
 assert.equal(
   workflow.review.filter(row=>row.kind==='weekly_berry_visual_observation').length,
@@ -74,7 +92,7 @@ let resolved=structuredClone(normalized);
 resolved=resolveWeeklyBerryVisualCandidate(resolved,1,'桃桃果',{confirmedAt:'2026-09-20T15:00:00.000Z'});
 resolved=resolveWeeklyBerryVisualCandidate(resolved,2,'文柚果',{confirmedAt:'2026-09-20T15:00:01.000Z'});
 resolved=resolveWeeklyBerryVisualCandidate(resolved,3,'橙橙果',{confirmedAt:'2026-09-20T15:00:02.000Z'});
-workflow=validateWorkflow(structuredClone(resolved));
+workflow=validateAtOwnerWeek(structuredClone(resolved));
 assert.equal(workflow.errors.length,0,workflow.errors.join('\n'));
 assert.equal(workflow.review.length,0,'explicitly resolving all three slots must clear weekly review blockers');
 assert.equal(workflow.summary.weekly_berry_unresolved_count,0);
