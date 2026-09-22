@@ -12,6 +12,23 @@ import {
 } from '../assets/js/uc-img-a-weekly-berry-visual-authority-v042755339.js';
 import {weeklyBerryOptions} from '../assets/js/unified-screenshot-update-center.js';
 
+// Frozen predecessor evidence belongs to the 2026-09-14 owner week. Keep the
+// current-week import guard active in production while preventing calendar rollover
+// from turning this historical authority regression into an unrelated stale-week HOLD.
+function validateAtOwnerWeek(payload){
+  const NativeDate=Date;
+  const frozenNow='2026-09-18T12:00:00.000Z';
+  globalThis.Date=class extends NativeDate{
+    constructor(...args){super(...(args.length?args:[frozenNow]));}
+    static now(){return new NativeDate(frozenNow).getTime();}
+  };
+  try{
+    return validateWorkflow(payload);
+  }finally{
+    globalThis.Date=NativeDate;
+  }
+}
+
 const publicBerryOptions=weeklyBerryOptions();
 assert.equal(publicBerryOptions.length,18,'weekly manual resolver must expose the complete canonical Public Berry authority');
 assert.ok(publicBerryOptions.includes('桃桃果'));
@@ -56,7 +73,7 @@ assert.equal(normalized.operations[0].data.favorite_berry_2,undefined);
 assert.equal(normalized.operations[0].data.favorite_berry_3,undefined);
 assert.equal(normalized.operations[0].review_required,true,'legacy provider berry guesses must become explicit review, never silent authority');
 
-const workflow=validateWorkflow(structuredClone(normalized));
+const workflow=validateAtOwnerWeek(structuredClone(normalized));
 const slotReview=workflow.review.filter(row=>row.kind==='weekly_berry_visual_candidate');
 assert.equal(slotReview.length,3,'owner physical FAIL must become three actionable slot reviews');
 assert.equal(workflow.summary.weekly_berry_unresolved_count,3);
@@ -66,10 +83,10 @@ let resolved=structuredClone(normalized);
 resolved=resolveWeeklyBerryVisualCandidate(resolved,1,'公版樹果A',{confirmedAt:'2026-09-18T05:00:00.000Z'});
 resolved=resolveWeeklyBerryVisualCandidate(resolved,2,'公版樹果B',{confirmedAt:'2026-09-18T05:00:01.000Z'});
 resolved=resolveWeeklyBerryVisualCandidate(resolved,3,'公版樹果C',{confirmedAt:'2026-09-18T05:00:02.000Z'});
-let beforeTextConfirmation=validateWorkflow(structuredClone(resolved));
+let beforeTextConfirmation=validateAtOwnerWeek(structuredClone(resolved));
 assert.ok(beforeTextConfirmation.review.some(row=>row.kind==='weekly_field_confidence_missing'),'operation-level confidence must still require explicit text-field resolution');
 resolved=confirmWeeklyObservedTextFields(resolved,{confirmedAt:'2026-09-18T05:00:03.000Z'});
-const resolvedWorkflow=validateWorkflow(structuredClone(resolved));
+const resolvedWorkflow=validateAtOwnerWeek(structuredClone(resolved));
 assert.equal(resolvedWorkflow.errors.length,0,resolvedWorkflow.errors.join('\n'));
 assert.equal(resolvedWorkflow.review.length,0,'all actionable weekly blockers must be resolvable before Dry Run');
 assert.equal(resolvedWorkflow.summary.weekly_berry_unresolved_count,0);
