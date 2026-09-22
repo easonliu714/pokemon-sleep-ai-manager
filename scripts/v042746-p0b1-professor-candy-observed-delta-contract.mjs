@@ -101,6 +101,13 @@ if(currentVersion==='v0.4.27.45'||currentVersion==='v0.4.27.46'){
   assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.11-v0427553311-ucimg-real-device-closure');
   assertP0B1Lineage('.55.3.3.11 UC.IMG-A real-device closure successor');
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.10'"),'.11 successor must retain exact .55.3.3.10 predecessor marker');
+}else if(currentVersion==='v0.4.27.55.3.3.12'){
+  assert.equal(currentBuild,'20260920-v0427553312-weekly-review-navigation-real-device-closure');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.12-v0427553312-weekly-review-navigation-real-device-closure');
+  assertP0B1Lineage('.55.3.3.12 weekly-review/navigation real-device closure successor');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.11'"),'.12 successor must retain exact .55.3.3.11 predecessor version marker');
+  assert.ok(version.includes("// app_build: '20260918-v0427553311-ucimg-real-device-closure'"),'.12 successor must retain exact .55.3.3.11 predecessor build marker');
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.11-v0427553311-ucimg-real-device-closure'"),'.12 successor must retain exact .55.3.3.11 predecessor cache marker');
 }else{
   assert.fail(`P0-B1 professor-candy successor release not governed: ${currentVersion}`);
 }

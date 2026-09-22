@@ -19,11 +19,30 @@ export function ucImgWeeklySemanticFields(data={}){
   return WEEKLY_SEMANTIC_FIELDS.filter(field=>semanticMeaningful(data?.[field]));
 }
 
+function normalizeWeeklyVisualObservationSemantics(payload){
+  const observations=Array.isArray(payload?.visual_observations)?payload.visual_observations:[];
+  for(const item of observations){
+    if(!item||item.status==='VERIFIED')continue;
+    const candidateName=clean(item.candidate_name);
+    if(item.status==='OBSERVED'&&item.authority==='AI_VISUAL_CANDIDATE_ONLY'){
+      if(candidateName)item.status='CANDIDATE';
+      else item.authority='AI_VISUAL_OBSERVATION_ONLY';
+    }else if(item.status==='CANDIDATE'&&!candidateName){
+      item.status='OBSERVED';
+      item.authority='AI_VISUAL_OBSERVATION_ONLY';
+    }
+    item.review_required=true;
+  }
+  const operation=Array.isArray(payload?.operations)?payload.operations.find(item=>item?.entity==='weekly_context'):null;
+  if(operation&&observations.some(item=>item?.status!=='VERIFIED'))operation.review_required=true;
+  return payload;
+}
+
 export function normalizeUcImgWeeklyProviderPayload(sourcePayload){
   const source=sourcePayload&&typeof sourcePayload==='object'&&!Array.isArray(sourcePayload)?sourcePayload:{};
   const copy=clone(source);
   if(copy.scenario!=='weekly_context_update')return copy;
-  if(copy.visual_observation_summary||Array.isArray(copy.visual_observations))return copy;
+  if(copy.visual_observation_summary||Array.isArray(copy.visual_observations))return normalizeWeeklyVisualObservationSemantics(copy);
   const operation=Array.isArray(copy.operations)?copy.operations.find(item=>item?.entity==='weekly_context'):null;
   if(!operation)return copy;
   const guesses=WEEKLY_PROVIDER_BERRY_FIELDS.map((field,index)=>({field,slot:index+1,name:clean(operation.data?.[field])})).filter(item=>item.name);
@@ -44,7 +63,7 @@ export function normalizeUcImgWeeklyProviderPayload(sourcePayload){
   operation.data={...(operation.data||{})};
   for(const field of WEEKLY_PROVIDER_BERRY_FIELDS)delete operation.data[field];
   operation.review_required=true;
-  return copy;
+  return normalizeWeeklyVisualObservationSemantics(copy);
 }
 
 export function buildUcImgWeeklyPlatformAuthority(now=new Date()){

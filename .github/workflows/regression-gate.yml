@@ -31,16 +31,20 @@ jobs:
       - name: Verify CI topology policy
         run: node scripts/ci-topology-policy-contract.mjs
 
-      - name: Verify .55.3.3.10 successor regressions
-        run: |
-          node scripts/ci-g121-sleep-duration-authority-regression.mjs
-          node tests/v0427553310_business_outcome_telemetry_regression_gate.mjs
-          node tests/v0427553310_update_center_mobile_navigation_regression_gate.mjs
+      - name: Verify .55.3.3.10 sleep-duration authority regression
+        run: node scripts/ci-g121-sleep-duration-authority-regression.mjs
+
+      - name: Verify .55.3.3.10 business-outcome telemetry regression
+        run: node tests/v0427553310_business_outcome_telemetry_regression_gate.mjs
+
+      - name: Verify .55.3.3.10 Update Center mobile-navigation regression
+        run: node tests/v0427553310_update_center_mobile_navigation_regression_gate.mjs
 
       - name: Verify .55.3.3.11 physical-fail successor regressions
         run: |
           node tests/v0427553311_uc_img_weekly_provider_normalization_gate.mjs
           node tests/v0427553311_update_center_task_navigation_gate.mjs
+          node tests/v0427553312_real_device_weekly_review_navigation_gate.mjs
 
       - name: Verify P5 wrapper side-by-side parity topology
         run: node scripts/ci-p5-wrapper-parity-contract.mjs

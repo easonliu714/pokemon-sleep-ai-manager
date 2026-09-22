@@ -104,7 +104,22 @@ assert.equal(evaluated.summary.dry_run_outcome,'HOLD','unresolved visual authori
 assert.match(evaluated.summary.dry_run_hold_reason,/unresolved_visual_slots/,'Dry-run reason must expose unresolved visual slots');
 assert.match(evaluated.summary.dry_run_hold_reason,/field_confidence_missing/,'Dry-run reason must expose missing field-scoped confidence');
 
-const workflow=validateWorkflow(structuredClone(productionPayload));
+// Freeze the predecessor regression clock inside the original .55.3.3.10 week.
+// validateWorkflow intentionally enforces current-week import eligibility; without a
+// frozen clock this historical fixture turns into a validation HOLD after week rollover,
+// masking the frozen REVIEW_REQUIRED business-telemetry contract that this test owns.
+const NativeDate=Date;
+const frozenNow='2026-09-17T12:00:00.000Z';
+globalThis.Date=class extends NativeDate{
+  constructor(...args){super(...(args.length?args:[frozenNow]));}
+  static now(){return new NativeDate(frozenNow).getTime();}
+};
+let workflow;
+try{
+  workflow=validateWorkflow(structuredClone(productionPayload));
+}finally{
+  globalThis.Date=NativeDate;
+}
 assert.equal(workflow.summary.business_outcome,'REVIEW_REQUIRED','HTTP 200 transport must not collapse governed review into PASS');
 assert.ok(workflow.summary.business_warning_count>=1,'REVIEW_REQUIRED must expose at least one business warning');
 assert.equal(workflow.summary.business_error_count,0,'review-only outcome is not a validation error');
