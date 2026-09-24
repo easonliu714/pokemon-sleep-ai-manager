@@ -106,7 +106,14 @@ const version=readFileSync(new URL('../assets/js/version-authority.js',import.me
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.3.3.11'){
+if(appVersion==='v0.4.27.55.3.3.12'){
+  assert.ok(ui.includes("section.dataset.performanceAuthority='v0.4.27.55.3-mobile-incremental-confirmation'"),'.12 successor must preserve exact .55.3 Candy performance authority');
+  assert.equal(appBuild,'20260920-v0427553312-weekly-review-navigation-real-device-closure');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.12-v0427553312-weekly-review-navigation-real-device-closure');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.11'"),'.12 successor must retain exact .11 predecessor version marker');
+  assert.ok(version.includes("// app_build: '20260918-v0427553311-ucimg-real-device-closure'"),'.12 successor must retain exact .11 predecessor build marker');
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.11-v0427553311-ucimg-real-device-closure'"),'.12 successor must retain exact .11 predecessor cache marker');
+}else if(appVersion==='v0.4.27.55.3.3.11'){
   assert.ok(ui.includes("section.dataset.performanceAuthority='v0.4.27.55.3-mobile-incremental-confirmation'"),'.11 successor must preserve exact .55.3 Candy performance authority');
   assert.equal(appBuild,'20260918-v0427553311-ucimg-real-device-closure');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.11-v0427553311-ucimg-real-device-closure');
