@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {
   MASTER_FIELD_PRECEDENCE_POLICY_VERSION,
   POKEMON_CANDY_PUBLIC_COMPLETENESS_ATTESTATION,
@@ -63,11 +64,18 @@ const confirmedQuaxly={observation_id:'obs-quaxly-current',status:'MATCHED',obse
 const quaxlyFamily=resolvePublicCandyFamilyForSpecies('潤水鴨'),quaxwellFamily=resolvePublicCandyFamilyForSpecies('湧躍鴨'),quaquavalFamily=resolvePublicCandyFamilyForSpecies('狂歡浪舞鴨');assert.equal(quaxlyFamily.status,'MATCH');assert.equal(quaxwellFamily.status,'MATCH');assert.equal(quaquavalFamily.status,'MATCH');assert.equal(quaxlyFamily.family_id,quaxwellFamily.family_id);assert.equal(quaxlyFamily.family_id,quaquavalFamily.family_id);
 const priorLocalStorage=globalThis.localStorage;try{const quaxlyStorage=new MemoryStorage();globalThis.localStorage=quaxlyStorage;const committed=commitPublicCandyLocalAdmission(confirmedPrepared,{storage:quaxlyStorage});assert.equal(committed.status,'CREATED');const quaxlyDisplay=resolvePublicCandyDisplayNameForSpecies('潤水鴨');assert.equal(quaxlyDisplay.status,'MATCH');assert.equal(quaxlyDisplay.candy_display_name,'潤水鴨的糖果');assert.equal(quaxlyDisplay.local_admission_authority,true);assert.equal(quaxlyDisplay.local_evidence_preserved,true);const pikachuStorage=new MemoryStorage();globalThis.localStorage=pikachuStorage;const pikachuPrepared=prepareConfirmedMatchedCandyLocalAdmission({observation:{observation_id:'obs-pikachu',status:'MATCHED',observed_text:'皮卡丘的糖果',canonical_name:'皮卡丘的糖果',canonical_key:{candy_id:localAdmissionCandyIdForSpecies('皮卡丘')},observed_data:{quantity:88},source_image_ref:'candy-image-002',confidence:0.99,user_resolution:{action:'USER_CONFIRMED_CANDY_QUANTITY',confirmed_at:iso,confirmed_quantity:88}}});commitPublicCandyLocalAdmission(pikachuPrepared,{storage:pikachuStorage});const pikachuDisplay=resolvePublicCandyDisplayNameForSpecies('皮卡丘');assert.equal(pikachuDisplay.status,'MATCH');assert.equal(pikachuDisplay.candy_display_name,'皮卡丘的糖果');assert.equal(pikachuDisplay.local_admission_authority,true);assert.equal(pikachuDisplay.public_corroborated,true);globalThis.localStorage=corruptStorage;assert.throws(()=>currentPublicCandyDisplayNameAuthorityRows(),/JSON 損毀/);}finally{if(priorLocalStorage===undefined)delete globalThis.localStorage;else globalThis.localStorage=priorLocalStorage;}
 assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_VERSION,'public-candy-display-name-authority-2026-09-02-f');assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.local_name_precedes_public_name_while_public_completeness_unattested,true);assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.public_name_may_silently_overwrite_local_name,false);assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.local_admission_read_failure_silent_drop,false);assert.equal(PUBLIC_CANDY_DISPLAY_NAME_AUTHORITY_POLICY.automatic_display_name_generation,false);assert.equal(CANDY_FAMILY_STORAGE_MIGRATION_VERSION,15);
+const versionSource=readFileSync(new URL('../assets/js/version-authority.js',import.meta.url),'utf8');
 await import('../assets/js/version-authority.js');
 const currentVersion=globalThis.PokemonSleepVersionAuthority?.app_version||'';
 const currentBuild=globalThis.PokemonSleepVersionAuthority?.app_build||'';
 const currentCache=globalThis.PokemonSleepVersionAuthority?.cache_name||'';
-if(currentVersion==='v0.4.27.55.3.3.11'){
+if(currentVersion==='v0.4.27.55.3.3.12'){
+  assert.equal(currentBuild,'20260920-v0427553312-weekly-review-navigation-real-device-closure');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.12-v0427553312-weekly-review-navigation-real-device-closure');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.11'"));
+  assert.ok(versionSource.includes("// app_build: '20260918-v0427553311-ucimg-real-device-closure'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.11-v0427553311-ucimg-real-device-closure'"));
+}else if(currentVersion==='v0.4.27.55.3.3.11'){
   assert.equal(currentBuild,'20260918-v0427553311-ucimg-real-device-closure');
   assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.11-v0427553311-ucimg-real-device-closure');
 }else if(currentVersion==='v0.4.27.55.3.3.10'){
