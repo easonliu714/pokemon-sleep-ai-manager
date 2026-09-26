@@ -3,12 +3,12 @@ import {createPersonalRecipeService} from '../assets/js/personal-recipe-service.
 
 const state={
   recipes:new Map(),ingredients:new Map(),batches:[],changes:[],snapshots:[],events:[],persisted:0,
-  publicIds:new Set(['public:001']),
+  publicRecipes:new Map([['public:001','公版沙拉']]),
 };
 const clone=value=>JSON.parse(JSON.stringify(value));
 let transactionBackup=null;
 const rows=(sql,args=[])=>{
-  if(sql.includes('FROM recipe_master'))return [...state.publicIds].map(recipe_id=>({recipe_id}));
+  if(sql.includes('FROM recipe_master'))return [...state.publicRecipes].map(([recipe_id,recipe_name])=>({recipe_id,recipe_name}));
   if(sql.includes('FROM recipes WHERE recipe_id=')){const row=state.recipes.get(args[0]);return row?[clone(row)]:[];}
   if(sql.includes('FROM recipe_ingredients WHERE recipe_id='))return clone(state.ingredients.get(args[0])||[]).sort((a,b)=>a.ingredient_name.localeCompare(b.ingredient_name,'zh-Hant'));
   throw new Error(`unexpected SELECT: ${sql}`);
@@ -52,11 +52,12 @@ assert.equal(updated.after.total_ingredients,5);
 assert.equal(updated.before.total_ingredients,9);
 assert.equal(state.snapshots.length,2);
 
-await assert.rejects(()=>service.create({...base,recipe_id:'public:001'}),/read-only/);
-state.recipes.set('public-state',{...base,recipe_id:'public-state',source:'public_catalog_manual'});
-state.ingredients.set('public-state',[]);
-await assert.rejects(()=>service.update({...base,recipe_id:'public-state'}),/only player-owned/);
-assert.equal(state.publicIds.has('public:001'),true);
+await assert.rejects(()=>service.create({...base,recipe_id:'public:001'}),/player: namespace/);
+await assert.rejects(()=>service.create({...base,recipe_id:'player:collision',recipe_name:'公版沙拉'}),/read-only/);
+state.recipes.set('player:public-state',{...base,recipe_id:'player:public-state',source:'public_catalog_manual'});
+state.ingredients.set('player:public-state',[]);
+await assert.rejects(()=>service.update({...base,recipe_id:'player:public-state'}),/only player-owned/);
+assert.equal(state.publicRecipes.has('public:001'),true);
 
 const deleted=await service.delete('player:001');
 assert.equal(deleted.after,null);
@@ -66,4 +67,4 @@ assert.equal(state.batches.length,3);
 assert.equal(state.changes.length,3);
 assert.equal(state.persisted,3);
 
-console.log(JSON.stringify({contract:'g51-personal-recipe-service',status:'PASS',snapshot_before_each_mutation:true,single_transaction:true,audit:true,persist_after_commit:true,public_master_read_only:true,deterministic_total:true},null,2));
+console.log(JSON.stringify({contract:'g51-personal-recipe-service',status:'PASS',snapshot_before_each_mutation:true,single_transaction:true,audit:true,persist_after_commit:true,player_namespace_required:true,public_id_and_name_collision_blocked:true,public_master_read_only:true,deterministic_total:true},null,2));
