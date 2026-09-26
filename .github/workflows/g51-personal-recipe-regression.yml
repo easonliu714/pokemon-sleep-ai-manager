@@ -1,0 +1,38 @@
+name: G5.1 Personal Recipe Regression
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'feat/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: g51-personal-recipe-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  personal-recipe-authority:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax check G5.1 authority
+        run: |
+          node --check assets/js/personal-recipe-authority.js
+          node --check scripts/g51-personal-recipe-authority-contract.mjs
+      - name: Verify deterministic player-only CRUD authority
+        run: node scripts/g51-personal-recipe-authority-contract.mjs
+      - name: Preserve public-master player isolation contract
+        run: node scripts/v042-recipe-sync-preservation-contract.mjs
+      - name: Verify no tracked repository mutation
+        shell: bash
+        run: git diff --exit-code -- . ':!package-lock.json'
