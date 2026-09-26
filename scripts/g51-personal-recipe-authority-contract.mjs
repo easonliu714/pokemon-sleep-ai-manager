@@ -30,7 +30,7 @@ assert.equal(draft.recipe_level,12);
 assert.equal(draft.current_energy,3456);
 
 for(const action of ['create','update']){
-  const plan=buildPersonalRecipeMutationPlan({action,draft,publicRecipeIds:['public:001']});
+  const plan=buildPersonalRecipeMutationPlan({action,draft,publicRecipeIds:['public:001'],publicRecipeNames:['公版咖哩']});
   assert.equal(plan.authority_version,PERSONAL_RECIPE_AUTHORITY_VERSION);
   assert.equal(plan.requires_snapshot,true);
   assert.equal(plan.requires_single_transaction,true);
@@ -38,11 +38,12 @@ for(const action of ['create','update']){
   assert.equal(plan.requires_persist_after_commit,true);
   assert.equal(plan.public_master_write_allowed,false);
 }
-const deletePlan=buildPersonalRecipeMutationPlan({action:'delete',before:draft,publicRecipeIds:['public:001']});
+const deletePlan=buildPersonalRecipeMutationPlan({action:'delete',before:draft,publicRecipeIds:['public:001'],publicRecipeNames:['公版咖哩']});
 assert.equal(deletePlan.after,null);
 assert.equal(deletePlan.recipe_id,'player:test-curry');
 
-assert.throws(()=>buildPersonalRecipeMutationPlan({action:'update',draft:{...draft,recipe_id:'public:001'},publicRecipeIds:['public:001']}),/read-only/);
+assert.throws(()=>normalizePersonalRecipeDraft({...draft,recipe_id:'public:001'}),/player: namespace/);
+assert.throws(()=>buildPersonalRecipeMutationPlan({action:'create',draft:{...draft,recipe_name:'公版咖哩'},publicRecipeIds:['public:001'],publicRecipeNames:['公版咖哩']}),/read-only/);
 assert.throws(()=>normalizePersonalRecipeDraft({...draft,recipe_level:0}),/recipe_level/);
 assert.throws(()=>normalizePersonalRecipeDraft({...draft,ingredients:[{ingredient_name:'豆製肉',quantity:0}]}),/quantity/);
 
@@ -51,6 +52,8 @@ console.log(JSON.stringify({
   authority_version:PERSONAL_RECIPE_AUTHORITY_VERSION,
   status:'PASS',
   deterministic_total:draft.total_ingredients,
+  player_namespace_required:true,
+  public_id_and_name_collision_blocked:true,
   public_master_write_allowed:false,
   snapshot_transaction_audit_persist:true,
 },null,2));
