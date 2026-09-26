@@ -27,9 +27,9 @@ const ingredientRows=[
   {pokemon_id:'ARCHIVE',unlock_level:1,ingredient_name:'美味尾巴',quantity:1},
 ];
 const subskillRows=[
-  {pokemon_id:'P1',unlock_level:10,subskill_name:'食材機率提升S',is_unlocked:1},
-  {pokemon_id:'P1',unlock_level:25,subskill_name:'幫忙速度S',is_unlocked:1},
-  {pokemon_id:'P1',unlock_level:50,subskill_name:'技能機率提升M',is_unlocked:0},
+  {pokemon_id:'P1',unlock_level:10,subskill_name:'食材機率提升S',is_unlocked:0},
+  {pokemon_id:'P1',unlock_level:25,subskill_name:'幫忙速度S',is_unlocked:0},
+  {pokemon_id:'P1',unlock_level:50,subskill_name:'技能機率提升M',is_unlocked:1},
   {pokemon_id:'P2',unlock_level:10,subskill_name:'持有上限提升S',is_unlocked:1},
   {pokemon_id:'P2',unlock_level:50,subskill_name:'食材機率提升M',is_unlocked:0},
   {pokemon_id:'P3',unlock_level:10,subskill_name:'技能機率提升S',is_unlocked:1},
@@ -43,11 +43,13 @@ const subskillRows=[
 assert.ok([
   'pokemon-roster-unlocked-filters-2026-08-14-a',
   'pokemon-roster-unlocked-filters-2026-08-17-b-berry-canonical-projection',
+  'pokemon-roster-unlocked-filters-2026-09-26-c-training-derived-state-authority',
 ].includes(POKEMON_ROSTER_FILTER_CONTRACT_VERSION),`unexpected roster filter contract successor ${POKEMON_ROSTER_FILTER_CONTRACT_VERSION}`);
 assert.equal(ingredientSlotUnlocked(pokemonRows[0],ingredientRows[0]),true);
 assert.equal(ingredientSlotUnlocked(pokemonRows[0],ingredientRows[1]),false,'Lv25 must not expose Lv30 ingredient');
-assert.equal(subskillSlotUnlocked(pokemonRows[0],subskillRows[0]),true);
-assert.equal(subskillSlotUnlocked(pokemonRows[0],subskillRows[2]),false,'locked Lv50 subskill must remain hidden');
+assert.equal(subskillSlotUnlocked(pokemonRows[0],subskillRows[0]),true,'Lv25 must activate Lv10 from level authority even if legacy is_unlocked=0');
+assert.equal(subskillSlotUnlocked(pokemonRows[0],subskillRows[1]),true,'Lv25 must activate Lv25 from level authority even if legacy is_unlocked=0');
+assert.equal(subskillSlotUnlocked(pokemonRows[0],subskillRows[2]),false,'stale legacy is_unlocked=1 must not expose Lv50 while current level is 25');
 assert.equal(subskillSlotUnlocked(pokemonRows[2],subskillRows[6]),true,'explicitly/current-level unlocked subskill must be visible');
 
 const profiles=buildPokemonRosterFilterProfiles({
@@ -60,6 +62,9 @@ const p2=profiles.find(row=>row.pokemon_id==='P2');
 const p3=profiles.find(row=>row.pokemon_id==='P3');
 assert.deepEqual(p1.ingredients,['醒腦咖啡豆']);
 assert.deepEqual([...p1.subskills].sort(),['幫忙速度S','食材機率提升S'].sort());
+assert.equal(p1.training_capability_state.current_level,25);
+assert.deepEqual(p1.training_capability_state.future_subskill_rows.map(row=>row.subskill_name),['技能機率提升M']);
+assert.equal(p1.training_capability_state.legacy_unlock_observation_conflicts.length,3);
 assert.equal(p1.main_skill,'食材獲取S(固定)');
 assert.equal(p3.berry,'萄葡果','legacy 葡萄果 observation must project to canonical 莓果 identity');
 
