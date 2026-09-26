@@ -1,3 +1,4 @@
+import './personal-recipe-ui.js';
 import {
   RECIPE_LEVEL_MAX,
   RECIPE_LEVEL_ENERGY_CONTRACT_VERSION,
