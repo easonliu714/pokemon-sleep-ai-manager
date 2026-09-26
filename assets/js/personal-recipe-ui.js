@@ -1,7 +1,7 @@
-import {rows,run,snapshot,begin,commit,rollback,persist} from './database.js';
+import {rows,run,snapshot,begin,commit,rollback,persist,isDatabaseReady,isRescueReadonly} from './database.js';
 import {createPersonalRecipeService} from './personal-recipe-service.js';
 
-export const PERSONAL_RECIPE_UI_VERSION='g51-personal-recipe-ui-2026-09-26-a';
+export const PERSONAL_RECIPE_UI_VERSION='g51-personal-recipe-ui-2026-09-26-b';
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const service=createPersonalRecipeService({rows,run,snapshot,begin,commit,rollback,persist});
 let editingId=null;
@@ -32,7 +32,16 @@ function openEditor(root,recipe=null){
 }
 function closeEditor(root){editingId=null;root.querySelector('#g51PersonalRecipeForm').classList.add('hidden');}
 function renderList(root){
-  const list=root.querySelector('#g51PersonalRecipeList');const data=playerRows();
+  const list=root.querySelector('#g51PersonalRecipeList');
+  if(!isDatabaseReady()){
+    list.innerHTML='<p class="notice">本機玩家資料載入後即可管理個人食譜。</p>';
+    return;
+  }
+  if(isRescueReadonly()){
+    list.innerHTML='<p class="notice">目前為救援／唯讀模式；個人食譜不會讀取或寫入玩家 SQLite。</p>';
+    return;
+  }
+  const data=playerRows();
   list.innerHTML=data.length?data.map(row=>`<article><strong>${esc(row.recipe_name)}</strong><span>${esc(row.category)} · ${Number(row.unlocked)?'已開啟':'未開啟'} · Lv ${esc(row.recipe_level??'—')} · 能量 ${esc(row.current_energy??'—')} · 食材 ${esc(row.total_ingredients??0)}</span><button type="button" data-g51-edit="${esc(row.recipe_id)}">編輯</button></article>`).join(''):'<p class="notice">尚無個人食譜。可從空白資料庫直接新增。</p>';
   list.querySelectorAll('[data-g51-edit]').forEach(button=>button.onclick=()=>openEditor(root,fullRecipe(button.dataset.g51Edit)));
 }
@@ -47,4 +56,5 @@ function bind(root){
 
 export function setupPersonalRecipeUi(){return ensureShell();}
 setupPersonalRecipeUi();
+globalThis.addEventListener('pokemon-sleep:database-ready',()=>{const root=ensureShell();if(root)renderList(root);});
 globalThis.addEventListener('pokemon-sleep-data-refreshed',event=>{if(event?.detail?.g51_personal_recipe_mutation)return;const root=document.getElementById('g51PersonalRecipeRoot');if(root)renderList(root);});
