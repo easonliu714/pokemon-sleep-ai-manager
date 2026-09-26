@@ -1,6 +1,6 @@
 import {normalizePersonalRecipeDraft,buildPersonalRecipeMutationPlan,PLAYER_RECIPE_SOURCE} from './personal-recipe-authority.js';
 
-export const PERSONAL_RECIPE_SERVICE_VERSION='g51-personal-recipe-service-2026-09-26-a';
+export const PERSONAL_RECIPE_SERVICE_VERSION='g51-personal-recipe-service-2026-09-26-b';
 
 const json=value=>JSON.stringify(value??null);
 const nowIso=clock=>clock().toISOString();
@@ -10,7 +10,7 @@ export function createPersonalRecipeService({rows,run,snapshot,begin,commit,roll
     if(typeof fn!=='function')throw new Error(`${name} adapter is required`);
   }
 
-  const publicRecipeIds=()=>rows('SELECT recipe_id FROM recipe_master').map(row=>String(row.recipe_id));
+  const publicRecipes=()=>rows('SELECT recipe_id,recipe_name FROM recipe_master');
   const loadRecipe=recipeId=>rows('SELECT * FROM recipes WHERE recipe_id=?',[recipeId])[0]||null;
   const loadIngredients=recipeId=>rows('SELECT recipe_id,ingredient_name,quantity FROM recipe_ingredients WHERE recipe_id=? ORDER BY ingredient_name',[recipeId]);
   const loadFull=recipeId=>{
@@ -26,7 +26,14 @@ export function createPersonalRecipeService({rows,run,snapshot,begin,commit,roll
     if(normalizedAction==='create'&&before)throw new Error('personal recipe already exists');
     if(['update','delete'].includes(normalizedAction)&&!before)throw new Error('personal recipe does not exist');
     const draft=normalizedAction==='delete'?null:normalizePersonalRecipeDraft(input);
-    const plan=buildPersonalRecipeMutationPlan({action:normalizedAction,draft,before,publicRecipeIds:publicRecipeIds()});
+    const publicRows=publicRecipes();
+    const plan=buildPersonalRecipeMutationPlan({
+      action:normalizedAction,
+      draft,
+      before,
+      publicRecipeIds:publicRows.map(row=>row.recipe_id),
+      publicRecipeNames:publicRows.map(row=>row.recipe_name),
+    });
     if(normalizedAction!=='create'&&String(before?.source||'')!==PLAYER_RECIPE_SOURCE)throw new Error('only player-owned personal recipes can be changed by G5.1 CRUD');
 
     await snapshot(`g51:personal-recipe:${normalizedAction}:${recipeId}`);
