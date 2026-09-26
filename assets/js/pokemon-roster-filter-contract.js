@@ -3,25 +3,20 @@ import {
   SUBSKILL_PRODUCTION_MODIFIERS,
 } from './pokemon-master-options.js';
 import {canonicalBerryName} from './public-berry-strength-master.js';
+import {
+  derivePokemonTrainingCapabilityState,
+  ingredientSlotUnlocked,
+  subskillSlotUnlocked,
+} from './training-derived-state-authority.js';
 
-export const POKEMON_ROSTER_FILTER_CONTRACT_VERSION='pokemon-roster-unlocked-filters-2026-08-17-b-berry-canonical-projection';
+export {ingredientSlotUnlocked,subskillSlotUnlocked};
+
+export const POKEMON_ROSTER_FILTER_CONTRACT_VERSION='pokemon-roster-unlocked-filters-2026-09-26-c-training-derived-state-authority';
 
 const text=value=>String(value??'').normalize('NFKC').trim();
 const uniqueSorted=values=>[...new Set(values.map(text).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
 const levelOf=pokemon=>Math.max(0,Number(pokemon?.level)||0);
-const unlockLevel=row=>Math.max(0,Number(row?.unlock_level)||0);
 const ratingRank=rating=>({'S+':0,'S':1,'A':2,'B':3,'C':4,'未評級':8}[text(rating)]??9);
-
-export function ingredientSlotUnlocked(pokemon,row){
-  const required=unlockLevel(row);
-  return Boolean(text(row?.ingredient_name))&&required>0&&levelOf(pokemon)>=required;
-}
-
-export function subskillSlotUnlocked(pokemon,row){
-  const required=unlockLevel(row);
-  if(!text(row?.subskill_name)||required<=0)return false;
-  return Boolean(Number(row?.is_unlocked))||levelOf(pokemon)>=required;
-}
 
 export function buildPokemonRosterFilterProfiles({pokemonRows=[],ingredientRows=[],subskillRows=[],resolveMainSkillName=value=>value}={}){
   const ingredientsByPokemon=new Map(),subskillsByPokemon=new Map();
@@ -40,8 +35,13 @@ export function buildPokemonRosterFilterProfiles({pokemonRows=[],ingredientRows=
 
   return pokemonRows.filter(row=>text(row?.status)==='active').map(pokemon=>{
     const id=text(pokemon.pokemon_id);
-    const unlockedIngredients=(ingredientsByPokemon.get(id)||[]).filter(row=>ingredientSlotUnlocked(pokemon,row));
-    const unlockedSubskills=(subskillsByPokemon.get(id)||[]).filter(row=>subskillSlotUnlocked(pokemon,row));
+    const trainingCapability=derivePokemonTrainingCapabilityState({
+      pokemon,
+      ingredientRows:ingredientsByPokemon.get(id)||[],
+      subskillRows:subskillsByPokemon.get(id)||[],
+    });
+    const unlockedIngredients=trainingCapability.current_ingredient_rows;
+    const unlockedSubskills=trainingCapability.current_subskill_rows;
     const resolvedMainSkill=text(resolveMainSkillName(pokemon.main_skill)||pokemon.main_skill);
     return Object.freeze({
       pokemon,
@@ -52,6 +52,7 @@ export function buildPokemonRosterFilterProfiles({pokemonRows=[],ingredientRows=
       subskills:Object.freeze(uniqueSorted(unlockedSubskills.map(row=>row.subskill_name))),
       unlocked_ingredient_rows:Object.freeze(unlockedIngredients.map(row=>Object.freeze({...row}))),
       unlocked_subskill_rows:Object.freeze(unlockedSubskills.map(row=>Object.freeze({...row}))),
+      training_capability_state:trainingCapability,
     });
   });
 }
