@@ -1,9 +1,17 @@
 import {normalizePersonalRecipeDraft,buildPersonalRecipeMutationPlan,PLAYER_RECIPE_SOURCE} from './personal-recipe-authority.js';
 
-export const PERSONAL_RECIPE_SERVICE_VERSION='g51-personal-recipe-service-2026-09-26-b';
+export const PERSONAL_RECIPE_SERVICE_VERSION='g51-personal-recipe-service-2026-09-26-c';
 
 const json=value=>JSON.stringify(value??null);
 const nowIso=clock=>clock().toISOString();
+
+// Compatibility boundary for browser/runtime consumers that import the G5.1 list projection directly.
+// The query remains player-private only; public recipe_master rows are never returned from this helper.
+export function listPersonalRecipes(rowsAdapter){
+  const readRows=typeof rowsAdapter==='function'?rowsAdapter:rowsAdapter?.rows;
+  if(typeof readRows!=='function')throw new Error('rows adapter is required');
+  return readRows("SELECT * FROM recipes WHERE source='player_manual' ORDER BY updated_at DESC, recipe_name");
+}
 
 export function createPersonalRecipeService({rows,run,snapshot,begin,commit,rollback,persist,clock=()=>new Date(),random=()=>Math.random()}={}){
   for(const [name,fn] of Object.entries({rows,run,snapshot,begin,commit,rollback,persist})){
