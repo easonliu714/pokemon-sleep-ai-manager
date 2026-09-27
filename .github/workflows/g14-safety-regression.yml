@@ -16,6 +16,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  training-derived-state:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: |
+          node --check assets/js/training-derived-state-authority.js
+          node --check assets/js/pokemon-roster-filter-contract.js
+          node --check scripts/g14-training-derived-state-regression.mjs
+          node --check scripts/pokemon-roster-filter-regression.mjs
+      - name: Verify G14.1 level-derived capability authority
+        run: node scripts/g14-training-derived-state-regression.mjs
+      - name: Verify roster consumes canonical derived-state authority
+        run: node scripts/pokemon-roster-filter-regression.mjs
+
   backup-truth-restore:
     runs-on: ubuntu-latest
     steps:

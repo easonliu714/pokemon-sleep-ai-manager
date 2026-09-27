@@ -45,7 +45,16 @@ assert.equal(Object.hasOwn(weeklyProps,'pot_size'),false,'Internal Weekly semant
 assert.equal(PUBLIC_BERRY_STRENGTH_VERSION,'public-berry-strength-2026-08-17-c-canonical-projection');
 assert.equal(canonicalBerryName('葡萄果'),'萄葡果');
 assert.equal(BERRY_BY_TYPE['電'],'萄葡果');
-assert.equal(POKEMON_ROSTER_FILTER_CONTRACT_VERSION,'pokemon-roster-unlocked-filters-2026-08-17-b-berry-canonical-projection');
+assert.ok([
+  'pokemon-roster-unlocked-filters-2026-08-17-b-berry-canonical-projection',
+  'pokemon-roster-unlocked-filters-2026-09-26-c-training-derived-state-authority',
+].includes(POKEMON_ROSTER_FILTER_CONTRACT_VERSION),`Pokémon roster filter governed successor version missing: ${POKEMON_ROSTER_FILTER_CONTRACT_VERSION}`);
+if(POKEMON_ROSTER_FILTER_CONTRACT_VERSION==='pokemon-roster-unlocked-filters-2026-09-26-c-training-derived-state-authority'){
+  const rosterContract=read('assets/js/pokemon-roster-filter-contract.js');
+  for(const token of ['derivePokemonTrainingCapabilityState','current_ingredient_rows','current_subskill_rows'])assert.ok(rosterContract.includes(token),`G14.1 roster derived-state successor missing ${token}`);
+  const derivedState=read('assets/js/training-derived-state-authority.js');
+  for(const token of ['g14-training-derived-state-2026-09-26-a','CURRENT','FUTURE','legacy_unlock_observation_conflicts'])assert.ok(derivedState.includes(token),`G14.1 derived-state authority marker missing ${token}`);
+}
 assert.equal(POKEMON_CANDIDATE_FEATURE_VERSION,'pokemon-candidate-features-2026-08-09-b','historical feature topology contract stays stable');
 assert.equal(POKEMON_CANDIDATE_BERRY_IDENTITY_VERSION,'pokemon-candidate-berry-identity-2026-08-17-a-canonical-grepa');
 
@@ -113,4 +122,5 @@ console.log(JSON.stringify({
   android_pwa_live_validation_required:true,
   uc_img_successor_version:UC_IMG_GEMINI_ADAPTER_VERSION,
   roster_ui_successor:Boolean(rosterUi.includes('v042713-name-fallback')),
+  g14_1_roster_derived_state_successor:POKEMON_ROSTER_FILTER_CONTRACT_VERSION==='pokemon-roster-unlocked-filters-2026-09-26-c-training-derived-state-authority',
 },null,2));

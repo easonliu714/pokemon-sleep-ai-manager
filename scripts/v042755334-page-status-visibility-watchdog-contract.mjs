@@ -8,7 +8,12 @@ const bootstrap=read('assets/js/bootstrap.js');
 const watchdog=read('assets/js/v0394-startup-watchdog.js');
 
 const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.3.3.12'){
+if(appVersion==='v0.4.27.55.3.3.13'){
+  assert.match(authority,/app_build:\s*'20260926-v0427553313-g14-derived-state-authority'/);
+  assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.13-v0427553313-g14-derived-state-authority'/);
+  assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.12'/,'exact .55.3.3.12 predecessor bridge must remain');
+  assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.4'/,'exact .55.3.3.4 watchdog predecessor bridge must remain');
+}else if(appVersion==='v0.4.27.55.3.3.12'){
   assert.match(authority,/app_build:\s*'20260920-v0427553312-weekly-review-navigation-real-device-closure'/);
   assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.12-v0427553312-weekly-review-navigation-real-device-closure'/);
   assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.11'/,'exact .55.3.3.11 predecessor bridge must remain');
@@ -96,4 +101,4 @@ console.log(JSON.stringify({
   migration:CANDY_FAMILY_STORAGE_MIGRATION_VERSION,
 },null,2));
 
-if(['v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12'].includes(appVersion))await import('./g121a-authority-closure-contract.mjs');
+if(['v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13'].includes(appVersion))await import('./g121a-authority-closure-contract.mjs');
