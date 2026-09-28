@@ -78,6 +78,12 @@ function installLegacyConflictJsonHide(scope){
   (scope.document.head||scope.document.documentElement)?.appendChild(style);
 }
 
+export function projectSessionDraftForReview(consistency,draft,context=null){
+  const source=clone(draft||{});
+  if(typeof consistency?.overlayExistingBaseline!=='function')return source;
+  return consistency.overlayExistingBaseline(source,context||source.analysis_target_context||null);
+}
+
 export function installGroupBoundReviewEventGuard(scope=globalThis){
   if(scope.PokemonSleepGroupBoundReviewEventGuardV042743?.version===GROUP_BOUND_REVIEW_EVENT_GUARD_VERSION)return true;
   installGroupBoundReviewSessionCache(scope);
@@ -99,7 +105,7 @@ export function installGroupBoundReviewEventGuard(scope=globalThis){
       session=api.model.activate(id,detail.draft||{});
     }
     if(!session)return;
-    detail.draft=clone(session.draft);
+    detail.draft=projectSessionDraftForReview(consistency,session.draft,detail.identity_context||null);
     trace(scope,'v042743_review_event_canonicalized',{event_type:eventType,group_id:id,reason:detail.reason||null,status:'completed',phase:session.phase,merge_status:result?.status||null,conflict_count:session.draft?.conflicts?.length||0,capture_phase_authority:true,selected_ai_revision_canonicalized:eventType==='selected'&&detail.revision?.analysis_type==='ai'});
   };
 
