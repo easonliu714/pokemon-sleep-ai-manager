@@ -7,7 +7,14 @@ const authority=read('assets/js/version-authority.js');
 const candy=read('assets/js/candy-inventory-ui.js');
 const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 
-if(appVersion==='v0.4.27.55.3.3.13'){
+if(appVersion==='v0.4.27.55.3.3.14'){
+  assert.match(authority,/app_build:\s*'20260927-v0427553314-g51-personal-recipe-real-device-closure'/);
+  assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.14-v0427553314-g51-personal-recipe-real-device-closure'/);
+  assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.13'/,'exact .55.3.3.13 predecessor bridge must remain');
+  assert.match(authority,/\/\/ app_build: '20260926-v0427553313-g14-derived-state-authority'/,'exact .55.3.3.13 predecessor build must remain');
+  assert.match(authority,/\/\/ cache_name: 'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.13-v0427553313-g14-derived-state-authority'/,'exact .55.3.3.13 predecessor cache must remain');
+  assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.3'/,'exact .55.3.3.3 Candy predecessor bridge must remain');
+}else if(appVersion==='v0.4.27.55.3.3.13'){
   assert.match(authority,/app_build:\s*'20260926-v0427553313-g14-derived-state-authority'/);
   assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.13-v0427553313-g14-derived-state-authority'/);
   assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.12'/,'exact .55.3.3.12 predecessor bridge must remain');
@@ -109,4 +116,4 @@ console.log(JSON.stringify({
   migration:CANDY_FAMILY_STORAGE_MIGRATION_VERSION,
 },null,2));
 
-if(['v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13'].includes(appVersion))await import('./v042755334-page-status-visibility-watchdog-contract.mjs');
+if(['v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13','v0.4.27.55.3.3.14'].includes(appVersion))await import('./v042755334-page-status-visibility-watchdog-contract.mjs');
