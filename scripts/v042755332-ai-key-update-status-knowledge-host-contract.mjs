@@ -14,12 +14,12 @@ const candy=read('assets/js/candy-quantity-screenshot-ui.js');
 const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 
 if(appVersion==='v0.4.27.55.3.3.14'){
-  assert.match(authority,/app_build:\\s*'20260927-v0427553314-g51-personal-recipe-real-device-closure'/);
-  assert.match(authority,/cache_name:\\s*'pokemon-sleep-ai-v0\\.4\\.27\\.55\\.3\\.3\\.14-v0427553314-g51-personal-recipe-real-device-closure'/);
-  assert.match(authority,/\\/\\/ app_version: 'v0\\.4\\.27\\.55\\.3\\.3\\.13'/,'exact .55.3.3.13 predecessor bridge must remain');
-  assert.match(authority,/\\/\\/ app_build: '20260926-v0427553313-g14-derived-state-authority'/,'exact .55.3.3.13 predecessor build bridge must remain');
-  assert.match(authority,/\\/\\/ cache_name: 'pokemon-sleep-ai-v0\\.4\\.27\\.55\\.3\\.3\\.13-v0427553313-g14-derived-state-authority'/,'exact .55.3.3.13 predecessor cache bridge must remain');
-  for(const predecessor of ['12','11','10','9','8','7','6','5','4','3','2'])assert.match(authority,new RegExp(`// app_version: 'v0\\\\.4\\\\.27\\\\.55\\\\.3\\\\.3\\\\.${predecessor}'`),`exact .55.3.3.${predecessor} predecessor bridge must remain`);
+  assert.match(authority,/app_build:\s*'20260927-v0427553314-g51-personal-recipe-real-device-closure'/);
+  assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.14-v0427553314-g51-personal-recipe-real-device-closure'/);
+  assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.13'/,'exact .55.3.3.13 predecessor bridge must remain');
+  assert.match(authority,/\/\/ app_build: '20260926-v0427553313-g14-derived-state-authority'/,'exact .55.3.3.13 predecessor build bridge must remain');
+  assert.match(authority,/\/\/ cache_name: 'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.13-v0427553313-g14-derived-state-authority'/,'exact .55.3.3.13 predecessor cache bridge must remain');
+  for(const predecessor of ['12','11','10','9','8','7','6','5','4','3','2'])assert.match(authority,new RegExp(`// app_version: 'v0\\.4\\.27\\.55\\.3\\.3\\.${predecessor}'`),`exact .55.3.3.${predecessor} predecessor bridge must remain`);
 }else if(appVersion==='v0.4.27.55.3.3.13'){
   assert.match(authority,/app_build:\s*'20260926-v0427553313-g14-derived-state-authority'/);
   assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.13-v0427553313-g14-derived-state-authority'/);
