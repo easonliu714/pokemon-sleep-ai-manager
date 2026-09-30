@@ -101,6 +101,7 @@ const pageModuleGroups=Object.freeze({
     'data1d1-ocr-overlay-update-center-bootstrap.js',
   ]),
   backup:Object.freeze([]),
+  recipes:Object.freeze(['personal-recipe-ui.js']),
   knowledge:Object.freeze(['shared-knowledge-ui.js']),
   guide:Object.freeze(['ai-project-pool-settings.js']),
   warroom:Object.freeze([
