@@ -113,7 +113,7 @@ assert.match(css,/#importHistoryDetailsV042745:not\(\[open\]\)>#importHistoryCon
 for(const token of ['prewarmImportHistory','materializeImportHistory','syncHistoryCollapsed','details.contains(content)','content.contains(wrap)','wrap.contains(table)','MutationObserver','explicit_hidden_contract:true'])assert.ok(hydrator.includes(token),'missing Import History ownership token: '+token);
 assert.match(hydrator,/candyRoot\.querySelector\('#candyB5Parse'\)/);
 assert.match(hydrator,/candyRoot\.querySelector\('#candyB5GateStatus'\)/);
-if(['v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13','v0.4.27.55.3.3.14'].includes(appVersion))assert.match(hydrator,/analysisRoot\.dataset\.analysisConfirmationReady==='true'/);
+if(['v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13','v0.4.27.55.3.3.14','v0.4.27.55.3.3.15'].includes(appVersion))assert.match(hydrator,/analysisRoot\.dataset\.analysisConfirmationReady==='true'/);
 else assert.match(hydrator,/analysisRoot\.querySelector\('#analysisConfirmationStatus'\)/);
 assert.match(hydrator,/waitForUpdateCenterMounts/);
 assert.match(hydrator,/MutationObserver/);
@@ -127,4 +127,4 @@ assert.match(bootstrap,/PokemonSleepPageHydrationAuthorityV042755331/);
 assert.match(bootstrap,/pokemon-sleep:page-hydration-progress/);
 assert.equal(CANDY_FAMILY_STORAGE_MIGRATION_VERSION,15,'SQLite Migration 15 must remain frozen');
 console.log(JSON.stringify({gate:'V042755331_PAGE_PREWARM_COLLAPSIBLE_HYDRATION',status:'PASS',version:appVersion,page_watchdog_progress:true,offscreen_startup_dom:false,item_ingredient_data_prewarm:true,knowledge_fixed_slot_order:true,candy_master_default_collapsed:true,candy_master_lazy_dom_materialization:true,update_center_root_only_ready:false,import_history_explicit_owned_collapse:true,migration:CANDY_FAMILY_STORAGE_MIGRATION_VERSION},null,2));
-if(['v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13','v0.4.27.55.3.3.14'].includes(appVersion))await import('./v042755332-ai-key-update-status-knowledge-host-contract.mjs');
+if(['v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13','v0.4.27.55.3.3.14','v0.4.27.55.3.3.15'].includes(appVersion))await import('./v042755332-ai-key-update-status-knowledge-host-contract.mjs');
