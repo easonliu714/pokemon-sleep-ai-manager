@@ -102,7 +102,7 @@ assert.equal(resolved.operations[0].review_required,false);
 const nav=fs.readFileSync(new URL('../assets/js/update-center-task-navigation-v0427553311.js',import.meta.url),'utf8');
 assert.ok(nav.includes("preferredSelector:'#ucImgA'"),'shared screenshot routes must identify the real hydrated function root');
 assert.ok(nav.includes("preferredSelector:'#candyQuantityScreenshotB5'"),'candy route must identify the real hydrated function root');
-assert.ok(nav.includes("preferredSelector:'#identityImportWizardRoot'"),'pokemon route must identify the real hydrated function root');
+assert.ok(nav.includes("preferredSelector:'#updateCenterOcrStaticShell'"),'pokemon route must land at the Advanced OCR section start instead of a lower hydrated child');
 assert.ok(nav.includes('waitForPreferredTarget'),'navigation must re-anchor after dynamic hydration instead of staying on a fallback shell');
 assert.ok(nav.includes('getBoundingClientRect'),'navigation must calculate the functional root top at click time');
 assert.ok(nav.includes('nav[aria-label="主要功能"]'),'navigation must compensate for the sticky main navigation height');
