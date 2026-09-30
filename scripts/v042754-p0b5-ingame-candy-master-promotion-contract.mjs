@@ -128,7 +128,13 @@ assert.match(professor,/USER_DIRECT_OBSERVATION_ONLY/);
 assert.equal(professor.includes('PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_ADDITIONS'),false);
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.3.3.14'){
+if(appVersion==='v0.4.27.55.3.3.15'){
+  assert.equal(appBuild,'20260930-v0427553315-canonical-recipe-state-authority');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.15-v0427553315-canonical-recipe-state-authority');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.14'"));
+  assert.ok(version.includes("// app_build: '20260927-v0427553314-g51-personal-recipe-real-device-closure'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.14-v0427553314-g51-personal-recipe-real-device-closure'"));
+}else if(appVersion==='v0.4.27.55.3.3.14'){
   assert.equal(appBuild,'20260927-v0427553314-g51-personal-recipe-real-device-closure');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.14-v0427553314-g51-personal-recipe-real-device-closure');
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.13'"));
