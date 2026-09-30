@@ -5,8 +5,9 @@ import {
   createReviewSessionCacheModel,
   mergeFirstNonblankDraft,
   humanizeConflict,
+  stripBaselineReviewOverlay,
 } from '../assets/js/group-bound-review-session-cache-v042743.js';
-import {createExactGroupSealTracker} from '../assets/js/group-bound-review-session-event-guard-v042743.js';
+import {createExactGroupSealTracker,projectSessionDraftForReview} from '../assets/js/group-bound-review-session-event-guard-v042743.js';
 
 assert.match(GROUP_BOUND_REVIEW_SESSION_VERSION,/v0\.4\.27\.43/);
 
@@ -27,6 +28,77 @@ for(const conflict of merged.conflicts){
   assert.equal(message.includes('{'),false,'human conflict message must not expose JSON');
   assert.equal(message.includes('}'),false,'human conflict message must not expose JSON');
 }
+
+// Existing Baseline is a review-only display reference. It must never become the
+// Group Session's first-nonblank image evidence.
+const baselineContext={
+  mode:'existing',
+  baseline_reference:{
+    level:20,
+    sp:1000,
+    helper_seconds:2400,
+    carry_limit:20,
+    sleep_hours:100,
+    main_skill:'基準技能',
+    ingredients:[{unlock_level:1,ingredient_name:'哞哞鮮奶',quantity:1}],
+    subskills:[{unlock_level:10,subskill_name:'基準副技能',is_unlocked:true}],
+  },
+};
+const hydratedBaselineSeed={
+  level:20,
+  sp:1000,
+  helper_seconds:2400,
+  carry_limit:20,
+  sleep_hours:100,
+  main_skill:'基準技能',
+  ingredients:[{unlock_level:1,ingredient_name:'哞哞鮮奶',quantity:1}],
+  subskills:[{unlock_level:10,subskill_name:'基準副技能',is_unlocked:true}],
+  baseline_reference_status:'REFERENCE_OVERLAY_ACTIVE',
+  baseline_hydrated_fields:['level','sp','helper_seconds','carry_limit','sleep_hours','main_skill','ingredients','subskills'],
+  analysis_target_context:baselineContext,
+};
+const evidenceSeed=stripBaselineReviewOverlay(hydratedBaselineSeed);
+for(const field of ['level','sp','helper_seconds','carry_limit','sleep_hours','main_skill'])assert.equal(evidenceSeed[field],null,`baseline-only ${field} must not seed session evidence`);
+assert.deepEqual(evidenceSeed.ingredients,[],'baseline-only ingredients must not seed session evidence');
+assert.deepEqual(evidenceSeed.subskills,[],'baseline-only subskills must not seed session evidence');
+
+const baselineModel=createReviewSessionCacheModel();
+baselineModel.activate('BASELINE',hydratedBaselineSeed);
+let baselineResult=baselineModel.ingest('BASELINE',{
+  level:25,
+  sp:1500,
+  helper_seconds:2300,
+  carry_limit:24,
+  ingredients:[{unlock_level:1,ingredient_name:'哞哞鮮奶',quantity:1}],
+},{analysis_id:'image-1',source_ref:'image-1.png'});
+assert.equal(baselineResult.session.draft.level,25,'first AI level must outrank old baseline');
+assert.equal(baselineResult.session.draft.sp,1500,'first AI SP must outrank old baseline');
+assert.equal(baselineResult.session.draft.helper_seconds,2300,'first AI helper interval must outrank old baseline');
+assert.equal(baselineResult.session.draft.carry_limit,24,'first AI carry limit must outrank old baseline');
+assert.equal(baselineResult.session.draft.conflicts.length,0,'baseline-vs-AI differences must not be cross-image conflicts');
+baselineResult=baselineModel.ingest('BASELINE',{
+  nature:'害羞',
+  main_skill:'新辨識技能',
+  subskills:[{unlock_level:10,subskill_name:'新辨識副技能',is_unlocked:1}],
+},{analysis_id:'image-2',source_ref:'image-2.png'});
+assert.equal(baselineResult.session.draft.nature,'害羞','later AI may fill previously unseen fields');
+assert.equal(baselineResult.session.draft.main_skill,'新辨識技能','AI main skill must not be blocked by baseline display default');
+assert.equal(baselineResult.session.draft.subskills[0].subskill_name,'新辨識副技能','AI subskill must not be blocked by baseline display default');
+assert.equal(baselineResult.session.draft.conflicts.length,0,'baseline defaults must remain outside AI conflict authority');
+
+const reviewProjection=projectSessionDraftForReview({
+  overlayExistingBaseline(draft,context){
+    return {
+      ...draft,
+      sleep_hours:draft.sleep_hours??context.baseline_reference.sleep_hours,
+      baseline_reference_status:'REFERENCE_OVERLAY_ACTIVE',
+      baseline_hydrated_fields:draft.sleep_hours==null?['sleep_hours']:[],
+    };
+  },
+},baselineModel.get('BASELINE').draft,baselineContext);
+assert.equal(reviewProjection.level,25,'review projection must preserve AI evidence');
+assert.equal(reviewProjection.sleep_hours,100,'missing AI field may still display baseline as review-only default');
+assert.equal(baselineModel.get('BASELINE').draft.sleep_hours??null,null,'display overlay must not mutate session evidence');
 
 const model=createReviewSessionCacheModel();
 model.activate('A',{species:'小鍛匠',level:12,sp:500,source_refs:['a1.png']});
@@ -109,6 +181,8 @@ console.log(JSON.stringify({
   gate:'G13.33',
   version:GROUP_BOUND_REVIEW_SESSION_VERSION,
   checks:{
+    baseline_reference_review_only:true,
+    baseline_not_session_evidence:true,
     first_nonblank:true,
     human_conflicts:true,
     background_isolation:true,

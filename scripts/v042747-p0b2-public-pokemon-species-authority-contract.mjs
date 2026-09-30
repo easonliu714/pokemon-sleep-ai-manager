@@ -250,6 +250,15 @@ gate('release and offline wiring retain v0.4.27.47 exact predecessor',()=>{
     assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.11'"),'.12 successor must retain exact .11 predecessor marker');
     assert.ok(versionSource.includes("// app_build: '20260918-v0427553311-ucimg-real-device-closure'"),'.12 successor must retain exact .11 predecessor build marker');
     assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.11-v0427553311-ucimg-real-device-closure'"),'.12 successor must retain exact .11 predecessor cache marker');
+  }else if(currentAppVersion==='v0.4.27.55.3.3.14'){
+    assert.equal(currentAppBuild,'20260927-v0427553314-g51-personal-recipe-real-device-closure');
+    assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.14-v0427553314-g51-personal-recipe-real-device-closure');
+    assert.ok(versionSource.includes("// app_version: 'v0.4.27.47'"),'.55.3.3.14 successor must retain exact P0-B2 v0.4.27.47 lineage marker');
+    assert.ok(versionSource.includes("// app_build: '20260829-v042747-p0b2-public-species-authority'"),'.55.3.3.14 successor must retain exact P0-B2 build lineage marker');
+    assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.47-v042747-p0b2-public-species-authority'"),'.55.3.3.14 successor must retain exact P0-B2 cache lineage marker');
+    assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.13'"),'.14 successor must retain exact .13 predecessor marker');
+    assert.ok(versionSource.includes("// app_build: '20260926-v0427553313-g14-derived-state-authority'"),'.14 successor must retain exact .13 predecessor build marker');
+    assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.13-v0427553313-g14-derived-state-authority'"),'.14 successor must retain exact .13 predecessor cache marker');
   }else if(currentAppVersion==='v0.4.27.55.3.3.13'){
     assert.equal(currentAppBuild,'20260926-v0427553313-g14-derived-state-authority');
     assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.13-v0427553313-g14-derived-state-authority');

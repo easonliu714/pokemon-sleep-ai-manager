@@ -23,6 +23,21 @@ const now=()=>new Date().toISOString();
 const unique=(values=[])=>{const out=[];for(const value of values){if(value===undefined||value===null||value==='')continue;if(!out.some(item=>same(item,value)))out.push(clone(value));}return out;};
 
 function emptyDraft(){return {source_refs:[],analysis_ids:[],ingredients:[],subskills:[],conflicts:[],conflicted_fields:[],identity_guard_warnings:[],analysis_target_context:null};}
+export function stripBaselineReviewOverlay(seed={}){
+  const out=clone(seed)||emptyDraft();
+  if(out.baseline_reference_status!=='REFERENCE_OVERLAY_ACTIVE')return out;
+  const baseline=out.analysis_target_context?.baseline_reference||null;
+  const hydrated=new Set(Array.isArray(out.baseline_hydrated_fields)?out.baseline_hydrated_fields:[]);
+  if(!baseline||!hydrated.size)return out;
+  for(const field of SCALAR_FIELDS){
+    if(hydrated.has(field)&&same(out[field],baseline[field]))out[field]=null;
+  }
+  for(const kind of ['ingredients','subskills']){
+    if(hydrated.has(kind)&&same(out[kind]||[],baseline[kind]||[]))out[kind]=[];
+  }
+  out.baseline_reference_status='REFERENCE_ONLY_NOT_SESSION_EVIDENCE';
+  return out;
+}
 function valueLabel(value,field=''){
   if(value===null||value===undefined||value==='')return '空白';
   if(typeof value==='boolean')return value?'是':'否';
@@ -112,8 +127,9 @@ export function createReviewSessionCacheModel(){
   const sessions=new Map();let activeGroupId=null;
   const ensure=(groupId,seed={})=>{
     const id=text(groupId);if(!id)return null;
-    if(!sessions.has(id))sessions.set(id,{schema:GROUP_BOUND_REVIEW_SESSION_SCHEMA,version:GROUP_BOUND_REVIEW_SESSION_VERSION,group_id:id,phase:'AI_COLLECTING',draft:fillBlanksFromDraft(emptyDraft(),seed),seen_analysis_ids:[],created_at:now(),updated_at:now(),manual_saved_at:null,sealed_at:null});
-    else if(seed&&Object.keys(seed).length){const session=sessions.get(id);session.draft=fillBlanksFromDraft(session.draft,seed);session.updated_at=now();}
+    const evidenceSeed=stripBaselineReviewOverlay(seed);
+    if(!sessions.has(id))sessions.set(id,{schema:GROUP_BOUND_REVIEW_SESSION_SCHEMA,version:GROUP_BOUND_REVIEW_SESSION_VERSION,group_id:id,phase:'AI_COLLECTING',draft:fillBlanksFromDraft(emptyDraft(),evidenceSeed),seen_analysis_ids:[],created_at:now(),updated_at:now(),manual_saved_at:null,sealed_at:null});
+    else if(evidenceSeed&&Object.keys(evidenceSeed).length){const session=sessions.get(id);session.draft=fillBlanksFromDraft(session.draft,evidenceSeed);session.updated_at=now();}
     return sessions.get(id);
   };
   return {
