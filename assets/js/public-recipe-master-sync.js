@@ -47,9 +47,6 @@ function recreateRecipeCatalogView(db){
     ),
     chosen_matches AS (
       SELECT * FROM ranked_matches WHERE match_rank=1
-    ),
-    matched_player_ids AS (
-      SELECT DISTINCT player_recipe_id FROM candidate_matches
     )
     SELECT m.recipe_id,m.category,m.recipe_name,m.base_energy,m.total_ingredients,
            COALESCE(c.unlocked,0) AS unlocked,
@@ -58,15 +55,7 @@ function recreateRecipeCatalogView(db){
            CASE WHEN c.player_recipe_id IS NULL THEN 0 ELSE 1 END AS player_record_exists,
            m.data_version
       FROM recipe_master m
-      LEFT JOIN chosen_matches c ON c.master_recipe_id=m.recipe_id
-    UNION ALL
-    SELECT r.recipe_id,r.category,r.recipe_name,NULL,COALESCE(r.total_ingredients,0),
-           COALESCE(r.unlocked,0),COALESCE(r.recipe_level,1),r.current_energy,r.updated_at,r.notes,
-           r.recipe_id,1,'PLAYER_ONLY'
-      FROM recipes r
-     WHERE NOT EXISTS(
-       SELECT 1 FROM matched_player_ids p WHERE p.player_recipe_id=r.recipe_id
-     )`);
+      LEFT JOIN chosen_matches c ON c.master_recipe_id=m.recipe_id`);
 }
 
 function ensureAliasSchema(db){

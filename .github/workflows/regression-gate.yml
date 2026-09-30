@@ -238,11 +238,6 @@ jobs:
           tail -n 200 /tmp/pokemon-sleep-http.log || true
           exit 1
 
-      - name: Verify G5.1 personal recipe browser wiring
-        env:
-          BASE_URL: http://127.0.0.1:4173/
-        run: node scripts/g51-personal-recipe-ui-browser-contract.mjs
-
       - name: Verify v0.4.27.21 browser player evolution override
         env:
           BASE_URL: http://127.0.0.1:4173/

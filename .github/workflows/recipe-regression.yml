@@ -75,11 +75,8 @@ jobs:
           name: recipe-base-current-authority-contracts
           path: artifacts/*.json
           if-no-files-found: error
-      - name: Verify G5.1 personal recipe authority and runtime wiring
-        run: |
-          node scripts/g51-personal-recipe-authority-contract.mjs
-          node scripts/g51-personal-recipe-service-contract.mjs
-          node scripts/g51-personal-recipe-ui-wiring-contract.mjs
+      - name: Verify canonical recipe state authority
+        run: node scripts/g51-canonical-recipe-state-authority-contract.mjs
 
       - name: Verify no tracked repository mutation
         shell: bash

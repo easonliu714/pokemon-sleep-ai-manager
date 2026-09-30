@@ -6,6 +6,20 @@ export const UPDATE_PACKAGE_ACTIONS=Object.freeze(['upsert']);
 export const UPDATE_PACKAGE_KEY_CONTRACT_VERSION='update-package-key-contract-2026-08-15-b-e3c6b';
 
 const clone=value=>JSON.parse(JSON.stringify(value));
+const RECIPE_PLAYER_STATE_DATA_SCHEMA=Object.freeze({
+  unlocked:Object.freeze({type:'boolean'}),
+  recipe_level:Object.freeze({type:'integer',minimum:0}),
+  current_energy:Object.freeze({type:'integer',minimum:0}),
+  notes:Object.freeze({type:'string'}),
+});
+const RECIPE_PLAYER_STATE_CLEAR_FIELDS=Object.freeze(['recipe_level','current_energy','notes']);
+const recipeOnly=entities=>Array.isArray(entities)&&entities.length===1&&entities[0]==='recipes';
+const buildOperationDataJsonSchema=entities=>recipeOnly(entities)
+  ? {type:'object',properties:clone(RECIPE_PLAYER_STATE_DATA_SCHEMA),additionalProperties:false}
+  : {type:'object',additionalProperties:true};
+const buildClearFieldsJsonSchema=entities=>recipeOnly(entities)
+  ? {type:'array',items:{type:'string',enum:[...RECIPE_PLAYER_STATE_CLEAR_FIELDS]}}
+  : {type:'array',items:{type:'string'}};
 const isoCompact=value=>String(value).replace(/[-:TZ.]/g,'').slice(0,14);
 
 // Platform-owned operation keys. Internal AI may only emit these declared key names;
@@ -106,8 +120,8 @@ export function buildUpdatePackageJsonSchema({scenario,entities,weekly=false}={}
           entity:{type:'string',enum:entities},
           action:{type:'string',enum:[...UPDATE_PACKAGE_ACTIONS]},
           key:buildOperationKeyJsonSchema(entities),
-          data:{type:'object',additionalProperties:true},
-          clear_fields:{type:'array',items:{type:'string'}},
+          data:buildOperationDataJsonSchema(entities),
+          clear_fields:buildClearFieldsJsonSchema(entities),
           evidence:{
             type:'object',
             properties:{

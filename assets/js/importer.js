@@ -52,6 +52,8 @@ const KEYS = {
 
 const ACTIONS = new Set(['insert', 'update', 'upsert', 'archive', 'discarded', 'delete']);
 const MISSING_POLICIES = new Set(['conflict', 'skip', 'insert']);
+const RECIPE_PLAYER_STATE_FIELDS = new Set(['unlocked','recipe_level','current_energy','notes']);
+const RECIPE_PLAYER_STATE_CLEARABLE_FIELDS = new Set(['recipe_level','current_energy','notes']);
 const AUDIT_STATUSES = new Set([
   'observed','derived','user_confirmed_not_visible','not_observed_yet','missing','not_applicable','conflicting',
 ]);
@@ -110,6 +112,12 @@ function validateEntityValues(operation, index) {
   }
   validateCandyScreenshotQuantityAuthority(operation,index);
   if (operation.entity === 'recipes') {
+    for (const field of Object.keys(data)) {
+      if (!RECIPE_PLAYER_STATE_FIELDS.has(field)) throw new Error(`${label}：recipes data.${field} 不屬於玩家狀態；料理 identity/name/category/formula 只能由 Public Recipe Master 提供`);
+    }
+    for (const field of operation.clear_fields || []) {
+      if (!RECIPE_PLAYER_STATE_CLEARABLE_FIELDS.has(field)) throw new Error(`${label}：recipes clear_fields 不允許 ${field}`);
+    }
     if (hasOwn(data, 'unlocked') && isMeaningful(data.unlocked) && ![true, false, 0, 1].includes(data.unlocked)) throw new Error(`${label}：unlocked 必須為 true/false 或 0/1`);
     for (const field of ['recipe_level', 'current_energy']) {
       if (hasOwn(data, field) && isMeaningful(data[field]) && !validNonNegativeInteger(data[field])) throw new Error(`${label}：${field} 必須為 0 以上整數`);
@@ -169,9 +177,10 @@ function canonicalCandyStorageKey(key) {
 function resolveOperationKey(operation) {
   let key = { ...(operation.key || {}) };
   if (operation.entity === 'recipes' && !isMeaningful(key.recipe_id) && isMeaningful(key.recipe_name)) {
-    const master = rows('SELECT recipe_id FROM recipe_master WHERE recipe_name=?', [key.recipe_name])[0];
-    const player = rows('SELECT recipe_id FROM recipes WHERE recipe_name=?', [key.recipe_name])[0];
-    if (master?.recipe_id || player?.recipe_id) return { recipe_id: master?.recipe_id || player.recipe_id };
+    const master = rows('SELECT recipe_id FROM recipe_master WHERE recipe_name=?', [key.recipe_name])[0] || null;
+    if (master?.recipe_id) return { recipe_id: master.recipe_id };
+    const aliases = rows("SELECT DISTINCT recipe_id FROM recipe_master_alias WHERE alias_value=? AND is_auto_replace_safe=1 ORDER BY recipe_id LIMIT 2", [key.recipe_name]);
+    if (aliases.length === 1 && aliases[0]?.recipe_id) return { recipe_id: aliases[0].recipe_id };
   }
   if (operation.entity === 'candy_inventory' && !isMeaningful(key.candy_id) && isMeaningful(key.candy_name)) {
     const master = rows('SELECT candy_id FROM candy_master WHERE candy_name=?', [key.candy_name])[0];
