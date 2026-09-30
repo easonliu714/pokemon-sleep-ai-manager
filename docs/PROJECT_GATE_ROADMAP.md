@@ -51,7 +51,7 @@ This document is the canonical roadmap/status authority for future implementatio
 | **G6.1 Ingredient Gap Planner** | **IMPLEMENTED / ISSUE-CLOSURE READY** | deterministic ingredient-gap engine, recipe strategy projection, safe reserve, pot fit, unlocked/locked classification, shortage sorting, War Room UI, regression | close #5; rarity/portfolio optimization belongs to later G7 rather than reopening G6.1 |
 | G6.2 Recipe Attempt Feedback | OPEN | no complete player-feedback lifecycle proven | implement under #6 |
 | G6 Epic | PARTIAL | G6.1 complete | remains open for G6.2 (#16) |
-| G7 Cooking AI / deterministic cooking planner | IMPLEMENTED FAR BEYOND OLD CHECKLIST / closure reconciliation needed | shared-inventory contention, multi-meal simulation, preserve/unlock/continuous/max-verified-energy objectives, current-energy authority, event multiplier authority, team supply capability, AI proposal re-evaluation | production-rate authority is intentionally NOT_YET_VERIFIED; reconcile #17/#246 against intended scope rather than rebuild |
+| G7 Cooking AI / deterministic cooking planner | CLOSED | shared-inventory contention, multi-meal simulation, preserve/unlock/continuous/max-verified-energy objectives, current-energy authority, event multiplier authority, team supply capability, deterministic/AI-proposal re-evaluation | #17 and #246 closed; ingredient/hour production-rate authority intentionally remains separate (#278) |
 | G8 Weekly Planner | PARTIAL | weekly context, effective context, recipe recommendation and War Room strategy foundations | full seven-day planner/team/meal substitution schedule remains (#18) |
 | G9 Event Manager | PARTIAL | Public Event Master, manifest/schema/store, typed effects, effective weekly integration | full import/lifecycle/UI management acceptance remains (#19) |
 | G10 / WAR.1 Team Builder | PARTIAL | controlled selectors, candidate projection/scoring, deterministic 5-member optimizer, Team Card/alternatives | persisted multi-team CRUD, full energy model, comparison/AI draft lifecycle remain under #20/#40 |
@@ -67,25 +67,24 @@ This document is the canonical roadmap/status authority for future implementatio
 
 ## 4. Issue cleanup — high-confidence disposition
 
-### Closure-ready now
-- #5 — G6.1 Ingredient Gap Planner, with scope clarified to deterministic gap/readiness; later optimization stays in G7.
-- #411 — G12.1A Readiness Audit; superseded by completed A authority closure and downstream B–E.
-- #41 — G12.1 parent; A–E implementation and real-device closure exist.
-- #174 — v0.4.3 Recipe/Selector/Team Optimizer parent; implementation + targeted Android/PWA closure were recorded.
-- #178 — Controlled Multi-select; shipped and Android selector hotfix validation recorded.
-- #179 — deterministic 5-member Team Optimizer UX; shipped and real-device team behavior recorded.
-- #191 — Recipe Discovery Stockpile; implemented in v0.4.6 and its historical discovery recipes were subsequently promoted to canonical authority.
-- #246 — G7 verified-energy cooking objective; current planner and regression implement it.
-
-### Likely closure-ready, but perform one focused evidence reconciliation before changing issue state
-- #37 TECH.2 Observation v2.
-- #55 DATA.1D parent.
-- #56 DATA.1E import review.
-- #63 DATA.1D.1 OCR Runtime UI.
-- #64 G13.2A Project Pool / failover.
-- #163 Goal Profile + Evaluation Snapshot.
-- #165 Strategy Context Package + Gemini privacy contract.
-- #173 Candidate Feature Projection + scoring foundation.
+### Closed by the 2026-09-30 stale-Issue reconciliation
+- #5 — G6.1 Ingredient Gap Planner.
+- #17 — G7 Cooking AI / deterministic cooking planner.
+- #37 — TECH.2 Observation v2 / Identity / guarded import.
+- #41 — G12.1 parent A–E.
+- #55 — DATA.1D OCR/classification parent.
+- #56 — DATA.1E SQLite compare/import review.
+- #63 — DATA.1D.1 OCR Runtime UI / Review Package.
+- #64 — G13.2A Project Pool/failover.
+- #163 — WAR.1A Goal Profile + Evaluation Snapshot.
+- #165 — WAR.1B Strategy Context / Gemini privacy contract.
+- #173 — WAR.2A Candidate Feature Projection/scoring foundation.
+- #174 — v0.4.3 Recipe/Selector/Team Optimizer parent.
+- #178 — Controlled Multi-select.
+- #179 — deterministic 5-member Team Optimizer UX.
+- #191 — Recipe Discovery Stockpile (implemented, then superseded by canonical promotion).
+- #246 — G7 verified-energy cooking objective.
+- #411 — G12.1A Readiness Audit.
 
 ### Must remain open now
 - #1 G5.1 cleanup.
@@ -113,8 +112,8 @@ This document is the canonical roadmap/status authority for future implementatio
 2. **G5.2 hardening** — recipe Update Center may mutate only canonical player-state fields.
 3. **G5.3 focused owner closure** — use the already-built screenshot path; do not rebuild it.
 4. Close/document **G6.1** now; close **G5.4** in the same G5.1R cleanup that removes the legacy parallel recipe identity path.
-5. Reconcile/close stale historical issues that have existing implementation evidence.
-6. Continue genuinely incomplete work: **G6.2 → remaining G7 closure → G9 → G10/WAR.1 → G8 → G11 → G13 closure → G14.2–5 → G15**.
+5. Continue stale-Issue reconciliation only when exact evidence exists; never equate unchecked boxes with missing code.
+6. Continue genuinely incomplete work: **G6.2 → G9 → G10/WAR.1 → G8 → G11 → G13 closure → G14.2–5 → G15**.
 7. G12.1 must be treated as completed baseline, not a future implementation Gate.
 
 ## 6. Anti-drift rule
