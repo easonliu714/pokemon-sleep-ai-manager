@@ -22,8 +22,11 @@ const bootstrap=fs.readFileSync('assets/js/bootstrap.js','utf8');
 const serviceWorker=fs.readFileSync('service-worker.js','utf8');
 assert.doesNotMatch(bootstrap,/personal-recipe-ui\.js/,'personal recipe editor must not be loaded by the Recipe page');
 assert.doesNotMatch(serviceWorker,/personal-recipe-ui\.js/,'retired personal recipe UI must not be part of the active offline runtime cache');
-assert.match(serviceWorker,/personal-recipe-authority\.js/,'legacy .14 authority module remains cached only for historical compatibility');
-assert.match(serviceWorker,/personal-recipe-service\.js/,'legacy .14 service module remains cached only for historical compatibility');
+const retiredService=fs.readFileSync('assets/js/personal-recipe-service.js','utf8');
+assert.match(retiredService,/PERSONAL_RECIPE_MUTATION_RETIRED=true/,'legacy service may remain only as fail-closed read compatibility');
+assert.doesNotMatch(retiredService,/INSERT INTO recipes|DELETE FROM recipes/,'retired compatibility service must not mutate recipes');
+assert.doesNotMatch(serviceWorker,/personal-recipe-authority\.js/,'retired personal recipe authority must not remain in active PWA precache');
+assert.doesNotMatch(serviceWorker,/personal-recipe-service\.js/,'retired personal recipe mutation service must not remain in active PWA precache');
 
 console.log(JSON.stringify({
   gate:'G51R_G52_CANONICAL_RECIPE_STATE_AUTHORITY',
