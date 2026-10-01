@@ -15,7 +15,11 @@ const knowledge=read('assets/js/shared-knowledge-ui.js');
 const catalog=read('assets/js/public-catalog-workbench.js');
 const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 
-if(appVersion==='v0.4.27.55.3.3.15'){
+if(appVersion==='v0.4.27.55.3.3.16'){
+  assert.match(authority,/app_build:\s*'20261001-v0427553316-personal-recipe-retirement-hotfix'/);
+  assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.16-v0427553316-personal-recipe-retirement-hotfix'/);
+  for(const predecessor of ['15','14','13','12','11','10','9','8','7','6','5','4','3','2','1'])assert.match(authority,new RegExp(`// app_version: 'v0\\.4\\.27\\.55\\.3\\.3\\.${predecessor}'`),`exact .55.3.3.${predecessor} predecessor bridge must remain`);
+}else if(appVersion==='v0.4.27.55.3.3.15'){
   assert.match(authority,/app_build:\s*'20260930-v0427553315-canonical-recipe-state-authority'/);
   assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.15-v0427553315-canonical-recipe-state-authority'/);
   for(const predecessor of ['14','13','12','11','10','9','8','7','6','5','4','3','2','1'])assert.match(authority,new RegExp(`// app_version: 'v0\\.4\\.27\\.55\\.3\\.3\\.${predecessor}'`),`exact .55.3.3.${predecessor} predecessor bridge must remain`);
