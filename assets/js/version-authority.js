@@ -1,8 +1,8 @@
 (function installVersionAuthority(scope) {
   const authority = Object.freeze({
-    app_version: 'v0.4.27.55.3.3.15',
-    app_build: '20260930-v0427553315-canonical-recipe-state-authority',
-    cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.15-v0427553315-canonical-recipe-state-authority',
+    app_version: 'v0.4.27.55.3.3.16',
+    app_build: '20261001-v0427553316-personal-recipe-retirement-hotfix',
+    cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.16-v0427553316-personal-recipe-retirement-hotfix',
     schema: 'pokemon-sleep-version-authority/1.0',
   });
   Object.defineProperty(scope, 'PokemonSleepVersionAuthority', {
@@ -15,6 +15,9 @@
 
 // Legacy CI parser bridge only; not executed and not a release authority.
 // Keep exact historical literals required by successor-aware release/behavior contracts.
+// app_version: 'v0.4.27.55.3.3.15'
+// app_build: '20260930-v0427553315-canonical-recipe-state-authority'
+// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.15-v0427553315-canonical-recipe-state-authority'
 // app_version: 'v0.4.27.55.3.3.14'
 // app_build: '20260927-v0427553314-g51-personal-recipe-real-device-closure'
 // cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.14-v0427553314-g51-personal-recipe-real-device-closure'
