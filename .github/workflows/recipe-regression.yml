@@ -75,6 +75,9 @@ jobs:
           name: recipe-base-current-authority-contracts
           path: artifacts/*.json
           if-no-files-found: error
+      - name: Verify canonical recipe state authority
+        run: node scripts/g51-canonical-recipe-state-authority-contract.mjs
+
       - name: Verify no tracked repository mutation
         shell: bash
         run: git diff --exit-code -- . ':!package-lock.json'

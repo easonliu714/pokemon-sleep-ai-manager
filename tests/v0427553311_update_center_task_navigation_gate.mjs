@@ -12,7 +12,9 @@ for(const route of ['shared-screenshot:weekly','shared-screenshot:ingredients','
 }
 assert.ok(nav.includes("'#ucImgA'"),'weekly/ingredient/recipe cards must converge on the shared screenshot intake');
 assert.ok(nav.includes("'#candyQuantityScreenshotB5'"),'candy task must target the candy screenshot analyzer');
-assert.ok(nav.includes("'#identityImportWizardRoot'"),'pokemon detail task must target Advanced OCR / AI import wizard');
+assert.ok(html.includes('href="#updateCenterOcrStaticShell" data-update-task-route="pokemon-ocr-ai-import"'),'pokemon detail task card must anchor at the Advanced OCR section start');
+assert.ok(nav.includes("'pokemon-ocr-ai-import':{preferredSelector:'#updateCenterOcrStaticShell'"),'pokemon detail task must prefer the Advanced OCR shell instead of a lower hydrated child');
+assert.ok(nav.includes("'#identityImportWizardRoot'"),'pokemon detail task may retain the AI import wizard only as a fallback target');
 assert.ok(nav.includes('scrollIntoView'),'task cards must perform mobile-friendly in-page navigation');
 
 const shared=fs.readFileSync(new URL('../assets/js/unified-screenshot-update-center.js',import.meta.url),'utf8');

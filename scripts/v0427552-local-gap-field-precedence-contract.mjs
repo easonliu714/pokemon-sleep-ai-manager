@@ -69,7 +69,13 @@ await import('../assets/js/version-authority.js');
 const currentVersion=globalThis.PokemonSleepVersionAuthority?.app_version||'';
 const currentBuild=globalThis.PokemonSleepVersionAuthority?.app_build||'';
 const currentCache=globalThis.PokemonSleepVersionAuthority?.cache_name||'';
-if(currentVersion==='v0.4.27.55.3.3.14'){
+if(currentVersion==='v0.4.27.55.3.3.15'){
+  assert.equal(currentBuild,'20260930-v0427553315-canonical-recipe-state-authority');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.15-v0427553315-canonical-recipe-state-authority');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.14'"));
+  assert.ok(versionSource.includes("// app_build: '20260927-v0427553314-g51-personal-recipe-real-device-closure'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.14-v0427553314-g51-personal-recipe-real-device-closure'"));
+}else if(currentVersion==='v0.4.27.55.3.3.14'){
   assert.equal(currentBuild,'20260927-v0427553314-g51-personal-recipe-real-device-closure');
   assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.14-v0427553314-g51-personal-recipe-real-device-closure');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.13'"));

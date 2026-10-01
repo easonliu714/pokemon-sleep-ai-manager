@@ -3,7 +3,7 @@ const ROUTES=Object.freeze({
   'shared-screenshot:ingredients':{preferredSelector:'#ucImgA',fallbackSelectors:['#updateCenterAnalysisStaticShell'],scenario:'ingredients'},
   'shared-screenshot:recipes':{preferredSelector:'#ucImgA',fallbackSelectors:['#updateCenterAnalysisStaticShell'],scenario:'recipes'},
   'candy-screenshot':{preferredSelector:'#candyQuantityScreenshotB5',fallbackSelectors:['#updateCenterCandyStaticShell']},
-  'pokemon-ocr-ai-import':{preferredSelector:'#identityImportWizardRoot',fallbackSelectors:['#unifiedImportAnalysisWorkbench','#updateCenterOcrStaticShell']},
+  'pokemon-ocr-ai-import':{preferredSelector:'#updateCenterOcrStaticShell',fallbackSelectors:['#identityImportWizardHeading','#identityImportWizardRoot','#unifiedImportAnalysisWorkbench']},
 });
 
 function firstTarget(selectors=[]){
