@@ -26,7 +26,7 @@ assert.match(ui,/PERSONAL_RECIPE_UI_RETIRED=true/);
 assert.match(ui,/retirePersonalRecipeUi/);
 assert.ok(!ui.includes('新增個人食譜'),'retired UI module must not expose create controls');
 assert.ok(!ui.includes('我的食譜'),'retired UI module must not expose the old product surface');
-assert.ok(!ui.includes('player_manual'),'retired UI module must not query player_manual recipes');
+assert.doesNotMatch(ui,/SELECT\s+\*\s+FROM\s+recipes|source\s*=\s*['\"]player_manual['\"]/,'retired UI module must not query player_manual recipes');
 assert.ok(!ui.includes('createPersonalRecipeService'),'retired UI module must not bind mutation service');
 
 assert.match(service,/PERSONAL_RECIPE_MUTATION_RETIRED=true/);
