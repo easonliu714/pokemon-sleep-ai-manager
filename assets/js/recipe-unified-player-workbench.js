@@ -74,6 +74,7 @@ export function buildRecipeUnifiedWorkbenchProjection({catalogRows=[],inventory=
 }
 
 function ensureShell(){
+  document.getElementById('g51PersonalRecipeRoot')?.remove();
   const section=document.getElementById('recipes'),table=document.getElementById('recipeTable');
   if(!section||!table)return null;
   document.getElementById('sharedKnowledgeBlock')?.remove();
