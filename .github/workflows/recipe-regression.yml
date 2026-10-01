@@ -77,6 +77,8 @@ jobs:
           if-no-files-found: error
       - name: Verify canonical recipe state authority
         run: node scripts/g51-canonical-recipe-state-authority-contract.mjs
+      - name: Verify retired personal recipe surface stays inactive
+        run: node scripts/g51-personal-recipe-retirement-contract.mjs
 
       - name: Verify no tracked repository mutation
         shell: bash
