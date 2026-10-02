@@ -15,9 +15,9 @@ const op=(entity,key,data,imageRef='image-001')=>({operation_id:`OP-${entity}-${
 const ucImgAuthorityDate=UC_IMG_A_VERSION.match(/^uc-img-a-(\d{4}-\d{2}-\d{2})-/)?.[1]||null;
 assert.ok(ucImgAuthorityDate&&ucImgAuthorityDate>='2026-08-11',`unexpected UC.IMG-A successor authority: ${UC_IMG_A_VERSION}`);assert.deepEqual(UC_IMG_A_MODES,['internal','external']);
 const session=createScreenshotUpdateSession();assert.equal(session.scenario_state.ingredients.ai_mode,'internal');setScenarioAiMode(session,'ingredients','external');assert.equal(session.scenario_state.ingredients.ai_mode,'external');setScenarioAiMode(session,'ingredients','internal');
-const weekly=addScreenshotEntry(session,{name:'weekly_event.png',size:100,type:'image/png'}),ingredient=addScreenshotEntry(session,{name:'ingredient_bag_01.png',size:200,type:'image/png'}),recipe=addScreenshotEntry(session,{name:'recipe_curry.png',size:300,type:'image/png'});
-assert.equal(weekly.scenario_key,'weekly');assert.equal(ingredient.scenario_key,'ingredients');assert.equal(recipe.scenario_key,'recipes');assert.deepEqual([weekly.image_ref,ingredient.image_ref,recipe.image_ref],['image-001','image-002','image-003']);
-assignScreenshotScenario(session,weekly.entry_id,'weekly');assignScreenshotScenario(session,ingredient.entry_id,'ingredients');assignScreenshotScenario(session,recipe.entry_id,'recipes');
+const weekly=addScreenshotEntry(session,{name:'weekly_event.png',size:100,type:'image/png'}),ingredient=addScreenshotEntry(session,{name:'ingredient_bag_01.png',size:200,type:'image/png'}),recipe=addScreenshotEntry(session,{name:'recipe_curry.png',size:300,type:'image/png'}),weeklyBerryNames=addScreenshotEntry(session,{name:'weekly_berry_names.png',size:400,type:'image/png'});
+assert.equal(weekly.scenario_key,'weekly');assert.equal(ingredient.scenario_key,'ingredients');assert.equal(recipe.scenario_key,'recipes');assert.deepEqual([weekly.image_ref,ingredient.image_ref,recipe.image_ref,weeklyBerryNames.image_ref],['image-001','image-002','image-003','image-004']);
+assignScreenshotScenario(session,weekly.entry_id,'weekly');assignScreenshotScenario(session,ingredient.entry_id,'ingredients');assignScreenshotScenario(session,recipe.entry_id,'recipes');assignScreenshotScenario(session,weeklyBerryNames.entry_id,'weekly');
 setScenarioCoverage(session,'ingredients','PARTIAL');let prompt=buildScreenshotScenarioPrompt(session,'ingredients');assert.match(prompt,/Public Master Constrained Recognition/);assert.match(prompt,/scenario=ingredient_inventory_update/);assert.match(prompt,/image-002 = ingredient_bag_01\.png/);assert.match(prompt,/coverage=PARTIAL/);assert.match(prompt,/visible_target_count/);assert.match(prompt,/UNMATCHED/);assert.match(prompt,/ingredient_master/);
 const partialRevision=screenshotScenarioRevision(session,'ingredients');assert.match(partialRevision,/ingredient_master@shared-master-/);session.scenario_state.ingredients.raw_response='{"test":"old"}';session.scenario_state.ingredients.response_prompt_revision=partialRevision;session.scenario_state.ingredients.response_stale=false;setScenarioCoverage(session,'ingredients','USER_CONFIRMED_COMPLETE');assert.equal(session.scenario_state.ingredients.response_stale,true);prompt=buildScreenshotScenarioPrompt(session,'ingredients');assert.match(prompt,/coverage=USER_CONFIRMED_COMPLETE/);assert.match(prompt,/未出現的公版項目仍不得補 0、false 或未解鎖/);assert.notEqual(screenshotScenarioRevision(session,'ingredients'),partialRevision);session.scenario_state.ingredients.raw_response='';session.scenario_state.ingredients.response_stale=false;
 
@@ -35,6 +35,20 @@ const recipePrompt=buildScreenshotScenarioPrompt(session,'recipes');assert.match
 // current-week authority. Keep this synthetic fixture calendar-robust while
 // preserving the historical behavior under test.
 const weeklyPayload=basePayload('weekly_context_update',[op('weekly_context',{context_id:`weekly_context_${currentWeek}_import`},{week_start:currentWeek,camp:'萌綠之島',dish_category:'咖哩／濃湯',event_name:'測試活動',event_effects:{meal_category_forced:true,recipe_final_energy_multiplier:1.5},updated_at:new Date().toISOString()},'image-001')],{context_authority:'UPDATE_CENTER_JSON'});result=validateScreenshotScenarioPayload(session,'weekly',weeklyPayload);assert.equal(result.errors.length,0,result.errors.join('\n'));assert.equal(result.summary.weekly_context_contract,'PASS');
+const weeklyMultiImage=structuredClone(weeklyPayload);
+weeklyMultiImage.update_id='TEST-weekly-multi-image';
+weeklyMultiImage.operations[0].evidence.field_confidence={camp:0.99,dish_category:0.99,event_name:0.99};
+weeklyMultiImage.operations[0].data.favorite_berry_1='萄葡果';weeklyMultiImage.operations[0].data.favorite_berry_2='番荔果';weeklyMultiImage.operations[0].data.favorite_berry_3='桃桃果';
+weeklyMultiImage.visual_observation_summary={favorite_berry_icon_count:3,complete:true};
+weeklyMultiImage.visual_observations=['萄葡果','番荔果','桃桃果'].map((name,index)=>({observation_type:'favorite_berry_icon',slot:index+1,source_image_ref:'image-004',status:'VERIFIED',confidence:0.99,authority:'CANONICAL_BERRY_ICON_AUTHORITY',canonical_berry_name:name,review_required:false}));
+result=validateScreenshotScenarioPayload(session,'weekly',weeklyMultiImage);
+assert.equal(result.errors.length,0,result.errors.join('\n'));
+assert.equal(result.review.length,0,JSON.stringify(result.review));
+assert.equal(result.summary.assigned_image_count,2,'weekly scenario must preserve both assigned image refs');
+const weeklyForeignVisual=structuredClone(weeklyMultiImage);weeklyForeignVisual.visual_observations[0].source_image_ref='image-999';
+result=validateScreenshotScenarioPayload(session,'weekly',weeklyForeignVisual);
+assert.ok(result.errors.some(value=>value.includes('not assigned to the weekly scenario: image-999')),'foreign visual evidence must remain blocked');
+
 const weeklyTwo=structuredClone(weeklyPayload);weeklyTwo.update_id='TEST-weekly-two';weeklyTwo.operations.push({...weeklyTwo.operations[0],operation_id:'OP-weekly-2'});result=validateScreenshotScenarioPayload(session,'weekly',weeklyTwo);assert.ok(result.errors.some(value=>value.includes('Weekly Context 必須只有 1 筆 operation')));
 weekly.object_url='blob:private-screenshot';weekly.image_available=true;const persisted=serializableScreenshotSession(session);assert.equal(persisted.entries[0].object_url,null);assert.equal(persisted.entries[0].image_available,false);assert.equal(persisted.entries[0].file_name,'weekly_event.png');
 
