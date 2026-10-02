@@ -7,7 +7,14 @@ const authority=read('assets/js/version-authority.js');
 const candy=read('assets/js/candy-inventory-ui.js');
 const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 
-if(appVersion==='v0.4.27.55.3.3.16'){
+if(appVersion==='v0.4.27.55.3.3.17'){
+  assert.match(authority,/app_build:\s*'20261002-v0427553317-weekly-berry-evidence-resolution'/);
+  assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.17-v0427553317-weekly-berry-evidence-resolution'/);
+  assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.16'/,'exact .55.3.3.16 predecessor bridge must remain');
+  assert.match(authority,/\/\/ app_build: '20261001-v0427553316-personal-recipe-retirement-hotfix'/,'exact .55.3.3.16 predecessor build must remain');
+  assert.match(authority,/\/\/ cache_name: 'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.16-v0427553316-personal-recipe-retirement-hotfix'/,'exact .55.3.3.16 predecessor cache must remain');
+  assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.3'/,'exact .55.3.3.3 Candy predecessor bridge must remain');
+}else if(appVersion==='v0.4.27.55.3.3.16'){
   assert.match(authority,/app_build:\s*'20261001-v0427553316-personal-recipe-retirement-hotfix'/);
   assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.16-v0427553316-personal-recipe-retirement-hotfix'/);
   assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.15'/,'exact .55.3.3.15 predecessor bridge must remain');
