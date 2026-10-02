@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {PROMPT_CATALOG} from '../assets/js/prompt-catalog.js';
+import {localWeekStart} from '../assets/js/evaluation-week.js';
 import {validateWorkflow} from '../assets/js/ai-workflow.js';
 import {
   buildWeeklyBerryVisualPromptAddon,
@@ -110,6 +111,9 @@ assert.equal(textResolved.operations[0].data.favorite_berry_1,'萄葡果');
 assert.equal(textResolved.operations[0].data.favorite_berry_2,'番荔果');
 assert.equal(textResolved.operations[0].data.favorite_berry_3,'桃桃果');
 assert.equal(textResolved.operations[0].review_required,false,'exact visible text + field-scoped confidence must resolve weekly review without owner slot confirmation');
+const currentWeek=localWeekStart(new Date());
+textResolved.operations[0].key.context_id=`weekly_context_${currentWeek}_import`;
+textResolved.operations[0].data.week_start=currentWeek;
 multiWorkflow=validateWorkflow(textResolved,{weekly_allowed_image_refs:['image-140','image-141']});
 assert.equal(multiWorkflow.errors.length,0,multiWorkflow.errors.join('\n'));
 assert.equal(multiWorkflow.review.length,0,JSON.stringify(multiWorkflow.review));
