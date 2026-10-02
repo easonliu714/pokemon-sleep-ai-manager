@@ -81,6 +81,16 @@ showVisibleVersion();
 let lastRepairSignature='';
 function enforceVersionAuthority(){const root=document.documentElement;const observed={version:root.dataset.appVersion,build:root.dataset.appBuild,badge:document.getElementById('appVersion')?.textContent||null};let repaired=false;if(observed.version!==APP_VERSION){root.dataset.appVersion=APP_VERSION;repaired=true;}if(observed.build!==VERSION){root.dataset.appBuild=VERSION;repaired=true;}const badge=document.getElementById('appVersion');if(badge&&badge.textContent!==`版本 ${APP_VERSION}`){showVisibleVersion();repaired=true;}if(repaired){const signature=JSON.stringify(observed);if(signature!==lastRepairSignature){lastRepairSignature=signature;debugTrace.record('bootstrap','version_authority_repaired',{status:'completed',details:{observed,expected:authority}});}}}
 const observer=new MutationObserver(enforceVersionAuthority);observer.observe(document.documentElement,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['data-app-version','data-app-build']});addEventListener('pagehide',()=>observer.disconnect(),{once:true});
+const LEGACY_PERSONAL_RECIPE_ROOT_ID='g51PersonalRecipeRoot';
+function retireLegacyPersonalRecipeSurface(reason='bootstrap'){
+  const root=document.getElementById(LEGACY_PERSONAL_RECIPE_ROOT_ID);if(!root)return false;
+  root.remove();debugTrace.record('recipes','legacy_personal_recipe_surface_retired',{status:'completed',details:{reason,authority}});return true;
+}
+retireLegacyPersonalRecipeSurface('bootstrap_start');
+const recipeSection=document.getElementById('recipes');
+const personalRecipeRetirementObserver=recipeSection?new MutationObserver(()=>retireLegacyPersonalRecipeSurface('recipe_dom_mutation')):null;
+personalRecipeRetirementObserver?.observe(recipeSection,{subtree:true,childList:true});
+addEventListener('pagehide',()=>personalRecipeRetirementObserver?.disconnect(),{once:true});
 function showFailure(label,error){console.error(`Module probe failed: ${label}`,error);debugTrace.record('bootstrap','module_probe_failed',{status:'failed',details:{label},error});if(status){status.textContent='載入失敗';status.className='badge error';}if(warning){warning.textContent=`前端模組載入失敗：${label}：${error?.message||error}。請至診斷中心匯出 JSON。`;warning.classList.remove('hidden');}}
 
 // v0.4.27.55.3.3 keeps startup critical-path small but introduces a single

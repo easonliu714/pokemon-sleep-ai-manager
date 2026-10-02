@@ -4,6 +4,10 @@ import {chromium} from 'playwright';
 const base=process.env.BASE_URL||'http://127.0.0.1:4173/';
 const minimumPatch=21;
 const successorAuthorities=Object.freeze({
+  'v0.4.27.55.3.3.16':Object.freeze({
+    app_build:'20261001-v0427553316-personal-recipe-retirement-hotfix',
+    cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.16-v0427553316-personal-recipe-retirement-hotfix',
+  }),
   'v0.4.27.55.3.3.15':Object.freeze({
     app_build:'20260930-v0427553315-canonical-recipe-state-authority',
     cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.15-v0427553315-canonical-recipe-state-authority',

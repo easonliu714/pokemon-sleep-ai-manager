@@ -48,7 +48,13 @@ const versionSource=readFileSync(new URL('../assets/js/version-authority.js',imp
 const appVersion=versionSource.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 const appBuild=versionSource.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.3.3.15'){
+if(appVersion==='v0.4.27.55.3.3.16'){
+  assert.equal(appBuild,'20261001-v0427553316-personal-recipe-retirement-hotfix');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.16-v0427553316-personal-recipe-retirement-hotfix');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.15'"));
+  assert.ok(versionSource.includes("// app_build: '20260930-v0427553315-canonical-recipe-state-authority'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.15-v0427553315-canonical-recipe-state-authority'"));
+}else if(appVersion==='v0.4.27.55.3.3.15'){
   assert.equal(appBuild,'20260930-v0427553315-canonical-recipe-state-authority');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.15-v0427553315-canonical-recipe-state-authority');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.14'"));
