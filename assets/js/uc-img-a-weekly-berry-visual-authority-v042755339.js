@@ -183,7 +183,7 @@ export function evaluateWeeklyBerryVisualEnvelope(sourcePayload,{allowedImageRef
     }
     if(item.status==='VERIFIED'){
       const validVerifiedAuthorities=new Set([UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT.verified_authority,UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT.text_verified_authority]);
-      if(!validVerifiedAuthorities.has(item.authority))errors.push(`${label}.authority must be a governed canonical berry authority for VERIFIED.`);
+      if(!validVerifiedAuthorities.has(item.authority))errors.push(`${label}.authority must be CANONICAL_BERRY_ICON_AUTHORITY or PUBLIC_BERRY_TEXT_EXACT_AUTHORITY for VERIFIED.`);
       if(typeof item.canonical_berry_name!=='string'||!item.canonical_berry_name.trim())errors.push(`${label}.canonical_berry_name is required for VERIFIED.`);
       if(item.authority===UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT.text_verified_authority&&item?.text_resolution?.method!=='PUBLIC_BERRY_TEXT_EXACT_MATCH')errors.push(`${label}.text_resolution must prove PUBLIC_BERRY_TEXT_EXACT_MATCH for text-verified berries.`);
       if(item.review_required===true)warnings.push(`${label} is VERIFIED but still marked review_required=true.`);
