@@ -38,7 +38,7 @@ if(potCapacityAdapter){
   assert.deepEqual(cap.capacity_key.enum,['pot']);assert.equal(cap.total_capacity.minimum,1);assert.deepEqual(cap.observation_context.enum,['RECIPE_SCREEN_BASE_POT_CAPACITY']);
 }
 const weeklyPlatformAuthority=buildUcImgWeeklyPlatformAuthority(new Date('2026-08-17T01:00:00.000Z'));
-const weeklySchema=buildUcImgGeminiSchema(UC_IMG_A_SCENARIOS.weekly,'weekly',{platformAuthority:weeklyPlatformAuthority});assert.deepEqual(weeklySchema.properties.schema_version.enum,['1.1']);assert.deepEqual(weeklySchema.properties.scenario.enum,['weekly_context_update']);assert.equal('capacity_observations' in weeklySchema.properties,false,'Weekly recognition must not gain base-pot authority');
+const weeklySchema=buildUcImgGeminiSchema(UC_IMG_A_SCENARIOS.weekly,'weekly',{platformAuthority:weeklyPlatformAuthority});assert.deepEqual(weeklySchema.properties.schema_version.enum,['1.1']);assert.deepEqual(weeklySchema.properties.scenario.enum,['weekly_context_update']);assert.equal('capacity_observations' in weeklySchema.properties,false,'Weekly recognition must not gain base-pot authority');assert.ok(weeklySchema.properties.visual_observations.items.properties.observed_text,'Weekly structured output must expose direct visible berry text evidence');
 if(liveSemanticAdapter){
   const weeklyData=weeklySchema.properties.operations.items.properties.data.properties;
   for(const key of ['camp','dish_category','event_name','event_effects','base_notes'])assert.ok(weeklyData[key],`live semantic schema missing ${key}`);
