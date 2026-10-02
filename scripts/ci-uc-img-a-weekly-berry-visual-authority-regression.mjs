@@ -5,6 +5,7 @@ import {
   buildWeeklyBerryVisualPromptAddon,
   evaluateWeeklyBerryVisualEnvelope,
   installWeeklyBerryVisualPromptAddon,
+  resolveWeeklyBerryExactTextEvidence,
   stripWeeklyBerryVisualEnvelope,
   UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT,
 } from '../assets/js/uc-img-a-weekly-berry-visual-authority-v042755339.js';
@@ -82,6 +83,44 @@ assert.equal(result.errors.length,0,result.errors.join('\n'));
 assert.ok(result.review.some(item=>item.kind==='weekly_berry_visual_candidate'));
 assert.equal(result.summary.unresolved_count,3);
 
+const multiImageCandidate=structuredClone(threeObserved);
+multiImageCandidate.visual_observations=multiImageCandidate.visual_observations.map((item,index)=>({
+  ...item,
+  source_image_ref:'image-141',
+  status:'CANDIDATE',
+  authority:'AI_VISUAL_CANDIDATE_ONLY',
+  candidate_name:['葡萄果','番荔果','桃桃果'][index],
+  review_required:true,
+}));
+let multiWorkflow=validateWorkflow(structuredClone(multiImageCandidate),{weekly_allowed_image_refs:['image-140','image-141']});
+assert.equal(multiWorkflow.errors.some(message=>message.includes('not assigned to the weekly scenario')),false,'full UC.IMG weekly assigned-image set must admit visual evidence from the second assigned image');
+const missingSecondImage=validateWorkflow(structuredClone(multiImageCandidate),{weekly_allowed_image_refs:['image-140']});
+assert.ok(missingSecondImage.errors.some(message=>message.includes('not assigned to the weekly scenario: image-141')),'genuinely unassigned image refs must still fail closed');
+
+const exactTextPayload=structuredClone(multiImageCandidate);
+exactTextPayload.visual_observations=exactTextPayload.visual_observations.map((item,index)=>({
+  ...item,
+  observed_text:['葡萄果','番荔果','桃桃果'][index],
+}));
+const textResolved=resolveWeeklyBerryExactTextEvidence(exactTextPayload,{resolvedAt:'2026-10-02T07:35:33.620Z'});
+assert.deepEqual(textResolved.visual_observations.map(item=>item.status),['VERIFIED','VERIFIED','VERIFIED']);
+assert.deepEqual(textResolved.visual_observations.map(item=>item.authority),['PUBLIC_BERRY_TEXT_EXACT_AUTHORITY','PUBLIC_BERRY_TEXT_EXACT_AUTHORITY','PUBLIC_BERRY_TEXT_EXACT_AUTHORITY']);
+assert.deepEqual(textResolved.visual_observations.map(item=>item.canonical_berry_name),['萄葡果','番荔果','桃桃果'],'legacy/display alias 葡萄果 must canonicalize to Public Master 茓葡果');
+assert.equal(textResolved.operations[0].data.favorite_berry_1,'萄葡果');
+assert.equal(textResolved.operations[0].data.favorite_berry_2,'番荔果');
+assert.equal(textResolved.operations[0].data.favorite_berry_3,'桃桃果');
+assert.equal(textResolved.operations[0].review_required,false,'exact visible text + field-scoped confidence must resolve weekly review without owner slot confirmation');
+multiWorkflow=validateWorkflow(textResolved,{weekly_allowed_image_refs:['image-140','image-141']});
+assert.equal(multiWorkflow.errors.length,0,multiWorkflow.errors.join('\n'));
+assert.equal(multiWorkflow.review.length,0,JSON.stringify(multiWorkflow.review));
+assert.equal(multiWorkflow.summary.weekly_berry_visual_contract,'PASS');
+
+const unknownText=structuredClone(multiImageCandidate);
+unknownText.visual_observations[0].observed_text='不存在果';
+const unknownResolved=resolveWeeklyBerryExactTextEvidence(unknownText);
+assert.equal(unknownResolved.visual_observations[0].status,'CANDIDATE','unknown text must remain review-required candidate');
+assert.equal(unknownResolved.visual_observations[0].review_required,true);
+
 const fakeVerified=structuredClone(threeObserved);
 fakeVerified.visual_observations[0]={
   observation_type:'favorite_berry_icon',slot:1,status:'VERIFIED',source_image_ref:'image-140',confidence:0.99,
@@ -142,7 +181,7 @@ const nonScreenshotWorkflow=validateWorkflow(nonScreenshotWeekly);
 assert.equal(nonScreenshotWorkflow.review.some(item=>String(item.kind||'').startsWith('weekly_berry_visual')),false,'non-screenshot weekly imports must not acquire UC.IMG-A visual obligations');
 
 const prompt=buildWeeklyBerryVisualPromptAddon();
-for(const token of ['visual_observation_summary','visual_observations','OBSERVED','CANDIDATE','VERIFIED','AI_VISUAL_CANDIDATE_ONLY','CANONICAL_BERRY_ICON_AUTHORITY','field-scoped'])assert.ok(prompt.includes(token),`prompt contract missing ${token}`);
+for(const token of ['visual_observation_summary','visual_observations','OBSERVED','CANDIDATE','VERIFIED','AI_VISUAL_CANDIDATE_ONLY','CANONICAL_BERRY_ICON_AUTHORITY','PUBLIC_BERRY_TEXT_EXACT_AUTHORITY','observed_text','field-scoped'])assert.ok(prompt.includes(token),`prompt contract missing ${token}`);
 
 const installedPrompt=installWeeklyBerryVisualPromptAddon();
 assert.equal(installedPrompt,PROMPT_CATALOG.weekly.prompt,'installed prompt must use the canonical weekly Prompt Catalog object');
