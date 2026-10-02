@@ -180,7 +180,7 @@ function applyBusinessOutcomeTelemetry(result){
   return result;
 }
 
-export function validateWorkflow(payload){
+export function validateWorkflow(payload,{weekly_allowed_image_refs=[]}={}){
   if(typeof payload==='string'||payload?.schema_version==='2.0-observation'||Array.isArray(payload?.observations))return validateObservationPayload(payload);
   let weeklyPreparation=null;
   if(isWeeklyContextPayload(payload))weeklyPreparation=prepareWeeklyContextPayloadForImporter(payload);
@@ -194,7 +194,7 @@ export function validateWorkflow(payload){
     result.summary.weekly_context_week_start=weekly.week_start||null;
     result.summary.weekly_context_repairs=[...(weeklyPreparation?.repairs||[])];
     if(payload?.source==='ai_screenshot_analysis'){
-      const visual=evaluateWeeklyBerryVisualEnvelope(payload);
+      const visual=evaluateWeeklyBerryVisualEnvelope(payload,{allowedImageRefs:weekly_allowed_image_refs});
       result.errors.push(...visual.errors);
       result.warnings.push(...visual.warnings);
       result.review.push(...visual.review.map(weeklyBerryVisualReviewEntry));
