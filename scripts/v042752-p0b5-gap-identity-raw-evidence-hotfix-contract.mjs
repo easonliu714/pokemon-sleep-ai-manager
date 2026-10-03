@@ -55,7 +55,13 @@ const uiSource=read('assets/js/candy-quantity-screenshot-ui.js');
 assert.match(uiSource,/provider_raw:''/);assert.match(uiSource,/working_raw:''/);assert.match(uiSource,/Gemini Raw JSON（唯讀、immutable）/);assert.match(uiSource,/EXACT_IDENTITY_MISMATCH/);assert.ok(!uiSource.includes('state.provider_raw=JSON.stringify(mutator'));
 const appBuild=versionSource.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.3.3.16'){
+if(appVersion==='v0.4.27.55.3.3.17'){
+  assert.equal(appBuild,'20261002-v0427553317-weekly-berry-evidence-resolution');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.17-v0427553317-weekly-berry-evidence-resolution');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.16'"));
+  assert.ok(versionSource.includes("// app_build: '20261001-v0427553316-personal-recipe-retirement-hotfix'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.16-v0427553316-personal-recipe-retirement-hotfix'"));
+}else if(appVersion==='v0.4.27.55.3.3.16'){
   assert.equal(appBuild,'20261001-v0427553316-personal-recipe-retirement-hotfix');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.16-v0427553316-personal-recipe-retirement-hotfix');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.15'"));
