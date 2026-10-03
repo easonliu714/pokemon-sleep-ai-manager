@@ -44,10 +44,10 @@ This document is the canonical roadmap/status authority for future implementatio
 | DATA.1F approximate-image duplicate | OPEN | exact hash/fingerprint foundations exist | pHash/dHash/OCR-near-duplicate review is not proven complete (#58) |
 | DATA.2A Full75 completeness | PARTIAL | completeness engine, sparse import, user-confirmed-not-visible semantics, Full75 retirement foundations | private 75/75 evidence/readiness closure remains (#144) |
 | G4 / DATA.1 Public Master foundation | PARTIAL, broad umbrella | mature recipe, ingredient, Pokémon, berry, evolution, item/event authorities exist | future work is coverage audit + real gaps only; do not rebuild existing masters (#48) |
-| **G5.1 Player Recipe State** | **IMPLEMENTED core / CLEANUP PENDING** | canonical `recipe_catalog_state`, unlocked vs locked UI, level/current-energy player state | retire old personal-recipe model; remove PLAYER_ONLY product projection; harden regressions (#1) |
+| **G5.1 Player Recipe State** | **CLOSED** | canonical `recipe_catalog_state`, unlocked vs locked UI, level/current-energy player state, retired personal-recipe UI/runtime | owner Android/PWA PASS on `.16`; #1 closed 2026-10-02 |
 | **G5.2 Canonical Recipe State JSON Import** | **IMPLEMENTED core / HARDENING PENDING** | recipe Update Center validation, canonical master lookup, Dry Run, duplicate update_id guard, Snapshot/transaction/rollback/persist/audit | enforce strict recipe-state field allowlist so import cannot write recipe identity/category/formula fields (#2) |
 | **G5.3 Screenshot → Recipe State** | **IMPLEMENTED / OWNER CLOSURE PENDING** | UC.IMG-A recipe scenario, Public Master constrained recognition, MATCHED/AMBIGUOUS/UNMATCHED, canonical revalidation, state Update Package | focused Android/PWA recipe-screenshot Review→Dry Run→Apply evidence before closing #3 |
-| **G5.4 Public Recipe Authority** | **IMPLEMENTED core / CLEANUP PENDING** | current authority, provenance, aliases, formula audit, 78-recipe authority, controlled master sync, player-state preservation/idempotency | legacy personal-recipe modules / `PLAYER_ONLY` projection still violate the newly frozen single-authority product model; close #4 together with G5.1R cleanup |
+| **G5.4 Public Recipe Authority** | **CLOSED** | current authority, provenance, aliases, formula audit, 78-recipe authority, controlled master sync, player-state preservation/idempotency, single Public Recipe Master product model | owner `.16` canonical recipe surface PASS; #4 closed 2026-10-02 |
 | **G6.1 Ingredient Gap Planner** | **IMPLEMENTED / ISSUE-CLOSURE READY** | deterministic ingredient-gap engine, recipe strategy projection, safe reserve, pot fit, unlocked/locked classification, shortage sorting, War Room UI, regression | close #5; rarity/portfolio optimization belongs to later G7 rather than reopening G6.1 |
 | G6.2 Recipe Attempt Feedback | OPEN | no complete player-feedback lifecycle proven | implement under #6 |
 | G6 Epic | PARTIAL | G6.1 complete | remains open for G6.2 (#16) |
@@ -87,8 +87,6 @@ This document is the canonical roadmap/status authority for future implementatio
 - #411 — G12.1A Readiness Audit.
 
 ### Must remain open now
-- #1 G5.1 cleanup.
-- #4 G5.4 final single-authority cleanup; provenance/master sync are complete, but legacy personal-recipe / PLAYER_ONLY paths must be retired before closure.
 - #2 G5.2 strict canonical player-state hardening.
 - #3 G5.3 focused owner recipe screenshot closure.
 - #6 / #16 G6.2 + G6 Epic.
@@ -108,10 +106,10 @@ This document is the canonical roadmap/status authority for future implementatio
 
 ## 5. Correct next execution order
 
-1. **G5.1R cleanup + #462** — remove the obsolete personal-recipe product surface; keep/finalize the Advanced OCR anchor fix.
+1. **#465 UC.IMG Weekly regression closure** — restore two-image Weekly evidence authority and exact visible-text berry resolution; this is a regression blocker discovered during `.16` owner validation and must close before advancing the roadmap.
 2. **G5.2 hardening** — recipe Update Center may mutate only canonical player-state fields.
 3. **G5.3 focused owner closure** — use the already-built screenshot path; do not rebuild it.
-4. Close/document **G6.1** now; close **G5.4** in the same G5.1R cleanup that removes the legacy parallel recipe identity path.
+4. Continue the next genuinely incomplete Gate from this document after G5.2/G5.3 closure.
 5. Continue stale-Issue reconciliation only when exact evidence exists; never equate unchecked boxes with missing code.
 6. Continue genuinely incomplete work: **G6.2 → G9 → G10/WAR.1 → G8 → G11 → G13 closure → G14.2–5 → G15**.
 7. G12.1 must be treated as completed baseline, not a future implementation Gate.

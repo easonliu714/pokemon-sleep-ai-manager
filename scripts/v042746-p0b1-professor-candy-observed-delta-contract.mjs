@@ -137,6 +137,13 @@ else if(currentVersion==='v0.4.27.55.3.3.15'){
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.15'"),'.16 successor must retain exact .55.3.3.15 predecessor version marker');
   assert.ok(version.includes("// app_build: '20260930-v0427553315-canonical-recipe-state-authority'"),'.16 successor must retain exact .55.3.3.15 predecessor build marker');
   assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.15-v0427553315-canonical-recipe-state-authority'"),'.16 successor must retain exact .55.3.3.15 predecessor cache marker');
+}else if(currentVersion==='v0.4.27.55.3.3.17'){
+  assert.equal(currentBuild,'20261002-v0427553317-weekly-berry-evidence-resolution');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.17-v0427553317-weekly-berry-evidence-resolution');
+  assertP0B1Lineage('.55.3.3.17 weekly-berry-evidence-resolution successor');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.16'"),'.17 successor must retain exact .55.3.3.16 predecessor version marker');
+  assert.ok(version.includes("// app_build: '20261001-v0427553316-personal-recipe-retirement-hotfix'"),'.17 successor must retain exact .55.3.3.16 predecessor build marker');
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.16-v0427553316-personal-recipe-retirement-hotfix'"),'.17 successor must retain exact .55.3.3.16 predecessor cache marker');
 }else{
   assert.fail(`P0-B1 professor-candy successor release not governed: ${currentVersion}`);
 }

@@ -175,7 +175,7 @@ export function validateScreenshotScenarioPayload(session,scenarioKey,input){
     recognitionErrors=[...(compiled.errors||[])];recognitionWarnings=[...(compiled.warnings||[])];
     recognitionReview=(compiled.unresolved||[]).map(item=>({kind:'public_master_recognition',operation_id:item.observation_id,entity:compiled.snapshot?.authority||'public_master',key:null,evidence:{source_image_ref:item.source_image_ref,confidence:item.confidence},recognition:item}));
   }
-  const workflow=validateWorkflow(payload),errors=[...recognitionErrors,...(workflow.errors||[])],warnings=[...recognitionWarnings,...(workflow.warnings||[])],review=[...(workflow.review||[]),...recognitionReview];
+  const workflow=validateWorkflow(payload,{weekly_allowed_image_refs:scenarioKey==='weekly'?[...assignedRefs]:[]}),errors=[...recognitionErrors,...(workflow.errors||[])],warnings=[...recognitionWarnings,...(workflow.warnings||[])],review=[...(workflow.review||[]),...recognitionReview];
   if(payload?.scenario!==config.scenario)errors.push(`scenario 必須為 ${config.scenario}，目前為 ${payload?.scenario||'未提供'}`);
   const allowed=new Set(config.entities),ops=Array.isArray(payload?.operations)?payload.operations:[];
   if(!assignedRefs.size)errors.push(`「${config.label}」沒有已指定圖片`);if(scenarioKey==='weekly'&&ops.length!==1)errors.push('Weekly Context 必須只有 1 筆 operation');
