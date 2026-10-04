@@ -69,7 +69,13 @@ await import('../assets/js/version-authority.js');
 const currentVersion=globalThis.PokemonSleepVersionAuthority?.app_version||'';
 const currentBuild=globalThis.PokemonSleepVersionAuthority?.app_build||'';
 const currentCache=globalThis.PokemonSleepVersionAuthority?.cache_name||'';
-if(currentVersion==='v0.4.27.55.3.3.16'){
+if(currentVersion==='v0.4.27.55.3.3.17'){
+  assert.equal(currentBuild,'20261002-v0427553317-weekly-berry-evidence-resolution');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.17-v0427553317-weekly-berry-evidence-resolution');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.16'"));
+  assert.ok(versionSource.includes("// app_build: '20261001-v0427553316-personal-recipe-retirement-hotfix'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.16-v0427553316-personal-recipe-retirement-hotfix'"));
+}else if(currentVersion==='v0.4.27.55.3.3.16'){
   assert.equal(currentBuild,'20261001-v0427553316-personal-recipe-retirement-hotfix');
   assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.16-v0427553316-personal-recipe-retirement-hotfix');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.15'"));
