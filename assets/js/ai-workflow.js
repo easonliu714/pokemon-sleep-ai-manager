@@ -10,6 +10,8 @@ import {
 } from './ingredient-probability-first-party-observation-update.js';
 
 const ALLOWED_ENTITIES=new Set(['pokemon','pokemon_ingredients','pokemon_subskills','pokemon_identity_evidence','pokemon_evolution_history','ingredient_inventory','item_inventory','candy_inventory','account_capacity','discarded_pokemon','recipes','recipe_ingredients','weekly_plan','weekly_context','weekly_strategy','settings','ingredient_probability_observations']);
+const RECIPE_PLAYER_STATE_FIELDS=new Set(['unlocked','recipe_level','current_energy','notes']);
+const RECIPE_PLAYER_STATE_CLEARABLE_FIELDS=new Set(['recipe_level','current_energy','notes']);
 const ALLOWED_ACTIONS=new Set(['insert','update','upsert','archive','discarded','delete']);
 const LEVELS={pokemon_ingredients:new Set([1,30,60]),pokemon_subskills:new Set([10,25,50,70,80])};
 const LEGACY_SUBSKILL_LEVELS=new Map([[75,70],[100,80]]);
@@ -53,6 +55,9 @@ function validateScenarioValue(operation,label,errors,warnings){
     for(const field of ['quantity','safe_reserve'])if(hasOwn(data,field)&&!isEmpty(data[field])&&!validNonNegativeInteger(data[field]))errors.push(`${label} ${operation.entity==='candy_inventory'?'candy':'item'} ${field} 必須為 0 以上整數`);
   }
   if(operation.entity==='recipes'){
+    if(operation.action!=='upsert')errors.push(`${label} recipes 玩家狀態只允許 upsert`);
+    for(const field of Object.keys(data))if(!RECIPE_PLAYER_STATE_FIELDS.has(field))errors.push(`${label} recipes data.${field} 不屬於玩家狀態；料理 identity/name/category/formula 只能由 Public Recipe Master 提供`);
+    for(const field of operation.clear_fields||[])if(!RECIPE_PLAYER_STATE_CLEARABLE_FIELDS.has(field))errors.push(`${label} recipes clear_fields 不允許 ${field}`);
     if(hasOwn(data,'unlocked')&&!isEmpty(data.unlocked)&&![true,false,0,1].includes(data.unlocked))errors.push(`${label} recipes unlocked 必須為 true/false 或 0/1`);
     for(const field of ['recipe_level','current_energy'])if(hasOwn(data,field)&&!isEmpty(data[field])&&!validNonNegativeInteger(data[field]))errors.push(`${label} recipes ${field} 必須為 0 以上整數`);
   }
