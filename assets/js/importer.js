@@ -189,10 +189,13 @@ function resolveRecipeOperationKey(operation) {
     return {key:{recipe_id:recipeId},conflict:false,message:'',canonical_name:master.recipe_name};
   }
   if(recipeName){
-    const exact=rows('SELECT recipe_id,recipe_name FROM recipe_master WHERE recipe_name=?',[recipeName])[0]||null;
-    if(exact)return {key:{recipe_id:exact.recipe_id},conflict:false,message:'',canonical_name:exact.recipe_name};
-    const aliases=rows("SELECT DISTINCT a.recipe_id,m.recipe_name FROM recipe_master_alias a JOIN recipe_master m ON m.recipe_id=a.recipe_id WHERE a.alias_value=? AND a.is_auto_replace_safe=1 ORDER BY a.recipe_id LIMIT 2",[recipeName]);
-    if(aliases.length===1&&aliases[0]?.recipe_id)return {key:{recipe_id:aliases[0].recipe_id},conflict:false,message:`公版料理 alias 已解析：${recipeName} → ${aliases[0].recipe_name}`,canonical_name:aliases[0].recipe_name};
+    const exact=rows('SELECT recipe_id FROM recipe_master WHERE recipe_name=?',[recipeName])[0]||null;
+    if(exact)return {key:{recipe_id:exact.recipe_id},conflict:false,message:'',canonical_name:recipeName};
+    const aliases=rows("SELECT DISTINCT recipe_id FROM recipe_master_alias WHERE alias_value=? AND is_auto_replace_safe=1 ORDER BY recipe_id LIMIT 2",[recipeName]);
+    if(aliases.length===1&&aliases[0]?.recipe_id){
+      const aliasMaster=rows('SELECT recipe_name FROM recipe_master WHERE recipe_id=?',[aliases[0].recipe_id])[0]||null;
+      if(aliasMaster?.recipe_name)return {key:{recipe_id:aliases[0].recipe_id},conflict:false,message:`公版料理 alias 已解析：${recipeName} → ${aliasMaster.recipe_name}`,canonical_name:aliasMaster.recipe_name};
+    }
     if(aliases.length>1)return {key:{},conflict:true,message:`公版料理名稱存在多筆安全 alias 候選，必須人工覆核：${recipeName}`};
     return {key:{},conflict:true,message:`找不到公版料理：${recipeName}`};
   }
