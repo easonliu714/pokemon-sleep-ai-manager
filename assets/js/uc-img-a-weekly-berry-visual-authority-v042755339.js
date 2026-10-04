@@ -1,4 +1,5 @@
 import {PROMPT_CATALOG} from './prompt-catalog.js';
+import {berryStrengthAuthority,canonicalBerryName as canonicalPublicBerryName} from './public-berry-strength-master.js';
 
 // v0.4.27.55.3.3.9 UC.IMG-A
 // Govern image-only weekly favorite-berry observations without promoting AI guesses
@@ -12,6 +13,7 @@ export const UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT = Object.freeze({
   observed_authority: 'AI_VISUAL_OBSERVATION_ONLY',
   candidate_authority: 'AI_VISUAL_CANDIDATE_ONLY',
   verified_authority: 'CANONICAL_BERRY_ICON_AUTHORITY',
+  text_verified_authority: 'PUBLIC_BERRY_TEXT_EXACT_AUTHORITY',
   unknown_is_absent: false,
   ai_is_rule_authority: false,
 });
@@ -22,7 +24,7 @@ const isFiniteConfidence = value => value === null || value === undefined ||
 const WEEKLY_BERRY_PROMPT_SENTINEL='UC.IMG-A .55.3.3.9 image-only berry contract:';
 
 export function buildWeeklyBerryVisualPromptAddon(){
-  return `${WEEKLY_BERRY_PROMPT_SENTINEL}\n- Weekly screenshot visual review is mandatory even when OCR text is sufficient.\n- Add root visual_observation_summary={favorite_berry_icon_count:<0..3>,complete:true}.\n- Add one root visual_observations item per visible favorite-berry icon with observation_type=favorite_berry_icon, slot=1..3, source_image_ref, status, confidence and authority.\n- If the icon is visible but its canonical name is not deterministically resolved, use status=OBSERVED or CANDIDATE, review_required=true and never write favorite_berry_1..3.\n- AI visual guesses are candidates only: authority=AI_VISUAL_CANDIDATE_ONLY. They are never Shared/Public rule authority.\n- VERIFIED is allowed only when an exact governed resolver supplies authority=CANONICAL_BERRY_ICON_AUTHORITY and canonical_berry_name.\n- UNKNOWN/unresolved does not mean no berry requirement and must not be converted to 0/null overwrite.\n- Text confidence is field-scoped: operation.evidence.field_confidence must carry confidence for observed weekly text fields; a single operation confidence must not claim the whole image is resolved.`;
+  return `${WEEKLY_BERRY_PROMPT_SENTINEL}\n- Weekly screenshot visual review is mandatory even when OCR text is sufficient.\n- Add root visual_observation_summary={favorite_berry_icon_count:<0..3>,complete:true}.\n- Add one root visual_observations item per visible favorite-berry icon with observation_type=favorite_berry_icon, slot=1..3, source_image_ref, status, confidence and authority.\n- If the icon is visible but its canonical name is not deterministically resolved, use status=OBSERVED or CANDIDATE, review_required=true and never write favorite_berry_1..3.\n- AI visual guesses are candidates only: authority=AI_VISUAL_CANDIDATE_ONLY. They are never Shared/Public rule authority.\n- If the berry NAME TEXT itself is directly visible in the screenshot, copy that exact printed text to observed_text. Never fill observed_text from icon appearance, game knowledge, or candidate_name.\n- VERIFIED is allowed only when an exact governed resolver supplies authority=CANONICAL_BERRY_ICON_AUTHORITY or PUBLIC_BERRY_TEXT_EXACT_AUTHORITY and canonical_berry_name.\n- UNKNOWN/unresolved does not mean no berry requirement and must not be converted to 0/null overwrite.\n- Text confidence is field-scoped: operation.evidence.field_confidence must carry confidence for observed weekly text fields; a single operation confidence must not claim the whole image is resolved.`;
 }
 
 export function installWeeklyBerryVisualPromptAddon(){
@@ -67,6 +69,28 @@ function recomputeWeeklyOperationReviewRequired(payload){
   const textResolved=!textFields.length||hasFieldConfidence(operation,textFields)||hasManualFieldConfirmation(operation,textFields);
   operation.review_required=!(visualResolved&&textResolved);
   return payload;
+}
+
+export function resolveWeeklyBerryExactTextEvidence(sourcePayload,{resolvedAt=new Date().toISOString()}={}){
+  const payload=clone(sourcePayload||{});
+  const observations=Array.isArray(payload.visual_observations)?payload.visual_observations:[];
+  const operation=weeklyOperation(payload);
+  for(const item of observations){
+    const observedText=String(item?.observed_text??'').normalize('NFKC').trim();
+    if(!observedText || item?.status==='VERIFIED')continue;
+    const canonical=canonicalPublicBerryName(observedText);
+    const authority=berryStrengthAuthority(canonical);
+    if(!authority)continue;
+    item.status='VERIFIED';
+    item.authority=UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT.text_verified_authority;
+    item.canonical_berry_name=authority.berry_name;
+    item.review_required=false;
+    item.text_resolution={method:'PUBLIC_BERRY_TEXT_EXACT_MATCH',observed_text:observedText,canonical_berry_name:authority.berry_name,resolved_at:resolvedAt};
+    if(operation&&Number.isInteger(item.slot)&&item.slot>=1&&item.slot<=3){
+      operation.data={...(operation.data||{}),[`favorite_berry_${item.slot}`]:authority.berry_name};
+    }
+  }
+  return recomputeWeeklyOperationReviewRequired(payload);
 }
 
 export function resolveWeeklyBerryVisualCandidate(sourcePayload,slot,canonicalBerryName,{confirmedAt=new Date().toISOString()}={}){
@@ -158,8 +182,10 @@ export function evaluateWeeklyBerryVisualEnvelope(sourcePayload,{allowedImageRef
       review.push({kind:'weekly_berry_visual_candidate',slot:item.slot,status:item.status,candidate_name:item.candidate_name||null,source_image_ref:item.source_image_ref});
     }
     if(item.status==='VERIFIED'){
-      if(item.authority!==UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT.verified_authority)errors.push(`${label}.authority must be CANONICAL_BERRY_ICON_AUTHORITY for VERIFIED.`);
+      const validVerifiedAuthorities=new Set([UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT.verified_authority,UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT.text_verified_authority]);
+      if(!validVerifiedAuthorities.has(item.authority))errors.push(`${label}.authority must be CANONICAL_BERRY_ICON_AUTHORITY or PUBLIC_BERRY_TEXT_EXACT_AUTHORITY for VERIFIED.`);
       if(typeof item.canonical_berry_name!=='string'||!item.canonical_berry_name.trim())errors.push(`${label}.canonical_berry_name is required for VERIFIED.`);
+      if(item.authority===UC_IMG_A_WEEKLY_BERRY_VISUAL_CONTRACT.text_verified_authority&&item?.text_resolution?.method!=='PUBLIC_BERRY_TEXT_EXACT_MATCH')errors.push(`${label}.text_resolution must prove PUBLIC_BERRY_TEXT_EXACT_MATCH for text-verified berries.`);
       if(item.review_required===true)warnings.push(`${label} is VERIFIED but still marked review_required=true.`);
     }
   });

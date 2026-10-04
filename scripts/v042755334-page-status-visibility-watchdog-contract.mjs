@@ -8,7 +8,14 @@ const bootstrap=read('assets/js/bootstrap.js');
 const watchdog=read('assets/js/v0394-startup-watchdog.js');
 
 const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.3.3.16'){
+if(appVersion==='v0.4.27.55.3.3.17'){
+  assert.match(authority,/app_build:\s*'20261002-v0427553317-weekly-berry-evidence-resolution'/);
+  assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.17-v0427553317-weekly-berry-evidence-resolution'/);
+  assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.16'/,'exact .55.3.3.16 predecessor bridge must remain');
+  assert.match(authority,/\/\/ app_build: '20261001-v0427553316-personal-recipe-retirement-hotfix'/,'exact .55.3.3.16 predecessor build bridge must remain');
+  assert.match(authority,/\/\/ cache_name: 'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.16-v0427553316-personal-recipe-retirement-hotfix'/,'exact .55.3.3.16 predecessor cache bridge must remain');
+  assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.4'/,'exact .55.3.3.4 watchdog predecessor bridge must remain');
+}else if(appVersion==='v0.4.27.55.3.3.16'){
   assert.match(authority,/app_build:\s*'20261001-v0427553316-personal-recipe-retirement-hotfix'/);
   assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.16-v0427553316-personal-recipe-retirement-hotfix'/);
   assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.15'/,'exact .55.3.3.15 predecessor bridge must remain');
