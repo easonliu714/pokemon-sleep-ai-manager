@@ -142,6 +142,7 @@ function validate(payload) {
     if (!KEYS[operation.entity]) throw new Error(`操作 ${index}：不支援 entity`);
     if (!ACTIONS.has(operation.action)) throw new Error(`操作 ${index}：不支援 action`);
     if (operation.entity === 'candy_inventory' && operation.action !== 'upsert') throw new Error(`操作 ${index}：糖果庫存只允許 upsert`);
+    if (operation.entity === 'recipes' && operation.action !== 'upsert') throw new Error(`操作 ${index}：recipes 玩家狀態只允許 upsert；禁止 insert/update/archive/delete 改寫料理 identity lifecycle`);
     if (operation.missing_policy && !MISSING_POLICIES.has(operation.missing_policy)) throw new Error(`操作 ${index}：不支援 missing_policy`);
     if (operation.review_required === true && !acceptedReview(operation)) throw new Error(`操作 ${index} 尚需人工確認`);
     if (operation.entity === 'recipes') {
@@ -174,14 +175,33 @@ function canonicalCandyStorageKey(key) {
   return {candy_id:canonical.candy_id};
 }
 
+function resolveRecipeOperationKey(operation) {
+  const sourceKey={...(operation.key||{})};
+  const recipeId=isMeaningful(sourceKey.recipe_id)?String(sourceKey.recipe_id).trim():'';
+  const recipeName=isMeaningful(sourceKey.recipe_name)?String(sourceKey.recipe_name).normalize('NFKC').trim():'';
+  if(recipeId){
+    const master=rows('SELECT recipe_id,recipe_name FROM recipe_master WHERE recipe_id=?',[recipeId])[0]||null;
+    if(!master)return {key:{recipe_id:recipeId},conflict:true,message:`找不到公版料理 recipe_id：${recipeId}`};
+    if(recipeName&&recipeName!==master.recipe_name){
+      const safeAlias=rows("SELECT recipe_id FROM recipe_master_alias WHERE alias_value=? AND recipe_id=? AND is_auto_replace_safe=1 LIMIT 1",[recipeName,recipeId])[0]||null;
+      if(!safeAlias)return {key:{recipe_id:recipeId},conflict:true,message:`recipes key recipe_id/name 不一致：${recipeId} != ${recipeName}`};
+    }
+    return {key:{recipe_id:recipeId},conflict:false,message:'',canonical_name:master.recipe_name};
+  }
+  if(recipeName){
+    const exact=rows('SELECT recipe_id,recipe_name FROM recipe_master WHERE recipe_name=?',[recipeName])[0]||null;
+    if(exact)return {key:{recipe_id:exact.recipe_id},conflict:false,message:'',canonical_name:exact.recipe_name};
+    const aliases=rows("SELECT DISTINCT a.recipe_id,m.recipe_name FROM recipe_master_alias a JOIN recipe_master m ON m.recipe_id=a.recipe_id WHERE a.alias_value=? AND a.is_auto_replace_safe=1 ORDER BY a.recipe_id LIMIT 2",[recipeName]);
+    if(aliases.length===1&&aliases[0]?.recipe_id)return {key:{recipe_id:aliases[0].recipe_id},conflict:false,message:`公版料理 alias 已解析：${recipeName} → ${aliases[0].recipe_name}`,canonical_name:aliases[0].recipe_name};
+    if(aliases.length>1)return {key:{},conflict:true,message:`公版料理名稱存在多筆安全 alias 候選，必須人工覆核：${recipeName}`};
+    return {key:{},conflict:true,message:`找不到公版料理：${recipeName}`};
+  }
+  return {key:{},conflict:true,message:'recipes key 至少需要 canonical recipe_id 或可唯一解析的公版 recipe_name'};
+}
+
 function resolveOperationKey(operation) {
   let key = { ...(operation.key || {}) };
-  if (operation.entity === 'recipes' && !isMeaningful(key.recipe_id) && isMeaningful(key.recipe_name)) {
-    const master = rows('SELECT recipe_id FROM recipe_master WHERE recipe_name=?', [key.recipe_name])[0] || null;
-    if (master?.recipe_id) return { recipe_id: master.recipe_id };
-    const aliases = rows("SELECT DISTINCT recipe_id FROM recipe_master_alias WHERE alias_value=? AND is_auto_replace_safe=1 ORDER BY recipe_id LIMIT 2", [key.recipe_name]);
-    if (aliases.length === 1 && aliases[0]?.recipe_id) return { recipe_id: aliases[0].recipe_id };
-  }
+  if (operation.entity === 'recipes') return resolveRecipeOperationKey(operation).key;
   if (operation.entity === 'candy_inventory' && !isMeaningful(key.candy_id) && isMeaningful(key.candy_name)) {
     const master = rows('SELECT candy_id FROM candy_master WHERE candy_name=?', [key.candy_name])[0];
     if (master?.candy_id) key={candy_id:master.candy_id};
@@ -230,7 +250,7 @@ function managedData(operation, key, before, inputData, payload) {
       if (!hasOwn(data, 'total_ingredients')) data.total_ingredients = Number(master.total_ingredients || 0);
       if (!hasOwn(data, 'source')) data.source = 'general_update_center';
     }
-    if (hasPlayerChange && !hasOwn(data, 'updated_at')) data.updated_at = localIso();
+    if (hasPlayerChange && !hasOwn(data, 'updated_at')) data.updated_at = String(payload?.generated_at||'').trim()||localIso();
   }
   return data;
 }
@@ -305,15 +325,15 @@ export function dryRun(payload) {
   const aliases = new Map();
   const changes = [];
   payload.operations.forEach((operation, index) => {
-    const incomingKey = resolveOperationKey(operation);
+    const recipeResolution=operation.entity==='recipes'?resolveRecipeOperationKey(operation):null;
+    const incomingKey = recipeResolution?recipeResolution.key:resolveOperationKey(operation);
     if (incomingKey.pokemon_id && aliases.has(incomingKey.pokemon_id)) incomingKey.pokemon_id = aliases.get(incomingKey.pokemon_id);
     let key = incomingKey;
     let before = isMeaningful(key[KEYS[operation.entity][0]]) ? existing(operation.entity, key) : null;
     let effectiveAction = operation.action;
-    let message = '';
-    let conflict = false;
+    let message = recipeResolution?.message||'';
+    let conflict = recipeResolution?.conflict===true;
     const missingPolicy = operation.missing_policy || 'conflict';
-    if (operation.entity === 'recipes' && !isMeaningful(key.recipe_id)) { conflict = true; message = `找不到公版料理：${operation.key?.recipe_name || 'unknown'}`; }
     if (operation.entity === 'candy_inventory' && !isMeaningful(key.candy_id)) { conflict = true; message = `找不到公版糖果：${operation.key?.candy_name || 'unknown'}；若為「寶可夢的糖果」，請先確認寶可夢公版名稱`; }
     if (!conflict && !before && ['ingredient_inventory','item_inventory','candy_inventory','recipes'].includes(operation.entity) && !publicMasterExists(operation.entity, key)) {
       conflict = true;
