@@ -15,7 +15,13 @@ const knowledge=read('assets/js/shared-knowledge-ui.js');
 const catalog=read('assets/js/public-catalog-workbench.js');
 const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 
-if(appVersion==='v0.4.27.55.3.3.18'){
+if(appVersion==='v0.4.27.55.3.3.19'){
+  assert.ok(authority.includes("app_build: '20261005-v0427553319-g62-recipe-attempt-feedback'"));
+  assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback'"));
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.18'"));
+  assert.ok(authority.includes("// app_build: '20261004-v0427553318-g52-recipe-state-import-hardening'"));
+  assert.ok(authority.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.18-v0427553318-g52-recipe-state-import-hardening'"));
+}else if(appVersion==='v0.4.27.55.3.3.18'){
   assert.ok(authority.includes("app_build: '20261004-v0427553318-g52-recipe-state-import-hardening'"));
   assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.18-v0427553318-g52-recipe-state-import-hardening'"));
   assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.17'"));
