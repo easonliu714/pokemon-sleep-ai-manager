@@ -60,7 +60,7 @@ jobs:
           set -o pipefail
           node scripts/v042-strategy-context-package-contract.mjs | tee artifacts/v042-strategy-context-package-contract.json
       - name: Install SQL.js fixture runtime
-        run: npm install --no-save --ignore-scripts sql.js@1.13.0
+        run: npm install --no-save --ignore-scripts sql.js@1.13.0 fake-indexeddb@6.2.4
       - name: Verify Goal Profile and Evaluation Snapshot contract
         run: |
           set -o pipefail
@@ -77,6 +77,8 @@ jobs:
           if-no-files-found: error
       - name: Verify canonical recipe state authority
         run: node scripts/g51-canonical-recipe-state-authority-contract.mjs
+      - name: Verify G5.2 canonical recipe state import hardening
+        run: node scripts/g52-canonical-recipe-state-import-hardening-contract.mjs
       - name: Verify retired personal recipe surface stays inactive
         run: node scripts/g51-personal-recipe-retirement-contract.mjs
 

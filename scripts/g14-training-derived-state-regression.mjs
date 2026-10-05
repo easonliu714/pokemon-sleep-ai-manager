@@ -48,7 +48,13 @@ const versionSource=readFileSync(new URL('../assets/js/version-authority.js',imp
 const appVersion=versionSource.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 const appBuild=versionSource.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.3.3.17'){
+if(appVersion==='v0.4.27.55.3.3.18'){
+  assert.equal(appBuild,'20261004-v0427553318-g52-recipe-state-import-hardening');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.18-v0427553318-g52-recipe-state-import-hardening');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.17'"));
+  assert.ok(versionSource.includes("// app_build: '20261002-v0427553317-weekly-berry-evidence-resolution'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.17-v0427553317-weekly-berry-evidence-resolution'"));
+}else if(appVersion==='v0.4.27.55.3.3.17'){
   assert.equal(appBuild,'20261002-v0427553317-weekly-berry-evidence-resolution');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.17-v0427553317-weekly-berry-evidence-resolution');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.16'"));

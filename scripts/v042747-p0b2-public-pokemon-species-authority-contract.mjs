@@ -250,6 +250,15 @@ gate('release and offline wiring retain v0.4.27.47 exact predecessor',()=>{
     assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.11'"),'.12 successor must retain exact .11 predecessor marker');
     assert.ok(versionSource.includes("// app_build: '20260918-v0427553311-ucimg-real-device-closure'"),'.12 successor must retain exact .11 predecessor build marker');
     assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.11-v0427553311-ucimg-real-device-closure'"),'.12 successor must retain exact .11 predecessor cache marker');
+  }else if(currentAppVersion==='v0.4.27.55.3.3.18'){
+    assert.equal(currentAppBuild,'20261004-v0427553318-g52-recipe-state-import-hardening');
+    assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.18-v0427553318-g52-recipe-state-import-hardening');
+    assert.ok(versionSource.includes("// app_version: 'v0.4.27.47'"),'.55.3.3.18 successor must retain exact P0-B2 v0.4.27.47 lineage marker');
+    assert.ok(versionSource.includes("// app_build: '20260829-v042747-p0b2-public-species-authority'"),'.55.3.3.18 successor must retain exact P0-B2 build lineage marker');
+    assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.47-v042747-p0b2-public-species-authority'"),'.55.3.3.18 successor must retain exact P0-B2 cache lineage marker');
+    assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.17'"),'.18 successor must retain exact .17 predecessor marker');
+    assert.ok(versionSource.includes("// app_build: '20261002-v0427553317-weekly-berry-evidence-resolution'"),'.18 successor must retain exact .17 predecessor build marker');
+    assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.17-v0427553317-weekly-berry-evidence-resolution'"),'.18 successor must retain exact .17 predecessor cache marker');
   }else if(currentAppVersion==='v0.4.27.55.3.3.17'){
     assert.equal(currentAppBuild,'20261002-v0427553317-weekly-berry-evidence-resolution');
     assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.17-v0427553317-weekly-berry-evidence-resolution');
