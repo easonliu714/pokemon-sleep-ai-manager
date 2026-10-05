@@ -16,11 +16,11 @@ const catalog=read('assets/js/public-catalog-workbench.js');
 const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 
 if(appVersion==='v0.4.27.55.3.3.18'){
-  assert.match(authority,/app_build:\\s*'20261004-v0427553318-g52-recipe-state-import-hardening'/);
-  assert.match(authority,/cache_name:\\s*'pokemon-sleep-ai-v0\\.4\\.27\\.55\\.3\\.3\\.18-v0427553318-g52-recipe-state-import-hardening'/);
-  assert.match(authority,/\\/\\/ app_version: 'v0\\.4\\.27\\.55\\.3\\.3\\.17'/,'exact .55.3.3.17 predecessor bridge must remain');
-  assert.match(authority,/\\/\\/ app_build: '20261002-v0427553317-weekly-berry-evidence-resolution'/,'exact .55.3.3.17 predecessor build bridge must remain');
-  assert.match(authority,/\\/\\/ cache_name: 'pokemon-sleep-ai-v0\\.4\\.27\\.55\\.3\\.3\\.17-v0427553317-weekly-berry-evidence-resolution'/,'exact .55.3.3.17 predecessor cache bridge must remain');
+  assert.ok(authority.includes("app_build: '20261004-v0427553318-g52-recipe-state-import-hardening'"));
+  assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.18-v0427553318-g52-recipe-state-import-hardening'"));
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.17'"));
+  assert.ok(authority.includes("// app_build: '20261002-v0427553317-weekly-berry-evidence-resolution'"));
+  assert.ok(authority.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.17-v0427553317-weekly-berry-evidence-resolution'"));
 }else if(appVersion==='v0.4.27.55.3.3.17'){
   assert.match(authority,/app_build:\s*'20261002-v0427553317-weekly-berry-evidence-resolution'/);
   assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.17-v0427553317-weekly-berry-evidence-resolution'/);
