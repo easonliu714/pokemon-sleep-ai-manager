@@ -246,7 +246,7 @@ function managedData(operation, key, before, inputData, payload) {
     if (!hasOwn(data, 'source_update_id')) data.source_update_id = payload.update_id;
   }
   if (operation.entity === 'recipes') {
-    const master = rows('SELECT recipe_id,category,recipe_name,total_ingredients FROM recipe_master WHERE recipe_id=?', [key.recipe_id])[0] || null;
+    const master = isMeaningful(key?.recipe_id) ? (rows('SELECT recipe_id,category,recipe_name,total_ingredients FROM recipe_master WHERE recipe_id=?', [key.recipe_id])[0] || null) : null;
     if (!before && master) {
       if (!hasOwn(data, 'category')) data.category = master.category;
       if (!hasOwn(data, 'recipe_name')) data.recipe_name = master.recipe_name;
