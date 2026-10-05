@@ -1,3 +1,5 @@
+import {applyRecipeAttemptFeedback,recipeAttemptFeedbackFingerprintRows} from './recipe-attempt-feedback.js';
+
 export const RECIPE_STRATEGY_ENGINE_VERSION='recipe-strategy-2026-08-09-a';
 
 const VERIFIED_FORMULA_EVIDENCE=new Set([
@@ -93,6 +95,9 @@ const STATUS_RANK=Object.freeze({
 export function sortRecipeStrategyCandidates(candidates,mode='unlock_recipes'){
   const data=[...(candidates||[])];
   return data.sort((a,b)=>{
+    const pausedA=a?.recommendation_paused===true?1:0;
+    const pausedB=b?.recommendation_paused===true?1:0;
+    if(pausedA!==pausedB)return pausedA-pausedB;
     if(mode==='cook_now'){
       const readyA=a.candidate_status==='COOK_NOW_UNLOCKED'?0:1;
       const readyB=b.candidate_status==='COOK_NOW_UNLOCKED'?0:1;
@@ -117,6 +122,7 @@ export function projectRecipeStrategy({
   recipeStates=[],
   inventory=[],
   provenance=[],
+  recipeFeedback=[],
   ingredientSafeReserve={},
   potSize=null,
   dishCategory='',
@@ -230,8 +236,10 @@ export function projectRecipeStrategy({
     inventory:[...inventoryMap.entries()].sort(([a],[b])=>a.localeCompare(b,'zh-Hant')),
     states:[...stateMap.entries()].map(([id,state])=>[id,state.unlocked,state.player_record_exists,state.player_recipe_id]).sort(([a],[b])=>a.localeCompare(b)),
     active_recipe_ids:candidates.map(row=>row.recipe_id).sort(),
+    recipe_feedback:recipeAttemptFeedbackFingerprintRows(recipeFeedback),
   };
-  const sorted=sortRecipeStrategyCandidates(candidates,sortMode);
+  const candidatesWithFeedback=applyRecipeAttemptFeedback(candidates,recipeFeedback);
+  const sorted=sortRecipeStrategyCandidates(candidatesWithFeedback,sortMode);
   const statusCounts={};
   const hardCounts={};
   for(const row of sorted){
