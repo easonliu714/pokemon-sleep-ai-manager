@@ -144,6 +144,13 @@ else if(currentVersion==='v0.4.27.55.3.3.15'){
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.16'"),'.17 successor must retain exact .55.3.3.16 predecessor version marker');
   assert.ok(version.includes("// app_build: '20261001-v0427553316-personal-recipe-retirement-hotfix'"),'.17 successor must retain exact .55.3.3.16 predecessor build marker');
   assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.16-v0427553316-personal-recipe-retirement-hotfix'"),'.17 successor must retain exact .55.3.3.16 predecessor cache marker');
+}else if(currentVersion==='v0.4.27.55.3.3.18'){
+  assert.equal(currentBuild,'20261004-v0427553318-g52-recipe-state-import-hardening');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.18-v0427553318-g52-recipe-state-import-hardening');
+  assertP0B1Lineage('.55.3.3.18 G5.2 recipe-state-import-hardening successor');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.17'"));
+  assert.ok(version.includes("// app_build: '20261002-v0427553317-weekly-berry-evidence-resolution'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.17-v0427553317-weekly-berry-evidence-resolution'"));
 }else{
   assert.fail(`P0-B1 professor-candy successor release not governed: ${currentVersion}`);
 }
