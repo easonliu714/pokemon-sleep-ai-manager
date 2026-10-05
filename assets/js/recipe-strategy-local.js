@@ -6,6 +6,7 @@ import {
 } from './public-recipe-provenance.js';
 import {projectRecipeStrategy} from './recipe-strategy-projection.js';
 import {getActiveStrategyGoalProfile} from './strategy-goal-store.js';
+import {listRecipeAttemptFeedbackSummaries} from './recipe-attempt-feedback-local.js';
 import {currentEffectiveWeeklyContext} from './effective-weekly-context.js';
 
 export function buildLocalRecipeStrategyProjection({
@@ -49,6 +50,7 @@ export function buildLocalRecipeStrategyProjection({
   const recipeStates=rows("SELECT recipe_id,unlocked,player_record_exists,player_recipe_id FROM recipe_catalog_state WHERE data_version<>'PLAYER_ONLY' ORDER BY recipe_id")
     .filter(row=>activeIds.has(row.recipe_id));
   const inventory=rows('SELECT ingredient_name,quantity FROM ingredient_inventory ORDER BY ingredient_name');
+  const recipeFeedback=listRecipeAttemptFeedbackSummaries();
 
   return {
     ...projectRecipeStrategy({
@@ -57,6 +59,7 @@ export function buildLocalRecipeStrategyProjection({
       recipeStates,
       inventory,
       provenance:PUBLIC_RECIPE_PROVENANCE,
+      recipeFeedback,
       ingredientSafeReserve:effectiveReserve,
       potSize:effectivePot,
       dishCategory:effectiveDish,
