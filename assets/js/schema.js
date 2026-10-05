@@ -145,6 +145,29 @@ CREATE TABLE IF NOT EXISTS ingredient_probability_observations(
   source_update_id TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_ingredient_probability_observations_aggregate ON ingredient_probability_observations(status,eligible_for_statistical_aggregation,source_key,captured_at);
+CREATE TABLE IF NOT EXISTS recipe_attempt_feedback(
+  attempt_id TEXT PRIMARY KEY,
+  recipe_id TEXT NOT NULL,
+  attempted_at TEXT NOT NULL,
+  outcome TEXT NOT NULL,
+  actual_ingredients_json TEXT NOT NULL DEFAULT '[]',
+  source_type TEXT NOT NULL,
+  source_name TEXT,
+  source_ref TEXT,
+  reference_maybe_wrong INTEGER NOT NULL DEFAULT 0,
+  recommendation_paused_after_attempt INTEGER NOT NULL DEFAULT 1,
+  notes TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_recipe_attempt_feedback_recipe_time ON recipe_attempt_feedback(recipe_id,attempted_at,attempt_id);
+CREATE TABLE IF NOT EXISTS recipe_feedback_state(
+  recipe_id TEXT PRIMARY KEY,
+  recommendation_paused INTEGER NOT NULL DEFAULT 0,
+  reference_maybe_wrong INTEGER NOT NULL DEFAULT 0,
+  last_attempt_id TEXT,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_recipe_feedback_state_paused ON recipe_feedback_state(recommendation_paused,updated_at);
 CREATE TABLE IF NOT EXISTS import_batches(update_id TEXT PRIMARY KEY,schema_version TEXT NOT NULL,generated_at TEXT NOT NULL,imported_at TEXT NOT NULL,source TEXT,operation_count INTEGER NOT NULL,result_json TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS import_changes(id INTEGER PRIMARY KEY AUTOINCREMENT,update_id TEXT NOT NULL,operation_index INTEGER NOT NULL,entity TEXT NOT NULL,action TEXT NOT NULL,key_json TEXT NOT NULL,before_json TEXT,after_json TEXT,status TEXT NOT NULL,message TEXT);
 `;
