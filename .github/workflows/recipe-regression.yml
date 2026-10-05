@@ -79,6 +79,8 @@ jobs:
         run: node scripts/g51-canonical-recipe-state-authority-contract.mjs
       - name: Verify G5.2 canonical recipe state import hardening
         run: node scripts/g52-canonical-recipe-state-import-hardening-contract.mjs
+      - name: Verify G6.2 recipe attempt feedback
+        run: node scripts/g62-recipe-attempt-feedback-contract.mjs
       - name: Verify retired personal recipe surface stays inactive
         run: node scripts/g51-personal-recipe-retirement-contract.mjs
 
