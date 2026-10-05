@@ -13,7 +13,13 @@ const coverage=read('assets/js/v03993-public-knowledge-coverage-ui.js');
 const candy=read('assets/js/candy-quantity-screenshot-ui.js');
 const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 
-if(appVersion==='v0.4.27.55.3.3.17'){
+if(appVersion==='v0.4.27.55.3.3.18'){
+  assert.match(authority,/app_build:\s*'20261004-v0427553318-g52-recipe-state-import-hardening'/);
+  assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.18-v0427553318-g52-recipe-state-import-hardening'/);
+  assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.17'/,'exact .55.3.3.17 predecessor bridge must remain');
+  assert.match(authority,/\/\/ app_build: '20261002-v0427553317-weekly-berry-evidence-resolution'/,'exact .55.3.3.17 predecessor build bridge must remain');
+  assert.match(authority,/\/\/ cache_name: 'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.17-v0427553317-weekly-berry-evidence-resolution'/,'exact .55.3.3.17 predecessor cache bridge must remain');
+}else if(appVersion==='v0.4.27.55.3.3.17'){
   assert.match(authority,/app_build:\s*'20261002-v0427553317-weekly-berry-evidence-resolution'/);
   assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.17-v0427553317-weekly-berry-evidence-resolution'/);
   assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.16'/);
@@ -135,4 +141,4 @@ assert.match(hydrator,/canonicalizeImportHistoryDom\(\)/);
 assert.equal(CANDY_FAMILY_STORAGE_MIGRATION_VERSION,15,'SQLite Migration 15 must remain frozen');
 
 console.log(JSON.stringify({gate:'V042755332_AI_KEY_UPDATE_STATUS_KNOWLEDGE_HOST',status:'PASS',version:appVersion,gemini_settings_guide_page_aware:true,gemini_key_restore_before_update_ready:true,key_count_zero_is_not_module_failure:true,update_center_missing_tool_names_visible:true,analysis_idle_ready_sentinel:true,knowledge_slot_insert_before_safe:true,import_history_trace_deduped:true,migration:CANDY_FAMILY_STORAGE_MIGRATION_VERSION},null,2));
-if(['v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13','v0.4.27.55.3.3.14','v0.4.27.55.3.3.15','v0.4.27.55.3.3.16'].includes(appVersion))await import('./v042755333-candy-master-progressive-render-contract.mjs');
+if(['v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13','v0.4.27.55.3.3.14','v0.4.27.55.3.3.15','v0.4.27.55.3.3.16','v0.4.27.55.3.3.18'].includes(appVersion))await import('./v042755333-candy-master-progressive-render-contract.mjs');
