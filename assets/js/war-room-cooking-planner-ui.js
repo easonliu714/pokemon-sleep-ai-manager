@@ -1,5 +1,6 @@
 import {buildLocalRecipePortfolioContention} from './recipe-portfolio-contention-local.js';
 import {RECIPE_PORTFOLIO_OBJECTIVES} from './recipe-portfolio-contention.js';
+import {bindRecipeAttemptFeedbackUi} from './recipe-attempt-feedback-ui.js';
 
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const OBJECTIVE_LABEL=Object.freeze({unlock_recipes:'優先解鎖新料理',preserve_resources:'保留食材餘裕',continuous_meals:'連續多餐',maximize_verified_energy:'最高已驗證料理能量'});
@@ -20,10 +21,11 @@ function stepCard(step){
     ?`Public Event Master 已驗證活動倍率 ${energyText(step.verified_event_multiplier)}`
     :`無已驗證活動倍率（identity ${energyText(step.verified_event_multiplier)}）`;
   const energyLine=`<p class="notice"><b>能量：</b>${esc(energySource)} ${energyText(step.pre_event_energy)} × ${esc(multiplierText)} = <b>${energyText(step.projected_verified_energy)}</b>${step.recipe_level?` · 料理 Lv ${esc(step.recipe_level)}`:''}</p>`;
-  return `<li class="g7-cooking-step"><div><span class="war-team-slot">第 ${step.step} 餐</span> <b>${esc(step.recipe_name)}</b>${step.unlock_opportunity?' <span class="g7-unlock-badge">可解鎖</span>':''}</div>
+  return `<li class="g7-cooking-step" data-g62-recipe-id="${esc(step.recipe_id)}"><div><span class="war-team-slot">第 ${step.step} 餐</span> <b>${esc(step.recipe_name)}</b>${step.unlock_opportunity?' <span class="g7-unlock-badge">可解鎖</span>':''}</div>
     ${energyLine}
     <ul class="g7-resource-transitions">${(step.ingredients||[]).map(resourceTransition).join('')}</ul>
     ${step.newly_blocked_recipes?.length?`<p class="notice warning">這餐之後暫時無法再做：${esc(step.newly_blocked_recipes.map(row=>row.recipe_name).join('、'))}</p>`:''}
+    <div class="buttons"><button type="button" data-g62-attempt-failed="${esc(step.recipe_id)}">本次嘗試未開啟</button></div>
   </li>`;
 }
 function warningList(plan){return (plan.warnings||[]).map(code=>`<li>${esc(WARNING_LABEL[code]||code)}</li>`).join('');}
@@ -91,7 +93,7 @@ export function renderWarRoomCookingPlanner(root=document.getElementById('warroo
       <p class="notice"><b>本週：</b>${esc(week.week_start||'未設定')} · ${esc(week.dish_category||'未設定料理類型')} · 鍋子 ${esc(week.pot_size??'未設定')} · Player Weekly Authority ${esc(week.authority_source||'MISSING')} · Event Authority ${esc(week.event_authority_source||'PUBLIC_EVENT_MASTER')}</p>
       <p class="notice"><b>料理能量 Authority：</b>玩家已觀測 <code>current_energy</code> 優先；缺值才使用 Public Recipe Master <code>base_energy</code> fallback。${energyAuthorityLine(week,energyContext)}</p>
       <p class="notice"><b>序列數量語意：</b><code>before → consumed → remaining</code>；每一步都重新套用 Safe Reserve，再判斷下一餐仍可執行的料理。</p>
-      <div class="war-team-summary"><span>單獨 READY<b>${result.summary?.individually_ready_count??0}</b></span><span>可安全模擬<b>${result.summary?.simulation_candidate_count??0}</b></span><span>玩家能量候選<b>${result.summary?.player_current_energy_candidate_count??0}</b></span><span>基礎能量 fallback<b>${result.summary?.base_energy_fallback_candidate_count??0}</b></span><span>競爭邊<b>${result.summary?.contention_edge_count??0}</b></span><span>全部可同時執行<b>${result.summary?.all_individually_ready_simultaneously_executable===true?'是':result.summary?.all_individually_ready_simultaneously_executable===false?'否':'—'}</b></span></div>
+      <div class="war-team-summary"><span>單獨 READY<b>${result.summary?.individually_ready_count??0}</b></span><span>暫停推薦<b>${result.summary?.paused_feedback_count??0}</b></span><span>可安全模擬<b>${result.summary?.simulation_candidate_count??0}</b></span><span>玩家能量候選<b>${result.summary?.player_current_energy_candidate_count??0}</b></span><span>基礎能量 fallback<b>${result.summary?.base_energy_fallback_candidate_count??0}</b></span><span>競爭邊<b>${result.summary?.contention_edge_count??0}</b></span><span>全部可同時執行<b>${result.summary?.all_individually_ready_simultaneously_executable===true?'是':result.summary?.all_individually_ready_simultaneously_executable===false?'否':'—'}</b></span></div>
       ${teamSupplyPanel(result.team_supply)}
       ${result.missing_inventory_observations?.length?`<div class="notice warning"><b>未觀測必要食材：</b>${esc(result.missing_inventory_observations.map(row=>`${row.recipe_id}: ${row.ingredients.join('、')}`).join('；'))}<br>missing 不會在 G7 中自動轉成已確認 0。</div>`:''}
       <details class="g7-contention-details" open><summary>共享食材競爭</summary>${contentionRows(result.contention)}</details>
@@ -102,5 +104,6 @@ export function renderWarRoomCookingPlanner(root=document.getElementById('warroo
     root.querySelector('[data-g7-refresh]')?.addEventListener('click',()=>renderWarRoomCookingPlanner(root));
     root.querySelector('[data-g7-objective]')?.addEventListener('change',event=>{state.objective=event.target.value;renderWarRoomCookingPlanner(root);});
     root.querySelector('[data-g7-meals]')?.addEventListener('change',event=>{state.maxMeals=Math.max(1,Math.min(7,Number(event.target.value)||3));renderWarRoomCookingPlanner(root);});
+    bindRecipeAttemptFeedbackUi(root,result,{rerender:()=>renderWarRoomCookingPlanner(root)});
   }catch(error){root.innerHTML=`<div class="panel"><h3>G7.2 料理資源競爭／隊伍補貨／多餐模擬</h3><p class="notice warning">Planner 尚未就緒：${esc(error?.message||String(error))}</p></div>`;}
 }
