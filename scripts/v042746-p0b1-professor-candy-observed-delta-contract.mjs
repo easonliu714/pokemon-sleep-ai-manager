@@ -151,6 +151,13 @@ else if(currentVersion==='v0.4.27.55.3.3.15'){
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.17'"));
   assert.ok(version.includes("// app_build: '20261002-v0427553317-weekly-berry-evidence-resolution'"));
   assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.17-v0427553317-weekly-berry-evidence-resolution'"));
+}else if(currentVersion==='v0.4.27.55.3.3.19'){
+  assert.equal(currentBuild,'20261005-v0427553319-g62-recipe-attempt-feedback');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback');
+  assertP0B1Lineage('.55.3.3.19 G6.2 recipe-attempt-feedback successor');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.18'"));
+  assert.ok(version.includes("// app_build: '20261004-v0427553318-g52-recipe-state-import-hardening'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.18-v0427553318-g52-recipe-state-import-hardening'"));
 }else{
   assert.fail(`P0-B1 professor-candy successor release not governed: ${currentVersion}`);
 }
