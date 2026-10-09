@@ -12,6 +12,7 @@ const contracts=Object.freeze([
   'scripts/war2a-current-readiness-runtime-bridge-contract.mjs',
   'scripts/v045-current-readiness-runtime-release-contract.mjs',
   'scripts/g7-recipe-portfolio-contention-contract.mjs',
+  'scripts/g62-recipe-attempt-feedback-contract.mjs',
   'scripts/war2b-recipe-discovery-stockpile-contract.mjs',
   'scripts/v046-recipe-discovery-release-contract.mjs',
   'scripts/v047-release-contract.mjs',
@@ -31,7 +32,7 @@ const contracts=Object.freeze([
 const syntaxFiles=Object.freeze([
   'assets/js/evaluation-week.js','assets/js/evaluation-refresh-plan.js','assets/js/evaluation-lifecycle.js','assets/js/evaluation-lifecycle-bootstrap.js','assets/js/pokemon-evaluation-store.js','assets/js/war-room-evaluation-lifecycle-ui.js','assets/js/war-room-evaluation-lifecycle-bootstrap.js',
   'assets/js/pokemon-candidate-feature-projection.js','assets/js/pokemon-scoring-engine.js','assets/js/pokemon-candidate-local.js',
-  'assets/js/public-recipe-discovery-master.js','assets/js/weekly-context-normalization.js','assets/js/recipe-discovery-stockpile.js','assets/js/recipe-discovery-stockpile-local.js','assets/js/war-room-recipe-discovery-ui.js','assets/js/war-room-recipe-discovery-bootstrap.js','assets/js/recipe-strategy-local.js','assets/js/recipe-portfolio-contention.js','assets/js/recipe-portfolio-contention-local.js','assets/js/war-room-cooking-planner-ui.js','assets/js/war-room-cooking-planner-bootstrap.js','assets/js/prompt-catalog.js',
+  'assets/js/public-recipe-discovery-master.js','assets/js/recipe-attempt-feedback.js','assets/js/recipe-attempt-feedback-local.js','assets/js/recipe-attempt-feedback-ui.js','assets/js/weekly-context-normalization.js','assets/js/recipe-discovery-stockpile.js','assets/js/recipe-discovery-stockpile-local.js','assets/js/war-room-recipe-discovery-ui.js','assets/js/war-room-recipe-discovery-bootstrap.js','assets/js/recipe-strategy-local.js','assets/js/recipe-portfolio-contention.js','assets/js/recipe-portfolio-contention-local.js','assets/js/war-room-cooking-planner-ui.js','assets/js/war-room-cooking-planner-bootstrap.js','assets/js/prompt-catalog.js',
   'assets/js/schema.js','assets/js/migrations.js','assets/js/public-candy-master.js','assets/js/canonical-registry.js','assets/js/importer.js','assets/js/ai-workflow.js','assets/js/resource-context.js','assets/js/candy-inventory-ui.js','assets/js/app.js','assets/js/backup-truth-restore.js',
   'assets/js/weekly-event-effect-registry.js','assets/js/weekly-context-import-contract.js','assets/js/weekly-context-ui-bridge.js','assets/js/pokemon-evaluation-contract.js',
   'assets/js/external-strategy-analysis-pack.js','assets/js/external-strategy-analysis-privacy.js','assets/js/external-strategy-analysis-local.js','assets/js/war-room-strategy-analysis-pack-ui.js','assets/js/version-authority.js',

@@ -74,7 +74,7 @@ function aggregateConsumed(steps){
 
 export function buildRecipeContentionGraph({candidates=[],inventory=[],ingredientSafeReserve={}}={}){
   const physical=mapFromRows(inventory),reserves=reserveMap(ingredientSafeReserve),observed=new Set(physical.keys());
-  const eligible=(candidates||[]).filter(row=>row?.hard_constraint_status==='PASS'&&READY_STATUS.has(row?.candidate_status));
+  const eligible=(candidates||[]).filter(row=>row?.hard_constraint_status==='PASS'&&READY_STATUS.has(row?.candidate_status)&&row?.recommendation_paused!==true);
   const demanders=new Map();
   for(const candidate of eligible){
     for(const [name,required] of requirementMap(candidate)){
@@ -194,16 +194,20 @@ export function projectRecipePortfolioContention({
   const width=Math.max(alternativeLimit,Math.min(256,integer(beamWidth,64)||64));
   const energy=normalizeEnergyContext(energyContext);
   const physical=mapFromRows(inventory),reserves=reserveMap(ingredientSafeReserve),observedNames=new Set(physical.keys());
-  const candidates=(recipeStrategy?.candidates||[]).filter(row=>row?.hard_constraint_status==='PASS'&&READY_STATUS.has(row?.candidate_status)).sort((a,b)=>String(a.recipe_id).localeCompare(String(b.recipe_id)));
+  const allReadyCandidates=(recipeStrategy?.candidates||[]).filter(row=>row?.hard_constraint_status==='PASS'&&READY_STATUS.has(row?.candidate_status)).sort((a,b)=>String(a.recipe_id).localeCompare(String(b.recipe_id)));
+  const suppressedByFeedback=allReadyCandidates.filter(row=>row?.recommendation_paused===true);
+  const candidates=allReadyCandidates.filter(row=>row?.recommendation_paused!==true);
   const missingByRecipe=candidates.map(candidate=>({recipe_id:candidate.recipe_id,ingredients:[...requirementMap(candidate).keys()].filter(name=>!observedNames.has(name)).sort((a,b)=>a.localeCompare(b,'zh-Hant'))})).filter(row=>row.ingredients.length);
   const safeCandidates=candidates.filter(candidate=>!missingByRecipe.some(row=>row.recipe_id===candidate.recipe_id));
   const contention=buildRecipeContentionGraph({candidates:safeCandidates,inventory,ingredientSafeReserve});
-  const candidateEnergyState=safeCandidates.map(row=>[row.recipe_id,row.recipe_level??null,row.current_energy??null,row.base_energy??null]);
-  const inputFingerprint=`recipe_portfolio:${hash(JSON.stringify(stable({version:RECIPE_PORTFOLIO_CONTENTION_VERSION,recipe_strategy_fingerprint:recipeStrategy?.input_fingerprint||null,inventory:[...physical.entries()].sort(),safe_reserve:[...reserves.entries()].sort(),energy_context:energy,objective:mode,max_meals:mealLimit,max_alternatives:alternativeLimit,beam_width:width,candidate_energy_state:candidateEnergyState})))}`;
+  const candidateEnergyState=safeCandidates.map(row=>[row.recipe_id,row.recipe_level??null,row.current_energy??null,row.base_energy??null,row.recommendation_paused===true,row.attempt_feedback_count??0]);
+  const feedbackState=allReadyCandidates.map(row=>[row.recipe_id,row.recommendation_paused===true,row.attempt_feedback_count??0,row.last_attempt_failed_at??null,row.reference_maybe_wrong===true]);
+  const inputFingerprint=`recipe_portfolio:${hash(JSON.stringify(stable({version:RECIPE_PORTFOLIO_CONTENTION_VERSION,recipe_strategy_fingerprint:recipeStrategy?.input_fingerprint||null,inventory:[...physical.entries()].sort(),safe_reserve:[...reserves.entries()].sort(),energy_context:energy,objective:mode,max_meals:mealLimit,max_alternatives:alternativeLimit,beam_width:width,candidate_energy_state:candidateEnergyState,feedback_state:feedbackState})))}`;
   if(!inventory.length)return Object.freeze({
     schema:'pokemon-sleep-recipe-portfolio-contention/1.1',planner_version:RECIPE_PORTFOLIO_CONTENTION_VERSION,projection_status:'INVENTORY_NOT_OBSERVED',input_fingerprint:inputFingerprint,objective:mode,
     context:Object.freeze({max_meals:mealLimit,max_alternatives:alternativeLimit,beam_width:width,inventory_semantics:'NO_ROWS_EXPORTED_NOT_ZERO_CONFIRMED',energy_context:energy}),
-    summary:Object.freeze({individually_ready_count:candidates.length,simulation_candidate_count:0,alternative_count:0}),contention,alternatives:Object.freeze([]),missing_inventory_observations:Object.freeze(missingByRecipe),
+    summary:Object.freeze({individually_ready_count:allReadyCandidates.length,recommendation_candidate_count:candidates.length,paused_feedback_count:suppressedByFeedback.length,simulation_candidate_count:0,alternative_count:0}),contention,alternatives:Object.freeze([]),missing_inventory_observations:Object.freeze(missingByRecipe),
+    suppressed_by_feedback:Object.freeze(suppressedByFeedback.map(row=>Object.freeze({recipe_id:row.recipe_id,recipe_name:row.recipe_name,last_attempt_failed_at:row.last_attempt_failed_at??null,reference_maybe_wrong:row.reference_maybe_wrong===true}))),
     player_data_write:false,inventory_mutation:false,public_master_write:false,gemini_used:false,
   });
   const options={eligibleCandidates:safeCandidates,reserves,observedNames,objective:mode,maxMeals:mealLimit,energyContext:energy};
@@ -244,7 +248,7 @@ export function projectRecipePortfolioContention({
     schema:'pokemon-sleep-recipe-portfolio-contention/1.1',planner_version:RECIPE_PORTFOLIO_CONTENTION_VERSION,projection_status:'READY',input_fingerprint:inputFingerprint,objective:mode,
     context:Object.freeze({max_meals:mealLimit,max_alternatives:alternativeLimit,beam_width:width,inventory_semantics:'OBSERVED_ROWS_ONLY_COLLECTION_COMPLETENESS_NOT_ASSERTED',safe_reserve:Object.freeze(mapObject(reserves)),energy_context:energy}),
     summary:Object.freeze({
-      individually_ready_count:candidates.length,simulation_candidate_count:safeCandidates.length,
+      individually_ready_count:allReadyCandidates.length,recommendation_candidate_count:candidates.length,paused_feedback_count:suppressedByFeedback.length,simulation_candidate_count:safeCandidates.length,
       unlocked_ready_count:safeCandidates.filter(row=>row.unlocked).length,unlock_candidate_ready_count:safeCandidates.filter(row=>!row.unlocked).length,
       player_current_energy_candidate_count:safeCandidates.filter(row=>positiveNumber(row.current_energy,null)!==null).length,
       base_energy_fallback_candidate_count:safeCandidates.filter(row=>positiveNumber(row.current_energy,null)===null&&positiveNumber(row.base_energy,null)!==null).length,
@@ -253,6 +257,7 @@ export function projectRecipePortfolioContention({
       all_individually_ready_simultaneously_executable:contention.all_individually_ready_simultaneously_executable,alternative_count:alternatives.length,
     }),
     contention,missing_inventory_observations:Object.freeze(missingByRecipe.map(Object.freeze)),alternatives:Object.freeze(alternatives),
+    suppressed_by_feedback:Object.freeze(suppressedByFeedback.map(row=>Object.freeze({recipe_id:row.recipe_id,recipe_name:row.recipe_name,last_attempt_failed_at:row.last_attempt_failed_at??null,reference_maybe_wrong:row.reference_maybe_wrong===true}))),
     player_data_write:false,inventory_mutation:false,public_master_write:false,gemini_used:false,
   });
 }

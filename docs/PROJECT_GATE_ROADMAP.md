@@ -1,7 +1,8 @@
 # Pokémon Sleep AI Manager — Canonical Gate Roadmap & Completion Authority
 
-Updated: 2026-09-30  
-Current production baseline at audit: `main@897bbeae6819acfba7a5a40c20276a72caf1ce3f` / `v0.4.27.55.3.3.14`
+Updated: 2026-10-05  
+Current production baseline at audit: `main@851997f9b3fae8466df8ee337f142becd22fb270` / `v0.4.27.55.3.3.18`  
+Active successor implementation: `feature/v0427553319-g62-recipe-attempt-feedback` / target `v0.4.27.55.3.3.19`
 
 This document is the canonical roadmap/status authority for future implementation conversations. Before implementing a "next Gate", re-read current `main`, this document, the parent issue, and exact runtime/regression evidence. **Do not rebuild a Gate only because an old issue checklist is stale.**
 
@@ -45,12 +46,12 @@ This document is the canonical roadmap/status authority for future implementatio
 | DATA.2A Full75 completeness | PARTIAL | completeness engine, sparse import, user-confirmed-not-visible semantics, Full75 retirement foundations | private 75/75 evidence/readiness closure remains (#144) |
 | G4 / DATA.1 Public Master foundation | PARTIAL, broad umbrella | mature recipe, ingredient, Pokémon, berry, evolution, item/event authorities exist | future work is coverage audit + real gaps only; do not rebuild existing masters (#48) |
 | **G5.1 Player Recipe State** | **CLOSED** | canonical `recipe_catalog_state`, unlocked vs locked UI, level/current-energy player state, retired personal-recipe UI/runtime | owner Android/PWA PASS on `.16`; #1 closed 2026-10-02 |
-| **G5.2 Canonical Recipe State JSON Import** | **ACTIVE HARDENING** | recipe Update Center validation, canonical master lookup, strict player-state allowlist, canonical id/name revalidation, Dry Run/Apply parity, duplicate update_id guard, Snapshot/transaction/rollback/persist/audit | close #2 after exact-head/main/Pages closure; then focused G5.3 owner screenshot validation |
-| **G5.3 Screenshot → Recipe State** | **IMPLEMENTED / OWNER CLOSURE PENDING** | UC.IMG-A recipe scenario, Public Master constrained recognition, MATCHED/AMBIGUOUS/UNMATCHED, canonical revalidation, state Update Package | focused Android/PWA recipe-screenshot Review→Dry Run→Apply evidence before closing #3 |
+| **G5.2 Canonical Recipe State JSON Import** | **CLOSED** | recipe Update Center validation, canonical master lookup, strict player-state allowlist, canonical id/name revalidation, Dry Run/Apply parity, duplicate update_id guard, Snapshot/transaction/rollback/persist/audit | `.18` merged to main; #2 closed |
+| **G5.3 Screenshot → Recipe State** | **CLOSED** | UC.IMG-A recipe scenario, Public Master constrained recognition, MATCHED/AMBIGUOUS/UNMATCHED, canonical revalidation, state Update Package | owner Android/PWA recipe screenshot evidence PASS on `.18`; #3 closed 2026-10-05 |
 | **G5.4 Public Recipe Authority** | **CLOSED** | current authority, provenance, aliases, formula audit, 78-recipe authority, controlled master sync, player-state preservation/idempotency, single Public Recipe Master product model | owner `.16` canonical recipe surface PASS; #4 closed 2026-10-02 |
-| **G6.1 Ingredient Gap Planner** | **IMPLEMENTED / ISSUE-CLOSURE READY** | deterministic ingredient-gap engine, recipe strategy projection, safe reserve, pot fit, unlocked/locked classification, shortage sorting, War Room UI, regression | close #5; rarity/portfolio optimization belongs to later G7 rather than reopening G6.1 |
-| G6.2 Recipe Attempt Feedback | OPEN | no complete player-feedback lifecycle proven | implement under #6 |
-| G6 Epic | PARTIAL | G6.1 complete | remains open for G6.2 (#16) |
+| **G6.1 Ingredient Gap Planner** | **CLOSED** | deterministic ingredient-gap engine, recipe strategy projection, safe reserve, pot fit, unlocked/locked classification, shortage sorting, War Room UI, regression | #5 closed; rarity/portfolio optimization belongs to G7 rather than reopening G6.1 |
+| **G6.2 Recipe Attempt Feedback** | **ACTIVE IMPLEMENTATION / CI PENDING** | `.19` branch adds Migration 17 local attempt history, local pause/reference-warning state, deterministic recommendation suppression/resume, Android/PWA War Room feedback UI, regression contract | exact-head CI → merge/main CI/Pages → focused owner real-device validation; keep #6 open until closure evidence |
+| G6 Epic | PARTIAL | G6.1 CLOSED; G6.2 successor implementation active | remains open until #6 owner closure (#16) |
 | G7 Cooking AI / deterministic cooking planner | CLOSED | shared-inventory contention, multi-meal simulation, preserve/unlock/continuous/max-verified-energy objectives, current-energy authority, event multiplier authority, team supply capability, deterministic/AI-proposal re-evaluation | #17 and #246 closed; ingredient/hour production-rate authority intentionally remains separate (#278) |
 | G8 Weekly Planner | PARTIAL | weekly context, effective context, recipe recommendation and War Room strategy foundations | full seven-day planner/team/meal substitution schedule remains (#18) |
 | G9 Event Manager | PARTIAL | Public Event Master, manifest/schema/store, typed effects, effective weekly integration | full import/lifecycle/UI management acceptance remains (#19) |
@@ -87,8 +88,6 @@ This document is the canonical roadmap/status authority for future implementatio
 - #411 — G12.1A Readiness Audit.
 
 ### Must remain open now
-- #2 G5.2 strict canonical player-state hardening.
-- #3 G5.3 focused owner recipe screenshot closure.
 - #6 / #16 G6.2 + G6 Epic.
 - #7 full historical ZIP inventory/extraction.
 - #48 broad Public Master coverage.
@@ -106,12 +105,11 @@ This document is the canonical roadmap/status authority for future implementatio
 
 ## 5. Correct next execution order
 
-1. **G5.2 hardening (#2)** — recipe Update Center may mutate only canonical player-state fields; canonical recipe id/name must revalidate against Public Recipe Master; Dry Run and Apply change-set must remain identical.
-2. **G5.3 focused owner closure (#3)** — use the already-built screenshot path; do not rebuild it.
-3. Continue the next genuinely incomplete Gate from this document after G5.2/G5.3 closure.
-5. Continue stale-Issue reconciliation only when exact evidence exists; never equate unchecked boxes with missing code.
-6. Continue genuinely incomplete work: **G6.2 → G9 → G10/WAR.1 → G8 → G11 → G13 closure → G14.2–5 → G15**.
-7. G12.1 must be treated as completed baseline, not a future implementation Gate.
+1. **G6.2 Recipe Attempt Feedback (#6)** — current active Gate. Complete exact-head CI, merge/main CI/Pages, then focused Android/PWA owner validation. Personal failure evidence must remain local and advisory-only.
+2. After G6.2 closure continue genuinely incomplete work: **G9 → G10/WAR.1 → G8 → G11 → G13 closure → G14.2–5 → G15**.
+3. Continue stale-Issue reconciliation only when exact evidence exists; never equate unchecked boxes with missing code.
+4. G12.1 must be treated as completed baseline, not a future implementation Gate.
+5. G5.1–G5.4 and G6.1 are completed baselines; do not reopen absent a demonstrated regression.
 
 ## 6. Anti-drift rule
 

@@ -10,6 +10,7 @@ import {applyPublicCandyMasterSchema,syncPublicCandyMaster,PUBLIC_CANDY_MASTER_V
 import {applyIngredientInventoryIdentityMigration,INGREDIENT_INVENTORY_INTEGRITY_MIGRATION_VERSION} from './ingredient-inventory-integrity-contract.js';
 import {applyPublicEventMasterSchemaMigration,PUBLIC_EVENT_MASTER_SCHEMA_MIGRATION_VERSION} from './public-event-master-schema.js';
 import {applyG121AuthoritySchemaMigration,G121_AUTHORITY_SCHEMA_MIGRATION_VERSION,seedUnknownEvolutionItemAcquisitionRows} from './g121-authority.js';
+import {applyRecipeAttemptFeedbackSchemaMigration,RECIPE_ATTEMPT_FEEDBACK_MIGRATION_VERSION} from './recipe-attempt-feedback.js';
 
 export const E3C6B_SCHEMA_MIGRATION_VERSION=11;
 
@@ -180,7 +181,7 @@ export function auditAndSyncPublicMasters(db,{force=false}={}){
 
 export function applyFreshDatabaseBootstrap(db){
   applySharedMasterSchema(db);applyPublicPokemonKnowledgeSchema(db);applyCandyInventoryMigration(db);applyIngredientProbabilityObservationMigration(db);applyPublicCandyMasterSchema(db);
-  applyIdentityMigration(db);applyGameDataMigration(db);applyPersonalRecipeMigration(db);applyCompletePokemonDetailMigration(db);applyWarRoomStrategySnapshotMigration(db);applyIngredientInventoryIdentityMigration(db);applyPublicEventMasterSchemaMigration(db);applyG121AuthoritySchemaMigration(db);applyStandardCatalogCompatibilityMigration(db);
+  applyIdentityMigration(db);applyGameDataMigration(db);applyPersonalRecipeMigration(db);applyCompletePokemonDetailMigration(db);applyWarRoomStrategySnapshotMigration(db);applyIngredientInventoryIdentityMigration(db);applyPublicEventMasterSchemaMigration(db);applyG121AuthoritySchemaMigration(db);applyRecipeAttemptFeedbackSchemaMigration(db);applyStandardCatalogCompatibilityMigration(db);
   db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(4,datetime('now'))`);db.run(`INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(6,datetime('now'))`);
   const publicMaster=auditAndSyncPublicMasters(db,{force:true});
   const evolutionItems=rows(db,"SELECT item_name FROM item_master WHERE item_category='evolution' ORDER BY item_name").map(row=>row.item_name);
@@ -204,6 +205,8 @@ export function applyAllMigrations(db){
   let g121Migration=null;
   if(!hasMigration(db,G121_AUTHORITY_SCHEMA_MIGRATION_VERSION)){g121Migration=applyG121AuthoritySchemaMigration(db);databaseChanged=true;}
   else g121Migration=applyG121AuthoritySchemaMigration(db);
+  if(!hasMigration(db,RECIPE_ATTEMPT_FEEDBACK_MIGRATION_VERSION)){applyRecipeAttemptFeedbackSchemaMigration(db);databaseChanged=true;}
+  else applyRecipeAttemptFeedbackSchemaMigration(db);
   if(applyStandardCatalogCompatibilityMigration(db))databaseChanged=true;
   const publicMaster=auditAndSyncPublicMasters(db);
   const evolutionItems=rows(db,"SELECT item_name FROM item_master WHERE item_category='evolution' ORDER BY item_name").map(row=>row.item_name);

@@ -172,7 +172,13 @@ assert.equal(professor.includes('candy-public-master-admission-ui.js'),false);
 
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.3.3.18'){
+if(appVersion==='v0.4.27.55.3.3.19'){
+  assert.equal(appBuild,'20261005-v0427553319-g62-recipe-attempt-feedback');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.18'"),'.19 successor must retain exact .18 predecessor version marker');
+  assert.ok(version.includes("// app_build: '20261004-v0427553318-g52-recipe-state-import-hardening'"),'.19 successor must retain exact .18 predecessor build marker');
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.18-v0427553318-g52-recipe-state-import-hardening'"),'.19 successor must retain exact .18 predecessor cache marker');
+}else if(appVersion==='v0.4.27.55.3.3.18'){
   assert.equal(appBuild,'20261004-v0427553318-g52-recipe-state-import-hardening');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.18-v0427553318-g52-recipe-state-import-hardening');
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.17'"),'.18 successor must retain exact .17 predecessor version marker');
