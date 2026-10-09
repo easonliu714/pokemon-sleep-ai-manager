@@ -69,7 +69,14 @@ await import('../assets/js/version-authority.js');
 const currentVersion=globalThis.PokemonSleepVersionAuthority?.app_version||'';
 const currentBuild=globalThis.PokemonSleepVersionAuthority?.app_build||'';
 const currentCache=globalThis.PokemonSleepVersionAuthority?.cache_name||'';
-if(currentVersion==='v0.4.27.55.3.3.18'){
+// G6.2 exact .19 -> .18 historical successor; keep all earlier Candy/Raw checks.
+if(currentVersion==='v0.4.27.55.3.3.19'){
+  assert.equal(currentBuild,'20261005-v0427553319-g62-recipe-attempt-feedback');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.18'"),'.19 predecessor version');
+  assert.ok(versionSource.includes("// app_build: '20261004-v0427553318-g52-recipe-state-import-hardening'"),'.19 predecessor build');
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.18-v0427553318-g52-recipe-state-import-hardening'"),'.19 predecessor cache');
+}else if(currentVersion==='v0.4.27.55.3.3.18'){
   assert.equal(currentBuild,'20261004-v0427553318-g52-recipe-state-import-hardening');
   assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.18-v0427553318-g52-recipe-state-import-hardening');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.17'"),'.18 successor must retain exact .17 predecessor version marker');
