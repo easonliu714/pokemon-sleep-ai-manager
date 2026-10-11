@@ -7,6 +7,7 @@ import {currentEffectiveWeeklyContext} from './effective-weekly-context.js';
 import {projectRecipePortfolioContention,RECIPE_PORTFOLIO_CONTENTION_VERSION} from './recipe-portfolio-contention.js';
 import {resolveRecipePortfolioEnergyContext} from './recipe-portfolio-event-authority.js';
 import {projectTeamSupplyReadiness,TEAM_SUPPLY_RATE_STATUS} from './team-supply-readiness.js';
+import {buildRecipeUnlockPreparation,targetPokemonScoreRows} from './recipe-unlock-preparation.js';
 
 function enrichRecipePlayerEnergy(strategy){
   let playerStates=[];
@@ -52,7 +53,7 @@ function teamSupplyProjection(recipeStrategy,goalProfile){
   }
 }
 
-export function buildLocalRecipePortfolioContention({objective='unlock_recipes',maxMeals=3,maxAlternatives=3,beamWidth=64}={}){
+export function buildLocalRecipePortfolioContention({objective='unlock_recipes',maxMeals=3,maxAlternatives=3,beamWidth=64,targetRecipeId=null}={}){
   if(!isDatabaseReady()||isRescueReadonly())return Object.freeze({
     schema:'pokemon-sleep-recipe-portfolio-contention/1.1',planner_version:RECIPE_PORTFOLIO_CONTENTION_VERSION,
     projection_status:'PLAYER_DATA_UNAVAILABLE',input_fingerprint:null,objective,context:Object.freeze({max_meals:maxMeals,max_alternatives:maxAlternatives}),
@@ -72,11 +73,32 @@ export function buildLocalRecipePortfolioContention({objective='unlock_recipes',
   const energyContext=resolveRecipePortfolioEnergyContext(week);
   const result=projectRecipePortfolioContention({recipeStrategy:strategy,inventory,ingredientSafeReserve:hard.ingredient_safe_reserve||{},energyContext,objective,maxMeals,maxAlternatives,beamWidth});
   const teamSupply=teamSupplyProjection(strategy,goalProfile);
+  const unlockPreparation=buildRecipeUnlockPreparation({candidates:strategy.candidates,inventory,selectedRecipeId:targetRecipeId});
+  let targetTeam=null;
+  if(unlockPreparation.selected?.stage==='NEEDS_INGREDIENTS'){
+    try{
+      const scoring=buildLocalPokemonCandidateScoring();
+      if(scoring?.projection_status==='READY'){
+        const targeted=targetPokemonScoreRows({
+          pokemonCandidates:scoring.candidates,pokemonFeatures:scoring.candidates,target:unlockPreparation.selected,
+        });
+        const rankedScoring={...scoring,candidates:targeted,feature_fingerprint:`${scoring.feature_fingerprint||'none'}:target=${unlockPreparation.selected.recipe_id}`};
+        const selectedTeam=optimizeTeam({scoringProjection:rankedScoring,goalProfile,maxAlternatives:0});
+        const projected=projectTeamSupplyReadiness({
+          recipeStrategy:{...strategy,candidates:[strategy.candidates.find(row=>row.recipe_id===unlockPreparation.selected.recipe_id)].filter(Boolean)},
+          teamOptimization:selectedTeam,candidateFeatures:{candidates:scoring.candidates,input_fingerprint:scoring.feature_fingerprint},
+        });
+        targetTeam=Object.freeze({recipe_id:unlockPreparation.selected.recipe_id,team:selectedTeam.primary,supply:projected,ingredient_per_hour:null,replenishment_eta:null,rate_status:TEAM_SUPPLY_RATE_STATUS});
+      }
+    }catch(error){targetTeam=Object.freeze({recipe_id:unlockPreparation.selected.recipe_id,status:'REVIEW_TARGET_TEAM',reason:String(error?.message||error)});}
+  }
   return Object.freeze({
     ...result,
     recipe_strategy_fingerprint:strategy.input_fingerprint||null,
     goal_profile_id:goalProfile?.goal_profile_id||null,
     team_supply:teamSupply,
+    unlock_preparation:unlockPreparation,
+    target_recipe_team:targetTeam,
     weekly_context:Object.freeze({
       context_id:week.context_id||null,week_start:week.week_start||null,dish_category:week.dish_category||null,pot_size:week.pot_size??null,
       authority_source:week.player_weekly_authority_source||week.authority_source||'MISSING',authority_update_id:week.authority_update_id||null,
