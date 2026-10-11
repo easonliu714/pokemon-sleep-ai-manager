@@ -81,6 +81,8 @@ jobs:
         run: node scripts/g52-canonical-recipe-state-import-hardening-contract.mjs
       - name: Verify G6.2 recipe attempt feedback
         run: node scripts/g62-recipe-attempt-feedback-contract.mjs
+      - name: Verify respecified G6 unlock-target and inventory parity
+        run: node scripts/g63-unlock-preparation-inventory-parity-contract.mjs
       - name: Verify retired personal recipe surface stays inactive
         run: node scripts/g51-personal-recipe-retirement-contract.mjs
 
