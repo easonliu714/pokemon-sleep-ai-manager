@@ -1,8 +1,8 @@
 # Pokémon Sleep AI Manager — Canonical Gate Roadmap & Completion Authority
 
-Updated: 2026-10-05  
-Current production baseline at audit: `main@851997f9b3fae8466df8ee337f142becd22fb270` / `v0.4.27.55.3.3.18`  
-Active successor implementation: `feature/v0427553319-g62-recipe-attempt-feedback` / target `v0.4.27.55.3.3.19`
+Updated: 2026-10-11  
+Current production baseline at audit: `main@30a8d250a00ceb3e72f46cde8357602fcdfdf974` / `v0.4.27.55.3.3.19`  
+Active G6-R corrective successor: `fix/v0427553320-unlock-planner-inventory-parity` / Draft PR #469 / target `v0.4.27.55.3.3.20`
 
 This document is the canonical roadmap/status authority for future implementation conversations. Before implementing a "next Gate", re-read current `main`, this document, the parent issue, and exact runtime/regression evidence. **Do not rebuild a Gate only because an old issue checklist is stale.**
 
