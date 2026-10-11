@@ -1,5 +1,6 @@
 import {currentWeeklyContext,weeklyContextForEpoch} from './weekly-context-store.js';
 import {resolveCachedPublicEventProjection} from './public-event-master-store.js';
+import {readWeeklyManualActivityBonus,projectWeeklyManualActivityBonus} from './weekly-manual-activity-bonuses.js';
 
 export const EFFECTIVE_WEEKLY_CONTEXT_VERSION='effective-weekly-context-2026-08-17-a';
 
@@ -13,6 +14,12 @@ export function buildEffectiveWeeklyContext({playerContext={},publicEventProject
   const deterministic=publicProjection?.strategy_event_effects||{};
   const featureOnly=publicProjection?.feature_only_event_effects||{};
   const fieldSources={...(playerContext.field_sources||{})};
+  const manualBonus=projectWeeklyManualActivityBonus({
+    basePotSize:playerContext.pot_size,
+    record:readWeeklyManualActivityBonus(playerContext.week_start),
+  });
+  if(manualBonus.pot_capacity_status==='MANUAL_OBSERVED_EXACT'||manualBonus.pot_capacity_status==='MANUAL_MULTIPLIER_INTEGER_EXACT')
+    fieldSources.pot_size='PLAYER_EXPLICIT_MANUAL_WEEKLY_ACTIVITY_BONUS';
   fieldSources.event_name='PUBLIC_EVENT_MASTER';
   fieldSources.event_effects='PUBLIC_EVENT_MASTER';
   for(const key of Object.keys(publicEffects))fieldSources[`event_effects.${key}`]='PUBLIC_EVENT_MASTER';
@@ -29,6 +36,9 @@ export function buildEffectiveWeeklyContext({playerContext={},publicEventProject
 
   return Object.freeze({
     ...playerContext,
+    base_pot_size:playerContext.pot_size??null,
+    pot_size:manualBonus.effective_pot_capacity,
+    manual_activity_bonus:manualBonus,
     event_name:publicProjection?.event_name||null,
     event_effects:publicProjection?.event_effects_serialized||null,
     event_effects_parsed:frozen(publicEffects),
@@ -56,6 +66,7 @@ export function buildEffectiveWeeklyContext({playerContext={},publicEventProject
       player_weekly_context:'PLAYER_WEEKLY_CONTEXT',
       camp_projection:'PUBLIC_CAMP_MASTER',
       event_projection:'PUBLIC_EVENT_MASTER',
+      manual_bonus_projection:'PLAYER_EXPLICIT_WEEK_SCOPED',
     }),
     legacy_player_event_observation:legacyObservation,
     field_sources:Object.freeze(fieldSources),
