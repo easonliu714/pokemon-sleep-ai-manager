@@ -55,7 +55,14 @@ const uiSource=read('assets/js/candy-quantity-screenshot-ui.js');
 assert.match(uiSource,/provider_raw:''/);assert.match(uiSource,/working_raw:''/);assert.match(uiSource,/Gemini Raw JSON（唯讀、immutable）/);assert.match(uiSource,/EXACT_IDENTITY_MISMATCH/);assert.ok(!uiSource.includes('state.provider_raw=JSON.stringify(mutator'));
 const appBuild=versionSource.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.3.3.19'){
+if(appVersion==='v0.4.27.55.3.3.20'){
+  // G6-R exact historical successor: .20 inherits .19's governed Candy identity and Raw immutability.
+  assert.equal(appBuild,'20261011-v0427553320-unlock-planner-inventory-parity');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.20-v0427553320-unlock-planner-inventory-parity');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.19'"));
+  assert.ok(versionSource.includes("// app_build: '20261005-v0427553319-g62-recipe-attempt-feedback'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback'"));
+}else if(appVersion==='v0.4.27.55.3.3.19'){
   assert.equal(appBuild,'20261005-v0427553319-g62-recipe-attempt-feedback');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.18'"));
