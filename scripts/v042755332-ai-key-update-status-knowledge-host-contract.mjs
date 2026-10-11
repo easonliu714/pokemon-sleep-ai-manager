@@ -13,7 +13,13 @@ const coverage=read('assets/js/v03993-public-knowledge-coverage-ui.js');
 const candy=read('assets/js/candy-quantity-screenshot-ui.js');
 const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 
-if(appVersion==='v0.4.27.55.3.3.19'){
+if(appVersion==='v0.4.27.55.3.3.20'){
+  assert.match(authority,/app_build:\s*'20261011-v0427553320-unlock-planner-inventory-parity'/);
+  assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.20-v0427553320-unlock-planner-inventory-parity'/);
+  assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.19'/);
+  assert.match(authority,/\/\/ app_build: '20261005-v0427553319-g62-recipe-attempt-feedback'/);
+  assert.match(authority,/\/\/ cache_name: 'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.19-v0427553319-g62-recipe-attempt-feedback'/);
+}else if(appVersion==='v0.4.27.55.3.3.19'){
   assert.match(authority,/app_build:\s*'20261005-v0427553319-g62-recipe-attempt-feedback'/);
   assert.match(authority,/cache_name:\s*'pokemon-sleep-ai-v0\.4\.27\.55\.3\.3\.19-v0427553319-g62-recipe-attempt-feedback'/);
   assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.18'/);
