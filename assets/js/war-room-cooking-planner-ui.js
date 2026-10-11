@@ -7,7 +7,7 @@ const OBJECTIVE_LABEL=Object.freeze({unlock_recipes:'優先解鎖新料理',pres
 const WARNING_LABEL=Object.freeze({TARGET_MEALS_NOT_REACHED:'未達目標餐數',SHARED_INVENTORY_CONTENTION:'存在共享食材競爭',USABLE_INVENTORY_EXHAUSTED:'部分可用庫存耗盡',LOW_BUFFER_AFTER_PLAN:'部分食材剩餘不足再做一餐',ENERGY_BASE_FALLBACK_USED:'部分餐次缺少玩家目前能量，使用公版基礎能量 fallback',ENERGY_INPUT_MISSING:'部分餐次缺少可用能量資料'});
 const ENERGY_SOURCE_LABEL=Object.freeze({PLAYER_CURRENT_ENERGY:'玩家目前能量',PUBLIC_BASE_ENERGY:'公版基礎能量 fallback',MISSING:'缺少能量資料'});
 const SUPPLY_STATUS_LABEL=Object.freeze({TEAM_CAPABILITY_COVERED_UNQUANTIFIED:'隊伍具備全部缺口食材來源',PARTIAL_TEAM_COVERAGE:'隊伍只能覆蓋部分缺口',NO_TEAM_SOURCE:'隊伍沒有缺口食材來源',TEAM_NOT_READY:'建議隊伍尚未 READY',NOT_APPLICABLE:'目前沒有食材缺口'});
-const state={objective:'unlock_recipes',maxMeals:3};
+const state={objective:'unlock_recipes',maxMeals:3,targetRecipeId:null};
 const energyText=value=>value===null||value===undefined||!Number.isFinite(Number(value))?'—':Number(value).toLocaleString('zh-TW',{maximumFractionDigits:2});
 const verifiedPublicEventMultiplier=source=>source==='PUBLIC_EVENT_MASTER_ACTIVE_VERIFIED';
 
@@ -25,7 +25,7 @@ function stepCard(step){
     ${energyLine}
     <ul class="g7-resource-transitions">${(step.ingredients||[]).map(resourceTransition).join('')}</ul>
     ${step.newly_blocked_recipes?.length?`<p class="notice warning">這餐之後暫時無法再做：${esc(step.newly_blocked_recipes.map(row=>row.recipe_name).join('、'))}</p>`:''}
-    <div class="buttons"><button type="button" data-g62-attempt-failed="${esc(step.recipe_id)}">本次嘗試未開啟</button></div>
+    ${step.unlock_opportunity?'<div class="buttons"><button type="button" data-g62-attempt-failed="'+esc(step.recipe_id)+'">已有真實失敗紀錄時才回報（非必填）</button></div>':''}
   </li>`;
 }
 function warningList(plan){return (plan.warnings||[]).map(code=>`<li>${esc(WARNING_LABEL[code]||code)}</li>`).join('');}
@@ -66,9 +66,39 @@ function teamSupplyPanel(supply){
     <p class="notice">Team Supply Fingerprint：<code>${esc(supply.input_fingerprint||'—')}</code></p>
   </section>`;
 }
+const UNLOCK_STAGE_LABEL=Object.freeze({
+  READY_FOR_IN_GAME_PREVIEW:'食材足夠，等待遊戲內預覽',NEEDS_INGREDIENTS:'需補充食材',
+  REVIEW_UNLOCK_STATE:'請先確認玩家是否已解鎖',REVIEW_FORMULA_EVIDENCE:'配方來源仍待查證',
+  REVIEW_INVENTORY:'必要食材庫存尚未觀測',REVIEW_POT_CAPACITY:'本週鍋子大小未確認',BLOCKED_POT_CAPACITY:'鍋子容量不足',
+});
+function unlockPreparationPanel(preparation,targetTeam){
+  if(!preparation)return '';
+  const targets=preparation.targets||[],target=preparation.selected;
+  const choices=targets.map(row=>`<option value="${esc(row.recipe_id)}" ${row.recipe_id===target?.recipe_id?'selected':''}>${esc(row.recipe_name)} · ${esc(UNLOCK_STAGE_LABEL[row.stage]||row.stage)}</option>`).join('');
+  const requirements=(target?.requirements||[]).map(row=>`<tr><td>${esc(row.ingredient_name)}</td><td>${row.required}</td><td>${row.owned===null?'未觀測':row.owned}</td><td>${row.safe_reserve}</td><td>${row.deficit===null?'待確認':row.deficit}</td></tr>`).join('');
+  const members=targetTeam?.team?.slots||[];
+  const teamHtml=target?.stage==='NEEDS_INGREDIENTS'?
+    `<h4>此料理專用補貨隊伍（僅已解鎖食材能力）</h4>${targetTeam?.team?
+      `<p class="notice">隊伍：${esc(targetTeam.team.team_status)}；${members.map(m=>esc(m.species)).join('、')||'無可用成員'}</p>
+        <p class="notice">缺料覆蓋：${targetTeam.supply?.summary?.covered_shortage_ingredient_count??0}/${targetTeam.supply?.summary?.shortage_ingredient_count??0} 類。食材產率／補貨 ETA 均未驗證，不能宣稱何時備齊。</p>`:
+      '<p class="notice warning">目前無可驗證的專用隊伍候選，請補齊個人寶可夢與食材來源資料。</p>'}`:'';
+  return `<section class="panel g63-unlock-preparation" data-g63-unlock-preparation>
+    <h3>未解鎖料理／精確缺料／專用補貨</h3>
+    <p class="notice">僅取 Public Recipe Master ACTIVE 的料理；已解鎖料理不得冒充新料理目標。玩家未確認解鎖狀態、食材庫存或來源證據時，保持待確認，不當作零或已確認可解鎖。</p>
+    <div class="war-team-summary"><span>尚未解鎖／待確認候選<b>${preparation.summary.target_count}</b></span><span>可預覽<b>${preparation.summary.ready_count}</b></span><span>需補料<b>${preparation.summary.missing_count}</b></span><span>待查證<b>${preparation.summary.review_count}</b></span></div>
+    ${target?`<label><span>指定目標料理</span><select data-g63-target-recipe>${choices}</select></label>
+    <p><b>${esc(target.recipe_name)}</b>：${esc(UNLOCK_STAGE_LABEL[target.stage]||target.stage)} · 鍋子需求 ${target.pot_required} / ${esc(target.pot_capacity??'未設定')}</p>
+    <div class="table-wrap"><table><thead><tr><th>食材</th><th>需求</th><th>庫存</th><th>安全保留</th><th>缺料</th></tr></thead><tbody>${requirements}</tbody></table></div>
+    <p class="notice">已知缺料總量：<b>${target.known_deficit_total}</b>；未觀測食材：${target.unknown_ingredient_count} 類。缺料總量不包含未知庫存，不能把未知自動當作 0。</p>
+    ${teamHtml}
+    <p class="notice warning"><b>製作前核對：</b>先在遊戲料理介面依公版數量選食材並查看預覽。「？」僅表示可能是未發現的料理，不保證就是指定目標。若與預期不符，可直接返回，不需要真的烹飪或消耗食材。日後自然完成料理時再比對名稱。</p>`:
+    '<p class="notice warning">本週沒有符合公版 ACTIVE 的可見目標；請先確認本週料理類型或玩家解鎖狀態。</p>'}
+  </section>`;
+}
 function emptyReason(result){
   if(result.projection_status==='PLAYER_DATA_UNAVAILABLE')return '玩家 SQLite 尚未就緒，無法建立料理模擬。';
   if(result.projection_status==='INVENTORY_NOT_OBSERVED')return '目前沒有可供 G7 使用的食材庫存列。空集合不會被當成「已確認全部為 0」，請先由食材頁或更新中心建立玩家觀測。';
+  if(result.objective==='unlock_recipes'&&result.summary?.recommendation_candidate_count===0)return '沒有已確認尚未解鎖且食材足夠的料理；請查看上方「未解鎖料理／精確缺料／專用補貨」的待備貨與待確認候選。';
   if(result.summary?.individually_ready_count===0)return '目前沒有通過食材、Safe Reserve、鍋子容量與 Recipe Evidence Gate 的 READY 料理。';
   if(result.summary?.simulation_candidate_count===0)return 'READY 料理的必要食材存在未觀測庫存列；為避免把 missing 誤當成 0，本 Planner 不執行共享庫存模擬。';
   return '目前共享庫存無法形成可執行序列；可檢查 Safe Reserve、鍋子容量或食材庫存。';
@@ -82,7 +112,7 @@ function energyAuthorityLine(week,energyContext){
 export function renderWarRoomCookingPlanner(root=document.getElementById('warroomCookingPlanner')){
   if(!root)return;
   try{
-    const result=buildLocalRecipePortfolioContention({objective:state.objective,maxMeals:state.maxMeals,maxAlternatives:3,beamWidth:64});
+    const result=buildLocalRecipePortfolioContention({objective:state.objective,maxMeals:state.maxMeals,maxAlternatives:3,beamWidth:64,targetRecipeId:state.targetRecipeId});
     const week=result.weekly_context||{},energyContext=result.context?.energy_context||{};
     root.innerHTML=`<div class="panel war-team-optimizer-panel g7-cooking-panel">
       <div class="war-team-toolbar"><div><h3>G7.2 料理資源競爭／隊伍補貨／多餐模擬</h3><p class="notice">READY 判定與實體庫存模擬仍由既有 Recipe Strategy / G7 負責；G7.2 只新增隊伍食材「能力覆蓋」資訊。所有結果都是 deterministic projection，不修改食材庫存、料理或寶可夢資料。</p></div><button type="button" data-g7-refresh>重新計算</button></div>
@@ -94,13 +124,15 @@ export function renderWarRoomCookingPlanner(root=document.getElementById('warroo
       <p class="notice"><b>料理能量 Authority：</b>玩家已觀測 <code>current_energy</code> 優先；缺值才使用 Public Recipe Master <code>base_energy</code> fallback。${energyAuthorityLine(week,energyContext)}</p>
       <p class="notice"><b>序列數量語意：</b><code>before → consumed → remaining</code>；每一步都重新套用 Safe Reserve，再判斷下一餐仍可執行的料理。</p>
       <div class="war-team-summary"><span>單獨 READY<b>${result.summary?.individually_ready_count??0}</b></span><span>暫停推薦<b>${result.summary?.paused_feedback_count??0}</b></span><span>可安全模擬<b>${result.summary?.simulation_candidate_count??0}</b></span><span>玩家能量候選<b>${result.summary?.player_current_energy_candidate_count??0}</b></span><span>基礎能量 fallback<b>${result.summary?.base_energy_fallback_candidate_count??0}</b></span><span>競爭邊<b>${result.summary?.contention_edge_count??0}</b></span><span>全部可同時執行<b>${result.summary?.all_individually_ready_simultaneously_executable===true?'是':result.summary?.all_individually_ready_simultaneously_executable===false?'否':'—'}</b></span></div>
+      ${unlockPreparationPanel(result.unlock_preparation,result.target_recipe_team)}
       ${teamSupplyPanel(result.team_supply)}
       ${result.missing_inventory_observations?.length?`<div class="notice warning"><b>未觀測必要食材：</b>${esc(result.missing_inventory_observations.map(row=>`${row.recipe_id}: ${row.ingredients.join('、')}`).join('；'))}<br>missing 不會在 G7 中自動轉成已確認 0。</div>`:''}
       <details class="g7-contention-details" open><summary>共享食材競爭</summary>${contentionRows(result.contention)}</details>
-      <h4>Top 3 可執行序列</h4>
+      <h4>${state.objective==='unlock_recipes'?'Top 3 未解鎖料理嘗試候選':'Top 3 可執行序列'}</h4>
       ${result.alternatives?.length?result.alternatives.map(planCard).join(''):`<div class="notice warning">${esc(emptyReason(result))}</div>`}
       <p class="notice">Inventory semantics：<code>${esc(result.context?.inventory_semantics||'—')}</code>；Safe Reserve 每一步都會重新套用。Planner Fingerprint：<code>${esc(result.input_fingerprint||'—')}</code></p>
     </div>`;
+    root.querySelector('[data-g63-target-recipe]')?.addEventListener('change',event=>{state.targetRecipeId=event.target.value;renderWarRoomCookingPlanner(root);});
     root.querySelector('[data-g7-refresh]')?.addEventListener('click',()=>renderWarRoomCookingPlanner(root));
     root.querySelector('[data-g7-objective]')?.addEventListener('change',event=>{state.objective=event.target.value;renderWarRoomCookingPlanner(root);});
     root.querySelector('[data-g7-meals]')?.addEventListener('change',event=>{state.maxMeals=Math.max(1,Math.min(7,Number(event.target.value)||3));renderWarRoomCookingPlanner(root);});
