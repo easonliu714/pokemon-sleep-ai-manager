@@ -54,7 +54,7 @@ if(RECIPE_PORTFOLIO_CONTENTION_VERSION==='recipe-portfolio-contention-2026-08-12
 
 function candidate(id,{name=id,unlocked=false,energy=100,requirements=[]}={}){
   return {
-    recipe_id:id,recipe_name:name,unlocked,base_energy:energy,
+    recipe_id:id,recipe_name:name,unlocked,player_record_exists:true,base_energy:energy,
     candidate_status:unlocked?'COOK_NOW_UNLOCKED':'UNLOCK_CANDIDATE_READY',hard_constraint_status:'PASS',pot_fit:true,
     requirements:requirements.map(([ingredient_name,required])=>({ingredient_name,required,owned:999,safe_reserve:0,usable:999,raw_shortage:0,strategy_shortage:0,reserve_blocked:0})),
   };
@@ -79,7 +79,7 @@ const unlockPlan=projectRecipePortfolioContention({recipeStrategy:strategy(fixtu
 assert.equal(unlockPlan.projection_status,'READY');
 assert.equal(unlockPlan.summary.individually_ready_count,3);
 assert.equal(unlockPlan.summary.all_individually_ready_simultaneously_executable,false);
-assert.equal(unlockPlan.alternatives[0].completed_meals,2);
+assert.equal(unlockPlan.alternatives[0].completed_meals,1,'unlock-only mode must not append a previously unlocked meal after the one feasible new recipe');
 assert.equal(unlockPlan.alternatives[0].unlock_count,1);
 assert.equal(unlockPlan.alternatives[0].steps[0].recipe_id,'a_unlock');
 assert.ok(unlockPlan.alternatives[0].steps[0].newly_blocked_recipe_ids.includes('b_unlock'));
