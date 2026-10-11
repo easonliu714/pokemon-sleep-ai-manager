@@ -196,7 +196,10 @@ export function projectRecipePortfolioContention({
   const physical=mapFromRows(inventory),reserves=reserveMap(ingredientSafeReserve),observedNames=new Set(physical.keys());
   const allReadyCandidates=(recipeStrategy?.candidates||[]).filter(row=>row?.hard_constraint_status==='PASS'&&READY_STATUS.has(row?.candidate_status)).sort((a,b)=>String(a.recipe_id).localeCompare(String(b.recipe_id)));
   const suppressedByFeedback=allReadyCandidates.filter(row=>row?.recommendation_paused===true);
-  const candidates=allReadyCandidates.filter(row=>row?.recommendation_paused!==true);
+  // Unlock mode is a discovery-only filter, never a fallback to already unlocked meals.
+  // A missing player observation is not proof of a locked recipe.
+  const candidates=allReadyCandidates.filter(row=>row?.recommendation_paused!==true
+    &&(mode!=='unlock_recipes'||(row.candidate_status==='UNLOCK_CANDIDATE_READY'&&row.unlocked===false&&row.player_record_exists===true)));
   const missingByRecipe=candidates.map(candidate=>({recipe_id:candidate.recipe_id,ingredients:[...requirementMap(candidate).keys()].filter(name=>!observedNames.has(name)).sort((a,b)=>a.localeCompare(b,'zh-Hant'))})).filter(row=>row.ingredients.length);
   const safeCandidates=candidates.filter(candidate=>!missingByRecipe.some(row=>row.recipe_id===candidate.recipe_id));
   const contention=buildRecipeContentionGraph({candidates:safeCandidates,inventory,ingredientSafeReserve});
@@ -206,7 +209,7 @@ export function projectRecipePortfolioContention({
   if(!inventory.length)return Object.freeze({
     schema:'pokemon-sleep-recipe-portfolio-contention/1.1',planner_version:RECIPE_PORTFOLIO_CONTENTION_VERSION,projection_status:'INVENTORY_NOT_OBSERVED',input_fingerprint:inputFingerprint,objective:mode,
     context:Object.freeze({max_meals:mealLimit,max_alternatives:alternativeLimit,beam_width:width,inventory_semantics:'NO_ROWS_EXPORTED_NOT_ZERO_CONFIRMED',energy_context:energy}),
-    summary:Object.freeze({individually_ready_count:allReadyCandidates.length,recommendation_candidate_count:candidates.length,paused_feedback_count:suppressedByFeedback.length,simulation_candidate_count:0,alternative_count:0}),contention,alternatives:Object.freeze([]),missing_inventory_observations:Object.freeze(missingByRecipe),
+    summary:Object.freeze({individually_ready_count:allReadyCandidates.length,recommendation_candidate_count:candidates.length,unlock_candidate_ready_count:candidates.filter(row=>!row.unlocked).length,paused_feedback_count:suppressedByFeedback.length,simulation_candidate_count:0,alternative_count:0}),contention,alternatives:Object.freeze([]),missing_inventory_observations:Object.freeze(missingByRecipe),
     suppressed_by_feedback:Object.freeze(suppressedByFeedback.map(row=>Object.freeze({recipe_id:row.recipe_id,recipe_name:row.recipe_name,last_attempt_failed_at:row.last_attempt_failed_at??null,reference_maybe_wrong:row.reference_maybe_wrong===true}))),
     player_data_write:false,inventory_mutation:false,public_master_write:false,gemini_used:false,
   });

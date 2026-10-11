@@ -39,8 +39,8 @@ assert.equal(record.recommendation_paused,true);
 assert.equal(record.source.source_name,'Fixture Reference');
 
 const baseCandidates=[
-  {recipe_id:'paused',recipe_name:'暫停料理',candidate_status:'UNLOCK_CANDIDATE_READY',hard_constraint_status:'PASS',unlocked:false,base_energy:999,requirements:[{ingredient_name:'特選蘋果',required:2}]},
-  {recipe_id:'active',recipe_name:'可推薦料理',candidate_status:'UNLOCK_CANDIDATE_READY',hard_constraint_status:'PASS',unlocked:false,base_energy:100,requirements:[{ingredient_name:'特選蘋果',required:2}]},
+  {recipe_id:'paused',recipe_name:'暫停料理',candidate_status:'UNLOCK_CANDIDATE_READY',hard_constraint_status:'PASS',unlocked:false,player_record_exists:true,base_energy:999,requirements:[{ingredient_name:'特選蘋果',required:2}]},
+  {recipe_id:'active',recipe_name:'可推薦料理',candidate_status:'UNLOCK_CANDIDATE_READY',hard_constraint_status:'PASS',unlocked:false,player_record_exists:true,base_energy:100,requirements:[{ingredient_name:'特選蘋果',required:2}]},
 ];
 const overlaid=applyRecipeAttemptFeedback(baseCandidates,[
   {recipe_id:'paused',attempt_count:1,last_failure_at:'2026-10-05T14:00:00Z',recommendation_paused:1,reference_maybe_wrong:1,last_attempt_id:'fixture-attempt-1'},

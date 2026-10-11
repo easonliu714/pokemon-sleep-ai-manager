@@ -70,7 +70,14 @@ const currentVersion=globalThis.PokemonSleepVersionAuthority?.app_version||'';
 const currentBuild=globalThis.PokemonSleepVersionAuthority?.app_build||'';
 const currentCache=globalThis.PokemonSleepVersionAuthority?.cache_name||'';
 // G6.2 exact .19 -> .18 historical successor; keep all earlier Candy/Raw checks.
-if(currentVersion==='v0.4.27.55.3.3.19'){
+// G6-R exact .20 -> .19 predecessor; all existing Candy/Raw assertions retained.
+if(currentVersion==='v0.4.27.55.3.3.20'){
+  assert.equal(currentBuild,'20261011-v0427553320-unlock-planner-inventory-parity');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.20-v0427553320-unlock-planner-inventory-parity');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.19'"));
+  assert.ok(versionSource.includes("// app_build: '20261005-v0427553319-g62-recipe-attempt-feedback'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback'"));
+}else if(currentVersion==='v0.4.27.55.3.3.19'){
   assert.equal(currentBuild,'20261005-v0427553319-g62-recipe-attempt-feedback');
   assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.18'"),'.19 predecessor version');

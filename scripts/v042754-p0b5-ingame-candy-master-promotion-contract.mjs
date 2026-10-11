@@ -128,7 +128,14 @@ assert.match(professor,/USER_DIRECT_OBSERVATION_ONLY/);
 assert.equal(professor.includes('PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_ADDITIONS'),false);
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.3.3.19'){
+if(appVersion==='v0.4.27.55.3.3.20'){
+  // Exact .20 successor of .19; Candy Public Master promotion and Raw/player boundaries stay unchanged.
+  assert.equal(appBuild,'20261011-v0427553320-unlock-planner-inventory-parity');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.20-v0427553320-unlock-planner-inventory-parity');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.19'"));
+  assert.ok(version.includes("// app_build: '20261005-v0427553319-g62-recipe-attempt-feedback'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback'"));
+}else if(appVersion==='v0.4.27.55.3.3.19'){
   assert.equal(appBuild,'20261005-v0427553319-g62-recipe-attempt-feedback');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback');
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.18'"),'.19 successor must retain exact .18 predecessor version marker');

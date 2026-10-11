@@ -106,7 +106,15 @@ const version=readFileSync(new URL('../assets/js/version-authority.js',import.me
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.3.3.19'){
+if(appVersion==='v0.4.27.55.3.3.20'){
+  // Exact .20 successor of .19: retain Candy 24/20, fail-closed Raw, and historical release lineage.
+  assert.ok(ui.includes("section.dataset.performanceAuthority='v0.4.27.55.3-mobile-incremental-confirmation'"),'.20 successor must preserve exact .55.3 Candy performance authority');
+  assert.equal(appBuild,'20261011-v0427553320-unlock-planner-inventory-parity');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.20-v0427553320-unlock-planner-inventory-parity');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.19'"),'.20 successor must retain exact .19 predecessor version marker');
+  assert.ok(version.includes("// app_build: '20261005-v0427553319-g62-recipe-attempt-feedback'"),'.20 successor must retain exact .19 predecessor build marker');
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback'"),'.20 successor must retain exact .19 predecessor cache marker');
+}else if(appVersion==='v0.4.27.55.3.3.19'){
   assert.ok(ui.includes("section.dataset.performanceAuthority='v0.4.27.55.3-mobile-incremental-confirmation'"),'.19 successor must preserve exact .55.3 Candy performance authority');
   assert.equal(appBuild,'20261005-v0427553319-g62-recipe-attempt-feedback');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback');

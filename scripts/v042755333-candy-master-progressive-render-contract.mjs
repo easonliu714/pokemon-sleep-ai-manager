@@ -7,7 +7,14 @@ const authority=read('assets/js/version-authority.js');
 const candy=read('assets/js/candy-inventory-ui.js');
 const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 
-if(appVersion==='v0.4.27.55.3.3.19'){
+if(appVersion==='v0.4.27.55.3.3.20'){
+  assert.ok(authority.includes("app_build: '20261011-v0427553320-unlock-planner-inventory-parity'"));
+  assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.20-v0427553320-unlock-planner-inventory-parity'"));
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.19'"),'exact .19 predecessor version marker');
+  assert.ok(authority.includes("// app_build: '20261005-v0427553319-g62-recipe-attempt-feedback'"),'exact .19 predecessor build marker');
+  assert.ok(authority.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback'"),'exact .19 predecessor cache marker');
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.3'"),'frozen Candy progressive rendering lineage marker');
+}else if(appVersion==='v0.4.27.55.3.3.19'){
   assert.ok(authority.includes("app_build: '20261005-v0427553319-g62-recipe-attempt-feedback'"));
   assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback'"));
   assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.18'"),'exact .55.3.3.18 predecessor bridge must remain');

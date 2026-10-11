@@ -1,8 +1,8 @@
 (function installVersionAuthority(scope) {
   const authority = Object.freeze({
-    app_version: 'v0.4.27.55.3.3.19',
-    app_build: '20261005-v0427553319-g62-recipe-attempt-feedback',
-    cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback',
+    app_version: 'v0.4.27.55.3.3.20',
+    app_build: '20261011-v0427553320-unlock-planner-inventory-parity',
+    cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.20-v0427553320-unlock-planner-inventory-parity',
     schema: 'pokemon-sleep-version-authority/1.0',
   });
   Object.defineProperty(scope, 'PokemonSleepVersionAuthority', {
@@ -14,6 +14,9 @@
 })(globalThis);
 
 // Legacy CI parser bridge only; not executed and not a release authority.
+// app_version: 'v0.4.27.55.3.3.19'
+// app_build: '20261005-v0427553319-g62-recipe-attempt-feedback'
+// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback'
 // Keep exact historical literals required by successor-aware release/behavior contracts.
 // app_version: 'v0.4.27.55.3.3.18'
 // app_build: '20261004-v0427553318-g52-recipe-state-import-hardening'

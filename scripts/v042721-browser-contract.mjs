@@ -4,6 +4,13 @@ import {chromium} from 'playwright';
 const base=process.env.BASE_URL||'http://127.0.0.1:4173/';
 const minimumPatch=21;
 const successorAuthorities=Object.freeze({
+  // G6-R exact .20 -> .19 successor: retain App Ready + Update Center hydration before evolution override assertions.
+  // .19 predecessor: 20261005-v0427553319-g62-recipe-attempt-feedback
+  // .19 cache: pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback
+  'v0.4.27.55.3.3.20':Object.freeze({
+    app_build:'20261011-v0427553320-unlock-planner-inventory-parity',
+    cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.20-v0427553320-unlock-planner-inventory-parity',
+  }),
   // Exact .19 -> .18 historical successor, preserving canonical App Ready and Update Center hydration.
   // .18 predecessor: 20261004-v0427553318-g52-recipe-state-import-hardening
   // .18 cache: pokemon-sleep-ai-v0.4.27.55.3.3.18-v0427553318-g52-recipe-state-import-hardening
