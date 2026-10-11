@@ -28,6 +28,7 @@ const releases = Object.freeze([
   Object.freeze({version:'v0.4.27.55.3.3.18',build:'20261004-v0427553318-g52-recipe-state-import-hardening',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.18-v0427553318-g52-recipe-state-import-hardening'}),
   Object.freeze({version:'v0.4.27.55.3.3.19',build:'20261005-v0427553319-g62-recipe-attempt-feedback',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback'}),
   Object.freeze({version:'v0.4.27.55.3.3.20',build:'20261011-v0427553320-unlock-planner-inventory-parity',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.20-v0427553320-unlock-planner-inventory-parity'}),
+  Object.freeze({version:'v0.4.27.55.3.3.21',build:'20261011-v0427553321-ingredient-review-weekly-bonuses',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.21-v0427553321-ingredient-review-weekly-bonuses'}),
 ]);
 
 const live = authority.match(/const authority = Object\.freeze\(\{([\s\S]*?)\}\);/)?.[1] || '';
