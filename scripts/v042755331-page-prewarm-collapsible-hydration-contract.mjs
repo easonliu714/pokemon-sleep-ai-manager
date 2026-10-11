@@ -15,7 +15,13 @@ const knowledge=read('assets/js/shared-knowledge-ui.js');
 const catalog=read('assets/js/public-catalog-workbench.js');
 const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 
-if(appVersion==='v0.4.27.55.3.3.20'){
+if(appVersion==='v0.4.27.55.3.3.21'){
+  assert.ok(authority.includes("app_build: '20261011-v0427553321-ingredient-review-weekly-bonuses'"));
+  assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.21-v0427553321-ingredient-review-weekly-bonuses'"));
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.20'"));
+  assert.ok(authority.includes("// app_build: '20261011-v0427553320-unlock-planner-inventory-parity'"));
+  assert.ok(authority.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.20-v0427553320-unlock-planner-inventory-parity'"));
+}else if(appVersion==='v0.4.27.55.3.3.20'){
   assert.ok(authority.includes("app_build: '20261011-v0427553320-unlock-planner-inventory-parity'"));
   assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.20-v0427553320-unlock-planner-inventory-parity'"));
   assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.19'"));
