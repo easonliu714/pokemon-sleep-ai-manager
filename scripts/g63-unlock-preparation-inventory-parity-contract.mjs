@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {DatabaseSync} from 'node:sqlite';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {buildRecipeUnlockPreparation,targetPokemonScoreRows} from '../assets/js/recipe-unlock-preparation.js';
 import {projectRecipePortfolioContention} from '../assets/js/recipe-portfolio-contention.js';
 const verified={lifecycle:'ACTIVE',formula_evidence:'REFERENCE_VERIFIED',pot_fit:true,pot_capacity:63,pot_required:20,hard_constraint_status:'PASS'};
@@ -56,4 +59,61 @@ assert.match(ui,/step\.unlock_opportunity\?/,'feedback cannot appear on already-
 assert.match(sw,/recipe-unlock-preparation\.js/,'offline precache required');
 assert.match(version,/app_version: 'v0\.4\.27\.55\.3\.3\.20'/);
 assert.match(version,/\/\/ app_version: 'v0\.4\.27\.55\.3\.3\.19'/);
-console.log(JSON.stringify({status:'PASS',gate:'G6_RESCOPED_UNLOCK_TARGET_INVENTORY_PARITY',unlock_only_verified_state:true,no_unknown_to_zero:true,no_unlocked_fallback:true,actual_game_spend_required:false,player_data_write:false,public_master_write:false},null,2));
+
+// Deterministic SQLite read-back parity: reproduce the owner's stale 19/187/12/7
+// prewarm and the applied 19/254/17/2 state using the actual production view SQL.
+// This fixture is isolated in a temporary SQLite file; no player database is touched.
+const sharedSchemaSource=fs.readFileSync('assets/js/shared-master-schema.js','utf8');
+const actualIngredientViewSql=sharedSchemaSource.match(/db\.run\(ingredientUnlockProjection\?\x60([\s\S]*?)\x60:\x60/)?.[1];
+assert.ok(actualIngredientViewSql,'production ingredient_catalog_state view SQL must be available');
+const fixtureDir=fs.mkdtempSync(join(tmpdir(),'g63-ingredient-parity-'));
+let fixtureDb=null;
+try{
+  const fixturePath=join(fixtureDir,'player.sqlite');
+  fixtureDb=new DatabaseSync(fixturePath);
+  fixtureDb.exec('CREATE TABLE ingredient_master(ingredient_name TEXT PRIMARY KEY,data_version TEXT); CREATE TABLE ingredient_inventory(ingredient_name TEXT PRIMARY KEY,quantity INTEGER NOT NULL,unlocked INTEGER,updated_at TEXT,source_update_id TEXT)');
+  fixtureDb.exec(actualIngredientViewSql);
+  const beforeQty=[22,...Array(11).fill(15),...Array(7).fill(0)];
+  const appliedQty=[30,...Array(16).fill(14),0,0];
+  const masterInsert=fixtureDb.prepare('INSERT INTO ingredient_master(ingredient_name,data_version) VALUES (?,?)');
+  const playerInsert=fixtureDb.prepare('INSERT INTO ingredient_inventory(ingredient_name,quantity,unlocked,updated_at) VALUES (?,?,?,?)');
+  for(let i=0;i<19;i++){
+    const name='fixture_'+String(i).padStart(2,'0');
+    masterInsert.run(name,'fixture');
+    playerInsert.run(name,beforeQty[i],beforeQty[i]>0?1:0,'2026-10-11T00:00:00Z');
+  }
+  const parity=()=>{
+    const scalarSql=sql=>Number(fixtureDb.prepare(sql).get().value);
+    const cards={
+      kinds:scalarSql('SELECT COUNT(*) AS value FROM ingredient_inventory'),
+      total:scalarSql('SELECT COALESCE(SUM(quantity),0) AS value FROM ingredient_inventory'),
+      stocked:scalarSql('SELECT COUNT(*) AS value FROM ingredient_inventory WHERE quantity>0'),
+    };
+    cards.zero=cards.kinds-cards.stocked;
+    const tableRows=fixtureDb.prepare('SELECT * FROM ingredient_catalog_state ORDER BY ingredient_name').all();
+    const table={kinds:tableRows.length,total:tableRows.reduce((sum,row)=>sum+Number(row.quantity),0),stocked:tableRows.filter(row=>Number(row.quantity)>0).length};
+    table.zero=table.kinds-table.stocked;
+    assert.deepEqual(table,cards,'summary cards and ingredient detail must share live SQLite read-back');
+    return {cards,tableRows};
+  };
+  const prior=parity();
+  assert.deepEqual(prior.cards,{kinds:19,total:187,stocked:12,zero:7});
+  fixtureDb.exec('BEGIN');
+  const playerUpdate=fixtureDb.prepare('UPDATE ingredient_inventory SET quantity=? WHERE ingredient_name=?');
+  for(let i=0;i<19;i++)playerUpdate.run(appliedQty[i],'fixture_'+String(i).padStart(2,'0'));
+  fixtureDb.exec('COMMIT');
+  assert.equal(prior.tableRows.reduce((sum,row)=>sum+Number(row.quantity),0),187,'prewarmed snapshot must demonstrate stale source');
+  const after=parity();
+  assert.deepEqual(after.cards,{kinds:19,total:254,stocked:17,zero:2});
+  assert.match(uc,/for\(const entity of UC_IMG_A_SCENARIOS\[key\]\.entities\)window\.dispatchEvent/,'post-apply must emit entity-specific change');
+  assert.match(publicWork,/runtime\.localRevision\[view\]=\(runtime\.localRevision\[view\]\|\|0\)\+1/,'renderKey must change on local inventory update');
+  assert.match(publicWork,/runtime\.prewarmed\.delete\(view\)/,'old table prewarm must be invalidated');
+  fixtureDb.close();fixtureDb=null;
+  fixtureDb=new DatabaseSync(fixturePath);
+  assert.deepEqual(parity().cards,after.cards,'SQLite reload must retain post-apply values without manual Save');
+}finally{
+  if(fixtureDb)fixtureDb.close();
+  fs.rmSync(fixtureDir,{recursive:true,force:true});
+}
+
+console.log(JSON.stringify({status:'PASS',gate:'G6_RESCOPED_UNLOCK_TARGET_INVENTORY_PARITY',unlock_only_verified_state:true,no_unknown_to_zero:true,no_unlocked_fallback:true,actual_game_spend_required:false,player_data_write:false,public_master_write:false,sqlite_readback_parity:true,sqlite_reload_parity:true},null,2));
