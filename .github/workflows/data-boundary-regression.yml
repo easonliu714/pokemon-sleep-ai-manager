@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: '20 19 * * *' # around 03:20 Asia/Taipei; subject to GitHub scheduling delays
+    - cron: '15 20 * * *' # around 04:15 Asia/Taipei; 04:00 game-day rollover
 
 permissions:
   contents: read
@@ -113,3 +116,18 @@ jobs:
           node-version: '22'
       - name: Verify P8 side-by-side parity configuration
         run: node scripts/ci-p8-safety-boundary-parity-contract.mjs
+      - name: Verify G9-R verified official event data, SHA and 04:00 boundaries
+        run: node scripts/g9r-official-event-feed-contract.mjs
+
+  g9r-source-watch:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout canonical main (strict read-only)
+        uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Inspect official event announcements (read-only, no PR/commits)
+        run: node scripts/g9r-official-event-source-refresh.mjs
