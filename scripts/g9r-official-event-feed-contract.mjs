@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {discoverOfficialNoticeUrls,parseVerifiedGrowthNotice,discoverAndStage} from './g9r-official-event-source-refresh.mjs';
 import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {
@@ -15,7 +16,16 @@ assert.equal(digest,manifest.payload_sha256,'The published manifest MUST bind ev
 const payload=validatePublicEventPayload(JSON.parse(raw),{expectedVersion:manifest.master_version});
 assert.equal(manifest.payload_path,'./assets/data/public-event-master.json');
 assert.equal(payload.registry_version,'weekly-event-effect-registry-2026-08-17-b-public-event-master');
-assert.equal(payload.events.length,3,'Preserve the original August event and exact two verified October events');
+assert.ok(payload.events.length>=3,'Preserve the original August + October official evidence; allow ONLY independently validated future Growth Week occurrences');
+for(const e of payload.events.slice(3)){
+  assert.match(e.event_id,/^growth_week_vol[0-9]+_20[0-9]{2}_[0-9]{2}$/,'Only fully verified known-pattern future events may join the automatic feed');
+  assert.equal(e.authority_status,'VERIFIED');
+  assert.equal(e.field_provenance.event_effects.verification_method,'EXACT_SUPPORTED_OFFICIAL_TEXT_CONTRACT');
+  assert.equal(e.field_provenance.event_effects.not_candy_use_exp,true);
+  assert.equal(e.field_provenance.event_effects.pokemon_candy_multiplier_scope,'FIRST_SLEEP_RESEARCH_OF_DAY_ONLY');
+  assert.equal(Date.parse(e.end_at)-Date.parse(e.start_at),7*24*3600000);
+  assert.deepEqual(e.camp_scope,['*']);
+}
 assert.equal(payload.events[0].event_id,'pokemon_horizons_special_collaboration_2026');
 assert.equal(payload.events[0].authority_status,'PARTIAL_VERIFIED');
 assert.deepEqual(payload.events[0].effects,{});
@@ -54,7 +64,7 @@ assert.equal(growthStart.feature_only_event_effects.pokemon_candy_multiplier,1.5
 assert.ok(!Object.hasOwn(growthStart.strategy_event_effects,'sleep_exp_multiplier'));
 assert.ok(!Object.hasOwn(growthStart.strategy_event_effects,'pokemon_candy_multiplier'));
 assert.equal(growthEnd.active_event_count,1);
-assert.equal(after.active_event_count,0);
+assert.ok(!after.active_events.some(item=>item.event_id==='growth_week_vol6_2026_10'),'The October growth bonus MUST expire exactly at 10/19 04:00 even if future events are present');
 const next=nextPublicEventBoundary(payload,{date:new Date('2026-10-12T03:59:59+08:00'),camp:'黃金舊發電廠'});
 assert.equal(next.at_iso,'2026-10-11T20:00:00.000Z');
 for(const event of [cooking,growth]){
@@ -66,6 +76,30 @@ const version=readFileSync('assets/js/version-authority.js','utf8');
 assert.ok(version.includes("app_version: 'v0.4.27.55.3.3.21'"),'Data-only release MUST NOT bump app code version');
 assert.ok(version.includes("app_build: '20261011-v0427553321-ingredient-review-weekly-bonuses'"));
 assert.ok(version.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.21-v0427553321-ingredient-review-weekly-bonuses'"));
+
+const growthHtml='<main><time>2026/10/1</time><h1>〖企畫〗寶可夢快快長大週vol.6</h1>'+
+  '<p>〖舉辦期間〗 10/12 (週一) 4:00～10/19 (週一) 3:59</p>'+
+  '<p>〖活動營地〗 所有營地</p><p>幫手寶可夢的睡眠EXP：1.5倍</p>'+
+  '<p>當天第1次睡眠研究後的糖果獲得量變成1.5倍。</p></main>';
+const parsed=parseVerifiedGrowthNotice(growthHtml,growthUrl,{now:new Date('2026-10-12T12:00:00+08:00')});
+assert.ok(parsed);
+assert.equal(parsed.event_id,'growth_week_vol6_2026_10');
+assert.equal(parsed.start_at,'2026-10-12T04:00:00+08:00');
+assert.equal(parsed.end_at,'2026-10-19T04:00:00+08:00');
+assert.equal(parsed.effects.pokemon_candy_multiplier,1.5);
+assert.equal(parsed.field_provenance.event_effects.pokemon_candy_multiplier_scope,'FIRST_SLEEP_RESEARCH_OF_DAY_ONLY');
+assert.throws(()=>parseVerifiedGrowthNotice(growthHtml,'https://evil.example/zh/news/123/',{now:new Date('2026-10-12T04:00:00+08:00')}),/G9R_OFFICIAL_DOMAIN_ONLY/);
+assert.throws(()=>parseVerifiedGrowthNotice(growthHtml.replace('第1次','第2次'),growthUrl,{now:new Date('2026-10-12T04:00:00+08:00')}),/G9R_GROWTH_EFFECT_NOT_EXACTLY_VERIFIED/);
+const discovered=discoverOfficialNoticeUrls('<a href="/zh/news/1234/">official</a><a href="/zh/news/1234/">dup</a><a href="https://evil.example/zh/news/999/">no</a>');
+assert.deepEqual(discovered,['https://www.pokemonsleep.net/zh/news/1234/']);
+const unchanged=await discoverAndStage({
+  now:new Date('2026-10-12T12:00:00+08:00'),
+  fetchHtml:async url=>url.endsWith('/zh/news/')?'<a href="/zh/news/343430333034343435353738383035323530/">Growth</a>':growthHtml,
+  write:false,
+});
+assert.equal(unchanged.status,'UNCHANGED','Known official articles must not produce redundant empty PRs');
+console.log('PASS G9R_SOURCE_DISCOVERY_AND_FAIL_CLOSED');
+
 console.log('PASS G9R_VERIFIED_OFFICIAL_SOURCES');
 console.log('PASS G9R_MANIFEST_PAYLOAD_SHA256');
 console.log('PASS G9R_0400_WEEK_BOUNDARIES');
