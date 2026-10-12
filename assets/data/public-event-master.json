@@ -1,9 +1,9 @@
 {
   "schema": "pokemon-sleep-public-event-master/1.0",
-  "master_version": "public-event-master-tw-2026-08-17-a",
+  "master_version": "public-event-master-tw-2026-10-12-official-a",
   "locale": "zh-TW",
   "region": "TW",
-  "generated_at": "2026-08-17T12:01:00+08:00",
+  "generated_at": "2026-10-12T15:45:00Z",
   "registry_version": "weekly-event-effect-registry-2026-08-17-b-public-event-master",
   "events": [
     {
@@ -13,7 +13,9 @@
       "region": "GLOBAL",
       "start_at": "2026-08-17T04:00:00+08:00",
       "end_at": "2026-08-24T04:00:00+08:00",
-      "camp_scope": ["*"],
+      "camp_scope": [
+        "*"
+      ],
       "effects": {},
       "phases": [],
       "missions": [],
@@ -43,6 +45,125 @@
           "status": "NOT_YET_VERIFIED",
           "deterministic_authority": false,
           "note": "未取得官方詳細 bonus 明文前保持空物件；不得以第三方或 AI 猜補倍率。"
+        }
+      }
+    },
+    {
+      "event_id": "cooking_week_vol3_2026_10",
+      "title": "分量加大！料理週 vol.3",
+      "locale": "zh-TW",
+      "region": "GLOBAL",
+      "start_at": "2026-10-05T04:00:00+08:00",
+      "end_at": "2026-10-12T04:00:00+08:00",
+      "camp_scope": [
+        "*"
+      ],
+      "effects": {
+        "recipe_final_energy_multiplier": 1.25,
+        "sunday_pot_multiplier": 4,
+        "ingredient_help_quantity_bonus": 1,
+        "limited_feature": "迷你糖果增強"
+      },
+      "phases": [],
+      "missions": [],
+      "rewards": [],
+      "limited_mechanics": [
+        "鍋子容量：週一至週六 2 倍、週日 4 倍；普通日 2 倍尚無獨立已驗證鍋子 Consumer，保留為公版資料事實，不直接寫 account_capacity",
+        "料理恢復活力 +5（尚未接入策略）",
+        "迷你糖果增強：使用糖果 EXP 2 倍、消耗夢之碎片 4 倍、每天最多 50 顆（非睡眠研究糖果）",
+        "食材專長幫忙食材 +1、部分寶可夢較容易相遇"
+      ],
+      "authority_status": "PARTIAL_VERIFIED",
+      "source": {
+        "source_type": "OFFICIAL_ANNOUNCEMENT",
+        "source_name": "Pokémon Sleep 官方網站：分量加大！料理週 vol.3",
+        "source_ref": "https://www.pokemonsleep.net/zh/news/343430323735323935393936343737343435/",
+        "verified_at": "2026-10-12T15:45:00Z",
+        "note": "人工交叉核對官方繁體中文公告與使用者 RaenonX 截圖；資料版次更新不改變 PWA app_version，非 AI 自動升格。"
+      },
+      "field_provenance": {
+        "identity": {
+          "status": "VERIFIED",
+          "source_ref": "https://www.pokemonsleep.net/zh/news/343430323735323935393936343737343435/"
+        },
+        "period": {
+          "status": "VERIFIED",
+          "time_zone": "Asia/Taipei",
+          "end_exclusive": true,
+          "source_ref": "https://www.pokemonsleep.net/zh/news/343430323735323935393936343737343435/"
+        },
+        "event_effects": {
+          "status": "PARTIAL_VERIFIED",
+          "source_ref": "https://www.pokemonsleep.net/zh/news/343430323735323935393936343737343435/",
+          "verified_keys": [
+            "recipe_final_energy_multiplier",
+            "sunday_pot_multiplier",
+            "ingredient_help_quantity_bonus",
+            "limited_feature"
+          ],
+          "unmodeled": [
+            "weekday_pot_capacity_multiplier",
+            "mini_candy_boost_exp_and_shard_cost",
+            "meal_energy_recovery"
+          ],
+          "consumer_semantics": "FEATURE_ONLY_AND_VERIFIED_EXISTING_REGISTRY_ONLY"
+        }
+      }
+    },
+    {
+      "event_id": "growth_week_vol6_2026_10",
+      "title": "寶可夢快快長大週 vol.6",
+      "locale": "zh-TW",
+      "region": "GLOBAL",
+      "start_at": "2026-10-12T04:00:00+08:00",
+      "end_at": "2026-10-19T04:00:00+08:00",
+      "camp_scope": [
+        "*"
+      ],
+      "effects": {
+        "sleep_exp_multiplier": 1.5,
+        "pokemon_candy_multiplier": 1.5
+      },
+      "phases": [],
+      "missions": [],
+      "rewards": [],
+      "limited_mechanics": [
+        "幫手寶可夢睡眠 EXP 1.5 倍，依睡眠測量開始時間判斷",
+        "每天首次睡眠研究獲得的寶可夢糖果 1.5 倍；當天第二次睡眠研究不適用；不是使用糖果時的 EXP 倍率",
+        "相同活動加成重疊僅取倍率最高者；成長薰香效果可另行疊加；新手教學不適用"
+      ],
+      "authority_status": "VERIFIED",
+      "source": {
+        "source_type": "OFFICIAL_ANNOUNCEMENT",
+        "source_name": "Pokémon Sleep 官方網站：寶可夢快快長大週 vol.6",
+        "source_ref": "https://www.pokemonsleep.net/zh/news/343430333034343435353738383035323530/",
+        "verified_at": "2026-10-12T15:45:00Z",
+        "note": "人工交叉核對官方繁體中文公告與使用者 RaenonX 截圖；資料版次更新不改變 PWA app_version，非 AI 自動升格。"
+      },
+      "field_provenance": {
+        "identity": {
+          "status": "VERIFIED",
+          "source_ref": "https://www.pokemonsleep.net/zh/news/343430333034343435353738383035323530/"
+        },
+        "period": {
+          "status": "VERIFIED",
+          "time_zone": "Asia/Taipei",
+          "end_exclusive": true,
+          "source_ref": "https://www.pokemonsleep.net/zh/news/343430333034343435353738383035323530/"
+        },
+        "event_effects": {
+          "status": "VERIFIED",
+          "source_ref": "https://www.pokemonsleep.net/zh/news/343430333034343435353738383035323530/",
+          "verified_keys": [
+            "sleep_exp_multiplier",
+            "pokemon_candy_multiplier"
+          ],
+          "pokemon_candy_multiplier_scope": "FIRST_SLEEP_RESEARCH_OF_DAY_ONLY",
+          "sleep_exp_scope": "HELPER_SLEEP_TRACKING_STARTED_INSIDE_EVENT",
+          "same_key_overlaps": "MAX",
+          "incense_stacking": "SEPARATE",
+          "not_candy_use_exp": true,
+          "deterministic_model_status": "FEATURE_ONLY_NOT_PLAYER_WRITE"
         }
       }
     }
