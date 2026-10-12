@@ -8,7 +8,14 @@ const bootstrap=read('assets/js/bootstrap.js');
 const watchdog=read('assets/js/v0394-startup-watchdog.js');
 
 const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.3.3.21'){
+if(appVersion==='v0.4.27.55.3.3.22'){
+  assert.ok(authority.includes("app_build: '20261012-v0427553322-g9-official-event-auto-refresh'"));
+  assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.22-v0427553322-g9-official-event-auto-refresh'"));
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.21'"));
+  assert.ok(authority.includes("// app_build: '20261011-v0427553321-ingredient-review-weekly-bonuses'"));
+  assert.ok(authority.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.21-v0427553321-ingredient-review-weekly-bonuses'"));
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.4'"));
+}else if(appVersion==='v0.4.27.55.3.3.21'){
   assert.ok(authority.includes("app_build: '20261011-v0427553321-ingredient-review-weekly-bonuses'"));
   assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.21-v0427553321-ingredient-review-weekly-bonuses'"));
   assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.20'"),'exact .20 predecessor bridge must remain');
