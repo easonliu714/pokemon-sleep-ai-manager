@@ -106,7 +106,13 @@ const version=readFileSync(new URL('../assets/js/version-authority.js',import.me
 const appVersion=version.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.3.3.21'){
+if(appVersion==='v0.4.27.55.3.3.22'){
+  assert.equal(appBuild,'20261012-v0427553322-g9-official-event-auto-refresh');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.22-v0427553322-g9-official-event-auto-refresh');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.21'"));
+  assert.ok(version.includes("// app_build: '20261011-v0427553321-ingredient-review-weekly-bonuses'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.21-v0427553321-ingredient-review-weekly-bonuses'"));
+}else if(appVersion==='v0.4.27.55.3.3.21'){
   // Exact .21 successor of .20: retain Candy 24/20, fail-closed Raw, and historical release lineage.
   assert.ok(ui.includes("section.dataset.performanceAuthority='v0.4.27.55.3-mobile-incremental-confirmation'"),'.21 successor must preserve exact .55.3 Candy performance authority');
   assert.equal(appBuild,'20261011-v0427553321-ingredient-review-weekly-bonuses');
