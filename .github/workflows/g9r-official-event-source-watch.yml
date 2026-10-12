@@ -1,0 +1,53 @@
+name: G9-R Official Event Source Watch
+
+on:
+  schedule:
+    - cron: '20 19 * * *' # approximately 03:20 Asia/Taipei; cron may be delayed
+    - cron: '15 20 * * *' # approximately 04:15 Asia/Taipei
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: g9r-official-event-source-watch
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout current main for source authority
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Discover ONLY supported official activity rules
+        run: node scripts/g9r-official-event-source-refresh.mjs --write
+      - name: Verify data-only published manifest and 04:00 semantics
+        run: node scripts/g9r-official-event-feed-contract.mjs
+      - name: Propose data-only event payload update, never direct main writes
+        id: proposal
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: auto/g9r-official-event-feed
+          commit-message: 'data(g9): stage newly verified official activity period'
+          title: 'data(g9): refresh automatically verified official Pokémon Sleep activity'
+          body: |
+            Source: https://www.pokemonsleep.net/zh/news/
+            Automated exact-pattern verified activity data only. Do not assume a new
+            registry or a novel effect is deterministic authority. Exact SHA manifest,
+            official notice, weekly rollover and player/public isolation must be
+            reviewed and all PR-head tests passed before merge.
+            Do not bump PWA code version for this data-only PR.
+          draft: true
+          add-paths: |
+            assets/data/public-event-master.json
+            assets/data/public-event-master-manifest.json
+          delete-branch: false
+      - name: Report review gate for audit; no uncontrolled auto merge
+        run: |
+          echo "G9R_DATA_PROPOSAL_PR=${{ steps.proposal.outputs.pull-request-number }}"
+          echo "G9R_DATA_PROPOSAL_SHA=${{ steps.proposal.outputs.pull-request-head-sha }}"
+          echo "G9R_MAIN_MUTATION=FALSE"
