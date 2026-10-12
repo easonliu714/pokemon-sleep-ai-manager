@@ -30,9 +30,7 @@ export function discoverOfficialNoticeUrls(html){
   return [...urls].slice(0,40);
 }
 function isoAt(year,month,day){
-  const utc=new Date(Date.UTC(year,month-1,day,20,0,0)); // event-local 04:00 Asia/Taipei
-  if(utc.getUTCFullYear()!==year && month!==1)throw new Error('G9R_DATE_INVALID');
-  const local=new Date(utc.getTime()+8*3600000);
+  const local=new Date(Date.UTC(year,month-1,day)); // validate the calendar date, render exact event-local 04:00 without guessed offsets
   if(local.getUTCFullYear()!==year||local.getUTCMonth()+1!==month||local.getUTCDate()!==day)throw new Error('G9R_DATE_INVALID');
   return String(year).padStart(4,'0')+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0')+'T04:00:00+08:00';
 }
@@ -91,6 +89,7 @@ export async function discoverAndStage({fetchHtml=get,write=false,now=new Date()
   const base=JSON.parse(readFileSync(PAYLOAD,'utf8'));
   const manifest=JSON.parse(readFileSync(MANIFEST,'utf8'));
   if(!base.events||!Array.isArray(base.events)||manifest.master_version!==base.master_version)throw new Error('G9R_LOCAL_SEED_NOT_MATCHED');
+  if(digest(readFileSync(PAYLOAD,'utf8'))!==manifest.payload_sha256)throw new Error('G9R_LOCAL_PAYLOAD_SHA_MISMATCH');
   const listing=await fetchHtml(INDEX);
   const links=discoverOfficialNoticeUrls(listing);
   if(!links.length)throw new Error('G9R_NO_OFFICIAL_LINKS');
