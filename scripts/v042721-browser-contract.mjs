@@ -7,6 +7,13 @@ const successorAuthorities=Object.freeze({
   // G6-R exact .20 -> .19 successor: retain App Ready + Update Center hydration before evolution override assertions.
   // .19 predecessor: 20261005-v0427553319-g62-recipe-attempt-feedback
   // .19 cache: pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback
+  // Exact .21 -> .20 historical successor: retain App Ready and Update Center navigation before player evolution override.
+  // .20 predecessor: v0.4.27.55.3.3.20 / 20261011-v0427553320-unlock-planner-inventory-parity
+  // .20 cache: pokemon-sleep-ai-v0.4.27.55.3.3.20-v0427553320-unlock-planner-inventory-parity
+  'v0.4.27.55.3.3.21':Object.freeze({
+    app_build:'20261011-v0427553321-ingredient-review-weekly-bonuses',
+    cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.21-v0427553321-ingredient-review-weekly-bonuses',
+  }),
   'v0.4.27.55.3.3.20':Object.freeze({
     app_build:'20261011-v0427553320-unlock-planner-inventory-parity',
     cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.20-v0427553320-unlock-planner-inventory-parity',
