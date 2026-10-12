@@ -1,0 +1,32 @@
+name: G9-R Official Event Feed Regression
+
+on:
+  pull_request:
+    paths:
+      - 'assets/data/public-event-master*.json'
+      - 'scripts/g9r-*.mjs'
+      - '.github/workflows/g9r-*.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'assets/data/public-event-master*.json'
+      - 'scripts/g9r-*.mjs'
+      - '.github/workflows/g9r-*.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify official event feed and all payload bytes
+        run: node scripts/g9r-official-event-feed-contract.mjs
+      - name: Verify source-guard parser syntax
+        run: |
+          if test -f scripts/g9r-official-event-source-refresh.mjs; then
+            node --check scripts/g9r-official-event-source-refresh.mjs
+          fi
