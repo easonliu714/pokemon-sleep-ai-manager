@@ -10,6 +10,11 @@ const successorAuthorities=Object.freeze({
   // Exact .21 -> .20 historical successor: retain App Ready and Update Center navigation before player evolution override.
   // .20 predecessor: v0.4.27.55.3.3.20 / 20261011-v0427553320-unlock-planner-inventory-parity
   // .20 cache: pokemon-sleep-ai-v0.4.27.55.3.3.20-v0427553320-unlock-planner-inventory-parity
+  // .22 preserves .21 App Ready -> Update Center hydration owner; source feed upgrade must not alter evolution override.
+  'v0.4.27.55.3.3.22':Object.freeze({
+    app_build:'20261012-v0427553322-g9-official-event-auto-refresh',
+    cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.22-v0427553322-g9-official-event-auto-refresh',
+  }),
   'v0.4.27.55.3.3.21':Object.freeze({
     app_build:'20261011-v0427553321-ingredient-review-weekly-bonuses',
     cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.21-v0427553321-ingredient-review-weekly-bonuses',
