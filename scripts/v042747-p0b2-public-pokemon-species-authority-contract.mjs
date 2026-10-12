@@ -259,6 +259,15 @@ gate('release and offline wiring retain v0.4.27.47 exact predecessor',()=>{
     assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.17'"),'.18 successor must retain exact .17 predecessor marker');
     assert.ok(versionSource.includes("// app_build: '20261002-v0427553317-weekly-berry-evidence-resolution'"),'.18 successor must retain exact .17 predecessor build marker');
     assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.17-v0427553317-weekly-berry-evidence-resolution'"),'.18 successor must retain exact .17 predecessor cache marker');
+  }else if(currentAppVersion==='v0.4.27.55.3.3.21'){
+    assert.equal(currentAppBuild,'20261011-v0427553321-ingredient-review-weekly-bonuses');
+    assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.21-v0427553321-ingredient-review-weekly-bonuses');
+    assert.ok(versionSource.includes("// app_version: 'v0.4.27.47'"),'P0-B2 public species predecessor');
+    assert.ok(versionSource.includes("// app_build: '20260829-v042747-p0b2-public-species-authority'"));
+    assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.47-v042747-p0b2-public-species-authority'"));
+    assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.20'"));
+    assert.ok(versionSource.includes("// app_build: '20261011-v0427553320-unlock-planner-inventory-parity'"));
+    assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.20-v0427553320-unlock-planner-inventory-parity'"));
   }else if(currentAppVersion==='v0.4.27.55.3.3.20'){
     assert.equal(currentAppBuild,'20261011-v0427553320-unlock-planner-inventory-parity');
     assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.20-v0427553320-unlock-planner-inventory-parity');

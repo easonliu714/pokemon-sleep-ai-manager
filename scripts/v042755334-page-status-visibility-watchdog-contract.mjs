@@ -8,7 +8,14 @@ const bootstrap=read('assets/js/bootstrap.js');
 const watchdog=read('assets/js/v0394-startup-watchdog.js');
 
 const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.3.3.20'){
+if(appVersion==='v0.4.27.55.3.3.21'){
+  assert.ok(authority.includes("app_build: '20261011-v0427553321-ingredient-review-weekly-bonuses'"));
+  assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.21-v0427553321-ingredient-review-weekly-bonuses'"));
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.20'"),'exact .20 predecessor bridge must remain');
+  assert.ok(authority.includes("// app_build: '20261011-v0427553320-unlock-planner-inventory-parity'"),'exact .20 predecessor build bridge must remain');
+  assert.ok(authority.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.20-v0427553320-unlock-planner-inventory-parity'"),'exact .20 predecessor cache bridge must remain');
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.4'"),'original page watchdog lineage must remain');
+}else if(appVersion==='v0.4.27.55.3.3.20'){
   assert.ok(authority.includes("app_build: '20261011-v0427553320-unlock-planner-inventory-parity'"));
   assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.20-v0427553320-unlock-planner-inventory-parity'"));
   assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.19'"),'exact .19 predecessor bridge must remain');

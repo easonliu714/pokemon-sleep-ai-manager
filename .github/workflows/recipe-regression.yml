@@ -83,6 +83,10 @@ jobs:
         run: node scripts/g62-recipe-attempt-feedback-contract.mjs
       - name: Verify respecified G6 unlock-target and inventory parity
         run: node scripts/g63-unlock-preparation-inventory-parity-contract.mjs
+      - name: Verify ingredient recognition resolves into independent integrity gate
+        run: node scripts/ingredient-recognition-review-sync-regression.mjs
+      - name: Verify week-scoped manual activity bonuses
+        run: node scripts/weekly-manual-activity-bonus-contract.mjs
       - name: Verify retired personal recipe surface stays inactive
         run: node scripts/g51-personal-recipe-retirement-contract.mjs
 

@@ -172,7 +172,14 @@ assert.equal(professor.includes('candy-public-master-admission-ui.js'),false);
 
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.3.3.20'){
+if(appVersion==='v0.4.27.55.3.3.21'){
+  // Admit only the historical .21 -> .20 release; all Candy admission/replay assertions remain active.
+  assert.equal(appBuild,'20261011-v0427553321-ingredient-review-weekly-bonuses');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.21-v0427553321-ingredient-review-weekly-bonuses');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.20'"),'.21 must retain exact .20 predecessor version');
+  assert.ok(version.includes("// app_build: '20261011-v0427553320-unlock-planner-inventory-parity'"),'.21 must retain exact .20 predecessor build');
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.20-v0427553320-unlock-planner-inventory-parity'"),'.21 must retain exact .20 predecessor cache');
+}else if(appVersion==='v0.4.27.55.3.3.20'){
   // Exact .20 successor of .19: preserve governed Candy canonical-key admission and replay fail-closed behavior.
   assert.equal(appBuild,'20261011-v0427553320-unlock-planner-inventory-parity');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.20-v0427553320-unlock-planner-inventory-parity');
