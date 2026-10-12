@@ -31,7 +31,8 @@ self.addEventListener('fetch',event=>{
   const isNavigation=event.request.mode==='navigate'||event.request.destination==='document';
   const isScript=sameOrigin&&(event.request.destination==='script'||url.pathname.endsWith('.js'));
   const authorityAsset=sameOrigin&&(url.pathname.endsWith('/version-authority.js')||url.pathname.endsWith('/service-worker.js')||url.pathname.endsWith('/bootstrap.js')||isNavigation);
-  const networkFirst=sameOrigin&&(authorityAsset||isScript||url.pathname.endsWith('.html'));
+  const verifiedEventFeedAsset=sameOrigin&&/\/assets\/data\/public-event-master(?:-manifest)?\.json$/.test(url.pathname);
+  const networkFirst=sameOrigin&&(authorityAsset||isScript||url.pathname.endsWith('.html')||verifiedEventFeedAsset);
   if(networkFirst){
     event.respondWith(fetch(event.request,{cache:'no-store'}).then(response=>{
       if(response&&response.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy)).catch(()=>{});}

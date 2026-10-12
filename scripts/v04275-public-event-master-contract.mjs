@@ -48,7 +48,7 @@ const payloadRaw=read('assets/data/public-event-master.json');
 const manifest=validatePublicEventManifest(JSON.parse(manifestRaw));
 assert.equal(sha256(payloadRaw),manifest.payload_sha256,'Public Event payload SHA-256 must match manifest');
 const payload=validatePublicEventPayload(JSON.parse(payloadRaw),{expectedVersion:manifest.master_version});
-assert.equal(payload.events.length,1);
+assert.equal(payload.events.filter(event=>event.event_id==='pokemon_horizons_special_collaboration_2026').length,1,'Frozen August predecessor identity must remain exactly once even when official data feed adds future periods');
 assert.equal(payload.events[0].authority_status,'PARTIAL_VERIFIED');
 assert.deepEqual(payload.events[0].effects,{});
 assert.equal(payload.events[0].field_provenance.event_effects.deterministic_authority,false);

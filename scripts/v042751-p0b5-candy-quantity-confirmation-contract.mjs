@@ -88,7 +88,7 @@ const p0b6Patch=Number(appVersion.match(/^v0\.4\.27\.(\d+)(?:\.\d+)*$/)?.[1]||-1
 const p0b6Hotfix=Number(appVersion.match(/^v0\.4\.27\.55\.(\d+)(?:\.\d+)*$/)?.[1]||0);
 const p0b6Successor=p0b6Patch>=55;
 const localGapDurabilitySuccessor=p0b6Patch>55||(p0b6Patch===55&&p0b6Hotfix>=2);
-const pagePrewarmSuccessor=['v0.4.27.55.3.3.1','v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13','v0.4.27.55.3.3.14','v0.4.27.55.3.3.15','v0.4.27.55.3.3.16','v0.4.27.55.3.3.17','v0.4.27.55.3.3.18','v0.4.27.55.3.3.19','v0.4.27.55.3.3.20','v0.4.27.55.3.3.21'].includes(appVersion);
+const pagePrewarmSuccessor=['v0.4.27.55.3.3.1','v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13','v0.4.27.55.3.3.14','v0.4.27.55.3.3.15','v0.4.27.55.3.3.16','v0.4.27.55.3.3.17','v0.4.27.55.3.3.18','v0.4.27.55.3.3.19','v0.4.27.55.3.3.20','v0.4.27.55.3.3.21','v0.4.27.55.3.3.22'].includes(appVersion);
 assert.match(uiSource,/我已核對遊戲畫面，確認數量/);
 assert.match(uiSource,/Gemini Raw JSON（唯讀、immutable）/);
 if(localGapDurabilitySuccessor){
@@ -183,6 +183,12 @@ if(pagePrewarmSuccessor){
     assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.17'"),'.18 must retain exact .17 predecessor marker');
     assert.ok(versionSource.includes("// app_build: '20261002-v0427553317-weekly-berry-evidence-resolution'"),'.18 must retain exact .17 predecessor build marker');
     assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.17-v0427553317-weekly-berry-evidence-resolution'"),'.18 must retain exact .17 predecessor cache marker');
+  }else if(appVersion==='v0.4.27.55.3.3.22'){
+    assert.equal(appBuild,'20261012-v0427553322-g9-official-event-auto-refresh');
+    assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.22-v0427553322-g9-official-event-auto-refresh');
+    assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.21'"));
+    assert.ok(versionSource.includes("// app_build: '20261011-v0427553321-ingredient-review-weekly-bonuses'"));
+    assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.21-v0427553321-ingredient-review-weekly-bonuses'"));
   }else if(appVersion==='v0.4.27.55.3.3.21'){
     // Exact .21 successor of .20: retain Candy page-prewarm and fail-closed confirmation.
     assert.equal(appBuild,'20261011-v0427553321-ingredient-review-weekly-bonuses');
