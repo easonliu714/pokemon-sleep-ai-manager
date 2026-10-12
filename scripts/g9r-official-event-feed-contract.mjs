@@ -73,9 +73,17 @@ for(const event of [cooking,growth]){
   assert.equal(event.field_provenance.period.end_exclusive,true);
 }
 const version=readFileSync('assets/js/version-authority.js','utf8');
-assert.ok(version.includes("app_version: 'v0.4.27.55.3.3.21'"),'Data-only release MUST NOT bump app code version');
-assert.ok(version.includes("app_build: '20261011-v0427553321-ingredient-review-weekly-bonuses'"));
-assert.ok(version.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.21-v0427553321-ingredient-review-weekly-bonuses'"));
+assert.ok(version.includes("app_version: 'v0.4.27.55.3.3.22'"),'One-time network-cache upgrade is .22; subsequent data-only refresh must retain this tuple');
+assert.ok(version.includes("app_build: '20261012-v0427553322-g9-official-event-auto-refresh'"));
+assert.ok(version.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.22-v0427553322-g9-official-event-auto-refresh'"));
+assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.21'"),'Previous .21 owner-PASS tuple preserved in historical lineage');
+const sw=readFileSync('service-worker.js','utf8');
+assert.match(sw,/verifiedEventFeedAsset=sameOrigin&&/);
+assert.match(sw,/networkFirst=sameOrigin&&\(authorityAsset\|\|isScript\|\|url\.pathname\.endsWith\('\.html'\)\|\|verifiedEventFeedAsset\)/);
+assert.match(sw,/fetch\(event\.request,\{cache:'no-store'\}\)/);
+assert.match(sw,/querySafeCacheMatch\(event\.request\)/,'Offline service-worker cache fallback remains available');
+const boot=readFileSync('assets/js/public-event-master-bootstrap.js','utf8');
+for(const token of ['visibilitychange','pageshow','public-event-boundary-crossed','scheduleRefresh()','PUBLIC_EVENT_FOREGROUND_REFRESH_MIN_GAP_MS'])assert.ok(boot.includes(token),'Verified feed refresh trigger missing: '+token);
 
 const growthHtml='<main><time>2026/10/1</time><h1>〖企畫〗寶可夢快快長大週vol.6</h1>'+
   '<p>〖舉辦期間〗 10/12 (週一) 4:00～10/19 (週一) 3:59</p>'+
@@ -104,4 +112,4 @@ console.log('PASS G9R_VERIFIED_OFFICIAL_SOURCES');
 console.log('PASS G9R_MANIFEST_PAYLOAD_SHA256');
 console.log('PASS G9R_0400_WEEK_BOUNDARIES');
 console.log('PASS G9R_FIRST_SLEEP_CANDY_FEATURE_ONLY');
-console.log('PASS G9R_NO_PWA_RELEASE_BUMP');
+console.log('PASS G9R_ONE_TIME_PWA_CACHE_FIX_AND_FUTURE_DATA_ONLY_UPDATE');
