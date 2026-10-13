@@ -156,12 +156,12 @@ const proposedObject=JSON.parse(rawBefore);
 proposedObject.master_version='public-event-master-tw-2026-10-19-SYNTHETIC-NEVER-PUBLISH';
 proposedObject.generated_at='2026-10-13T10:00:00Z';
 proposedObject.events.push(synthetic);
-const proposedPayloadText=JSON.stringify(proposedObject,null,2)+'\\n';
+const proposedPayloadText=JSON.stringify(proposedObject,null,2)+'\n';
 const proposedManifestObject=JSON.parse(manifestBefore);
 proposedManifestObject.master_version=proposedObject.master_version;
 proposedManifestObject.generated_at=proposedObject.generated_at;
 proposedManifestObject.payload_sha256=createHash('sha256').update(proposedPayloadText).digest('hex');
-const proposedManifestText=JSON.stringify(proposedManifestObject,null,2)+'\\n';
+const proposedManifestText=JSON.stringify(proposedManifestObject,null,2)+'\n';
 const releaseInputs={beforePayloadText:rawBefore,beforeManifestText:manifestBefore,
   afterPayloadText:proposedPayloadText,afterManifestText:proposedManifestText,
   expectedNewEvents:[synthetic]};
@@ -172,14 +172,14 @@ assert.equal(gate.player_write,false);
 assert.equal(gate.app_version_bump,false);
 assert.notEqual(gate.payload_sha256,manifest.payload_sha256);
 assert.throws(()=>verifyG9RDataOnlyRelease({...releaseInputs,
-  afterManifestText:JSON.stringify({...proposedManifestObject,payload_sha256:'f'.repeat(64)})+'\\n',
+  afterManifestText:JSON.stringify({...proposedManifestObject,payload_sha256:'f'.repeat(64)})+'\n',
 }),/G9R_DATA_ONLY_RELEASE_HOLD:CANDIDATE_SHA256_MISMATCH/);
 const taintedObject=structuredClone(proposedObject);
 taintedObject.events[2].effects.pokemon_candy_multiplier=2;
-const taintedText=JSON.stringify(taintedObject,null,2)+'\\n';
+const taintedText=JSON.stringify(taintedObject,null,2)+'\n';
 assert.throws(()=>verifyG9RDataOnlyRelease({...releaseInputs,afterPayloadText:taintedText,
   afterManifestText:JSON.stringify({...proposedManifestObject,
-    payload_sha256:createHash('sha256').update(taintedText).digest('hex')})+'\\n',
+    payload_sha256:createHash('sha256').update(taintedText).digest('hex')})+'\n',
 }),/G9R_DATA_ONLY_RELEASE_HOLD:EXISTING_EVENT_MUTATED:2/);
 assert.throws(()=>verifyG9RDataOnlyRelease({...releaseInputs,expectedNewEvents:[]}),
   /G9R_DATA_ONLY_RELEASE_HOLD:NO_NEW_VERIFIED_EVENTS/);
@@ -188,7 +188,7 @@ assert.throws(()=>verifyG9RDataOnlyRelease({...releaseInputs,
 }),/G9R_DATA_ONLY_RELEASE_HOLD:EVENT_NOT_EXACT_SOURCE_PROJECTION/);
 const sameVersionManifest={...proposedManifestObject,master_version:manifest.master_version};
 assert.throws(()=>verifyG9RDataOnlyRelease({...releaseInputs,
-  afterManifestText:JSON.stringify(sameVersionManifest)+'\\n',
+  afterManifestText:JSON.stringify(sameVersionManifest)+'\n',
 }),/G9R_DATA_ONLY_RELEASE_HOLD:MASTER_VERSION_NOT_ROTATED/);
 assert.equal(readFileSync('assets/data/public-event-master.json','utf8'),rawBefore);
 assert.equal(readFileSync('assets/data/public-event-master-manifest.json','utf8'),manifestBefore);
