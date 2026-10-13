@@ -1,5 +1,8 @@
 # Pokémon Sleep AI Manager — Canonical Gate Roadmap & Completion Authority
 
+> **G9R_DATA_ONLY_RUNTIME_LASTGOOD_REPLAY（2026-10-13 候選 Gate）**：使用既有實際 public-event store 函式與 mock SQLite API，測不同 SHA、offline / invalid hash last-good、SQL failure rollback、player sentinel and unchanged .22 app tuple；仿真/CI 與 Owner Android 驗證嚴格分開，真實新官方未來活動未公告前 #19 不結案。
+
+
 > **G9-R active sub-Gate（2026-10-13；不得宣告完成）**：Data-Only proposal admission gate 以官方 exact article source、old/new SHA256、old events append-only immutable、合成 future fixture 驗證，沒有新官方未來公告前不更換 Event Master / `.22` tuple。同步治理權威：Roadmap/PR/Issue Audit 與 UI/API/DB tree；Issue #19 new-live-data Owner UAT 維持 OPEN。CI 結果以最新 PR exact HEAD readback 為準。
 
 
