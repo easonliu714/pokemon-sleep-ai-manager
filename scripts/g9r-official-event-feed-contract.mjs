@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {discoverOfficialNoticeUrls,parseVerifiedGrowthNotice,discoverAndStage} from './g9r-official-event-source-refresh.mjs';
+import {discoverOfficialNoticeUrls,parseVerifiedGrowthNotice,discoverAndStage,verifyG9RDataOnlyRelease} from './g9r-official-event-source-refresh.mjs';
 import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {
@@ -148,6 +148,52 @@ assert.throws(()=>parseVerifiedGrowthNotice(
 console.log('PASS G9R_SYNTHETIC_FUTURE_DATA_ONLY_NO_PLAYER_WRITES_NO_APP_BUMP');
 console.log('PASS G9R_SYNTHETIC_ROLLOVER_EXCLUSIVE_END');
 console.log('PASS G9R_UNMODELED_OFFICIAL_BONUS_REVIEW_HOLD');
+
+// SYNTHETIC release bytes ONLY: prove a governed data-only PR would be
+// append-only, byte-exact SHA-256, preserve prior public facts and never
+// require a PWA runtime release. This is NOT a published next-week event.
+const proposedObject=JSON.parse(rawBefore);
+proposedObject.master_version='public-event-master-tw-2026-10-19-SYNTHETIC-NEVER-PUBLISH';
+proposedObject.generated_at='2026-10-13T10:00:00Z';
+proposedObject.events.push(synthetic);
+const proposedPayloadText=JSON.stringify(proposedObject,null,2)+'\\n';
+const proposedManifestObject=JSON.parse(manifestBefore);
+proposedManifestObject.master_version=proposedObject.master_version;
+proposedManifestObject.generated_at=proposedObject.generated_at;
+proposedManifestObject.payload_sha256=createHash('sha256').update(proposedPayloadText).digest('hex');
+const proposedManifestText=JSON.stringify(proposedManifestObject,null,2)+'\\n';
+const releaseInputs={beforePayloadText:rawBefore,beforeManifestText:manifestBefore,
+  afterPayloadText:proposedPayloadText,afterManifestText:proposedManifestText,
+  expectedNewEvents:[synthetic]};
+const gate=verifyG9RDataOnlyRelease(releaseInputs);
+assert.equal(gate.status,'READY_FOR_CONTROLLED_DATA_ONLY_PR');
+assert.equal(gate.new_event_count,1);
+assert.equal(gate.player_write,false);
+assert.equal(gate.app_version_bump,false);
+assert.notEqual(gate.payload_sha256,manifest.payload_sha256);
+assert.throws(()=>verifyG9RDataOnlyRelease({...releaseInputs,
+  afterManifestText:JSON.stringify({...proposedManifestObject,payload_sha256:'f'.repeat(64)})+'\\n',
+}),/G9R_DATA_ONLY_RELEASE_HOLD:CANDIDATE_SHA256_MISMATCH/);
+const taintedObject=structuredClone(proposedObject);
+taintedObject.events[2].effects.pokemon_candy_multiplier=2;
+const taintedText=JSON.stringify(taintedObject,null,2)+'\\n';
+assert.throws(()=>verifyG9RDataOnlyRelease({...releaseInputs,afterPayloadText:taintedText,
+  afterManifestText:JSON.stringify({...proposedManifestObject,
+    payload_sha256:createHash('sha256').update(taintedText).digest('hex')})+'\\n',
+}),/G9R_DATA_ONLY_RELEASE_HOLD:EXISTING_EVENT_MUTATED:2/);
+assert.throws(()=>verifyG9RDataOnlyRelease({...releaseInputs,expectedNewEvents:[]}),
+  /G9R_DATA_ONLY_RELEASE_HOLD:NO_NEW_VERIFIED_EVENTS/);
+assert.throws(()=>verifyG9RDataOnlyRelease({...releaseInputs,
+  expectedNewEvents:[{...synthetic,effects:{sleep_exp_multiplier:4}}],
+}),/G9R_DATA_ONLY_RELEASE_HOLD:EVENT_NOT_EXACT_SOURCE_PROJECTION/);
+const sameVersionManifest={...proposedManifestObject,master_version:manifest.master_version};
+assert.throws(()=>verifyG9RDataOnlyRelease({...releaseInputs,
+  afterManifestText:JSON.stringify(sameVersionManifest)+'\\n',
+}),/G9R_DATA_ONLY_RELEASE_HOLD:MASTER_VERSION_NOT_ROTATED/);
+assert.equal(readFileSync('assets/data/public-event-master.json','utf8'),rawBefore);
+assert.equal(readFileSync('assets/data/public-event-master-manifest.json','utf8'),manifestBefore);
+console.log('PASS G9R_SYNTHETIC_APPEND_ONLY_SHA256_IMMUTABLE_BASE_GATE');
+console.log('PASS G9R_SYNTHETIC_DATA_ONLY_PR_BAD_SHA_PRIOR_FACT_TAMPER_AND_SAME_VERSION_HOLD');
 
 console.log('PASS G9R_SOURCE_DISCOVERY_AND_FAIL_CLOSED');
 
