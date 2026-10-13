@@ -57,6 +57,16 @@ export function parseVerifiedGrowthNotice(html,url,{now=new Date()}={}){
   const candy=/(?:當天|1日|每日).{0,6}第\s*1\s*次.{0,20}睡眠研究.{0,28}糖果.{0,20}1[.,]5\s*倍/.test(text)
    || /當天第1次睡眠研究後的糖果獲得量.{0,10}1[.,]5倍/.test(text);
   if(!exp||!candy)throw new Error('G9R_GROWTH_EFFECT_NOT_EXACTLY_VERIFIED');
+  // G9R: the exact two documented bonuses are the ONLY admitted auto-VERIFIED
+  // source lines. Additional or reformulated bonuses require human review.
+  // This intentionally fails closed if the official article structure changes.
+  const allDays=text.match(/〖所有日子〗([\s\S]*?)(?:注意事項|〖注意事項〗)/);
+  if(!allDays)throw new Error('G9R_GROWTH_BONUS_SECTION_REVIEW_REQUIRED');
+  const bonusLines=allDays[1].split('\n').map(line=>line.trim().replace(/^[・•]\s*/,'')).filter(Boolean);
+  const exactSleep=line=>/^幫手寶可夢(?:的)?睡眠\s*EXP\s*[:：]?\s*1[.,]5\s*倍\s*[。.]?$/.test(line);
+  const exactCandy=line=>/^當天第\s*1\s*次睡眠研究後的糖果獲得量(?:變成)?\s*1[.,]5\s*倍\s*[。.]?$/.test(line);
+  if(bonusLines.length!==2||!bonusLines.some(exactSleep)||!bonusLines.some(exactCandy))
+    throw new Error('G9R_GROWTH_UNRECOGNIZED_BONUS_REVIEW_REQUIRED');
   const id='growth_week_vol'+String(Number(title[1]))+'_'+String(year)+'_'+String(m).padStart(2,'0');
   const verifiedAt=new Date().toISOString();
   return {
