@@ -202,3 +202,5 @@ console.log('PASS G9R_MANIFEST_PAYLOAD_SHA256');
 console.log('PASS G9R_0400_WEEK_BOUNDARIES');
 console.log('PASS G9R_FIRST_SLEEP_CANDY_FEATURE_ONLY');
 console.log('PASS G9R_ONE_TIME_PWA_CACHE_FIX_AND_FUTURE_DATA_ONLY_UPDATE');
+// Isolated state-machine test loads actual production refresh source with only DB API mocked.
+await import('./g9r-public-event-refresh-lastgood-contract.mjs');
