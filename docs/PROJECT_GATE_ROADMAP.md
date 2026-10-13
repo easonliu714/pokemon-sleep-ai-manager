@@ -1,5 +1,8 @@
 # Pokémon Sleep AI Manager — Canonical Gate Roadmap & Completion Authority
 
+> **永久同步基準**：本 Roadmap 為 Gate 權威；[Roadmap／PR／Issue 稽核](Pokemon_Sleep_Roadmap_PR_Issue_Closure_Audit_20261013.md) 與 [UI／功能 API／DB 功能樹](Pokemon_Sleep_UI_API_DB_Feature_Architecture_Tree_20261013.md) 為同期受控進度證據。每次 GitHub 版本／PR／Issue／Gate 實質更新必須一起核對並同步兩檔；先 fresh-read main 與 CI/Pages，不沿用歷史 checkpoint。未驗證 Owner Gate 不可憑 CI PASS 宣稱 CLOSED。
+
+
 Updated: 2026-10-13  
 Last verified predecessor main at G9R synthetic branch start: `main@5cf26a83533216eda71ba461c1f2e5596b539cf8` / `v0.4.27.55.3.3.22` — PR #471 MERGED, exact-main CI and Pages SUCCESS, owner Android/PWA `.22` display PASS recorded in Issue #19 comment 6139254152. Recheck current main before any later write.  
 Active G9-R successor: `G9R_AUTOMATIC_FUTURE_DATA_ONLY_REFRESH` — new real official weekly event publication and updated JSON+SHA manifest on installed `.22` PWA remain OPEN. Existing read-only source cron DOES NOT publish PR/commit or write main; synthetic future fixtures are NOT live E2E evidence.
