@@ -1,5 +1,8 @@
 # Pokémon Sleep AI Manager — Roadmap／PR／Issue 全量盤點與結案審核
 
+> **2026-10-13 G9-R runtime replay Gate（候選、尚未 Merge）**：在既有 `.22` Public Event Master refresh 原始模組上，以隔離 SQLite API mock 進行 SYNTHETIC next-SHA 讀取及 04:00 projection、離線與 SHA 拒絕後 last-good、交易寫入故障 rollback、玩家資料 sentinel 零變動。**此測試不等於實體 SQLite/Android；未來新公告依然未找到，Issue #19 Owner E2E HOLD。**前一 PR #474 已 MERGED main `8d74f6e2bd1e48ba3db84a0f609d0172b873232d`，App tuple 仍 .22。
+
+
 > **2026-10-13 G9-R subsequent Gate（本分支、尚未 Merge）**：`G9R_DATA_ONLY_APPEND_ONLY_SOURCE_PR_ADMISSION` 新增官方記事擴充候選的 **old/new payload SHA256 雙端校驗、舊活動逐筆 immutable、只增不減、公告 exact candidate compare、營地/倍率/04:00/首次研究糖果 FEATURE_ONLY、阻止 SHA / 版次異常**。僅 `scripts/g9r-official-event-source-refresh.mjs` 與其 contract 測試改動；不增 Public Master data、不動玩家資料表、不輪轉 `.22` App tuple。**SYNTHETIC 測試≠真實新公告≠Owner E2E。**Issue #19 持續 OPEN。CI/Main/Pages 實際結果應以該 PR 即時狀態為準。
 
 
