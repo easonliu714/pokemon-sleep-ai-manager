@@ -1,9 +1,12 @@
 # Pokémon Sleep AI Manager — Roadmap／PR／Issue 全量盤點與結案審核
 
-> **2026-10-13 G9-R runtime replay Gate（候選、尚未 Merge）**：在既有 `.22` Public Event Master refresh 原始模組上，以隔離 SQLite API mock 進行 SYNTHETIC next-SHA 讀取及 04:00 projection、離線與 SHA 拒絕後 last-good、交易寫入故障 rollback、玩家資料 sentinel 零變動。**此測試不等於實體 SQLite/Android；未來新公告依然未找到，Issue #19 Owner E2E HOLD。**前一 PR #474 已 MERGED main `8d74f6e2bd1e48ba3db84a0f609d0172b873232d`，App tuple 仍 .22。
+> **2026-10-13 G9R post-merge verified checkpoint**：#474 MERGED `8d74f6e2bd1e48ba3db84a0f609d0172b873232d`，PR 6/6 + main CI/Pages SUCCESS；#475 MERGED `3b1aabd2c26a120cac8037d1277518a2aedec1fe`，PR 6/6、Data Boundary runtime-in-memory SQLite API mock `new SHA / OFFLINE_CACHED / invalid SHA / rollback / player sentinel` PASS；Pages run [38385085408](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/38385085408) SUCCESS。兩者未動 App `.22` runtime、Public Event JSON/manifest、private SQLite。**這些是合成／隔離自動化 Gate，非真實未來官方事件發布／Android UAT；#19 保持 OPEN。**合併後 main 全量 CI 必須依最新 SHA 再 readback，不沿用本文件任何過去的 RUN。
 
 
-> **2026-10-13 G9-R subsequent Gate（本分支、尚未 Merge）**：`G9R_DATA_ONLY_APPEND_ONLY_SOURCE_PR_ADMISSION` 新增官方記事擴充候選的 **old/new payload SHA256 雙端校驗、舊活動逐筆 immutable、只增不減、公告 exact candidate compare、營地/倍率/04:00/首次研究糖果 FEATURE_ONLY、阻止 SHA / 版次異常**。僅 `scripts/g9r-official-event-source-refresh.mjs` 與其 contract 測試改動；不增 Public Master data、不動玩家資料表、不輪轉 `.22` App tuple。**SYNTHETIC 測試≠真實新公告≠Owner E2E。**Issue #19 持續 OPEN。CI/Main/Pages 實際結果應以該 PR 即時狀態為準。
+> **2026-10-13 G9-R runtime replay Gate（已由 PR #475 正式 MERGED）**：在既有 `.22` Public Event Master refresh 原始模組上，以隔離 SQLite API mock 進行 SYNTHETIC next-SHA 讀取及 04:00 projection、離線與 SHA 拒絕後 last-good、交易寫入故障 rollback、玩家資料 sentinel 零變動。**此測試不等於實體 SQLite/Android；未來新公告依然未找到，Issue #19 Owner E2E HOLD。**前一 PR #474 已 MERGED main `8d74f6e2bd1e48ba3db84a0f609d0172b873232d`，App tuple 仍 .22。
+
+
+> **2026-10-13 G9-R subsequent Gate（已由 PR #474 正式 MERGED）**：`G9R_DATA_ONLY_APPEND_ONLY_SOURCE_PR_ADMISSION` 新增官方記事擴充候選的 **old/new payload SHA256 雙端校驗、舊活動逐筆 immutable、只增不減、公告 exact candidate compare、營地/倍率/04:00/首次研究糖果 FEATURE_ONLY、阻止 SHA / 版次異常**。僅 `scripts/g9r-official-event-source-refresh.mjs` 與其 contract 測試改動；不增 Public Master data、不動玩家資料表、不輪轉 `.22` App tuple。**SYNTHETIC 測試≠真實新公告≠Owner E2E。**Issue #19 持續 OPEN。CI/Main/Pages 實際結果應以該 PR 即時狀態為準。
 
 
 > **2026-10-13 Living Status Reconciliation / canonical progress baseline**
