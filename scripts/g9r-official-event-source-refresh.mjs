@@ -3,7 +3,7 @@
 import {createHash} from 'node:crypto';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
-import {validatePublicEventPayload} from '../assets/js/public-event-master-contract.js';
+import {validatePublicEventManifest,validatePublicEventPayload} from '../assets/js/public-event-master-contract.js';
 
 const BASE='https://www.pokemonsleep.net';
 const INDEX=BASE+'/zh/news/';
@@ -86,6 +86,55 @@ export function parseVerifiedGrowthNotice(html,url,{now=new Date()}={}){
     }
   };
 }
+// DATA-ONLY release admission: both old and new manifest bytes are validated,
+// every preexisting public event stays immutable, and only independently parsed,
+// exact official Growth Week candidates may be appended. No player data or app
+// runtime artifact is ever accepted as an input to this gate.
+export function verifyG9RDataOnlyRelease({
+  beforePayloadText,beforeManifestText,afterPayloadText,afterManifestText,expectedNewEvents,
+}={}){
+  const require=(ok,reason)=>{if(!ok)throw new Error('G9R_DATA_ONLY_RELEASE_HOLD:'+reason);};
+  const beforeManifest=validatePublicEventManifest(JSON.parse(beforeManifestText));
+  const afterManifest=validatePublicEventManifest(JSON.parse(afterManifestText));
+  require(digest(beforePayloadText)===beforeManifest.payload_sha256,'BASE_SHA256_MISMATCH');
+  require(digest(afterPayloadText)===afterManifest.payload_sha256,'CANDIDATE_SHA256_MISMATCH');
+  require(beforeManifest.payload_path===afterManifest.payload_path,'PAYLOAD_PATH_CHANGED');
+  require(beforeManifest.schema===afterManifest.schema&&beforeManifest.locale===afterManifest.locale
+    &&beforeManifest.region===afterManifest.region&&beforeManifest.authority_version===afterManifest.authority_version,
+    'MANIFEST_AUTHORITY_CHANGED');
+  require(afterManifest.master_version!==beforeManifest.master_version,'MASTER_VERSION_NOT_ROTATED');
+  require(afterManifest.payload_sha256!==beforeManifest.payload_sha256,'PAYLOAD_SHA_NOT_CHANGED');
+  const beforeRaw=JSON.parse(beforePayloadText),afterRaw=JSON.parse(afterPayloadText);
+  const before=validatePublicEventPayload(beforeRaw,{expectedVersion:beforeManifest.master_version});
+  const after=validatePublicEventPayload(afterRaw,{expectedVersion:afterManifest.master_version});
+  require(before.schema===after.schema&&before.locale===after.locale&&before.region===after.region
+    &&before.registry_version===after.registry_version,'PAYLOAD_AUTHORITY_CHANGED');
+  require(Array.isArray(expectedNewEvents)&&expectedNewEvents.length>0,'NO_NEW_VERIFIED_EVENTS');
+  require(afterRaw.events.length===beforeRaw.events.length+expectedNewEvents.length,'APPEND_ONLY_COUNT');
+  for(let i=0;i<beforeRaw.events.length;i++){
+    require(JSON.stringify(beforeRaw.events[i])===JSON.stringify(afterRaw.events[i]),'EXISTING_EVENT_MUTATED:'+i);
+  }
+  for(let i=0;i<expectedNewEvents.length;i++){
+    const event=afterRaw.events[beforeRaw.events.length+i];
+    require(JSON.stringify(event)===JSON.stringify(expectedNewEvents[i]),'EVENT_NOT_EXACT_SOURCE_PROJECTION:'+i);
+    require(/^growth_week_vol[0-9]+_20[0-9]{2}_[0-9]{2}$/.test(event.event_id),'UNSUPPORTED_EVENT_FAMILY');
+    require(event.authority_status==='VERIFIED'&&event.field_provenance?.event_effects?.verification_method
+      ==='EXACT_SUPPORTED_OFFICIAL_TEXT_CONTRACT','UNVERIFIED_EVENT');
+    require(/^https:\/\/www\.pokemonsleep\.net\/zh\/news\/[0-9]+\/$/.test(event.source?.source_ref||''),
+      'OFFICIAL_SOURCE_REQUIRED');
+    require(event.field_provenance?.event_effects?.not_candy_use_exp===true
+      &&event.field_provenance?.event_effects?.deterministic_model_status==='FEATURE_ONLY_NOT_PLAYER_WRITE',
+      'FEATURE_ONLY_SCOPE');
+    require(event.start_at.endsWith('T04:00:00+08:00')&&event.end_at.endsWith('T04:00:00+08:00')
+      &&Date.parse(event.end_at)-Date.parse(event.start_at)===7*86400000,'TIME_BOUNDARY');
+  }
+  // The validator also checks unique event ids, supported typed effects and source fields.
+  require(after.events.length===afterRaw.events.length,'NORMALIZED_EVENT_COUNT');
+  return Object.freeze({status:'READY_FOR_CONTROLLED_DATA_ONLY_PR',from_version:before.master_version,
+    to_version:after.master_version,new_event_count:expectedNewEvents.length,
+    payload_sha256:afterManifest.payload_sha256,player_write:false,app_version_bump:false});
+}
+
 async function get(url){
   if(!url.startsWith(INDEX))throw new Error('G9R_UNTRUSTED_FETCH_URL');
   const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),9000);
@@ -132,6 +181,14 @@ export async function discoverAndStage({fetchHtml=get,write=false,now=new Date()
   manifest.master_version=base.master_version;
   manifest.generated_at=base.generated_at;
   manifest.payload_sha256=digest(payloadText);
+  const releaseGate=verifyG9RDataOnlyRelease({
+    beforePayloadText:readFileSync(PAYLOAD,'utf8'),
+    beforeManifestText:readFileSync(MANIFEST,'utf8'),
+    afterPayloadText:payloadText,
+    afterManifestText:JSON.stringify(manifest,null,2)+'\\n',
+    expectedNewEvents:newEvents,
+  });
+  if(releaseGate.status!=='READY_FOR_CONTROLLED_DATA_ONLY_PR')throw new Error('G9R_RELEASE_NOT_ADMITTED');
   if(write){
     // The scheduler will propose these bytes via a PR; never commit directly to main.
     writeFileSync(PAYLOAD,payloadText);
