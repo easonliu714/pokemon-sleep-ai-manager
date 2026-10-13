@@ -1,5 +1,8 @@
 # Pokémon Sleep AI Manager — Canonical Gate Roadmap & Completion Authority
 
+> **G9-R active sub-Gate（2026-10-13；不得宣告完成）**：Data-Only proposal admission gate 以官方 exact article source、old/new SHA256、old events append-only immutable、合成 future fixture 驗證，沒有新官方未來公告前不更換 Event Master / `.22` tuple。同步治理權威：Roadmap/PR/Issue Audit 與 UI/API/DB tree；Issue #19 new-live-data Owner UAT 維持 OPEN。CI 結果以最新 PR exact HEAD readback 為準。
+
+
 > **永久同步基準**：本 Roadmap 為 Gate 權威；[Roadmap／PR／Issue 稽核](Pokemon_Sleep_Roadmap_PR_Issue_Closure_Audit_20261013.md) 與 [UI／功能 API／DB 功能樹](Pokemon_Sleep_UI_API_DB_Feature_Architecture_Tree_20261013.md) 為同期受控進度證據。每次 GitHub 版本／PR／Issue／Gate 實質更新必須一起核對並同步兩檔；先 fresh-read main 與 CI/Pages，不沿用歷史 checkpoint。未驗證 Owner Gate 不可憑 CI PASS 宣稱 CLOSED。
 
 
