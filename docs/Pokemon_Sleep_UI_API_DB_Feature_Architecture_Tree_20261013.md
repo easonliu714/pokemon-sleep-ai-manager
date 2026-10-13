@@ -1,9 +1,12 @@
 # Pokémon Sleep AI Manager — UI／功能 API／SQLite／Public Master 架構樹與驗證矩陣
 
-> **2026-10-13 Runtime contract extension（候選）**：新 `scripts/g9r-public-event-refresh-lastgood-contract.mjs` 直接載入 `assets/js/public-event-master-store.js` 實際 SOURCE（僅在測試時替換 DB import 為隔離的 SQLite API mock），依序核對首次公版 refresh、UNCHANGED no rewrite、SYNTHETIC future changed-SHA、exact 04:00 active projection、bad SHA / offline latest cached、SQL transaction abort/rollback、私人 `pokemon` sentinel 無寫入與 `.22` Version Authority byte-identical。現有 PWA runtime/SQLite DDL/IndexedDB/Public Event JSON+Manifest 一律不變。**不等同真實 Android SQLite/PWA 實機 Gate**。
+> **2026-10-13 architecture release baseline**：截至 main `3b1aabd2c26a120cac8037d1277518a2aedec1fe`，G9R `verifyG9RDataOnlyRelease`（#474）與以 mock DB 執行**原始** `refreshPublicEventMaster` 的 runtime regression（#475）已 MERGED；其所列 JS API 均為開發／QA 端，既有 PWA Production module `assets/js/public-event-master-store.js` 未改。**UI=NO_CHANGE、SQLITE_DDL=NO_CHANGE、IndexedDB=NO_CHANGE、Public Master JSON/manifest=NO_CHANGE、APP_VERSION=.22、CI PR exact-head=PASS；OWNER NEW-SHA REAL DEVICE=NOT_VERIFIED**。以此避免將 API 測試誤認為 UI 新功能或資料表新增。
 
 
-> **2026-10-13 G9-R module-level delta（candidate branch）**：`scripts/g9r-official-event-source-refresh.mjs` 匯出 `verifyG9RDataOnlyRelease()`：檢查候選官方 Growth Week Data-Only feed 雙 SHA、append-only immutable old Event rows、source candidate exact parity、04:00、feature-only candy scope；既有 `discoverAndStage(write=false)` 乾跑與 `--write` 的受控候選路徑必須先通過 guard。`scripts/g9r-official-event-feed-contract.mjs` 以**虛構且明確 SYNTHETIC** future event 測試新 SHA / 惡意變更 / 缺少版次 / 錯誤 Manifest，僅測試不發佈。**UI/JS Runtime API/SQLite DDL/IndexedDB Store/Public Event payload+Manifest 均無實體變更；Owner same-.22 actual new-SHA PWA gate 仍 NOT_VERIFIED**。
+> **2026-10-13 Runtime contract extension（#475 已 MERGED）**：新 `scripts/g9r-public-event-refresh-lastgood-contract.mjs` 直接載入 `assets/js/public-event-master-store.js` 實際 SOURCE（僅在測試時替換 DB import 為隔離的 SQLite API mock），依序核對首次公版 refresh、UNCHANGED no rewrite、SYNTHETIC future changed-SHA、exact 04:00 active projection、bad SHA / offline latest cached、SQL transaction abort/rollback、私人 `pokemon` sentinel 無寫入與 `.22` Version Authority byte-identical。現有 PWA runtime/SQLite DDL/IndexedDB/Public Event JSON+Manifest 一律不變。**不等同真實 Android SQLite/PWA 實機 Gate**。
+
+
+> **2026-10-13 G9-R module-level delta（#474 已 MERGED）**：`scripts/g9r-official-event-source-refresh.mjs` 匯出 `verifyG9RDataOnlyRelease()`：檢查候選官方 Growth Week Data-Only feed 雙 SHA、append-only immutable old Event rows、source candidate exact parity、04:00、feature-only candy scope；既有 `discoverAndStage(write=false)` 乾跑與 `--write` 的受控候選路徑必須先通過 guard。`scripts/g9r-official-event-feed-contract.mjs` 以**虛構且明確 SYNTHETIC** future event 測試新 SHA / 惡意變更 / 缺少版次 / 錯誤 Manifest，僅測試不發佈。**UI/JS Runtime API/SQLite DDL/IndexedDB Store/Public Event payload+Manifest 均無實體變更；Owner same-.22 actual new-SHA PWA gate 仍 NOT_VERIFIED**。
 
 
 > **2026-10-13 Living Architecture Reconciliation / canonical feature baseline**
