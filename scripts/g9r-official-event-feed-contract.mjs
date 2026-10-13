@@ -87,8 +87,8 @@ for(const token of ['visibilitychange','pageshow','public-event-boundary-crossed
 
 const growthHtml='<main><time>2026/10/1</time><h1>〖企畫〗寶可夢快快長大週vol.6</h1>'+
   '<p>〖舉辦期間〗 10/12 (週一) 4:00～10/19 (週一) 3:59</p>'+
-  '<p>〖活動營地〗 所有營地</p><p>幫手寶可夢的睡眠EXP：1.5倍</p>'+
-  '<p>當天第1次睡眠研究後的糖果獲得量變成1.5倍。</p></main>';
+  '<p>〖活動營地〗 所有營地</p><p>〖所有日子〗</p><p>・幫手寶可夢的睡眠EXP：1.5倍</p>'+
+  '<p>・當天第1次睡眠研究後的糖果獲得量變成1.5倍。</p><p>注意事項</p></main>';
 const parsed=parseVerifiedGrowthNotice(growthHtml,growthUrl,{now:new Date('2026-10-12T12:00:00+08:00')});
 assert.ok(parsed);
 assert.equal(parsed.event_id,'growth_week_vol6_2026_10');
@@ -106,6 +106,49 @@ const unchanged=await discoverAndStage({
   write:false,
 });
 assert.equal(unchanged.status,'UNCHANGED','Known official articles must not produce redundant empty PRs');
+// SYNTHETIC fixture ONLY: no next-week activity or official article is asserted here.
+// Replays a 7-day future announcement through the EXISTING read-only staging code.
+const syntheticUrl='https://www.pokemonsleep.net/zh/news/999999900000000001/';
+const syntheticHtml=growthHtml.replace('2026/10/1','2026/10/13')
+  .replace('vol.6','vol.7')
+  .replace('10/12 (週一) 4:00～10/19 (週一) 3:59','10/19 (週一) 4:00～10/26 (週一) 3:59');
+const synthetic=parseVerifiedGrowthNotice(syntheticHtml,syntheticUrl,{now:new Date('2026-10-13T14:00:00+08:00')});
+assert.equal(synthetic.event_id,'growth_week_vol7_2026_10');
+assert.equal(synthetic.start_at,'2026-10-19T04:00:00+08:00');
+assert.equal(synthetic.end_at,'2026-10-26T04:00:00+08:00');
+assert.equal(synthetic.field_provenance.event_effects.deterministic_model_status,'FEATURE_ONLY_NOT_PLAYER_WRITE');
+const manifestBefore=readFileSync('assets/data/public-event-master-manifest.json','utf8');
+const rawBefore=readFileSync('assets/data/public-event-master.json','utf8');
+const syntheticReplay=await discoverAndStage({
+  now:new Date('2026-10-13T14:00:00+08:00'),
+  fetchHtml:async url=>url.endsWith('/zh/news/')?'<a href="/zh/news/999999900000000001/">SYNTHETIC future fixture</a>':syntheticHtml,
+  write:false,
+});
+assert.equal(syntheticReplay.status,'DRY_RUN_NEW_EVENTS');
+assert.deepEqual(syntheticReplay.events,['growth_week_vol7_2026_10']);
+assert.notEqual(syntheticReplay.sha256,manifest.payload_sha256);
+assert.equal(syntheticReplay.player_write,false);
+assert.equal(syntheticReplay.app_version_bump,false);
+assert.equal(readFileSync('assets/data/public-event-master-manifest.json','utf8'),manifestBefore);
+assert.equal(readFileSync('assets/data/public-event-master.json','utf8'),rawBefore);
+const futureEvents={...payload,events:[...payload.events,synthetic]};
+const justBefore=resolvePublicEventProjection(futureEvents,{date:new Date('2026-10-19T03:59:59+08:00'),camp:'黃金舊發電廠'});
+const justAfter=resolvePublicEventProjection(futureEvents,{date:new Date('2026-10-19T04:00:00+08:00'),camp:'黃金舊發電廠'});
+assert.ok(justBefore.active_events.some(x=>x.event_id==='growth_week_vol6_2026_10'));
+assert.ok(!justAfter.active_events.some(x=>x.event_id==='growth_week_vol6_2026_10'));
+assert.ok(justAfter.active_events.some(x=>x.event_id==='growth_week_vol7_2026_10'));
+assert.throws(()=>parseVerifiedGrowthNotice(
+  syntheticHtml.replace('<p>注意事項</p>','<p>・夢之碎片獲得量變成2倍</p><p>注意事項</p>'),
+  syntheticUrl,{now:new Date('2026-10-13T14:00:00+08:00')}
+),/G9R_GROWTH_UNRECOGNIZED_BONUS_REVIEW_REQUIRED/);
+assert.throws(()=>parseVerifiedGrowthNotice(
+  syntheticHtml.replace('<p>〖所有日子〗</p>',''),
+  syntheticUrl,{now:new Date('2026-10-13T14:00:00+08:00')}
+),/G9R_GROWTH_BONUS_SECTION_REVIEW_REQUIRED/);
+console.log('PASS G9R_SYNTHETIC_FUTURE_DATA_ONLY_NO_PLAYER_WRITES_NO_APP_BUMP');
+console.log('PASS G9R_SYNTHETIC_ROLLOVER_EXCLUSIVE_END');
+console.log('PASS G9R_UNMODELED_OFFICIAL_BONUS_REVIEW_HOLD');
+
 console.log('PASS G9R_SOURCE_DISCOVERY_AND_FAIL_CLOSED');
 
 console.log('PASS G9R_VERIFIED_OFFICIAL_SOURCES');
