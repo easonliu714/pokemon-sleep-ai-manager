@@ -19,6 +19,14 @@
 
 個人資料只保存在目前裝置與瀏覽器，請定期下載 `.sqlite3` 或完整 JSON 備份。
 
+## 正式進度基準（每輪必讀、同步更新）
+
+- [Roadmap／PR／Issue 結案與進度稽核](docs/Pokemon_Sleep_Roadmap_PR_Issue_Closure_Audit_20261013.md)
+- [UI／功能 API／SQLite／Public Master 功能架構樹](docs/Pokemon_Sleep_UI_API_DB_Feature_Architecture_Tree_20261013.md)
+- [Canonical Gate Roadmap](docs/PROJECT_GATE_ROADMAP.md)
+
+上述三份是協作與交接的正式基準。每次對話、任務輪詢或 Gate 更新時先讀取 GitHub main／相關 PR HEAD／Issues／CI／Pages，遇到**實質變動**需於同一受控 branch/PR 同步更新 Roadmap/Issue Audit 與 UI/API/DB Architecture Tree；不可只改聊天摘要或以舊 snapshot SHA 推定 current。純 read-only 且無變動者記錄 NO_DELTA，不為了日期製造空 Commit。已 CLOSED Gate 不重開，未實機驗證不得聲稱完成。
+
 ## 正式資料治理文件
 
 - [Public Master Database Version Audit / Update Contract](docs/PUBLIC_MASTER_DATABASE_VERSION_CONTRACT.md)
