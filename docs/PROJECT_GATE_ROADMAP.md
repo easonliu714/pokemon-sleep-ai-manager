@@ -1,9 +1,12 @@
 # Pokémon Sleep AI Manager — Canonical Gate Roadmap & Completion Authority
 
-> **G9R_DATA_ONLY_RUNTIME_LASTGOOD_REPLAY（2026-10-13 候選 Gate）**：使用既有實際 public-event store 函式與 mock SQLite API，測不同 SHA、offline / invalid hash last-good、SQL failure rollback、player sentinel and unchanged .22 app tuple；仿真/CI 與 Owner Android 驗證嚴格分開，真實新官方未來活動未公告前 #19 不結案。
+> **2026-10-13 post-merge G9R checkpoint**：#474 source SHA/append-only official-candidate guard、#475 actual .22 store import + isolated SQLite API mock refresh/rollback contracts 均 PR exact-head CI 6/6 PASS、MERGED；截至 main `3b1aabd2c26a120cac8037d1277518a2aedec1fe` Pages 38385085408 SUCCESS。**G9R_REAL_OFFICIAL_FUTURE_EVENT→NEW_SHA→SAME_.22_PWA_OWNER** 未驗收，不得把 synthetic/mock CI 當 Android PASS；Issue #19 OPEN。
 
 
-> **G9-R active sub-Gate（2026-10-13；不得宣告完成）**：Data-Only proposal admission gate 以官方 exact article source、old/new SHA256、old events append-only immutable、合成 future fixture 驗證，沒有新官方未來公告前不更換 Event Master / `.22` tuple。同步治理權威：Roadmap/PR/Issue Audit 與 UI/API/DB tree；Issue #19 new-live-data Owner UAT 維持 OPEN。CI 結果以最新 PR exact HEAD readback 為準。
+> **G9R_DATA_ONLY_RUNTIME_LASTGOOD_REPLAY（2026-10-13 CI/MERGE Gate CLOSED，Owner E2E 仍 OPEN）**：使用既有實際 public-event store 函式與 mock SQLite API，測不同 SHA、offline / invalid hash last-good、SQL failure rollback、player sentinel and unchanged .22 app tuple；仿真/CI 與 Owner Android 驗證嚴格分開，真實新官方未來活動未公告前 #19 不結案。
+
+
+> **G9-R active sub-Gate（2026-10-13 來源發布候選驗證已 MERGED，未來實機仍 HOLD）**：Data-Only proposal admission gate 以官方 exact article source、old/new SHA256、old events append-only immutable、合成 future fixture 驗證，沒有新官方未來公告前不更換 Event Master / `.22` tuple。同步治理權威：Roadmap/PR/Issue Audit 與 UI/API/DB tree；Issue #19 new-live-data Owner UAT 維持 OPEN。CI 結果以最新 PR exact HEAD readback 為準。
 
 
 > **永久同步基準**：本 Roadmap 為 Gate 權威；[Roadmap／PR／Issue 稽核](Pokemon_Sleep_Roadmap_PR_Issue_Closure_Audit_20261013.md) 與 [UI／功能 API／DB 功能樹](Pokemon_Sleep_UI_API_DB_Feature_Architecture_Tree_20261013.md) 為同期受控進度證據。每次 GitHub 版本／PR／Issue／Gate 實質更新必須一起核對並同步兩檔；先 fresh-read main 與 CI/Pages，不沿用歷史 checkpoint。未驗證 Owner Gate 不可憑 CI PASS 宣稱 CLOSED。
