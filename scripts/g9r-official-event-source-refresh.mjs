@@ -185,7 +185,7 @@ export async function discoverAndStage({fetchHtml=get,write=false,now=new Date()
     beforePayloadText:readFileSync(PAYLOAD,'utf8'),
     beforeManifestText:readFileSync(MANIFEST,'utf8'),
     afterPayloadText:payloadText,
-    afterManifestText:JSON.stringify(manifest,null,2)+'\\n',
+    afterManifestText:JSON.stringify(manifest,null,2)+'\n',
     expectedNewEvents:newEvents,
   });
   if(releaseGate.status!=='READY_FOR_CONTROLLED_DATA_ONLY_PR')throw new Error('G9R_RELEASE_NOT_ADMITTED');
