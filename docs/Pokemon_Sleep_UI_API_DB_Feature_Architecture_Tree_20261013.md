@@ -1,5 +1,8 @@
 # Pokémon Sleep AI Manager — UI／功能 API／SQLite／Public Master 架構樹與驗證矩陣
 
+> **2026-10-13 G9-R module-level delta（candidate branch）**：`scripts/g9r-official-event-source-refresh.mjs` 匯出 `verifyG9RDataOnlyRelease()`：檢查候選官方 Growth Week Data-Only feed 雙 SHA、append-only immutable old Event rows、source candidate exact parity、04:00、feature-only candy scope；既有 `discoverAndStage(write=false)` 乾跑與 `--write` 的受控候選路徑必須先通過 guard。`scripts/g9r-official-event-feed-contract.mjs` 以**虛構且明確 SYNTHETIC** future event 測試新 SHA / 惡意變更 / 缺少版次 / 錯誤 Manifest，僅測試不發佈。**UI/JS Runtime API/SQLite DDL/IndexedDB Store/Public Event payload+Manifest 均無實體變更；Owner same-.22 actual new-SHA PWA gate 仍 NOT_VERIFIED**。
+
+
 > **2026-10-13 Living Architecture Reconciliation / canonical feature baseline**
 > 本檔已列為 GitHub docs 常設 UI/API/DB 權威，每次有 Gate／PR／Issue 實質更新皆需與 Roadmap/Issue Audit 同步增修。
 > GitHub main d25c2515cda3b32d7442d796fe6cca682648c528（v0.4.27.55.3.3.22）；#472 合併僅 G9R source fail-closed parser、synthetic tests、Roadmap，**無 PWA UI/SQLite schema/玩家資料變更**；下方初始 main@5cf26... 是歷史盤點 SHA。
