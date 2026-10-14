@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import 'fake-indexeddb/auto';
 import {CANDY_FAMILY_STORAGE_MIGRATION_VERSION} from '../assets/js/candy-family-storage-authority.js';
+import {evaluatePublicCatalogVersionAuthority,decidePublicCatalogStartup,persistPublicCatalogFingerprint,readPersistedPublicCatalogFingerprint,canBypassPublicCatalogHydration} from '../assets/js/public-catalog-startup-authority.js';
 
 const storageSource=fs.readFileSync(new URL('../assets/js/storage.js',import.meta.url),'utf8');
 const databaseSource=fs.readFileSync(new URL('../assets/js/database.js',import.meta.url),'utf8');
@@ -88,3 +89,70 @@ storageV3.closeStorageConnection();
 assert.equal(await currentVersion(),3,'existing v3 database must open at v3 without downgrade or upgrade');
 
 console.log('v0.4.27.55.3.1 startup IndexedDB / Service Worker / readiness reliability contract PASS');
+
+// G479 synthetic-only first-install Public Master mismatch/recovery and restore-stage evidence.
+// This exercises pure metadata authority; it never reads or writes a player SQLite.
+const publicKeys=['shared','recipes','items','candy','canonical','pokemon_knowledge'];
+const expectedPublic=Object.fromEntries(publicKeys.map(key=>[key,'synthetic-'+key+'-v1']));
+const mismatchedPublic={...expectedPublic,recipes:'synthetic-stale-recipe-v0'};
+const firstBootAuthority=evaluatePublicCatalogVersionAuthority({
+  expected:expectedPublic,applied:mismatchedPublic,updated:true,
+});
+const localMetadata=new Map();
+const metadataStorage={
+  getItem:key=>localMetadata.get(key)||null,
+  setItem:(key,value)=>{localMetadata.set(key,value);},
+};
+const firstDecision=decidePublicCatalogStartup({
+  authority:firstBootAuthority,integrity_ok:true,persisted:readPersistedPublicCatalogFingerprint(metadataStorage),
+});
+assert.equal(firstBootAuthority.expected_complete,true);
+assert.equal(firstBootAuthority.exact,false);
+assert.equal(firstDecision.action,'HYDRATE_REQUIRED');
+assert.equal(firstDecision.reason,'DATABASE_AUTHORITY_MISMATCH');
+assert.equal(localMetadata.size,0,'mismatched first-boot authority must not be promoted to persisted metadata');
+assert.equal(canBypassPublicCatalogHydration({
+  authority:firstBootAuthority,integrity_ok:true,persisted:null,
+}),false);
+const reconciledAuthority=evaluatePublicCatalogVersionAuthority({
+  expected:expectedPublic,applied:{...expectedPublic},updated:false,
+});
+const pendingDecision=decidePublicCatalogStartup({
+  authority:reconciledAuthority,integrity_ok:true,persisted:readPersistedPublicCatalogFingerprint(metadataStorage),
+});
+assert.equal(pendingDecision.action,'HYDRATE_REQUIRED');
+assert.equal(pendingDecision.reason,'PERSISTED_FINGERPRINT_MISSING');
+persistPublicCatalogFingerprint(reconciledAuthority.fingerprint,metadataStorage);
+const recoveredDecision=decidePublicCatalogStartup({
+  authority:reconciledAuthority,integrity_ok:true,persisted:readPersistedPublicCatalogFingerprint(metadataStorage),
+});
+assert.equal(recoveredDecision.action,'VERSION_MATCH_BYPASS');
+assert.equal(recoveredDecision.reason,'RELEASE_LOCAL_FINGERPRINT_EXACT');
+const integrityFailure=decidePublicCatalogStartup({
+  authority:reconciledAuthority,integrity_ok:false,persisted:readPersistedPublicCatalogFingerprint(metadataStorage),
+});
+assert.equal(integrityFailure.action,'HYDRATE_REQUIRED');
+assert.equal(integrityFailure.reason,'INTEGRITY_SENTINEL_FAILED');
+const nextPublicAuthority=evaluatePublicCatalogVersionAuthority({
+  expected:{...expectedPublic,items:'synthetic-items-v2'},
+  applied:{...expectedPublic,items:'synthetic-items-v2'},updated:true,
+});
+assert.equal(decidePublicCatalogStartup({
+  authority:nextPublicAuthority,integrity_ok:true,persisted:readPersistedPublicCatalogFingerprint(metadataStorage),
+}).reason,'DATABASE_RECONCILED_THIS_BOOT');
+assert.equal(localMetadata.size,1,'only local public fingerprint metadata is written in this synthetic fixture');
+const restoreSection=appSource.slice(appSource.indexOf("  $('restoreDbBtn').onclick"),appSource.indexOf("  $('resetDbBtn').onclick"));
+const replaceSection=databaseSource.slice(databaseSource.indexOf('export async function replaceDatabase('),databaseSource.indexOf('export function begin()'));
+assert.match(restoreSection,/await replaceDatabase\(/);
+assert.match(restoreSection,/alert\('還原完成'\)/);
+assert.ok(restoreSection.indexOf('await replaceDatabase(')<restoreSection.indexOf("alert('還原完成')"),
+  'restore success modal must follow awaited replaceDatabase');
+assert.match(replaceSection,/await persist\(\)/,'restore must await persist before resolving');
+assert.match(databaseSource,/emit\('SQLITE_PERSIST_COMPLETED'/,'persist must retain completed stage evidence');
+assert.match(bootstrapSource,/showFailure\('entry_modules',error\)/,'entry module transient must retain visible error');
+assert.match(bootstrapSource,/debugTrace\.fail\(operationId,error,\{phase:'entry_modules'\}\)/,
+  'entry module failure must retain original diagnostic error');
+console.log('PASS G479_SYNTHETIC_FIRST_BOOT_PUBLIC_CATALOG_MISMATCH_NOT_PROMOTED');
+console.log('PASS G479_SYNTHETIC_RECOVERED_AUTHORITY_LOCAL_FINGERPRINT_AND_INTEGRITY_FAIL_CLOSED');
+console.log('PASS G479_RESTORE_SUCCESS_AFTER_AWAITED_PERSIST_AND_ESM_ERROR_PRESERVED');
+console.log('NOTE G479_SYNTHETIC_ONLY_NO_ANDROID_REPRO_NO_PRODUCTION_RUNTIME_CHANGE');
