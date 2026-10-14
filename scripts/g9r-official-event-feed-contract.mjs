@@ -30,7 +30,7 @@ for(const e of payload.events.slice(3)){
     assert.equal(e.start_at,'2026-10-26T04:00:00+08:00');
     assert.equal(e.end_at,'2026-11-02T04:00:00+08:00');
     assert.equal(e.effects.cross_sleep_type_encounters,true);
-    assert.ok(e.effects.unknown_effects.every(x=>x.rule_status==='REVIEW_REQUIRED'),'Ghost-specific bonuses must remain type-scoped REVIEW, not global numeric values');
+    assert.equal(e.effects.unknown_effects.length,5,'Ghost scoped buffs/berry rule must remain unknown source-text observations');
     for(const k of ['ingredient_help_quantity_bonus','main_skill_trigger_multiplier','main_skill_level_bonus','pokemon_candy_multiplier'])
       assert.ok(!Object.hasOwn(e.effects,k),'G9R ghost buffs and phase candy must not be lifted to event-wide global effect: '+k);
     assert.equal(e.phases.length,2);
