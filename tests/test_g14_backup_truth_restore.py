@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 module = (ROOT / 'assets/js/backup-truth-restore.js').read_text(encoding='utf-8')
@@ -55,3 +56,7 @@ assert "app_version:APP_VERSION" in sw
 assert "build:APP_BUILD" in sw
 assert "bootstrap.js" in index
 print(f"G14.1 Backup Truth & Restore Verification: PASS ({active_version}, central authority, {'page-aware' if page_aware else 'legacy-eager'})")
+
+# This runs under the EXISTING G14 safety workflow Node/Python setup;
+# no extra Actions YAML/permissions or production PWA tuple change.
+subprocess.run(['node', 'scripts/g141-cross-device-restore-evidence-contract.mjs'], cwd=ROOT, check=True)
