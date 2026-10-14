@@ -1,5 +1,8 @@
 # Pokémon Sleep AI Manager — Canonical Gate Roadmap & Completion Authority
 
+> **2026-10-14 NEW REAL OFFICIAL DATA CANDIDATE — #19 G9R-HALLOWEEN (NOT YET MERGED/OWNER PASS)**：Owner 11:00 的繁中遊戲內通知「萬聖節2026：糖果倍增研究」，已與官方日文 [公告](https://www.pokemonsleep.net/news/343433383634343334313633353830393330/) 交叉確認：10/26 04:00–11/02 03:59（exclusive end=11/02 04:00），**僅**萌綠之島及萌綠之島EX；每日第一次睡眠研究糖果 10/26–30 ×2，10/31與11/1 ×3。受控 DATA-ONLY 候選新增一筆 PARTIAL_VERIFIED public event / 2 個 VERIFIED candy phases；幽靈屬性限定食材+1、主技能1.25與等級+3、墨莓果 EX 差異均以 REVIEW_REQUIRED 原文保留，**不套用全隊/玩家 DB/Strategy**；已知任務逐項獎勵尚未公告，不填假資料。原 G9R 自動發現器僅支援 Growth Week，這次為有官方來源的受控人工審核入庫，**不得宣稱通用活動自動解析完成**。release `.22` tuple 不變；待 PR 精確 HEAD CI、merge/main CI/Pages 及 Owner Android 驗收後才可關閉 Gate。
+
+
 > **2026-10-13 post-merge G9R checkpoint**：#474 source SHA/append-only official-candidate guard、#475 actual .22 store import + isolated SQLite API mock refresh/rollback contracts 均 PR exact-head CI 6/6 PASS、MERGED；截至 main `3b1aabd2c26a120cac8037d1277518a2aedec1fe` Pages 38385085408 SUCCESS。**G9R_REAL_OFFICIAL_FUTURE_EVENT→NEW_SHA→SAME_.22_PWA_OWNER** 未驗收，不得把 synthetic/mock CI 當 Android PASS；Issue #19 OPEN。
 
 
