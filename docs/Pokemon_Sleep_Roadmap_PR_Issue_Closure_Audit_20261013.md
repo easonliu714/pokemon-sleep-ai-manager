@@ -1,5 +1,8 @@
 # Pokémon Sleep AI Manager — Roadmap／PR／Issue 全量盤點與結案審核
 
+> **2026-10-14 official Halloween data-only intake — CANDIDATE（NOT DONE）**：使用者提供 10/14 11:00 遊戲內萬聖節2026：糖果倍增研究 3 張截圖，與官方 [2026/10/14 公告](https://www.pokemonsleep.net/news/343433383634343334313633353830393330/) 核對。原 G9-R source adapter `parseVerifiedGrowthNotice` 對非 Growth Week returns null，故監控 `SUCCESS` 不能代表此公告有更新。新 branch `data/g9r-halloween2026-official-scoped-phase-candy` 僅改 Public Master JSON + Manifest SHA / G9R regression + 本三份治理文件，將 `halloween_double_candy_2026_10` 加為官方 PARTIAL_VERIFIED 限定營地候選：萌綠之島 / 萌綠之島EX；10/26–10/30 第一次研究 ×2，10/31與11/1 ×3，04:00 half-open phases；幽靈屬性專屬加成與墨莓果差異寫 `unknown_effects` / `limited_mechanics` 留 REVIEW_REQUIRED，`not_candy_use_exp=true`，不污染 numeric/PLAYER；原三筆 immutable。Official source verification & synthetic runtime contract tests require PR CI, Pages and real Owner `.22` new-SHA refresh. **Owner UAT not yet PASS; Issue #19 remains OPEN**。候選 SHA 以 manifest/CI 實際 readback 為準，禁止沿用手寫歷史 HEAD。
+
+
 > **2026-10-13 G9R post-merge verified checkpoint**：#474 MERGED `8d74f6e2bd1e48ba3db84a0f609d0172b873232d`，PR 6/6 + main CI/Pages SUCCESS；#475 MERGED `3b1aabd2c26a120cac8037d1277518a2aedec1fe`，PR 6/6、Data Boundary runtime-in-memory SQLite API mock `new SHA / OFFLINE_CACHED / invalid SHA / rollback / player sentinel` PASS；Pages run [38385085408](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/38385085408) SUCCESS。兩者未動 App `.22` runtime、Public Event JSON/manifest、private SQLite。**這些是合成／隔離自動化 Gate，非真實未來官方事件發布／Android UAT；#19 保持 OPEN。**合併後 main 全量 CI 必須依最新 SHA 再 readback，不沿用本文件任何過去的 RUN。
 
 

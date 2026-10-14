@@ -1,9 +1,9 @@
 {
   "schema": "pokemon-sleep-public-event-master/1.0",
-  "master_version": "public-event-master-tw-2026-10-12-official-a",
+  "master_version": "public-event-master-tw-2026-10-14-halloween2026-official-a",
   "locale": "zh-TW",
   "region": "TW",
-  "generated_at": "2026-10-12T15:45:00Z",
+  "generated_at": "2026-10-14T04:09:09.853Z",
   "registry_version": "weekly-event-effect-registry-2026-08-17-b-public-event-master",
   "events": [
     {
@@ -164,6 +164,139 @@
           "incense_stacking": "SEPARATE",
           "not_candy_use_exp": true,
           "deterministic_model_status": "FEATURE_ONLY_NOT_PLAYER_WRITE"
+        }
+      }
+    },
+    {
+      "event_id": "halloween_double_candy_2026_10",
+      "title": "萬聖節2026：糖果倍增研究",
+      "locale": "zh-TW",
+      "region": "GLOBAL",
+      "start_at": "2026-10-26T04:00:00+08:00",
+      "end_at": "2026-11-02T04:00:00+08:00",
+      "camp_scope": [
+        "萌綠之島",
+        "萌綠之島EX"
+      ],
+      "effects": {
+        "cross_sleep_type_encounters": true,
+        "unknown_effects": [
+          {
+            "source_text": "在活動營地，特定寶可夢的睡眠研究出現機率提升；未提供精確機率，僅供顯示與稽核。"
+          },
+          {
+            "source_text": "僅幽靈屬性幫手寶可夢，在正常食材幫忙時每次食材 +1；現有跨屬性數值 Consumer 尚未支援，禁止當成全隊 +1。"
+          },
+          {
+            "source_text": "僅幽靈屬性幫手寶可夢的主技能發動機率 ×1.25；禁止將倍率套用所有寶可夢。"
+          },
+          {
+            "source_text": "僅幽靈屬性幫手寶可夢發動主技能時，主技能等級 +3，不能超出主技能等級上限；非所有寶可夢。"
+          },
+          {
+            "source_text": "萌綠之島喜好樹果固定包含墨莓果（幽靈屬性），另兩種隨機；萌綠之島 EX 主樹果固定墨莓果、副樹果隨機。"
+          }
+        ]
+      },
+      "phases": [
+        {
+          "phase_id": "halloween_regular_days",
+          "title": "其他日子：每日首次研究糖果 ×2",
+          "start_at": "2026-10-26T04:00:00+08:00",
+          "end_at": "2026-10-31T04:00:00+08:00",
+          "effects": {
+            "pokemon_candy_multiplier": 2
+          },
+          "mission_period": null,
+          "authority_status": "VERIFIED",
+          "source": {
+            "source_type": "OFFICIAL_ANNOUNCEMENT",
+            "source_name": "Pokémon Sleep 官方網站：Halloween 2026 Double Candy Research；繁中遊戲內公告交叉核對",
+            "source_ref": "https://www.pokemonsleep.net/news/343433383634343334313633353830393330/",
+            "verified_at": "2026-10-14T04:09:09.853Z",
+            "note": "2026-10-14 官方公布；使用者提供同日 11:00 繁體中文遊戲內通知，與 Pokémon Sleep 官方日文公告的日期、營地、糖果日別分段、幽靈限定加成一致。未有確切任務逐項獎勵，因此 missions/rewards 空白；不推測未定效果。"
+          }
+        },
+        {
+          "phase_id": "halloween_final_two_days",
+          "title": "10/31 萬聖節及 11/1 最後一天：每日首次研究糖果 ×3",
+          "start_at": "2026-10-31T04:00:00+08:00",
+          "end_at": "2026-11-02T04:00:00+08:00",
+          "effects": {
+            "pokemon_candy_multiplier": 3
+          },
+          "mission_period": null,
+          "authority_status": "VERIFIED",
+          "source": {
+            "source_type": "OFFICIAL_ANNOUNCEMENT",
+            "source_name": "Pokémon Sleep 官方網站：Halloween 2026 Double Candy Research；繁中遊戲內公告交叉核對",
+            "source_ref": "https://www.pokemonsleep.net/news/343433383634343334313633353830393330/",
+            "verified_at": "2026-10-14T04:09:09.853Z",
+            "note": "2026-10-14 官方公布；使用者提供同日 11:00 繁體中文遊戲內通知，與 Pokémon Sleep 官方日文公告的日期、營地、糖果日別分段、幽靈限定加成一致。未有確切任務逐項獎勵，因此 missions/rewards 空白；不推測未定效果。"
+          }
+        }
+      ],
+      "missions": [],
+      "rewards": [],
+      "limited_mechanics": [
+        "活動營地只有萌綠之島、萌綠之島EX；其他營地不適用本活動倍率。",
+        "睡眠研究糖果：10/26 至 10/30 每日首次睡眠研究 ×2；10/31、11/1 每日首次睡眠研究 ×3。不是使用糖果升級寶可夢 EXP 倍率。",
+        "幽靈屬性幫手限定：食材幫忙 +1、主技能發動率 ×1.25、主技能發動時等級 +3；現有全域型 Consumer 不可直接用這些數值。",
+        "萌綠之島喜好樹果其中一種固定為墨莓果；EX 主樹果固定為墨莓果，副樹果隨機，其餘未確定樹果禁止自動猜補。",
+        "睡眠研究可能遇見其他睡眠類型寶可夢；特定寶可夢出現機率提升，但官方公告沒有公布精確值。",
+        "活動/任務期間：2026/10/26 04:00 至 2026/11/02 03:59（台灣）；所有活動/階段採結束 04:00 不含邊界。",
+        "睡眠資料須於活動期間內開始測量；第二次睡眠研究不享有糖果倍率，新手教學不適用。",
+        "官方另提及夢妖、夢妖魔與萬聖節帽子伊布的特殊相遇；目前不建立捕捉機率或虛構任務獎勵。"
+      ],
+      "authority_status": "PARTIAL_VERIFIED",
+      "source": {
+        "source_type": "OFFICIAL_ANNOUNCEMENT",
+        "source_name": "Pokémon Sleep 官方網站：Halloween 2026 Double Candy Research；繁中遊戲內公告交叉核對",
+        "source_ref": "https://www.pokemonsleep.net/news/343433383634343334313633353830393330/",
+        "verified_at": "2026-10-14T04:09:09.853Z",
+        "note": "2026-10-14 官方公布；使用者提供同日 11:00 繁體中文遊戲內通知，與 Pokémon Sleep 官方日文公告的日期、營地、糖果日別分段、幽靈限定加成一致。未有確切任務逐項獎勵，因此 missions/rewards 空白；不推測未定效果。"
+      },
+      "field_provenance": {
+        "identity": {
+          "status": "VERIFIED",
+          "source_ref": "https://www.pokemonsleep.net/news/343433383634343334313633353830393330/",
+          "official_published_on": "2026-10-14"
+        },
+        "period": {
+          "status": "VERIFIED",
+          "time_zone": "Asia/Taipei",
+          "end_exclusive": true,
+          "source_ref": "https://www.pokemonsleep.net/news/343433383634343334313633353830393330/"
+        },
+        "camp_scope": {
+          "status": "VERIFIED",
+          "source_ref": "https://www.pokemonsleep.net/news/343433383634343334313633353830393330/",
+          "scope_matches_canonical_public_camp_names": true
+        },
+        "event_effects": {
+          "status": "PARTIAL_VERIFIED",
+          "source_ref": "https://www.pokemonsleep.net/news/343433383634343334313633353830393330/",
+          "verified_keys": [
+            "pokemon_candy_multiplier",
+            "cross_sleep_type_encounters"
+          ],
+          "unmodeled": [
+            "GHOST_TYPE_ONLY_INGREDIENT_HELP_BONUS",
+            "GHOST_TYPE_ONLY_MAIN_SKILL_TRIGGER_RATE",
+            "GHOST_TYPE_ONLY_MAIN_SKILL_LEVEL_BONUS",
+            "CAMP_FAVOURITE_BLUK_BERRY_WITH_EX_MODE_DISTINCTION",
+            "UNKNOWN_ENCOUNTER_PROBABILITIES"
+          ],
+          "pokemon_candy_multiplier_scope": "FIRST_SLEEP_RESEARCH_OF_DAY_ONLY",
+          "not_candy_use_exp": true,
+          "phase_rule": "2026-10-26_THROUGH_2026-10-30_X2;2026-10-31_AND_2026-11-01_X3",
+          "same_key_overlaps": "OFFICIAL_MAX_REQUIRES_DEDICATED_COMBINING_POLICY",
+          "deterministic_model_status": "FEATURE_ONLY_NOT_PLAYER_WRITE",
+          "verification_method": "MANUAL_OFFICIAL_JA_PLUS_OWNER_ZH_TW_NOTICE"
+        },
+        "model_authority": {
+          "status": "REVIEW_REQUIRED",
+          "reason": "Ghost-only per-type buff and berry rules cannot be promoted to global deterministic consumers."
         }
       }
     }

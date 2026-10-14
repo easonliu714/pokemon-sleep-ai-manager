@@ -1,5 +1,8 @@
 # Pokémon Sleep AI Manager — UI／功能 API／SQLite／Public Master 架構樹與驗證矩陣
 
+> **2026-10-14 new Halloween Public Master data delta（candidate）**：`assets/data/public-event-master.json` append one `halloween_double_candy_2026_10` with `camp_scope:['萌綠之島','萌綠之島EX']`, `start_at:2026-10-26T04:00:00+08:00`, `end_at:2026-11-02T04:00:00+08:00`, two nonoverlap phases at 2026-10-31 04:00（FIRST DAILY sleep-research candy ×2 → ×3），`source` official 10/14 Japanese same announcement confirmed by Owner 11:00 zh-TW screen; unknown restricted Ghost +1/×1.25/+3 & Bluk favorite berry/EX policy is **review only**, never globally projected into deterministic/Strategy. `assets/data/public-event-master-manifest.json` rotates DATA-ONLY version + content SHA. `assets/js/public-event-master-store.js` / Registry / SQLite DDL / IndexedDB / UI / JS PWA Version Authority `.22` / SW all **UNCHANGED**. G9R source watcher auto adapter remains strictly Growth Week; manual controlled source review is required for Halloween and other unseen event families. New tests assert real source/phase/camp boundaries & no old events mutation; OWNER device last-good new SHA NOT VERIFIED until live Pages CI.
+
+
 > **2026-10-13 architecture release baseline**：截至 main `3b1aabd2c26a120cac8037d1277518a2aedec1fe`，G9R `verifyG9RDataOnlyRelease`（#474）與以 mock DB 執行**原始** `refreshPublicEventMaster` 的 runtime regression（#475）已 MERGED；其所列 JS API 均為開發／QA 端，既有 PWA Production module `assets/js/public-event-master-store.js` 未改。**UI=NO_CHANGE、SQLITE_DDL=NO_CHANGE、IndexedDB=NO_CHANGE、Public Master JSON/manifest=NO_CHANGE、APP_VERSION=.22、CI PR exact-head=PASS；OWNER NEW-SHA REAL DEVICE=NOT_VERIFIED**。以此避免將 API 測試誤認為 UI 新功能或資料表新增。
 
 

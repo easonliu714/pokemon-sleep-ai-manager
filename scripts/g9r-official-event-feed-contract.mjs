@@ -18,6 +18,31 @@ assert.equal(manifest.payload_path,'./assets/data/public-event-master.json');
 assert.equal(payload.registry_version,'weekly-event-effect-registry-2026-08-17-b-public-event-master');
 assert.ok(payload.events.length>=3,'Preserve the original August + October official evidence; allow ONLY independently validated future Growth Week occurrences');
 for(const e of payload.events.slice(3)){
+  if(e.event_id==='halloween_double_candy_2026_10'){
+    assert.equal(e.authority_status,'PARTIAL_VERIFIED');
+    assert.equal(e.source.source_type,'OFFICIAL_ANNOUNCEMENT');
+    assert.equal(e.source.source_ref,'https://www.pokemonsleep.net/news/343433383634343334313633353830393330/');
+    assert.equal(e.field_provenance.identity.official_published_on,'2026-10-14');
+    assert.equal(e.field_provenance.event_effects.verification_method,'MANUAL_OFFICIAL_JA_PLUS_OWNER_ZH_TW_NOTICE');
+    assert.equal(e.field_provenance.event_effects.not_candy_use_exp,true);
+    assert.equal(e.field_provenance.event_effects.deterministic_model_status,'FEATURE_ONLY_NOT_PLAYER_WRITE');
+    assert.deepEqual(e.camp_scope,['萌綠之島','萌綠之島EX']);
+    assert.equal(e.start_at,'2026-10-26T04:00:00+08:00');
+    assert.equal(e.end_at,'2026-11-02T04:00:00+08:00');
+    assert.equal(e.effects.cross_sleep_type_encounters,true);
+    assert.equal(e.effects.unknown_effects.length,5,'Ghost scoped buffs/berry rule must remain unknown source-text observations');
+    for(const k of ['ingredient_help_quantity_bonus','main_skill_trigger_multiplier','main_skill_level_bonus','pokemon_candy_multiplier'])
+      assert.ok(!Object.hasOwn(e.effects,k),'G9R ghost buffs and phase candy must not be lifted to event-wide global effect: '+k);
+    assert.equal(e.phases.length,2);
+    assert.deepEqual(e.phases.map(p=>[p.phase_id,p.start_at,p.end_at,p.effects.pokemon_candy_multiplier]),[
+      ['halloween_regular_days','2026-10-26T04:00:00+08:00','2026-10-31T04:00:00+08:00',2],
+      ['halloween_final_two_days','2026-10-31T04:00:00+08:00','2026-11-02T04:00:00+08:00',3],
+    ]);
+    assert.equal(e.phases[0].end_at,e.phases[1].start_at);
+    assert.ok(e.phases.every(p=>p.authority_status==='VERIFIED'&&Object.keys(p.effects).length===1));
+    assert.deepEqual(e.missions,[],'No official per-mission rewards have been verified, keep blank');
+    continue;
+  }
   assert.match(e.event_id,/^growth_week_vol[0-9]+_20[0-9]{2}_[0-9]{2}$/,'Only fully verified known-pattern future events may join the automatic feed');
   assert.equal(e.authority_status,'VERIFIED');
   assert.equal(e.field_provenance.event_effects.verification_method,'EXACT_SUPPORTED_OFFICIAL_TEXT_CONTRACT');
@@ -45,6 +70,43 @@ assert.deepEqual(growth.camp_scope,['*']);
 assert.equal(growth.field_provenance.event_effects.pokemon_candy_multiplier_scope,'FIRST_SLEEP_RESEARCH_OF_DAY_ONLY');
 assert.equal(growth.field_provenance.event_effects.not_candy_use_exp,true);
 assert.equal(growth.field_provenance.event_effects.deterministic_model_status,'FEATURE_ONLY_NOT_PLAYER_WRITE');
+
+const halloween=payload.events.find(x=>x.event_id==='halloween_double_candy_2026_10');
+assert.ok(halloween,'Official 2026/10/14 Halloween scoped event must be in the public master');
+const ht=(at,camp)=>resolvePublicEventProjection(payload,{date:new Date(at),camp});
+const gh='萌綠之島',ex='萌綠之島EX',otherCamp='黃金舊發電廠';
+const beforeHalloween=ht('2026-10-26T03:59:59+08:00',gh);
+const firstDay=ht('2026-10-26T04:00:00+08:00',gh);
+const dayFive=ht('2026-10-31T03:59:59+08:00',gh);
+const halloweenNight=ht('2026-10-31T04:00:00+08:00',gh);
+const lastDay=ht('2026-11-01T04:00:00+08:00',ex);
+const excluded=ht('2026-11-01T12:00:00+08:00',otherCamp);
+const afterHalloween=ht('2026-11-02T04:00:00+08:00',gh);
+assert.equal(beforeHalloween.active_event_count,0);
+assert.equal(firstDay.active_event_count,1);
+assert.equal(firstDay.active_events[0].phase_id,'halloween_regular_days');
+assert.equal(firstDay.feature_only_event_effects.pokemon_candy_multiplier,2);
+assert.equal(dayFive.feature_only_event_effects.pokemon_candy_multiplier,2);
+assert.equal(halloweenNight.active_events[0].phase_id,'halloween_final_two_days');
+assert.equal(halloweenNight.feature_only_event_effects.pokemon_candy_multiplier,3);
+assert.equal(lastDay.feature_only_event_effects.pokemon_candy_multiplier,3);
+assert.equal(excluded.active_event_count,0,'Halloween must never apply to other camps');
+assert.ok(!Object.hasOwn(excluded.feature_only_event_effects,'pokemon_candy_multiplier'));
+assert.equal(afterHalloween.active_event_count,0);
+for(const projection of [firstDay,halloweenNight,lastDay]){
+  assert.equal(projection.event_authority_status,'PARTIAL_VERIFIED');
+  assert.equal(projection.event_effect_review_required,true);
+  assert.ok(!Object.hasOwn(projection.strategy_event_effects,'pokemon_candy_multiplier'));
+  for(const k of ['ingredient_help_quantity_bonus','main_skill_trigger_multiplier','main_skill_level_bonus'])
+    assert.ok(!Object.hasOwn(projection.strategy_event_effects,k),'Ghost buff must not contaminate team-wide strategy');
+}
+const boundary=nextPublicEventBoundary(payload,{date:new Date('2026-10-31T03:59:59+08:00'),camp:gh});
+assert.equal(boundary.at_iso,'2026-10-30T20:00:00.000Z');
+assert.equal(boundary.kind,'GAME_DAY_04');
+assert.equal(readFileSync('assets/js/version-authority.js','utf8').includes("app_version: 'v0.4.27.55.3.3.22'"),true);
+console.log('PASS G9R_REAL_OFFICIAL_2026_HALLOWEEN_SCOPED_CAMP_AND_PHASE_BONUSES');
+console.log('PASS G9R_REAL_OFFICIAL_2026_HALLOWEEN_GHOST_ONLY_FAIL_CLOSED');
+
 assert.equal(cooking.field_provenance.event_effects.consumer_semantics,'FEATURE_ONLY_AND_VERIFIED_EXISTING_REGISTRY_ONLY');
 const at=(s)=>resolvePublicEventProjection(payload,{date:new Date(s),camp:'黃金舊發電廠'});
 const before=at('2026-10-05T03:59:59+08:00');
