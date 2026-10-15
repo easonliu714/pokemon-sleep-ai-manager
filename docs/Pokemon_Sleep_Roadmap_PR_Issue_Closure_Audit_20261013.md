@@ -1,5 +1,82 @@
 # Pokémon Sleep AI Manager — Roadmap／PR／Issue 全量盤點與結案審核
 
+## Current Authority Reconciliation — 2026-10-15（取代下方舊快照的 Current 狀態）
+
+> **Fresh-read source**: GitHub `easonliu714/pokemon-sleep-ai-manager` main `5f61f972a98e7dba3cfa5ff882b125b061d6c096`（本次治理 PR 的 parent；正式 current 在後續每輪須重新讀取）。`OPEN PR=0`、`OPEN Issues=22`。PR [#487](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/487) 已由 Owner 手動 Ready，**MERGED**；exact HEAD `0348897496492f4bb1da90f8641add071d2e0be7` 的 **9/9 triggered PR workflows SUCCESS**，main 上列 parent 的 **9/9 triggered workflows SUCCESS，含 Pages [run 38731090483](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/38731090483)**。PR #487 只改 1 合成啟動測試與本套 3 份治理文件；不是 runtime hotfix，未變 `.22` App/JS bundle/SW/SQLite。先前「#487 Draft / 9/9歷史 HEAD」「Open 7 PR」「21 Open Issues」只可作**2026-10-13 歷史快照**，不是現況。
+
+### 最新 Closure audit：22 筆仍 OPEN（不因子 Gate CI PASS 逕行 Close）
+
+| Issue | Owner / 既有功能 | 目前決策 | 不能關單的主要證據缺口 |
+|---|---|---|---|
+| #482 | G14.1 跨機還原與 Manifest 對帳 | KEEP | 新手機還原自檢 integrity=PASS、FK0、11,513,856 bytes；兩機可見 counts 相同，但兩個**不同時間**目前 DB 的 SHA 前綴不同；缺原匯出 Manifest 的 exact SHA/重開機後 persist 證據 |
+| #479 | G479 Android 首次啟動／ESM import | KEEP | #487 只證明 synthetic first-install metadata mismatch → reconcile、await persist 順序；未根因驗證 Android app.js fetch 偶發失敗、121.8s UI stale/status |
+| #19 | G9 官方活動／策略 | KEEP | 10/14 Halloween verified Data-only Master 已發布，`.22` 實機新 Master VERSION visible PASS；10/26 & 10/31 營地/phase、端側 SHA、offline last-good/玩家 DB parity 未完整 Owner UAT |
+| #295 | Startup watchdog lifecycle | REVIEW_DO_D / KEEP | 現行程式與既有修補可能涵蓋部分，但背景/foreground/native dialog 時序原 issue DoD 尚未獨立對表驗證 |
+| #457 | G14.1 current/future unlock | KEEP / OWNER Gate | Current/future derivative code/CI 存在，完整 owner unlock、技能條件、persistent audit 仍需 exact DoD |
+| #6 / #16 | G6.2 feedback + ingredient gap Epic | KEEP | 不重做 G6.1 已 CLOSED；no-waste feedback Owner gate、上層產品整合未全結 |
+| #7 | DATA.1 ZIP extraction | KEEP | 剩餘原始個體/截圖分類與 source parity |
+| #48 | DATA.1 Public Master coverage | KEEP | Species/form/alias/來源 coverage 而非現有 5 個 shared master DDL |
+| #58 | DATA.1F pHash/dHash near-duplicate | KEEP | Exact SHA 去重不能代替近重複辨識 |
+| #144 | DATA.2A Full75 profiles | KEEP | 75/75 欄位/來源與 Owner 逐個驗收 |
+| #164 | Evolution screenshot UNKNOWN backfill | KEEP | 剩餘 UNKNOWN 真實證據與來源映射 |
+| #278 | Species ingredient base probability | KEEP | 物種/形態 versioned source base rates，UNKNOWN 不可猜零 |
+| #42 | G13 AI Assistant Center | KEEP / PARENT | OCR/BYOK/成本/多工作流一致性，個別 HTTP400 已 CLOSED |
+| #47 | G13.8 onboarding | KEEP | 首次使用逐類導覽及營地初始資料完整 Owner gate |
+| #9 | Overall Roadmap Epic | KEEP / PARENT | G6、G8、G9、G10 等上層整合 DoD |
+| #18 | G8 Weekly Planner | KEEP | 七日/多料理/替補與活動正式 integrated Owner gate |
+| #20 | G10 auto team builder | KEEP | 不重寫 team optimizer；先補可持久化草稿、營地/料理優先、UAT |
+| #40 | WAR.1 多隊伍／能量 | KEEP | 戰情室多組隊與本週估算 closed loop |
+| #265 | War Room concise decision UI | KEEP | 命名 team draft、可應用決策卡；不得聲稱直接操作遊戲 |
+| #43 | G14 Training Coach | KEEP / PARENT | ROI / sleep schedule / daily advice / owner validation |
+| #44 | G15 scenario simulator | KEEP | sandbox clone/rollback/no-player-write E2E |
+
+**Closure decision**: 本次 **即刻可安全 CLOSE 的 Open PR：0；可依現有證據無條件 CLOSE 的 Open Issue：0**。需檢查 DoD 後可評估的最小對象是 #295（歷史 lifecycle 修補重疊），不能僅憑 PR #487 synthetic PASS 關 #479 或 #295。#19/#482/#479 的新證據先保持分權威，不重複另起同名任務。系統 UI／JS API／SQLite 架構持續以 [UI_API_DB_FEATURE_ARCHITECTURE_TREE](./Pokemon_Sleep_UI_API_DB_Feature_Architecture_Tree_20261013.md) 為準，三份現行文件在同一 PR 維護。
+
+### 2026-10-15 多階層 Roadmap／實機差距（目前 single ownership）
+
+```text
+R0 安全治理 / Release                                     [CODE+CI CLOSED]
+ ├─ PWA Pages / SW / SQLite-WASM / IndexedDB / recovery
+ ├─ Raw immutable + Review + Dry-Run + transaction + rollback
+ ├─ Migration15 Candy 24/20 明示可見數量 + Mutation guard
+ └─ Migration16 Evolution / UNKNOWN!=0 / Absolute vs Delta
+R1 Public Master / Shared Knowledge                         [PARTIAL]
+ ├─ G5.1~5.4 Recipe identity + G6.1 deterministic gaps       [CLOSED Owner]
+ ├─ Halloween 10/14 Data-only 官方來源，公開 4 events          [PUBLISHED]
+ └─ #48/#278 species data/probability coverage               [OPEN]
+R2 OCR / DATA                                                [PARTIAL]
+ ├─ .21 ingredient source-name approval，24/20 Candy         [CLOSED Owner cases]
+ └─ #7/#58/#144/#164/#42 remaining coverage & AI orchestration[OPEN]
+R3 Cooking / G8-G10 / WAR.1                                  [PARTIAL]
+ ├─ G7 recipe planner deterministic                           [CLOSED historical scope]
+ ├─ #6/#16 no-waste recipe attempt acceptance                  [OPEN Owner]
+ ├─ #19 10/26 Halloween 2x／10/31 3x scoped phase + offline    [OPEN Owner]
+ └─ #18/#20/#40/#265 weekly/team/decision UX                 [OPEN]
+R4 G12/G14/G15 Training / Evolution                          [PARTIAL]
+ ├─ G12.1 deterministic evolution migration16                 [CLOSED]
+ └─ #457/#43/#44 derived unlock/coach/simulator              [OPEN Owner/Product]
+R5 First Use / Startup / Backup                              [PARTIAL]
+ ├─ New-phone virgin SQLite Schema/bootstrap                  [EXPECTED]
+ ├─ Owner old->new restore, integrity PASS FK=0 counts match  [OWNER PARTIAL PASS]
+ ├─ #482 source backup byte-SHA & reload persistence          [HOLD]
+ ├─ #479 app.js fetch/error + first-install status semantics  [CI synthetic PASS; Android OPEN]
+ ├─ #295 watchdog background/native dialog DoD                 [REVIEW CLOSE]
+ └─ #47 onboarding                                          [OPEN]
+R6 GitHub Closure / Anti-drift
+ ├─ PR #487 head 0348897... → merge main 5f61f9...            [CI+PAGES CLOSED]
+ ├─ OPEN PR=0 / OPEN ISSUE=22                                 [FRESH READ]
+ └─ 每個新 Gate: current main + versions + source/CI/Pages + both docs / issue evidence
+```
+
+### Stop / continue boundaries
+
+- **現在可做**：以新手機一般重開 PWA →「備份還原」→「檢查目前資料庫」取得無破壞性持久化 readback；如 Owner 已有舊備份的 **去識別 Manifest**，僅 SHA/size/counts 比對，不要求再還原，不將個人 SQLite 交 GitHub。
+- **仍需研究**：G479 Android 真實載入失敗和 startup UI elapsed label；#487 只能稱 synthetic regression、不能稱 Root Cause Fixed。
+- **不可做**：清理儲存空間、卸載 PWA、推送手機私人 DB、為了湊 SHAs 強制改寫、擅自提升匿名公版 effect 為玩家數值、重開已 CLOSED Gate。
+- **協作來源權威**：先 GitHub Live main + 兩份 living documents + Gate Roadmap + Issue/CI；**本地 Windows/Android checkout HEAD/dirty 未取得 => `LOCAL_HEAD_NOT_VERIFIED`**。本 Markdown 文件既有的 `2026-10-13` 原始段落為歷史稽核，不得覆蓋此新 reconciliation。
+
+
+
 > **2026-10-15 G479 #487 SYNTHETIC CI-ONLY / DRAFT**：PR #487 歷史 HEAD `41a8d5fab4ea55d0464dcd74fa74868b5dcfe9f1` 的 9/9 checks SUCCESS 僅為歷史證據；合併依最新 exact HEAD 重新驗證，首次 Public Catalog mismatch 必須 HYDRATE_REQUIRED，不能將錯誤 fingerprint persist；恢復後 exact fingerprint 才可 bypass，integrity fail 保留 HOLD；`還原完成` 僅在 awaited `replaceDatabase`/`persist()` 後。測試不是 Android ESM/121.8 秒根因重現，無 production PWA/SQLite/IndexedDB/SW/玩家資料/`.22` tuple 異動。#479 TRIAGE OPEN；#482 Owner Restore/Integrity 與可見 counts PASS、跨時間 SHA 不同 REVIEW、原備份 Manifest SHA 和 reload 持久化 HOLD；#19 Halloween 10/26/10/31 phase、offline last-good、端側 exact SHA 仍 OPEN。三份 living docs 必須同 PR 同步，變更後新 head CI 重新驗證，expected-head merge 後再驗 main CI/Pages。
 
 > **2026-10-14 20:34 G14.1 old/new phone observation / protected release evidence**：舊機當前 SQL SHA 與新機當前 SQL SHA 前段明顯不同，但大小及 visible core counts 同，兩者時間相差約 12 分鐘；不得把『目前資料庫』指紋當作匯出備份的原檔 SHA，亦不可解讀為資料遺失。純 metadata `evaluateG141PairedSelfChecks`（source export proof 與 paired current self-check 證據明確分開）已 [#485](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/485) 7/7 PR exact-head CI、MERGED `3559ca9f7b48240e4d9a619491f4c9495e775a12`，main 8/8 CI + Pages [run 38567091151](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/38567091151) SUCCESS。#482 唯讀對帳 Gate 工程 CLOSED；舊備份 SHA/新機同時點 SHA/parity 與新機 reload 後 persistent proof **OPEN**，不得重做還原或變更舊機。下一輪可做不破壞資料的一次普通 reload + selfcheck，若需要提供 redacted Manifest 而非 sqlite/player JSON。
@@ -139,7 +216,7 @@ Pokémon Sleep AI Manager — canonical outcome roadmap（稽核建議，不等�
     └── [AFTER G9] 再選 G8／WAR.1／G14，不同 Owner 不建立同功能平行系統
 ```
 
-## 2. PR 全量盤點（Open 7）
+## 2. PR 全量盤點（2026-10-13 歷史快照：當時 Open 7；現況請見最新 Reconciliation）
 
 | PR | Branch／範圍 | Current | 建議／不可誤判 |
 |---|---|---|---|
@@ -157,7 +234,7 @@ Pokémon Sleep AI Manager — canonical outcome roadmap（稽核建議，不等�
 
 [#421 HTTP400 compact schema](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/421)、[#424 visible 24/20](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/424)、[#439 watchdog](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/439)、[#458 G14.1](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/458)、[#459 G5.1](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/459)、[#468 G6.2](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/468)、[#469 `.20`](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/469)、[#470 `.21`](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/470)、[#471 `.22`](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/471) 均已 MERGED；其後的新缺口應 **extend／verify**，而非另起一套相同功能。
 
-## 3. 21 筆 Open Issues — 完整處置矩陣
+## 3. 2026-10-13 歷史 21 筆 Open Issues — 完整處置矩陣（現況 22 筆見頂端）
 
 | Issue | 功能域與既有能力 | 處置 | 結案還差的最小證據 |
 |---|---|---|---|
