@@ -1,5 +1,66 @@
 # Pokémon Sleep AI Manager — UI／功能 API／SQLite／Public Master 架構樹與驗證矩陣
 
+## Current UI / API / DB Architecture Authority — 2026-10-15 (live GitHub recheck)
+
+> **Source state**: main `5f61f972a98e7dba3cfa5ff882b125b061d6c096` before this docs-only PR; installed app version authority `v0.4.27.55.3.3.22` with build `20261012-v0427553322-g9-official-event-auto-refresh` unchanged. PR #487 (HEAD `0348897496492f4bb1da90f8641add071d2e0be7`) **MERGED**; exact PR triggered CI 9/9 SUCCESS and same-main 9/9 CI+Pages [run 38731090483](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/38731090483) SUCCESS. `OPEN PR=0` / `OPEN Issues=22`. 本次 #487 只變更 `scripts/v04275531-startup-idb-sw-reliability-contract.mjs` 及三份治理文件；不變更用戶可用的 UI/API、SQLite/IndexedDB、SW、Public Master JSON 或玩家資料。
+
+### 現行 UI → 模組 API → 資料權威（避免重做）
+
+| 執行中入口（13 views） | 應重用現有 API / JS | SQLite / 公版 Authority | 已完成／尚需驗證 |
+|---|---|---|---|
+| 儀表板 | `app.js`, `database.js`, `storage.js` | player SQLite local bytes / IndexedDB | CODE+基礎 UI；新機實機還原後健康 PASS、重開機後持久化尚未讀回 #482 |
+| 寶可夢 | roster/detail、`training-derived-state-authority.js` | pokemon / subskills / ingredients | CODE；81 total/75 active 已實機見；Full75 source #144 與 CURRENT/FUTURE owner #457 未全閉 |
+| 食材 | ingredient inventory integrity / OCR review | ingredient_inventory + shared ingredient_master | CODE，.21 特定來源名稱人工確認 OWNER PASS；全 inventory coverage 未聲稱 PASS |
+| 道具 | inventory view | item_inventory + item_master | CODE；新機 22 item rows 自檢存在，不等於全使用者道具 UAT |
+| 食譜 | public recipe identity / gap / feedback | recipes player / recipe_master public | G5 identity、G6.1、G7 指定 Gate CLOSED；#6/#16 no-waste feedback Owner 尚未閉 |
+| 更新中心 | Observation → Review → Dry Run → Apply / audit, AI BYOK | import_batches/import_changes/image_analysis_revision | P0-B6 Candy 24/20、Migration15 CLOSED；#42/#58/#144 整體覆蓋仍 OPEN |
+| 備份還原 | `backup-truth-restore.js`, `database.replaceDatabase`, `g141-cross-device-restore-evidence.js` | SQLite export + JSON + Manifest / IDB snapshot | NEW PHONE owner restore modal+integrity PASS/FK0；two-current-DB SHA 不同 REVIEW，original source backup exact SHA / post-reload HOLD #482；後者 pure metadata API 尚未接 UI |
+| 資料百科 | `public-catalog-workbench.js` + shared-master provider | versioned Public Masters / canonical terms | CODE；Master coverage #48 OPEN |
+| 本週環境 | `public-event-master-store.js`, `weekly-event-effect-registry.js` | public_event_master / phases、weekly_context | 新 10/14 Halloween Manifest VERSION 在同 .22 Android 顯示 Owner PASS；10/26 / 10/31 營地分段、端側 SHA、offline last-good #19 OPEN |
+| 本週戰情室 | `team-optimizer*`, `warroom-*`, strategy/evolution providers | goal profiles / eval snapshots / player inventory | G7 closed defined scope；G8 #18 / G10 #20 / WAR #40/#265 等產品閉環仍 OPEN |
+| 收集指南 | collection model / capture display | collection_targets / public pokemon master | CODE；coverage/owner use cases OPEN |
+| 使用說明 | guide scenarios / privacy reminders | static docs/local preferences | CODE；Onboarding Wizard + camp init #47 OPEN |
+| 診斷中心 | debug trace / watcher / export | session log and local report (not user DB export) | CODE；#479 Android ESM transient/fingerprint phase/121.8s stage root cause OPEN；#487 pure synthetic test CI CLOSED；#295 original native-dialog/visibility DoD REVIEW |
+
+### API / 資料表宣告 vs 真實部署的界線
+
+```text
+OFFICIAL BROWSER-ONLY PWA   [CODE / GitHub Pages DEPLOYED]
+├── index.html → bootstrap.js → app.js / 13 views           [CODE]
+├── Version Authority (.22) + Service Worker               [CODE / SHA frozen]
+├── D1. Local SQLite WASM (sql.js)
+│   ├── schema.js 26 CREATE TABLE declarations              [DDL SOURCE, not a claim all private fields complete]
+│   ├── migrations.js, Migration 15 Candy, Migration 16 Evolution
+│   ├── Player domains: pokemon, *_inventory, recipes, weekly_context,
+│   │                   import audit, images, warroom, candy, evolution
+│   ├── shared-master-schema.js: 5 master tables + views    [PUBLIC CACHED]
+│   ├── public-event-master-schema.js: Event / Phase        [SOURCE VERIFIED; Owner VERSION PASS]
+│   └── g121-authority.js and other bounded migrations     [G12.1 CODE]
+├── D2. IndexedDB pokemon_sleep_ai_manager                 [LOCAL ONLY]
+│   ├── database (SQLite bytes), snapshots, metadata; legacy snapshot_metadata
+│   └── first-install virgin schema creation is EXPECTED
+├── D3. Production pure JS API modules
+│   ├── identity/import/AI/BYOK (owner-confirmed mutations only)
+│   ├── cooking/recipe/ingredient strategy
+│   ├── public event -> effective weekly projection FEATURE_ONLY
+│   ├── team planner / training derived current-vs-future
+│   └── backup-truth-restore / diagnostics safety
+├── D4. OFFLINE QA-only APIs (NOT current PWA UI)
+│   ├── evaluateG141CrossDeviceRestoreEvidence
+│   ├── evaluateG141PairedSelfChecks
+│   └── G479 synthetic metadata reconciler assertions in scripts/v04275531-*
+└── D5. GitHub Actions & source data (NOT a production backend)
+    ├── contents:read official-source watch, controlled data-only PRs
+    ├── official Halloween Public Master v2026-10-14 (4 events)
+    └── exact-head PR CI -> protected merge -> exact-main CI/Pages
+```
+
+**Evidence level discipline**: `CODE` != `CI_PASS` != `PAGES_PASS` != `OWNER_PASS`. `DDL_SOURCE` != user SQLite schema inspection/row-parity proof. Screenshot visible master VERSION does not attest device exact cached SHA, or future phase/offline. 10/12 current-week correctly displays Growth vol.6, Halloween first active at 10/26 04:00 Asia/Taipei, public source only on 萌綠之島/EX and FIRST daily research candy ×2 (10/26–30) / ×3 (10/31–11/1); unknown ghost/bonus effects cannot be silently made global player multipliers. Frontend is browser-side JS modules, **not FastAPI or PostgreSQL**: uploaded `SPC_System` UI/API/DB files are examples of formatting/governance only, and MUST NOT contribute feature facts to this architecture.
+
+**Closure / overlap**: #19 owns real G9 official future-event UAT; #479 owns Android ESM boot/fingerprint status triage (synthetic #487 CI is not Android fix); #482 owns old→new exact backup SHA and new-device durable reload; #295 owns old watchdog lifecycle DoD (check for overlap, don't rewrite); #457 owns current/future unlock; all higher-level #9/#42/#43/#48 stay OPEN. Subsequent proposals first search this Tree, current repo source and Issue DoD. Downstream living closure authority: [ROADMAP_PR_ISSUE_CLOSURE_AUDIT](./Pokemon_Sleep_Roadmap_PR_Issue_Closure_Audit_20261013.md).
+
+
+
 > **2026-10-15 G479 #487 SYNTHETIC ARCHITECTURE / NOT PWA RUNTIME**：`scripts/v04275531-startup-idb-sw-reliability-contract.mjs` 透過 `evaluatePublicCatalogVersionAuthority`、`decidePublicCatalogStartup`、`persistPublicCatalogFingerprint`、`readPersistedPublicCatalogFingerprint`、`canBypassPublicCatalogHydration` 純本機 metadata fixture，驗證首次不一致時 `HYDRATE_REQUIRED(DATABASE_AUTHORITY_MISMATCH)`、禁止錯誤 fingerprint promotion；reconciled exact + fingerprint 才 `VERSION_MATCH_BYPASS`，integrity sentinel FAIL 不可 bypass。靜態原始碼順序斷言 `restoreDbBtn` → awaited `replaceDatabase()` → awaited `persist()` → `還原完成`，且 `bootstrap.js` ESM failure trace 不丟棄。**此 PR 僅改 TEST 與 canonical docs，無任何 PWA JS runtime/UI mount、SQLite DDL/row、IndexedDB、Service Worker、Public Event Master、version/build/cache 變更**。歷史 HEAD `41a8d5fab4ea55d0464dcd74fa74868b5dcfe9f1` 的 CI 9/9 PASS；正式合併前必須以最新 HEAD 的全套 CI 為準；Android `app.js` 偶發 dynamic import、121.8s stale label 根因仍 UNKNOWN，#479 OPEN。#482 兩機 integrity/FK/visible counts PASS、不同 current SHA REVIEW、原備份 Manifest/重載持久化 HOLD；#19 Halloween phase/offline/exact SHA Owner UAT OPEN。對應 Roadmap 與 PR/Issue Audit 必須同 PR 一致，且不以 synthetic fixture 宣稱 Owner PASS。
 
 > **2026-10-14 G14.1 CURRENT API final merge**：新增並已 MERGED `assets/js/g141-cross-device-restore-evidence.js` 的 `evaluateG141PairedSelfChecks`（input={oldPhone,newPhone,stage}，13 個必要 user-table counts、一致完整 table set、good integrity/FK、full SHA validation、size validation），針對不同日期的兩支手機 SelfCheck receipts 提供 `COUNT_PARITY_ONLY / PAIR_SELF_CHECK_BYTES_MATCH / REVIEW_REQUIRED(COUNT_PARITY_SHA256_DIFFERENT) / HOLD`。這**不是**舊機匯出備份 Manifest/SQLite 檔案比對：資料庫目前 SHA 相符仍保留 `source_backup_manifest_not_verified`。PR #485 MERGED main `3559ca9f7b48240e4d9a619491f4c9495e775a12`、main 8/8 SUCCESS、Pages 38567091151 PASS；原 `evaluateG141CrossDeviceRestoreEvidence` for exported manifest authority 仍保留。Production `backup-truth-restore.js`、`app.js` / `.22` build cache、SQLite schema/IndexedDB/SW/個人資料與 Public Master JSON 均 unchanged。
@@ -223,8 +284,8 @@ F. 來源更新／發布控制（不是玩家 runtime API）
 ├── GitHub Actions `data-boundary-regression.yml`（contents:read）
 ├── scripts/g9r-official-event-source-refresh.mjs（read-only scheduled discovery）
 ├── scripts/g9r-official-event-feed-contract.mjs（source/SHA/04:00/fail-closed）
-├── PR #472：新合成測試＋額外 bonus HOLD，**尚未 merge**
-└── [NOT PROVEN] 官方新實際來源 → PR/merge/Pages → 同 .22 實機資料變動
+├── PR #472：新合成測試＋額外 bonus HOLD [已 MERGED，後續 #474/#475 CI 加強]
+└── [OWNER PARTIAL PASS] 10/14 Halloween 真實 Data-only PR #477 已部署、同 .22 新 Master VERSION 已在 Android 顯示；端側 SHA/分段/offline 還待驗
 ```
 
 **網路／資安責任劃分**：Gemini Provider BYOK 與其傳輸不是 GitHub 的受控 Public Master 寫入路徑；即使 AI 回傳 200，也只可能產 candidate。官方資料來源 cron 本身 read-only，並不會自動建 PR／寫入 GitHub。`index.html` 實際載入 sql.js CDN，不代表該 CDN 經營玩家雲端資料庫。
