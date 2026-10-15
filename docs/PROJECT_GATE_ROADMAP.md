@@ -1,5 +1,12 @@
 # Pokémon Sleep AI Manager — Canonical Gate Roadmap & Completion Authority
 
+## 2026-10-16 G479 synthetic Service Worker HTTP-response replay — candidate, not merged
+
+- Parent main: `56077b971b29601db5dea024a60a9a080be55776` (#488 merged); 6/6 triggered main workflows SUCCESS, including Pages build/deploy. Open PR=0 before test branch; `.22` release unchanged.
+- Branch `test/g479-sw-http-response-replay-20261016`: isolated SW fixture reproduces current behavior for synthetic versioned `app.js` requests. Rejected network fetch falls back to cached asset; resolved HTTP 503 passes through without cached fallback; genuine 404 stays failure; later HTTP 200 recovers. **This is synthetic and does not prove the Owner's Android failure received HTTP 503**.
+- No runtime SW/app change, version bump, new workflow, player SQLite/IndexedDB mutation, or storage reset. #479 remains OPEN for actual network response and stale 121.8-second stage diagnosis. #482 backup-manifest/postreload and #19 Halloween future-phase/offline remain OPEN. PR exact-head CI and protected merge must precede any accepted Gate claim.
+
+
 ## Current authority index — 2026-10-15 (GitHub parent readback)
 
 **SOURCE OF TRUTH / DO NOT DRIFT**: [ROADMAP_PR_ISSUE_CLOSURE_AUDIT](./Pokemon_Sleep_Roadmap_PR_Issue_Closure_Audit_20261013.md) for all Gate/PR/Issue closure and [UI_API_DB_FEATURE_ARCHITECTURE_TREE](./Pokemon_Sleep_UI_API_DB_Feature_Architecture_Tree_20261013.md) for production UI/JS API/SQLite/IndexedDB/Public Master ownership. THIS file provides only the completion matrix and links. Treat all older `Current` labels and previous checkpoint SHAs below as historical unless re-proven against live main.
