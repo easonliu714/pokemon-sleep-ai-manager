@@ -1,5 +1,15 @@
 # Pokémon Sleep AI Manager — Roadmap／PR／Issue 全量盤點與結案審核
 
+## 2026-10-16 G479 synthetic Service Worker HTTP-response replay — PR #489 governed candidate
+
+> **Current bounded authority at candidate construction**: main `56077b971b29601db5dea024a60a9a080be55776` (#488 merged), PR [#489](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/489) Draft branch `test/g479-sw-http-response-replay-20261016`. Historical exact head `2b72c35ac157fb3d8a84c61f4cf19c737b51335e` had 9/9 pull_request workflow SUCCESS **before this documentation reconciliation**; any new head invalidates those checks until fresh CI completes. Main same-SHA push CI 6/6 SUCCESS including Pages run 38738511322; scheduled Data Boundary successes are separate and not substitute for required push CI. No current Owner device acceptance is implied.
+
+- **G479 synthetic observation only**: isolated VM replay of current `service-worker.js` for versioned `app.js` shows rejected network fetch uses current cached asset, resolved HTTP 503 passes through despite cached asset, genuine HTTP 404 stays failure, later HTTP 200 recovers. This is an evidence-bounded **possible mechanism**, not proof that Owner Android ESM TypeError involved HTTP 503 or that production has been fixed.
+- **No live changes**: test-only `scripts/g479-sw-network-failure-replay.mjs`, existing startup reliability contract import, and the three canonical documents. App `v0.4.27.55.3.3.22` build/cache, SW, SQLite, IndexedDB, player tables, Public Event Master, and Actions topology unchanged.
+- **Issue decisions**: [#479](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/479) OPEN pending actual Android asset/SW/network response evidence and 121.8-second status stage diagnosis; [#482](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/482) OPEN for old exported backup manifest and post-reload persistence; [#19](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/19) OPEN for Halloween 10/26/10/31 phase, exact device SHA and offline last-good.
+- **Release gate**: PR must complete unchanged exact-head required CI after all three docs are reconciled; Ready/readback/expected-head merge only then, followed by same-SHA main CI/Pages. Synthetic CI does not authorize Android remediation, source confidence inflation, or player DB writes.
+
+
 ## Current Authority Reconciliation — 2026-10-15（取代下方舊快照的 Current 狀態）
 
 > **Fresh-read source**: GitHub `easonliu714/pokemon-sleep-ai-manager` main `5f61f972a98e7dba3cfa5ff882b125b061d6c096`（本次治理 PR 的 parent；正式 current 在後續每輪須重新讀取）。`OPEN PR=0`、`OPEN Issues=22`。PR [#487](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/487) 已由 Owner 手動 Ready，**MERGED**；exact HEAD `0348897496492f4bb1da90f8641add071d2e0be7` 的 **9/9 triggered PR workflows SUCCESS**，main 上列 parent 的 **9/9 triggered workflows SUCCESS，含 Pages [run 38731090483](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/38731090483)**。PR #487 只改 1 合成啟動測試與本套 3 份治理文件；不是 runtime hotfix，未變 `.22` App/JS bundle/SW/SQLite。先前「#487 Draft / 9/9歷史 HEAD」「Open 7 PR」「21 Open Issues」只可作**2026-10-13 歷史快照**，不是現況。
