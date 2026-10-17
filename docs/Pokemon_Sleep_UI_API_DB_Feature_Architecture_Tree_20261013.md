@@ -1,5 +1,21 @@
 # Pokémon Sleep AI Manager — UI／功能 API／SQLite／Public Master 架構樹與驗證矩陣
 
+## 2026-10-16 G479 Service Worker response-replay architecture authority — PR #489 candidate
+
+> **Branch-bound evidence**: parent main `56077b971b29601db5dea024a60a9a080be55776`; PR [#489](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/489) Draft. Previous PR head `2b72c35ac157fb3d8a84c61f4cf19c737b51335e` 9/9 CI SUCCESS is **historical after any documentation commit**. Production `v0.4.27.55.3.3.22` / `20261012-v0427553322-g9-official-event-auto-refresh` and cache unchanged. No PWA JS/SW/UI mount or data migration in this PR.
+
+### Isolated synthetic fixture vs deployed Android behavior
+
+| Layer | Verified synthetic behavior / scope | Unverified physical fact |
+|---|---|---|
+| `service-worker.js` `fetch` interception | Synthetic versioned `app.js` rejected fetch can use same-release cached response; synthetic resolved HTTP 503 passes through; HTTP 404 remains failure; later 200 recovers | Android `module_probe_failed` network status/headers/SW cache path not captured |
+| `scripts/g479-sw-network-failure-replay.mjs` | Node VM + fake `fetch`/`caches`, no real browser SW registration or owner data; imported by existing `scripts/v04275531-startup-idb-sw-reliability-contract.mjs` | No Android ESM import fix, no first-boot real network fault reproduction |
+| Public Catalog / SQLite / IndexedDB | Prior #487 metadata/fingerprint mismatch/recovery and awaited restore persist static contract retained | 121.8-second `正在儲存 SQLite` label not proven to reflect a running transaction |
+| Version / event / personal data | .22 version/build/cache, Halloween Public Event Master, Migration15/16, Raw and player tables unchanged | #482 original backup exact SHA and postreload durable parity; #19 10/26/10/31 mobile phase/offline gates remain open |
+
+**Architectural decision**: synthetic HTTP status classification is a diagnostic regression, not an automatic fallback change. Any runtime SW/network retry must first have bounded real trace and demonstrate fail-closed 404/version authority, current-release cache identity, no stale downgrade and no player data mutation. Three living docs in this same PR must be reconciled before Ready/merge; re-run exact-head CI after final commit.
+
+
 ## Current UI / API / DB Architecture Authority — 2026-10-15 (live GitHub recheck)
 
 > **Source state**: main `5f61f972a98e7dba3cfa5ff882b125b061d6c096` before this docs-only PR; installed app version authority `v0.4.27.55.3.3.22` with build `20261012-v0427553322-g9-official-event-auto-refresh` unchanged. PR #487 (HEAD `0348897496492f4bb1da90f8641add071d2e0be7`) **MERGED**; exact PR triggered CI 9/9 SUCCESS and same-main 9/9 CI+Pages [run 38731090483](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/38731090483) SUCCESS. `OPEN PR=0` / `OPEN Issues=22`. 本次 #487 只變更 `scripts/v04275531-startup-idb-sw-reliability-contract.mjs` 及三份治理文件；不變更用戶可用的 UI/API、SQLite/IndexedDB、SW、Public Master JSON 或玩家資料。
