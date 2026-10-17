@@ -103,7 +103,7 @@ for(const projection of [firstDay,halloweenNight,lastDay]){
 const boundary=nextPublicEventBoundary(payload,{date:new Date('2026-10-31T03:59:59+08:00'),camp:gh});
 assert.equal(boundary.at_iso,'2026-10-30T20:00:00.000Z');
 assert.equal(boundary.kind,'GAME_DAY_04');
-assert.equal(readFileSync('assets/js/version-authority.js','utf8').includes("app_version: 'v0.4.27.55.3.3.22'"),true);
+assert.equal(readFileSync('assets/js/version-authority.js','utf8').includes("app_version: 'v0.4.27.55.3.3.23'"),true);
 console.log('PASS G9R_REAL_OFFICIAL_2026_HALLOWEEN_SCOPED_CAMP_AND_PHASE_BONUSES');
 console.log('PASS G9R_REAL_OFFICIAL_2026_HALLOWEEN_GHOST_ONLY_FAIL_CLOSED');
 
@@ -135,9 +135,12 @@ for(const event of [cooking,growth]){
   assert.equal(event.field_provenance.period.end_exclusive,true);
 }
 const version=readFileSync('assets/js/version-authority.js','utf8');
-assert.ok(version.includes("app_version: 'v0.4.27.55.3.3.22'"),'One-time network-cache upgrade is .22; subsequent data-only refresh must retain this tuple');
-assert.ok(version.includes("app_build: '20261012-v0427553322-g9-official-event-auto-refresh'"));
-assert.ok(version.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.22-v0427553322-g9-official-event-auto-refresh'"));
+assert.ok(version.includes("app_version: 'v0.4.27.55.3.3.23'"),'G479 production status UI .23 must not alter official event bytes');
+assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.22'"),'historical .22 release remains frozen');
+assert.ok(version.includes("app_build: '20261017-v0427553323-g479-startup-stage-ownership'"));
+assert.ok(version.includes("// app_build: '20261012-v0427553322-g9-official-event-auto-refresh'"));
+assert.ok(version.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.23-v0427553323-g479-startup-stage-ownership'"));
+assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.22-v0427553322-g9-official-event-auto-refresh'"));
 assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.21'"),'Previous .21 owner-PASS tuple preserved in historical lineage');
 const sw=readFileSync('service-worker.js','utf8');
 assert.match(sw,/verifiedEventFeedAsset=sameOrigin&&/);

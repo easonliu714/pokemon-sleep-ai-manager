@@ -11,6 +11,11 @@ const successorAuthorities=Object.freeze({
   // .20 predecessor: v0.4.27.55.3.3.20 / 20261011-v0427553320-unlock-planner-inventory-parity
   // .20 cache: pokemon-sleep-ai-v0.4.27.55.3.3.20-v0427553320-unlock-planner-inventory-parity
   // .22 preserves .21 App Ready -> Update Center hydration owner; source feed upgrade must not alter evolution override.
+  // Exact .23 -> .22 release ownership; Android fault reason remains unverified.
+  'v0.4.27.55.3.3.23':Object.freeze({
+    app_build:'20261017-v0427553323-g479-startup-stage-ownership',
+    cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.23-v0427553323-g479-startup-stage-ownership',
+  }),
   'v0.4.27.55.3.3.22':Object.freeze({
     app_build:'20261012-v0427553322-g9-official-event-auto-refresh',
     cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.22-v0427553322-g9-official-event-auto-refresh',

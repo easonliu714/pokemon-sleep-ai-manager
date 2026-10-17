@@ -72,7 +72,13 @@ const currentCache=globalThis.PokemonSleepVersionAuthority?.cache_name||'';
 // G6.2 exact .19 -> .18 historical successor; keep all earlier Candy/Raw checks.
 // G6-R exact .20 -> .19 predecessor; all existing Candy/Raw assertions retained.
 // Exact .21 -> .20 historical successor, preserving existing Candy/Raw assertions.
-if(currentVersion==='v0.4.27.55.3.3.22'){
+if(currentVersion==='v0.4.27.55.3.3.23'){
+  assert.equal(currentBuild,'20261017-v0427553323-g479-startup-stage-ownership');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.23-v0427553322-g9-official-event-auto-refresh');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.21'"));
+  assert.ok(versionSource.includes("// app_build: '20261011-v0427553321-ingredient-review-weekly-bonuses'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.21-v0427553321-ingredient-review-weekly-bonuses'"));
+}else if(currentVersion==='v0.4.27.55.3.3.22'){
   assert.equal(currentBuild,'20261012-v0427553322-g9-official-event-auto-refresh');
   assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.22-v0427553322-g9-official-event-auto-refresh');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.21'"));
