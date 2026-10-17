@@ -48,7 +48,14 @@ const versionSource=readFileSync(new URL('../assets/js/version-authority.js',imp
 const appVersion=versionSource.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 const appBuild=versionSource.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.3.3.23'){
+// G479-R exact .24 -> .23 successor; preserve G14.1 historical assertions.
+if(appVersion==='v0.4.27.55.3.3.24'){
+  assert.equal(appBuild,'20261017-v0427553324-mobile-warroom-knowledge-containment');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.24-v0427553324-mobile-warroom-knowledge-containment');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.23'"));
+  assert.ok(versionSource.includes("// app_build: '20261017-v0427553323-g479-startup-stage-ownership'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.23-v0427553323-g479-startup-stage-ownership'"));
+}else if(appVersion==='v0.4.27.55.3.3.23'){
   assert.equal(appBuild,'20261017-v0427553323-g479-startup-stage-ownership');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.23-v0427553323-g479-startup-stage-ownership');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.21'"));
