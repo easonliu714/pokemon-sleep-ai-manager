@@ -159,3 +159,5 @@ console.log('NOTE G479_SYNTHETIC_ONLY_NO_ANDROID_REPRO_NO_PRODUCTION_RUNTIME_CHA
 
 // G479 synthetic HTTP response replay, no production runtime or player DB mutation.
 await import('./g479-sw-network-failure-replay.mjs');
+// Run actual-source G479 critical-stage owner regression in isolated synthetic DOM.
+await import('./g479-startup-stage-owner-replay.mjs');

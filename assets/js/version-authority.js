@@ -1,8 +1,8 @@
 (function installVersionAuthority(scope) {
   const authority = Object.freeze({
-    app_version: 'v0.4.27.55.3.3.22',
-    app_build: '20261012-v0427553322-g9-official-event-auto-refresh',
-    cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.22-v0427553322-g9-official-event-auto-refresh',
+    app_version: 'v0.4.27.55.3.3.23',
+    app_build: '20261017-v0427553323-g479-startup-stage-ownership',
+    cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.23-v0427553323-g479-startup-stage-ownership',
     schema: 'pokemon-sleep-version-authority/1.0',
   });
   Object.defineProperty(scope, 'PokemonSleepVersionAuthority', {
@@ -14,6 +14,9 @@
 })(globalThis);
 
 // Legacy CI parser bridge only; not executed and not a release authority.
+// app_version: 'v0.4.27.55.3.3.22'
+// app_build: '20261012-v0427553322-g9-official-event-auto-refresh'
+// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.22-v0427553322-g9-official-event-auto-refresh'
 // app_version: 'v0.4.27.55.3.3.21'
 // app_build: '20261011-v0427553321-ingredient-review-weekly-bonuses'
 // cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.21-v0427553321-ingredient-review-weekly-bonuses'

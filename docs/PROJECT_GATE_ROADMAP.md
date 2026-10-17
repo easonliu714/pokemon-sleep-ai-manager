@@ -1,5 +1,15 @@
 # Pokémon Sleep AI Manager — Canonical Gate Roadmap & Completion Authority
 
+## 2026-10-17 G479 stage-ownership production hotfix candidate (.23)
+
+> Source GitHub main `84fb9b46badccaa3722ba0b47256dcaa79b8e722` = PR #489 synthetic diagnostic merged, exact-main 9/9 CI SUCCESS including Pages [39001966873](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/39001966873). New branch `fix/g479-stage-owner-v0427553323-20261017`. New version `v0.4.27.55.3.3.23` build `20261017-v0427553323-g479-startup-stage-ownership` cache `pokemon-sleep-ai-v0.4.27.55.3.3.23-v0427553323-g479-startup-stage-ownership` **CANDIDATE only until exact-head CI / merge / main Pages**. Windows local checkout HEAD / dirty = NOT_VERIFIED.
+
+- **Source-bound defect:** `assets/js/v0382-release-authority.js` UI ticker elapsed was total page time from `STARTED_AT`, not a SQLite persist duration; label now explicitly `啟動累計`. Background SW update `critical_path:false` events previously replaced critical SQLite/App Ready ticker and terminal success emitted `running`. New foreground stage owner ignores background in visible `current` but preserves every event and debug trace; SW success emits `completed`. Foreground failure remains visible.
+- **Regression:** isolated Node VM replay of actual release-authority source asserts `SQLITE_PERSIST_RUNNING` not overwritten, `APP_READY` not overwritten, background warning trace retained, foreground error visible. Synthetic DOM/SW only: no actual Android network/ESM import cause proof.
+- **Strict isolation:** no changed SQLite/IndexedDB schema/player rows, no public Halloween event master update or effect authority promotion, no new CI workflow, no Raw/UNKNOWN/Candy24/20/ABSOLUTE vs DELTA/Migration15-16 changes. #479 original Android ESM transient STILL OPEN; #482 old export Manifest SHA/postreload and #19 Halloween future-phase/offline remain HOLD.
+- **Go/no-go:** all production and tests in one PR with 3 living docs, exact unchanged HEAD CI, protected expected-head merge, same-main CI/Pages, live `.23` version. Only then owner may normally reload the existing Android PWA, verify correct startup stage with eventual App Ready, and optionally export redacted startup diagnostics; no clear-storage, uninstall or reimport.
+
+
 ## 2026-10-16 G479 synthetic Service Worker HTTP-response replay — candidate, not merged
 
 - Parent main: `56077b971b29601db5dea024a60a9a080be55776` (#488 merged); 6/6 triggered main workflows SUCCESS, including Pages build/deploy. Open PR=0 before test branch; `.22` release unchanged.

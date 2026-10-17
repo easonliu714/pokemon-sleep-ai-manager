@@ -165,6 +165,13 @@ else if(currentVersion==='v0.4.27.55.3.3.15'){
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.19'"));
   assert.ok(version.includes("// app_build: '20261005-v0427553319-g62-recipe-attempt-feedback'"));
   assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback'"));
+}else if(currentVersion==='v0.4.27.55.3.3.23'){
+  assert.equal(currentBuild,'20261017-v0427553323-g479-startup-stage-ownership');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.23-v0427553323-g479-startup-stage-ownership');
+  assertP0B1Lineage('.55.3.3.22 G9 official event feed successor');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.21'"));
+  assert.ok(version.includes("// app_build: '20261011-v0427553321-ingredient-review-weekly-bonuses'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.21-v0427553321-ingredient-review-weekly-bonuses'"));
 }else if(currentVersion==='v0.4.27.55.3.3.22'){
   assert.equal(currentBuild,'20261012-v0427553322-g9-official-event-auto-refresh');
   assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.22-v0427553322-g9-official-event-auto-refresh');

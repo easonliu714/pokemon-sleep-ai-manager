@@ -37,12 +37,13 @@ const releases={
   'v0.4.27.55.3.3.20':{build:'20261011-v0427553320-unlock-planner-inventory-parity',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.20-v0427553320-unlock-planner-inventory-parity'},
   'v0.4.27.55.3.3.21':{build:'20261011-v0427553321-ingredient-review-weekly-bonuses',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.21-v0427553321-ingredient-review-weekly-bonuses'},
   'v0.4.27.55.3.3.22':{build:'20261012-v0427553322-g9-official-event-auto-refresh',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.22-v0427553322-g9-official-event-auto-refresh'},
+  'v0.4.27.55.3.3.23':{build:'20261017-v0427553323-g479-startup-stage-ownership',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.23-v0427553323-g479-startup-stage-ownership'},
 };
 assert.ok(releases[appVersion],'unsupported .55.3.3 successor: '+appVersion);
 assert.equal(appBuild,releases[appVersion].build);
 assert.equal(cacheName,releases[appVersion].cache);
 assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.2'/,'predecessor bridge must remain');
-const ordered=['v0.4.27.55.3.3','v0.4.27.55.3.3.1','v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13','v0.4.27.55.3.3.14','v0.4.27.55.3.3.15','v0.4.27.55.3.3.16','v0.4.27.55.3.3.17','v0.4.27.55.3.3.18','v0.4.27.55.3.3.19','v0.4.27.55.3.3.20','v0.4.27.55.3.3.21','v0.4.27.55.3.3.22'];
+const ordered=['v0.4.27.55.3.3','v0.4.27.55.3.3.1','v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13','v0.4.27.55.3.3.14','v0.4.27.55.3.3.15','v0.4.27.55.3.3.16','v0.4.27.55.3.3.17','v0.4.27.55.3.3.18','v0.4.27.55.3.3.19','v0.4.27.55.3.3.20','v0.4.27.55.3.3.21','v0.4.27.55.3.3.22','v0.4.27.55.3.3.23'];
 const currentIndex=ordered.indexOf(appVersion);
 for(let i=0;i<currentIndex;i++)assert.ok(authority.includes(`// app_version: '${ordered[i]}'`),`predecessor bridge missing ${ordered[i]}`);
 assert.match(sw,/importScripts\('\.\/assets\/js\/version-authority\.js'\)/);
