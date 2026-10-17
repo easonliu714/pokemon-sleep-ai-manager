@@ -130,7 +130,7 @@ const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
 if(appVersion==='v0.4.27.55.3.3.23'){
   assert.equal(appBuild,'20261017-v0427553323-g479-startup-stage-ownership');
-  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.23-v0427553322-g9-official-event-auto-refresh');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.23-v0427553323-g479-startup-stage-ownership');
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.21'"));
   assert.ok(version.includes("// app_build: '20261011-v0427553321-ingredient-review-weekly-bonuses'"));
   assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.21-v0427553321-ingredient-review-weekly-bonuses'"));

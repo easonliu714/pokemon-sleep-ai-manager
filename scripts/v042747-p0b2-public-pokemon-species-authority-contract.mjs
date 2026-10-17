@@ -261,7 +261,7 @@ gate('release and offline wiring retain v0.4.27.47 exact predecessor',()=>{
     assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.17-v0427553317-weekly-berry-evidence-resolution'"),'.18 successor must retain exact .17 predecessor cache marker');
   }else if(currentAppVersion==='v0.4.27.55.3.3.23'){
     assert.equal(currentAppBuild,'20261017-v0427553323-g479-startup-stage-ownership');
-    assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.23-v0427553322-g9-official-event-auto-refresh');
+    assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.23-v0427553323-g479-startup-stage-ownership');
     assert.ok(versionSource.includes("// app_version: 'v0.4.27.47'"),'frozen P0-B2 species predecessor');
     assert.ok(versionSource.includes("// app_build: '20260829-v042747-p0b2-public-species-authority'"));
     assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.47-v042747-p0b2-public-species-authority'"));
