@@ -13,7 +13,14 @@ const coverage=read('assets/js/v03993-public-knowledge-coverage-ui.js');
 const candy=read('assets/js/candy-quantity-screenshot-ui.js');
 const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 
-if(appVersion==='v0.4.27.55.3.3.23'){
+// .24 is the exact .23 responsive successor; keep all Gemini/Knowledge and Migration 15 assertions below.
+if(appVersion==='v0.4.27.55.3.3.24'){
+  assert.ok(authority.includes("app_build: '20261017-v0427553324-mobile-warroom-knowledge-containment'"));
+  assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.24-v0427553324-mobile-warroom-knowledge-containment'"));
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.23'"));
+  assert.ok(authority.includes("// app_build: '20261017-v0427553323-g479-startup-stage-ownership'"));
+  assert.ok(authority.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.23-v0427553323-g479-startup-stage-ownership'"));
+}else if(appVersion==='v0.4.27.55.3.3.23'){
   assert.ok(authority.includes("app_build: '20261017-v0427553323-g479-startup-stage-ownership'"));
   assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.23-v0427553323-g479-startup-stage-ownership'"));
   assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.21'"));
