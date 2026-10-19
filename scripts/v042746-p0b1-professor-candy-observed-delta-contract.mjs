@@ -165,6 +165,14 @@ else if(currentVersion==='v0.4.27.55.3.3.15'){
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.19'"));
   assert.ok(version.includes("// app_build: '20261005-v0427553319-g62-recipe-attempt-feedback'"));
   assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback'"));
+}else if(currentVersion==='v0.4.27.55.3.3.24'){
+  // G479-R UI-only successor: preserve P0-B1 direct-observation authority and the exact .23 predecessor.
+  assert.equal(currentBuild,'20261017-v0427553324-mobile-warroom-knowledge-containment');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.24-v0427553324-mobile-warroom-knowledge-containment');
+  assertP0B1Lineage('.55.3.3.24 War Room/Knowledge mobile containment successor');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.23'"));
+  assert.ok(version.includes("// app_build: '20261017-v0427553323-g479-startup-stage-ownership'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.23-v0427553323-g479-startup-stage-ownership'"));
 }else if(currentVersion==='v0.4.27.55.3.3.23'){
   assert.equal(currentBuild,'20261017-v0427553323-g479-startup-stage-ownership');
   assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.23-v0427553323-g479-startup-stage-ownership');
