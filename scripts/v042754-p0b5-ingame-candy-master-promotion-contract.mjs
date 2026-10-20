@@ -128,7 +128,14 @@ assert.match(professor,/USER_DIRECT_OBSERVATION_ONLY/);
 assert.equal(professor.includes('PUBLIC_CANDY_GAME_SCREENSHOT_EVIDENCE_ADDITIONS'),false);
 const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
-if(appVersion==='v0.4.27.55.3.3.23'){
+if(appVersion==='v0.4.27.55.3.3.24'){
+  // Exact .24 mobile War Room / Knowledge layout release; all Candy promotion semantics remain unchanged.
+  assert.equal(appBuild,'20261017-v0427553324-mobile-warroom-knowledge-containment');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.24-v0427553324-mobile-warroom-knowledge-containment');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.23'"),'.24 immediate predecessor version');
+  assert.ok(version.includes("// app_build: '20261017-v0427553323-g479-startup-stage-ownership'"),'.24 immediate predecessor build');
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.23-v0427553323-g479-startup-stage-ownership'"),'.24 immediate predecessor cache');
+}else if(appVersion==='v0.4.27.55.3.3.23'){
   assert.equal(appBuild,'20261017-v0427553323-g479-startup-stage-ownership');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.23-v0427553323-g479-startup-stage-ownership');
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.21'"));
