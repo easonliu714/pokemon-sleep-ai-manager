@@ -483,3 +483,10 @@ P2 — 真正的資料覆蓋不足
 - [配套 Roadmap／PR／Issue 結案稽核](./Pokemon_Sleep_Roadmap_PR_Issue_Closure_Audit_20261013.md)
 
 **未執行範圍**：本輪未透過使用者手機開啟 DevTools、未取得私人資料庫 SQL schema/row count、新網路公告未作真實 DATA-ONLY App 驗收，未動任何 App DB/IndexedDB、未執行資料破壞或合併分支。
+
+## 2026-10-17 G479-R responsive War Room + Knowledge — controlled .24 candidate
+
+- Owner Android screenshots: `v0.4.27.55.3.3.23` / `20261017-v0427553323-g479-startup-stage-ownership` showed App 已就緒, 啟動累計, SW background update completed, and Dashboard/Weekly/War Room/Knowledge with Pokémon profile still visible. **G479_STARTUP_STAGE_DISPLAY_23_OWNER_UAT=PASS**. Original intermittent Android `app.js` ESM fetch root cause is NOT_VERIFIED; Issue #479 remains OPEN.
+- New Owner-reported defects **both** War Room `#warroomPanel` Hard Constraints/goal form and Knowledge `#sharedKnowledgePanel` Public Pokémon Master Coverage/tables escape 360–430px mobile frame. `v0.4.27.55.3.3.24` build `20261017-v0427553324-mobile-warroom-knowledge-containment` cache `pokemon-sleep-ai-v0.4.27.55.3.3.24-v0427553324-mobile-warroom-knowledge-containment` is **BRANCH_CANDIDATE**, not deployed/Owner PASS. Scoped CSS and real Chromium synthetic DOM viewport matrix (360/390/412/430) enforce internal table scrolling, editable fields, no clipping or global overflow-x:hidden. Full CI and Android device UAT remain separate Gates.
+- Source-of-truth: CSS `assets/css/app.css`, existing runtime Coverage CSS `assets/js/v03993-public-knowledge-coverage-ui.js`, existing berry scroll `assets/js/camp-berry-knowledge-ui.js`, Playwright `scripts/v0427553324-mobile-warroom-knowledge-browser-gate.mjs`. No SQLite/player/public Master/Raw/Candy24/20/Migration15/16 semantics modified.
+- #482 old exported-backup SHA/post-reload HOLD, #19 Halloween 10/26/10/31 phase/offline HOLD, #479 ESM root cause OPEN. LOCAL_WINDOWS_GIT_HEAD/DIRTY=NOT_VERIFIED. No app responsive owner PASS until new screenshots.
