@@ -88,7 +88,7 @@ const p0b6Patch=Number(appVersion.match(/^v0\.4\.27\.(\d+)(?:\.\d+)*$/)?.[1]||-1
 const p0b6Hotfix=Number(appVersion.match(/^v0\.4\.27\.55\.(\d+)(?:\.\d+)*$/)?.[1]||0);
 const p0b6Successor=p0b6Patch>=55;
 const localGapDurabilitySuccessor=p0b6Patch>55||(p0b6Patch===55&&p0b6Hotfix>=2);
-const pagePrewarmSuccessor=['v0.4.27.55.3.3.1','v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13','v0.4.27.55.3.3.14','v0.4.27.55.3.3.15','v0.4.27.55.3.3.16','v0.4.27.55.3.3.17','v0.4.27.55.3.3.18','v0.4.27.55.3.3.19','v0.4.27.55.3.3.20','v0.4.27.55.3.3.21','v0.4.27.55.3.3.22','v0.4.27.55.3.3.23','v0.4.27.55.3.3.24'].includes(appVersion);
+const pagePrewarmSuccessor=['v0.4.27.55.3.3.1','v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13','v0.4.27.55.3.3.14','v0.4.27.55.3.3.15','v0.4.27.55.3.3.16','v0.4.27.55.3.3.17','v0.4.27.55.3.3.18','v0.4.27.55.3.3.19','v0.4.27.55.3.3.20','v0.4.27.55.3.3.21','v0.4.27.55.3.3.22','v0.4.27.55.3.3.23','v0.4.27.55.3.3.24','v0.4.27.55.3.3.25'].includes(appVersion);
 assert.match(uiSource,/我已核對遊戲畫面，確認數量/);
 assert.match(uiSource,/Gemini Raw JSON（唯讀、immutable）/);
 if(localGapDurabilitySuccessor){
@@ -183,6 +183,14 @@ if(pagePrewarmSuccessor){
     assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.17'"),'.18 must retain exact .17 predecessor marker');
     assert.ok(versionSource.includes("// app_build: '20261002-v0427553317-weekly-berry-evidence-resolution'"),'.18 must retain exact .17 predecessor build marker');
     assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.17-v0427553317-weekly-berry-evidence-resolution'"),'.18 must retain exact .17 predecessor cache marker');
+  }
+// G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
+else if(appVersion==='v0.4.27.55.3.3.25'){
+    assert.equal(appBuild,'20261023-v0427553325-weekly-pot-capacity-containment');
+    assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.25-v0427553325-weekly-pot-capacity-containment');
+    assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.24'"),'exact immediate .23 predecessor required');
+    assert.ok(versionSource.includes("// app_build: '20261017-v0427553324-mobile-warroom-knowledge-containment'"),'exact immediate .23 build required');
+    assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.24-v0427553324-mobile-warroom-knowledge-containment'"),'exact immediate .23 cache required');
   }else if(appVersion==='v0.4.27.55.3.3.24'){
     assert.equal(appBuild,'20261017-v0427553324-mobile-warroom-knowledge-containment');
     assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.24-v0427553324-mobile-warroom-knowledge-containment');

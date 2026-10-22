@@ -73,7 +73,15 @@ const currentCache=globalThis.PokemonSleepVersionAuthority?.cache_name||'';
 // G6-R exact .20 -> .19 predecessor; all existing Candy/Raw assertions retained.
 // Exact .21 -> .20 historical successor, preserving existing Candy/Raw assertions.
 // Layout-only .24 successor to .23; preserve local-primary Candy names, Raw immutability and all historical field-precedence assertions.
-if(currentVersion==='v0.4.27.55.3.3.24'){
+
+// G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
+if(currentVersion==='v0.4.27.55.3.3.25'){
+  assert.equal(currentBuild,'20261023-v0427553325-weekly-pot-capacity-containment');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.25-v0427553325-weekly-pot-capacity-containment');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.24'"),'.24 exact predecessor version');
+  assert.ok(versionSource.includes("// app_build: '20261017-v0427553324-mobile-warroom-knowledge-containment'"),'.24 exact predecessor build');
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.24-v0427553324-mobile-warroom-knowledge-containment'"),'.24 exact predecessor cache');
+}else if(currentVersion==='v0.4.27.55.3.3.24'){
   assert.equal(currentBuild,'20261017-v0427553324-mobile-warroom-knowledge-containment');
   assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.24-v0427553324-mobile-warroom-knowledge-containment');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.23'"),'.24 exact predecessor version');

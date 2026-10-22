@@ -13,6 +13,11 @@ const successorAuthorities=Object.freeze({
   // .22 preserves .21 App Ready -> Update Center hydration owner; source feed upgrade must not alter evolution override.
   // Exact .24 -> .23 mobile containment successor: preserve canonical App Ready and Update Center hydration before evolution override checks.
   // Historical .23 predecessor remains explicitly pinned; no player evolution semantics or runtime behavior changed.
+  // .25 weekly pot UI no runtime evolution changes; exact .24 predecessor remains.
+  'v0.4.27.55.3.3.25':Object.freeze({
+    app_build:'20261023-v0427553325-weekly-pot-capacity-containment',
+    cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.25-v0427553325-weekly-pot-capacity-containment',
+  }),
   'v0.4.27.55.3.3.24':Object.freeze({
     app_build:'20261017-v0427553324-mobile-warroom-knowledge-containment',
     cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.24-v0427553324-mobile-warroom-knowledge-containment',

@@ -1,5 +1,14 @@
 # Pokémon Sleep AI Manager — Roadmap／PR／Issue 全量盤點與結案審核
 
+## 2026-10-23 G479-R2 Weekly Context pot capacity mobile width — .25 candidate
+
+- Owner Android .24 screenshots at 06:29 prove War Room Goal/Hard Constraints and Knowledge Master Coverage no longer escape mobile viewport: G479_R_WARROOM_KNOWLEDGE_24_OWNER_UAT=PASS. New 06:30 screenshot proves Weekly Context pot-size number input overflows its panel, with visible horizontal page shift: separate mobile UI regression, not a reversal of .24 original gate.
+- Exact source: assets/js/g3-planning.js uses weeklyContextForm / edit-grid / input[name=pot_size][type=number]. assets/css/editor.css grid columns minmax(0,1fr), but input[type=number] retains an intrinsic minimum width and can escape a half-width column. Account pot semantics via weekly-context-ui-bridge.js remain unchanged.
+- Scoped app.css fixes #weeklyContextForm grid/field/control min-width:0, width:100%, max-width:100%; keeps two columns. Never apply global page overflow-x:hidden, do not clip fields, preserve War Room and Knowledge. Add source-bound Chromium synthetic-DOM regression 360/390/412/430 CSS px for page scroll width, input bounds, all 2x2 fields, editable number value 63 and negative mutation.
+- Candidate v0.4.27.55.3.3.25 / 20261023-v0427553325-weekly-pot-capacity-containment / pokemon-sleep-ai-v0.4.27.55.3.3.25-v0427553325-weekly-pot-capacity-containment. Exact predecessor .24 remains recorded. Previous .24 main and Pages are 12/12 SUCCESS (#39604992712); .25 is NOT READY until exact-HEAD PR required CI all PASS, guarded merge, same-main CI and Pages all PASS. Owner then checks Weekly Context pot control, surrounding form fields and existing data; no uninstall, reset or reimport.
+- Source main parent 5a66a7e909972ffbe39d86624499568b25b85c0b; Windows local checkout identity/dirty NOT_VERIFIED. Keep #479 original ESM incident, #482 original export SHA/post-reload and #19 Halloween future event phase OPEN. Same three canonical governance docs retained.
+
+
 ## 2026-10-17 G479 stage-ownership production hotfix candidate (.23)
 
 > Source GitHub main `84fb9b46badccaa3722ba0b47256dcaa79b8e722` = PR #489 synthetic diagnostic merged, exact-main 9/9 CI SUCCESS including Pages [39001966873](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/39001966873). New branch `fix/g479-stage-owner-v0427553323-20261017`. New version `v0.4.27.55.3.3.23` build `20261017-v0427553323-g479-startup-stage-ownership` cache `pokemon-sleep-ai-v0.4.27.55.3.3.23-v0427553323-g479-startup-stage-ownership` **CANDIDATE only until exact-head CI / merge / main Pages**. Windows local checkout HEAD / dirty = NOT_VERIFIED.
