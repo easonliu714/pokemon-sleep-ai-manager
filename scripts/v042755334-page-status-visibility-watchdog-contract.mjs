@@ -9,7 +9,16 @@ const watchdog=read('assets/js/v0394-startup-watchdog.js');
 
 const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 // G479-R exact .24 -> .23 successor; retain original watchdog .4 authority.
-if(appVersion==='v0.4.27.55.3.3.24'){
+
+// G479-R2 exact .25 weekly pot CSS-only successor; preserve frozen historical checks.
+if(appVersion==='v0.4.27.55.3.3.25'){
+  assert.ok(authority.includes("app_build: '20261023-v0427553325-weekly-pot-capacity-containment'"));
+  assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.25-v0427553325-weekly-pot-capacity-containment'"));
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.24'"));
+  assert.ok(authority.includes("// app_build: '20261017-v0427553324-mobile-warroom-knowledge-containment'"));
+  assert.ok(authority.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.24-v0427553324-mobile-warroom-knowledge-containment'"));
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.4'"));
+}else if(appVersion==='v0.4.27.55.3.3.24'){
   assert.ok(authority.includes("app_build: '20261017-v0427553324-mobile-warroom-knowledge-containment'"));
   assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.24-v0427553324-mobile-warroom-knowledge-containment'"));
   assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.23'"));

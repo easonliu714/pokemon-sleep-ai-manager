@@ -165,6 +165,16 @@ else if(currentVersion==='v0.4.27.55.3.3.15'){
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.19'"));
   assert.ok(version.includes("// app_build: '20261005-v0427553319-g62-recipe-attempt-feedback'"));
   assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback'"));
+}
+// G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
+else if(currentVersion==='v0.4.27.55.3.3.25'){
+  // G479-R UI-only successor: preserve P0-B1 direct-observation authority and the exact .23 predecessor.
+  assert.equal(currentBuild,'20261023-v0427553325-weekly-pot-capacity-containment');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.25-v0427553325-weekly-pot-capacity-containment');
+  assertP0B1Lineage('.55.3.3.24 War Room/Knowledge mobile containment successor');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.24'"));
+  assert.ok(version.includes("// app_build: '20261017-v0427553324-mobile-warroom-knowledge-containment'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.24-v0427553324-mobile-warroom-knowledge-containment'"));
 }else if(currentVersion==='v0.4.27.55.3.3.24'){
   // G479-R UI-only successor: preserve P0-B1 direct-observation authority and the exact .23 predecessor.
   assert.equal(currentBuild,'20261017-v0427553324-mobile-warroom-knowledge-containment');

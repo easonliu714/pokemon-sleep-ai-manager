@@ -17,3 +17,10 @@
 #warroom .table-wrap,#knowledge .table-wrap{display:block;min-width:0;max-width:100%;width:100%;overflow-x:auto;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch}
 #warroom .table-wrap :is(th,td),#knowledge .table-wrap :is(th,td){max-width:none;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;vertical-align:top}
 @media(max-width:700px){#warroomPanel .edit-grid{grid-template-columns:minmax(0,1fr)}#warroomPanel .controlled-number-map-row{grid-template-columns:minmax(0,1fr) 72px auto}#sharedKnowledgePanel .public-coverage-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#sharedKnowledgePanel .public-coverage-lists{grid-template-columns:minmax(0,1fr)}#warroom .table-wrap,#knowledge .table-wrap{margin-left:0;margin-right:0;border:1px solid #dbe4df;border-radius:10px}}
+
+/* G479-R2 .25: Weekly Context pot input remains inside its two-column card. */
+#weekly,#weeklyContextPanel,#weeklyContextForm{min-width:0;max-width:100%}
+#weeklyContextForm .edit-grid{min-width:0;max-width:100%;grid-template-columns:repeat(2,minmax(0,1fr))}
+#weeklyContextForm .edit-grid>.edit-field{min-width:0;max-width:100%}
+#weeklyContextForm .edit-field> :is(input,select,textarea){display:block;box-sizing:border-box;width:100%;min-width:0;max-width:100%}
+#weeklyContextForm .edit-field>span{min-width:0;overflow-wrap:anywhere}
