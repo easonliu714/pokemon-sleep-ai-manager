@@ -2,6 +2,13 @@
 // modify, or inspect individual player records or touch IndexedDB.
 // It is safe to use with REDACTED backup/restore metadata only.
 export const G141_BACKUP_MANIFEST_SCHEMA='pokemon-sleep-backup-manifest/2.0';
+export const G141_BACKUP_REQUIRED_CORE_TABLES=Object.freeze([
+  'settings','account_capacity','pokemon','pokemon_subskills','pokemon_ingredients',
+  'pokemon_identity_evidence','pokemon_history','discarded_pokemon','ingredient_inventory','item_inventory',
+  'candy_inventory','recipes','recipe_ingredients','weekly_plan','weekly_context',
+  'weekly_strategy','collection_targets','import_batches','import_changes','image_analysis_revision',
+]);
+// Exact 20-table backup-truth-restore.js CORE_TABLES contract; incomplete metadata is HOLD.
 export const G141_RECEIPT_STAGES=Object.freeze({
   IMMEDIATE:'AFTER_RESTORE_BEFORE_ADDITIONAL_WRITES',
   RELOAD:'AFTER_RELOAD_OR_OTHER_WRITES',
@@ -37,6 +44,12 @@ export function evaluateG141CrossDeviceRestoreEvidence({
       Object.keys(oldManifest.table_counts).length===0){
     return decide('HOLD','OLD_PHONE_TABLE_COUNTS_MISSING');
   }
+  // A one-table manifest is not a complete backup receipt, even with matching SHA.
+  // Verify all canonical backup core counts on BOTH sides before byte-parity credit.
+  if(G141_BACKUP_REQUIRED_CORE_TABLES.some(table=>
+      !nonnegativeInteger(oldManifest.table_counts[table])||
+      !nonnegativeInteger(newReceipt.table_counts?.[table])))
+    return decide('HOLD','REQUIRED_BACKUP_CORE_TABLE_COUNTS_INCOMPLETE');
   const tables=Object.keys(oldManifest.table_counts);
   if(tables.some(t=>!/^[a-z][a-z0-9_]*$/.test(t)||
       !nonnegativeInteger(oldManifest.table_counts[t])||
