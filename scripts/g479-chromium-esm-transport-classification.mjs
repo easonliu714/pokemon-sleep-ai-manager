@@ -41,7 +41,9 @@ try{
         assert.ok(seen.failures.length>0,'network rejection must emit requestfailed');
       }else{
         assert.deepEqual(seen.statuses,[c.status],c.name+' HTTP status');
-        assert.deepEqual(seen.failures,[],'HTTP status must not masquerade as transport rejection');
+        // Chromium can emit net::ERR_ABORTED for a rejected 4xx/5xx ESM response.
+        // The observed HTTP response status, not requestfailed absence, is the classifier.
+        if(c.success)assert.deepEqual(seen.failures,[],'successful HTTP module must not fail transport');
       }
       console.log('PASS G479_CHROMIUM_ESM_'+c.name+'_CLASSIFIED');
     }finally{await context.close();}
