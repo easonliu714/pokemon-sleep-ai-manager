@@ -51,7 +51,14 @@ const cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
 // G479-R exact .24 -> .23 successor; preserve G14.1 historical assertions.
 
 // G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
-if(appVersion==='v0.4.27.55.3.3.25'){
+// G295 exact .26 successor inherits .25 G14.1 authority; no inferred capability writes.
+if(appVersion==='v0.4.27.55.3.3.26'){
+  assert.equal(appBuild,'20261023-v0427553326-g295-watchdog-lifecycle');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.26-v0427553326-g295-watchdog-lifecycle');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.25'"));
+  assert.ok(versionSource.includes("// app_build: '20261023-v0427553325-weekly-pot-capacity-containment'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.25-v0427553325-weekly-pot-capacity-containment'"));
+}else if(appVersion==='v0.4.27.55.3.3.25'){
   assert.equal(appBuild,'20261023-v0427553325-weekly-pot-capacity-containment');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.25-v0427553325-weekly-pot-capacity-containment');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.24'"));

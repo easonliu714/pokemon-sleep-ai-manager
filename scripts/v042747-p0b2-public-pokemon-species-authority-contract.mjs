@@ -261,7 +261,17 @@ gate('release and offline wiring retain v0.4.27.47 exact predecessor',()=>{
     assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.17-v0427553317-weekly-berry-evidence-resolution'"),'.18 successor must retain exact .17 predecessor cache marker');
   }
 // G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
-else if(currentAppVersion==='v0.4.27.55.3.3.25'){
+else if(currentAppVersion==='v0.4.27.55.3.3.26'){
+    assert.equal(currentAppBuild,'20261023-v0427553326-g295-watchdog-lifecycle');
+    assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.26-v0427553326-g295-watchdog-lifecycle');
+    // B2 source authority and exact release lineage remain pinned; no fuzzy successor.
+    assert.ok(versionSource.includes("// app_version: 'v0.4.27.47'"),'frozen P0-B2 species predecessor');
+    assert.ok(versionSource.includes("// app_build: '20260829-v042747-p0b2-public-species-authority'"),'frozen P0-B2 build predecessor');
+    assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.47-v042747-p0b2-public-species-authority'"),'frozen P0-B2 cache predecessor');
+    assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.25'"),'.24 requires exact .23 version bridge');
+    assert.ok(versionSource.includes("// app_build: '20261023-v0427553325-weekly-pot-capacity-containment'"),'.24 requires exact .23 build bridge');
+    assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.25-v0427553325-weekly-pot-capacity-containment'"),'.24 requires exact .23 cache bridge');
+  }else if(currentAppVersion==='v0.4.27.55.3.3.25'){
     assert.equal(currentAppBuild,'20261023-v0427553325-weekly-pot-capacity-containment');
     assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.25-v0427553325-weekly-pot-capacity-containment');
     // B2 source authority and exact release lineage remain pinned; no fuzzy successor.

@@ -10,7 +10,14 @@ const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 // G479-R exact .24 -> .23 successor; Candy batch-24 and progressive assertions stay frozen.
 
 // G479-R2 exact .25 weekly pot CSS-only successor; preserve frozen historical checks.
-if(appVersion==='v0.4.27.55.3.3.25'){
+if(appVersion==='v0.4.27.55.3.3.26'){
+  assert.ok(authority.includes("app_build: '20261023-v0427553326-g295-watchdog-lifecycle'"));
+  assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.26-v0427553326-g295-watchdog-lifecycle'"));
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.25'"));
+  assert.ok(authority.includes("// app_build: '20261023-v0427553325-weekly-pot-capacity-containment'"));
+  assert.ok(authority.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.25-v0427553325-weekly-pot-capacity-containment'"));
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.3'"),'frozen Candy progressive rendering lineage marker');
+}else if(appVersion==='v0.4.27.55.3.3.25'){
   assert.ok(authority.includes("app_build: '20261023-v0427553325-weekly-pot-capacity-containment'"));
   assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.25-v0427553325-weekly-pot-capacity-containment'"));
   assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.24'"));

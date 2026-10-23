@@ -14,6 +14,7 @@ let lastStage=null;
 let lastStageAt=performance.now();
 let heartbeatAt=performance.now();
 let watchdogTimer=null;
+let heartbeatGeneration=0;
 let warningActive=false;
 let recoveryStableFrames=0;
 let stallSnapshot=null;
@@ -79,7 +80,9 @@ function resetHeartbeatForVisibility(reason){
   debugTrace.record('startup','main_thread_watchdog_visibility_reset',{status:'completed',details:{reason,visibility:document.visibilityState,warning_cleared:warningCleared,grace_ms:1200,authority}});
 }
 function startHeartbeat(){
-  const beat=()=>{const now=performance.now(),gap=now-heartbeatAt;heartbeatAt=now;if(warningActive){recoveryStableFrames=gap<1000?recoveryStableFrames+1:0;if(recoveryStableFrames>=RECOVERY_STABLE_FRAMES)clearRecoveredHeartbeatWarning();}requestAnimationFrame(beat);};
+  if(watchdogTimer!==null)return;
+  const generation=++heartbeatGeneration;
+  const beat=()=>{if(generation!==heartbeatGeneration)return;const now=performance.now(),gap=now-heartbeatAt;heartbeatAt=now;if(warningActive){recoveryStableFrames=gap<1000?recoveryStableFrames+1:0;if(recoveryStableFrames>=RECOVERY_STABLE_FRAMES)clearRecoveredHeartbeatWarning();}requestAnimationFrame(beat);};
   requestAnimationFrame(beat);
   watchdogTimer=setInterval(()=>{
     const now=performance.now();
@@ -100,7 +103,31 @@ document.querySelector('nav')?.addEventListener('click',event=>{
     debugTrace.record('startup','page_hydration_badge_stale_cleared',{status:'completed',details:{from_page:badge.dataset.page,to_page:targetPage,authority}});
   }
 });
-addEventListener('pagehide',()=>clearInterval(watchdogTimer),{once:true});
+// G295: BFCache restores need a fresh timer/RAF generation; focus and native-dialog
+// returns reset only the watchdog clock, never player state or application results.
+addEventListener('pagehide',()=>{
+  clearInterval(watchdogTimer);
+  watchdogTimer=null;
+  heartbeatGeneration++;
+});
+addEventListener('pageshow',()=>{
+  resetHeartbeatForVisibility('pageshow-resume');
+  startHeartbeat();
+});
+addEventListener('focus',()=>{
+  if(document.visibilityState==='visible')resetHeartbeatForVisibility('focus-resume');
+});
+for(const name of ['alert','confirm','prompt']){
+  const native=globalThis[name];
+  if(typeof native!=='function')continue;
+  const guarded=function(...args){
+    try{return Reflect.apply(native,globalThis,args);}
+    finally{resetHeartbeatForVisibility('native-dialog-return:'+name);}
+  };
+  try{globalThis[name]=guarded;}catch{
+    debugTrace.record('startup','main_thread_watchdog_dialog_guard_unavailable',{status:'warning',details:{name,authority}});
+  }
+}
 
 function scheduleBackgroundServiceWorkerUpdate(registration){
   if(!registration||typeof registration.update!=='function')return;

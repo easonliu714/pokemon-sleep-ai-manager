@@ -14,6 +14,11 @@ const successorAuthorities=Object.freeze({
   // Exact .24 -> .23 mobile containment successor: preserve canonical App Ready and Update Center hydration before evolution override checks.
   // Historical .23 predecessor remains explicitly pinned; no player evolution semantics or runtime behavior changed.
   // .25 weekly pot UI no runtime evolution changes; exact .24 predecessor remains.
+  // G295 exact .26 lifecycle successor preserves existing evolution navigation.
+  'v0.4.27.55.3.3.26':Object.freeze({
+    app_build:'20261023-v0427553326-g295-watchdog-lifecycle',
+    cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.26-v0427553326-g295-watchdog-lifecycle',
+  }),
   'v0.4.27.55.3.3.25':Object.freeze({
     app_build:'20261023-v0427553325-weekly-pot-capacity-containment',
     cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.25-v0427553325-weekly-pot-capacity-containment',

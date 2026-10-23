@@ -108,7 +108,15 @@ const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
 
 // G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
-if(appVersion==='v0.4.27.55.3.3.25'){
+if(appVersion==='v0.4.27.55.3.3.26'){
+  // Layout-only .24 successor; frozen provider=24/observations=20 and explicit user confirmation stay intact.
+  assert.ok(ui.includes("section.dataset.performanceAuthority='v0.4.27.55.3-mobile-incremental-confirmation'"),'.24 must preserve Candy performance ownership');
+  assert.equal(appBuild,'20261023-v0427553326-g295-watchdog-lifecycle');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.26-v0427553326-g295-watchdog-lifecycle');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.25'"),'.24 exact predecessor version');
+  assert.ok(version.includes("// app_build: '20261023-v0427553325-weekly-pot-capacity-containment'"),'.24 exact predecessor build');
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.25-v0427553325-weekly-pot-capacity-containment'"),'.24 exact predecessor cache');
+}else if(appVersion==='v0.4.27.55.3.3.25'){
   // Layout-only .24 successor; frozen provider=24/observations=20 and explicit user confirmation stay intact.
   assert.ok(ui.includes("section.dataset.performanceAuthority='v0.4.27.55.3-mobile-incremental-confirmation'"),'.24 must preserve Candy performance ownership');
   assert.equal(appBuild,'20261023-v0427553325-weekly-pot-capacity-containment');
