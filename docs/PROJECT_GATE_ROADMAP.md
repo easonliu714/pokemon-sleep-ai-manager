@@ -1,5 +1,11 @@
 # Pokémon Sleep AI Manager — Canonical Gate Roadmap & Completion Authority
 
+## 2026-10-24 G479 / #479 — Production SW fetch path in real Chromium (test-only Draft candidate)
+
+- New isolated browser regression `scripts/g479-chromium-production-sw-esm-replay.mjs` exercises the **actual current `service-worker.js` fetch handler** under real Chromium dynamic `import()`. Only the enormous production install precache list and version authority are substituted with inert localhost fixtures; fetch/cache/fallback logic remains production source-bound. Explicit cases: HTTP 503 and 404 reject as HTTP responses; transport rejection recovers only a cached current module; HTTP 200 imports network module; an uncached transport rejection fails closed. Each case uses an isolated browser context and no PWA/player storage.
+- Wired as one step inside existing Frontend Regression Gate, not a new workflow. No production SW/PWA/version/build/cache, SQLite, public event master or player data changes. **DRAFT / exact-head CI NOT YET VERIFIED** until GitHub Actions completes; no claim that the Owner's intermittent Android ESM failure is reproduced or root-caused. #479 remains OPEN. #295 Android watchdog UAT, #482 original cross-phone manifest SHA/postreload, #19 real 10/26 and 10/31 event phase/offline remain OPEN. Local Windows checkout NOT_VERIFIED.
+
+
 ## 2026-10-24 G479 / #479 — PR #499 protected merged; synthetic browser diagnosis only
 
 - **PR #499** protected Merge Commit PASS: exact PR head `091ebea78a0755ebf2219d89da1d8c0c85c55adc`, unchanged **6/6 exact-head PR workflows SUCCESS**, including [Frontend Regression #40022974067](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/40022974067). Merge readback main `242857c9e3e0054f35f96f4cb9b7554ba85548f7`; **same-main 7/7 push workflows SUCCESS**, including [Deploy GitHub Pages #40023168564](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/40023168564) and [Frontend Regression #40023168620](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/40023168620). All SHA checkpoints historical; fresh GitHub remains authority.
