@@ -130,7 +130,14 @@ const appBuild=version.match(/app_build:\s*'([^']+)'/)?.[1]||'';
 const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
 
 // G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
-if(appVersion==='v0.4.27.55.3.3.25'){
+if(appVersion==='v0.4.27.55.3.3.26'){
+  // Exact .24 mobile War Room / Knowledge layout release; all Candy promotion semantics remain unchanged.
+  assert.equal(appBuild,'20261023-v0427553326-g295-watchdog-lifecycle');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.26-v0427553326-g295-watchdog-lifecycle');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.25'"),'.24 immediate predecessor version');
+  assert.ok(version.includes("// app_build: '20261023-v0427553325-weekly-pot-capacity-containment'"),'.24 immediate predecessor build');
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.25-v0427553325-weekly-pot-capacity-containment'"),'.24 immediate predecessor cache');
+}else if(appVersion==='v0.4.27.55.3.3.25'){
   // Exact .24 mobile War Room / Knowledge layout release; all Candy promotion semantics remain unchanged.
   assert.equal(appBuild,'20261023-v0427553325-weekly-pot-capacity-containment');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.25-v0427553325-weekly-pot-capacity-containment');
