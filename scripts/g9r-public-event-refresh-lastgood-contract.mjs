@@ -92,6 +92,57 @@ const same=await store.refreshPublicEventMaster(opts);
 assert.equal(same.status,'UNCHANGED');
 assert.equal(persistCount,1,'Same manifest must not rewrite even public cache');
 
+// G9-R 2026-10-26 OWNER READINESS: actual published Halloween payload,
+// real refresh store + mock-only public SQLite with network unavailable.
+// This is a synthetic temporal/preflight contract, NOT Android/offline Owner PASS.
+const officialFrozenRows=JSON.stringify(database.events);
+const officialFrozenPhases=JSON.stringify(database.phases);
+const officialFrozenSha=database.settings.get('public_event_master_payload_sha256');
+const officialFrozenVersion=base.master_version;
+const phaseCases=[
+  {at:'2026-10-26T03:59:59+08:00',camp:'萌綠之島',phase:null,candy:null},
+  {at:'2026-10-26T04:00:00+08:00',camp:'萌綠之島',phase:'halloween_regular_days',candy:2},
+  {at:'2026-10-30T23:59:59+08:00',camp:'萌綠之島EX',phase:'halloween_regular_days',candy:2},
+  {at:'2026-10-31T03:59:59+08:00',camp:'萌綠之島',phase:'halloween_regular_days',candy:2},
+  {at:'2026-10-31T04:00:00+08:00',camp:'萌綠之島',phase:'halloween_final_two_days',candy:3},
+  {at:'2026-11-01T12:00:00+08:00',camp:'萌綠之島EX',phase:'halloween_final_two_days',candy:3},
+  {at:'2026-10-31T04:00:00+08:00',camp:'黃金舊發電廠',phase:null,candy:null},
+  {at:'2026-11-02T03:59:59+08:00',camp:'萌綠之島',phase:'halloween_final_two_days',candy:3},
+  {at:'2026-11-02T04:00:00+08:00',camp:'萌綠之島',phase:null,candy:null},
+];
+offline=true;
+for(const testCase of phaseCases){
+  const observed=await store.refreshPublicEventMaster({
+    ...opts,date:new Date(testCase.at),camp:testCase.camp,
+  });
+  assert.equal(observed.status,'OFFLINE_CACHED','published official master offline reuse: '+testCase.at);
+  assert.equal(observed.updated,false,'offline must not persist public or player rows');
+  assert.equal(observed.cached_version,officialFrozenVersion);
+  assert.ok(observed.error?.includes('SYNTHETIC_NETWORK_OFFLINE'));
+  const projection=observed.projection;
+  assert.equal(projection?.master_version,officialFrozenVersion);
+  assert.equal(projection?.active_event_count,testCase.phase?1:0,'camp/clock scope: '+testCase.at);
+  if(testCase.phase){
+    assert.equal(projection.active_events[0].event_id,'halloween_double_candy_2026_10');
+    assert.equal(projection.active_events[0].phase_id,testCase.phase);
+    assert.equal(projection.feature_only_event_effects.pokemon_candy_multiplier,testCase.candy);
+    assert.equal(projection.event_authority_status,'PARTIAL_VERIFIED');
+    assert.equal(projection.event_effect_review_required,true);
+  }else{
+    assert.ok(!Object.hasOwn(projection.feature_only_event_effects,'pokemon_candy_multiplier'));
+  }
+  assert.ok(!Object.hasOwn(projection.strategy_event_effects,'pokemon_candy_multiplier'),
+    'first sleep research candy cannot become player candy inventory or deterministic strategy');
+  assert.equal(JSON.stringify(database.events),officialFrozenRows,'offline event rows must remain byte-for-byte unchanged');
+  assert.equal(JSON.stringify(database.phases),officialFrozenPhases,'offline phase rows must remain unchanged');
+  assert.equal(database.settings.get('public_event_master_payload_sha256'),officialFrozenSha);
+  assert.equal(JSON.stringify(database.privateRows),privateBefore);
+  assert.equal(persistCount,1,'offline phase rollover must not persist account/public data');
+}
+offline=false;
+console.log('PASS G9R_20261026_OFFLINE_LASTGOOD_VERIFIED_HALLOWEEN_SCOPE_PHASE_X2_X3_NO_PLAYER_WRITE');
+console.log('NOTE G9R_20261026_SYNTHETIC_CLOCK_AND_MOCK_DB_ONLY_ANDROID_OWNER_OFFLINE_PENDING');
+
 const mockNext=structuredClone(base);
 mockNext.master_version='SYNTHETIC_g9r_new_sha_not_published';
 mockNext.generated_at='2026-10-13T11:00:00Z';
