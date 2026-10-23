@@ -1,5 +1,9 @@
 # Pokémon Sleep AI Manager — UI／功能 API／SQLite／Public Master 架構樹與驗證矩陣
 
+## 2026-10-24 G14.1 / #482 backup manifest completeness — architecture candidate
+
+- `assets/js/backup-truth-restore.js` defines 20 canonical `CORE_TABLES` for backup metadata. `assets/js/g141-cross-device-restore-evidence.js` is **not imported by production PWA** and only compares redacted metadata; candidate enforces exact 20 core counts in both old exported manifest and new receipt before `EXACT_SQLITE_BYTES_PARITY_PASS`, otherwise `HOLD / REQUIRED_BACKUP_CORE_TABLE_COUNTS_INCOMPLETE`. `scripts/g141-cross-device-restore-evidence-contract.mjs` adds controlled one-table/missing/null negatives. No IndexedDB/SQLite read/write, no private rows, no release tuple change. Source branch `test/g141-backup-core-count-completeness-20261024` from exact main `776068762259800d70f25795307c5566b3a42ece`; CI/merge pending. Actual Owner exported original full SHA and postreload parity NOT_VERIFIED; #482 stays OPEN.
+
 ## 2026-10-23 G295 current-main watchdog lifecycle — MERGED / Owner UAT pending
 
 - **PR #495 protected Merge Commit PASS**: exact PR head `3746923f1005a6131d279c0ca5e6ddfd8dddd67c` passed unchanged **12/12 required exact-head CI**, including source-bound VM `G295_SOURCE_BOUND_LIFECYCLE_VM=PASS`. Protected merge readback produced exact main `8cca315f44949fcb648b7214845d0d2784f2589f`; same-main **12/12 push CI SUCCESS** including [Deploy GitHub Pages #39966880914](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/39966880914) and [Frontend #39966880933](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/39966880933). Open PR 0 at this checkpoint. GitHub live SHA supersedes this historical record.

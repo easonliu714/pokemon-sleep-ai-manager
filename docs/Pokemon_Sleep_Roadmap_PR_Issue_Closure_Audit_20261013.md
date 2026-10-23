@@ -1,5 +1,9 @@
 # Pokémon Sleep AI Manager — Roadmap／PR／Issue 全量盤點與結案審核
 
+## 2026-10-24 G14.1 / #482 metadata-only core completeness — candidate
+
+- Current main parent `776068762259800d70f25795307c5566b3a42ece`; test-only branch `test/g141-backup-core-count-completeness-20261024`. Prior G14.1 audit accepted matching digest/size with a nonempty but incomplete old `table_counts`; this could grant `EXACT_SQLITE_BYTES_PARITY_PASS` on a one-table manifest. Scoped fail-closed correction requires the exact 20 backup `CORE_TABLES` on BOTH old manifest and new receipt before parity credit. Add positive/negative fixture matrix; no new CI workflow, runtime import, app release, DB, player records or backup operation. Candidate only pending exact-head CI/merge/main Pages; #482 ORIGINAL_BACKUP_SHA/postreload remains HOLD. #295 Owner UAT, #479 ESM and #19 event proof independent.
+
 ## 2026-10-23 G295 current-main watchdog lifecycle — MERGED / Owner UAT pending
 
 - **PR #495 protected Merge Commit PASS**: exact PR head `3746923f1005a6131d279c0ca5e6ddfd8dddd67c` passed unchanged **12/12 required exact-head CI**, including source-bound VM `G295_SOURCE_BOUND_LIFECYCLE_VM=PASS`. Protected merge readback produced exact main `8cca315f44949fcb648b7214845d0d2784f2589f`; same-main **12/12 push CI SUCCESS** including [Deploy GitHub Pages #39966880914](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/39966880914) and [Frontend #39966880933](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/39966880933). Open PR 0 at this checkpoint. GitHub live SHA supersedes this historical record.
