@@ -1,5 +1,12 @@
 # Pokémon Sleep AI Manager — Roadmap／PR／Issue 全量盤點與結案審核
 
+## 2026-10-24 G479 / #479 — PR #499 protected merged; synthetic browser diagnosis only
+
+- **PR #499** protected Merge Commit PASS: exact PR head `091ebea78a0755ebf2219d89da1d8c0c85c55adc`, unchanged **6/6 exact-head PR workflows SUCCESS**, including [Frontend Regression #40022974067](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/40022974067). Merge readback main `242857c9e3e0054f35f96f4cb9b7554ba85548f7`; **same-main 7/7 push workflows SUCCESS**, including [Deploy GitHub Pages #40023168564](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/40023168564) and [Frontend Regression #40023168620](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/40023168620). All SHA checkpoints historical; fresh GitHub remains authority.
+- **First CI failure repaired in same branch**: Chromium HTTP 503 module import generated a real HTTP response **and** `requestfailed: net::ERR_ABORTED`; previous test wrongly required no requestfailed for all HTTP responses. Corrected the isolated test to classify by observed response status and require zero failures only for HTTP 200; transport rejection remains the no-HTTP-response plus requestfailed branch. Synthetic Chromium HTTP 200/503/404/network rejection PASS; SW deliberately blocked and existing independent production-SW replay unchanged.
+- **Scope**: CI-only script/workflow and governance; no PWA runtime, Service Worker, version/build/cache, SQLite, personal data, Public Master or migration mutation. Production remains `v0.4.27.55.3.3.26`. **#479 OPEN**: original intermittent Android ESM import root cause and nondestructive device trace NOT_VERIFIED; synthetic browser evidence is not an Android incident reproduction. #295 Owner .26 watchdog UAT, #482 original old-phone backup SHA/postreload, #19 Halloween 10/26/10/31 phase/offline Owner evidence independently OPEN. Immutable branch/PR/Issue snapshot unchanged; Windows local checkout NOT_VERIFIED.
+
+
 ## 2026-10-24 G479 / #479 — Chromium ESM transport classification (CI-only candidate)
 
 - Adds real Chromium dynamic `import()` synthetic HTTP 200/503/404 versus network-rejection classification, using response status and requestfailed telemetry. Service Workers are explicitly blocked in this test; the existing separate source-bound production-SW VM replay is unchanged. Disposable browser context, synthetic same-origin module, no player data.
