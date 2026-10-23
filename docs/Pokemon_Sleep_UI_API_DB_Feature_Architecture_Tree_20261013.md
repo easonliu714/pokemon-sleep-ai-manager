@@ -1,5 +1,7 @@
 # Pokémon Sleep AI Manager — UI／功能 API／SQLite／Public Master 架構樹與驗證矩陣
 
+> **2026-10-23 394-branch / 362-PR / 22-open-Issue full audit:** [immutable inventory](./GOVERNANCE_BRANCH_PR_ISSUE_INVENTORY_20261023.md). It classifies 346 exact merged-PR branches, 12 closed-unmerged-only, 35 unlinked + reserved main; Open PR=0; Issue safe-to-close=0 pending original DoD. Priority #295 source-bound lifecycle, #479 diagnostic, #482 parity, #6 focused Owner quick closure; #19 actual 10/26/31 remains parallel. No branches deleted, no Issue closed. Canonical progress remains this document and the two companion living docs.
+
 ## 2026-10-23 G9-R / #19 Halloween 10/26 Owner readiness preflight — branch candidate
 
 - **G479-R2 Owner UAT CLOSED**: Owner supplied 2026-10-23 13:25 Asia/Taipei Android PWA screenshot showing `v0.4.27.55.3.3.25`, `App 已就緒`, `啟動累計 5.3 秒`, Weekly Context two-column grid, `料理類型` and bounded `鍋子容量` input, existing displayed value 63. Owner explicitly reports `.25 Gate 驗證通過`; outcome `G479_R2_WEEKLY_POT_25_OWNER_PASS`. Earlier `.24` War Room and Knowledge horizontal overflow also Owner PASS. PR #492 merged to main `3c929beeca371e0f1311a102d35002fd07abbebf`, **same-main 12/12 CI SUCCESS**, Pages run [39867979605](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/39867979605) SUCCESS. No additional player DB mutation verified or claimed from screenshots. Windows local checkout remains NOT_VERIFIED.
