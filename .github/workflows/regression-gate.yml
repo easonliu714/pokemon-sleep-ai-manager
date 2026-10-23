@@ -286,6 +286,11 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/browser-runtime-gate.mjs
 
+      - name: Verify G479 Chromium ESM transport classification
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g479-chromium-esm-transport-classification.mjs
+
       - name: Verify G479-R War Room and Knowledge mobile responsive DOM in Chromium
         env:
           BASE_URL: http://127.0.0.1:4173/

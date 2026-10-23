@@ -1,5 +1,11 @@
 # Pokémon Sleep AI Manager — Canonical Gate Roadmap & Completion Authority
 
+## 2026-10-24 G479 / #479 — Chromium ESM transport classification (CI-only candidate)
+
+- Adds real Chromium dynamic `import()` synthetic HTTP 200/503/404 versus network-rejection classification, using response status and requestfailed telemetry. Service Workers are explicitly blocked in this test; the existing separate source-bound production-SW VM replay is unchanged. Disposable browser context, synthetic same-origin module, no player data.
+- Adds one step to existing Frontend Regression Gate, no new workflow; no production app/SW/SQLite/Public Master or version/build/cache change. Candidate pending exact-head CI and protected merge. This does **not** establish actual Android ESM failure cause; #479 remains OPEN until nondestructive real-device evidence. #295 Owner .26 UAT, #482 old exported backup SHA/postreload, #19 Halloween phase/offline Owner proof remain independently OPEN. Windows local Git NOT_VERIFIED.
+
+
 ## 2026-10-24 G14.1 / #482 — protected merge and exact-main CI closure
 
 - **PR #497** protected Merge Commit PASS: exact PR head `7ab3a094601fbb0d007fede82e66fed402c73c38` completed **7/7 exact-head PR workflows SUCCESS**, including G14 Safety Regression `backup-truth-restore`; merge produced main `8a4a75b0e150fe248855cfdaf894b493a5eacb80`. Same exact-main **8/8 push workflows SUCCESS**, including [Deploy GitHub Pages #39998535461](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/39998535461) and [Frontend #39998535444](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/39998535444). Historical SHA; fresh GitHub remains authority.
