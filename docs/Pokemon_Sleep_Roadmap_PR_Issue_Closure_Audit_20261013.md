@@ -1,5 +1,12 @@
 # Pokémon Sleep AI Manager — Roadmap／PR／Issue 全量盤點與結案審核
 
+## 2026-10-23 G295 current-main watchdog lifecycle — DRAFT candidate
+
+- Authority parent main `ebfdb19ef6fad132e62e780413099da205313f73`, release predecessor `v0.4.27.55.3.3.25`; new proposed exact `v0.4.27.55.3.3.26` build `20261023-v0427553326-g295-watchdog-lifecycle`. **DRAFT / NOT MERGED / NOT OWNER PASS** until exact-head CI, protected merge, same-main CI+Pages and focused Android evidence.
+- Issue #295 current source-bound finding: visibilitychange + 1200ms grace already exist, but original pagehide clears watchdog timer without pageshow rearm, and focus/native alert/confirm/prompt return were not independently guarded. This can lose detection after BFCache and misclassify long native-dialog pauses.
+- Scoped change: restart a single watchdog timer and fresh RAF generation after pageshow, reset heartbeat on visible focus and native dialog finally, preserve native return/throw values, retain hidden suppression and real foreground 4000ms stall detection/recovery. Add deterministic VM test using **actual production source**, wired into existing Frontend Regression Gate; no new standalone workflow.
+- Boundaries: no player SQLite, public Master, provider Raw, Candy 24/20, UNKNOWN, Migration15/16 or event-calendar changes. Synthetic VM != Android Owner evidence. #295 remains OPEN until full original DoD; #479/#482/#19 remain OPEN. Immutable 2026-10-23 inventory remains unchanged.
+
 > **2026-10-23 394-branch / 362-PR / 22-open-Issue full audit:** [immutable inventory](./GOVERNANCE_BRANCH_PR_ISSUE_INVENTORY_20261023.md). It classifies 346 exact merged-PR branches, 12 closed-unmerged-only, 35 unlinked + reserved main; Open PR=0; Issue safe-to-close=0 pending original DoD. Priority #295 source-bound lifecycle, #479 diagnostic, #482 parity, #6 focused Owner quick closure; #19 actual 10/26/31 remains parallel. No branches deleted, no Issue closed. Canonical progress remains this document and the two companion living docs.
 
 ## 2026-10-23 G9-R / #19 Halloween 10/26 Owner readiness preflight — branch candidate
