@@ -1,5 +1,12 @@
 # Pokémon Sleep AI Manager — Roadmap／PR／Issue 全量盤點與結案審核
 
+## 2026-10-24 G479 / #479 — DebugTrace session/history scope production correction (Draft candidate)
+
+- **Source-proven defect**: production `DebugTraceManager.summary()` counts only `this.sessionId` even while JSON export retains prior-session `module_probe_failed` events. Thus the unqualified UI `錯誤 0` can be misread as a clean entire history. A current-session zero is valid, but MUST NOT imply no retained failures.
+- **Scoped fix**: keep `summary.event_count/error_count/last_error` current-session semantics unchanged for existing consumers; add explicit `historical_event_count/historical_error_count/retained_event_count/retained_error_count`, relabel the UI counts `本次`, and show retained-history error scope. New isolated production-class VM regression exercises old failure + current clean session + new current failure + redacted export, no personal data. Candidate release `v0.4.27.55.3.3.27` build `20261024-v0427553327-g479-debug-session-history-scope`, exact predecessor `.26` preserved. **Draft candidate only; CI, merge, Pages, Owner Android UAT NOT YET VERIFIED**.
+- No provider Raw, player SQLite, Public Master, Service Worker, Candy24/20, Migration15/16, or G9 event data mutation. **#479 stays OPEN**: intermittent Android ESM transport/SW root cause and fresh-catalog reconciliation remain unproven. #295, #482, #19 physical DoD independently OPEN. Windows local Git NOT_VERIFIED.
+
+
 ## 2026-10-24 G479 / #479 — PR #501 Chromium production-SW fetch matrix protected merged and same-main CI closed
 
 - **PR #501** [merged](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/501) with expected-head guard. Exact PR HEAD `8f716570b1d78e08deba7006976be059479d93ec`, all **6/6 pull_request workflows SUCCESS** including [Frontend Regression #40037326368](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/40037326368), with new `Verify G479 Chromium production SW ESM fetch matrix` step **#74 SUCCESS**. Merge-commit/main readback `9808fc56473296eb08098d5917cb7ed665aaedab`, all **7/7 same-SHA push workflows SUCCESS**, including [Frontend #40037500969](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/40037500969) and [Deploy GitHub Pages #40037501031](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/40037501031). These are historical checkpoints, fresh GitHub remains authority.
