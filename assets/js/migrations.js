@@ -176,7 +176,18 @@ export function auditAndSyncPublicMasters(db,{force=false}={}){
   if(force||applied.pokemon_knowledge!==expected.pokemon_knowledge){applyPublicPokemonKnowledgeData(db);updated.push('pokemon_knowledge');}
   if(force||applied.candy!==expected.candy||updated.includes('shared')||updated.includes('pokemon_knowledge')){details.candy=syncPublicCandyMaster(db);updated.push('candy');}
   if(force||updated.length>0||applied.canonical!==expected.canonical){applyCanonicalRegistry(db);updated.push('canonical');}
-  return {updated:updated.length>0,updated_authorities:updated,applied,expected,details};
+  // G479: the pre-sync snapshot is audit provenance, not the database state
+  // handed to Public Catalog after migration. Re-read all six persisted
+  // authorities; failed or partial writes must remain a mismatch (fail closed).
+  const reconciledApplied={
+    shared:settingValue(db,'shared_master_version'),
+    recipes:settingValue(db,'public_recipe_master_version'),
+    items:settingValue(db,'public_item_master_version'),
+    candy:settingValue(db,'public_candy_master_version'),
+    canonical:settingValue(db,'canonical_registry_version'),
+    pokemon_knowledge:settingValue(db,'public_pokemon_knowledge_version'),
+  };
+  return {updated:updated.length>0,updated_authorities:updated,applied:reconciledApplied,previous_applied:applied,expected,details};
 }
 
 export function applyFreshDatabaseBootstrap(db){

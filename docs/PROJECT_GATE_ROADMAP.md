@@ -1,5 +1,12 @@
 # Pokémon Sleep AI Manager — Canonical Gate Roadmap & Completion Authority
 
+## 2026-10-24 G479 FIRST-BOOT AUTHORITY READBACK — .28 DRAFT PR, CI/OWNER PENDING
+
+**Source-bound diagnosis (not Android ESM root cause):** `auditAndSyncPublicMasters()` previously returned its six-key `applied` snapshot captured **before** forced fresh-database synchronization. `database.js` passed that stale snapshot in `pokemon-sleep:database-ready`, while `public-catalog-workbench.js` compared it with `expected` and emitted `PUBLIC_CATALOG_HYDRATE_FAILED / DATABASE_AUTHORITY_MISMATCH` despite SQLite seed/sync succeeding. On next boot, the pre-sync snapshot naturally matched, explaining the observed first-boot-fail/second-boot-recover pattern without claiming a reproduced Android incident.
+
+**Scoped correction:** Preserve pre-sync `previous_applied` as audit provenance; re-read all six persisted setting authorities **after** sync into emitted `applied`. Never bypass the independent integrity sentinel or player-data boundaries. Extend the existing `v04275531-startup-idb-sw-reliability-contract.mjs` with real ephemeral in-memory sql.js fresh-bootstrap and drift-repair regression, asserting same-boot exactness, metadata still requiring verification, subsequent parity, zero player records and SQLite integrity. No personal SQLite/IndexedDB input. New production tuple candidate `v0.4.27.55.3.3.28` / `20261024-v0427553328-g479-public-catalog-postsync-readback` (predecessor .27 retained). **Draft PR engineering only until exact-head required CI, protected merge, same-main CI/Pages and separate Owner Android UAT.** #479 remains OPEN: original intermittent Android ESM HTTP/transport/SW cause is still unproven; .27 diagnostic Owner UAT remains NOT_VERIFIED. Other #295/#482/#19 Owner DoD unchanged.
+
+
 ## 2026-10-24 OWNER ACTIVE PRIORITY DECISION — 22-Issue DoD/anti-drift/parallel execution
 
 **來源權威／版本（本次決策時點，不保證未來最新）：** GitHub main 4787e365b869ec617e504fc9a4e0ffdbeb0cf8b9；PR [#503](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/503) 已合併並發布 `v0.4.27.55.3.3.27`，12/12 same-main CI 和 [Pages run 40045338377](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/40045338377) SUCCESS；PR [#504](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/504) 已更新 post-merge closure。原始 Android .27 實機尚未簽收，不能宣稱 Issue #479 COMPLETE。每輪重新核對 main SHA、唯一 open PR、CI/Pages；Windows local checkout NOT_VERIFIED。

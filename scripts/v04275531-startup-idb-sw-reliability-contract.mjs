@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import initSqlJs from 'sql.js';
+import {DDL,SEED_SQL} from '../assets/js/schema.js';
+import {applyFreshDatabaseBootstrap,applyAllMigrations} from '../assets/js/migrations.js';
 import fs from 'node:fs';
 import 'fake-indexeddb/auto';
 import {CANDY_FAMILY_STORAGE_MIGRATION_VERSION} from '../assets/js/candy-family-storage-authority.js';
@@ -161,3 +164,41 @@ console.log('NOTE G479_SYNTHETIC_ONLY_NO_ANDROID_REPRO_NO_PRODUCTION_RUNTIME_CHA
 await import('./g479-sw-network-failure-replay.mjs');
 // Run actual-source G479 critical-stage owner regression in isolated synthetic DOM.
 await import('./g479-startup-stage-owner-replay.mjs');
+
+
+// G479_POST_SYNC_REAL_SQLITE: isolated in-memory cold boot, no player DB/IndexedDB.
+// Assert that the *emitted* public_master.applied is the post-reconciliation
+// SQLite readback, not the stale pre-sync snapshot that caused false HYDRATE_FAILED.
+const G479_SQL=await initSqlJs();
+const g479FreshDb=new G479_SQL.Database();
+try{
+  g479FreshDb.run(DDL);
+  g479FreshDb.run(SEED_SQL);
+  const cold=applyFreshDatabaseBootstrap(g479FreshDb);
+  assert.equal(cold.database_changed,true);
+  assert.equal(cold.public_master.updated,true);
+  assert.deepEqual(cold.public_master.applied,cold.public_master.expected,
+    'fresh boot must report persisted post-sync authorities, not pre-sync values');
+  assert.equal(Object.keys(cold.public_master.previous_applied).length,6,
+    'pre-sync values remain available only as audit provenance');
+  const coldAuthority=evaluatePublicCatalogVersionAuthority(cold.public_master);
+  assert.equal(coldAuthority.exact,true,'fresh boot public authority must reconcile in same boot');
+  const coldDecision=decidePublicCatalogStartup({authority:coldAuthority,integrity_ok:true,persisted:null});
+  assert.equal(coldDecision.reason,'DATABASE_RECONCILED_THIS_BOOT');
+  assert.equal(coldDecision.action,'HYDRATE_REQUIRED','first boot still requires metadata verification, not bypass');
+  const subsequent=applyAllMigrations(g479FreshDb);
+  assert.equal(evaluatePublicCatalogVersionAuthority(subsequent.public_master).exact,true,
+    'subsequent boot must retain exact public authority');
+  g479FreshDb.run("UPDATE settings SET value_json=? WHERE key='public_item_master_version'",['"synthetic-stale-item-v0"']);
+  const repaired=applyAllMigrations(g479FreshDb);
+  assert.equal(repaired.public_master.previous_applied.items,'synthetic-stale-item-v0');
+  assert.equal(repaired.public_master.applied.items,repaired.public_master.expected.items,
+    'stale public version must be re-synced before reporting exact');
+  assert.equal(evaluatePublicCatalogVersionAuthority(repaired.public_master).exact,true);
+  for(const table of ['pokemon','recipes','ingredient_inventory','item_inventory','candy_inventory']){
+    const count=g479FreshDb.exec('SELECT COUNT(*) FROM '+table)[0]?.values[0]?.[0];
+    assert.equal(count,0,'G479 fixture must never invent private records: '+table);
+  }
+  assert.equal(g479FreshDb.exec('PRAGMA integrity_check')[0]?.values[0]?.[0],'ok');
+  console.log('PASS G479_POST_SYNC_REAL_SQLITE_FRESH_BOOT_EXACT_AND_DRIFT_REPAIR_NO_PLAYER_WRITES');
+}finally{g479FreshDb.close();}
