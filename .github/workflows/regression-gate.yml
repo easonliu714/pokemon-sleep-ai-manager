@@ -185,6 +185,9 @@ jobs:
       - name: G265 Cross-Module SQLite Stale Export Negative Reproduction
         run: node scripts/g265-cross-module-stale-export-race-repro.mjs
 
+      - name: G265 Shared SQLite Persist Coordinator Source-Bound Contract
+        run: node scripts/g265-shared-sqlite-persist-coordinator-contract.mjs
+
       - name: Verify confirmation lifecycle UX
         run: node scripts/v042712-confirmation-lifecycle-ux-contract.mjs
 
