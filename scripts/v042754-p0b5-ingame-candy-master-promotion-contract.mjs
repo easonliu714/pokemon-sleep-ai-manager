@@ -131,7 +131,16 @@ const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
 
 // G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
 // G479 .27 debug-history scope successor; Candy promotion remains source-controlled and unchanged.
-if(appVersion==='v0.4.27.55.3.3.32'){
+// G265 .33 exact successor: retain source-controlled Candy promotion and .32 lineage.
+if(appVersion==='v0.4.27.55.3.3.33'){
+  assert.equal(appBuild,'20261025-v0427553333-g265-concise-warroom-decisions');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.33-v0427553333-g265-concise-warroom-decisions');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.32'"));
+  assert.ok(version.includes("// app_build: '20261024-v0427553332-g479-exact-resource-provenance'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.32-v0427553332-g479-exact-resource-provenance'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.26'"));
+}
+else if(appVersion==='v0.4.27.55.3.3.32'){
   // G479 .32 exact successor retains .31 and frozen lineage.
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.31'"));
   assert.ok(version.includes("// app_build: '20261024-v0427553331-g479-passive-esm-provenance'"));

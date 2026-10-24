@@ -261,6 +261,15 @@ gate('release and offline wiring retain v0.4.27.47 exact predecessor',()=>{
     assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.17-v0427553317-weekly-berry-evidence-resolution'"),'.18 successor must retain exact .17 predecessor cache marker');
   }
 // G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
+// G265 .33 exact successor: preserve frozen P0-B2 public species and offline boundaries.
+else if(currentAppVersion==='v0.4.27.55.3.3.33'){
+  assert.equal(currentAppBuild,'20261025-v0427553333-g265-concise-warroom-decisions');
+  assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.33-v0427553333-g265-concise-warroom-decisions');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.32'"));
+  assert.ok(versionSource.includes("// app_build: '20261024-v0427553332-g479-exact-resource-provenance'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.32-v0427553332-g479-exact-resource-provenance'"));
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.47'"));
+}
 else if(currentAppVersion==='v0.4.27.55.3.3.32'){
   // G479 .32 exact successor retains .31 and frozen lineage.
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.31'"));

@@ -15,7 +15,16 @@ const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 // G479 .27 debug-history scope successor: retain .26 and original .4 watchdog lineage.
 // G479 .28 exact Public Catalog successor: retain .27 and original .4 watchdog.
 // G6.2 .29 successor: retain exact .28 release and original .4 watchdog authority.
-if(appVersion==='v0.4.27.55.3.3.32'){
+// G265 .33 exact successor: preserve .32 and frozen .4 page-visibility watchdog authority.
+if(appVersion==='v0.4.27.55.3.3.33'){
+  assert.equal(authority.match(/app_build:\s*'([^']+)'/)?.[1],'20261025-v0427553333-g265-concise-warroom-decisions');
+  assert.equal(authority.match(/cache_name:\s*'([^']+)'/)?.[1],'pokemon-sleep-ai-v0.4.27.55.3.3.33-v0427553333-g265-concise-warroom-decisions');
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.32'"));
+  assert.ok(authority.includes("// app_build: '20261024-v0427553332-g479-exact-resource-provenance'"));
+  assert.ok(authority.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.32-v0427553332-g479-exact-resource-provenance'"));
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.4'"));
+}
+else if(appVersion==='v0.4.27.55.3.3.32'){
   // G479 .32 exact successor retains .31 and frozen lineage.
   assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.31'"));
   assert.ok(authority.includes("// app_build: '20261024-v0427553331-g479-passive-esm-provenance'"));

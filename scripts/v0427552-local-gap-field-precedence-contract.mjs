@@ -76,7 +76,16 @@ const currentCache=globalThis.PokemonSleepVersionAuthority?.cache_name||'';
 
 // G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
 // G479 .27 diagnostic-scope successor: preserve local gap field precedence and exact .26 lineage.
-if(currentVersion==='v0.4.27.55.3.3.32'){
+// G265 .33 exact successor: retain local-first Candy fields and immutable Raw.
+if(currentVersion==='v0.4.27.55.3.3.33'){
+  assert.equal(currentBuild,'20261025-v0427553333-g265-concise-warroom-decisions');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.33-v0427553333-g265-concise-warroom-decisions');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.32'"));
+  assert.ok(versionSource.includes("// app_build: '20261024-v0427553332-g479-exact-resource-provenance'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.32-v0427553332-g479-exact-resource-provenance'"));
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.26'"));
+}
+else if(currentVersion==='v0.4.27.55.3.3.32'){
   // G479 .32 exact successor retains .31 and frozen lineage.
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.31'"));
   assert.ok(versionSource.includes("// app_build: '20261024-v0427553331-g479-passive-esm-provenance'"));

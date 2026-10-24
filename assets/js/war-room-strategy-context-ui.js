@@ -15,21 +15,23 @@ function objectiveText(proposal){
   if(hasNumericScore)return `Deterministic score ${Number(score).toLocaleString('zh-TW',{maximumFractionDigits:4})}`;
   return evaluation?.objective_status||proposal?.deterministic_re_evaluation_status||'HOLD';
 }
+// G265: keep decisions, deterministic status, trade-offs and blocking warnings visible;
+// raw candidate refs, rationale and fingerprints are disclosure-only by default.
 function proposalCard(proposal,index){
   return `<article class="proposal-card"><b>${esc(proposal.proposal_name||proposal.proposal_id||`候選 ${index+1}`)}</b>
-    <p><code>${esc((proposal.candidate_refs||[]).join(' · '))}</code></p>
-    <p>${esc(proposal.rationale||proposal.expected_tradeoff||'—')}</p>
+    ${proposal.expected_tradeoff?`<p class="notice">主要取捨：${esc(proposal.expected_tradeoff)}</p>`:''}
+    <details><summary>查看候選 refs 與建議理由</summary><p><code>${esc((proposal.candidate_refs||[]).join(' · ')||'—')}</code></p><p>${esc(proposal.rationale||'尚無可驗證理由')}</p></details>
     <div class="status-row"><span class="status-pill pass">Hard Constraints PASS</span><span class="status-pill ${proposal.deterministic_re_evaluation_status==='READY'?'pass':'hold'}">${esc(objectiveText(proposal))}</span></div>
     ${proposal.missing_data_dependencies?.length?`<p class="notice">缺少：${esc(proposal.missing_data_dependencies.join('、'))}</p>`:''}
     <p class="notice">不可直接 Apply；需 deterministic re-evaluation。</p></article>`;
 }
-function rejectedCard(proposal,index){return `<article class="proposal-card rejected"><b>${esc(proposal.proposal_name||proposal.proposal_id||`拒絕 ${index+1}`)}</b><p><code>${esc((proposal.candidate_refs||[]).join(' · ')||'—')}</code></p><div class="status-row"><span class="status-pill fail">REJECTED</span></div><p>${esc((proposal.reasons||[]).join('、')||'unknown reason')}</p></article>`;}
+function rejectedCard(proposal,index){return `<article class="proposal-card rejected"><b>${esc(proposal.proposal_name||proposal.proposal_id||`拒絕 ${index+1}`)}</b><details><summary>查看拒絕候選 refs</summary><p><code>${esc((proposal.candidate_refs||[]).join(' · ')||'—')}</code></p></details><div class="status-row"><span class="status-pill fail">REJECTED</span></div><p>${esc((proposal.reasons||[]).join('、')||'unknown reason')}</p></article>`;}
 function renderIntakeResult(container,intake){
   const accepted=intake?.accepted_proposals||[],rejected=intake?.rejected_proposals||[];
   const fpClass=intake?.context_fingerprint_match?'pass':'fail';
   container.innerHTML=`<p><b>Intake：</b>${esc(intake?.intake_status||'—')}；Adapter：<code>${esc(intake?.adapter||'—')}</code></p>
     <div class="status-row"><span class="status-pill ${fpClass}">Context Fingerprint ${intake?.context_fingerprint_match?'MATCH':'MISMATCH'}</span><span class="status-pill ${accepted.length?'pass':'hold'}">接受 ${accepted.length}</span><span class="status-pill ${rejected.length?'fail':'pass'}">拒絕 ${rejected.length}</span></div>
-    <p class="notice">Expected <code>${esc(intake?.expected_context_fingerprint||'—')}</code><br>Received <code>${esc(intake?.received_context_fingerprint||'—')}</code></p>
+    <details><summary>進階：Context Fingerprint 比對</summary><p class="notice">Expected <code>${esc(intake?.expected_context_fingerprint||'—')}</code><br>Received <code>${esc(intake?.received_context_fingerprint||'—')}</code></p></details>
     ${accepted.length?`<h4>可進入 deterministic Review</h4><div class="proposal-grid">${accepted.map(proposalCard).join('')}</div>`:''}
     ${rejected.length?`<h4>已拒絕 Proposal</h4><div class="proposal-grid">${rejected.map(rejectedCard).join('')}</div>`:''}
     <p class="notice"><b>安全邊界：</b>本區沒有套用隊伍按鈕，不寫 SQLite；數值模型未 ACTIVE_VERIFIED 時 objective score 必須維持 HOLD/null。</p>`;
@@ -65,7 +67,7 @@ export function renderWarRoomStrategyContext(root=document.getElementById('warro
       lastPreview=buildLocalStrategyContextPreview({includeEventText:root.querySelector('#warRoomIncludeEventText').checked});
       if(lastPreview.status!=='READY'){result.textContent='目前沒有玩家資料可建立 Strategy Context。';return;}
       const privacy=lastPreview.privacy_manifest||{};
-      result.innerHTML=`<p><b>Context Fingerprint：</b><code>${esc(lastPreview.payload?.context_fingerprint||'—')}</code></p>
+      result.innerHTML=`<details><summary>進階：Context Fingerprint</summary><p><code>${esc(lastPreview.payload?.context_fingerprint||'—')}</code></p></details>
         <p>候選 ${privacy.candidate_count||0}；目前隊伍 refs ${privacy.current_team_ref_count||0}；料理 ${privacy.recipe_count||0}；相關食材 ${privacy.inventory_ingredient_count||0}。</p>
         <p>event text：${privacy.event_text_included?'本次包含':'未包含'}；stable Pokémon ID：${privacy.stable_pokemon_ids_in_payload?'有（FAIL）':'無'}；raw SQLite：${privacy.raw_sqlite_in_payload?'有（FAIL）':'無'}；API Key：${privacy.api_key_in_payload?'有（FAIL）':'無'}。</p>
         <p>待補資料：${esc((lastPreview.missing_inputs||[]).join('、')||'無')}</p>
@@ -80,10 +82,9 @@ export function renderWarRoomStrategyContext(root=document.getElementById('warro
       lastOptimization=buildLocalOptimizationStrategyPreview({includeEventText:root.querySelector('#warRoomIncludeEventText').checked});lastIntake=null;intakeResult.textContent='尚未驗證 AI 回覆。';
       if(lastOptimization.status!=='READY'){optimizationResult.textContent='目前無法建立最佳化分析包。';copyPack.disabled=true;copyPrompt.disabled=true;return;}
       const payload=lastOptimization.payload||{},privacy=lastOptimization.privacy_manifest||{},budget=payload.search_policy?.budget||{};
-      optimizationResult.innerHTML=`<p><b>Optimization Fingerprint：</b><code>${esc(payload.optimization_fingerprint||'—')}</code></p>
-        <p><b>Context Fingerprint：</b><code>${esc(payload.context_fingerprint||'—')}</code></p>
+      optimizationResult.innerHTML=`<details><summary>進階：Optimization / Context Fingerprint</summary><p><code>${esc(payload.optimization_fingerprint||'—')}</code></p><p><code>${esc(payload.context_fingerprint||'—')}</code></p></details>
         <p><b>數值產能模型：</b>${esc(lastOptimization.production_rate_model_status||'NOT_YET_VERIFIED')}；<b>本機數值搜尋：</b>${esc(lastOptimization.team_search_execution_status||'—')}</p>
-        <p>候選 refs ${privacy.candidate_ref_count||0}；Seed 隊伍 ${privacy.seed_team_ref_count||0}/5；搜尋預算 max evaluations ${esc(budget.max_team_evaluations??'—')}、beam ${esc(budget.beam_width??'—')}、Top-K ${esc(budget.top_k??'—')}。</p>
+        <p>候選 ${privacy.candidate_ref_count||0}；Seed 隊伍 ${privacy.seed_team_ref_count||0}/5。</p><details><summary>進階：搜尋預算</summary><p>max evaluations ${esc(budget.max_team_evaluations??'—')}、beam ${esc(budget.beam_width??'—')}、Top-K ${esc(budget.top_k??'—')}。</p></details>
         <p>待補資料：${esc((lastOptimization.missing_inputs||[]).join('、')||'無')}</p>
         <p><b>安全邊界：</b>AI proposal 不可直接 Apply；每組隊伍都必須 deterministic re-evaluate，且不會把未來產能寫入實體庫存。</p>
         <details><summary>查看 Optimization Pack</summary><pre>${esc(JSON.stringify(payload,null,2))}</pre></details>`;
