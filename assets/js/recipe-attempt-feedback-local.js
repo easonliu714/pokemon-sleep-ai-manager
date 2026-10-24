@@ -13,12 +13,17 @@ const nowIso=()=>new Date().toISOString();
 const PERSISTENCE_HOLD_KEY='pokemon-sleep-g62-persistence-uncertain-v1';
 let pendingPersistenceHold=null;
 let recordInFlight=false;
+// G6.2: serialize all player-private writes until their IndexedDB result settles.
+let playerWriteInFlight=false;
 function readPersistenceMarker(){
   try{
     const value=globalThis.sessionStorage?.getItem(PERSISTENCE_HOLD_KEY);
     if(!value)return null;
     const marker=JSON.parse(value);
-    return typeof marker?.attempt_id==='string'&&typeof marker?.recipe_id==='string'?marker:null;
+    if(typeof marker?.recipe_id!=='string')return null;
+    if(marker.operation==='PAUSE_TOGGLE')
+      return marker.target_paused===0||marker.target_paused===1?marker:null;
+    return typeof marker.attempt_id==='string'?marker:null;
   }catch{return null;}
 }
 function writePersistenceMarker(marker){
@@ -34,11 +39,16 @@ function persistenceUncertainError(marker,cause=null){
 }
 export function getRecipeAttemptPersistenceStatus(){
   if(pendingPersistenceHold)return Object.freeze({status:'UNVERIFIED',...pendingPersistenceHold});
+  if(playerWriteInFlight)return Object.freeze({status:'IN_FLIGHT',operation:'G62_PLAYER_WRITE'});
   const marker=readPersistenceMarker();
   if(!marker)return Object.freeze({status:'CLEAR'});
   if(!isDatabaseReady()||isRescueReadonly())return Object.freeze({status:'UNVERIFIED',...marker});
   try{
-    const exists=rows('SELECT attempt_id FROM recipe_attempt_feedback WHERE attempt_id=?',[marker.attempt_id]).length===1;
+    // Read back the exact toggle target instead of querying an absent attempt_id.
+    const exists=marker.operation==='PAUSE_TOGGLE'
+      ?rows('SELECT recommendation_paused FROM recipe_feedback_state WHERE recipe_id=?',[marker.recipe_id])
+        .some(row=>Number(row.recommendation_paused)===marker.target_paused)
+      :rows('SELECT attempt_id FROM recipe_attempt_feedback WHERE attempt_id=?',[marker.attempt_id]).length===1;
     clearPersistenceMarker();
     return Object.freeze({status:exists?'PERSISTED':'NOT_PERSISTED',...marker,source:'RELOADED_SQLITE_READBACK'});
   }catch{
@@ -60,6 +70,7 @@ function canonicalIngredientNames(){
 function requireWritableDatabase(){
   if(!isDatabaseReady())throw new Error('recipe_attempt_player_database_not_ready');
   if(isRescueReadonly())throw new Error('recipe_attempt_readonly_rescue_mode');
+  if(playerWriteInFlight)throw Object.assign(new Error('recipe_attempt_player_write_in_flight'),{code:'RECIPE_ATTEMPT_WRITE_IN_FLIGHT'});
   const status=getRecipeAttemptPersistenceStatus();
   if(status.status==='UNVERIFIED')throw persistenceUncertainError(status);
 }
@@ -163,6 +174,7 @@ export async function recordRecipeAttemptFailure({
 
   if(recordInFlight)throw Object.assign(new Error('recipe_attempt_save_in_flight'),{code:'RECIPE_ATTEMPT_SAVE_IN_FLIGHT'});
   recordInFlight=true;
+  playerWriteInFlight=true;
   try{
     begin();
     try{
@@ -211,23 +223,44 @@ export async function recordRecipeAttemptFailure({
     return Object.freeze({...record,recipe_name:recipe.recipe_name,shared_master_write:false});
   }finally{
     recordInFlight=false;
+    playerWriteInFlight=false;
   }
 }
 
+// G6.2: share the attempt-write single-flight guard and fail closed after an ambiguous toggle.
 export async function setRecipeRecommendationPaused(recipeId,paused){
   requireWritableDatabase();
   const recipe=canonicalRecipe(recipeId);
   if(!recipe)throw new Error('recipe_feedback_canonical_recipe_required');
   const updatedAt=nowIso();
-  run(`INSERT INTO recipe_feedback_state(recipe_id,recommendation_paused,reference_maybe_wrong,last_attempt_id,updated_at)
+  const marker={operation:'PAUSE_TOGGLE',recipe_id:recipe.recipe_id,target_paused:paused?1:0};
+  playerWriteInFlight=true;
+  try{
+    run(`INSERT INTO recipe_feedback_state(recipe_id,recommendation_paused,reference_maybe_wrong,last_attempt_id,updated_at)
     VALUES(?,?,0,NULL,?)
     ON CONFLICT(recipe_id) DO UPDATE SET recommendation_paused=excluded.recommendation_paused,updated_at=excluded.updated_at`,[
-    recipe.recipe_id,paused?1:0,updatedAt,
-  ]);
-  await persist();
-  globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:recipe-attempt-feedback-changed',{detail:{
-    recipe_id:recipe.recipe_id,recommendation_paused:Boolean(paused),version:RECIPE_ATTEMPT_FEEDBACK_VERSION,
-  }}));
-  globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:data-changed',{detail:{entity:'recipe_feedback_state',recipe_id:recipe.recipe_id}}));
-  return Object.freeze({recipe_id:recipe.recipe_id,recipe_name:recipe.recipe_name,recommendation_paused:Boolean(paused),updated_at:updatedAt,shared_master_write:false});
+      recipe.recipe_id,paused?1:0,updatedAt,
+    ]);
+    try{
+      await persist();
+    }catch(error){
+      pendingPersistenceHold=marker;
+      writePersistenceMarker(marker);
+      try{globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:recipe-attempt-persistence-uncertain',{detail:{
+        code:'PERSISTENCE_UNCERTAIN',operation:'PAUSE_TOGGLE',recipe_id:recipe.recipe_id,
+        recovery:'RELOAD_AND_READBACK',shared_master_write:false,
+      }}));}catch{}
+      throw persistenceUncertainError(marker,error);
+    }
+    // Post-durability observer failures must never invite a blind retry.
+    try{
+      globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:recipe-attempt-feedback-changed',{detail:{
+        recipe_id:recipe.recipe_id,recommendation_paused:Boolean(paused),version:RECIPE_ATTEMPT_FEEDBACK_VERSION,
+      }}));
+      globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:data-changed',{detail:{entity:'recipe_feedback_state',recipe_id:recipe.recipe_id}}));
+    }catch{}
+    return Object.freeze({recipe_id:recipe.recipe_id,recipe_name:recipe.recipe_name,recommendation_paused:Boolean(paused),updated_at:updatedAt,shared_master_write:false});
+  }finally{
+    playerWriteInFlight=false;
+  }
 }

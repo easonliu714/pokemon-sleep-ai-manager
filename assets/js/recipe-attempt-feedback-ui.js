@@ -10,7 +10,7 @@ const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt
 let draft=null;
 let statusMessage='';
 let saveInFlight=false;
-const persistenceBlocked=()=>getRecipeAttemptPersistenceStatus().status==='UNVERIFIED';
+const persistenceBlocked=()=>['UNVERIFIED','IN_FLIGHT'].includes(getRecipeAttemptPersistenceStatus().status);
 
 function localDateTimeValue(date=new Date()){
   const offset=date.getTimezoneOffset()*60000;
@@ -87,6 +87,7 @@ function panelHtml(history,result){
 export function bindRecipeAttemptFeedbackUi(root,result,{rerender}={}){
   if(!root)return;
   const recovery=getRecipeAttemptPersistenceStatus();
+  if(recovery.status==='IN_FLIGHT')statusMessage='本機資料寫入進行中，請等待儲存完成再修改推薦狀態。';
   if(recovery.status==='UNVERIFIED')statusMessage='PERSISTENCE_UNCERTAIN：本次 SQLite 已提交，但持久化未確認。請正常重新載入，等待資料庫就緒並核對本機歷程；本頁禁止重試及修改推薦狀態。';
   if(recovery.status==='PERSISTED')statusMessage='重新載入後讀回確認：原失敗紀錄已持久化，請勿再次提交同一次嘗試。';
   if(recovery.status==='NOT_PERSISTED')statusMessage='重新載入後讀回確認：目前 SQLite 未找到原失敗紀錄；請先核對歷程，再決定是否重新記錄。';
@@ -159,7 +160,11 @@ export function bindRecipeAttemptFeedbackUi(root,result,{rerender}={}){
         statusMessage=`${resultState.recipe_name}：${resultState.recommendation_paused?'已暫停推薦':'已恢復推薦'}。`;
         rerender?.();
       }catch(error){
-        statusMessage=`更新推薦狀態失敗：${error?.message||error}`;
+        statusMessage=error?.code==='PERSISTENCE_UNCERTAIN'
+          ?'PERSISTENCE_UNCERTAIN：推薦狀態已提交但持久化未確認；請正常重新載入並核對狀態，勿重試。'
+          :error?.code==='RECIPE_ATTEMPT_WRITE_IN_FLIGHT'
+            ?'本機資料正在儲存，請等待完成後再修改推薦狀態。'
+            :`更新推薦狀態失敗：${error?.message||error}`;
         rerender?.();
       }
     });

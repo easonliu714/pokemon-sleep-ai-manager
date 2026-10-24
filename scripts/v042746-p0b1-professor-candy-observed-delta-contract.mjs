@@ -167,6 +167,20 @@ else if(currentVersion==='v0.4.27.55.3.3.15'){
   assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback'"));
 }
 // G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
+else if(currentVersion==='v0.4.27.55.3.3.30'){
+  // G479 .28 exact post-sync Public Catalog successor; retain all frozen behavior.
+  assert.equal(currentBuild,'20261024-v0427553330-g62-player-write-singleflight');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.30-v0427553330-g62-player-write-singleflight');
+  assertP0B1Lineage('.55.3.3.28 public catalog post-sync successor');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.27'"));
+  assert.ok(version.includes("// app_build: '20261024-v0427553327-g479-debug-session-history-scope'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.27-v0427553327-g479-debug-session-history-scope'"));
+
+  // .29 inherits exact .28 and all frozen assertions above.
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.28'"));
+  assert.ok(version.includes("// app_build: '20261024-v0427553328-g479-public-catalog-postsync-readback'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.28-v0427553328-g479-public-catalog-postsync-readback'"));
+}
 else if(currentVersion==='v0.4.27.55.3.3.29'){
   // G479 .28 exact post-sync Public Catalog successor; retain all frozen behavior.
   assert.equal(currentBuild,'20261024-v0427553329-g62-persistence-uncertain-hold');
