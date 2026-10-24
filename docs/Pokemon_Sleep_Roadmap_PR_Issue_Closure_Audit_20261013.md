@@ -1,5 +1,10 @@
 # Pokémon Sleep AI Manager — Roadmap／PR／Issue 全量盤點與結案審核
 
+## 2026-10-24 PR #516 FIFTH FIRST FAILURE + EXACT-SUCCESSOR CONTAINMENT
+
+Fifth exact HEAD `533089bd0ed2d2c467b030d9cd97256545dffe44`: [Frontend 40096567736](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/40096567736), job `120879960213`, first failing step `Verify P0-B1 professor Candy observed delta`, original `scripts/v042746-p0b1-professor-candy-observed-delta-contract.mjs:259` rejects .31 as an ungoverned release. After five successive **version-only exact successor** CI failures (not runtime behavior failures), a bounded static audit of scripts explicitly governing predecessor .30 identified nine remaining release-admission sites. Same-branch correction adds **only exact .31 version/build/cache and .30 plus frozen historical lineage checks** in those nine contracts, including P0-B1, P0-B2, Candy 24/20, Raw immutable, Local Gap, source-controlled promotion and browser version authority. No wildcard/fuzzy admission, no weakening prior assertions, no player/Shared writes. A new HEAD invalidates all earlier CI; await full exact-head rerun. Android #479 root cause remains HOLD.
+
+
 ## 2026-10-24 PR #516 FOURTH FIRST-FAILURE — MOBILE SNAPSHOT EXACT .31
 
 Fourth HEAD `64974fa45532fb7626b6c0bb1f83c16dfa00bb43`: [Frontend 40096495481](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/40096495481), job `120879739234`, step `Verify v0.4.27.55.3 mobile snapshot and Candy UI performance` failed because exact version allowlist ended at .30. Minimal fix admits only .31; retains all historical versions and existing snapshot/Candy assertions. No SQLite/IndexedDB runtime, Candy quantity or UI changes. New HEAD CI required.
