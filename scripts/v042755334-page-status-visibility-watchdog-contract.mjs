@@ -13,7 +13,15 @@ const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 // G479-R2 exact .25 weekly pot CSS-only successor; preserve frozen historical checks.
 // G295 exact .26 lifecycle successor; preserve original .4 and .25 watchdog lineage.
 // G479 .27 debug-history scope successor: retain .26 and original .4 watchdog lineage.
-if(appVersion==='v0.4.27.55.3.3.27'){
+// G479 .28 exact Public Catalog successor: retain .27 and original .4 watchdog.
+if(appVersion==='v0.4.27.55.3.3.28'){
+  assert.ok(authority.includes("app_build: '20261024-v0427553328-g479-public-catalog-postsync-readback'"));
+  assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.28-v0427553328-g479-public-catalog-postsync-readback'"));
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.27'"));
+  assert.ok(authority.includes("// app_build: '20261024-v0427553327-g479-debug-session-history-scope'"));
+  assert.ok(authority.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.27-v0427553327-g479-debug-session-history-scope'"));
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.4'"));
+}else if(appVersion==='v0.4.27.55.3.3.27'){
   assert.ok(authority.includes("app_build: '20261024-v0427553327-g479-debug-session-history-scope'"));
   assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.27-v0427553327-g479-debug-session-history-scope'"));
   assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.26'"));
