@@ -261,6 +261,19 @@ gate('release and offline wiring retain v0.4.27.47 exact predecessor',()=>{
     assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.17-v0427553317-weekly-berry-evidence-resolution'"),'.18 successor must retain exact .17 predecessor cache marker');
   }
 // G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
+else if(currentAppVersion==='v0.4.27.55.3.3.32'){
+  // G479 .32 exact successor retains .31 and frozen lineage.
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.31'"));
+  assert.ok(versionSource.includes("// app_build: '20261024-v0427553331-g479-passive-esm-provenance'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.31-v0427553331-g479-passive-esm-provenance'"));
+
+  assert.equal(currentAppBuild,'20261024-v0427553332-g479-exact-resource-provenance');
+  assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.32-v0427553332-g479-exact-resource-provenance');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.30'"));
+  assert.ok(versionSource.includes("// app_build: '20261024-v0427553330-g62-player-write-singleflight'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.30-v0427553330-g62-player-write-singleflight'"));
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.47'"));
+}
 else if(currentAppVersion==='v0.4.27.55.3.3.31'){
   assert.equal(currentAppBuild,'20261024-v0427553331-g479-passive-esm-provenance');
   assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.31-v0427553331-g479-passive-esm-provenance');

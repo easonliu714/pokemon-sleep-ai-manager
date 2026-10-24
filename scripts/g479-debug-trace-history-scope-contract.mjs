@@ -84,20 +84,34 @@ console.log('PASS G479_DEBUG_EXPORT_HISTORY_PRESERVED_AND_REDACTED');
   console.log('PASS G479_PASSIVE_ESM_HTTP_VS_UNKNOWN_SOURCE_BOUND');
   console.log('PASS G479_PASSIVE_ESM_NO_FETCH_NO_PRIVATE_URL_QUERY');
 }
-// G479 negative: same pathname but different ?v= is a different resource identity.
-// Expected known-risk reproduction; NOT a fixed safety assertion or Android 503 proof.
+// G479 positive safety regression: Resource Timing identity includes query in memory.
 {
   const current='http://127.0.0.1/assets/js/app.js?v=current-release';
   const stale='http://127.0.0.1/assets/js/app.js?v=stale-release';
   scope.performance.getEntriesByType=kind=>kind==='resource'?
     [{name:current,responseStatus:0,duration:8,workerStart:0},
      {name:stale,responseStatus:503,duration:21,workerStart:5}]:[];
-  const evidence=trace.captureModuleImportFailureProvenance(current);
-  assert.equal(evidence.resource_timing_entries,2,'known risk: pathname-only match admits stale-version entry');
-  assert.equal(evidence.resource_response_status,503,'known risk: stale HTTP 503 misattributed to current request');
+  let evidence=trace.captureModuleImportFailureProvenance(current);
+  assert.equal(evidence.resource_timing_entries,1,'stale query-version must not be counted');
+  assert.equal(evidence.resource_response_status,null,'stale 503 must not be attributed to current import');
+  assert.equal(evidence.classification,'UNDETERMINED','current status 0 remains undetermined');
+  assert.equal(JSON.stringify(evidence).includes('stale-release'),false,'stale query must not be exported');
+  assert.equal(JSON.stringify(evidence).includes('current-release'),false,'current query must not be exported');
+  scope.performance.getEntriesByType=kind=>kind==='resource'?
+    [{name:stale,responseStatus:200,duration:5,workerStart:0},
+     {name:current,responseStatus:503,duration:18,workerStart:3}]:[];
+  evidence=trace.captureModuleImportFailureProvenance(current);
+  assert.equal(evidence.resource_timing_entries,1);
+  assert.equal(evidence.resource_response_status,503,'exact current query HTTP 503 is observable');
   assert.equal(evidence.classification,'HTTP_RESPONSE_STATUS_OBSERVED');
-  assert.equal(JSON.stringify(evidence).includes('stale-release'),false,'no query may be exported');
-  console.log('REPRODUCED_HOLD G479_RESOURCE_TIMING_QUERY_VERSION_FALSE_ATTRIBUTION; SOURCE_FIX_NOT_YET_APPLIED');
+  assert.equal(JSON.stringify(evidence).includes('current-release'),false);
+  scope.performance.getEntriesByType=()=>[{name:stale,responseStatus:503,duration:21,workerStart:5}];
+  evidence=trace.captureModuleImportFailureProvenance(current);
+  assert.equal(evidence.resource_timing_entries,0);
+  assert.equal(evidence.resource_response_status,null);
+  assert.equal(evidence.classification,'UNDETERMINED');
+  console.log('PASS G479_RESOURCE_TIMING_EXACT_QUERY_VERSION_ATTRIBUTION_SOURCE_BOUND');
+  console.log('PASS G479_RESOURCE_TIMING_ZERO_MISSING_UNDETERMINED_AND_PRIVATE_QUERY_REDACTED');
 }
 
 console.log('NOTE G479_ANDROID_ESM_ROOT_CAUSE_STILL_UNVERIFIED');

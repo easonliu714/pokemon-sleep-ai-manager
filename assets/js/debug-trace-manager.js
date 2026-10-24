@@ -38,7 +38,7 @@ function collectModuleImportFailureProvenance(targetUrl,scope=globalThis){
     const controllerUrl=scope.navigator?.serviceWorker?.controller?.scriptURL;
     if(controllerUrl){const controller=new URL(controllerUrl,base);if(controller.origin===base.origin)evidence.controller_script_path=controller.pathname;}
     const entries=Array.from(scope.performance?.getEntriesByType?.('resource')||[]).filter(entry=>{
-      try{const candidate=new URL(entry.name,base);return candidate.origin===base.origin&&candidate.pathname===target.pathname;}catch{return false;}
+      try{const candidate=new URL(entry.name,base);return candidate.origin===target.origin&&candidate.pathname===target.pathname&&candidate.search===target.search;}catch{return false;}
     });
     evidence.resource_timing_entries=Math.min(entries.length,999);
     const last=entries.at(-1);
