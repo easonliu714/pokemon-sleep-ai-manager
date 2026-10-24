@@ -9,7 +9,8 @@ const SQL=await initSqlJs();
 const contract=fs.readFileSync('assets/js/war-room-named-team-draft-contract.js','utf8');
 const source=fs.readFileSync('assets/js/war-room-named-team-draft-store.js','utf8');
 assert.match(source,/INSERT INTO settings\(key,value_json,updated_at\)/);
-assert.doesNotMatch(source,/\bfetch\s*\(|\bindexedDB\b|DELETE FROM|UPDATE\s+pokemon|INSERT INTO\s+pokemon/i);
+// Reject executable storage/network access; comments about IndexedDB are not API calls.
+assert.doesNotMatch(source.replace(/^\/\/.*$/gm,''),/\bfetch\s*\(|\bindexedDB\s*[.\[]|DELETE FROM|UPDATE\s+pokemon|INSERT INTO\s+pokemon/i);
 const storage=new Map();
 const sessionStorage={
   getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,String(v)),removeItem:k=>storage.delete(k),
