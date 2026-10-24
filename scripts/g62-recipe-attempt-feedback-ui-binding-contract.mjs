@@ -17,9 +17,10 @@ const saved=[],pauseChanges=[],history=[{
   actual_ingredients:[{ingredient_name:'特選蘋果',quantity:3}],
   source_name:'Synthetic',recommendation_paused:1,
 }];
-let rejectSave=false,renderCount=0;
+let rejectSave=false,renderCount=0,holdStatus='CLEAR';
 const context=vm.createContext({
   listRecipeAttemptFeedbackHistory:()=>history,
+  getRecipeAttemptPersistenceStatus:()=>({status:holdStatus}),
   recipeAttemptDefaultSource:()=>({
     source_type:'PLAYER_REPORTED_REFERENCE',
     source_name:'Synthetic Reference',source_ref:null,
@@ -137,6 +138,16 @@ await root.buttons.cancel.handlers.click();
 assert.doesNotMatch(root.html,/data-g62-feedback-form/);
 assert.equal(saved.length,1,'cancel must not create another failure record');
 console.log('PASS G62_ACTUAL_UI_CANCEL_NO_WRITE');
+
+// An uncertain post-COMMIT write is not an ordinary retryable validation error.
+holdStatus='UNVERIFIED';
+rerender();
+assert.match(root.html,/PERSISTENCE_UNCERTAIN/);
+await root.buttons.attempt.handlers.click();
+assert.doesNotMatch(root.html,/data-g62-feedback-form/,'uncertain session must not open another draft');
+await root.buttons.toggle.handlers.click();
+assert.equal(pauseChanges.length,1,'uncertain session must not write recommendation state');
+console.log('PASS G62_ACTUAL_UI_PERSISTENCE_UNCERTAIN_FAIL_CLOSED');
 
 assert.ok(renderCount>=7,'real UI rerender callback exercised');
 console.log('NOTE G62_SYNTHETIC_SOURCE_BOUND_UI_GATE_NOT_ANDROID_OWNER_UAT');

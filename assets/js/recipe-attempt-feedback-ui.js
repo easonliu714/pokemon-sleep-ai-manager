@@ -1,5 +1,6 @@
 import {
   listRecipeAttemptFeedbackHistory,
+  getRecipeAttemptPersistenceStatus,
   recipeAttemptDefaultSource,
   recordRecipeAttemptFailure,
   setRecipeRecommendationPaused,
@@ -8,6 +9,8 @@ import {
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 let draft=null;
 let statusMessage='';
+let saveInFlight=false;
+const persistenceBlocked=()=>getRecipeAttemptPersistenceStatus().status==='UNVERIFIED';
 
 function localDateTimeValue(date=new Date()){
   const offset=date.getTimezoneOffset()*60000;
@@ -66,7 +69,7 @@ function draftHtml(){
     <label><input type="checkbox" data-g62-reference-wrong> 參考配方可能錯誤</label>
     <label><input type="checkbox" data-g62-pause checked> 暫停推薦此配方</label>
     <p class="notice">查證提示：第三方參考資料可能因遊戲版本、翻譯或資料更新而失效。建議先核對官方／遊戲內資訊，或比較其他可信來源，再消耗稀有食材。</p>
-    <div class="buttons"><button type="button" data-g62-save>儲存失敗嘗試</button><button type="button" data-g62-cancel>取消</button></div>
+    <div class="buttons"><button type="button" data-g62-save ${persistenceBlocked()?'disabled aria-disabled="true"':''}>儲存失敗嘗試</button><button type="button" data-g62-cancel>取消</button></div>
   </section>`;
 }
 function panelHtml(history,result){
@@ -83,6 +86,10 @@ function panelHtml(history,result){
 
 export function bindRecipeAttemptFeedbackUi(root,result,{rerender}={}){
   if(!root)return;
+  const recovery=getRecipeAttemptPersistenceStatus();
+  if(recovery.status==='UNVERIFIED')statusMessage='PERSISTENCE_UNCERTAIN：本次 SQLite 已提交，但持久化未確認。請正常重新載入，等待資料庫就緒並核對本機歷程；本頁禁止重試及修改推薦狀態。';
+  if(recovery.status==='PERSISTED')statusMessage='重新載入後讀回確認：原失敗紀錄已持久化，請勿再次提交同一次嘗試。';
+  if(recovery.status==='NOT_PERSISTED')statusMessage='重新載入後讀回確認：目前 SQLite 未找到原失敗紀錄；請先核對歷程，再決定是否重新記錄。';
   let history=[];
   try{history=listRecipeAttemptFeedbackHistory(20);}catch(error){statusMessage=`Feedback 歷程暫時無法讀取：${error?.message||error}`;}
   root.querySelector('[data-g62-feedback-panel]')?.remove();
@@ -90,6 +97,7 @@ export function bindRecipeAttemptFeedbackUi(root,result,{rerender}={}){
 
   root.querySelectorAll('[data-g62-attempt-failed]').forEach(button=>{
     button.addEventListener('click',()=>{
+      if(persistenceBlocked()){statusMessage='PERSISTENCE_UNCERTAIN：請先重新載入並核對歷程，禁止再次建立失敗嘗試。';rerender?.();return;}
       const recipeId=button.dataset.g62AttemptFailed;
       const step=findStep(result,recipeId);
       if(!step){statusMessage='找不到本次推薦步驟，請重新計算後再試。';rerender?.();return;}
@@ -111,7 +119,11 @@ export function bindRecipeAttemptFeedbackUi(root,result,{rerender}={}){
   root.querySelector('[data-g62-cancel]')?.addEventListener('click',()=>{draft=null;statusMessage='';rerender?.();});
   root.querySelector('[data-g62-save]')?.addEventListener('click',async()=>{
     const form=root.querySelector('[data-g62-feedback-form]');
-    if(!form||!draft)return;
+    if(!form||!draft||saveInFlight)return;
+    if(persistenceBlocked()){statusMessage='PERSISTENCE_UNCERTAIN：禁止重複提交，請重新載入並核對歷程。';rerender?.();return;}
+    saveInFlight=true;
+    const saveButton=root.querySelector('[data-g62-save]');
+    if(saveButton)saveButton.disabled=true;
     try{
       const localValue=form.querySelector('[data-g62-attempted-at]')?.value;
       const attemptedAt=localValue?new Date(localValue).toISOString():new Date().toISOString();
@@ -132,12 +144,15 @@ export function bindRecipeAttemptFeedbackUi(root,result,{rerender}={}){
       draft=null;
       rerender?.();
     }catch(error){
-      statusMessage=`儲存失敗：${error?.message||error}`;
+      statusMessage=error?.code==='PERSISTENCE_UNCERTAIN'?'PERSISTENCE_UNCERTAIN：SQLite 已提交但本機持久化結果不明；請重新載入並核對歷程，勿重複提交。':`儲存失敗：${error?.message||error}`;
       rerender?.();
+    }finally{
+      saveInFlight=false;
     }
   });
   root.querySelectorAll('[data-g62-toggle]').forEach(button=>{
     button.addEventListener('click',async()=>{
+      if(persistenceBlocked()){statusMessage='PERSISTENCE_UNCERTAIN：請先重新載入並核對歷程，暫停其他玩家資料寫入。';rerender?.();return;}
       try{
         const currentlyPaused=button.dataset.g62Paused==='1';
         const resultState=await setRecipeRecommendationPaused(button.dataset.g62Toggle,!currentlyPaused);
