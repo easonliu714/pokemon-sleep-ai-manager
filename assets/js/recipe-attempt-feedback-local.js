@@ -8,6 +8,43 @@ import {
 
 const clean=value=>String(value??'').normalize('NFKC').trim();
 const nowIso=()=>new Date().toISOString();
+// SQL COMMIT and IndexedDB acknowledgment are separate durability boundaries.
+// Store only an opaque attempt identifier in this tab for post-reload readback.
+const PERSISTENCE_HOLD_KEY='pokemon-sleep-g62-persistence-uncertain-v1';
+let pendingPersistenceHold=null;
+let recordInFlight=false;
+function readPersistenceMarker(){
+  try{
+    const value=globalThis.sessionStorage?.getItem(PERSISTENCE_HOLD_KEY);
+    if(!value)return null;
+    const marker=JSON.parse(value);
+    return typeof marker?.attempt_id==='string'&&typeof marker?.recipe_id==='string'?marker:null;
+  }catch{return null;}
+}
+function writePersistenceMarker(marker){
+  try{globalThis.sessionStorage?.setItem(PERSISTENCE_HOLD_KEY,JSON.stringify(marker));}catch{}
+}
+function clearPersistenceMarker(){
+  try{globalThis.sessionStorage?.removeItem(PERSISTENCE_HOLD_KEY);}catch{}
+}
+function persistenceUncertainError(marker,cause=null){
+  return Object.assign(new Error('PERSISTENCE_UNCERTAIN：SQLite 已提交，但本機持久化結果尚未確認；請重新載入並核對失敗歷程，勿直接重試。'),{
+    code:'PERSISTENCE_UNCERTAIN',attempt_id:marker?.attempt_id||null,recipe_id:marker?.recipe_id||null,cause,
+  });
+}
+export function getRecipeAttemptPersistenceStatus(){
+  if(pendingPersistenceHold)return Object.freeze({status:'UNVERIFIED',...pendingPersistenceHold});
+  const marker=readPersistenceMarker();
+  if(!marker)return Object.freeze({status:'CLEAR'});
+  if(!isDatabaseReady()||isRescueReadonly())return Object.freeze({status:'UNVERIFIED',...marker});
+  try{
+    const exists=rows('SELECT attempt_id FROM recipe_attempt_feedback WHERE attempt_id=?',[marker.attempt_id]).length===1;
+    clearPersistenceMarker();
+    return Object.freeze({status:exists?'PERSISTED':'NOT_PERSISTED',...marker,source:'RELOADED_SQLITE_READBACK'});
+  }catch{
+    return Object.freeze({status:'UNVERIFIED',...marker});
+  }
+}
 
 function canonicalRecipe(recipeId){
   const id=clean(recipeId);
@@ -23,6 +60,8 @@ function canonicalIngredientNames(){
 function requireWritableDatabase(){
   if(!isDatabaseReady())throw new Error('recipe_attempt_player_database_not_ready');
   if(isRescueReadonly())throw new Error('recipe_attempt_readonly_rescue_mode');
+  const status=getRecipeAttemptPersistenceStatus();
+  if(status.status==='UNVERIFIED')throw persistenceUncertainError(status);
 }
 function eventId(recipeId,attemptedAt){
   const random=globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2,10);
@@ -122,9 +161,12 @@ export async function recordRecipeAttemptFailure({
   const unknown=record.actual_ingredients.filter(row=>!ingredientAuthority.has(row.ingredient_name));
   if(unknown.length)throw new Error(`recipe_attempt_unknown_ingredient:${unknown.map(row=>row.ingredient_name).join(',')}`);
 
-  begin();
+  if(recordInFlight)throw Object.assign(new Error('recipe_attempt_save_in_flight'),{code:'RECIPE_ATTEMPT_SAVE_IN_FLIGHT'});
+  recordInFlight=true;
   try{
-    run(`INSERT INTO recipe_attempt_feedback(
+    begin();
+    try{
+      run(`INSERT INTO recipe_attempt_feedback(
       attempt_id,recipe_id,attempted_at,outcome,actual_ingredients_json,
       source_type,source_name,source_ref,reference_maybe_wrong,recommendation_paused_after_attempt,notes,created_at
     ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`,[
@@ -142,17 +184,34 @@ export async function recordRecipeAttemptFailure({
       record.recipe_id,record.recommendation_paused?1:0,record.reference_maybe_wrong?1:0,record.attempt_id,record.created_at,
     ]);
     commit();
-  }catch(error){
-    rollback();
-    throw error;
+    }catch(error){
+      rollback();
+      throw error;
+    }
+    try{
+      await persist();
+    }catch(error){
+      // A committed SQL row may already be durable, even when IDB rejects or times out.
+      pendingPersistenceHold={attempt_id:record.attempt_id,recipe_id:record.recipe_id};
+      writePersistenceMarker(pendingPersistenceHold);
+      try{globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:recipe-attempt-persistence-uncertain',{detail:{
+        code:'PERSISTENCE_UNCERTAIN',attempt_id:record.attempt_id,recipe_id:record.recipe_id,
+        recovery:'RELOAD_AND_READBACK',shared_master_write:false,
+      }}));}catch{}
+      throw persistenceUncertainError(pendingPersistenceHold,error);
+    }
+    // Listener failures cannot convert an already durable write into a retryable error.
+    try{
+      globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:recipe-attempt-feedback-changed',{detail:{
+        recipe_id:record.recipe_id,attempt_id:record.attempt_id,recommendation_paused:record.recommendation_paused,
+        version:RECIPE_ATTEMPT_FEEDBACK_VERSION,
+      }}));
+      globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:data-changed',{detail:{entity:'recipe_attempt_feedback',recipe_id:record.recipe_id}}));
+    }catch{}
+    return Object.freeze({...record,recipe_name:recipe.recipe_name,shared_master_write:false});
+  }finally{
+    recordInFlight=false;
   }
-  await persist();
-  globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:recipe-attempt-feedback-changed',{detail:{
-    recipe_id:record.recipe_id,attempt_id:record.attempt_id,recommendation_paused:record.recommendation_paused,
-    version:RECIPE_ATTEMPT_FEEDBACK_VERSION,
-  }}));
-  globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:data-changed',{detail:{entity:'recipe_attempt_feedback',recipe_id:record.recipe_id}}));
-  return Object.freeze({...record,recipe_name:recipe.recipe_name,shared_master_write:false});
 }
 
 export async function setRecipeRecommendationPaused(recipeId,paused){

@@ -17,6 +17,11 @@ const successorAuthorities=Object.freeze({
   // G295 exact .26 lifecycle successor preserves existing evolution navigation.
   // G479 .27 debug-history scope retains canonical App Ready -> Update Center hydration before evolution override.
   // G479 .28 must await canonical App Ready then real Update Center navigation; never fake panel.
+  // G6.2 .29 exact release inherits .28 App Ready and Update Center browser contract.
+  'v0.4.27.55.3.3.29':Object.freeze({
+    app_build:'20261024-v0427553329-g62-persistence-uncertain-hold',
+    cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.29-v0427553329-g62-persistence-uncertain-hold',
+  }),
   'v0.4.27.55.3.3.28':Object.freeze({
     app_build:'20261024-v0427553328-g479-public-catalog-postsync-readback',
     cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.28-v0427553328-g479-public-catalog-postsync-readback',
