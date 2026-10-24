@@ -19,7 +19,20 @@ const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 
 // G479-R2 exact .25 weekly pot CSS-only successor; preserve frozen historical checks.
 // G479 .27 debug-history scope successor; retain .26 page-prewarm ownership.
-if(appVersion==='v0.4.27.55.3.3.31'){
+if(appVersion==='v0.4.27.55.3.3.32'){
+  // G479 .32 exact successor retains .31 and frozen lineage.
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.31'"));
+  assert.ok(authority.includes("// app_build: '20261024-v0427553331-g479-passive-esm-provenance'"));
+  assert.ok(authority.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.31-v0427553331-g479-passive-esm-provenance'"));
+
+  assert.ok(authority.includes("app_build: '20261024-v0427553332-g479-exact-resource-provenance'"));
+  assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.32-v0427553332-g479-exact-resource-provenance'"));
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.30'"));
+  assert.ok(authority.includes("// app_build: '20261024-v0427553330-g62-player-write-singleflight'"));
+  assert.ok(authority.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.30-v0427553330-g62-player-write-singleflight'"));
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.26'"));
+}
+else if(appVersion==='v0.4.27.55.3.3.31'){
   assert.ok(authority.includes("app_build: '20261024-v0427553331-g479-passive-esm-provenance'"));
   assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.31-v0427553331-g479-passive-esm-provenance'"));
   assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.30'"));
@@ -239,7 +252,7 @@ assert.match(css,/#importHistoryDetailsV042745:not\(\[open\]\)>#importHistoryCon
 for(const token of ['prewarmImportHistory','materializeImportHistory','syncHistoryCollapsed','details.contains(content)','content.contains(wrap)','wrap.contains(table)','MutationObserver','explicit_hidden_contract:true'])assert.ok(hydrator.includes(token),'missing Import History ownership token: '+token);
 assert.match(hydrator,/candyRoot\.querySelector\('#candyB5Parse'\)/);
 assert.match(hydrator,/candyRoot\.querySelector\('#candyB5GateStatus'\)/);
-if(['v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13','v0.4.27.55.3.3.14','v0.4.27.55.3.3.15','v0.4.27.55.3.3.16','v0.4.27.55.3.3.17','v0.4.27.55.3.3.18','v0.4.27.55.3.3.19','v0.4.27.55.3.3.20','v0.4.27.55.3.3.21','v0.4.27.55.3.3.22','v0.4.27.55.3.3.23','v0.4.27.55.3.3.24','v0.4.27.55.3.3.25','v0.4.27.55.3.3.26','v0.4.27.55.3.3.27','v0.4.27.55.3.3.28','v0.4.27.55.3.3.29','v0.4.27.55.3.3.30','v0.4.27.55.3.3.31'].includes(appVersion))assert.match(hydrator,/analysisRoot\.dataset\.analysisConfirmationReady==='true'/);
+if(['v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13','v0.4.27.55.3.3.14','v0.4.27.55.3.3.15','v0.4.27.55.3.3.16','v0.4.27.55.3.3.17','v0.4.27.55.3.3.18','v0.4.27.55.3.3.19','v0.4.27.55.3.3.20','v0.4.27.55.3.3.21','v0.4.27.55.3.3.22','v0.4.27.55.3.3.23','v0.4.27.55.3.3.24','v0.4.27.55.3.3.25','v0.4.27.55.3.3.26','v0.4.27.55.3.3.27','v0.4.27.55.3.3.28','v0.4.27.55.3.3.29','v0.4.27.55.3.3.30','v0.4.27.55.3.3.31','v0.4.27.55.3.3.32'].includes(appVersion))assert.match(hydrator,/analysisRoot\.dataset\.analysisConfirmationReady==='true'/);
 else assert.match(hydrator,/analysisRoot\.querySelector\('#analysisConfirmationStatus'\)/);
 assert.match(hydrator,/waitForUpdateCenterMounts/);
 assert.match(hydrator,/MutationObserver/);
@@ -253,4 +266,4 @@ assert.match(bootstrap,/PokemonSleepPageHydrationAuthorityV042755331/);
 assert.match(bootstrap,/pokemon-sleep:page-hydration-progress/);
 assert.equal(CANDY_FAMILY_STORAGE_MIGRATION_VERSION,15,'SQLite Migration 15 must remain frozen');
 console.log(JSON.stringify({gate:'V042755331_PAGE_PREWARM_COLLAPSIBLE_HYDRATION',status:'PASS',version:appVersion,page_watchdog_progress:true,offscreen_startup_dom:false,item_ingredient_data_prewarm:true,knowledge_fixed_slot_order:true,candy_master_default_collapsed:true,candy_master_lazy_dom_materialization:true,update_center_root_only_ready:false,import_history_explicit_owned_collapse:true,migration:CANDY_FAMILY_STORAGE_MIGRATION_VERSION},null,2));
-if(['v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13','v0.4.27.55.3.3.14','v0.4.27.55.3.3.15','v0.4.27.55.3.3.16','v0.4.27.55.3.3.17','v0.4.27.55.3.3.18','v0.4.27.55.3.3.19','v0.4.27.55.3.3.20','v0.4.27.55.3.3.21','v0.4.27.55.3.3.22','v0.4.27.55.3.3.23','v0.4.27.55.3.3.24','v0.4.27.55.3.3.25','v0.4.27.55.3.3.26','v0.4.27.55.3.3.27','v0.4.27.55.3.3.28','v0.4.27.55.3.3.29','v0.4.27.55.3.3.30','v0.4.27.55.3.3.31'].includes(appVersion))await import('./v042755332-ai-key-update-status-knowledge-host-contract.mjs');
+if(['v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13','v0.4.27.55.3.3.14','v0.4.27.55.3.3.15','v0.4.27.55.3.3.16','v0.4.27.55.3.3.17','v0.4.27.55.3.3.18','v0.4.27.55.3.3.19','v0.4.27.55.3.3.20','v0.4.27.55.3.3.21','v0.4.27.55.3.3.22','v0.4.27.55.3.3.23','v0.4.27.55.3.3.24','v0.4.27.55.3.3.25','v0.4.27.55.3.3.26','v0.4.27.55.3.3.27','v0.4.27.55.3.3.28','v0.4.27.55.3.3.29','v0.4.27.55.3.3.30','v0.4.27.55.3.3.31','v0.4.27.55.3.3.32'].includes(appVersion))await import('./v042755332-ai-key-update-status-knowledge-host-contract.mjs');
