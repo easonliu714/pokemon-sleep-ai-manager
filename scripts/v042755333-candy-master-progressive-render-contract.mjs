@@ -12,7 +12,15 @@ const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 // G479-R2 exact .25 weekly pot CSS-only successor; preserve frozen historical checks.
 // G479 .27 debug-history scope successor; Candy progressive behavior remains frozen.
 // G479 .28 exact Public Catalog successor: retain .27 and original Candy .3 lineage.
-if(appVersion==='v0.4.27.55.3.3.30'){
+if(appVersion==='v0.4.27.55.3.3.31'){
+  assert.ok(authority.includes("app_build: '20261024-v0427553331-g479-passive-esm-provenance'"));
+  assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.31-v0427553331-g479-passive-esm-provenance'"));
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.30'"));
+  assert.ok(authority.includes("// app_build: '20261024-v0427553330-g62-player-write-singleflight'"));
+  assert.ok(authority.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.30-v0427553330-g62-player-write-singleflight'"));
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.3'"),'frozen Candy progressive lineage');
+}
+else if(appVersion==='v0.4.27.55.3.3.30'){
   assert.ok(authority.includes("app_build: '20261024-v0427553330-g62-player-write-singleflight'"));
   assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.30-v0427553330-g62-player-write-singleflight'"));
   assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.27'"));

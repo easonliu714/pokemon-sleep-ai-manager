@@ -76,7 +76,15 @@ const currentCache=globalThis.PokemonSleepVersionAuthority?.cache_name||'';
 
 // G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
 // G479 .27 diagnostic-scope successor: preserve local gap field precedence and exact .26 lineage.
-if(currentVersion==='v0.4.27.55.3.3.30'){
+if(currentVersion==='v0.4.27.55.3.3.31'){
+  assert.equal(currentBuild,'20261024-v0427553331-g479-passive-esm-provenance');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.31-v0427553331-g479-passive-esm-provenance');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.30'"));
+  assert.ok(versionSource.includes("// app_build: '20261024-v0427553330-g62-player-write-singleflight'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.30-v0427553330-g62-player-write-singleflight'"));
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.26'"));
+}
+else if(currentVersion==='v0.4.27.55.3.3.30'){
   // G479 .28 exact post-sync Public Catalog successor; retain all frozen behavior.
   assert.equal(currentBuild,'20261024-v0427553330-g62-player-write-singleflight');
   assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.30-v0427553330-g62-player-write-singleflight');

@@ -58,7 +58,15 @@ const cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
 
 // G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
 // G479 .27 debug-history scope successor; immutable provider Raw and gap identity remain frozen.
-if(appVersion==='v0.4.27.55.3.3.30'){
+if(appVersion==='v0.4.27.55.3.3.31'){
+  assert.equal(appBuild,'20261024-v0427553331-g479-passive-esm-provenance');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.31-v0427553331-g479-passive-esm-provenance');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.30'"));
+  assert.ok(versionSource.includes("// app_build: '20261024-v0427553330-g62-player-write-singleflight'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.30-v0427553330-g62-player-write-singleflight'"));
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.52'"));
+}
+else if(appVersion==='v0.4.27.55.3.3.30'){
   assert.equal(appBuild,'20261024-v0427553330-g62-player-write-singleflight');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.30-v0427553330-g62-player-write-singleflight');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.52'"),'frozen P0-B5 gap evidence predecessor');

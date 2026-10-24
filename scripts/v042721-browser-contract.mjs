@@ -18,6 +18,10 @@ const successorAuthorities=Object.freeze({
   // G479 .27 debug-history scope retains canonical App Ready -> Update Center hydration before evolution override.
   // G479 .28 must await canonical App Ready then real Update Center navigation; never fake panel.
   // G6.2 .29 exact release inherits .28 App Ready and Update Center browser contract.
+  'v0.4.27.55.3.3.31':Object.freeze({
+    app_build:'20261024-v0427553331-g479-passive-esm-provenance',
+    cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.31-v0427553331-g479-passive-esm-provenance',
+  }),
   'v0.4.27.55.3.3.30':Object.freeze({
     app_build:'20261024-v0427553330-g62-player-write-singleflight',
     cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.30-v0427553330-g62-player-write-singleflight',

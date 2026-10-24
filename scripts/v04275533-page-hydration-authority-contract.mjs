@@ -45,12 +45,13 @@ const releases={
   'v0.4.27.55.3.3.28':{build:'20261024-v0427553328-g479-public-catalog-postsync-readback',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.28-v0427553328-g479-public-catalog-postsync-readback'},
   'v0.4.27.55.3.3.29':{build:'20261024-v0427553329-g62-persistence-uncertain-hold',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.29-v0427553329-g62-persistence-uncertain-hold'},
   'v0.4.27.55.3.3.30':{build:'20261024-v0427553330-g62-player-write-singleflight',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.30-v0427553330-g62-player-write-singleflight'},
+  'v0.4.27.55.3.3.31':{build:'20261024-v0427553331-g479-passive-esm-provenance',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.31-v0427553331-g479-passive-esm-provenance'},
 };
 assert.ok(releases[appVersion],'unsupported .55.3.3 successor: '+appVersion);
 assert.equal(appBuild,releases[appVersion].build);
 assert.equal(cacheName,releases[appVersion].cache);
 assert.match(authority,/\/\/ app_version: 'v0\.4\.27\.55\.3\.2'/,'predecessor bridge must remain');
-const ordered=['v0.4.27.55.3.3','v0.4.27.55.3.3.1','v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13','v0.4.27.55.3.3.14','v0.4.27.55.3.3.15','v0.4.27.55.3.3.16','v0.4.27.55.3.3.17','v0.4.27.55.3.3.18','v0.4.27.55.3.3.19','v0.4.27.55.3.3.20','v0.4.27.55.3.3.21','v0.4.27.55.3.3.22','v0.4.27.55.3.3.23','v0.4.27.55.3.3.24','v0.4.27.55.3.3.25','v0.4.27.55.3.3.26','v0.4.27.55.3.3.27','v0.4.27.55.3.3.28','v0.4.27.55.3.3.29','v0.4.27.55.3.3.30'];
+const ordered=['v0.4.27.55.3.3','v0.4.27.55.3.3.1','v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13','v0.4.27.55.3.3.14','v0.4.27.55.3.3.15','v0.4.27.55.3.3.16','v0.4.27.55.3.3.17','v0.4.27.55.3.3.18','v0.4.27.55.3.3.19','v0.4.27.55.3.3.20','v0.4.27.55.3.3.21','v0.4.27.55.3.3.22','v0.4.27.55.3.3.23','v0.4.27.55.3.3.24','v0.4.27.55.3.3.25','v0.4.27.55.3.3.26','v0.4.27.55.3.3.27','v0.4.27.55.3.3.28','v0.4.27.55.3.3.29','v0.4.27.55.3.3.30','v0.4.27.55.3.3.31'];
 const currentIndex=ordered.indexOf(appVersion);
 for(let i=0;i<currentIndex;i++)assert.ok(authority.includes(`// app_version: '${ordered[i]}'`),`predecessor bridge missing ${ordered[i]}`);
 assert.match(sw,/importScripts\('\.\/assets\/js\/version-authority\.js'\)/);
