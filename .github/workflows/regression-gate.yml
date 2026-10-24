@@ -182,6 +182,9 @@ jobs:
       - name: G265 Named Draft Local SQLite Settings Gate
         run: node scripts/g265-named-team-draft-sqlite-contract.mjs
 
+      - name: G265 Cross-Module SQLite Stale Export Negative Reproduction
+        run: node scripts/g265-cross-module-stale-export-race-repro.mjs
+
       - name: Verify confirmation lifecycle UX
         run: node scripts/v042712-confirmation-lifecycle-ux-contract.mjs
 
