@@ -45,7 +45,15 @@ assert.equal(run({newReceipt:{...receipt,database_sha256:expectedSHA.slice(0,24)
 assert.equal(run({newReceipt:{...receipt,database_sha256:'b'.repeat(64)}}).reason,'IMMEDIATE_BYTE_PARITY_MISMATCH');
 assert.equal(run({newReceipt:{...receipt,database_size:receipt.database_size+4096}}).status,'REVIEW_REQUIRED');
 assert.equal(run({stage:'not_a_real_stage'}).reason,'UNKNOWN_RECEIPT_CAPTURE_STAGE');
-assert.equal(run({stage:G141_RECEIPT_STAGES.RELOAD}).status,'EXACT_SQLITE_BYTES_PARITY_PASS');
+// The RELOAD receipt can prove current bytes, but not immediate restore timing.
+const postReloadMatch=run({stage:G141_RECEIPT_STAGES.RELOAD});
+assert.equal(postReloadMatch.status,'POST_RELOAD_BYTES_MATCH_ONLY');
+assert.equal(postReloadMatch.reason,'DIGEST_MATCH_WITHOUT_IMMEDIATE_RESTORE_BOUNDARY');
+assert.equal(postReloadMatch.bytes_equal,true);
+assert.equal(postReloadMatch.restore_boundary_not_proven,true);
+assert.equal(postReloadMatch.capture_stage,G141_RECEIPT_STAGES.RELOAD);
+assert.equal(audit({oldManifest,newReceipt:receipt}).status,'POST_RELOAD_BYTES_MATCH_ONLY');
+assert.notEqual(postReloadMatch.status,pass.status);
 assert.equal(run({stage:G141_RECEIPT_STAGES.RELOAD,
   newReceipt:{...receipt,database_sha256:'b'.repeat(64)}}).reason,'POST_RELOAD_BYTES_CHANGED_NOT_AUTOMATIC_DATA_LOSS');
 assert.equal(run({stage:G141_RECEIPT_STAGES.RELOAD,
@@ -59,6 +67,7 @@ console.log('PASS G14_1_REQUIRED_20_BACKUP_CORE_COUNTS_FAIL_CLOSED_ON_BOTH_SIDES
 console.log('PASS G14_1_REDACTED_MANIFEST_AND_NEW_PHONE_RECEIPT_EXACT_SHA_PARITY');
 console.log('PASS G14_1_NO_OLD_MANIFEST_PARTIAL_SHA_FOREIGN_KEY_AND_COUNT_FAIL_CLOSED');
 console.log('PASS G14_1_POSTRELOAD_PUBLIC_METADATA_DIFFERENCE_NOT_AUTO_DATA_LOSS');
+console.log('PASS G14_1_POSTRELOAD_MATCH_NOT_IMMEDIATE_RESTORE_BOUNDARY');
 
 
 const pairedCounts=Object.fromEntries(G141_SELF_CHECK_REQUIRED_TABLES.map((name,i)=>[name,i*7+1]));
