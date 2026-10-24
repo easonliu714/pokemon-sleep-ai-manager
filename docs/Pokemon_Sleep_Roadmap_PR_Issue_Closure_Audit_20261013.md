@@ -1,5 +1,10 @@
 # Pokémon Sleep AI Manager — Roadmap／PR／Issue 全量盤點與結案審核
 
+## 2026-10-24 PR #516 FOURTH FIRST-FAILURE — MOBILE SNAPSHOT EXACT .31
+
+Fourth HEAD `64974fa45532fb7626b6c0bb1f83c16dfa00bb43`: [Frontend 40096495481](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/40096495481), job `120879739234`, step `Verify v0.4.27.55.3 mobile snapshot and Candy UI performance` failed because exact version allowlist ended at .30. Minimal fix admits only .31; retains all historical versions and existing snapshot/Candy assertions. No SQLite/IndexedDB runtime, Candy quantity or UI changes. New HEAD CI required.
+
+
 ## 2026-10-24 PR #516 THIRD FIRST-FAILURE — PAGE HYDRATION EXACT .31 CHAIN
 
 Third exact HEAD `cc91ddcac7f6d7995b28888a79d16f237a01a1da`: [Frontend 40096371303](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/40096371303) job `120879368997`, step `Verify v0.4.27.55.3.2 page-aware static shell and UI latency contract` failed inside `v04275533-page-hydration-authority-contract.mjs:49` with **unsupported exact .31 successor**. Narrow correction registers exact .31 build/cache and ordered predecessor in page hydration, carries exact .31 through nested prewarm/AI-key lineage tests, retains .30/.26 historical checks. No layout, Candy, Migration 15/16, player or Public Master mutation. New exact HEAD requires all CI again.
