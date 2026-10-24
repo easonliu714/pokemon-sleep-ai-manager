@@ -75,7 +75,14 @@ const currentCache=globalThis.PokemonSleepVersionAuthority?.cache_name||'';
 // Layout-only .24 successor to .23; preserve local-primary Candy names, Raw immutability and all historical field-precedence assertions.
 
 // G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
-if(currentVersion==='v0.4.27.55.3.3.26'){
+// G479 .27 diagnostic-scope successor: preserve local gap field precedence and exact .26 lineage.
+if(currentVersion==='v0.4.27.55.3.3.27'){
+  assert.equal(currentBuild,'20261024-v0427553327-g479-debug-session-history-scope');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.27-v0427553327-g479-debug-session-history-scope');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.26'"),'.27 exact predecessor version');
+  assert.ok(versionSource.includes("// app_build: '20261023-v0427553326-g295-watchdog-lifecycle'"),'.27 exact predecessor build');
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.26-v0427553326-g295-watchdog-lifecycle'"),'.27 exact predecessor cache');
+}else if(currentVersion==='v0.4.27.55.3.3.26'){
   assert.equal(currentBuild,'20261023-v0427553326-g295-watchdog-lifecycle');
   assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.26-v0427553326-g295-watchdog-lifecycle');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.25'"),'.24 exact predecessor version');
