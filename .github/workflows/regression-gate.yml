@@ -132,6 +132,9 @@ jobs:
       - name: Verify G295 current watchdog lifecycle source-bound VM
         run: node scripts/g295-current-watchdog-lifecycle-vm-contract.mjs
 
+      - name: Verify G295 real Chromium native-dialog and watchdog DOM lifecycle
+        run: node scripts/g295-current-watchdog-chromium-dialog-contract.mjs
+
       - name: Verify v0.4.27.55.3.3.3 Candy Master progressive rendering
         run: node scripts/v042755333-candy-master-progressive-render-contract.mjs
 
