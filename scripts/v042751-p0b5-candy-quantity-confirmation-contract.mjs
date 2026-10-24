@@ -185,7 +185,24 @@ if(pagePrewarmSuccessor){
     assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.17-v0427553317-weekly-berry-evidence-resolution'"),'.18 must retain exact .17 predecessor cache marker');
   }
 // G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
-else if(appVersion==='v0.4.27.55.3.3.28'){
+else if(appVersion==='v0.4.27.55.3.3.29'){
+    // G479 debug-history scope successor; Candy quantity remains explicit-confirmation only.
+    assert.equal(appBuild,'20261024-v0427553329-g62-persistence-uncertain-hold');
+    assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.29-v0427553329-g62-persistence-uncertain-hold');
+    assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.26'"));
+    assert.ok(versionSource.includes("// app_build: '20261023-v0427553326-g295-watchdog-lifecycle'"));
+    assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.26-v0427553326-g295-watchdog-lifecycle'"));
+  
+  // Exact .28 successor preserves frozen .27 behavior and predecessor lineage.
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.27'"));
+  assert.ok(versionSource.includes("// app_build: '20261024-v0427553327-g479-debug-session-history-scope'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.27-v0427553327-g479-debug-session-history-scope'"));
+
+  // .29 inherits exact .28 and all frozen assertions above.
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.28'"));
+  assert.ok(versionSource.includes("// app_build: '20261024-v0427553328-g479-public-catalog-postsync-readback'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.28-v0427553328-g479-public-catalog-postsync-readback'"));
+}else if(appVersion==='v0.4.27.55.3.3.28'){
     // G479 debug-history scope successor; Candy quantity remains explicit-confirmation only.
     assert.equal(appBuild,'20261024-v0427553328-g479-public-catalog-postsync-readback');
     assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.28-v0427553328-g479-public-catalog-postsync-readback');
