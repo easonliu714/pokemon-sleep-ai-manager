@@ -1,5 +1,10 @@
 # Pokémon Sleep AI Manager — Roadmap／PR／Issue 全量盤點與結案審核
 
+## 2026-10-24 PR #516 THIRD FIRST-FAILURE — PAGE HYDRATION EXACT .31 CHAIN
+
+Third exact HEAD `cc91ddcac7f6d7995b28888a79d16f237a01a1da`: [Frontend 40096371303](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/40096371303) job `120879368997`, step `Verify v0.4.27.55.3.2 page-aware static shell and UI latency contract` failed inside `v04275533-page-hydration-authority-contract.mjs:49` with **unsupported exact .31 successor**. Narrow correction registers exact .31 build/cache and ordered predecessor in page hydration, carries exact .31 through nested prewarm/AI-key lineage tests, retains .30/.26 historical checks. No layout, Candy, Migration 15/16, player or Public Master mutation. New exact HEAD requires all CI again.
+
+
 ## 2026-10-24 PR #516 SECOND EXACT-HEAD FIRST FAILURE — CANDY .31 SUCCESSOR REPAIR
 
 Second PR HEAD `f203df795082154d7d1b17bb06ab4838f1f6f4d3` had 11/12 SUCCESS; [Frontend 40096260861](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/40096260861), job `120879055159`, first failed step `Verify v0.4.27.55.3.3.3 Candy Master progressive rendering` because frozen fallback expected .3 while live authority was .31. Same branch adds **exact .31 build/cache** and immutable .30/.3 predecessor assertions. No Candy rendering or quantity logic changed; prior CI results are invalid for new HEAD. #479 Android root cause remains HOLD.
