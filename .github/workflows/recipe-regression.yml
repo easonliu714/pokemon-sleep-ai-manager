@@ -83,7 +83,7 @@ jobs:
         run: node scripts/g62-recipe-attempt-feedback-contract.mjs
       - name: Verify G6.2 actual UI binding and local failure recovery
         run: node scripts/g62-recipe-attempt-feedback-ui-binding-contract.mjs
-      - name: Verify G6.2 post-COMMIT uncertainty fail-closed and reload readback
+      - name: Reproduce G6.2 overlapping player writes (known-risk HOLD)\n        run: node scripts/g62-concurrent-player-write-overlap-repro.mjs\n      - name: Verify G6.2 post-COMMIT uncertainty fail-closed and reload readback
         run: node scripts/g62-postcommit-persistence-ambiguity-repro.mjs
       - name: Verify respecified G6 unlock-target and inventory parity
         run: node scripts/g63-unlock-preparation-inventory-parity-contract.mjs
