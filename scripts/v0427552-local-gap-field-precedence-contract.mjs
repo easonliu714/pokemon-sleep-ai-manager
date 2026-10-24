@@ -76,7 +76,14 @@ const currentCache=globalThis.PokemonSleepVersionAuthority?.cache_name||'';
 
 // G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
 // G479 .27 diagnostic-scope successor: preserve local gap field precedence and exact .26 lineage.
-if(currentVersion==='v0.4.27.55.3.3.27'){
+if(currentVersion==='v0.4.27.55.3.3.28'){
+  // G479 .28 exact post-sync Public Catalog successor; retain all frozen behavior.
+  assert.equal(currentBuild,'20261024-v0427553328-g479-public-catalog-postsync-readback');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.28-v0427553328-g479-public-catalog-postsync-readback');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.27'"));
+  assert.ok(versionSource.includes("// app_build: '20261024-v0427553327-g479-debug-session-history-scope'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.27-v0427553327-g479-debug-session-history-scope'"));
+}else if(currentVersion==='v0.4.27.55.3.3.27'){
   assert.equal(currentBuild,'20261024-v0427553327-g479-debug-session-history-scope');
   assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.27-v0427553327-g479-debug-session-history-scope');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.26'"),'.27 exact predecessor version');

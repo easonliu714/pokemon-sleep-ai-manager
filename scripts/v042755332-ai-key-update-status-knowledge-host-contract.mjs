@@ -17,7 +17,18 @@ const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 
 // G479-R2 exact .25 weekly pot CSS-only successor; preserve frozen historical checks.
 // G479 .27 debug-history scope successor; Gemini and Knowledge authority remain frozen.
-if(appVersion==='v0.4.27.55.3.3.27'){
+if(appVersion==='v0.4.27.55.3.3.28'){
+  assert.ok(authority.includes("app_build: '20261024-v0427553328-g479-public-catalog-postsync-readback'"));
+  assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.28-v0427553328-g479-public-catalog-postsync-readback'"));
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.26'"));
+  assert.ok(authority.includes("// app_build: '20261023-v0427553326-g295-watchdog-lifecycle'"));
+  assert.ok(authority.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.26-v0427553326-g295-watchdog-lifecycle'"));
+
+  // Exact .28 successor preserves frozen .27 behavior and predecessor lineage.
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.27'"));
+  assert.ok(authority.includes("// app_build: '20261024-v0427553327-g479-debug-session-history-scope'"));
+  assert.ok(authority.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.27-v0427553327-g479-debug-session-history-scope'"));
+}else if(appVersion==='v0.4.27.55.3.3.27'){
   assert.ok(authority.includes("app_build: '20261024-v0427553327-g479-debug-session-history-scope'"));
   assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.27-v0427553327-g479-debug-session-history-scope'"));
   assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.26'"));

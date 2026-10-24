@@ -16,6 +16,11 @@ const successorAuthorities=Object.freeze({
   // .25 weekly pot UI no runtime evolution changes; exact .24 predecessor remains.
   // G295 exact .26 lifecycle successor preserves existing evolution navigation.
   // G479 .27 debug-history scope retains canonical App Ready -> Update Center hydration before evolution override.
+  // G479 .28 must await canonical App Ready then real Update Center navigation; never fake panel.
+  'v0.4.27.55.3.3.28':Object.freeze({
+    app_build:'20261024-v0427553328-g479-public-catalog-postsync-readback',
+    cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.28-v0427553328-g479-public-catalog-postsync-readback',
+  }),
   'v0.4.27.55.3.3.27':Object.freeze({
     app_build:'20261024-v0427553327-g479-debug-session-history-scope',
     cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.27-v0427553327-g479-debug-session-history-scope',
