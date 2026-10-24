@@ -171,6 +171,9 @@ jobs:
       - name: Verify G7.2 effective event energy authority
         run: node scripts/v04275-g72-effective-event-energy-authority-contract.mjs
 
+      - name: Verify G265 concise War Room decision disclosure safety
+        run: node scripts/g265-concise-warroom-decision-vm-contract.mjs
+
       - name: Verify confirmation lifecycle UX
         run: node scripts/v042712-confirmation-lifecycle-ux-contract.mjs
 
