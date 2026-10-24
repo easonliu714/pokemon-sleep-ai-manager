@@ -1,5 +1,45 @@
 # Pokémon Sleep AI Manager — Roadmap／PR／Issue 全量盤點與結案審核
 
+## 2026-10-24 OWNER ACTIVE PRIORITY DECISION — 22-Issue DoD/anti-drift/parallel execution
+
+**來源權威／版本（本次決策時點，不保證未來最新）：** GitHub main 4787e365b869ec617e504fc9a4e0ffdbeb0cf8b9；PR [#503](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/503) 已合併並發布 `v0.4.27.55.3.3.27`，12/12 same-main CI 和 [Pages run 40045338377](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/40045338377) SUCCESS；PR [#504](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/504) 已更新 post-merge closure。原始 Android .27 實機尚未簽收，不能宣稱 Issue #479 COMPLETE。每輪重新核對 main SHA、唯一 open PR、CI/Pages；Windows local checkout NOT_VERIFIED。
+
+**Owner 指定優先度：** P0 是可靠性與玩家資料安全；P1 是已合併功能聚焦實機關單、來源實證和日期 Gate；P2 是有依賴之產品模組/父 Epic；P3 是長尾附件處理。G9 10/26、10/31 為固定 Owner 時間點，但**不得阻塞**可獨立完成的修補、回歸與關單。
+
+**結案治理：** 22 Open Issues 逐一與原始 DoD 比對。沒有足夠 owner/source/CI 證據的不得關閉；「PR merged」≠「Issue completed」。#6 是可最快取得聚焦 Owner 驗收的候選，成功後評估 #16，但不能未驗先 Close。#295、#457 亦不因純程式合併而自動關單。
+
+**Branches 清理：** [10/23 Immutable Full Inventory](./GOVERNANCE_BRANCH_PR_ISSUE_INVENTORY_20261023.md) 記 394 分支/362 PR/22 Open Issues，後續 PR 與 branch 增減不回寫快照。346 merged-PR-exact-HEAD branches 可進一步評估，但刪除前須證明當下 SHA/唯一提交/封存與 CI 依賴；12 closed-unmerged-only、35 no-PR branches 必須保留直到個別分類。不可批次刪除或假稱刪除。
+
+**每小時推進：** 僅允許一個 GitHub Writer；每輪要確定：active Issue、最近真實 CODE/TEST commit、精確 PR HEAD/base、第一個 CI 失敗/修復、受保護 Merge Commit、新 main CI/Pages 或 Owner pending。若無變化記 NO_PROGRESS_WITH_CAUSE，不能將「watch」或空 CI 當成果。所有正式任務同步修改這三份 canonical docs；不得直推 main、強制還原私人資料或鬆動 Candy 24/20、Raw、UNKNOWN、Migration 15/16、Public/Private 等已結案守則。
+
+| Priority | Issue | Scope | Current state | Closure evidence / Next Gate |
+|---|---|---|---|---|
+| P0-A | [#479](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/479) | Android ESM 根因 / 診斷 | 已發布 .27 的本次/歷史錯誤修補；Chromium 合成測試已 PASS | Android 真實 ESM/network/SW response 原始證據及 .27 手機診斷 UAT |
+| P0-B | [#295](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/295) | Watchdog lifecycle | 已發布 .26、code/CI PASS | Android hidden/pageshow/focus/dialog 返回及真 foreground stall DoD |
+| P0-C | [#482](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/482) | 跨機備份 SHA 一致性 | 20 CORE_TABLES parity Guard 已合併 | 舊機原始匯出完整 SHA+新機 receipt / postreload exact 一致性；不重裝 |
+| P1-A | [#6](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/6) | 料理失敗回饋 | PR #468/.19 已合併 | 手機失敗紀錄/暫停推薦/恢復/重載/不得污染公版；實測 PASS 才關 |
+| P1-B | [#457](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/457) | CURRENT/FUTURE 能力 | PR #458/.13 已合併 | 等級門檻、legacy flag 反例與手機匯入/重載驗收 |
+| P1-TIME | [#19](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/19) | G9 官方活動 | 官方 Halloween data + #493 日期離線模擬已併 | 10/26 04:00 ×2、10/31 04:00 ×3、萌綠之島/EX、離線與 SHA 的真實 UAT；不得堵住其他任務 |
+| P1-E | [#278](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/278) | 食材產率 | 來源/觀測工程部分完成，Production 仍 4/7 | 獨立來源與統計充分性、無未解衝突，不猜 5/7 |
+| P1-E | [#144](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/144) | Full75 完整度 | 一般更新中心/推導機制部分完成 | 75/75 個體逐筆來源缺值與手機重載確認 |
+| P2 | [#265](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/265) | 戰情室決策 UI | 部分已開發 | 簡潔卡片與命名隊伍草稿持久化/手機 |
+| P2 | [#40](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/40) | 多隊伍／能量 | 部分已開發 | 五人成員與重複 guard、隊伍 CRUD/估算/手機 |
+| P2 | [#20](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/20) | 自動組隊 | 部分已開發 | 四策略、鎖定排除、唯一個體與本機保存 |
+| P2 | [#18](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/18) | 七日規劃 | 部分本週環境完成 | 七日/替換/保留限制/跨天庫存與離線讀回 |
+| P2-PARENT | [#16](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/16) | G6 Epic | G6.1 Closed，G6.2 #6 待 Owner | 先關 #6 再逐一核父 Epic DoD |
+| P2 | [#47](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/47) | 首次使用導引 | 部分初始化功能完成 | 新手機/無資料狀態與營地初始化導引 |
+| P2-PARENT | [#43](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/43) | 培養教練 | G14.1 部分已完成 | ROI、共眠排程、每日建議與 Android |
+| P2 | [#44](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/44) | 情境模擬 | 尚未完成整體產品 Gate | no-write sandbox、資源預算/多案比較/持久化 |
+| P2-PARENT | [#42](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/42) | AI Assistant Center | 多個 OCR/AI 子 Gate 完成 | 多模型、成本、BYOK、資料隱私整體 DoD |
+| P2-PARENT | [#48](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/48) | Public Master | 部分主檔已發布 | 完整物種/形態/食材/樹果/進化來源與版本治理 |
+| P2 | [#164](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/164) | 進化證據補齊 | 部分 screenshot 來源已處理 | route/terminal/UNKNOWN 的可追溯來源、不猜補 |
+| P3 | [#58](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/58) | 圖片近似去重 | 完全 SHA 比對不等於感知去重 | pHash/dHash/文字指紋與人工覆核 |
+| P3 | [#7](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/7) | 舊 ZIP 完整清點 | 179 張私人截圖尚未完整對帳 | 逐張處理狀態與來源/manifest |
+| P3-PARENT | [#9](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/9) | Roadmap Epic | 多個子任務仍 OPEN | 所有子 Gate 完成或 Owner 決策退役後關 |
+
+**下個工作順序**：#479 .27 診斷 UAT/真 Android root cause→#295 .26 watchdog Owner Gate→#482 原匯出 Manifest SHA 對帳；同時處理 #6 食譜嘗試最短手機閉環與 #457；#19 10/26/31 定期 UAT 不阻塞工程。當 #479 真 network source 無法取得時，執行對應可獨立實作的 P1/P2，不空轉。
+
+
 ## 2026-10-24 G479 / #479 — PR #503 diagnostic session/history scope protected merged; exact-main CI/Pages PASS
 
 - **Actual PR**: [#503](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/503) MERGED with `expected_head_sha=48785514a528c56aea260f5e64ceed2e8169ba1a` after **12/12 exact-head PR workflows SUCCESS**, including [Frontend Regression #40045160416](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/40045160416). The first failing step of each prior head was inspected and repaired in the same PR branch: exact .27 visible-target-count successor, exact .27 local-gap predecessor, and .27 App Ready → Update Center → player-evolution browser lifecycle; no historical assertion relaxation or blind reruns.

@@ -1,5 +1,20 @@
 # Pokémon Sleep AI Manager — UI／功能 API／SQLite／Public Master 架構樹與驗證矩陣
 
+## 2026-10-24 OWNER ACTIVE PRIORITY DECISION — 22-Issue DoD/anti-drift/parallel execution
+
+**來源權威／版本（本次決策時點，不保證未來最新）：** GitHub main 4787e365b869ec617e504fc9a4e0ffdbeb0cf8b9；PR [#503](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/503) 已合併並發布 `v0.4.27.55.3.3.27`，12/12 same-main CI 和 [Pages run 40045338377](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/40045338377) SUCCESS；PR [#504](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/504) 已更新 post-merge closure。原始 Android .27 實機尚未簽收，不能宣稱 Issue #479 COMPLETE。每輪重新核對 main SHA、唯一 open PR、CI/Pages；Windows local checkout NOT_VERIFIED。
+
+**Owner 指定優先度：** P0 是可靠性與玩家資料安全；P1 是已合併功能聚焦實機關單、來源實證和日期 Gate；P2 是有依賴之產品模組/父 Epic；P3 是長尾附件處理。G9 10/26、10/31 為固定 Owner 時間點，但**不得阻塞**可獨立完成的修補、回歸與關單。
+
+**結案治理：** 22 Open Issues 逐一與原始 DoD 比對。沒有足夠 owner/source/CI 證據的不得關閉；「PR merged」≠「Issue completed」。#6 是可最快取得聚焦 Owner 驗收的候選，成功後評估 #16，但不能未驗先 Close。#295、#457 亦不因純程式合併而自動關單。
+
+**Branches 清理：** [10/23 Immutable Full Inventory](./GOVERNANCE_BRANCH_PR_ISSUE_INVENTORY_20261023.md) 記 394 分支/362 PR/22 Open Issues，後續 PR 與 branch 增減不回寫快照。346 merged-PR-exact-HEAD branches 可進一步評估，但刪除前須證明當下 SHA/唯一提交/封存與 CI 依賴；12 closed-unmerged-only、35 no-PR branches 必須保留直到個別分類。不可批次刪除或假稱刪除。
+
+**每小時推進：** 僅允許一個 GitHub Writer；每輪要確定：active Issue、最近真實 CODE/TEST commit、精確 PR HEAD/base、第一個 CI 失敗/修復、受保護 Merge Commit、新 main CI/Pages 或 Owner pending。若無變化記 NO_PROGRESS_WITH_CAUSE，不能將「watch」或空 CI 當成果。所有正式任務同步修改這三份 canonical docs；不得直推 main、強制還原私人資料或鬆動 Candy 24/20、Raw、UNKNOWN、Migration 15/16、Public/Private 等已結案守則。
+
+**UI/API/DB 對應**：#479 `assets/js/debug-trace-manager.js` 和 `service-worker.js` 必須區分本次錯誤/歷史錯誤及 HTTP/transport；#295 `assets/js/v0394-startup-watchdog.js` 的 background/native dialog/foreground；#482 `backup-truth-restore.js` 與 `g141-cross-device-restore-evidence.js` 僅對帳 metadata，不讀/修改私人 SQLite；#19 `public-event-master-store.js` 僅投影官方 SOURCE 的日期/營地/FEATURE_ONLY 倍率，不寫個人 Candy；#6 recipe attempt player-only；#457 CURRENT/FUTURE 等級權威。完整 22 項優先順序和關單 DoD 見 [Roadmap Closure Ledger](./Pokemon_Sleep_Roadmap_PR_Issue_Closure_Audit_20261013.md)。
+
+
 ## 2026-10-24 G479 / #479 — PR #503 diagnostic session/history scope protected merged; exact-main CI/Pages PASS
 
 - **Actual PR**: [#503](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/503) MERGED with `expected_head_sha=48785514a528c56aea260f5e64ceed2e8169ba1a` after **12/12 exact-head PR workflows SUCCESS**, including [Frontend Regression #40045160416](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/40045160416). The first failing step of each prior head was inspected and repaired in the same PR branch: exact .27 visible-target-count successor, exact .27 local-gap predecessor, and .27 App Ready → Update Center → player-evolution browser lifecycle; no historical assertion relaxation or blind reruns.
