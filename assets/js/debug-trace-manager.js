@@ -26,6 +26,31 @@ function sanitize(value,depth=0,key=''){
   return redactString(value).slice(0,1000);
 }
 function deepRedact(value){return sanitize(JSON.parse(JSON.stringify(value)));}
+// G479 passive ESM failure metadata: no fetch, cache access, reload, or private query.
+function collectModuleImportFailureProvenance(targetUrl,scope=globalThis){
+  const evidence={schema:'pokemon-sleep-esm-failure-provenance/1.0',classification:'UNDETERMINED',target_path:null,same_origin:false,online_hint:typeof scope.navigator?.onLine==='boolean'?scope.navigator.onLine:null,service_worker_controlled:Boolean(scope.navigator?.serviceWorker?.controller),controller_script_path:null,visibility_state:scope.document?.visibilityState||null,resource_timing_entries:0,resource_response_status:null,resource_duration_ms:null,resource_worker_start_ms:null};
+  try{
+    const base=new URL(scope.location?.href);
+    const target=new URL(targetUrl,base);
+    if(target.origin!==base.origin){evidence.classification='TARGET_ORIGIN_MISMATCH';return evidence;}
+    evidence.same_origin=true;
+    evidence.target_path=target.pathname;
+    const controllerUrl=scope.navigator?.serviceWorker?.controller?.scriptURL;
+    if(controllerUrl){const controller=new URL(controllerUrl,base);if(controller.origin===base.origin)evidence.controller_script_path=controller.pathname;}
+    const entries=Array.from(scope.performance?.getEntriesByType?.('resource')||[]).filter(entry=>{
+      try{const candidate=new URL(entry.name,base);return candidate.origin===base.origin&&candidate.pathname===target.pathname;}catch{return false;}
+    });
+    evidence.resource_timing_entries=Math.min(entries.length,999);
+    const last=entries.at(-1);
+    if(last){
+      const status=Number(last.responseStatus);
+      if(Number.isInteger(status)&&status>=100&&status<=599){evidence.resource_response_status=status;evidence.classification='HTTP_RESPONSE_STATUS_OBSERVED';}
+      if(Number.isFinite(last.duration))evidence.resource_duration_ms=Math.max(0,Math.round(last.duration));
+      if(Number.isFinite(last.workerStart))evidence.resource_worker_start_ms=Math.max(0,Math.round(last.workerStart));
+    }
+  }catch{evidence.classification='PROVENANCE_UNAVAILABLE';}
+  return evidence;
+}
 function environment(){return {url:location.href.split('#')[0],origin:location.origin,path:location.pathname,user_agent:navigator.userAgent,language:navigator.language,platform:navigator.platform,online:navigator.onLine,display_mode:matchMedia('(display-mode: standalone)').matches?'standalone':'browser',viewport:{width:innerWidth,height:innerHeight,device_pixel_ratio:devicePixelRatio},timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,storage:{local_storage:typeof localStorage!=='undefined',indexed_db:typeof indexedDB!=='undefined'},service_worker:{supported:'serviceWorker'in navigator,controlled:Boolean(navigator.serviceWorker?.controller)}};}
 
 class DebugTraceManager {
@@ -42,6 +67,11 @@ class DebugTraceManager {
   fail(id,error,details={}){const op=this.operations.get(id);const duration=op?Math.round(performance.now()-op.started):null;this.record('operation',op?.name||'unknown_operation',{status:'failed',operation_id:id,parent_operation_id:op?.parentOperationId||null,details,error,duration_ms:duration});this.operations.delete(id);}
   setMode(mode){if(!['standard','detailed'].includes(mode))throw new Error('invalid_debug_mode');this.mode=mode;localStorage.setItem(MODE_KEY,mode);this.record('diagnostic','mode_changed',{status:'completed',details:{mode}});this.refreshUI();}
   captureState(label,state){if(this.mode!=='detailed')return null;return this.record('state',label,{status:'snapshot',details:state});}
+  captureModuleImportFailureProvenance(targetUrl){
+    const details=collectModuleImportFailureProvenance(targetUrl);
+    this.record('bootstrap','module_import_failure_provenance',{status:'warning',details});
+    return details;
+  }
   buildReport(){this.flush({refresh_ui:false});const openOperations=Array.from(this.operations.entries()).map(([id,op])=>({operation_id:id,name:op.name,age_ms:Math.round(performance.now()-op.started),parent_operation_id:op.parentOperationId}));return deepRedact({schema:TRACE_SCHEMA,exported_at:now(),app:{version:document.documentElement.dataset.appVersion||null,build:document.documentElement.dataset.appBuild||null},session:{id:this.sessionId,started_at:this.startedAt,mode:this.mode},environment:environment(),summary:this.summary(),open_operations:openOperations,events:this.events});}
   downloadJson(payload,name,{pre_redacted=false}={}){const safePayload=pre_redacted?payload:deepRedact(payload);const serialized=JSON.stringify(safePayload,null,2);const blob=new Blob([serialized],{type:'application/json'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);return {byte_length:blob.size};}
   async export(){const handlerStarted=performance.now();this.record('diagnostic','trace_export_handler_started',{status:'started',details:{ui_yield_before_build:true}});await nextPaint();const buildStarted=performance.now();const report=this.buildReport();const buildMs=Math.round((performance.now()-buildStarted)*10)/10;const download=this.downloadJson(report,`pokemon_sleep_debug_${report.app.version||'unknown'}_${this.sessionId}_${new Date().toISOString().replace(/[:.]/g,'-')}.json`,{pre_redacted:true});const handlerMs=Math.round((performance.now()-handlerStarted)*10)/10;this.record('diagnostic','trace_exported',{status:'completed',details:{event_count:this.events.length,open_operation_count:report.open_operations.length,secret_redaction:true,pre_redacted_download:true,build_ms:buildMs,handler_ms:handlerMs,byte_length:download.byte_length}});this.refreshUI();}

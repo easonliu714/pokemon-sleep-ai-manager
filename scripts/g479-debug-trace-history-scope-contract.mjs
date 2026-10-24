@@ -56,4 +56,32 @@ assert.equal(summary.historical_error_count,1,'historical failure must not be do
 assert.equal(summary.retained_error_count,2);
 console.log('PASS G479_DEBUG_CURRENT_VS_RETAINED_HISTORY_SCOPE');
 console.log('PASS G479_DEBUG_EXPORT_HISTORY_PRESERVED_AND_REDACTED');
+
+{
+  // G479: HTTP timing is an observation, not a root cause. Zero/absent stays UNKNOWN.
+  const target='http://127.0.0.1/assets/js/app.js?v=secret-query-must-not-export';
+  scope.document.visibilityState='visible';
+  scope.navigator.serviceWorker={controller:{scriptURL:'http://127.0.0.1/service-worker.js?secret-controller-query'}};
+  scope.performance.getEntriesByType=kind=>kind==='resource'?[{name:target,responseStatus:503,duration:12.3,workerStart:4.2}]:[];
+  let evidence=trace.captureModuleImportFailureProvenance(target);
+  assert.equal(evidence.classification,'HTTP_RESPONSE_STATUS_OBSERVED');
+  assert.equal(evidence.resource_response_status,503);
+  assert.equal(evidence.service_worker_controlled,true);
+  assert.equal(evidence.controller_script_path,'/service-worker.js');
+  assert.equal(evidence.target_path,'/assets/js/app.js');
+  assert.equal(JSON.stringify(evidence).includes('secret-'),false,'no URL query tokens');
+  scope.performance.getEntriesByType=()=>[{name:target,responseStatus:0,transferSize:0,duration:0,workerStart:0}];
+  evidence=trace.captureModuleImportFailureProvenance(target);
+  assert.equal(evidence.classification,'UNDETERMINED','status=0 is not transport proof');
+  assert.equal(evidence.resource_response_status,null);
+  scope.performance.getEntriesByType=()=>[];
+  evidence=trace.captureModuleImportFailureProvenance(target);
+  assert.equal(evidence.classification,'UNDETERMINED','missing timing is not network proof');
+  evidence=trace.captureModuleImportFailureProvenance('https://other.invalid/private?token=secret');
+  assert.equal(evidence.classification,'TARGET_ORIGIN_MISMATCH');
+  assert.equal(evidence.target_path,null,'foreign private path cannot leak');
+  assert.equal(trace.events.filter(event=>event.event==='module_import_failure_provenance').length,4);
+  console.log('PASS G479_PASSIVE_ESM_HTTP_VS_UNKNOWN_SOURCE_BOUND');
+  console.log('PASS G479_PASSIVE_ESM_NO_FETCH_NO_PRIVATE_URL_QUERY');
+}
 console.log('NOTE G479_ANDROID_ESM_ROOT_CAUSE_STILL_UNVERIFIED');
