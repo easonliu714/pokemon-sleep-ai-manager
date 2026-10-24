@@ -175,7 +175,19 @@ const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
 
 // G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
 // G479 .27 debug-history scope successor; canonical Candy identity and replay remain unchanged.
-if(appVersion==='v0.4.27.55.3.3.27'){
+if(appVersion==='v0.4.27.55.3.3.28'){
+  assert.equal(appBuild,'20261024-v0427553328-g479-public-catalog-postsync-readback');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.28-v0427553328-g479-public-catalog-postsync-readback');
+  assert.ok(version.includes("// app_version: 'v0.4.27.53'"),'frozen P0-B5 canonical replay predecessor');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.26'"));
+  assert.ok(version.includes("// app_build: '20261023-v0427553326-g295-watchdog-lifecycle'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.26-v0427553326-g295-watchdog-lifecycle'"));
+
+  // Exact .28 successor preserves frozen .27 behavior and predecessor lineage.
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.27'"));
+  assert.ok(version.includes("// app_build: '20261024-v0427553327-g479-debug-session-history-scope'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.27-v0427553327-g479-debug-session-history-scope'"));
+}else if(appVersion==='v0.4.27.55.3.3.27'){
   assert.equal(appBuild,'20261024-v0427553327-g479-debug-session-history-scope');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.27-v0427553327-g479-debug-session-history-scope');
   assert.ok(version.includes("// app_version: 'v0.4.27.53'"),'frozen P0-B5 canonical replay predecessor');
