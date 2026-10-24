@@ -75,6 +75,12 @@ export function evaluateG141CrossDeviceRestoreEvidence({
     return decide('REVIEW_REQUIRED',strictStage?'IMMEDIATE_BYTE_PARITY_MISMATCH':'POST_RELOAD_BYTES_CHANGED_NOT_AUTOMATIC_DATA_LOSS',
       {matched_table_count:tables.length,digest_equal:digestEqual,byte_size_equal:sizeEqual});
   }
+  // A matching post-reload digest proves bytes at observation time, not the
+  // original immediately-after-restore receipt boundary required by Issue #482.
+  if(!strictStage)return decide('POST_RELOAD_BYTES_MATCH_ONLY',
+    'DIGEST_MATCH_WITHOUT_IMMEDIATE_RESTORE_BOUNDARY',
+    {matched_table_count:tables.length,bytes_equal:true,sha256:oldManifest.database_sha256.toLowerCase(),
+      capture_stage:stage,restore_boundary_not_proven:true});
   return decide('EXACT_SQLITE_BYTES_PARITY_PASS','MANIFEST_RECEIPT_SHA_SIZE_COUNTS_MATCH',
     {matched_table_count:tables.length,bytes_equal:true,sha256:oldManifest.database_sha256.toLowerCase(),
       capture_stage:stage});
