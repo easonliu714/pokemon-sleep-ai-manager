@@ -261,7 +261,17 @@ gate('release and offline wiring retain v0.4.27.47 exact predecessor',()=>{
     assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.17-v0427553317-weekly-berry-evidence-resolution'"),'.18 successor must retain exact .17 predecessor cache marker');
   }
 // G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
-else if(currentAppVersion==='v0.4.27.55.3.3.27'){
+else if(currentAppVersion==='v0.4.27.55.3.3.28'){
+    // G479 .28 exact post-sync successor; pinned public species/offline boundaries frozen.
+    assert.equal(currentAppBuild,'20261024-v0427553328-g479-public-catalog-postsync-readback');
+    assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.28-v0427553328-g479-public-catalog-postsync-readback');
+    assert.ok(versionSource.includes("// app_version: 'v0.4.27.47'"),'frozen P0-B2 species predecessor');
+    assert.ok(versionSource.includes("// app_build: '20260829-v042747-p0b2-public-species-authority'"));
+    assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.47-v042747-p0b2-public-species-authority'"));
+    assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.27'"));
+    assert.ok(versionSource.includes("// app_build: '20261024-v0427553327-g479-debug-session-history-scope'"));
+    assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.27-v0427553327-g479-debug-session-history-scope'"));
+  }else if(currentAppVersion==='v0.4.27.55.3.3.27'){
     // G479 debug-history scope successor; pinned public species and offline boundary unchanged.
     assert.equal(currentAppBuild,'20261024-v0427553327-g479-debug-session-history-scope');
     assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.27-v0427553327-g479-debug-session-history-scope');
