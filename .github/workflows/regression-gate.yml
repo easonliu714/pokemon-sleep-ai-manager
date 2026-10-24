@@ -294,6 +294,9 @@ jobs:
       - name: Verify G479 Chromium production SW ESM fetch matrix
         run: node scripts/g479-chromium-production-sw-esm-replay.mjs
 
+      - name: Verify G479 retained debug history versus current-session error scope
+        run: node scripts/g479-debug-trace-history-scope-contract.mjs
+
       - name: Verify G479-R War Room and Knowledge mobile responsive DOM in Chromium
         env:
           BASE_URL: http://127.0.0.1:4173/

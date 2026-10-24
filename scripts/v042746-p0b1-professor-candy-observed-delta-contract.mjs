@@ -167,7 +167,15 @@ else if(currentVersion==='v0.4.27.55.3.3.15'){
   assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.19-v0427553319-g62-recipe-attempt-feedback'"));
 }
 // G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
-else if(currentVersion==='v0.4.27.55.3.3.26'){
+else if(currentVersion==='v0.4.27.55.3.3.27'){
+  // G479 debug-history scope successor; P0-B1 remains direct-observation-only.
+  assert.equal(currentBuild,'20261024-v0427553327-g479-debug-session-history-scope');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.27-v0427553327-g479-debug-session-history-scope');
+  assertP0B1Lineage('.55.3.3.27 debug-history scope successor');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.26'"));
+  assert.ok(version.includes("// app_build: '20261023-v0427553326-g295-watchdog-lifecycle'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.26-v0427553326-g295-watchdog-lifecycle'"));
+}else if(currentVersion==='v0.4.27.55.3.3.26'){
   // G479-R UI-only successor: preserve P0-B1 direct-observation authority and the exact .23 predecessor.
   assert.equal(currentBuild,'20261023-v0427553326-g295-watchdog-lifecycle');
   assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.26-v0427553326-g295-watchdog-lifecycle');
