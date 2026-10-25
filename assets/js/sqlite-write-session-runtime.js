@@ -10,6 +10,9 @@ const sharedWriteSession=createSqliteWriteSessionCoordinator({
 export function runSqliteWriteSession({reason,mutate}={}){
   if(typeof reason!=='string'||!reason.trim()||typeof mutate!=='function')
     return sharedWriteSession.execute({reason,mutate});
+  // The guard wrapper is synchronous: reject async callbacks before wrapping them.
+  if(mutate.constructor?.name==='AsyncFunction')
+    return Promise.reject(Object.assign(new Error('SQLITE_WRITE_SESSION_ASYNC_MUTATION_FORBIDDEN'),{code:'SQLITE_WRITE_SESSION_ASYNC_MUTATION_FORBIDDEN'}));
   let close;
   try{close=beginSqliteWriteWindow();}
   catch(error){return Promise.reject(error);}
