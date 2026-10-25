@@ -168,7 +168,21 @@ else if(currentVersion==='v0.4.27.55.3.3.15'){
 }
 // G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
 // G265 .33 exact successor: retain observed-delta-only Candy semantics and .32 lineage.
-else if(currentVersion==='v0.4.27.55.3.3.35'){
+else if(currentVersion==='v0.4.27.55.3.3.36'){
+  // Exact .36 successor inherits ALL frozen .35 assertions below.
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.35'"),'missing .35 predecessor bridge');
+
+  // G265 runtime persistence release inherits exact observed-delta Candy contract.
+  assert.equal(currentBuild,'20261025-v0427553336-g265-legacy-window-guard');
+  assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.36-v0427553336-g265-legacy-window-guard');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.33'"));
+  assert.ok(version.includes("// app_build: '20261025-v0427553333-g265-concise-warroom-decisions'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.33-v0427553333-g265-concise-warroom-decisions'"));
+  assertP0B1Lineage('.34 G265 SQLite byte-persistence successor');
+
+  // .35 is an exact successor; retain .34 and frozen predecessor evidence.
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.34'"));
+}else if(currentVersion==='v0.4.27.55.3.3.35'){
   // G265 runtime persistence release inherits exact observed-delta Candy contract.
   assert.equal(currentBuild,'20261025-v0427553335-g265-two-writer-session');
   assert.equal(currentCache,'pokemon-sleep-ai-v0.4.27.55.3.3.35-v0427553335-g265-two-writer-session');
