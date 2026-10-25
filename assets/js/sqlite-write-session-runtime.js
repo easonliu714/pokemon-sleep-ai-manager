@@ -1,6 +1,22 @@
-// G265: one opt-in same-page write-session FIFO. Legacy writers and tabs are NOT isolated.
+// G265 same-page FIFO plus bounded legacy direct-run fail-closed containment.
+// Other direct SQL.js entrypoints, cross-tab writers and Android UAT remain HOLD.
 import {snapshot,begin,commit,rollback,persist} from './database.js';
 import {createSqliteWriteSessionCoordinator} from './sqlite-write-session-coordinator.js';
-const sharedWriteSession=createSqliteWriteSessionCoordinator({snapshot,begin,commit,rollback,persist,timeoutMs:30000});
-export function runSqliteWriteSession({reason,mutate}={}){return sharedWriteSession.execute({reason,mutate});}
+import {beginSqliteWriteWindow,withSqliteCoordinatedMutation} from './sqlite-direct-write-window-guard.js';
+const guarded=fn=>()=>withSqliteCoordinatedMutation(fn);
+const sharedWriteSession=createSqliteWriteSessionCoordinator({
+  snapshot,begin:guarded(begin),commit:guarded(commit),rollback:guarded(rollback),persist,timeoutMs:30000
+});
+export function runSqliteWriteSession({reason,mutate}={}){
+  if(typeof reason!=='string'||!reason.trim()||typeof mutate!=='function')
+    return sharedWriteSession.execute({reason,mutate});
+  let close;
+  try{close=beginSqliteWriteWindow();}
+  catch(error){return Promise.reject(error);}
+  const pending=sharedWriteSession.execute({reason,mutate:()=>withSqliteCoordinatedMutation(mutate)});
+  return pending.then(
+    value=>{close();return value;},
+    error=>{close({uncertainOutcome:sharedWriteSession.status().status==='UNVERIFIED_RELOAD_REQUIRED'});throw error;}
+  );
+}
 export function getSqliteWriteSessionStatus(){return sharedWriteSession.status();}
