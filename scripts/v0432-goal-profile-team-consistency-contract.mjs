@@ -87,8 +87,9 @@ assert.ok(teamLocal.includes('mandatory_member_count:mandatoryTokens.length'));
 assert.ok(teamLocal.includes('mandatory_satisfied_count:mandatoryTokens.filter'));
 
 const validationIndex=goalStore.indexOf('const validation=strategyGoalProfileValidation(input)');
-const snapshotIndex=goalStore.indexOf('await snapshot(`war-room:goal-profile:${profileId}`)');
-assert.ok(validationIndex>=0&&snapshotIndex>validationIndex,'goal profile validation must run before snapshot/persist');
+const sessionIndex=goalStore.indexOf('await runSqliteWriteSession({reason:`war-room:goal-profile:${profileId}`');
+assert.ok(validationIndex>=0&&sessionIndex>validationIndex,'goal profile validation must run before shared write-session snapshot/persist');
+assert.ok(goalStore.includes("import {runSqliteWriteSession} from './sqlite-write-session-runtime.js'"),'goal writer must use the shared session runtime');
 assert.ok(goalStore.includes('if(!validation.valid)throw new Error'),'invalid profile must not persist');
 
 process.stdout.write(`${JSON.stringify({
