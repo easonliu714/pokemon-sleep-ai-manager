@@ -57,7 +57,17 @@ const cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
 // G6.2 .29 exact successor: preserve .28 public hydration and frozen G14.1 lineage.
 // G265 .33 exact successor: preserve .32 and the historical G14.1 derived-state contract.
 // G265 .35 exact runtime two-writer successor; preserve .34 and frozen G14.1 lineage.
-if(appVersion==='v0.4.27.55.3.3.35'){
+if(appVersion==='v0.4.27.55.3.3.36'){
+  // Exact .36 successor inherits ALL frozen .35 assertions below.
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.35'"),'missing .35 predecessor bridge');
+
+  assert.equal(appBuild,'20261025-v0427553336-g265-legacy-window-guard');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.36-v0427553336-g265-legacy-window-guard');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.34'"));
+  assert.ok(versionSource.includes("// app_build: '20261025-v0427553334-g265-shared-sqlite-runtime'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.34-v0427553334-g265-shared-sqlite-runtime'"));
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.13'"));
+}else if(appVersion==='v0.4.27.55.3.3.35'){
   assert.equal(appBuild,'20261025-v0427553335-g265-two-writer-session');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.35-v0427553335-g265-two-writer-session');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.34'"));

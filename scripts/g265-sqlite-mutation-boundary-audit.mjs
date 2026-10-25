@@ -8,6 +8,7 @@ import initSqlJs from 'sql.js';
 const read=path=>fs.readFileSync(path,'utf8');
 const database=read('assets/js/database.js');
 const coordinator=read('assets/js/sqlite-persist-coordinator.js');
+const directGuard=read('assets/js/sqlite-direct-write-window-guard.js');
 const draft=read('assets/js/war-room-named-team-draft-store.js');
 const goal=read('assets/js/strategy-goal-store.js');
 const feedback=read('assets/js/recipe-attempt-feedback-local.js');
@@ -43,6 +44,8 @@ const snapshotWait=new Promise(resolve=>{releaseSnapshot=resolve;});
 const ctx=vm.createContext({Promise,Error,TypeError,Object,Number,setTimeout,clearTimeout,
   console,fixture,createSnapshot:()=>snapshotWait,saveDatabaseBytes:async()=>{}});
 vm.runInContext(coordinator.replace(/^export /gm,''),ctx,{timeout:3000});
+// Actual database.js now imports the pure guard; keep this historic negative in an unguarded window.
+vm.runInContext(directGuard.replace(/^export /gm,''),ctx,{timeout:3000});
 vm.runInContext(database.replace(/^import [^\n]*\n/gm,'').replace(/^export /gm,''),ctx,{timeout:3000});
 vm.runInContext('db=fixture;rescueReadonly=false;',ctx);
 ctx.begin();

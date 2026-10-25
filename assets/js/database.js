@@ -1,6 +1,7 @@
 import {inspectDatabaseRecord,loadDatabaseBytes,loadDatabaseBytesInWorker,cancelWorkerDatabaseLoad,resetStorageConnection,saveDatabaseBytes,createSnapshot} from './storage.js';
 import {DDL,SEED_SQL} from './schema.js';
 import {createSqlitePersistCoordinator} from './sqlite-persist-coordinator.js';
+import {assertSqliteDirectWriteAllowed} from './sqlite-direct-write-window-guard.js';
 import {applyAllMigrations,applyFreshDatabaseBootstrap} from './migrations.js';
 import {applyCandyFamilyStorageMigration} from './candy-family-storage-authority.js';
 let SQL=null,db=null;
@@ -69,7 +70,8 @@ export function isDatabaseReady(){return Boolean(db)||rescueReadonly;}
 export function isRescueReadonly(){return rescueReadonly;}
 export function rows(sql,params=[]){if(rescueReadonly)return [];if(!db)throw new Error('database_not_ready');const s=db.prepare(sql);s.bind(params);const out=[];while(s.step())out.push(s.getAsObject());s.free();return out;}
 export function scalar(sql,params=[]){if(rescueReadonly)return 0;const r=rows(sql,params);return r.length?Object.values(r[0])[0]:null;}
-export function run(sql,params=[]){if(!db)throw new Error('database_not_ready');if(rescueReadonly)throw new Error('readonly_rescue_mode');db.run(sql,params);}
+// G265: refuse legacy direct SQL mutation while any same-page opt-in write session is outstanding.
+export function run(sql,params=[]){if(!db)throw new Error('database_not_ready');if(rescueReadonly)throw new Error('readonly_rescue_mode');assertSqliteDirectWriteAllowed();db.run(sql,params);}
 // G265: serialize database.persist() byte saves; capture only after prior IDB save.
 // Failed/timeout save remains uncertain until full reload and durable readback.
 const sqlitePersistCoordinator=createSqlitePersistCoordinator({
@@ -94,7 +96,7 @@ export async function persist(){
 }
 export async function snapshot(reason){if(!db)throw new Error('database_not_ready');if(rescueReadonly)throw new Error('readonly_rescue_mode');emit('SQLITE_SNAPSHOT_RUNNING',`正在建立快照：${reason}`);const exported=db.export();const result=await timeout(createSnapshot(exported,reason),30000,'SQLite 快照');emit('SQLITE_SNAPSHOT_COMPLETED',`快照已建立：${reason}`);return result;}
 export function exportBytes(){if(rescueReadonly)throw new Error('readonly_rescue_mode');if(!db)throw new Error('database_not_ready');return db.export();}
-export async function replaceDatabase(bytes){emit('SQLITE_REPLACE_RUNNING','正在驗證並替換 SQLite 資料庫');if(db)db.close();db=new SQL.Database(bytes);rescueReadonly=false;const check=rows('PRAGMA integrity_check');if(!check.length||check[0].integrity_check!=='ok')throw new Error('SQLite integrity_check 未通過');db.run(DDL);let migrationResult=applyAllMigrations(db);migrationResult=applyCandyFamilyStorageLifecycle(db,migrationResult);await persist();dispatchReadyAsync({seeded:false,restored:true,replaced:true,public_master:migrationResult.public_master,candy_family_storage:migrationResult.candy_family_storage});}
+export async function replaceDatabase(bytes){assertSqliteDirectWriteAllowed();emit('SQLITE_REPLACE_RUNNING','正在驗證並替換 SQLite 資料庫');if(db)db.close();db=new SQL.Database(bytes);rescueReadonly=false;const check=rows('PRAGMA integrity_check');if(!check.length||check[0].integrity_check!=='ok')throw new Error('SQLite integrity_check 未通過');db.run(DDL);let migrationResult=applyAllMigrations(db);migrationResult=applyCandyFamilyStorageLifecycle(db,migrationResult);await persist();dispatchReadyAsync({seeded:false,restored:true,replaced:true,public_master:migrationResult.public_master,candy_family_storage:migrationResult.candy_family_storage});}
 export function begin(){run('BEGIN IMMEDIATE');}
 export function commit(){run('COMMIT');}
 export function rollback(){try{run('ROLLBACK')}catch{}}
