@@ -373,6 +373,11 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-native-chromium-version-neutral-pair.mjs
 
+      - name: G265 Opt-in Native Chromium Version-Neutral Atomic Pair Source Gate
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-native-chromium-optin-atomic-pair-source.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
