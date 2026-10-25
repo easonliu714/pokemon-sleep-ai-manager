@@ -212,6 +212,10 @@ jobs:
       - name: G265 SHA-256 Cross-Tab ABA Durable Revision Negative Gate
         run: node scripts/g265-cross-tab-aba-revision-negative.mjs
 
+
+      - name: G265 Atomic Durable Revision ABA Fail-Closed Source Contract
+        run: node scripts/g265-durable-revision-atomic-aba-contract.mjs
+
       - name: Verify confirmation lifecycle UX
         run: node scripts/v042712-confirmation-lifecycle-ux-contract.mjs
 
