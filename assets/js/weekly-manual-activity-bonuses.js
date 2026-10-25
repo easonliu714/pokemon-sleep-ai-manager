@@ -1,4 +1,5 @@
-import {rows,run,persist,snapshot} from './database.js';
+import {rows,run} from './database.js';
+import {runSqliteWriteSession} from './sqlite-write-session-runtime.js';
 
 export const WEEKLY_ACTIVITY_BONUS_VERSION='weekly-manual-activity-bonus-2026-10-11-a';
 export const WEEKLY_ACTIVITY_BONUS_SCHEMA='pokemon-sleep-weekly-manual-activity-bonus/1.0';
@@ -37,9 +38,10 @@ export async function saveWeeklyManualActivityBonus({weekStart,values}={}){
   const normalized=normalizeWeeklyActivityBonusInput(values);
   const payload={schema:WEEKLY_ACTIVITY_BONUS_SCHEMA,version:WEEKLY_ACTIVITY_BONUS_VERSION,
     week_start:weekStart,source:'PLAYER_EXPLICIT_MANUAL_WEEKLY_OBSERVATION',values:normalized,updated_at:new Date().toISOString()};
-  await snapshot('manual:weekly-activity-bonus');
-  run('INSERT OR REPLACE INTO settings(key,value_json,updated_at) VALUES(?,?,?)',[keyFor(weekStart),JSON.stringify(payload),payload.updated_at]);
-  await persist();
+  // G265: same FIFO write-session as strategy goal; never ACK before IndexedDB.
+  await runSqliteWriteSession({reason:'manual:weekly-activity-bonus',mutate:()=>{
+    run('INSERT OR REPLACE INTO settings(key,value_json,updated_at) VALUES(?,?,?)',[keyFor(weekStart),JSON.stringify(payload),payload.updated_at]);
+  }});
   return Object.freeze(payload);
 }
 export function projectWeeklyManualActivityBonus({basePotSize=null,record=null}={}){

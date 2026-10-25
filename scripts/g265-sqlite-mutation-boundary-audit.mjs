@@ -19,7 +19,7 @@ assert.match(database,/export function commit\(\)\{run\('COMMIT'\);\}/);
 assert.match(database,/export async function snapshot\(reason\)/);
 assert.match(draft,/await snapshot\('war-room:named-team-draft:'/);
 assert.match(draft,/begin\(\);[\s\S]*?commit\(\);[\s\S]*?await persist\(\)/);
-assert.match(goal,/await snapshot\(/);
+assert.match(goal,/runSqliteWriteSession\(/,'goal writer migrated to opt-in session');
 assert.match(goal,/await persist\(\)/);
 assert.match(feedback,/begin\(\);[\s\S]*?commit\(\);[\s\S]*?await persist\(\)/);
 assert.match(importer,/await snapshot\(/);
