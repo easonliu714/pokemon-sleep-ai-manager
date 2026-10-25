@@ -13,7 +13,15 @@ const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 // G479 .27 debug-history scope successor; Candy progressive behavior remains frozen.
 // G479 .28 exact Public Catalog successor: retain .27 and original Candy .3 lineage.
 // G265 .33 exact successor: retain .32 and the frozen Candy 24/20 confirmation lineage.
-if(appVersion==='v0.4.27.55.3.3.33'){
+// G265 .34 inherits .33 and the frozen Candy progressive 24/20 contract.
+if(appVersion==='v0.4.27.55.3.3.34'){
+  assert.ok(authority.includes("app_build: '20261025-v0427553334-g265-shared-sqlite-runtime'"));
+  assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.34-v0427553334-g265-shared-sqlite-runtime'"));
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.33'"));
+  assert.ok(authority.includes("// app_build: '20261025-v0427553333-g265-concise-warroom-decisions'"));
+  assert.ok(authority.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.33-v0427553333-g265-concise-warroom-decisions'"));
+  assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.3'"),'frozen Candy progressive lineage');
+}else if(appVersion==='v0.4.27.55.3.3.33'){
   assert.ok(authority.includes("app_build: '20261025-v0427553333-g265-concise-warroom-decisions'"));
   assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.33-v0427553333-g265-concise-warroom-decisions'"));
   assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.32'"));

@@ -1,5 +1,6 @@
 import {inspectDatabaseRecord,loadDatabaseBytes,loadDatabaseBytesInWorker,cancelWorkerDatabaseLoad,resetStorageConnection,saveDatabaseBytes,createSnapshot} from './storage.js';
 import {DDL,SEED_SQL} from './schema.js';
+import {createSqlitePersistCoordinator} from './sqlite-persist-coordinator.js';
 import {applyAllMigrations,applyFreshDatabaseBootstrap} from './migrations.js';
 import {applyCandyFamilyStorageMigration} from './candy-family-storage-authority.js';
 let SQL=null,db=null;
@@ -69,7 +70,28 @@ export function isRescueReadonly(){return rescueReadonly;}
 export function rows(sql,params=[]){if(rescueReadonly)return [];if(!db)throw new Error('database_not_ready');const s=db.prepare(sql);s.bind(params);const out=[];while(s.step())out.push(s.getAsObject());s.free();return out;}
 export function scalar(sql,params=[]){if(rescueReadonly)return 0;const r=rows(sql,params);return r.length?Object.values(r[0])[0]:null;}
 export function run(sql,params=[]){if(!db)throw new Error('database_not_ready');if(rescueReadonly)throw new Error('readonly_rescue_mode');db.run(sql,params);}
-export async function persist(){if(!db)throw new Error('database_not_ready');if(rescueReadonly)throw new Error('readonly_rescue_mode');emit('SQLITE_PERSIST_RUNNING','正在儲存 SQLite');const exported=db.export();await timeout(saveDatabaseBytes(exported),30000,'SQLite 儲存');emit('SQLITE_PERSIST_COMPLETED','SQLite 儲存完成','completed',{byte_length:exported.byteLength});}
+// G265: serialize database.persist() byte saves; capture only after prior IDB save.
+// Failed/timeout save remains uncertain until full reload and durable readback.
+const sqlitePersistCoordinator=createSqlitePersistCoordinator({
+  capture:()=>{if(!db)throw new Error('database_not_ready');if(rescueReadonly)throw new Error('readonly_rescue_mode');return db.export();},
+  save:bytes=>saveDatabaseBytes(bytes),
+  timeoutMs:30000
+});
+export function getSqlitePersistStatus(){return sqlitePersistCoordinator.status();}
+export async function persist(){
+  if(!db)throw new Error('database_not_ready');
+  if(rescueReadonly)throw new Error('readonly_rescue_mode');
+  if(sqlitePersistCoordinator.status().status!=='READY')
+    throw Object.assign(new Error('SQLITE_PERSIST_UNCERTAIN_RELOAD_REQUIRED'),{code:'SQLITE_PERSIST_UNCERTAIN_RELOAD_REQUIRED'});
+  emit('SQLITE_PERSIST_RUNNING','正在儲存 SQLite');
+  try{
+    const outcome=await sqlitePersistCoordinator.persist();
+    emit('SQLITE_PERSIST_COMPLETED','SQLite 儲存完成','completed',{byte_length:outcome.byte_length});
+  }catch(error){
+    emit('SQLITE_PERSIST_FAILED','SQLite 持久化結果未確認；請重新載入並讀回','failed',{persist_status:sqlitePersistCoordinator.status().status},error);
+    throw error;
+  }
+}
 export async function snapshot(reason){if(!db)throw new Error('database_not_ready');if(rescueReadonly)throw new Error('readonly_rescue_mode');emit('SQLITE_SNAPSHOT_RUNNING',`正在建立快照：${reason}`);const exported=db.export();const result=await timeout(createSnapshot(exported,reason),30000,'SQLite 快照');emit('SQLITE_SNAPSHOT_COMPLETED',`快照已建立：${reason}`);return result;}
 export function exportBytes(){if(rescueReadonly)throw new Error('readonly_rescue_mode');if(!db)throw new Error('database_not_ready');return db.export();}
 export async function replaceDatabase(bytes){emit('SQLITE_REPLACE_RUNNING','正在驗證並替換 SQLite 資料庫');if(db)db.close();db=new SQL.Database(bytes);rescueReadonly=false;const check=rows('PRAGMA integrity_check');if(!check.length||check[0].integrity_check!=='ok')throw new Error('SQLite integrity_check 未通過');db.run(DDL);let migrationResult=applyAllMigrations(db);migrationResult=applyCandyFamilyStorageLifecycle(db,migrationResult);await persist();dispatchReadyAsync({seeded:false,restored:true,replaced:true,public_master:migrationResult.public_master,candy_family_storage:migrationResult.candy_family_storage});}

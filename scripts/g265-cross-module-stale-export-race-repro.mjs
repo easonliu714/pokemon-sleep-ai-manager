@@ -2,13 +2,15 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-// G265 source-bound NEGATIVE fixture. This reproduces a cross-module stale
-// SQLite export overwrite; it is not a production fix or Android UAT.
+// G265 HISTORICAL negative fixture deliberately simulates old uncoordinated
+// export-before-save, not the fixed production database.persist().
 const store=fs.readFileSync('assets/js/war-room-named-team-draft-store.js','utf8');
 const contract=fs.readFileSync('assets/js/war-room-named-team-draft-contract.js','utf8');
 const database=fs.readFileSync('assets/js/database.js','utf8');
 assert.match(store,/await persist\(\)/);
-assert.match(database,/const exported=db\.export\(\);await timeout\(saveDatabaseBytes\(exported\)/);
+assert.match(database,/createSqlitePersistCoordinator/);
+assert.match(database,/sqlitePersistCoordinator\.persist\(\)/);
+assert.doesNotMatch(database,/const exported=db\.export\(\);await timeout\(saveDatabaseBytes\(exported\)/);
 const values=new Map();
 let persisted='[]',persistCalls=0,releaseFirstPersist=null;
 const rows=(sql,params=[])=>{
@@ -29,7 +31,7 @@ const run=(sql,params=[])=>{
   throw Error('UNEXPECTED_WRITE_SQL');
 };
 const persist=async()=>{
-  // Real database.persist() exports SQLite bytes before its awaited IDB save.
+  // Historical uncoordinated persist captured bytes before awaited IDB save.
   // Here the same byte-capture and completion ordering is controlled.
   const captured=JSON.stringify([...values.entries()]);
   const index=++persistCalls;
@@ -62,6 +64,6 @@ assert.equal(values.has(otherKey),true,'in-memory state contains the other write
 const reloaded=new Map(JSON.parse(persisted));
 assert.equal(reloaded.has(otherKey),false,'stale persisted bytes lost the other writer');
 assert.equal(reloaded.has('war-room:named-team-draft:v1:'+draftId),true);
-console.log('REPRODUCED_HOLD G265_CROSS_MODULE_STALE_SQLITE_EXPORT_OVERWRITE');
-console.log('PASS G265_SOURCE_BOUND_NEGATIVE_INTERLEAVING_NO_PLAYER_DATA');
-console.log('HOLD G265_GLOBAL_SQLITE_WRITE_COORDINATION_AND_RUNTIME_UI_BINDING');
+console.log('PASS G265_HISTORICAL_UNCOORDINATED_STALE_EXPORT_NEGATIVE_REPRODUCED');
+console.log('PASS G265_PRODUCTION_SOURCE_NOW_USES_SHARED_COORDINATOR');
+console.log('HOLD G265_ANDROID_OWNER_UAT_AND_RUNTIME_UI_BINDING');

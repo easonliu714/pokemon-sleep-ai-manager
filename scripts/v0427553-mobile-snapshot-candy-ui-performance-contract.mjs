@@ -123,6 +123,7 @@ for(let index=0;index<12;index+=1){await storage.createSnapshot(new Uint8Array([
 const listed=await storage.listSnapshots();assert.equal(listed.length,10,'snapshot retention remains capped at 10');assert.ok(listed.every(item=>!Object.hasOwn(item,'bytes')),'snapshot list must remain metadata-only');assert.ok(listed.some(item=>item.byte_length===4),'new snapshot metadata must retain byte length without payload materialization');storage.closeStorageConnection();
 const reopened=await new Promise((resolve,reject)=>{const req=indexedDB.open(dbName);req.onerror=()=>reject(req.error);req.onsuccess=()=>resolve(req.result);});assert.equal(reopened.version,2,'metadata-only successor must not force v2→v3');const snapshotKeys=await new Promise((resolve,reject)=>{const tx=reopened.transaction('snapshots','readonly');const req=tx.objectStore('snapshots').getAllKeys();tx.oncomplete=()=>resolve(req.result);tx.onerror=()=>reject(tx.error);});assert.equal(snapshotKeys.length,10);reopened.close();
 
+// G265 .34 release successor preserves metadata-only snapshot and Candy safety assertions.
 await import('../assets/js/version-authority.js');
-assert.match(globalThis.PokemonSleepVersionAuthority?.app_version||'',/^v0\.4\.27\.55\.3(?:\.[12]|\.3(?:\.(?:[1-9]|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33))?)?$/);
+assert.match(globalThis.PokemonSleepVersionAuthority?.app_version||'',/^v0\.4\.27\.55\.3(?:\.[12]|\.3(?:\.(?:[1-9]|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34))?)?$/);
 console.log('v0.4.27.55.3 mobile snapshot / Candy incremental UI / static shell / persisted Public Master bypass contract PASS');
