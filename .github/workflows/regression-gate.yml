@@ -200,6 +200,9 @@ jobs:
       - name: G265 Two Runtime Writers Real SQLite FIFO and Reload
         run: node scripts/g265-two-writer-runtime-session-sqlite.mjs
 
+      - name: G265 Remaining Writer Containment and Cross-Tab Negative Gate
+        run: node scripts/g265-remaining-writer-containment-cross-tab-policy.mjs
+
       - name: Verify confirmation lifecycle UX
         run: node scripts/v042712-confirmation-lifecycle-ux-contract.mjs
 
