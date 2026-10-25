@@ -60,7 +60,20 @@ const cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
 // G479 .27 debug-history scope successor; immutable provider Raw and gap identity remain frozen.
 // G265 .33 exact successor: immutable provider Raw, governed identity and .32 lineage.
 // G265 .34 inherits frozen Candy/Raw/visible-confirmation predecessors from .33.
-if(appVersion==='v0.4.27.55.3.3.34'){
+if(appVersion==='v0.4.27.55.3.3.35'){
+  assert.equal(appBuild,'20261025-v0427553335-g265-two-writer-session');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.35-v0427553335-g265-two-writer-session');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.32'"));
+  assert.ok(versionSource.includes("// app_build: '20261024-v0427553332-g479-exact-resource-provenance'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.32-v0427553332-g479-exact-resource-provenance'"));
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.52'"));
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.33'"));
+  assert.ok(versionSource.includes("// app_build: '20261025-v0427553333-g265-concise-warroom-decisions'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.33-v0427553333-g265-concise-warroom-decisions'"));
+
+  // .35 is an exact successor; retain .34 and frozen predecessor evidence.
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.34'"));
+}else if(appVersion==='v0.4.27.55.3.3.34'){
   assert.equal(appBuild,'20261025-v0427553334-g265-shared-sqlite-runtime');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.34-v0427553334-g265-shared-sqlite-runtime');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.32'"));
