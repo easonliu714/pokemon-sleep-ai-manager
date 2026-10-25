@@ -368,6 +368,11 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-native-chromium-atomic-revision-two-tab.mjs
 
+      - name: G265 Native Chromium Version-Neutral Atomic Pair and Legacy Bypass
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-native-chromium-version-neutral-pair.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
