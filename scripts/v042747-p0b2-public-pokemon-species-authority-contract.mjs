@@ -262,6 +262,15 @@ gate('release and offline wiring retain v0.4.27.47 exact predecessor',()=>{
   }
 // G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
 // G265 .33 exact successor: preserve frozen P0-B2 public species and offline boundaries.
+else if(currentAppVersion==='v0.4.27.55.3.3.34'){
+  // G265 SQLite persistence successor retains the frozen P0-B2 species boundary.
+  assert.equal(currentAppBuild,'20261025-v0427553334-g265-shared-sqlite-runtime');
+  assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.34-v0427553334-g265-shared-sqlite-runtime');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.33'"));
+  assert.ok(versionSource.includes("// app_build: '20261025-v0427553333-g265-concise-warroom-decisions'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.33-v0427553333-g265-concise-warroom-decisions'"));
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.47'"));
+}
 else if(currentAppVersion==='v0.4.27.55.3.3.33'){
   assert.equal(currentAppBuild,'20261025-v0427553333-g265-concise-warroom-decisions');
   assert.equal(currentCacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.33-v0427553333-g265-concise-warroom-decisions');
