@@ -67,7 +67,9 @@ const atomicPair=(db,{expectedGeneration,expectedHash,expectedBytes,nextBytes,ne
     tx.oncomplete=()=>resolve();
     tx.onabort=()=>reject(Object.assign(new Error(failCode||'G265_ATOMIC_PAIR_ABORTED'),
       {code:failCode||'G265_ATOMIC_PAIR_ABORTED'}));
-    tx.onerror=()=>reject(tx.error||new Error('G265_ATOMIC_PAIR_TRANSACTION_FAILED'));
+    // fake-indexeddb can fire error before abort: preserve the first CAS/rollback cause.
+    tx.onerror=()=>reject(Object.assign(new Error(failCode||'G265_ATOMIC_PAIR_TRANSACTION_FAILED'),
+      {code:failCode||'G265_ATOMIC_PAIR_TRANSACTION_FAILED',cause:tx.error}));
   });
 
 await saveDatabaseBytes(first);
