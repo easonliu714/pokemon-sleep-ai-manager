@@ -48,6 +48,7 @@ const releases={
   'v0.4.27.55.3.3.31':{build:'20261024-v0427553331-g479-passive-esm-provenance',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.31-v0427553331-g479-passive-esm-provenance'},
   'v0.4.27.55.3.3.32':{build:'20261024-v0427553332-g479-exact-resource-provenance',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.32-v0427553332-g479-exact-resource-provenance'},
   // G265: exact .33 page-hydration successor, no fuzzy release acceptance.
+  'v0.4.27.55.3.3.35':{build:'20261025-v0427553335-g265-two-writer-session',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.35-v0427553335-g265-two-writer-session'},
   'v0.4.27.55.3.3.34':{build:'20261025-v0427553334-g265-shared-sqlite-runtime',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.34-v0427553334-g265-shared-sqlite-runtime'},
   'v0.4.27.55.3.3.33':{build:'20261025-v0427553333-g265-concise-warroom-decisions',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.33-v0427553333-g265-concise-warroom-decisions'},
 };

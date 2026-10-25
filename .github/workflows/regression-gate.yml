@@ -197,6 +197,9 @@ jobs:
       - name: G265 Opt-in Shared SQLite Write Session Source-Bound Contract
         run: node scripts/g265-sqlite-write-session-contract.mjs
 
+      - name: G265 Two Runtime Writers Real SQLite FIFO and Reload
+        run: node scripts/g265-two-writer-runtime-session-sqlite.mjs
+
       - name: Verify confirmation lifecycle UX
         run: node scripts/v042712-confirmation-lifecycle-ux-contract.mjs
 
