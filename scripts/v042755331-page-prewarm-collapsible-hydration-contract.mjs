@@ -20,7 +20,12 @@ const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 // G479-R2 exact .25 weekly pot CSS-only successor; preserve frozen historical checks.
 // G479 .27 debug-history scope successor; retain .26 page-prewarm ownership.
 // G265 .33 exact successor retains .32 and original prewarm/visibility ownership contracts.
-if(appVersion==='v0.4.27.55.3.3.33'){
+if(appVersion==='v0.4.27.55.3.3.34'){
+  assert.ok(authority.includes("app_build: '20261025-v0427553334-g265-shared-sqlite-runtime'"));
+  assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.34-v0427553334-g265-shared-sqlite-runtime'"));
+  assert.ok(authority.includes("// app_build: '20261025-v0427553333-g265-concise-warroom-decisions'"));
+  assert.ok(authority.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.33-v0427553333-g265-concise-warroom-decisions'"));
+}else if(appVersion==='v0.4.27.55.3.3.33'){
   assert.ok(authority.includes("app_build: '20261025-v0427553333-g265-concise-warroom-decisions'"));
   assert.ok(authority.includes("cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.33-v0427553333-g265-concise-warroom-decisions'"));
   assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.32'"));
