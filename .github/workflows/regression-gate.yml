@@ -357,6 +357,11 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-native-chromium-two-tab-web-locks.mjs
 
+      - name: G265 Native Chromium Two-Tab Atomic Durable Revision and ABA Gate
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-native-chromium-atomic-revision-two-tab.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
