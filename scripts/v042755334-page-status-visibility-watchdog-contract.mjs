@@ -19,8 +19,8 @@ const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 // G265 .34 runtime persistence successor: preserve .33 and original .4 watchdog.
 // G265 .35 exact successor; preserve original .4 watchdog and .34 byte-persist lineage.
 if(appVersion==='v0.4.27.55.3.3.35'){
-  assert.equal(authority.match(/app_build:\\s*'([^']+)'/)?.[1],'20261025-v0427553335-g265-two-writer-session');
-  assert.equal(authority.match(/cache_name:\\s*'([^']+)'/)?.[1],'pokemon-sleep-ai-v0.4.27.55.3.3.35-v0427553335-g265-two-writer-session');
+  assert.equal(authority.match(/app_build:\s*'([^']+)'/)?.[1],'20261025-v0427553335-g265-two-writer-session');
+  assert.equal(authority.match(/cache_name:\s*'([^']+)'/)?.[1],'pokemon-sleep-ai-v0.4.27.55.3.3.35-v0427553335-g265-two-writer-session');
   assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.34'"));
   assert.ok(authority.includes("// app_build: '20261025-v0427553334-g265-shared-sqlite-runtime'"));
   assert.ok(authority.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.34-v0427553334-g265-shared-sqlite-runtime'"));
