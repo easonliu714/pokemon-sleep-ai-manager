@@ -191,6 +191,9 @@ jobs:
       - name: G265 Database Runtime Shared SQLite Persist Regression
         run: node scripts/g265-database-runtime-shared-persist-regression.mjs
 
+      - name: G265 SQLite Mutation Boundary Source-Bound Negative Audit
+        run: node scripts/g265-sqlite-mutation-boundary-audit.mjs
+
       - name: Verify confirmation lifecycle UX
         run: node scripts/v042712-confirmation-lifecycle-ux-contract.mjs
 
