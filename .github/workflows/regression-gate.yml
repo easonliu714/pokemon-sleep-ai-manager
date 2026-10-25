@@ -216,6 +216,9 @@ jobs:
       - name: G265 Atomic Durable Revision ABA Fail-Closed Source Contract
         run: node scripts/g265-durable-revision-atomic-aba-contract.mjs
 
+      - name: G265 Version-Neutral Atomic Pair Legacy Boot Compatibility Feasibility
+        run: node scripts/g265-legacy-compatible-atomic-pair-feasibility.mjs
+
       - name: G265 Production IndexedDB Legacy Compatibility Negative Gate
         run: node scripts/g265-production-idb-compatibility-negative.mjs
 
