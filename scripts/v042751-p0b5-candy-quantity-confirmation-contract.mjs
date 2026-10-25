@@ -186,7 +186,20 @@ if(pagePrewarmSuccessor){
   }
 // G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
 // G265 .33 exact successor: Candy screenshot remains lazy and confirmation-only.
-else if(appVersion==='v0.4.27.55.3.3.35'){
+else if(appVersion==='v0.4.27.55.3.3.36'){
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.35'"),'.36 retains .35 predecessor');
+
+  // G265 .34 inherits lazy screenshot loading and explicit Candy confirmation.
+  assert.equal(appBuild,'20261025-v0427553336-g265-legacy-window-guard');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.36-v0427553336-g265-legacy-window-guard');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.33'"));
+  assert.ok(versionSource.includes("// app_build: '20261025-v0427553333-g265-concise-warroom-decisions'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.33-v0427553333-g265-concise-warroom-decisions'"));
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.26'"));
+
+  // .35 is an exact successor; retain .34 and frozen predecessor evidence.
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.34'"));
+}else if(appVersion==='v0.4.27.55.3.3.35'){
   // G265 .34 inherits lazy screenshot loading and explicit Candy confirmation.
   assert.equal(appBuild,'20261025-v0427553335-g265-two-writer-session');
   assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.35-v0427553335-g265-two-writer-session');
