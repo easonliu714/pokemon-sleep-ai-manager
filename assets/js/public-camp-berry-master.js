@@ -1,3 +1,5 @@
+import {canonicalPublicCampForProjection} from './public-camp-alias-authority.js';
+
 export const PUBLIC_CAMP_BERRY_VERSION='public-camp-berry-2026-08-17-b-canonical-grape';
 
 const source=(source_name,source_ref)=>Object.freeze({
@@ -29,7 +31,7 @@ export const PUBLIC_CAMP_BERRY_MASTER=Object.freeze([
 ]);
 
 export function campBerryAuthority(campName){
-  const key=String(campName??'').normalize('NFKC').trim();
+  const key=canonicalPublicCampForProjection(campName);
   return PUBLIC_CAMP_BERRY_MASTER.find(row=>row.camp_name===key)||null;
 }
 

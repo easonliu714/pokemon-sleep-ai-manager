@@ -133,7 +133,25 @@ const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
 // G479 .27 debug-history scope successor; Candy promotion remains source-controlled and unchanged.
 // G265 .33 exact successor: retain source-controlled Candy promotion and .32 lineage.
 // G265 .34 inherits frozen Candy/Raw/visible-confirmation predecessors from .33.
-if(appVersion==='v0.4.27.55.3.3.36'){
+
+// G9-R .37 read-side Halloween camp alias successor; frozen .36 exact checks retained.
+if(appVersion==='v0.4.27.55.3.3.37'){
+  // Exact .36 successor inherits ALL frozen .35 assertions below.
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.36'"),'missing .35 predecessor bridge');
+
+  assert.equal(appBuild,'20261026-v0427553337-g9-halloween-camp-alias');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.37-v0427553337-g9-halloween-camp-alias');
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.32'"));
+  assert.ok(version.includes("// app_build: '20261024-v0427553332-g479-exact-resource-provenance'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.32-v0427553332-g479-exact-resource-provenance'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.26'"));
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.33'"));
+  assert.ok(version.includes("// app_build: '20261025-v0427553333-g265-concise-warroom-decisions'"));
+  assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.33-v0427553333-g265-concise-warroom-decisions'"));
+
+  // .35 is an exact successor; retain .34 and frozen predecessor evidence.
+  assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.34'"));
+}else if(appVersion==='v0.4.27.55.3.3.36'){
   // Exact .36 successor inherits ALL frozen .35 assertions below.
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.35'"),'missing .35 predecessor bridge');
 
