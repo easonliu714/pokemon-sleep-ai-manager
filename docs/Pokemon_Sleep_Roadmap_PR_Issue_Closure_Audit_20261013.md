@@ -1,5 +1,8 @@
 # Pokémon Sleep AI Manager — Roadmap／PR／Issue 全量盤點與結案審核
 
+**G9-R release successor staged 2026-10-26:** explicit `v0.4.27.55.3.3.37` / build `20261026-v0427553337-g9-halloween-camp-alias` / cache `pokemon-sleep-ai-v0.4.27.55.3.3.37-v0427553337-g9-halloween-camp-alias` extends predecessor `.36` without relaxing original frozen Candy/Raw/UNKNOWN/SQLite 15/16 contracts. Owner `.36` 10:09 Halloween `萌綠之島(萬聖節)` scope **FAIL** evidenced. The PWA must rotate Service Worker cache before Android test. New candidate PR #566 remains DRAFT until exact-head all CI PASS; independent G265 PR #565 may update main first: reconcile rather than overwrite. No player SQLite or official public manifest data changed. Release != real Owner PASS; valid phone retest expects 10/26 ×2 FEATURE_ONLY, public favorite berry known WEEKLY_RANDOM_3 (not overriding imported trio); 10/31 ×3 requires separate real time UAT. 
+
+
 ## 2026-10-26 G9R Owner Android .36 FAIL — event camp alias read-side hotfix candidate
 
 **Evidence:** 2026-10-26 10:09 Asia/Taipei Android screenshot with App Ready v0.4.27.55.3.3.36; Weekly Context 2026/10/26, imported camp `萌綠之島(萬聖節)`, pot 63, berries `墨莓果／桃桃果／櫻子果`, Public Event Master loaded version `public-event-master-tw-2026-10-14-halloween2026-official-a` yet `目前無套用中的公版活動`; berry lookup also `尚無此營地的公版喜好樹果規則`. This is **Owner FAIL** for today's event display, not #19 closure. Reproduced root cause in actual source: strict `scope.includes(text(camp))` excludes decorated player camp name, while official `camp_scope` has only `萌綠之島`/`萌綠之島EX`. `public-camp-berry-master.js` exact lookup has same omission. NOT network/cache issue. Production player raw/import labels remain immutable.
