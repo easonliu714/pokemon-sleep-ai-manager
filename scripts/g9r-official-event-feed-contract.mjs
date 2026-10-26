@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import {discoverOfficialNoticeUrls,parseVerifiedGrowthNotice,discoverAndStage,verifyG9RDataOnlyRelease} from './g9r-official-event-source-refresh.mjs';
 import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
+import {canonicalPublicCampForProjection} from '../assets/js/public-camp-alias-authority.js';
+import {resolveCampFavoriteBerries} from '../assets/js/public-camp-berry-master.js';
 import {
   validatePublicEventManifest,
   validatePublicEventPayload,
@@ -267,5 +269,54 @@ console.log('PASS G9R_MANIFEST_PAYLOAD_SHA256');
 console.log('PASS G9R_0400_WEEK_BOUNDARIES');
 console.log('PASS G9R_FIRST_SLEEP_CANDY_FEATURE_ONLY');
 console.log('PASS G9R_ONE_TIME_PWA_CACHE_FIX_AND_FUTURE_DATA_ONLY_UPDATE');
+
+/* G9-R 10/26 Owner Android .36 regression: imported camp is
+ * 萌綠之島(萬聖節), while official source scope is 萌綠之島.
+ * Never change player rows or official data to repair a read-only alias. */
+assert.equal(canonicalPublicCampForProjection('萌綠之島(萬聖節)'),'萌綠之島');
+assert.equal(canonicalPublicCampForProjection('萌綠之島（萬聖節）'),'萌綠之島');
+assert.equal(canonicalPublicCampForProjection('萌綠之島EX（萬聖節）'),'萌綠之島EX');
+for(const [camp,expected] of [
+  ['萌綠之島(萬聖節)',2],
+  ['萌綠之島（萬聖節）',2],
+  ['萌綠之島EX(萬聖節)',2],
+  ['萌綠之島',2],
+  ['萌綠之島EX',2],
+  ['黃金舊發電廠',null],
+  ['萌綠之島(萬聖節Plus)',null],
+  ['萌綠之島(未知節日)',null],
+  ['萌綠之島EX(其他活動)',null],
+]){
+  const now=resolvePublicEventProjection(payload,{date:new Date('2026-10-26T10:09:00+08:00'),camp});
+  assert.equal(now.camp,camp.normalize('NFKC'),'raw player camp must remain readable');
+  const halloween=now.active_events.find(e=>e.event_id==='halloween_double_candy_2026_10');
+  assert.equal(Boolean(halloween),expected!==null,'camp allowlist only: '+camp);
+  if(expected!==null){
+    assert.equal(halloween.phase_id,'halloween_regular_days');
+    assert.equal(now.feature_only_event_effects.pokemon_candy_multiplier,expected);
+    assert.ok(!Object.hasOwn(now.strategy_event_effects,'pokemon_candy_multiplier'),'feature only, no player Candy write or training EXP');
+  }
+}
+for(const [now,phase,rate] of [
+  ['2026-10-26T03:59:59+08:00',null,null],
+  ['2026-10-26T04:00:00+08:00','halloween_regular_days',2],
+  ['2026-10-31T03:59:59+08:00','halloween_regular_days',2],
+  ['2026-10-31T04:00:00+08:00','halloween_final_two_days',3],
+  ['2026-11-02T03:59:59+08:00','halloween_final_two_days',3],
+  ['2026-11-02T04:00:00+08:00',null,null],
+]){
+  const projected=resolvePublicEventProjection(payload,{date:new Date(now),camp:'萌綠之島(萬聖節)'});
+  const active=projected.active_events.find(e=>e.event_id==='halloween_double_candy_2026_10')||null;
+  assert.equal(active?.phase_id||null,phase,'04:00 event phase boundary '+now);
+  assert.equal(projected.feature_only_event_effects.pokemon_candy_multiplier??null,rate,'read-only multiplier '+now);
+}
+const berries=resolveCampFavoriteBerries('萌綠之島(萬聖節)',['墨莓果','桃桃果','櫻子果']);
+assert.equal(berries.policy,'WEEKLY_RANDOM_3','read-side camp must resolve known public berry policy');
+assert.deepEqual([...berries.berries],['墨莓果','桃桃果','櫻子果'],'preserve user-imported berry trio');
+assert.equal(resolveCampFavoriteBerries('萌綠之島EX(萬聖節)',[]).policy,'EX_DYNAMIC');
+assert.equal(resolveCampFavoriteBerries('萌綠之島(未知節日)',[]).policy,'UNKNOWN','never strip arbitrary suffixes');
+assert.equal(readFileSync('assets/data/public-event-master.json','utf8'),raw,'immutable master content');
+console.log('PASS G9R_OWNER_HALLOWEEN_DECORATED_CAMP_EXACT_ALIAS_0400_PHASE_NO_PLAYER_WRITE');
+
 // Isolated state-machine test loads actual production refresh source with only DB API mocked.
 await import('./g9r-public-event-refresh-lastgood-contract.mjs');
