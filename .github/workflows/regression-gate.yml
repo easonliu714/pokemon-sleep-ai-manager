@@ -378,6 +378,11 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-native-chromium-optin-atomic-pair-source.mjs
 
+      - name: G265 Native Chromium Opt-in Fresh Durable Builder Gate
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-native-chromium-fresh-durable-builder.mjs
+
       - name: G265 Native Chromium Lock-Held Legacy Save Bypass Negative
         env:
           BASE_URL: http://127.0.0.1:4173/

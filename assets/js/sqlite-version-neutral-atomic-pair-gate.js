@@ -85,7 +85,7 @@ export function createSqliteVersionNeutralAtomicPairGate({
       tx.onabort=()=>rejectOnce(failure(code||'G265_PAIR_TRANSACTION_ABORTED',tx.error));
     }catch(error){rejectOnce(failure('G265_PAIR_TRANSACTION_FAILED',error));}
   });
-  const write=async({reason,expectedGeneration,expectedFingerprint,nextBytes}={})=>{
+  const write=async({reason,expectedGeneration,expectedFingerprint,nextBytes,buildNextBytes}={})=>{
     if(sticky)throw failure('G265_PAIR_UNVERIFIED_RELOAD_REQUIRED');
     if(active)throw failure('G265_PAIR_SESSION_ALREADY_ACTIVE');
     if(typeof reason!=='string'||!reason.trim()||!Number.isSafeInteger(expectedGeneration)
@@ -94,8 +94,15 @@ export function createSqliteVersionNeutralAtomicPairGate({
     if(typeof locks?.request!=='function'){
       sticky=true;throw failure('G265_PAIR_WEB_LOCKS_UNAVAILABLE');
     }
+    // Opt-in only: the builder must run synchronously INSIDE the acquired lock,
+    // after comparing the latest durable pair. Existing nextBytes callers remain unchanged.
+    const fromDurable=typeof buildNextBytes==='function';
+    if(fromDurable===(nextBytes!==undefined))
+      throw failure('G265_PAIR_INVALID_WRITE_REQUEST');
+    if(fromDurable&&buildNextBytes.constructor?.name==='AsyncFunction')
+      throw failure('G265_PAIR_ASYNC_BUILDER_FORBIDDEN');
     let next;
-    try{next=copyBytes(nextBytes);}catch(error){sticky=true;throw error;}
+    try{if(!fromDurable)next=copyBytes(nextBytes);}catch(error){sticky=true;throw error;}
     active=true;
     const controller=new AbortController();
     let acquired=false,settled=false,timer;
@@ -106,6 +113,15 @@ export function createSqliteVersionNeutralAtomicPairGate({
         const before=await readVerified();
         if(before.generation!==expectedGeneration||before.sha256!==expectedFingerprint)
           throw failure('G265_PAIR_STALE_RELOAD_REQUIRED');
+        if(fromDurable){
+          // Pass a defensive copy: a failed builder must not corrupt the verified CAS baseline.
+          const built=buildNextBytes(Object.freeze({
+            generation:before.generation,sha256:before.sha256,bytes:copyBytes(before.bytes)
+          }));
+          if(built!==null&&(typeof built==='object'||typeof built==='function')
+            &&typeof built.then==='function')throw failure('G265_PAIR_ASYNC_BUILDER_FORBIDDEN');
+          next=copyBytes(built);
+        }
         const nextHash=await fingerprint(next);
         if(!validHash(nextHash)||sticky)throw failure('G265_PAIR_INVALID_NEXT_DIGEST');
         await commitPair({before,next,nextHash});
