@@ -1,7 +1,7 @@
 // G265 source-only opt-in bridge: verified durable bytes -> synchronous SQL.js
 // transaction -> atomic revision pair. Never imported by the production app.
 // This is not a migration, player data writer, snapshot system, or cross-tab
-// guarantee while any legacy saveDatabaseBytes() caller can bypass admission.
+// guarantee while legacy raw-byte persistence callers can bypass admission.
 const failure=(code,cause)=>Object.assign(new Error(code),{code,cause});
 const thenable=value=>value!==null&&(typeof value==='object'||typeof value==='function')
   &&typeof value.then==='function';
