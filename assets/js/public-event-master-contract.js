@@ -1,3 +1,4 @@
+import {canonicalPublicCampForProjection} from './public-camp-alias-authority.js';
 import {
   WEEKLY_EVENT_EFFECT_REGISTRY_VERSION,
   projectWeeklyEventEffects,
@@ -144,7 +145,7 @@ export function validatePublicEventPayload(input,{expectedVersion=null}={}){
 }
 
 function campMatches(scope,camp){
-  const target=text(camp);
+  const target=canonicalPublicCampForProjection(camp);
   return scope.includes('*')||scope.includes('ALL')||Boolean(target&&scope.includes(target));
 }
 function activeAt(startAt,endAt,nowMs){

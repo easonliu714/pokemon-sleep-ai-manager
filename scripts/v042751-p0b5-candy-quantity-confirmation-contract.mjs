@@ -88,7 +88,7 @@ const p0b6Patch=Number(appVersion.match(/^v0\.4\.27\.(\d+)(?:\.\d+)*$/)?.[1]||-1
 const p0b6Hotfix=Number(appVersion.match(/^v0\.4\.27\.55\.(\d+)(?:\.\d+)*$/)?.[1]||0);
 const p0b6Successor=p0b6Patch>=55;
 const localGapDurabilitySuccessor=p0b6Patch>55||(p0b6Patch===55&&p0b6Hotfix>=2);
-const pagePrewarmSuccessor=['v0.4.27.55.3.3.1','v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13','v0.4.27.55.3.3.14','v0.4.27.55.3.3.15','v0.4.27.55.3.3.16','v0.4.27.55.3.3.17','v0.4.27.55.3.3.18','v0.4.27.55.3.3.19','v0.4.27.55.3.3.20','v0.4.27.55.3.3.21','v0.4.27.55.3.3.22','v0.4.27.55.3.3.23','v0.4.27.55.3.3.24','v0.4.27.55.3.3.25','v0.4.27.55.3.3.26','v0.4.27.55.3.3.27','v0.4.27.55.3.3.28','v0.4.27.55.3.3.29','v0.4.27.55.3.3.30','v0.4.27.55.3.3.31','v0.4.27.55.3.3.32','v0.4.27.55.3.3.33','v0.4.27.55.3.3.34','v0.4.27.55.3.3.35','v0.4.27.55.3.3.36'].includes(appVersion);
+const pagePrewarmSuccessor=['v0.4.27.55.3.3.1','v0.4.27.55.3.3.2','v0.4.27.55.3.3.3','v0.4.27.55.3.3.4','v0.4.27.55.3.3.5','v0.4.27.55.3.3.6','v0.4.27.55.3.3.7','v0.4.27.55.3.3.8','v0.4.27.55.3.3.9','v0.4.27.55.3.3.10','v0.4.27.55.3.3.11','v0.4.27.55.3.3.12','v0.4.27.55.3.3.13','v0.4.27.55.3.3.14','v0.4.27.55.3.3.15','v0.4.27.55.3.3.16','v0.4.27.55.3.3.17','v0.4.27.55.3.3.18','v0.4.27.55.3.3.19','v0.4.27.55.3.3.20','v0.4.27.55.3.3.21','v0.4.27.55.3.3.22','v0.4.27.55.3.3.23','v0.4.27.55.3.3.24','v0.4.27.55.3.3.25','v0.4.27.55.3.3.26','v0.4.27.55.3.3.27','v0.4.27.55.3.3.28','v0.4.27.55.3.3.29','v0.4.27.55.3.3.30','v0.4.27.55.3.3.31','v0.4.27.55.3.3.32','v0.4.27.55.3.3.33','v0.4.27.55.3.3.34','v0.4.27.55.3.3.35','v0.4.27.55.3.3.36','v0.4.27.55.3.3.37'].includes(appVersion);
 assert.match(uiSource,/我已核對遊戲畫面，確認數量/);
 assert.match(uiSource,/Gemini Raw JSON（唯讀、immutable）/);
 if(localGapDurabilitySuccessor){
@@ -186,7 +186,22 @@ if(pagePrewarmSuccessor){
   }
 // G479-R2 .25 is an exact CSS-only .24 successor; do not weaken frozen assertions.
 // G265 .33 exact successor: Candy screenshot remains lazy and confirmation-only.
-else if(appVersion==='v0.4.27.55.3.3.36'){
+
+// G9-R .37 read-side Halloween camp alias successor; frozen .36 exact checks retained.
+else if(appVersion==='v0.4.27.55.3.3.37'){
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.36'"),'.36 retains .35 predecessor');
+
+  // G265 .34 inherits lazy screenshot loading and explicit Candy confirmation.
+  assert.equal(appBuild,'20261026-v0427553337-g9-halloween-camp-alias');
+  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.37-v0427553337-g9-halloween-camp-alias');
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.33'"));
+  assert.ok(versionSource.includes("// app_build: '20261025-v0427553333-g265-concise-warroom-decisions'"));
+  assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.33-v0427553333-g265-concise-warroom-decisions'"));
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.26'"));
+
+  // .35 is an exact successor; retain .34 and frozen predecessor evidence.
+  assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.34'"));
+}else if(appVersion==='v0.4.27.55.3.3.36'){
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.35'"),'.36 retains .35 predecessor');
 
   // G265 .34 inherits lazy screenshot loading and explicit Candy confirmation.
