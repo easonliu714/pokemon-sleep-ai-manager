@@ -402,6 +402,11 @@ jobs:
       - name: G265 Third Legacy Operation Weekly Manual Override Clear Isolated Opt-in Gate
         run: node scripts/g265-weekly-manual-override-clear-third-legacy-operation-optin.mjs
 
+      - name: G265 Native Chromium Weekly Clear No-op Timeout and Tab-Close Gate
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-native-chromium-weekly-clear-noop-timeout.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
