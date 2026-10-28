@@ -399,6 +399,9 @@ jobs:
       - name: G265 Second Legacy Writer Weekly Manual Override Isolated Opt-in Gate
         run: node scripts/g265-weekly-manual-override-second-legacy-writer-optin.mjs
 
+      - name: G265 Third Legacy Operation Weekly Manual Override Clear Isolated Opt-in Gate
+        run: node scripts/g265-weekly-manual-override-clear-third-legacy-operation-optin.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
