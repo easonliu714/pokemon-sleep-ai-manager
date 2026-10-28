@@ -21,7 +21,7 @@ const browserJs=fs.readFileSync('node_modules/sql.js/dist/sql-wasm.js');
 const browserWasm=fs.readFileSync('node_modules/sql.js/dist/sql-wasm.wasm');
 const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
 const context=await browser.newContext({serviceWorkers:'block'});
-let a,b;
+let a,b,c;
 try{
   await context.route('**/g265-weekly-clear-native-blank',route=>route.fulfill({
     status:200,contentType:'text/html',body:'<!doctype html><title>G265 disposable weekly clear probe</title>'
@@ -183,8 +183,113 @@ try{
   assert.equal(last.sha256,seedHash);
   assert.equal(hash(last.bytes),seedHash);
   console.log('PASS G265_NATIVE_HELD_LOCK_LATE_READ_TIMEOUT_ZERO_LATE_SQLJS');
+
+  // G265 crash-after-IDB-commit, before ACK: a closed writer tab cannot claim
+  // success. A fresh tab must read the new durable pair and reject blind retry.
+  const changedDb=new SQL.Database(Uint8Array.from(seed));
+  changedDb.run("INSERT OR REPLACE INTO settings VALUES('crash-recovery-fixture','committed','2026-10-29T00:00:00Z')");
+  const changed=Array.from(changedDb.export());changedDb.close();
+  const changedHash=hash(changed);
+  c=await context.newPage();
+  await c.goto(new URL('g265-weekly-clear-native-blank',base).href);
+  await c.evaluate(async()=>{
+    const {createSqliteVersionNeutralAtomicPairGate}=await import(
+      '/assets/js/sqlite-version-neutral-atomic-pair-gate.js');
+    const db=await new Promise((resolve,reject)=>{
+      const request=indexedDB.open('pokemon_sleep_ai_manager');
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>reject(request.error);
+    });
+    let digestCalls=0;
+    const fingerprint=async bytes=>{
+      const digest=await crypto.subtle.digest('SHA-256',bytes);
+      const value=Array.from(new Uint8Array(digest),n=>n.toString(16).padStart(2,'0')).join('');
+      digestCalls++;
+      // First digest verifies baseline; second hashes next bytes; third is
+      // post-commit readback. Simulate lost ACK by never resolving that read.
+      if(digestCalls===3){
+        window.__g265Crash.postCommitReadEntered=true;
+        await new Promise(()=>{});
+      }
+      return value;
+    };
+    window.__g265Crash={db,postCommitReadEntered:false,ack:false};
+    window.__g265Crash.gate=createSqliteVersionNeutralAtomicPairGate({
+      db,locks:navigator.locks,fingerprint,timeoutMs:15000
+    });
+  });
+  await c.evaluate(input=>{
+    const v=window.__g265Crash;
+    v.pending=v.gate.write({
+      reason:'g265:disposable:postcommit-ack-loss',
+      expectedGeneration:input.generation,expectedFingerprint:input.sha256,
+      nextBytes:Uint8Array.from(input.bytes)
+    }).then(()=>{v.ack=true;},error=>{v.failure=error.code;});
+  },{generation:0,sha256:seedHash,bytes:changed});
+  await c.waitForFunction(()=>window.__g265Crash.postCommitReadEntered===true,
+    null,{timeout:10000});
+  const committed=await b.evaluate(async()=>{
+    const pair=await window.__g265.pair.readVerified();
+    return {generation:pair.generation,sha256:pair.sha256,bytes:Array.from(pair.bytes)};
+  });
+  assert.equal(committed.generation,1);
+  assert.equal(committed.sha256,changedHash);
+  assert.equal(hash(committed.bytes),changedHash);
+  assert.equal(await c.evaluate(()=>window.__g265Crash.ack),false,
+    'post-commit pending readback must not issue success ACK');
+  await c.close();c=null;
+
+  // A new browser document opens the existing IDB without migration. It must
+  // distinguish the committed generation from the caller's stale expectation.
+  await b.reload();
+  await b.evaluate(async()=>{
+    const {createSqliteVersionNeutralAtomicPairGate}=await import(
+      '/assets/js/sqlite-version-neutral-atomic-pair-gate.js');
+    const db=await new Promise((resolve,reject)=>{
+      const request=indexedDB.open('pokemon_sleep_ai_manager');
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>reject(request.error);
+    });
+    window.__g265Recovery={db,gate:createSqliteVersionNeutralAtomicPairGate({
+      db,locks:navigator.locks
+    })};
+  });
+  const recovered=await b.evaluate(async()=>{
+    const pair=await window.__g265Recovery.gate.readVerified();
+    return {generation:pair.generation,sha256:pair.sha256,bytes:Array.from(pair.bytes)};
+  });
+  assert.equal(recovered.generation,1);
+  assert.equal(recovered.sha256,changedHash);
+  assert.equal(hash(recovered.bytes),changedHash);
+  const retry=await b.evaluate(async input=>{
+    const v=window.__g265Recovery;
+    try{
+      await v.gate.write({
+        reason:'g265:disposable:forbidden-blind-retry',
+        expectedGeneration:0,expectedFingerprint:input.oldHash,
+        nextBytes:Uint8Array.from(input.bytes)
+      });
+      return {code:'UNEXPECTED_ACK',status:v.gate.status().status};
+    }catch(error){return {code:error.code,status:v.gate.status().status};}
+  },{oldHash:seedHash,bytes:changed});
+  assert.deepEqual(retry,{
+    code:'G265_PAIR_STALE_RELOAD_REQUIRED',status:'UNVERIFIED_RELOAD_REQUIRED'
+  });
+  const unchanged=await b.evaluate(async()=>{
+    const db=window.__g265Recovery.db;
+    const {createSqliteVersionNeutralAtomicPairGate}=await import(
+      '/assets/js/sqlite-version-neutral-atomic-pair-gate.js');
+    const fresh=createSqliteVersionNeutralAtomicPairGate({db,locks:navigator.locks});
+    const pair=await fresh.readVerified();
+    return {generation:pair.generation,sha256:pair.sha256};
+  });
+  assert.deepEqual(unchanged,{generation:1,sha256:changedHash});
+  console.log('PASS G265_NATIVE_POSTCOMMIT_ACK_LOSS_TAB_CLOSE_RELOAD_GENERATION_READBACK');
+  console.log('PASS G265_NATIVE_AMBIGUOUS_ACK_BLIND_RETRY_STALE_FAIL_CLOSED');
+
   console.log('HOLD G265_NATIVE_PROBE_ONLY_PRODUCTION_23_LEGACY_WRITERS_CRASH_RECOVERY_ANDROID_UAT');
 }finally{
+  if(c&&!c.isClosed())try{await c.close();}catch{}
   if(b&&!b.isClosed())try{await b.evaluate(()=>{
     window.__g265?.db?.close();window.__g265?.storage?.closeStorageConnection?.();
   });}catch{}
