@@ -14,7 +14,8 @@ export function createRecipeFeedbackPauseOptIn({pairGate,openSqlite}={}){
     if(!id)throw fail('G265_RECIPE_PAUSE_RECIPE_ID_REQUIRED');
     if(typeof paused!=='boolean')throw fail('G265_RECIPE_PAUSE_BOOLEAN_REQUIRED');
     if(typeof updatedAt!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(updatedAt)
-      ||Number.isNaN(Date.parse(updatedAt)))throw fail('G265_RECIPE_PAUSE_TIMESTAMP_REQUIRED');
+      ||Number.isNaN(Date.parse(updatedAt))||new Date(updatedAt).toISOString()!==updatedAt)
+      throw fail('G265_RECIPE_PAUSE_TIMESTAMP_REQUIRED');
     return transaction.execute({
       reason:'g265:optin:recipe-feedback-pause:'+id,
       expectedGeneration,expectedFingerprint,
