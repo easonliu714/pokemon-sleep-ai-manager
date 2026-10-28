@@ -5,7 +5,7 @@ import {indexedDB} from 'fake-indexeddb';
 import initSqlJs from 'sql.js';
 import {sha256SqliteBytes} from '../assets/js/sqlite-cross-tab-write-admission.js';
 import {createSqliteVersionNeutralAtomicPairGate} from '../assets/js/sqlite-version-neutral-atomic-pair-gate.js';
-import {createWeeklyManualOverrideClearOptIn} from '../assets/js/sqlite-weekly-manual-override-clear-optin.js';
+import {createWeeklyManualOverrideClearOptIn,createWeeklyManualOverrideClearNoopProbe} from '../assets/js/sqlite-weekly-manual-override-clear-optin.js';
 
 // Third exact legacy operation: source-bound, isolated, never production-wired.
 const legacy=fs.readFileSync(new URL('../assets/js/weekly-context-manual-override.js',import.meta.url),'utf8');
@@ -95,4 +95,50 @@ assert.equal(rejected.status().status,'UNVERIFIED_RELOAD_REQUIRED');
 assert.equal(await hash((await read()).bytes),winner.value.sha256);
 console.log('PASS G265_WEEKLY_CLEAR_MISSING_ROW_NO_ACK_NO_LOCKS_SQL_ROLLBACK_STICKY_HOLD');
 console.log('HOLD G265_WEEKLY_CLEAR_PRODUCTION_23_LEGACY_WRITERS_NATIVE_CHROMIUM_ANDROID_OWNER_UAT');
+
+const probeMake=(lockSource=locks,timeoutMs=30000)=>createWeeklyManualOverrideClearNoopProbe({
+  pairGate:createSqliteVersionNeutralAtomicPairGate({db,locks:lockSource,fingerprint:hash}),
+  openSqlite:bytes=>{opened++;return new SQL.Database(bytes);},
+  locks:lockSource,timeoutMs
+});
+const noop=probeMake();
+const beforeProbe=await read();
+const missingProbe=await noop.inspect({weekStart:'2026-10-26',expectedGeneration:1,
+  expectedFingerprint:winner.value.sha256});
+assert.equal(missingProbe.status,'ABSENT_NOOP');
+assert.equal(missingProbe.legacyResult,false,'legacy missing key returns false');
+assert.equal(missingProbe.generation,1);
+assert.equal(missingProbe.sha256,winner.value.sha256);
+assert.equal(await hash((await read()).bytes),await hash(beforeProbe.bytes),
+  'absent probe must not persist or alter durable bytes');
+const presentProbe=await noop.inspect({weekStart:'2026-11-02',expectedGeneration:1,
+  expectedFingerprint:winner.value.sha256});
+assert.equal(presentProbe.status,'PRESENT_REQUIRES_CAS_WRITE');
+assert.equal(presentProbe.legacyResult,null,'present key is not a DELETE ACK');
+assert.equal(await hash((await read()).bytes),winner.value.sha256);
+console.log('PASS G265_WEEKLY_CLEAR_MISSING_FALSE_NOOP_PRESENT_REQUIRES_CAS_NO_DURABLE_WRITE');
+
+const staleProbe=probeMake(),beforeStaleProbe=opened;
+await assert.rejects(staleProbe.inspect({weekStart:'2026-10-26',expectedGeneration:0,
+  expectedFingerprint:seedHash}),e=>e.code==='G265_WEEKLY_CLEAR_PROBE_STALE_RELOAD_REQUIRED');
+assert.equal(opened,beforeStaleProbe,'stale probe must reject before SQL.js');
+assert.equal(staleProbe.status().status,'UNVERIFIED_RELOAD_REQUIRED');
+const missingLocksProbe=probeMake(null);
+await assert.rejects(missingLocksProbe.inspect({weekStart:'2026-10-26',
+  expectedGeneration:1,expectedFingerprint:winner.value.sha256}),
+  e=>e.code==='G265_WEEKLY_CLEAR_PROBE_WEB_LOCKS_UNAVAILABLE');
+assert.equal(missingLocksProbe.status().status,'UNVERIFIED_RELOAD_REQUIRED');
+const waitForever={request(){return new Promise(()=>{});}};
+const timeoutProbe=probeMake(waitForever,20);
+await assert.rejects(timeoutProbe.inspect({weekStart:'2026-10-26',
+  expectedGeneration:1,expectedFingerprint:winner.value.sha256}),
+  e=>e.code==='G265_WEEKLY_CLEAR_PROBE_LOCK_WAIT_TIMEOUT');
+assert.equal(timeoutProbe.status().status,'UNVERIFIED_RELOAD_REQUIRED');
+await assert.rejects(timeoutProbe.inspect({weekStart:'2026-10-26',
+  expectedGeneration:1,expectedFingerprint:winner.value.sha256}),
+  e=>e.code==='G265_WEEKLY_CLEAR_PROBE_UNVERIFIED_RELOAD_REQUIRED');
+assert.equal(await hash((await read()).bytes),winner.value.sha256);
+console.log('PASS G265_WEEKLY_CLEAR_PROBE_STALE_PRE_SQL_NO_LOCKS_TIMEOUT_STICKY_HOLD');
+console.log('HOLD G265_WEEKLY_CLEAR_PROBE_SYNTHETIC_ONLY_LEGACY_BYPASS_PRODUCTION_ANDROID');
+
 db.close();closeStorageConnection();
