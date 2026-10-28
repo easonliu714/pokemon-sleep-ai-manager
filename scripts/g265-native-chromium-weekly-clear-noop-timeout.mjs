@@ -287,6 +287,115 @@ try{
   console.log('PASS G265_NATIVE_POSTCOMMIT_ACK_LOSS_TAB_CLOSE_RELOAD_GENERATION_READBACK');
   console.log('PASS G265_NATIVE_AMBIGUOUS_ACK_BLIND_RETRY_STALE_FAIL_CLOSED');
 
+
+  // G265 native PRE-COMMIT abort: all three IDB writes are staged, but the
+  // actual browser readwrite transaction is aborted before oncomplete.
+  // A rejected ACK must leave generation/bytes/metadata unchanged after reload.
+  const abortedDb=new SQL.Database(Uint8Array.from(changed));
+  abortedDb.run("INSERT OR REPLACE INTO settings VALUES('precommit-abort-fixture','must-not-persist','2026-10-29T00:00:00Z')");
+  const abortedBytes=Array.from(abortedDb.export());abortedDb.close();
+  assert.notEqual(hash(abortedBytes),changedHash);
+  c=await context.newPage();
+  await c.goto(new URL('g265-weekly-clear-native-blank',base).href);
+  await c.evaluate(async()=>{
+    const {createSqliteVersionNeutralAtomicPairGate}=await import(
+      '/assets/js/sqlite-version-neutral-atomic-pair-gate.js');
+    const db=await new Promise((resolve,reject)=>{
+      const request=indexedDB.open('pokemon_sleep_ai_manager');
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>reject(request.error);
+    });
+    window.__g265Abort={db,stagedAbortCount:0,ack:false};
+    // Forward the real IDB transaction; intercept only the final staged put.
+    // Abort the native transaction after all puts, before durable commit.
+    const injected={
+      objectStoreNames:db.objectStoreNames,
+      transaction(names,mode){
+        const tx=db.transaction(names,mode);
+        if(mode!=='readwrite')return tx;
+        return {
+          objectStore(name){
+            const store=tx.objectStore(name);
+            return {
+              get:key=>store.get(key),
+              put:(value,key)=>{
+                const request=store.put(value,key);
+                if(name==='metadata'&&key==='primary'){
+                  window.__g265Abort.stagedAbortCount++;
+                  tx.abort();
+                }
+                return request;
+              }
+            };
+          },
+          abort:()=>tx.abort(),
+          get error(){return tx.error;},
+          set oncomplete(fn){tx.oncomplete=fn;},
+          set onerror(fn){tx.onerror=fn;},
+          set onabort(fn){tx.onabort=fn;}
+        };
+      }
+    };
+    window.__g265Abort.gate=createSqliteVersionNeutralAtomicPairGate({
+      db:injected,locks:navigator.locks,timeoutMs:10000
+    });
+  });
+  const precommit=await c.evaluate(async input=>{
+    const v=window.__g265Abort;
+    try{
+      await v.gate.write({
+        reason:'g265:disposable:staged-precommit-native-abort',
+        expectedGeneration:1,expectedFingerprint:input.sha256,
+        nextBytes:Uint8Array.from(input.bytes)
+      });
+      v.ack=true;
+      return {code:'UNEXPECTED_ACK',ack:v.ack,abortCount:v.stagedAbortCount};
+    }catch(error){
+      return {code:error.code,ack:v.ack,abortCount:v.stagedAbortCount,
+        status:v.gate.status().status};
+    }
+  },{sha256:changedHash,bytes:abortedBytes});
+  assert.deepEqual(precommit,{
+    code:'G265_PAIR_TRANSACTION_ABORTED',ack:false,abortCount:1,
+    status:'UNVERIFIED_RELOAD_REQUIRED'
+  });
+  const stickyAbort=await c.evaluate(async input=>{
+    try{
+      await window.__g265Abort.gate.write({
+        reason:'g265:disposable:forbidden-abort-retry',
+        expectedGeneration:1,expectedFingerprint:input.sha256,
+        nextBytes:Uint8Array.from(input.bytes)
+      });
+      return 'UNEXPECTED_ACK';
+    }catch(error){return error.code;}
+  },{sha256:changedHash,bytes:abortedBytes});
+  assert.equal(stickyAbort,'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED');
+  await c.close();c=null;
+  await b.reload();
+  const afterAbort=await b.evaluate(async()=>{
+    const {createSqliteVersionNeutralAtomicPairGate}=await import(
+      '/assets/js/sqlite-version-neutral-atomic-pair-gate.js');
+    const db=await new Promise((resolve,reject)=>{
+      const request=indexedDB.open('pokemon_sleep_ai_manager');
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>reject(request.error);
+    });
+    const gate=createSqliteVersionNeutralAtomicPairGate({db,locks:navigator.locks});
+    const verified=await gate.readVerified();
+    db.close();
+    return {generation:verified.generation,sha256:verified.sha256,
+      bytes:Array.from(verified.bytes)};
+  });
+  assert.equal(afterAbort.generation,1);
+  assert.equal(afterAbort.sha256,changedHash);
+  assert.deepEqual(afterAbort.bytes,changed,
+    'native staged transaction abort must preserve the complete durable SQLite image');
+  const verifiedDb=new SQL.Database(Uint8Array.from(afterAbort.bytes));
+  assert.equal(verifiedDb.exec("SELECT key FROM settings WHERE key='precommit-abort-fixture'").length,0);
+  verifiedDb.close();
+  console.log('PASS G265_NATIVE_PRECOMMIT_STAGED_IDB_ABORT_ZERO_ACK_ZERO_DURABLE_CHANGE');
+  console.log('PASS G265_NATIVE_PRECOMMIT_ABORT_STICKY_HOLD_RELOAD_READBACK_NO_BLIND_RETRY');
+
   console.log('HOLD G265_NATIVE_PROBE_ONLY_PRODUCTION_23_LEGACY_WRITERS_CRASH_RECOVERY_ANDROID_UAT');
 }finally{
   if(c&&!c.isClosed())try{await c.close();}catch{}
