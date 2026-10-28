@@ -61,6 +61,9 @@ export function createWeeklyManualOverrideClearNoopProbe({
         acquired=true;
         // Verify the durable bytes and revision *inside* the exclusive lock.
         const current=await pairGate.readVerified();
+        // Timeout may fire while durable read is pending: never open SQLite after abort.
+        if(sticky||controller.signal.aborted)
+          throw fail('G265_WEEKLY_CLEAR_PROBE_TIMEOUT_ABORTED_BEFORE_SQL');
         if(current.generation!==expectedGeneration||current.sha256!==expectedFingerprint)
           throw fail('G265_WEEKLY_CLEAR_PROBE_STALE_RELOAD_REQUIRED');
         const connection=openSqlite(new Uint8Array(current.bytes));

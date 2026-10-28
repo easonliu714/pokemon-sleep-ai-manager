@@ -141,4 +141,33 @@ assert.equal(await hash((await read()).bytes),winner.value.sha256);
 console.log('PASS G265_WEEKLY_CLEAR_PROBE_STALE_PRE_SQL_NO_LOCKS_TIMEOUT_STICKY_HOLD');
 console.log('HOLD G265_WEEKLY_CLEAR_PROBE_SYNTHETIC_ONLY_LEGACY_BYPASS_PRODUCTION_ANDROID');
 
+// A held lock can time out while readVerified() is pending. A late durable
+// read must not resume SQLite work after the caller has received sticky HOLD.
+let releaseLateRead,notifyReadStarted;
+const readStarted=new Promise(resolve=>{notifyReadStarted=resolve;});
+const lateReadGate={readVerified:()=>{
+  notifyReadStarted();
+  return new Promise(resolve=>{releaseLateRead=resolve;});
+}};
+let lateOpened=0;
+const lateProbe=createWeeklyManualOverrideClearNoopProbe({
+  pairGate:lateReadGate,
+  openSqlite:bytes=>{lateOpened++;return new SQL.Database(bytes);},
+  locks,timeoutMs:20
+});
+const lateInput={weekStart:'2026-10-26',expectedGeneration:1,
+  expectedFingerprint:winner.value.sha256};
+const lateInspection=lateProbe.inspect(lateInput);
+await readStarted;
+await assert.rejects(lateInspection,
+  e=>e.code==='G265_WEEKLY_CLEAR_PROBE_HELD_LOCK_TIMEOUT');
+assert.equal(lateProbe.status().status,'UNVERIFIED_RELOAD_REQUIRED');
+releaseLateRead({generation:1,sha256:winner.value.sha256,bytes:after.bytes});
+await new Promise(resolve=>setImmediate(resolve));
+assert.equal(lateOpened,0,'timed-out probe must never open SQL.js on late read');
+await assert.rejects(lateProbe.inspect(lateInput),
+  e=>e.code==='G265_WEEKLY_CLEAR_PROBE_UNVERIFIED_RELOAD_REQUIRED');
+assert.equal(await hash((await read()).bytes),winner.value.sha256);
+console.log('PASS G265_WEEKLY_CLEAR_LATE_READ_AFTER_HELD_LOCK_TIMEOUT_NO_SQLJS');
+
 db.close();closeStorageConnection();
