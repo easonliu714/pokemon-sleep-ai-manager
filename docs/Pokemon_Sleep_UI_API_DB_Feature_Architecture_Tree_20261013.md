@@ -1,3 +1,7 @@
+## 2026-10-29 G265 second exact legacy writer: Weekly Manual Override isolated opt-in — CANDIDATE / PRODUCTION HOLD
+- **Candidate scope (not yet CI verified):** source-only `assets/js/sqlite-weekly-manual-override-optin.js` and source-bound `scripts/g265-weekly-manual-override-second-legacy-writer-optin.mjs`. Mirror exact legacy `saveWeeklyManualOverride()` single `settings` row; reject invalid UTC/week dates and non-JSON inputs before SQL; verified fresh durable SQL.js BEGIN/COMMIT/ROLLBACK, atomic generation CAS, unrelated-row preservation, two independent stale contenders, absent Web Locks and SQL failure sticky HOLD are required in new exact-head PR CI.
+- **No production admission:** original 23 legacy direct writers unchanged; this adapter is not imported by the app. No full cross-tab containment, recovery, Android UAT, Named Draft Apply or Issue #265 Owner DoD. No private player data, schema/Migration 15/16, Public Master, Raw, Candy 24/20, Halloween .37, SW/version or STOP changes. Windows local Git NOT_VERIFIED. Only label VERIFIED after exact-head PR CI, protected expected-head Merge Commit and same-new-main CI/Pages evidence.
+
 # Pokémon Sleep AI Manager — UI／功能 API／SQLite／Public Master 架構樹與驗證矩陣
 
 ## 2026-10-29 G265 G6.2 recipe pause opt-in strict UTC calendar + competing writer regression — VERIFIED SOURCE / PRODUCTION HOLD
