@@ -56,6 +56,16 @@ const make=({locksOverride=locks}={})=>{
   return {writer};
 };
 const {writer}=make();
+// Date.parse normalizes impossible calendar days (e.g. Feb 30) into March.
+// Reject before opening SQLite or acquiring a player-facing write path.
+for(const invalidAt of ['2026-02-29T12:34:56.000Z','2026-02-30T12:34:56.000Z',
+  '2026-04-31T12:34:56.000Z','2026-01-01T24:00:00.000Z']){
+  await assert.rejects(writer.execute({recipeId:'recipe-A',paused:true,updatedAt:invalidAt,
+    expectedGeneration:0,expectedFingerprint:seedHash}),
+    error=>error.code==='G265_RECIPE_PAUSE_TIMESTAMP_REQUIRED');
+}
+assert.equal(opened,0,'invalid calendar timestamps must not open SQL.js');
+console.log('PASS G265_RECIPE_PAUSE_CALENDAR_ROLLOVER_REJECTED_BEFORE_SQL');
 const updatedAt='2026-10-28T12:34:56.000Z';
 await assert.rejects(writer.execute({recipeId:'recipe-A',paused:1,updatedAt,
   expectedGeneration:0,expectedFingerprint:seedHash}),
@@ -95,5 +105,30 @@ await assert.rejects(withoutLocks.execute({recipeId:'recipe-A',paused:false,upda
 assert.equal(withoutLocks.status().status,'UNVERIFIED_RELOAD_REQUIRED');
 assert.equal(await hash(new Uint8Array(await loadDatabaseBytes())),result.sha256);
 console.log('PASS G265_RECIPE_PAUSE_UNKNOWN_RECIPE_ROLLBACK_NO_ACK_NO_LOCKS_FAIL_CLOSED');
+// Two independent opt-in tabs both begin with the same durable generation.
+// Only the first may mutate; the stale contender must not open SQL.js.
+const {writer:competingA}=make(),{writer:competingB}=make();
+const beforeCompeteOpen=opened;
+const firstTime='2026-10-28T13:00:00.000Z';
+const secondTime='2026-10-28T13:01:00.000Z';
+const [first,second]=await Promise.allSettled([
+  competingA.execute({recipeId:'recipe-A',paused:false,updatedAt:firstTime,
+    expectedGeneration:1,expectedFingerprint:result.sha256}),
+  competingB.execute({recipeId:'recipe-A',paused:true,updatedAt:secondTime,
+    expectedGeneration:1,expectedFingerprint:result.sha256}),
+]);
+assert.equal(first.status,'fulfilled');
+assert.equal(first.value.generation,2);
+assert.equal(second.status,'rejected');
+assert.equal(second.reason.code,'G265_PAIR_STALE_RELOAD_REQUIRED');
+assert.equal(opened,beforeCompeteOpen+1,'stale competing tab must not open SQL.js');
+assert.equal(competingB.status().status,'UNVERIFIED_RELOAD_REQUIRED');
+const afterRace=new Uint8Array(await loadDatabaseBytes());
+const raceDb=new SQL.Database(afterRace);
+assert.deepEqual(raceDb.exec("SELECT recommendation_paused,reference_maybe_wrong,last_attempt_id,updated_at FROM recipe_feedback_state WHERE recipe_id='recipe-A'")[0].values[0],
+  [0,1,'attempt-preserved',firstTime]);
+raceDb.close();
+assert.equal(first.value.sha256,await hash(afterRace));
+console.log('PASS G265_RECIPE_PAUSE_TWO_OPTIN_WRITERS_ONE_WINNER_STALE_NEVER_OPENS_SQLJS');
 console.log('HOLD G265_RECIPE_PAUSE_PRODUCTION_ADMISSION_ALL_23_LEGACY_WRITERS_ANDROID_OWNER_UAT');
 db.close();closeStorageConnection();
