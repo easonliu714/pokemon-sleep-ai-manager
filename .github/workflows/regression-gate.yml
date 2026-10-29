@@ -402,7 +402,10 @@ jobs:
       - name: G265 Third Legacy Operation Weekly Manual Override Clear Isolated Opt-in Gate
         run: node scripts/g265-weekly-manual-override-clear-third-legacy-operation-optin.mjs
 
-      - name: G265 Fourth Legacy Recipe Attempt Failure Cross-Tab Lost-Update Negative\n        run: node scripts/g265-record-attempt-fourth-legacy-cross-tab-negative.mjs\n\n      - name: G265 Native Chromium Weekly Clear No-op Timeout and Tab-Close Gate
+      - name: G265 Fourth Legacy Recipe Attempt Failure Cross-Tab Lost-Update Negative
+        run: node scripts/g265-record-attempt-fourth-legacy-cross-tab-negative.mjs
+
+      - name: G265 Native Chromium Weekly Clear No-op Timeout and Tab-Close Gate
         env:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-native-chromium-weekly-clear-noop-timeout.mjs
