@@ -405,6 +405,9 @@ jobs:
       - name: G265 Fourth Legacy Recipe Attempt Failure Cross-Tab Lost-Update Negative
         run: node scripts/g265-record-attempt-fourth-legacy-cross-tab-negative.mjs
 
+      - name: G265 Fourth Legacy Recipe Attempt Isolated Opt-in Durable CAS Gate
+        run: node scripts/g265-record-attempt-fourth-legacy-writer-optin.mjs
+
       - name: G265 Native Chromium Weekly Clear No-op Timeout and Tab-Close Gate
         env:
           BASE_URL: http://127.0.0.1:4173/
