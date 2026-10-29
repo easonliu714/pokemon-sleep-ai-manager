@@ -1,3 +1,10 @@
+## G265 eleventh weekly context isolated opt-in CAS — SOURCE CANDIDATE / PR CI PENDING / OWNER HOLD
+
+- Prior source-bound negative [PR #635](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/635) proves two acknowledged stale exports can lose one confirmed weekly context. This PR adds `createWeeklyContextOptIn` and a synthetic SQL.js/IDB regression only; original `weeklyForm()` remains unchanged and directly persists.
+- Candidate source/test: `assets/js/sqlite-weekly-context-optin.js`, `scripts/g265-weekly-context-eleventh-legacy-writer-optin.mjs`, existing `.github/workflows/regression-gate.yml`. Assertions cover invalid/duplicate berries before SQL, latest durable reload, atomic CAS, ACK readback, two-tab stale rejection, independent row preservation, explicit prior-row revision, rollback and no-Web-Locks fail-closed. **Do not count this as VERIFIED until exact-head PR CI and same-new-main Pages evidence.**
+- Governance: #265 closed GitHub state does not satisfy Owner DoD. All 23 legacy direct writers still unadmitted; independent snapshot/restore, crash recovery, Named Draft Apply, cross-tab production safety and Android UAT HOLD. No production player storage or other protected domain changes; Windows local Git NOT_VERIFIED.
+
+
 ## G265 eleventh weekly context two-ACK legacy negative — VERIFIED SOURCE / PRODUCTION HOLD
 
 - **Source/test authority:** [PR #635](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/635) exact final HEAD `e653f6bdf7aeed8c4ab2a2ac0179ff71a57d2581`; new source/test commits `064e429b4a3e0f76eb3a74a75d6e6d14f1368fc9` and `e653f6bdf7aeed8c4ab2a2ac0179ff71a57d2581` (isolated VM fixture repair after first failure). New `scripts/g265-weekly-context-eleventh-legacy-cross-tab-negative.mjs` plus one existing Frontend Regression step; original `assets/js/g3-planning.js::weeklyForm()` unchanged and unadmitted.
