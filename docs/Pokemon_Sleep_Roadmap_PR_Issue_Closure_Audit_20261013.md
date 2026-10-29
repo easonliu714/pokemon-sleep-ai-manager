@@ -1,3 +1,9 @@
+## G265 ninth ingredient native Chromium CAS / audit — CANDIDATE; EXACT-HEAD CI PENDING; PRODUCTION HOLD
+
+- **Scope:** new isolated `scripts/g265-native-chromium-ninth-manual-ingredient-cas.mjs`, existing Frontend Regression workflow, unchanged original `manual-editor.js::saveIngredient()` and `audit()`. Branch `test/g265-ninth-manual-ingredient-native-chromium` from main `4a0b24afca3ba13b351845e02b837ef9362e67d3`. No production import or private DB.
+- **Acceptance proof required:** actual native two-tab Web Locks/IndexedDB/SQL.js PASS logs for stale zero-SQL, durable ingredient+batch/change audit readback, UNKNOWN vs explicit locked, ACK-loss/tab-close stale replay, pre-SQL contradiction, duplicate audit ID, trigger rollback. Count only exact PR-head workflows after final docs commit, then Ruleset active/mergeable/current-main recheck, protected expected-head merge and same-new-main push CI+Pages before VERIFIED. Source/test commit `3929fefac27a44fb5ea051da9303613cc801f5ec` is real; CI not yet claimed.
+- **Open risk:** 23 legacy direct writers unadmitted, no independent crash snapshot/restore or all-writer containment; #265 original Owner DoD, Named Draft Apply, Android UAT HOLD. No migrations, public master, raw/unknown, candy, Halloween .37, app/SW version, private player storage or STOP changes. Windows Git NOT_VERIFIED.
+
 ## 2026-10-30 G265 ninth manual ingredient isolated CAS + audit — VERIFIED SOURCE / PRODUCTION HOLD
 
 - **Exact source/test:** [PR #625](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/625), exact HEAD `ad5d2ec2fcb01d6d35e05e0f3f4e8354b24d3e65`, two new files `assets/js/sqlite-manual-ingredient-optin.js` and `scripts/g265-manual-ingredient-ninth-legacy-writer-optin.mjs`, one existing Frontend workflow and all three canonical docs. Original `manual-editor.js::saveIngredient()` remains unchanged, unadmitted and not wired to this opt-in.
