@@ -55,6 +55,8 @@ function createTab(hold=false){
     },
     CustomEvent:class{constructor(type){this.type=type;}},
     FormData:class{constructor(target){this.values=target.values;}get(key){return this.values[key]??null;}},
+    // The unchanged weeklyForm closure references these module-scope UI option constants.
+    CAMP_OPTIONS:[],DISH_OPTIONS:[],EVENT_OPTIONS:[],
     field:()=>'',area:()=>'',selectField:()=>'',berryField:()=>'',renderRecipeStrategyProjection:()=>{},
     now:()=> '2026-10-30T06:55:00+08:00',alert:message=>alerts.push(message),
     console,Number,Set,Promise,Error,
