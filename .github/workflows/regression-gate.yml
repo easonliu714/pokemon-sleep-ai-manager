@@ -440,6 +440,9 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-native-chromium-sixth-named-draft-cas.mjs
 
-      - name: G265 Seventh Legacy Account Pot Capacity Two-ACK Stale Overwrite Negative\n        run: node scripts/g265-account-pot-seventh-legacy-cross-tab-negative.mjs\n\n      - name: Print static server log on failure
+      - name: G265 Seventh Legacy Account Pot Capacity Two-ACK Stale Overwrite Negative
+        run: node scripts/g265-account-pot-seventh-legacy-cross-tab-negative.mjs
+
+      - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
