@@ -487,6 +487,9 @@ jobs:
       - name: G265 Eleventh Legacy Weekly Context Two-ACK Stale Overwrite Negative
         run: node scripts/g265-weekly-context-eleventh-legacy-cross-tab-negative.mjs
 
+      - name: G265 Eleventh Weekly Context Isolated Opt-in Durable CAS Gate
+        run: node scripts/g265-weekly-context-eleventh-legacy-writer-optin.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true

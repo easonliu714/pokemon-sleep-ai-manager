@@ -1,3 +1,23 @@
+## G265 eleventh weekly context isolated opt-in CAS architecture — SOURCE CANDIDATE / PRODUCTION HOLD
+
+```text
+Production (unchanged): g3-planning.js::weeklyForm() -> snapshot -> INSERT OR REPLACE weekly_context -> persist()
+  [UNADMITTED: legacy direct persist can bypass native Web Locks]
+Isolated opt-in (NOT imported by production):
+  sqlite-weekly-context-optin.js::createWeeklyContextOptIn()
+    -> validate week_start / berry uniqueness / pot_size / provenance
+    -> sqlite-fresh-durable-transaction-adapter.js
+    -> sqlite-version-neutral-atomic-pair-gate.js
+       -> native Web Lock -> verified latest durable bytes
+       -> synchronous SQL.js BEGIN IMMEDIATE -> row revision precondition -> UPSERT -> COMMIT / ROLLBACK
+       -> generation/SHA-256 IndexedDB pair CAS -> verified bytes -> independent weekly_context ACK readback
+  scripts/g265-weekly-context-eleventh-legacy-writer-optin.mjs
+    -> disposable SQL.js + Fake IndexedDB; synthetic weekly_context and untouched public_event_master
+    -> input negatives, two contenders one ACK, fresh retry, rollback, missing-lock fail-closed
+```
+**No production import, private player storage, schema migration, Public Master mutation, SW/app release or Android proof.** All 23 original legacy writers remain unadmitted. Independently restorable pre-transaction snapshot, crash recovery, global writer containment, Owner #265 DoD and Android UAT HOLD. Candidate CI/merge evidence must be read back before VERIFIED; Windows local Git NOT_VERIFIED.
+
+
 ## G265 eleventh weekly context two-ACK legacy negative — VERIFIED SOURCE / PRODUCTION HOLD
 
 - **Source/test authority:** [PR #635](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/635) exact final HEAD `e653f6bdf7aeed8c4ab2a2ac0179ff71a57d2581`; new source/test commits `064e429b4a3e0f76eb3a74a75d6e6d14f1368fc9` and `e653f6bdf7aeed8c4ab2a2ac0179ff71a57d2581` (isolated VM fixture repair after first failure). New `scripts/g265-weekly-context-eleventh-legacy-cross-tab-negative.mjs` plus one existing Frontend Regression step; original `assets/js/g3-planning.js::weeklyForm()` unchanged and unadmitted.
