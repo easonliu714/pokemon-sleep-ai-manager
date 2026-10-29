@@ -400,6 +400,112 @@ try{
   console.log('PASS G265_NATIVE_PRECOMMIT_STAGED_IDB_ABORT_ZERO_ACK_ZERO_DURABLE_CHANGE');
   console.log('PASS G265_NATIVE_PRECOMMIT_ABORT_STICKY_HOLD_RELOAD_READBACK_NO_BLIND_RETRY');
 
+  // G265: a pre-commit abort must not authorize blind replay. Only a NEW
+  // browser document that independently verifies durable generation/hash may
+  // submit a distinct, explicitly approved recovery intent via native CAS.
+  const approvedDb=new SQL.Database(Uint8Array.from(afterAbort.bytes));
+  approvedDb.run("INSERT OR REPLACE INTO settings VALUES('postabort-approved-recovery','new-intent','2026-10-29T00:00:00Z')");
+  const approvedBytes=Array.from(approvedDb.export());approvedDb.close();
+  const approvedHash=hash(approvedBytes);
+  assert.notEqual(approvedHash,hash(abortedBytes),
+    'recovery must not silently replay the previously aborted image');
+  c=await context.newPage();
+  await c.goto(new URL('g265-weekly-clear-native-blank',base).href);
+  await c.evaluate(async()=>{
+    const {createSqliteVersionNeutralAtomicPairGate}=await import(
+      '/assets/js/sqlite-version-neutral-atomic-pair-gate.js');
+    const db=await new Promise((resolve,reject)=>{
+      const request=indexedDB.open('pokemon_sleep_ai_manager');
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>reject(request.error);
+    });
+    window.__g265ExplicitRecovery={db,gate:createSqliteVersionNeutralAtomicPairGate({
+      db,locks:navigator.locks
+    })};
+  });
+  const recoveryAck=await c.evaluate(async input=>{
+    const gate=window.__g265ExplicitRecovery.gate;
+    const verified=await gate.readVerified();
+    if(verified.generation!==1||verified.sha256!==input.baselineHash)
+      return {status:'UNEXPECTED_RECOVERY_BASELINE'};
+    return gate.write({
+      reason:'g265:disposable:explicit-new-intent-after-abort',
+      expectedGeneration:verified.generation,
+      expectedFingerprint:verified.sha256,
+      nextBytes:Uint8Array.from(input.bytes)
+    });
+  },{baselineHash:changedHash,bytes:approvedBytes});
+  assert.deepEqual(recoveryAck,{
+    status:'PERSISTED',generation:2,sha256:approvedHash
+  });
+  await c.close();c=null;
+  await b.reload();
+  const durableRecovery=await b.evaluate(async()=>{
+    const {createSqliteVersionNeutralAtomicPairGate}=await import(
+      '/assets/js/sqlite-version-neutral-atomic-pair-gate.js');
+    const db=await new Promise((resolve,reject)=>{
+      const request=indexedDB.open('pokemon_sleep_ai_manager');
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>reject(request.error);
+    });
+    const gate=createSqliteVersionNeutralAtomicPairGate({db,locks:navigator.locks});
+    const verified=await gate.readVerified();
+    db.close();
+    return {generation:verified.generation,sha256:verified.sha256,
+      bytes:Array.from(verified.bytes)};
+  });
+  assert.equal(durableRecovery.generation,2);
+  assert.equal(durableRecovery.sha256,approvedHash);
+  assert.deepEqual(durableRecovery.bytes,approvedBytes);
+  const recoveryDb=new SQL.Database(Uint8Array.from(durableRecovery.bytes));
+  assert.equal(recoveryDb.exec("SELECT key FROM settings WHERE key='precommit-abort-fixture'").length,0);
+  assert.equal(recoveryDb.exec("SELECT value_json FROM settings WHERE key='postabort-approved-recovery'")[0].values[0][0],'new-intent');
+  recoveryDb.close();
+  console.log('PASS G265_NATIVE_POSTABORT_FRESH_RELOAD_EXPLICIT_NEW_INTENT_CAS_ACK_READBACK');
+
+  // Even after an explicit recovery succeeds, a new stale caller may NOT
+  // replay the old aborted bytes using generation 1; verify zero durable delta.
+  const staleAfterRecovery=await b.evaluate(async input=>{
+    const {createSqliteVersionNeutralAtomicPairGate}=await import(
+      '/assets/js/sqlite-version-neutral-atomic-pair-gate.js');
+    const db=await new Promise((resolve,reject)=>{
+      const request=indexedDB.open('pokemon_sleep_ai_manager');
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>reject(request.error);
+    });
+    const gate=createSqliteVersionNeutralAtomicPairGate({db,locks:navigator.locks});
+    try{
+      await gate.write({
+        reason:'g265:disposable:forbidden-postabort-old-generation-replay',
+        expectedGeneration:1,expectedFingerprint:input.hash,
+        nextBytes:Uint8Array.from(input.bytes)
+      });
+      return {code:'UNEXPECTED_ACK',status:gate.status().status};
+    }catch(error){return {code:error.code,status:gate.status().status};}
+    finally{db.close();}
+  },{hash:changedHash,bytes:abortedBytes});
+  assert.deepEqual(staleAfterRecovery,{
+    code:'G265_PAIR_STALE_RELOAD_REQUIRED',status:'UNVERIFIED_RELOAD_REQUIRED'
+  });
+  await b.reload();
+  const finalRecovery=await b.evaluate(async()=>{
+    const {createSqliteVersionNeutralAtomicPairGate}=await import(
+      '/assets/js/sqlite-version-neutral-atomic-pair-gate.js');
+    const db=await new Promise((resolve,reject)=>{
+      const request=indexedDB.open('pokemon_sleep_ai_manager');
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>reject(request.error);
+    });
+    const verified=await createSqliteVersionNeutralAtomicPairGate({
+      db,locks:navigator.locks
+    }).readVerified();
+    db.close();
+    return {generation:verified.generation,sha256:verified.sha256,
+      bytes:Array.from(verified.bytes)};
+  });
+  assert.deepEqual(finalRecovery,durableRecovery);
+  console.log('PASS G265_NATIVE_POSTABORT_OLD_GENERATION_REPLAY_REJECTED_ZERO_DURABLE_DELTA');
+
   console.log('HOLD G265_NATIVE_PROBE_ONLY_PRODUCTION_23_LEGACY_WRITERS_CRASH_RECOVERY_ANDROID_UAT');
 }finally{
   if(c&&!c.isClosed())try{await c.close();}catch{}
