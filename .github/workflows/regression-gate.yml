@@ -457,6 +457,11 @@ jobs:
       - name: G265 Eighth Manual Item Isolated Opt-in Durable CAS and Audit Gate
         run: node scripts/g265-manual-item-eighth-legacy-writer-optin.mjs
 
+      - name: G265 Eighth Manual Item Native Chromium Two-Tab CAS and Private Audit Recovery Gate
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-native-chromium-eighth-manual-item-cas.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
