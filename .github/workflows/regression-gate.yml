@@ -435,6 +435,11 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-native-chromium-fifth-analysis-revision-cas.mjs
 
+      - name: G265 Sixth Legacy Named Draft Native Chromium Two-Tab CAS and Recovery Gate
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-native-chromium-sixth-named-draft-cas.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
