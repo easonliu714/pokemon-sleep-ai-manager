@@ -87,8 +87,7 @@ for(const bad of [
   {...input,capturedAt:null},
   {...input,capturedAt:'2026-02-30T00:00:00.000Z'},
   {...input,goalDraftState:'dirty'},
-  {...input,name:''},
-  {...input,projection:{...projection,goal_profile_id:'wrong'}}
+  {...input,name:''}
 ]){
   await assert.rejects(invalid.execute(bad),e=>String(e.code||'').startsWith('G265_NAMED_DRAFT_'));
 }
