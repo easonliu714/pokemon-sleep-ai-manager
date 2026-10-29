@@ -443,6 +443,9 @@ jobs:
       - name: G265 Seventh Legacy Account Pot Capacity Two-ACK Stale Overwrite Negative
         run: node scripts/g265-account-pot-seventh-legacy-cross-tab-negative.mjs
 
+      - name: G265 Seventh Account Pot Isolated Opt-in Durable CAS Gate
+        run: node scripts/g265-account-pot-seventh-legacy-writer-optin.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
