@@ -418,6 +418,9 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-native-chromium-fourth-recipe-attempt-cas.mjs
 
+      - name: G265 Fifth Legacy Analysis Revision Cross-Tab Acknowledged Lost-Update Negative
+        run: node scripts/g265-analysis-revision-fifth-legacy-cross-tab-negative.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
