@@ -451,6 +451,9 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-native-chromium-seventh-account-pot-cas.mjs
 
+      - name: G265 Eighth Legacy Manual Item Two-ACK Stale Overwrite Negative
+        run: node scripts/g265-manual-item-eighth-legacy-cross-tab-negative.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
