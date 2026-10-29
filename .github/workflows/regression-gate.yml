@@ -454,6 +454,9 @@ jobs:
       - name: G265 Eighth Legacy Manual Item Two-ACK Stale Overwrite Negative
         run: node scripts/g265-manual-item-eighth-legacy-cross-tab-negative.mjs
 
+      - name: G265 Eighth Manual Item Isolated Opt-in Durable CAS and Audit Gate
+        run: node scripts/g265-manual-item-eighth-legacy-writer-optin.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
