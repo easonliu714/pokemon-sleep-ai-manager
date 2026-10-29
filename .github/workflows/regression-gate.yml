@@ -479,6 +479,11 @@ jobs:
       - name: G265 Tenth Weekly Strategy Isolated Opt-in Durable CAS Gate
         run: node scripts/g265-weekly-strategy-tenth-legacy-writer-optin.mjs
 
+      - name: G265 Tenth Weekly Strategy Native Chromium Two-Tab CAS and Recovery Gate
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-native-chromium-tenth-weekly-strategy-cas.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
