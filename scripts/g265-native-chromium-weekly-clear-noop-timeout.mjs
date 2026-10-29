@@ -355,9 +355,13 @@ try{
         status:v.gate.status().status};
     }
   },{sha256:changedHash,bytes:abortedBytes});
-  assert.deepEqual(precommit,{
-    code:'G265_PAIR_TRANSACTION_ABORTED',ack:false,abortCount:1,
-    status:'UNVERIFIED_RELOAD_REQUIRED'
+  // Native staged abort can surface as TRANSACTION_FAILED or ABORTED,
+  // depending on whether the IDB request error or transaction abort wins.
+  // Both must be rejected with zero ACK and a sticky reload requirement.
+  assert.ok(['G265_PAIR_TRANSACTION_FAILED','G265_PAIR_TRANSACTION_ABORTED']
+    .includes(precommit.code),JSON.stringify(precommit));
+  assert.deepEqual({ack:precommit.ack,abortCount:precommit.abortCount,status:precommit.status},{
+    ack:false,abortCount:1,status:'UNVERIFIED_RELOAD_REQUIRED'
   });
   const stickyAbort=await c.evaluate(async input=>{
     try{
