@@ -1,3 +1,9 @@
+## 2026-10-29 G265 sixth named draft native Chromium two-tab CAS — SOURCE CANDIDATE / CI PENDING
+- **Source-bound candidate:** `scripts/g265-native-chromium-sixth-named-draft-cas.mjs` exercises the unchanged `saveNamedTeamDraftLocal()` source and isolated `createNamedTeamDraftOptIn()`; the existing Frontend Regression workflow now executes the new native Chromium gate.
+- **Scope:** disposable loopback Chromium documents, native Web Locks, IndexedDB and SQL.js/WASM; same-generation two-tab one-ACK/zero-SQL stale rejection; explicit fresh reload retaining both ACKed local-only drafts; close/reopen ACK-loss stale replay; SQL trigger rollback with exact generation/SHA/bytes/readback equality. This is an opt-in test only, not production wiring.
+- **Evidence pending:** exact PR HEAD CI, protected expected-head Merge Commit, same-new-main CI and Pages; do not mark VERIFIED before independent GitHub readback.
+- **Production HOLD:** all 23 original legacy direct writers remain unadmitted; legacy saveDatabaseBytes Web Lock bypass, full crash recovery, Named Draft Apply, Owner DoD and Android UAT remain HOLD. No player DB, Migration 15/16, Raw/UNKNOWN, Public Master, Candy24/20, Halloween .37, SW/app version, STOP marker or retired task changes. Windows local Git NOT_VERIFIED.
+
 # Pokémon Sleep AI Manager — Roadmap／PR／Issue 全量盤點與結案審核
 
 ## 2026-10-29 G265 sixth named-draft isolated durable CAS — VERIFIED SOURCE / PRODUCTION HOLD
