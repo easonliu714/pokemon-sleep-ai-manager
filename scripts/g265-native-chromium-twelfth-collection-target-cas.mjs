@@ -561,6 +561,51 @@ try{
     'UNVERIFIED_RELOAD_REQUIRED');
   console.log('PASS G265_TWELFTH_NATIVE_HELD_LOCK_DIGEST_TIMEOUT_NO_LATE_CAS_ACK_ZERO_DURABLE_DELTA');
 
+  // Native Chromium cryptographic-provider corruption: after the latest durable
+  // pair verifies and SQL.js mutates only in memory, a malformed second SHA-256
+  // digest must fail closed before any atomic CAS, durable write or success ACK.
+  // This fault injection is confined to disposable synthetic IndexedDB.
+  const beforeInvalidNextDigest=await inspect(freshAfterHeld);
+  const invalidDigestTab=await newTab();
+  await invalidDigestTab.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();v.invalidDigestCalls=0;
+    v.pair=v.createSqliteVersionNeutralAtomicPairGate({
+      db:v.db,
+      fingerprint:async bytes=>{
+        v.invalidDigestCalls++;
+        if(v.invalidDigestCalls===2)return 'INVALID_SYNTHETIC_SHA256';
+        const hash=await crypto.subtle.digest('SHA-256',bytes);
+        return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('');
+      }
+    });
+    v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+      openSqlite:bytes=>{v.opened++;return new v.SQL.Database(bytes);}});
+  });
+  const invalidDigestPayload=input('target_invalid_digest','SYNTHETIC_INVALID_DIGEST',
+    beforeInvalidNextDigest.generation,beforeInvalidNextDigest.sha256,
+    '2026-10-30T01:07:00.000Z');
+  const invalidDigestResult=await run(invalidDigestTab,invalidDigestPayload);
+  assert.deepEqual(invalidDigestResult,
+    {ok:false,code:'G265_PAIR_INVALID_NEXT_DIGEST'});
+  assert.equal(await invalidDigestTab.evaluate(()=>window.__g265.invalidDigestCalls),2);
+  assert.equal(await invalidDigestTab.evaluate(()=>window.__g265.opened),1);
+  assert.equal(await invalidDigestTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  assert.deepEqual(await inspect(freshAfterHeld),beforeInvalidNextDigest);
+  const invalidDigestReplay=await run(invalidDigestTab,invalidDigestPayload);
+  assert.deepEqual(invalidDigestReplay,
+    {ok:false,code:'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.equal(await invalidDigestTab.evaluate(()=>window.__g265.opened),1);
+  const freshAfterInvalidDigest=await newTab();
+  await freshAfterInvalidDigest.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  assert.deepEqual(await inspect(freshAfterInvalidDigest),beforeInvalidNextDigest);
+  assert.equal(await invalidDigestTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_INVALID_NEXT_DIGEST_STICKY_ZERO_DURABLE_DELTA');
+
   console.log('HOLD G265_TWELFTH_NATIVE_OPTIN_NOT_PRODUCTION_ALL_WRITERS_CRASH_RESTORE_ANDROID');
 }finally{
   for(const page of pages)if(!page.isClosed()){
