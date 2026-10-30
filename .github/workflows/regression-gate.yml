@@ -501,6 +501,9 @@ jobs:
       - name: G265 Twelfth Collection Target Isolated Opt-in Durable CAS Gate
         run: node scripts/g265-collection-target-twelfth-legacy-writer-optin.mjs
 
+      - name: G265 Thirteenth Weekly Manual Override Legacy Two-ACK Lost-Update Negative
+        run: node scripts/g265-weekly-manual-override-legacy-negative.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
