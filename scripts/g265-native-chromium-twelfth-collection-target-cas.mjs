@@ -1021,6 +1021,77 @@ try{
     'UNVERIFIED_RELOAD_REQUIRED');
   console.log('PASS G265_TWELFTH_NATIVE_SQLJS_BEGIN_REJECTED_CLOSED_STICKY_FRESH_TAB_RECOVERY');
 
+  // Isolated real SQL.js COMMIT rejection: BEGIN and row mutation succeed
+  // in memory, but a failing COMMIT must trigger exactly one ROLLBACK and
+  // close. No CAS/ACK or durable change is allowed; a fresh tab must recover.
+  // This is a synthetic opt-in fixture, never the production player DB.
+  const beforeCommitReject=await inspect(beginReadbackTab);
+  const commitRejectTab=await newTab();
+  await commitRejectTab.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();v.commitRejectCalls=0;v.commitRollbackCalls=0;
+    v.commitRejectClosed=0;
+    v.pair=v.createSqliteVersionNeutralAtomicPairGate({db:v.db});
+    v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+      openSqlite:bytes=>{
+        v.opened++;
+        const sql=new v.SQL.Database(bytes);
+        const originalRun=sql.run.bind(sql),originalClose=sql.close.bind(sql);
+        sql.run=(statement,...params)=>{
+          if(statement==='COMMIT'){
+            v.commitRejectCalls++;
+            throw new Error('SYNTHETIC_SQLJS_COMMIT_REJECTED');
+          }
+          if(statement==='ROLLBACK')v.commitRollbackCalls++;
+          return originalRun(statement,...params);
+        };
+        sql.close=()=>{v.commitRejectClosed++;return originalClose();};
+        return sql;
+      }});
+  });
+  const commitRejectedPayload=input('target_commit_rejected',
+    'SYNTHETIC_COMMIT_REJECTED',beforeCommitReject.generation,
+    beforeCommitReject.sha256,'2026-10-30T01:20:00.000Z');
+  const commitRejectedResult=await run(commitRejectTab,commitRejectedPayload);
+  assert.deepEqual(commitRejectedResult,
+    {ok:false,code:'SYNTHETIC_SQLJS_COMMIT_REJECTED'});
+  assert.deepEqual(await commitRejectTab.evaluate(()=>({
+    opened:window.__g265.opened,commits:window.__g265.commitRejectCalls,
+    rollbacks:window.__g265.commitRollbackCalls,
+    closed:window.__g265.commitRejectClosed,
+    status:window.__g265.writer.status().status
+  })),{opened:1,commits:1,rollbacks:1,closed:1,
+    status:'UNVERIFIED_RELOAD_REQUIRED'});
+  assert.deepEqual(await run(commitRejectTab,commitRejectedPayload),
+    {ok:false,code:'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.equal(await commitRejectTab.evaluate(()=>window.__g265.commitRejectCalls),1);
+  const freshAfterCommitReject=await newTab();
+  await freshAfterCommitReject.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  assert.deepEqual(await inspect(freshAfterCommitReject),beforeCommitReject);
+  const healthyCommitPayload=input('target_commit_recovery',
+    'SYNTHETIC_COMMIT_RECOVERY',beforeCommitReject.generation,
+    beforeCommitReject.sha256,'2026-10-30T01:21:00.000Z');
+  const healthyCommitResult=await run(freshAfterCommitReject,healthyCommitPayload);
+  assert.equal(healthyCommitResult.ok,true,JSON.stringify(healthyCommitResult));
+  assert.equal(healthyCommitResult.result.status,'PERSISTED');
+  const commitReadbackTab=await newTab();
+  await commitReadbackTab.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  const afterCommitRecovery=await inspect(commitReadbackTab);
+  assert.equal(afterCommitRecovery.generation,beforeCommitReject.generation+1);
+  assert.equal(afterCommitRecovery.sha256,digest(afterCommitRecovery.bytes));
+  assert.equal(has(afterCommitRecovery,'target_commit_rejected'),undefined);
+  assert.ok(has(afterCommitRecovery,'target_commit_recovery'));
+  assert.deepEqual(afterCommitRecovery.master,beforeCommitReject.master);
+  assert.deepEqual(afterCommitRecovery.rows.filter(row=>
+    row[0]!=='target_commit_recovery'),beforeCommitReject.rows);
+  assert.equal(await commitRejectTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_SQLJS_COMMIT_REJECTED_ROLLBACK_CLOSED_FRESH_TAB_RECOVERY');
+
   console.log('HOLD G265_TWELFTH_NATIVE_OPTIN_NOT_PRODUCTION_ALL_WRITERS_CRASH_RESTORE_ANDROID');
 }finally{
   for(const page of pages)if(!page.isClosed()){
