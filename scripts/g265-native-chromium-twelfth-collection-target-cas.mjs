@@ -652,6 +652,48 @@ try{
     'UNVERIFIED_RELOAD_REQUIRED');
   console.log('PASS G265_TWELFTH_NATIVE_REJECTED_NEXT_DIGEST_STICKY_ZERO_DURABLE_DELTA');
 
+  // Distinct pre-SQL cryptographic-provider failure: the first SHA-256 call
+  // rejects while verifying the latest durable pair, before opening SQL.js.
+  // The synthetic-only session must fail closed without CAS or legacy fallback.
+  const beforeCurrentDigestReject=await inspect(freshAfterRejectedDigest);
+  const currentDigestTab=await newTab();
+  await currentDigestTab.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();v.currentDigestCalls=0;
+    v.pair=v.createSqliteVersionNeutralAtomicPairGate({
+      db:v.db,
+      fingerprint:async()=>{
+        v.currentDigestCalls++;
+        throw new Error('SYNTHETIC_CURRENT_DIGEST_PROVIDER_REJECTED');
+      }
+    });
+    v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+      openSqlite:bytes=>{v.opened++;return new v.SQL.Database(bytes);}});
+  });
+  const currentDigestPayload=input('target_current_digest_reject',
+    'SYNTHETIC_CURRENT_DIGEST_REJECT',beforeCurrentDigestReject.generation,
+    beforeCurrentDigestReject.sha256,'2026-10-30T01:09:00.000Z');
+  const currentDigestResult=await run(currentDigestTab,currentDigestPayload);
+  assert.deepEqual(currentDigestResult,
+    {ok:false,code:'SYNTHETIC_CURRENT_DIGEST_PROVIDER_REJECTED'});
+  assert.equal(await currentDigestTab.evaluate(()=>window.__g265.currentDigestCalls),1);
+  assert.equal(await currentDigestTab.evaluate(()=>window.__g265.opened),0);
+  assert.equal(await currentDigestTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  const currentDigestReplay=await run(currentDigestTab,currentDigestPayload);
+  assert.deepEqual(currentDigestReplay,
+    {ok:false,code:'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.equal(await currentDigestTab.evaluate(()=>window.__g265.currentDigestCalls),1);
+  assert.equal(await currentDigestTab.evaluate(()=>window.__g265.opened),0);
+  const freshAfterCurrentDigestReject=await newTab();
+  await freshAfterCurrentDigestReject.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  assert.deepEqual(await inspect(freshAfterCurrentDigestReject),beforeCurrentDigestReject);
+  assert.equal(await currentDigestTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_REJECTED_CURRENT_DIGEST_PRE_SQL_STICKY_ZERO_DURABLE_DELTA');
+
   console.log('HOLD G265_TWELFTH_NATIVE_OPTIN_NOT_PRODUCTION_ALL_WRITERS_CRASH_RESTORE_ANDROID');
 }finally{
   for(const page of pages)if(!page.isClosed()){
