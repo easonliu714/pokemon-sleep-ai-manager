@@ -821,6 +821,83 @@ try{
     beforeDualSession.rows);
   console.log('PASS G265_TWELFTH_NATIVE_SAME_TAB_TWO_SESSIONS_LOCK_QUEUE_STALE_ZERO_SECOND_SQLJS');
 
+  // Independent opt-in sessions in the SAME native Chromium tab: a short
+  // waiting Web Lock timeout must remain sticky even when the first writer
+  // subsequently commits. Never allow a late CAS/ACK from the timed-out session.
+  // Only disposable SQL.js/IndexedDB fixtures are used, never player storage.
+  const beforeSameTabTimeout=await inspect(freshAfterDual);
+  const sameTabTimeoutTab=await newTab();
+  await sameTabTimeoutTab.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();v.sameTabTimeoutDigestCalls=0;
+    v.sameTabTimeoutPaused=false;v.openedTimedOut=0;
+    v.pair=v.createSqliteVersionNeutralAtomicPairGate({
+      db:v.db,timeoutMs:5000,
+      fingerprint:async bytes=>{
+        v.sameTabTimeoutDigestCalls++;
+        if(v.sameTabTimeoutDigestCalls===2){
+          v.sameTabTimeoutPaused=true;
+          await new Promise(resolve=>{v.releaseSameTabTimeoutDigest=resolve;});
+        }
+        const hash=await crypto.subtle.digest('SHA-256',bytes);
+        return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('');
+      }
+    });
+    v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+      openSqlite:bytes=>{v.opened++;return new v.SQL.Database(bytes);}});
+    v.timedOutPair=v.createSqliteVersionNeutralAtomicPairGate({db:v.db,timeoutMs:300});
+    v.timedOutWriter=v.createCollectionTargetOptIn({pairGate:v.timedOutPair,
+      openSqlite:bytes=>{v.openedTimedOut++;return new v.SQL.Database(bytes);}});
+  });
+  const timeoutFirstPayload=input('target_same_tab_timeout_first',
+    'SYNTHETIC_TIMEOUT_FIRST',beforeSameTabTimeout.generation,
+    beforeSameTabTimeout.sha256,'2026-10-30T01:14:00.000Z');
+  const timeoutSecondPayload=input('target_same_tab_timeout_second',
+    'SYNTHETIC_TIMEOUT_SECOND',beforeSameTabTimeout.generation,
+    beforeSameTabTimeout.sha256,'2026-10-30T01:15:00.000Z');
+  const timeoutFirstPending=run(sameTabTimeoutTab,timeoutFirstPayload);
+  await sameTabTimeoutTab.waitForFunction(()=>window.__g265.sameTabTimeoutPaused===true);
+  const timeoutSecondPending=sameTabTimeoutTab.evaluate(async data=>{
+    try{return {ok:true,result:await window.__g265.timedOutWriter.execute(data)};}
+    catch(error){return {ok:false,code:error.code||error.message};}
+  },timeoutSecondPayload);
+  await sameTabTimeoutTab.waitForFunction(async name=>{
+    const state=await navigator.locks.query();
+    return state.pending.some(lock=>lock.name===name);
+  },nativeLockName);
+  const timeoutSecondResult=await timeoutSecondPending;
+  assert.deepEqual(timeoutSecondResult,
+    {ok:false,code:'G265_PAIR_LOCK_WAIT_TIMEOUT_UNCERTAIN'});
+  assert.equal(await sameTabTimeoutTab.evaluate(()=>window.__g265.openedTimedOut),0);
+  assert.equal(await sameTabTimeoutTab.evaluate(()=>window.__g265.timedOutWriter.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  const timeoutSecondReplay=await sameTabTimeoutTab.evaluate(async data=>{
+    try{return {ok:true,result:await window.__g265.timedOutWriter.execute(data)};}
+    catch(error){return {ok:false,code:error.code||error.message};}
+  },timeoutSecondPayload);
+  assert.deepEqual(timeoutSecondReplay,
+    {ok:false,code:'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.deepEqual(await inspect(freshAfterDual),beforeSameTabTimeout);
+  await sameTabTimeoutTab.evaluate(()=>window.__g265.releaseSameTabTimeoutDigest());
+  const timeoutFirstResult=await timeoutFirstPending;
+  assert.equal(timeoutFirstResult.ok,true,JSON.stringify(timeoutFirstResult));
+  assert.equal(timeoutFirstResult.result.status,'PERSISTED');
+  const freshAfterSameTabTimeout=await newTab();
+  await freshAfterSameTabTimeout.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  const afterSameTabTimeout=await inspect(freshAfterSameTabTimeout);
+  assert.equal(afterSameTabTimeout.generation,beforeSameTabTimeout.generation+1);
+  assert.ok(has(afterSameTabTimeout,'target_same_tab_timeout_first'));
+  assert.equal(has(afterSameTabTimeout,'target_same_tab_timeout_second'),undefined);
+  assert.deepEqual(afterSameTabTimeout.master,beforeSameTabTimeout.master);
+  assert.deepEqual(afterSameTabTimeout.rows.filter(row=>
+    row[0]!=='target_same_tab_timeout_first'),beforeSameTabTimeout.rows);
+  assert.equal(await sameTabTimeoutTab.evaluate(()=>window.__g265.openedTimedOut),0);
+  assert.equal(await sameTabTimeoutTab.evaluate(()=>window.__g265.timedOutWriter.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_SAME_TAB_INDEPENDENT_SESSION_WAIT_TIMEOUT_NO_LATE_CAS_ONE_ACK');
+
   console.log('HOLD G265_TWELFTH_NATIVE_OPTIN_NOT_PRODUCTION_ALL_WRITERS_CRASH_RESTORE_ANDROID');
 }finally{
   for(const page of pages)if(!page.isClosed()){
