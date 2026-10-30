@@ -325,6 +325,55 @@ try{
     'UNVERIFIED_RELOAD_REQUIRED');
   console.log('PASS G265_TWELFTH_NATIVE_DURABLE_BYTES_TORN_FAIL_CLOSED_FIXTURE_REPAIR_ONLY');
 
+  // Synthetic revision counter exhaustion: a valid digest and maximum safe
+  // generation must never wrap, ACK or persist the SQL.js mutation. The IDB
+  // transaction must abort atomically; repair below touches only this fixture.
+  const beforeExhaustion=await inspect(l);
+  await l.evaluate(async sha256=>{
+    await new Promise((resolve,reject)=>{
+      const tx=window.__g265.db.transaction('metadata','readwrite');
+      tx.objectStore('metadata').put({generation:Number.MAX_SAFE_INTEGER,sha256},'revision:primary');
+      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+    });
+  },beforeExhaustion.sha256);
+  const m=await newTab();
+  await m.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
+  const exhausted=await run(m,input('target_exhausted','SYNTHETIC_EXHAUSTED',
+    Number.MAX_SAFE_INTEGER,beforeExhaustion.sha256));
+  assert.deepEqual(exhausted,{ok:false,code:'G265_PAIR_GENERATION_EXHAUSTED'});
+  assert.equal(await m.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  const exhaustedReadback=await inspect(l);
+  assert.equal(exhaustedReadback.generation,Number.MAX_SAFE_INTEGER);
+  assert.equal(exhaustedReadback.sha256,beforeExhaustion.sha256);
+  assert.deepEqual(exhaustedReadback.bytes,beforeExhaustion.bytes);
+  assert.deepEqual(exhaustedReadback.rows,beforeExhaustion.rows);
+  assert.deepEqual(exhaustedReadback.master,beforeExhaustion.master);
+  const n=await newTab();
+  await n.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
+  const secondExhausted=await run(n,input('target_exhausted_other','SYNTHETIC_OTHER',
+    Number.MAX_SAFE_INTEGER,beforeExhaustion.sha256));
+  assert.deepEqual(secondExhausted,{ok:false,code:'G265_PAIR_GENERATION_EXHAUSTED'});
+  assert.equal(await n.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  assert.deepEqual((await inspect(l)).bytes,beforeExhaustion.bytes);
+  // Explicit synthetic fixture reset; neither failed session may auto-recover.
+  await l.evaluate(async revision=>{
+    await new Promise((resolve,reject)=>{
+      const tx=window.__g265.db.transaction('metadata','readwrite');
+      tx.objectStore('metadata').put(revision,'revision:primary');
+      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+    });
+  },{generation:beforeExhaustion.generation,sha256:beforeExhaustion.sha256});
+  const o=await newTab();
+  await o.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
+  assert.deepEqual(await inspect(o),beforeExhaustion);
+  assert.equal(await m.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  assert.equal(await n.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_GENERATION_EXHAUSTION_CAS_ABORT_NO_DURABLE_DELTA');
+
   console.log('HOLD G265_TWELFTH_NATIVE_OPTIN_NOT_PRODUCTION_ALL_WRITERS_CRASH_RESTORE_ANDROID');
 }finally{
   for(const page of pages)if(!page.isClosed()){
