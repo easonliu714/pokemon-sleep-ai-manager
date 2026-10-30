@@ -1,3 +1,9 @@
+## G265 eleventh weekly context native Chromium two-tab CAS — SOURCE CANDIDATE / EXACT-HEAD CI HOLD
+
+- Source-bound isolated test `scripts/g265-native-chromium-eleventh-weekly-context-cas.mjs` uses real native Chromium Web Locks, SQL.js/WASM and disposable IndexedDB on loopback. It exercises unchanged `g3-planning.js::weeklyForm()` provenance and the unimported `sqlite-weekly-context-optin.js` adapter.
+- Gate matrix: invalid berry/pot pre-SQL fail-closed; two tabs one ACK and stale zero SQL.js; fresh durable reload preserves confirmed contexts and Public Master; stale row revision reject; exact revision update readback; tab-close/ACK-loss stale replay; SQL-trigger rollback and independent durable readback.
+- This is **candidate only** until exact PR HEAD CI succeeds, protected expected-head Merge Commit, same-new-main CI/Pages and separate VERIFIED governance closure. The original 23 legacy direct writers are NOT contained, no production player database writes, independent crash-restorable snapshot, Named Draft Apply or Android Owner UAT. G265 production isolation/Issue #265 Owner DoD remain HOLD. No app/SW version, Migration 15/16, Raw/UNKNOWN, Public Master, Candy24/20, Halloween .37 or STOP changes. Windows local Git NOT_VERIFIED.
+
 ## G265 eleventh weekly context isolated CAS — VERIFIED SOURCE / OWNER DoD HOLD
 
 - **Source/test authority:** [PR #637](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/637), exact final HEAD `4ac9862a7f84f19fadd9acc2dc904021eb51b172`, source commit `fc3d8856373270201377de17d7bd308064032494`, test commit `8d2f969fd969670e4fbee8dbd7659fba061d7b52`; one existing Frontend Regression step, original `g3-planning.js::weeklyForm()` unchanged.
