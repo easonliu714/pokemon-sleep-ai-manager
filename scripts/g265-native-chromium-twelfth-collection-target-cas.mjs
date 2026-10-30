@@ -898,6 +898,63 @@ try{
     'UNVERIFIED_RELOAD_REQUIRED');
   console.log('PASS G265_TWELFTH_NATIVE_SAME_TAB_INDEPENDENT_SESSION_WAIT_TIMEOUT_NO_LATE_CAS_ONE_ACK');
 
+
+  // Isolated native SQL.js factory rejection after the latest durable pair is
+  // verified but before BEGIN. The failed session must stay fail-closed with
+  // zero CAS/ACK, while a fresh independent tab can recover without a lock leak.
+  // No production database, legacy writer or player data is used.
+  const beforeOpenReject=await inspect(freshAfterSameTabTimeout);
+  const openRejectTab=await newTab();
+  await openRejectTab.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();v.openRejectCalls=0;
+    v.pair=v.createSqliteVersionNeutralAtomicPairGate({db:v.db});
+    v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+      openSqlite:()=>{
+        v.openRejectCalls++;
+        throw new Error('SYNTHETIC_SQLJS_OPEN_FACTORY_REJECTED');
+      }});
+  });
+  const rejectedOpenPayload=input('target_open_factory_rejected',
+    'SYNTHETIC_OPEN_FACTORY_REJECTED',beforeOpenReject.generation,
+    beforeOpenReject.sha256,'2026-10-30T01:16:00.000Z');
+  const rejectedOpenResult=await run(openRejectTab,rejectedOpenPayload);
+  assert.deepEqual(rejectedOpenResult,
+    {ok:false,code:'SYNTHETIC_SQLJS_OPEN_FACTORY_REJECTED'});
+  assert.equal(await openRejectTab.evaluate(()=>window.__g265.openRejectCalls),1);
+  assert.equal(await openRejectTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  const rejectedOpenReplay=await run(openRejectTab,rejectedOpenPayload);
+  assert.deepEqual(rejectedOpenReplay,
+    {ok:false,code:'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.equal(await openRejectTab.evaluate(()=>window.__g265.openRejectCalls),1);
+  const freshAfterOpenReject=await newTab();
+  await freshAfterOpenReject.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  assert.deepEqual(await inspect(freshAfterOpenReject),beforeOpenReject);
+  const healthyOpenPayload=input('target_open_factory_recovery',
+    'SYNTHETIC_OPEN_FACTORY_RECOVERY',beforeOpenReject.generation,
+    beforeOpenReject.sha256,'2026-10-30T01:17:00.000Z');
+  const healthyOpenResult=await run(freshAfterOpenReject,healthyOpenPayload);
+  assert.equal(healthyOpenResult.ok,true,JSON.stringify(healthyOpenResult));
+  assert.equal(healthyOpenResult.result.status,'PERSISTED');
+  const independentOpenReadback=await newTab();
+  await independentOpenReadback.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  const afterOpenRecovery=await inspect(independentOpenReadback);
+  assert.equal(afterOpenRecovery.generation,beforeOpenReject.generation+1);
+  assert.equal(afterOpenRecovery.sha256,digest(afterOpenRecovery.bytes));
+  assert.equal(has(afterOpenRecovery,'target_open_factory_rejected'),undefined);
+  assert.ok(has(afterOpenRecovery,'target_open_factory_recovery'));
+  assert.deepEqual(afterOpenRecovery.master,beforeOpenReject.master);
+  assert.deepEqual(afterOpenRecovery.rows.filter(row=>
+    row[0]!=='target_open_factory_recovery'),beforeOpenReject.rows);
+  assert.equal(await openRejectTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_SQLJS_OPEN_FACTORY_REJECTED_STICKY_ZERO_CAS_FRESH_TAB_RECOVERY');
+
   console.log('HOLD G265_TWELFTH_NATIVE_OPTIN_NOT_PRODUCTION_ALL_WRITERS_CRASH_RESTORE_ANDROID');
 }finally{
   for(const page of pages)if(!page.isClosed()){
