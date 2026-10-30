@@ -694,6 +694,63 @@ try{
     'UNVERIFIED_RELOAD_REQUIRED');
   console.log('PASS G265_TWELFTH_NATIVE_REJECTED_CURRENT_DIGEST_PRE_SQL_STICKY_ZERO_DURABLE_DELTA');
 
+  // Native Chromium same-tab reentrant submission: while the first isolated
+  // opt-in writer holds the real Web Lock and awaits its next digest, a second
+  // submission from the SAME session must be rejected, not queued or ACKed.
+  // Release the synthetic digest and independently verify exactly one commit.
+  const beforeReentrant=await inspect(freshAfterCurrentDigestReject);
+  const reentrantTab=await newTab();
+  await reentrantTab.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();v.reentrantDigestCalls=0;v.reentrantPaused=false;
+    v.pair=v.createSqliteVersionNeutralAtomicPairGate({
+      db:v.db,timeoutMs:5000,
+      fingerprint:async bytes=>{
+        v.reentrantDigestCalls++;
+        if(v.reentrantDigestCalls===2){
+          v.reentrantPaused=true;
+          await new Promise(resolve=>{v.resumeReentrantDigest=resolve;});
+        }
+        const hash=await crypto.subtle.digest('SHA-256',bytes);
+        return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('');
+      }
+    });
+    v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+      openSqlite:bytes=>{v.opened++;return new v.SQL.Database(bytes);}});
+  });
+  const reentrantFirst=input('target_reentrant_first','SYNTHETIC_REENTRANT_FIRST',
+    beforeReentrant.generation,beforeReentrant.sha256,'2026-10-30T01:10:00.000Z');
+  const reentrantSecond=input('target_reentrant_second','SYNTHETIC_REENTRANT_SECOND',
+    beforeReentrant.generation,beforeReentrant.sha256,'2026-10-30T01:11:00.000Z');
+  const firstReentrantPending=run(reentrantTab,reentrantFirst);
+  await reentrantTab.waitForFunction(()=>window.__g265.reentrantPaused===true);
+  const secondReentrantResult=await run(reentrantTab,reentrantSecond);
+  assert.deepEqual(secondReentrantResult,
+    {ok:false,code:'G265_PAIR_SESSION_ALREADY_ACTIVE'});
+  assert.equal(await reentrantTab.evaluate(()=>window.__g265.opened),1);
+  assert.equal(await reentrantTab.evaluate(()=>window.__g265.writer.status().status),
+    'IN_FLIGHT');
+  assert.deepEqual(await inspect(freshAfterCurrentDigestReject),beforeReentrant);
+  await reentrantTab.evaluate(()=>window.__g265.resumeReentrantDigest());
+  const firstReentrantResult=await firstReentrantPending;
+  assert.equal(firstReentrantResult.ok,true);
+  assert.equal(firstReentrantResult.result.status,'PERSISTED');
+  assert.equal(firstReentrantResult.result.generation,beforeReentrant.generation+1);
+  assert.equal(await reentrantTab.evaluate(()=>window.__g265.writer.status().status),
+    'READY');
+  const freshAfterReentrant=await newTab();
+  await freshAfterReentrant.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  const afterReentrant=await inspect(freshAfterReentrant);
+  assert.equal(afterReentrant.generation,beforeReentrant.generation+1);
+  assert.ok(has(afterReentrant,'target_reentrant_first'));
+  assert.equal(has(afterReentrant,'target_reentrant_second'),undefined);
+  assert.deepEqual(afterReentrant.master,beforeReentrant.master);
+  assert.deepEqual(afterReentrant.rows.filter(row=>row[0]!=='target_reentrant_first'),
+    beforeReentrant.rows);
+  console.log('PASS G265_TWELFTH_NATIVE_SAME_TAB_REENTRANT_ONE_ACK_SECOND_REJECTED_INDEPENDENT_READBACK');
+
   console.log('HOLD G265_TWELFTH_NATIVE_OPTIN_NOT_PRODUCTION_ALL_WRITERS_CRASH_RESTORE_ANDROID');
 }finally{
   for(const page of pages)if(!page.isClosed()){
