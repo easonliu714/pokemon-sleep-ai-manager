@@ -374,6 +374,55 @@ try{
     'UNVERIFIED_RELOAD_REQUIRED');
   console.log('PASS G265_TWELFTH_NATIVE_GENERATION_EXHAUSTION_CAS_ABORT_NO_DURABLE_DELTA');
 
+  // Synthetic post-commit ACK ambiguity: durable CAS succeeds, but the
+  // adapter's independent post-commit readback is interrupted. Never return
+  // success or retry the same uncertain session; inspect from a fresh tab.
+  // This is a disposable failure-injection fixture, NOT player DB recovery.
+  const beforeAmbiguousAck=await inspect(o);
+  const p=await newTab();
+  await p.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();v.reset();
+    const actualPair=v.pair;
+    const interruptedPair={
+      write:options=>actualPair.write(options),
+      readVerified:async()=>{
+        const error=new Error('G265_SYNTHETIC_POST_COMMIT_READBACK_INTERRUPTED');
+        error.code=error.message;
+        throw error;
+      }
+    };
+    v.writer=v.createCollectionTargetOptIn({pairGate:interruptedPair,
+      openSqlite:bytes=>{v.opened++;return new v.SQL.Database(bytes);}});
+  });
+  const ambiguousPayload=input('target_ack_ambiguous','SYNTHETIC_ACK_AMBIGUOUS',
+    beforeAmbiguousAck.generation,beforeAmbiguousAck.sha256,
+    '2026-10-30T01:03:00.000Z');
+  const ambiguous=await run(p,ambiguousPayload);
+  assert.deepEqual(ambiguous,
+    {ok:false,code:'G265_SYNTHETIC_POST_COMMIT_READBACK_INTERRUPTED'});
+  assert.equal(await p.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  const sqlOpenedAfterAmbiguous=await p.evaluate(()=>window.__g265.opened);
+  assert.equal(sqlOpenedAfterAmbiguous,1);
+  const ambiguousReplay=await run(p,ambiguousPayload);
+  assert.deepEqual(ambiguousReplay,
+    {ok:false,code:'G265_COLLECTION_TARGET_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.equal(await p.evaluate(()=>window.__g265.opened),sqlOpenedAfterAmbiguous);
+  const q=await newTab();
+  await q.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
+  const afterAmbiguousAck=await inspect(q);
+  assert.equal(afterAmbiguousAck.generation,beforeAmbiguousAck.generation+1);
+  assert.equal(afterAmbiguousAck.sha256,digest(afterAmbiguousAck.bytes));
+  assert.equal(afterAmbiguousAck.rows.length,beforeAmbiguousAck.rows.length+1);
+  assert.ok(has(afterAmbiguousAck,'target_ack_ambiguous'));
+  for(const row of beforeAmbiguousAck.rows)
+    assert.deepEqual(has(afterAmbiguousAck,row[0]),row);
+  assert.deepEqual(afterAmbiguousAck.master,beforeAmbiguousAck.master);
+  assert.equal(await p.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_POST_COMMIT_ACK_LOSS_STICKY_SINGLE_PERSIST_INDEPENDENT_READBACK');
+
   console.log('HOLD G265_TWELFTH_NATIVE_OPTIN_NOT_PRODUCTION_ALL_WRITERS_CRASH_RESTORE_ANDROID');
 }finally{
   for(const page of pages)if(!page.isClosed()){
