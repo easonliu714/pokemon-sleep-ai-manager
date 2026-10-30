@@ -1,3 +1,10 @@
+## G265 twelfth native SQL.js BEGIN rejection / connection close / fresh-tab recovery — SOURCE CANDIDATE / EXACT-HEAD CI PENDING / PRODUCTION HOLD
+
+- **Source-bound Gate:** [PR #645](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/645) adds `G265_TWELFTH_NATIVE_SQLJS_BEGIN_REJECTED_CLOSED_STICKY_FRESH_TAB_RECOVERY` in the unimported real native Chromium, SQL.js/WASM, Web Locks, synthetic IndexedDB test. This differs from SQL.js connection factory rejection: a real connection opens, then `BEGIN IMMEDIATE` throws; assert exactly one open, one BEGIN attempt, one close, sticky failed session and no same-session replay.
+- **Durable contract:** independent new-tab verified bytes, SHA-256, generation, rows and Public Master must remain identical after failure. Only a separate fresh-tab opt-in session can ACK one healthy target, with no failed target and unchanged pre-existing rows. No production handler or player data changes.
+- **CI/merge:** new exact-head PR CI pending; old-head/scheduled runs are not evidence. Independent Owner Android PR #644 overlaps workflow/docs; protected merge, same-new-main CI/Pages and main VERIFIED HOLD.
+- **Production HOLD:** all 23 legacy direct writers, independent crash-restorable snapshot/recovery, Named Draft Apply, Issue #265 Owner DoD and Android UAT remain unadmitted. No player SQLite/IndexedDB, Migration 15/16, Raw/UNKNOWN, Public Master, Candy24/20, Halloween .37, SW/app version, STOP marker, retired task, issue state or branch deletion. Windows local Git NOT_VERIFIED.
+
 ## G265 twelfth native SQL.js open-factory rejection / fresh-tab recovery — SOURCE CANDIDATE / EXACT-HEAD CI PENDING / PRODUCTION HOLD
 
 - **Source/test scope:** [PR #645](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/645), isolated `scripts/g265-native-chromium-twelfth-collection-target-cas.mjs` native Chromium + real SQL.js/WASM + native Web Locks + disposable synthetic IndexedDB. No production imports or player data; unchanged legacy collection-target handler still unsafe.

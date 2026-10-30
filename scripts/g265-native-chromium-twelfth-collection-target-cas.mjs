@@ -955,6 +955,72 @@ try{
     'UNVERIFIED_RELOAD_REQUIRED');
   console.log('PASS G265_TWELFTH_NATIVE_SQLJS_OPEN_FACTORY_REJECTED_STICKY_ZERO_CAS_FRESH_TAB_RECOVERY');
 
+
+  // Native SQL.js BEGIN IMMEDIATE rejection is distinct from connection-factory
+  // failure: a real connection was opened and MUST be closed before returning.
+  // The isolated pair must remain unchanged; only a fresh tab may recover.
+  const beforeBeginReject=await inspect(independentOpenReadback);
+  const beginRejectTab=await newTab();
+  await beginRejectTab.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();v.beginRejectCalls=0;v.beginRejectClosed=0;
+    v.pair=v.createSqliteVersionNeutralAtomicPairGate({db:v.db});
+    v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+      openSqlite:bytes=>{
+        v.opened++;
+        const sql=new v.SQL.Database(bytes);
+        const runSql=sql.run.bind(sql),closeSql=sql.close.bind(sql);
+        sql.run=(statement,...params)=>{
+          if(statement==='BEGIN IMMEDIATE'){
+            v.beginRejectCalls++;
+            throw new Error('SYNTHETIC_SQLJS_BEGIN_REJECTED');
+          }
+          return runSql(statement,...params);
+        };
+        sql.close=()=>{v.beginRejectClosed++;return closeSql();};
+        return sql;
+      }});
+  });
+  const rejectedBeginPayload=input('target_begin_rejected',
+    'SYNTHETIC_BEGIN_REJECTED',beforeBeginReject.generation,
+    beforeBeginReject.sha256,'2026-10-30T01:18:00.000Z');
+  const rejectedBeginResult=await run(beginRejectTab,rejectedBeginPayload);
+  assert.deepEqual(rejectedBeginResult,
+    {ok:false,code:'SYNTHETIC_SQLJS_BEGIN_REJECTED'});
+  assert.deepEqual(await beginRejectTab.evaluate(()=>({
+    opened:window.__g265.opened,beginCalls:window.__g265.beginRejectCalls,
+    closed:window.__g265.beginRejectClosed,status:window.__g265.writer.status().status
+  })),{opened:1,beginCalls:1,closed:1,status:'UNVERIFIED_RELOAD_REQUIRED'});
+  assert.deepEqual(await run(beginRejectTab,rejectedBeginPayload),
+    {ok:false,code:'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.equal(await beginRejectTab.evaluate(()=>window.__g265.beginRejectCalls),1);
+  const freshAfterBeginReject=await newTab();
+  await freshAfterBeginReject.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  assert.deepEqual(await inspect(freshAfterBeginReject),beforeBeginReject);
+  const healthyBeginPayload=input('target_begin_recovery',
+    'SYNTHETIC_BEGIN_RECOVERY',beforeBeginReject.generation,
+    beforeBeginReject.sha256,'2026-10-30T01:19:00.000Z');
+  const healthyBeginResult=await run(freshAfterBeginReject,healthyBeginPayload);
+  assert.equal(healthyBeginResult.ok,true,JSON.stringify(healthyBeginResult));
+  assert.equal(healthyBeginResult.result.status,'PERSISTED');
+  const beginReadbackTab=await newTab();
+  await beginReadbackTab.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  const afterBeginRecovery=await inspect(beginReadbackTab);
+  assert.equal(afterBeginRecovery.generation,beforeBeginReject.generation+1);
+  assert.equal(afterBeginRecovery.sha256,digest(afterBeginRecovery.bytes));
+  assert.equal(has(afterBeginRecovery,'target_begin_rejected'),undefined);
+  assert.ok(has(afterBeginRecovery,'target_begin_recovery'));
+  assert.deepEqual(afterBeginRecovery.master,beforeBeginReject.master);
+  assert.deepEqual(afterBeginRecovery.rows.filter(row=>
+    row[0]!=='target_begin_recovery'),beforeBeginReject.rows);
+  assert.equal(await beginRejectTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_SQLJS_BEGIN_REJECTED_CLOSED_STICKY_FRESH_TAB_RECOVERY');
+
   console.log('HOLD G265_TWELFTH_NATIVE_OPTIN_NOT_PRODUCTION_ALL_WRITERS_CRASH_RESTORE_ANDROID');
 }finally{
   for(const page of pages)if(!page.isClosed()){
