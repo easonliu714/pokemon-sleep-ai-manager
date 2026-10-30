@@ -505,6 +505,62 @@ try{
   assert.deepEqual(await inspect(freshAfterWait),beforeWaitTimeout);
   console.log('PASS G265_TWELFTH_NATIVE_LOCK_WAIT_TIMEOUT_STICKY_ZERO_SQLJS_ZERO_DURABLE_DELTA');
 
+  // Held native Web Lock timeout after SQL.js has committed its in-memory
+  // mutation but before the next digest: a delayed async digest must not
+  // produce a late durable CAS or ACK once the pair session is sticky.
+  // Only disposable synthetic IDB/SQL.js data is used; no player storage.
+  const beforeHeldTimeout=await inspect(freshAfterWait);
+  const heldTab=await newTab();
+  await heldTab.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();v.digestCalls=0;v.digestPaused=false;
+    v.pair=v.createSqliteVersionNeutralAtomicPairGate({
+      db:v.db,timeoutMs:400,
+      fingerprint:async bytes=>{
+        v.digestCalls++;
+        if(v.digestCalls===2){
+          v.digestPaused=true;
+          await new Promise(resolve=>{v.resumeDigest=resolve;});
+          v.digestResumed=true;
+        }
+        const hash=await crypto.subtle.digest('SHA-256',bytes);
+        return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('');
+      }
+    });
+    v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+      openSqlite:bytes=>{v.opened++;return new v.SQL.Database(bytes);}});
+  });
+  const heldPayload=input('target_held_timeout','SYNTHETIC_HELD_TIMEOUT',
+    beforeHeldTimeout.generation,beforeHeldTimeout.sha256,
+    '2026-10-30T01:06:00.000Z');
+  const heldPending=run(heldTab,heldPayload);
+  await heldTab.waitForFunction(()=>window.__g265.digestPaused===true);
+  const heldResult=await heldPending;
+  assert.deepEqual(heldResult,
+    {ok:false,code:'G265_PAIR_HELD_LOCK_TIMEOUT_UNCERTAIN'});
+  assert.equal(await heldTab.evaluate(()=>window.__g265.opened),1);
+  assert.equal(await heldTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  assert.deepEqual(await inspect(freshAfterWait),beforeHeldTimeout);
+  const heldReplay=await run(heldTab,heldPayload);
+  assert.deepEqual(heldReplay,
+    {ok:false,code:'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.equal(await heldTab.evaluate(()=>window.__g265.opened),1);
+  await heldTab.evaluate(()=>window.__g265.resumeDigest());
+  await heldTab.waitForFunction(()=>window.__g265.digestResumed===true);
+  await heldTab.waitForFunction(async name=>{
+    const state=await navigator.locks.query();
+    return !state.held.some(lock=>lock.name===name);
+  },nativeLockName);
+  const freshAfterHeld=await newTab();
+  await freshAfterHeld.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  assert.deepEqual(await inspect(freshAfterHeld),beforeHeldTimeout);
+  assert.equal(await heldTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_HELD_LOCK_DIGEST_TIMEOUT_NO_LATE_CAS_ACK_ZERO_DURABLE_DELTA');
+
   console.log('HOLD G265_TWELFTH_NATIVE_OPTIN_NOT_PRODUCTION_ALL_WRITERS_CRASH_RESTORE_ANDROID');
 }finally{
   for(const page of pages)if(!page.isClosed()){
