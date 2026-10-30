@@ -12,8 +12,9 @@ try{
   const page=await context.newPage();
   await page.goto(base,{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>document.querySelector('#dbStatus')?.textContent?.includes('就緒'),{timeout:60000});
-  await page.waitForSelector('#e3c6bCaptureForm',{timeout:30000});
+  // Hidden Update Center is not visible until its real navigation is activated.
   await page.locator('nav button[data-view="updates"]').click();
+  await page.waitForSelector('#e3c6bCaptureForm',{timeout:30000});
   await page.locator('#e3c6bCaptureForm').scrollIntoViewIfNeeded();
   const results=[];
   for(const width of widths){
