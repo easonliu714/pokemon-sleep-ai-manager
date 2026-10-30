@@ -203,6 +203,46 @@ try{
   await d.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
   assert.deepEqual(await inspect(d),updated);
   console.log('PASS G265_TWELFTH_NATIVE_SQL_ROLLBACK_INDEPENDENT_DURABLE_READBACK_UNCHANGED');
+
+  // Synthetic torn metadata: never repair a digest mismatch automatically.
+  // A fresh tab must fail closed before opening SQL.js; only an explicit
+  // fixture-only metadata repair can permit a newly constructed reader.
+  const beforeTorn=await inspect(d);
+  const openedBeforeTorn=await d.evaluate(()=>window.__g265.opened);
+  await d.evaluate(async generation=>{
+    const db=window.__g265.db;
+    await new Promise((resolve,reject)=>{
+      const tx=db.transaction('metadata','readwrite');
+      tx.objectStore('metadata').put({generation,sha256:'0'.repeat(64)},'revision:primary');
+      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+    });
+  },beforeTorn.generation);
+  await d.evaluate(()=>window.__g265.reset());
+  const torn=await run(d,input('target_torn','SYNTHETIC_TORN',beforeTorn.generation,beforeTorn.sha256));
+  assert.deepEqual(torn,{ok:false,code:'G265_PAIR_DIGEST_MISMATCH'});
+  assert.equal(await d.evaluate(()=>window.__g265.opened),openedBeforeTorn);
+  assert.equal(await d.evaluate(()=>window.__g265.writer.status().status),'UNVERIFIED_RELOAD_REQUIRED');
+  assert.deepEqual(await d.evaluate(async()=>
+    Array.from(new Uint8Array(await window.__g265.storage.loadDatabaseBytes()))),beforeTorn.bytes);
+  const e=await newTab();
+  await e.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
+  const secondTorn=await run(e,input('target_torn_other','SYNTHETIC_OTHER',beforeTorn.generation,beforeTorn.sha256));
+  assert.deepEqual(secondTorn,{ok:false,code:'G265_PAIR_DIGEST_MISMATCH'});
+  assert.equal(await e.evaluate(()=>window.__g265.opened),0);
+  // Explicit repair is restricted to this disposable fixture, never the player DB.
+  await d.evaluate(async revision=>{
+    await new Promise((resolve,reject)=>{
+      const tx=window.__g265.db.transaction('metadata','readwrite');
+      tx.objectStore('metadata').put(revision,'revision:primary');
+      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+    });
+  },{generation:beforeTorn.generation,sha256:beforeTorn.sha256});
+  const f=await newTab();
+  await f.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
+  assert.deepEqual(await inspect(f),beforeTorn);
+  assert.equal(await d.evaluate(()=>window.__g265.writer.status().status),'UNVERIFIED_RELOAD_REQUIRED');
+  assert.equal(await e.evaluate(()=>window.__g265.writer.status().status),'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_TORN_METADATA_FAIL_CLOSED_EXPLICIT_FIXTURE_REPAIR_ONLY');
   console.log('HOLD G265_TWELFTH_NATIVE_OPTIN_NOT_PRODUCTION_ALL_WRITERS_CRASH_RESTORE_ANDROID');
 }finally{
   for(const page of pages)if(!page.isClosed()){
