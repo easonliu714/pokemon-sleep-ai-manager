@@ -606,6 +606,52 @@ try{
     'UNVERIFIED_RELOAD_REQUIRED');
   console.log('PASS G265_TWELFTH_NATIVE_INVALID_NEXT_DIGEST_STICKY_ZERO_DURABLE_DELTA');
 
+  // Cryptographic provider rejection is distinct from a malformed hash. The
+  // first digest verifies the latest synthetic durable pair; the second
+  // rejects only after SQL.js has committed in memory, before durable CAS.
+  // A failed provider must never fall back to legacy direct persistence.
+  const beforeRejectedDigest=await inspect(freshAfterInvalidDigest);
+  const rejectedDigestTab=await newTab();
+  await rejectedDigestTab.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();v.rejectedDigestCalls=0;
+    v.pair=v.createSqliteVersionNeutralAtomicPairGate({
+      db:v.db,
+      fingerprint:async bytes=>{
+        v.rejectedDigestCalls++;
+        if(v.rejectedDigestCalls===2)
+          throw new Error('SYNTHETIC_NEXT_DIGEST_PROVIDER_REJECTED');
+        const hash=await crypto.subtle.digest('SHA-256',bytes);
+        return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('');
+      }
+    });
+    v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+      openSqlite:bytes=>{v.opened++;return new v.SQL.Database(bytes);}});
+  });
+  const rejectedDigestPayload=input('target_rejected_digest','SYNTHETIC_DIGEST_REJECT',
+    beforeRejectedDigest.generation,beforeRejectedDigest.sha256,
+    '2026-10-30T01:08:00.000Z');
+  const rejectedDigestResult=await run(rejectedDigestTab,rejectedDigestPayload);
+  assert.deepEqual(rejectedDigestResult,
+    {ok:false,code:'SYNTHETIC_NEXT_DIGEST_PROVIDER_REJECTED'});
+  assert.equal(await rejectedDigestTab.evaluate(()=>window.__g265.rejectedDigestCalls),2);
+  assert.equal(await rejectedDigestTab.evaluate(()=>window.__g265.opened),1);
+  assert.equal(await rejectedDigestTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  assert.deepEqual(await inspect(freshAfterInvalidDigest),beforeRejectedDigest);
+  const rejectedDigestReplay=await run(rejectedDigestTab,rejectedDigestPayload);
+  assert.deepEqual(rejectedDigestReplay,
+    {ok:false,code:'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.equal(await rejectedDigestTab.evaluate(()=>window.__g265.opened),1);
+  const freshAfterRejectedDigest=await newTab();
+  await freshAfterRejectedDigest.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  assert.deepEqual(await inspect(freshAfterRejectedDigest),beforeRejectedDigest);
+  assert.equal(await rejectedDigestTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_REJECTED_NEXT_DIGEST_STICKY_ZERO_DURABLE_DELTA');
+
   console.log('HOLD G265_TWELFTH_NATIVE_OPTIN_NOT_PRODUCTION_ALL_WRITERS_CRASH_RESTORE_ANDROID');
 }finally{
   for(const page of pages)if(!page.isClosed()){
