@@ -118,6 +118,21 @@ try{
   assert.equal((await inspect(a)).generation,0);
   console.log('PASS G265_TWELFTH_NATIVE_INVALID_SPECIES_ID_PRE_SQL');
 
+  // Malformed UTC provenance and control characters must be rejected before
+  // SQL.js opens, with no durable bytes/generation or public-master changes.
+  const baseline=await inspect(a);
+  const badUpdatedAt=await run(a,input('target_bad_time','SYNTHETIC_TIME',0,seedHash,
+    '2026-10-30T01:00:00Z'));
+  assert.deepEqual(badUpdatedAt,{ok:false,code:'G265_COLLECTION_TARGET_PROVENANCE_INVALID'});
+  const badPreviousAt=await run(a,input('target_bad_previous','SYNTHETIC_PREVIOUS',0,seedHash,
+    '2026-10-30T01:00:00.000Z','2026-10-30T99:00:00.000Z'));
+  assert.deepEqual(badPreviousAt,{ok:false,code:'G265_COLLECTION_TARGET_PROVENANCE_INVALID'});
+  const controlChar=await run(a,input('target_bad_control','SYNTHETIC\\u0000CONTROL',0,seedHash));
+  assert.deepEqual(controlChar,{ok:false,code:'G265_COLLECTION_TARGET_INPUT_INVALID'});
+  assert.equal(await a.evaluate(()=>window.__g265.opened),0);
+  assert.deepEqual(await inspect(b),baseline);
+  console.log('PASS G265_TWELFTH_NATIVE_PROVENANCE_CONTROL_PRE_SQL_ZERO_DURABLE_DELTA');
+
   const race=await Promise.all([
     run(a,input('target_a','SYNTHETIC_A',0,seedHash)),
     run(b,input('target_b','SYNTHETIC_B',0,seedHash))
