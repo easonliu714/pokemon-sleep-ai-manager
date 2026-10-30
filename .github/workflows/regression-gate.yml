@@ -501,6 +501,11 @@ jobs:
       - name: G265 Twelfth Collection Target Isolated Opt-in Durable CAS Gate
         run: node scripts/g265-collection-target-twelfth-legacy-writer-optin.mjs
 
+      - name: G265 Twelfth Collection Target Native Chromium Two-Tab CAS and Recovery Gate
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-native-chromium-twelfth-collection-target-cas.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
