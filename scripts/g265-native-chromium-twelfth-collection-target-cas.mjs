@@ -751,6 +751,76 @@ try{
     beforeReentrant.rows);
   console.log('PASS G265_TWELFTH_NATIVE_SAME_TAB_REENTRANT_ONE_ACK_SECOND_REJECTED_INDEPENDENT_READBACK');
 
+  // Separate opt-in sessions in ONE native Chromium tab share the same real
+  // Web Lock. Unlike same-session reentry, the second session must queue, then
+  // reject the now-stale revision BEFORE opening SQL.js. Synthetic IDB only.
+  const beforeDualSession=await inspect(freshAfterReentrant);
+  const dualSessionTab=await newTab();
+  await dualSessionTab.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();v.dualDigestCalls=0;v.dualDigestPaused=false;v.openedSecond=0;
+    v.pair=v.createSqliteVersionNeutralAtomicPairGate({
+      db:v.db,timeoutMs:5000,
+      fingerprint:async bytes=>{
+        v.dualDigestCalls++;
+        if(v.dualDigestCalls===2){
+          v.dualDigestPaused=true;
+          await new Promise(resolve=>{v.releaseDualDigest=resolve;});
+        }
+        const hash=await crypto.subtle.digest('SHA-256',bytes);
+        return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('');
+      }
+    });
+    v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+      openSqlite:bytes=>{v.opened++;return new v.SQL.Database(bytes);}});
+    v.pairSecond=v.createSqliteVersionNeutralAtomicPairGate({db:v.db,timeoutMs:5000});
+    v.writerSecond=v.createCollectionTargetOptIn({pairGate:v.pairSecond,
+      openSqlite:bytes=>{v.openedSecond++;return new v.SQL.Database(bytes);}});
+  });
+  const dualFirst=input('target_dual_first','SYNTHETIC_DUAL_FIRST',
+    beforeDualSession.generation,beforeDualSession.sha256,'2026-10-30T01:12:00.000Z');
+  const dualSecond=input('target_dual_second','SYNTHETIC_DUAL_SECOND',
+    beforeDualSession.generation,beforeDualSession.sha256,'2026-10-30T01:13:00.000Z');
+  const dualFirstPending=run(dualSessionTab,dualFirst);
+  await dualSessionTab.waitForFunction(()=>window.__g265.dualDigestPaused===true);
+  const dualSecondPending=dualSessionTab.evaluate(async data=>{
+    try{return {ok:true,result:await window.__g265.writerSecond.execute(data)};}
+    catch(error){return {ok:false,code:error.code||error.message};}
+  },dualSecond);
+  await dualSessionTab.waitForFunction(async name=>{
+    const state=await navigator.locks.query();
+    return state.pending.some(lock=>lock.name===name);
+  },nativeLockName);
+  assert.equal(await dualSessionTab.evaluate(()=>window.__g265.openedSecond),0);
+  assert.deepEqual(await inspect(freshAfterReentrant),beforeDualSession);
+  await dualSessionTab.evaluate(()=>window.__g265.releaseDualDigest());
+  const dualFirstResult=await dualFirstPending;
+  const dualSecondResult=await dualSecondPending;
+  assert.equal(dualFirstResult.ok,true,JSON.stringify(dualFirstResult));
+  assert.equal(dualFirstResult.result.status,'PERSISTED');
+  assert.deepEqual(dualSecondResult,{ok:false,code:'G265_PAIR_STALE_RELOAD_REQUIRED'});
+  assert.equal(await dualSessionTab.evaluate(()=>window.__g265.openedSecond),0);
+  assert.equal(await dualSessionTab.evaluate(()=>window.__g265.writerSecond.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  const dualReplay=await dualSessionTab.evaluate(async data=>{
+    try{return {ok:true,result:await window.__g265.writerSecond.execute(data)};}
+    catch(error){return {ok:false,code:error.code||error.message};}
+  },dualSecond);
+  assert.deepEqual(dualReplay,{ok:false,code:'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.equal(await dualSessionTab.evaluate(()=>window.__g265.openedSecond),0);
+  const freshAfterDual=await newTab();
+  await freshAfterDual.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  const afterDual=await inspect(freshAfterDual);
+  assert.equal(afterDual.generation,beforeDualSession.generation+1);
+  assert.ok(has(afterDual,'target_dual_first'));
+  assert.equal(has(afterDual,'target_dual_second'),undefined);
+  assert.deepEqual(afterDual.master,beforeDualSession.master);
+  assert.deepEqual(afterDual.rows.filter(row=>row[0]!=='target_dual_first'),
+    beforeDualSession.rows);
+  console.log('PASS G265_TWELFTH_NATIVE_SAME_TAB_TWO_SESSIONS_LOCK_QUEUE_STALE_ZERO_SECOND_SQLJS');
+
   console.log('HOLD G265_TWELFTH_NATIVE_OPTIN_NOT_PRODUCTION_ALL_WRITERS_CRASH_RESTORE_ANDROID');
 }finally{
   for(const page of pages)if(!page.isClosed()){
