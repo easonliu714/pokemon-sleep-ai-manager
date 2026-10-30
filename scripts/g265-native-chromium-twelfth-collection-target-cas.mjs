@@ -423,6 +423,37 @@ try{
     'UNVERIFIED_RELOAD_REQUIRED');
   console.log('PASS G265_TWELFTH_NATIVE_POST_COMMIT_ACK_LOSS_STICKY_SINGLE_PERSIST_INDEPENDENT_READBACK');
 
+  // Native browser capability-loss negative: the isolated pair gate must
+  // fail closed when Web Locks cannot be requested, before SQL.js opens.
+  // No fallback to legacy direct saveDatabaseBytes is allowed.
+  const beforeLockless=await inspect(q);
+  const locklessTab=await newTab();
+  await locklessTab.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();
+    v.pair=v.createSqliteVersionNeutralAtomicPairGate({db:v.db,locks:{}});
+    v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+      openSqlite:bytes=>{v.opened++;return new v.SQL.Database(bytes);}});
+  });
+  const locklessPayload=input('target_lockless','SYNTHETIC_LOCKLESS',
+    beforeLockless.generation,beforeLockless.sha256,'2026-10-30T01:04:00.000Z');
+  const lockless=await run(locklessTab,locklessPayload);
+  assert.deepEqual(lockless,{ok:false,code:'G265_PAIR_WEB_LOCKS_UNAVAILABLE'});
+  assert.equal(await locklessTab.evaluate(()=>window.__g265.opened),0);
+  assert.equal(await locklessTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  assert.deepEqual(await inspect(q),beforeLockless);
+  const locklessReplay=await run(locklessTab,locklessPayload);
+  assert.deepEqual(locklessReplay,
+    {ok:false,code:'G265_COLLECTION_TARGET_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.equal(await locklessTab.evaluate(()=>window.__g265.opened),0);
+  const freshAfterLockless=await newTab();
+  await freshAfterLockless.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  assert.deepEqual(await inspect(freshAfterLockless),beforeLockless);
+  console.log('PASS G265_TWELFTH_NATIVE_WEB_LOCKS_UNAVAILABLE_STICKY_ZERO_SQLJS_ZERO_DURABLE_DELTA');
+
   console.log('HOLD G265_TWELFTH_NATIVE_OPTIN_NOT_PRODUCTION_ALL_WRITERS_CRASH_RESTORE_ANDROID');
 }finally{
   for(const page of pages)if(!page.isClosed()){
