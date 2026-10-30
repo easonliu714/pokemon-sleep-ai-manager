@@ -444,8 +444,10 @@ try{
     'UNVERIFIED_RELOAD_REQUIRED');
   assert.deepEqual(await inspect(q),beforeLockless);
   const locklessReplay=await run(locklessTab,locklessPayload);
+  // The native pair gate, not the collection adapter, owns this sticky
+  // capability-loss state. Require the pair-level fail-closed error on replay.
   assert.deepEqual(locklessReplay,
-    {ok:false,code:'G265_COLLECTION_TARGET_UNVERIFIED_RELOAD_REQUIRED'});
+    {ok:false,code:'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED'});
   assert.equal(await locklessTab.evaluate(()=>window.__g265.opened),0);
   const freshAfterLockless=await newTab();
   await freshAfterLockless.evaluate(async()=>{
