@@ -456,6 +456,55 @@ try{
   assert.deepEqual(await inspect(freshAfterLockless),beforeLockless);
   console.log('PASS G265_TWELFTH_NATIVE_WEB_LOCKS_UNAVAILABLE_STICKY_ZERO_SQLJS_ZERO_DURABLE_DELTA');
 
+  // Real native Chromium lock contention: another tab holds the shared
+  // exclusive Web Lock beyond the bounded opt-in timeout. The waiting writer
+  // must fail closed before SQL.js opens and must never retry this session.
+  // All storage is synthetic; no production player database is accessed.
+  const beforeWaitTimeout=await inspect(freshAfterLockless);
+  const nativeLockName='pokemon-sleep-ai-manager:sqlite-primary-exclusive-write';
+  await q.evaluate(name=>{
+    const v=window.__g265;
+    v.heldLockReady=false;
+    v.heldLockPromise=navigator.locks.request(name,{mode:'exclusive'},async()=>{
+      v.heldLockReady=true;
+      await new Promise(resolve=>{v.releaseHeldLock=resolve;});
+    });
+  },nativeLockName);
+  await q.waitForFunction(()=>window.__g265.heldLockReady===true);
+  try{
+    const waitingTab=await newTab();
+    await waitingTab.evaluate(async()=>{
+      const v=window.__g265;
+      v.db=await v.open();
+      v.pair=v.createSqliteVersionNeutralAtomicPairGate({db:v.db,timeoutMs:300});
+      v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+        openSqlite:bytes=>{v.opened++;return new v.SQL.Database(bytes);}});
+    });
+    const waitPayload=input('target_lock_wait','SYNTHETIC_LOCK_WAIT',
+      beforeWaitTimeout.generation,beforeWaitTimeout.sha256,
+      '2026-10-30T01:05:00.000Z');
+    const waitResult=await run(waitingTab,waitPayload);
+    assert.deepEqual(waitResult,
+      {ok:false,code:'G265_PAIR_LOCK_WAIT_TIMEOUT_UNCERTAIN'});
+    assert.equal(await waitingTab.evaluate(()=>window.__g265.opened),0);
+    assert.equal(await waitingTab.evaluate(()=>window.__g265.writer.status().status),
+      'UNVERIFIED_RELOAD_REQUIRED');
+    const waitReplay=await run(waitingTab,waitPayload);
+    assert.deepEqual(waitReplay,
+      {ok:false,code:'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED'});
+    assert.equal(await waitingTab.evaluate(()=>window.__g265.opened),0);
+    assert.deepEqual(await inspect(freshAfterLockless),beforeWaitTimeout);
+  }finally{
+    await q.evaluate(()=>window.__g265.releaseHeldLock?.());
+    await q.evaluate(()=>window.__g265.heldLockPromise);
+  }
+  const freshAfterWait=await newTab();
+  await freshAfterWait.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  assert.deepEqual(await inspect(freshAfterWait),beforeWaitTimeout);
+  console.log('PASS G265_TWELFTH_NATIVE_LOCK_WAIT_TIMEOUT_STICKY_ZERO_SQLJS_ZERO_DURABLE_DELTA');
+
   console.log('HOLD G265_TWELFTH_NATIVE_OPTIN_NOT_PRODUCTION_ALL_WRITERS_CRASH_RESTORE_ANDROID');
 }finally{
   for(const page of pages)if(!page.isClosed()){
