@@ -774,6 +774,92 @@ assert.equal(digestChangedRecovery.restoreAuthorized,false);
 assert.deepEqual(await inspect(),digestBefore);
 console.log('PASS G265_ESCROW_REQUEST_DIGEST_READBACK_AND_RECOVERY_MUTATION_HOLD');
 
+// Canonical JSON identity must not omit hidden or symbol-owned fields.
+ // A different request with invisible metadata could otherwise share the
+ // same digest; reject before writing escrow and reject execute irreversibly.
+const noncanonicalBefore=await inspect();
+const noncanonicalBase=input('SYNTHETIC_A','eval_noncanonical',noncanonicalBefore);
+const hidden=(object,key,value)=>Object.defineProperty({...object},key,{value});
+const noncanonicalMutations=[
+  ['hidden-root',v=>hidden(v,'hiddenNonce','secret')],
+  ['symbol-root',v=>({...v,[Symbol('secret')]:1})],
+  ['hidden-nested',v=>({...v,scores:hidden(v.scores,'hiddenScore',999)})],
+  ['symbol-nested',v=>({...v,scores:{...v.scores,[Symbol('secret')]:999}})]
+];
+for(const [tag,mutate] of noncanonicalMutations){
+  const name='noncanonical-capture-'+tag;
+  let calls=0;
+  const session=make(name,{execute:async()=>{calls++;}});
+  await assert.rejects(session.capture(mutate(noncanonicalBase)),
+    e=>e.code==='G265_ESCROW_INVALID_BOUND_REQUEST');
+  assert.equal(session.status().status,'READY');
+  assert.equal(calls,0);
+  await assert.rejects(make(name).inspectRecovery(),
+    e=>e.code==='G265_ESCROW_MISSING_OR_INVALID');
+  assert.deepEqual(await inspect(),noncanonicalBefore);
+}
+const invalidRevisionOnly=make('revision-only-extra-field');
+await assert.rejects(invalidRevisionOnly.capture({
+  expectedGeneration:noncanonicalBefore.generation,
+  expectedFingerprint:noncanonicalBefore.sha256,unexpectedPayload:'ignored-before'
+}),e=>e.code==='G265_ESCROW_INVALID_BOUND_REQUEST');
+assert.equal(invalidRevisionOnly.status().status,'READY');
+await assert.rejects(make('revision-only-extra-field').inspectRecovery(),
+  e=>e.code==='G265_ESCROW_MISSING_OR_INVALID');
+console.log('PASS G265_ESCROW_NONCANONICAL_CAPTURE_FIELDS_NO_ESCROW_NO_WRITER');
+
+let hiddenExecuteCalls=0;
+const hiddenExecuteName='noncanonical-execute-hidden-nested';
+const hiddenExecute=make(hiddenExecuteName,{execute:async()=>{hiddenExecuteCalls++;}});
+await hiddenExecute.capture(noncanonicalBase);
+await assert.rejects(hiddenExecute.execute({
+  ...noncanonicalBase,scores:hidden(noncanonicalBase.scores,'hiddenScore',888)
+}),e=>e.code==='G265_ESCROW_INVALID_BOUND_REQUEST');
+assert.equal(hiddenExecute.status().status,'UNVERIFIED_RELOAD_REQUIRED');
+await assert.rejects(hiddenExecute.execute(noncanonicalBase),
+  e=>e.code==='G265_ESCROW_NOT_ARMED');
+assert.equal(hiddenExecuteCalls,0);
+assert.equal((await make(hiddenExecuteName).inspectRecovery()).restoreAuthorized,false);
+assert.deepEqual(await inspect(),noncanonicalBefore);
+console.log('PASS G265_ESCROW_NONCANONICAL_EXECUTE_STICKY_ZERO_WRITES');
+
+// Malformed persisted request digests must never be treated as executable
+// authority, even with an otherwise valid SQLite generation/SHA/byte snapshot.
+for(const [tag,alter] of [
+  ['missing',record=>{const {requestDigest,...rest}=record;return rest;}],
+  ['null',record=>({...record,requestDigest:null})],
+  ['uppercase',record=>({...record,requestDigest:record.requestDigest.toUpperCase()})]
+]){
+  const name='malformed-request-digest-'+tag;
+  const store=createDisposableEvaluationEscrowStore({
+    indexedDB,name:'g265-evaluation-escrow-disposable-'+name});
+  let calls=0;
+  const session=createEvaluationPreTransactionEscrowOptIn({
+    pairGate:pair(),escrow:store,fingerprint:hash,
+    writer:{execute:async()=>{calls++;}}
+  });
+  await session.capture(noncanonicalBase);
+  const saved=await store.read();
+  const idb=await openDb('g265-evaluation-escrow-disposable-'+name,1);
+  await new Promise((resolve,reject)=>{
+    const tx=idb.transaction('escrow','readwrite');
+    tx.objectStore('escrow').put(alter(saved),'pretransaction');
+    tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+  });
+  idb.close();
+  await assert.rejects(session.execute(noncanonicalBase),
+    e=>tag==='null'?e.code==='G265_ESCROW_EXECUTE_REQUEST_DIGEST_CHANGED':
+      e.code==='G265_ESCROW_MISSING_OR_INVALID');
+  assert.equal(session.status().status,'UNVERIFIED_RELOAD_REQUIRED');
+  await assert.rejects(session.execute(noncanonicalBase),
+    e=>e.code==='G265_ESCROW_NOT_ARMED');
+  assert.equal(calls,0);
+  assert.deepEqual(await inspect(),noncanonicalBefore);
+  await assert.rejects(session.restore(),
+    e=>e.code==='G265_ESCROW_RESTORE_BLOCKED_ALL_WRITERS_UNADMITTED');
+}
+console.log('PASS G265_ESCROW_MALFORMED_PERSISTED_REQUEST_DIGEST_NO_WRITER_NO_ACK');
+
 // Normal verified PERSISTED success remains covered by the earlier
 // G265_ESCROW_INDEPENDENT_PREWRITE_DURABLE_READBACK_ACK_NO_AUTO_RESTORE gate.
 db.close();
