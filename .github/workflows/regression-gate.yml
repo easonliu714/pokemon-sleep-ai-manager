@@ -511,6 +511,9 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-native-chromium-twelfth-collection-target-cas.mjs
 
+      - name: G265 Evaluation Snapshot Legacy Two-ACK Derived Lost-Update Negative
+        run: node scripts/g265-pokemon-evaluation-snapshot-legacy-negative.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
