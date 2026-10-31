@@ -93,6 +93,10 @@ export function createEvaluationPreTransactionEscrowOptIn({
     state='IN_FLIGHT';
     try{
       const outcome=await writer.execute(input);
+      // A resolved Promise is not a durable ACK: only the opt-in writer's
+      // independently read-back PERSISTED result may advance this session.
+      if(!outcome||outcome.status!=='PERSISTED')
+        throw fail('G265_ESCROW_WRITER_ACK_NOT_VERIFIED');
       state='ACKED';
       return outcome;
     }catch(error){state='UNVERIFIED_RELOAD_REQUIRED';throw error;}
