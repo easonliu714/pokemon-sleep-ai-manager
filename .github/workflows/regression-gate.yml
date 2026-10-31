@@ -528,6 +528,9 @@ jobs:
       - name: G265 Evaluation Snapshot Independent Pretransaction Escrow Fail-Closed Gate
         run: node scripts/g265-evaluation-pretransaction-escrow-failclosed.mjs
 
+      - name: G265 Fourteenth Importer Isolated Opt-in CAS Rollback and ACK-loss Gate
+        run: node scripts/g265-importer-fourteenth-legacy-optin-cas-recovery.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
