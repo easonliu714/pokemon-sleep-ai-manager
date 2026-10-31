@@ -182,6 +182,49 @@ for(const result of [undefined,{status:'REJECTED',reason:'SYNTHETIC_REJECTION'},
 }
 console.log('PASS G265_ESCROW_NON_PERSISTED_RESOLVED_WRITER_NEVER_FALSE_ACK_STICKY');
 
+// Concurrent capture must reserve its single-use session before asynchronous I/O.
+// A second call is rejected without reading or writing an escrow; the first
+// may still arm cleanly and the player's durable revision remains untouched.
+const captureBefore=await inspect();
+const captureRevision={expectedGeneration:captureBefore.generation,
+  expectedFingerprint:captureBefore.sha256};
+let releaseCaptureRead,notifyCaptureRead,captureReads=0,captureWrites=0,captureWriterCalls=0;
+const captureReadStarted=new Promise(resolve=>{notifyCaptureRead=resolve;});
+const captureReadGate=pair();
+const raceEscrow=createDisposableEvaluationEscrowStore({
+  indexedDB,name:'g265-evaluation-escrow-disposable-concurrent-capture'});
+const raceSession=createEvaluationPreTransactionEscrowOptIn({
+  pairGate:{readVerified:async()=>{
+    captureReads++;notifyCaptureRead();
+    await new Promise(resolve=>{releaseCaptureRead=resolve;});
+    return captureReadGate.readVerified();
+  }},
+  escrow:{
+    write:async record=>{captureWrites++;return raceEscrow.write(record);},
+    read:()=>raceEscrow.read()
+  },
+  writer:{execute:async()=>{captureWriterCalls++;throw Error('WRITER_MUST_NOT_EXECUTE');}},
+  fingerprint:hash
+});
+const firstCapturePending=raceSession.capture(captureRevision);
+await captureReadStarted;
+await assert.rejects(raceSession.capture(captureRevision),
+  e=>e.code==='G265_ESCROW_SESSION_NOT_READY');
+assert.equal(captureReads,1);
+releaseCaptureRead();
+const firstCaptureResult=await firstCapturePending;
+assert.equal(firstCaptureResult.status,'ESCROW_VERIFIED');
+assert.equal(raceSession.status().status,'ARMED');
+assert.equal(captureWrites,1);
+await assert.rejects(raceSession.capture(captureRevision),
+  e=>e.code==='G265_ESCROW_SESSION_NOT_READY');
+const savedCapture=await raceEscrow.read();
+assert.equal(savedCapture.generation,captureBefore.generation);
+assert.equal(savedCapture.sha256,captureBefore.sha256);
+assert.equal(captureWriterCalls,0);
+assert.deepEqual(await inspect(),captureBefore);
+console.log('PASS G265_ESCROW_CONCURRENT_CAPTURE_SINGLE_FLIGHT_NO_POISON_NO_DURABLE_WRITE');
+
 db.close();
 console.log('PASS G265_ESCROW_MISSING_SNAPSHOT_RESTORE_REFUSED');
 console.log('HOLD G265_ESCROW_NOT_PRODUCTION_CRASH_RESTORE_ALL_WRITERS_OWNER_ANDROID');
