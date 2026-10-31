@@ -275,6 +275,51 @@ assert.equal((await createEvaluationPreTransactionEscrowOptIn({
 assert.deepEqual(await inspect(),postCaptureAfter);
 console.log('PASS G265_ESCROW_POST_CAPTURE_NEWER_ACK_NEVER_ARM_STALE_NO_RESTORE');
 
+// A recovery reader can observe an old verified durable pair just before
+// another legitimate writer ACKs. A second independent read must catch the
+// revision change and never classify the snapshot as safe/no-delta.
+const recoveryBefore=await inspect();
+const recoverySession=make('recovery-read-race');
+await recoverySession.capture({expectedGeneration:recoveryBefore.generation,
+  expectedFingerprint:recoveryBefore.sha256});
+let recoveryReads=0,recoveryCompetingAcks=0,recoveryWriterCalls=0;
+const recoveryObserver=createEvaluationPreTransactionEscrowOptIn({
+  pairGate:{readVerified:async()=>{
+    const observed=await pair().readVerified();
+    recoveryReads++;
+    if(recoveryReads===1){
+      const competing=await makeWriter().execute({
+        ...input('SYNTHETIC_B','eval_recovery_race',recoveryBefore),
+        expectedCurrentEvaluationId:'eval_B'
+      });
+      assert.equal(competing.status,'PERSISTED');
+      recoveryCompetingAcks++;
+    }
+    return observed;
+  }},
+  escrow:createDisposableEvaluationEscrowStore({
+    indexedDB,name:'g265-evaluation-escrow-disposable-recovery-read-race'
+  }),
+  writer:{execute:async()=>{recoveryWriterCalls++;throw Error('RECOVERY_MUST_NOT_WRITE');}},
+  fingerprint:hash
+});
+const racedRecovery=await recoveryObserver.inspectRecovery();
+const recoveryAfter=await inspect();
+assert.equal(recoveryReads,2);
+assert.equal(recoveryCompetingAcks,1);
+assert.equal(recoveryWriterCalls,0);
+assert.equal(racedRecovery.observationStable,false);
+assert.equal(racedRecovery.classification,'DURABLE_CHANGED_HOLD');
+assert.equal(racedRecovery.restoreAuthorized,false);
+assert.equal(racedRecovery.snapshotGeneration,recoveryBefore.generation);
+assert.equal(racedRecovery.currentGeneration,recoveryBefore.generation+1);
+assert.deepEqual(recoveryAfter.rows,[...recoveryBefore.rows,'eval_recovery_race'].sort());
+assert.deepEqual(recoveryAfter.master,recoveryBefore.master);
+await assert.rejects(recoveryObserver.restore(),
+  e=>e.code==='G265_ESCROW_RESTORE_BLOCKED_ALL_WRITERS_UNADMITTED');
+assert.deepEqual(await inspect(),recoveryAfter);
+console.log('PASS G265_ESCROW_RECOVERY_INTERLEAVED_NEWER_ACK_TWO_READS_HOLD_NO_RESTORE');
+
 db.close();
 console.log('PASS G265_ESCROW_MISSING_SNAPSHOT_RESTORE_REFUSED');
 console.log('HOLD G265_ESCROW_NOT_PRODUCTION_CRASH_RESTORE_ALL_WRITERS_OWNER_ANDROID');

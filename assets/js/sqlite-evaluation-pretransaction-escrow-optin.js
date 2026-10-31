@@ -114,11 +114,18 @@ export function createEvaluationPreTransactionEscrowOptIn({
   async function inspectRecovery(){
     // A fresh session may inspect an escrow after tab close/crash. No writes occur.
     const saved=await verifiedRecord(await escrow.read());
+    // Recovery is read-only, not lock-protected. A legitimate writer may ACK
+    // between durable observations; never report a stable zero-delta result
+    // from a single possibly stale read.
+    const first=await verifiedRecord(await pairGate.readVerified());
     const current=await verifiedRecord(await pairGate.readVerified());
+    const observationStable=first.generation===current.generation
+      &&first.sha256===current.sha256&&equal(first.bytes,current.bytes);
     const unchanged=current.generation===saved.generation
       &&current.sha256===saved.sha256&&equal(current.bytes,saved.bytes);
     return Object.freeze({
-      classification:unchanged?'NO_DURABLE_DELTA':'DURABLE_CHANGED_HOLD',
+      classification:observationStable&&unchanged?'NO_DURABLE_DELTA':'DURABLE_CHANGED_HOLD',
+      observationStable,
       snapshotGeneration:saved.generation,currentGeneration:current.generation,
       snapshotSha256:saved.sha256,currentSha256:current.sha256,
       restoreAuthorized:false
