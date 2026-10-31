@@ -531,6 +531,11 @@ jobs:
       - name: G265 Fourteenth Importer Isolated Opt-in CAS Rollback and ACK-loss Gate
         run: node scripts/g265-importer-fourteenth-legacy-optin-cas-recovery.mjs
 
+      - name: G265 Fourteenth Importer Native Chromium Two-Tab CAS and Recovery Gate
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-native-chromium-fourteenth-importer-cas.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
