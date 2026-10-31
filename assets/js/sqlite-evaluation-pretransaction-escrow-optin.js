@@ -110,6 +110,15 @@ export function createEvaluationPreTransactionEscrowOptIn({
       if(armedSnapshot.generation!==baseline.generation
         ||armedSnapshot.sha256!==baseline.sha256)
         throw fail('G265_ESCROW_EXECUTE_SNAPSHOT_CHANGED');
+      // A different acknowledged writer can advance the durable pair after
+      // capture and before execution. Re-read independently before invoking
+      // this opt-in writer; its downstream atomic CAS still guards later races.
+      // A read error must leave this single-use session unverified, never ACKED.
+      const latestBeforeWriter=await verifiedRecord(await pairGate.readVerified());
+      if(latestBeforeWriter.generation!==baseline.generation
+        ||latestBeforeWriter.sha256!==baseline.sha256
+        ||!equal(latestBeforeWriter.bytes,armedSnapshot.bytes))
+        throw fail('G265_ESCROW_EXECUTE_DURABLE_CHANGED');
       const outcome=await writer.execute(input);
       // A resolved Promise (even a claimed PERSISTED result) is not a durable
       // ACK. Require a well-formed successor revision and independently verify
