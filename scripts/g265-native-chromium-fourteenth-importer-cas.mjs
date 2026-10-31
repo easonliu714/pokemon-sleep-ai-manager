@@ -14,10 +14,10 @@ const writeMarker='function write(entity, key, data, mode) {';
 assert.equal(source.split(marker).length,2);
 assert.equal(source.split(writeMarker).length,2);
 const operation=source.slice(source.indexOf(writeMarker)).replace(/^export /gm,'');
-assert.match(operation,/await snapshot\\(/);
-assert.match(operation,/begin\\(\\);[\\s\\S]*?commit\\(\\);[\\s\\S]*?await persist\\(\\)/);
+assert.match(operation,/await snapshot\(/);
+assert.match(operation,/begin\(\);[\s\S]*?commit\(\);[\s\S]*?await persist\(\)/);
 assert.match(operation,/INSERT INTO import_batches/);
-assert.doesNotMatch(operation,/createSqliteCrossTabWriteAdmission|navigator\\.locks|runSqliteWriteSession/);
+assert.doesNotMatch(operation,/createSqliteCrossTabWriteAdmission|navigator\.locks|runSqliteWriteSession/);
 console.log('PASS G265_FOURTEENTH_NATIVE_EXACT_IMPORTER_SOURCE_BOUND_NOT_PRODUCTION_WIRED');
 
 const base=new URL(process.env.BASE_URL||'http://127.0.0.1:4173/');
@@ -126,7 +126,7 @@ async function tab(){
               }
             };
             const keys=Object.keys(env);
-            const apply=new Function(...keys,exact+'\\n;return applyPayload;')(...keys.map(k=>env[k]));
+            const apply=new Function(...keys,exact+'\n;return applyPayload;')(...keys.map(k=>env[k]));
             const payload={schema_version:'synthetic',update_id:'synthetic_'+id,
               generated_at:'2026-11-01T02:55:00+08:00',source:'synthetic',
               operations:[{entity:'settings',action:'insert',key:{key:'setting_'+id},data:{value:id}}]};
