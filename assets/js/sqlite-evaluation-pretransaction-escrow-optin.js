@@ -102,6 +102,14 @@ export function createEvaluationPreTransactionEscrowOptIn({
       throw fail('G265_ESCROW_WRITE_REVISION_MISMATCH');
     state='IN_FLIGHT';
     try{
+      // The immutable pre-transaction escrow is a required safety prerequisite.
+      // Another IndexedDB actor may remove/replace it after capture but before
+      // execution; fail closed before invoking any writer (advisory, not an
+      // atomic guarantee against later mutation by unadmitted legacy writers).
+      const armedSnapshot=await verifiedRecord(await escrow.read());
+      if(armedSnapshot.generation!==baseline.generation
+        ||armedSnapshot.sha256!==baseline.sha256)
+        throw fail('G265_ESCROW_EXECUTE_SNAPSHOT_CHANGED');
       const outcome=await writer.execute(input);
       // A resolved Promise (even a claimed PERSISTED result) is not a durable
       // ACK. Require a well-formed successor revision and independently verify

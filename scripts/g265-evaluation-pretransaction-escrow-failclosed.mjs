@@ -446,6 +446,55 @@ await assert.rejects(durableFail.restore(),
 assert.deepEqual(await inspect(),snapshotBefore);
 console.log('PASS G265_ESCROW_RECOVERY_READ_FAILURE_FAIL_CLOSED_ZERO_WRITES');
 
+// An escrow may be externally replaced or removed after a successful capture.
+// A write must never start when its crash-readable pre-transaction evidence is
+// no longer present and byte-digest-valid for the captured baseline.
+const preflightBefore=await inspect();
+for(const mutation of ['replace','delete']){
+  const name='execute-preflight-'+mutation;
+  const store=createDisposableEvaluationEscrowStore({
+    indexedDB,name:'g265-evaluation-escrow-disposable-'+name});
+  let preflightWriterCalls=0;
+  const session=createEvaluationPreTransactionEscrowOptIn({
+    pairGate:pair(),escrow:store,fingerprint:hash,
+    writer:{execute:async()=>{
+      preflightWriterCalls++;
+      throw Error('ESCROW_PREFLIGHT_MUST_NOT_INVOKE_WRITER');
+    }}
+  });
+  const before=await inspect();
+  const attempt=input('SYNTHETIC_A','eval_preflight_'+mutation,before);
+  await session.capture(attempt);
+  const escrowConnection=await openDb('g265-evaluation-escrow-disposable-'+name,1);
+  await new Promise((resolve,reject)=>{
+    const tx=escrowConnection.transaction('escrow','readwrite');
+    const objects=tx.objectStore('escrow');
+    if(mutation==='replace')
+      objects.put({generation:0,sha256:seedHash,bytes:seed.slice().buffer},'pretransaction');
+    else objects.delete('pretransaction');
+    tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+  });
+  escrowConnection.close();
+  await assert.rejects(session.execute(attempt),e=>e.code===(mutation==='replace'
+    ?'G265_ESCROW_EXECUTE_SNAPSHOT_CHANGED':'G265_ESCROW_MISSING_OR_INVALID'));
+  assert.equal(preflightWriterCalls,0);
+  assert.equal(session.status().status,'UNVERIFIED_RELOAD_REQUIRED');
+  await assert.rejects(session.execute(attempt),e=>e.code==='G265_ESCROW_NOT_ARMED');
+  if(mutation==='replace'){
+    const recovery=await make(name).inspectRecovery();
+    assert.equal(recovery.classification,'DURABLE_CHANGED_HOLD');
+    assert.equal(recovery.restoreAuthorized,false);
+  }else{
+    await assert.rejects(make(name).inspectRecovery(),
+      e=>e.code==='G265_ESCROW_MISSING_OR_INVALID');
+  }
+  await assert.rejects(session.restore(),
+    e=>e.code==='G265_ESCROW_RESTORE_BLOCKED_ALL_WRITERS_UNADMITTED');
+  assert.deepEqual(await inspect(),before);
+}
+assert.deepEqual(await inspect(),preflightBefore);
+console.log('PASS G265_ESCROW_EXECUTE_REPLACED_OR_MISSING_SNAPSHOT_NO_WRITER_NO_ACK');
+
 // Normal verified PERSISTED success remains covered by the earlier
 // G265_ESCROW_INDEPENDENT_PREWRITE_DURABLE_READBACK_ACK_NO_AUTO_RESTORE gate.
 db.close();
