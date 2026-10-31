@@ -546,6 +546,9 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-native-chromium-fifteenth-recipe-cas.mjs
 
+      - name: G265 Sixteenth Recipe Display Name Legacy Two-ACK Stale Evidence Negative
+        run: node scripts/g265-recipe-display-name-sixteenth-legacy-cross-tab-negative.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
