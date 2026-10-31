@@ -161,6 +161,27 @@ await assert.rejects(make('missing').inspectRecovery(),
   e=>e.code==='G265_ESCROW_MISSING_OR_INVALID');
 await assert.rejects(make('missing').restore(),
   e=>e.code==='G265_ESCROW_RESTORE_BLOCKED_ALL_WRITERS_UNADMITTED');
+// A non-throwing writer can still report a rejected/unverified result.
+// Do not convert Promise resolution into a false durable success ACK.
+for(const result of [undefined,{status:'REJECTED',reason:'SYNTHETIC_REJECTION'},
+  {status:'UNVERIFIED_RELOAD_REQUIRED'}]){
+  const tag=result?.status||'undefined';
+  const name='nonack-'+tag.toLowerCase().replace(/[^a-z0-9_-]/g,'-');
+  const session=make(name,{execute:async()=>result});
+  const revision=await inspect();
+  const attempt=input('SYNTHETIC_A','eval_nonack_'+tag,revision);
+  await session.capture(attempt);
+  await assert.rejects(session.execute(attempt),
+    e=>e.code==='G265_ESCROW_WRITER_ACK_NOT_VERIFIED');
+  assert.equal(session.status().status,'UNVERIFIED_RELOAD_REQUIRED');
+  await assert.rejects(session.execute(attempt),e=>e.code==='G265_ESCROW_NOT_ARMED');
+  const recovery=await make(name).inspectRecovery();
+  assert.equal(recovery.classification,'NO_DURABLE_DELTA');
+  assert.equal(recovery.restoreAuthorized,false);
+  assert.deepEqual(await inspect(),revision);
+}
+console.log('PASS G265_ESCROW_NON_PERSISTED_RESOLVED_WRITER_NEVER_FALSE_ACK_STICKY');
+
 db.close();
 console.log('PASS G265_ESCROW_MISSING_SNAPSHOT_RESTORE_REFUSED');
 console.log('HOLD G265_ESCROW_NOT_PRODUCTION_CRASH_RESTORE_ALL_WRITERS_OWNER_ANDROID');
