@@ -323,6 +323,11 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/v042724-browser-contract.mjs
 
+      - name: Verify E3C-6F Android mobile numeric input containment
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/e3c6f-update-center-mobile-field-containment-browser.mjs
+
       - name: Verify v0.4.27.48 ingredient inferred-zero Dry-Run / Apply transaction
         env:
           BASE_URL: http://127.0.0.1:4173/
@@ -500,6 +505,14 @@ jobs:
 
       - name: G265 Twelfth Collection Target Isolated Opt-in Durable CAS Gate
         run: node scripts/g265-collection-target-twelfth-legacy-writer-optin.mjs
+
+      - name: G265 Twelfth Collection Target Native Chromium Two-Tab CAS and Recovery Gate
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-native-chromium-twelfth-collection-target-cas.mjs
+
+      - name: G265 Evaluation Snapshot Legacy Two-ACK Derived Lost-Update Negative
+        run: node scripts/g265-pokemon-evaluation-snapshot-legacy-negative.mjs
 
       - name: G265 Evaluation Snapshot Isolated Opt-in Fresh Durable CAS Gate
         run: node scripts/g265-evaluation-snapshot-optin.mjs

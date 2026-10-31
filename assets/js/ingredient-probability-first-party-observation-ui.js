@@ -182,8 +182,32 @@ function buildInput(root){
   };
 }
 
+// E3C-6F screenshot-confirmed UI-only hotfix. CSS itself is cache-first
+// under the unchanged .37 service worker; this JS module is network-first.
+// Scope to the manual capture form only; never mutate observation data.
+function ensureMobileObservationFormContainment(){
+  const id='e3c6fMobileCaptureContainmentStyle';
+  if(document.getElementById(id))return;
+  const style=document.createElement('style');
+  style.id=id;
+  style.textContent=`
+    #e3c6bFirstPartyPanel,#e3c6bCaptureForm{min-width:0;max-width:100%}
+    #e3c6bCaptureForm>.edit-field,#e3c6bCaptureForm>.full{min-width:0;max-width:100%}
+    #e3c6bCaptureForm .edit-field{min-width:0;grid-template-columns:minmax(0,1fr)}
+    #e3c6bCaptureForm .edit-field>span{min-width:0;overflow-wrap:anywhere}
+    #e3c6bCaptureForm .edit-field>:is(input:not([type="checkbox"]),select,textarea){
+      display:block;box-sizing:border-box;min-width:0;max-width:100%;width:100%
+    }
+    @media(max-width:700px){
+      #e3c6bCaptureForm.edit-grid{grid-template-columns:minmax(0,1fr)}
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 function mount(){
   const host=document.getElementById('updateCenterDynamicContent');if(!host||document.getElementById('e3c6bFirstPartyPanel'))return;
+  ensureMobileObservationFormContainment();
   const candidates=candidateRows();
   const panel=document.createElement('section');panel.id='e3c6bFirstPartyPanel';panel.className='panel';
   panel.innerHTML=`<h3>Ingredient Probability 第一手觀測（E3C-6B / E3C-6D / E3C-6F）</h3>
