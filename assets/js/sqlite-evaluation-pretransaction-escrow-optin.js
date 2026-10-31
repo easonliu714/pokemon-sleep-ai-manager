@@ -70,6 +70,9 @@ export function createEvaluationPreTransactionEscrowOptIn({
     if(state!=='READY')throw fail('G265_ESCROW_SESSION_NOT_READY');
     if(!generation(expectedGeneration)||!digest(expectedFingerprint))
       throw fail('G265_ESCROW_INVALID_EXPECTED_REVISION');
+    // Reserve the session before the first await: two simultaneous captures
+    // must never race to persist the same immutable escrow or poison an armed session.
+    state='CAPTURING';
     try{
       const current=await verifiedRecord(await pairGate.readVerified());
       if(current.generation!==expectedGeneration||current.sha256!==expectedFingerprint)
