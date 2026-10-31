@@ -514,6 +514,9 @@ jobs:
       - name: G265 Evaluation Snapshot Legacy Two-ACK Derived Lost-Update Negative
         run: node scripts/g265-pokemon-evaluation-snapshot-legacy-negative.mjs
 
+      - name: G265 Evaluation Snapshot Isolated Opt-in Fresh Durable CAS Gate
+        run: node scripts/g265-evaluation-snapshot-optin.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
