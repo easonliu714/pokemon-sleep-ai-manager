@@ -1,4 +1,4 @@
-// G265 fifteenth Importer: native Chromium two-tab source-bound isolated CAS.
+// G265 fifteenth Recipe Unified Workbench: native Chromium source-bound isolated CAS.
 // Uses real browser Web Locks, IndexedDB and SQL.js/WASM on a disposable loopback
 // origin. The unchanged legacy recipe is invoked ONLY through a test-only
 // opt-in admission wrapper; this never opens the player database or app shell.
