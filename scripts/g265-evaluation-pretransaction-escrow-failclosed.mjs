@@ -616,6 +616,78 @@ await assert.rejects(mismatchSession.restore(),
 assert.deepEqual(await inspect(),mismatchBefore);
 console.log('PASS G265_ESCROW_EXECUTE_REVISION_MISMATCH_STICKY_NO_RETRY_ZERO_WRITES');
 
+// Same Generation/SHA must not authorize a different transaction payload.
+// Each mismatch consumes the one-use session, never invokes the writer, and
+// cannot alter the synthetic durable pair or permit a crash restore.
+const identityBefore=await inspect();
+const identityAttempt=input('SYNTHETIC_A','eval_identity_bound',identityBefore);
+const mutations=[
+  ['pokemon-id',v=>({...v,pokemonId:'SYNTHETIC_B'})],
+  ['evaluation-id',v=>({...v,evaluationId:'eval_identity_swapped'})],
+  ['input-fingerprint',v=>({...v,inputFingerprint:'synthetic:swapped'})],
+  ['current-evaluation',v=>({...v,expectedCurrentEvaluationId:'eval_A'})],
+  ['nested-scores',v=>({...v,scores:{...v.scores,roi:999}})],
+  ['evaluated-at',v=>({...v,evaluatedAt:'2026-11-01T00:00:00.000Z'})],
+  ['extra-field',v=>({...v,goalProfileId:'synthetic-other-goal'})]
+];
+for(const [tag,mutate] of mutations){
+  let calls=0;
+  const name='request-identity-'+tag;
+  const session=make(name,{execute:async()=>{calls++;throw Error('WRITER_MUST_NOT_RUN');}});
+  await session.capture(identityAttempt);
+  await assert.rejects(session.execute(mutate(identityAttempt)),
+    e=>e.code==='G265_ESCROW_EXECUTE_REQUEST_MISMATCH');
+  assert.equal(session.status().status,'UNVERIFIED_RELOAD_REQUIRED');
+  await assert.rejects(session.execute(identityAttempt),e=>e.code==='G265_ESCROW_NOT_ARMED');
+  assert.equal(calls,0);
+  const recovery=await make(name).inspectRecovery();
+  assert.equal(recovery.classification,'NO_DURABLE_DELTA');
+  assert.equal(recovery.restoreAuthorized,false);
+  await assert.rejects(session.restore(),
+    e=>e.code==='G265_ESCROW_RESTORE_BLOCKED_ALL_WRITERS_UNADMITTED');
+  assert.deepEqual(await inspect(),identityBefore);
+}
+console.log('PASS G265_ESCROW_FULL_REQUEST_IDENTITY_SWAP_STICKY_ZERO_WRITES');
+
+// Revision-only crash snapshots have no bound transaction identity; even a
+// correctly versioned full request cannot turn them into writer authorization.
+let unboundCalls=0;
+const unboundName='request-identity-unbound';
+const unboundSession=make(unboundName,{execute:async()=>{unboundCalls++;}});
+await unboundSession.capture({expectedGeneration:identityBefore.generation,
+  expectedFingerprint:identityBefore.sha256});
+await assert.rejects(unboundSession.execute(identityAttempt),
+  e=>e.code==='G265_ESCROW_EXECUTE_REQUEST_UNBOUND');
+assert.equal(unboundSession.status().status,'UNVERIFIED_RELOAD_REQUIRED');
+assert.equal(unboundCalls,0);
+assert.deepEqual(await inspect(),identityBefore);
+console.log('PASS G265_ESCROW_REVISION_ONLY_CAPTURE_CANNOT_EXECUTE');
+
+// The writer receives a detached canonical copy, not a mutable caller object.
+// A caller changing nested scores during awaited escrow/durable preflight
+// cannot redirect the transaction after the identity comparison.
+const detachedBefore=await inspect();
+let receivedRequest=null,detachedCalls=0;
+const detachedSession=make('request-identity-detached',{
+  execute:async request=>{
+    detachedCalls++;receivedRequest=request;
+    throw Object.assign(new Error('SYNTHETIC_DETACHED_REJECTION'),
+      {code:'SYNTHETIC_DETACHED_REJECTION'});
+  }
+});
+const detachedAttempt=input('SYNTHETIC_A','eval_detached',detachedBefore);
+await detachedSession.capture(detachedAttempt);
+const detachedPending=detachedSession.execute(detachedAttempt);
+detachedAttempt.evaluationId='eval_mutated_after_execute';
+detachedAttempt.scores.roi=999;
+await assert.rejects(detachedPending,e=>e.code==='SYNTHETIC_DETACHED_REJECTION');
+assert.equal(detachedCalls,1);
+assert.equal(receivedRequest.evaluationId,'eval_detached');
+assert.equal(receivedRequest.scores.roi,5);
+assert.equal(detachedSession.status().status,'UNVERIFIED_RELOAD_REQUIRED');
+assert.deepEqual(await inspect(),detachedBefore);
+console.log('PASS G265_ESCROW_WRITER_RECEIVES_DETACHED_BOUND_REQUEST');
+
 // Normal verified PERSISTED success remains covered by the earlier
 // G265_ESCROW_INDEPENDENT_PREWRITE_DURABLE_READBACK_ACK_NO_AUTO_RESTORE gate.
 db.close();
