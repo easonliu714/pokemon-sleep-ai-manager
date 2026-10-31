@@ -206,6 +206,9 @@ jobs:
       - name: G265 Fourteenth Importer Exact Legacy Two-ACK Negative
         run: node scripts/g265-importer-fourteenth-legacy-cross-tab-negative.mjs
 
+      - name: G265 Fifteenth Recipe Workbench Exact Legacy Two-ACK Negative
+        run: node scripts/g265-recipe-workbench-fifteenth-legacy-cross-tab-negative.mjs
+
       - name: G265 Independent Cross-Tab Stale SQLite Overwrite Negative Gate
         run: node scripts/g265-cross-tab-stale-sqlite-overwrite-negative.mjs
 
