@@ -195,8 +195,13 @@ const raceEscrow=createDisposableEvaluationEscrowStore({
   indexedDB,name:'g265-evaluation-escrow-disposable-concurrent-capture'});
 const raceSession=createEvaluationPreTransactionEscrowOptIn({
   pairGate:{readVerified:async()=>{
-    captureReads++;notifyCaptureRead();
-    await new Promise(resolve=>{releaseCaptureRead=resolve;});
+    captureReads++;
+    // Only the initial read is intentionally delayed; the new post-escrow
+    // revalidation read must complete rather than waiting on a second latch.
+    if(captureReads===1){
+      notifyCaptureRead();
+      await new Promise(resolve=>{releaseCaptureRead=resolve;});
+    }
     return captureReadGate.readVerified();
   }},
   escrow:{
@@ -213,6 +218,7 @@ await assert.rejects(raceSession.capture(captureRevision),
 assert.equal(captureReads,1);
 releaseCaptureRead();
 const firstCaptureResult=await firstCapturePending;
+assert.equal(captureReads,2); // Initial read + post-escrow revision revalidation.
 assert.equal(firstCaptureResult.status,'ESCROW_VERIFIED');
 assert.equal(raceSession.status().status,'ARMED');
 assert.equal(captureWrites,1);
@@ -224,6 +230,50 @@ assert.equal(savedCapture.sha256,captureBefore.sha256);
 assert.equal(captureWriterCalls,0);
 assert.deepEqual(await inspect(),captureBefore);
 console.log('PASS G265_ESCROW_CONCURRENT_CAPTURE_SINGLE_FLIGHT_NO_POISON_NO_DURABLE_WRITE');
+
+// A legitimate second writer may advance the durable revision while the
+// immutable escrow is being persisted. The first capture must never arm a
+// stale baseline, even though its escrow write/readback succeeded.
+const postCaptureBefore=await inspect();
+const postCaptureEscrow=createDisposableEvaluationEscrowStore({
+  indexedDB,name:'g265-evaluation-escrow-disposable-postcapture-race'});
+let postCaptureCompetingAcks=0,postCaptureWriterCalls=0;
+const postCaptureSession=createEvaluationPreTransactionEscrowOptIn({
+  pairGate:pair(),fingerprint:hash,
+  escrow:{
+    write:async record=>{
+      await postCaptureEscrow.write(record);
+      const competing=await makeWriter().execute(input(
+        'SYNTHETIC_BLOCKED','eval_postcapture_race',postCaptureBefore));
+      assert.equal(competing.status,'PERSISTED');
+      postCaptureCompetingAcks++;
+    },
+    read:()=>postCaptureEscrow.read()
+  },
+  writer:{execute:async()=>{postCaptureWriterCalls++;throw Error('STALE_WRITER_MUST_NOT_RUN');}}
+});
+const postCaptureRevision={expectedGeneration:postCaptureBefore.generation,
+  expectedFingerprint:postCaptureBefore.sha256};
+await assert.rejects(postCaptureSession.capture(postCaptureRevision),
+  e=>e.code==='G265_ESCROW_POST_CAPTURE_DURABLE_CHANGED');
+assert.equal(postCaptureSession.status().status,'UNVERIFIED_RELOAD_REQUIRED');
+assert.equal(postCaptureCompetingAcks,1);
+assert.equal(postCaptureWriterCalls,0);
+await assert.rejects(postCaptureSession.execute(input(
+  'SYNTHETIC_BLOCKED','eval_stale_replay',postCaptureBefore)),
+  e=>e.code==='G265_ESCROW_NOT_ARMED');
+const postCaptureAfter=await inspect();
+assert.equal(postCaptureAfter.generation,postCaptureBefore.generation+1);
+assert.deepEqual(postCaptureAfter.rows,[...postCaptureBefore.rows,'eval_postcapture_race'].sort());
+assert.deepEqual(postCaptureAfter.master,postCaptureBefore.master);
+const postCaptureSaved=await postCaptureEscrow.read();
+assert.equal(postCaptureSaved.generation,postCaptureBefore.generation);
+assert.equal(postCaptureSaved.sha256,postCaptureBefore.sha256);
+assert.equal((await createEvaluationPreTransactionEscrowOptIn({
+  pairGate:pair(),escrow:postCaptureEscrow,writer:makeWriter(),fingerprint:hash
+}).inspectRecovery()).classification,'DURABLE_CHANGED_HOLD');
+assert.deepEqual(await inspect(),postCaptureAfter);
+console.log('PASS G265_ESCROW_POST_CAPTURE_NEWER_ACK_NEVER_ARM_STALE_NO_RESTORE');
 
 db.close();
 console.log('PASS G265_ESCROW_MISSING_SNAPSHOT_RESTORE_REFUSED');
