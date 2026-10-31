@@ -195,8 +195,13 @@ const raceEscrow=createDisposableEvaluationEscrowStore({
   indexedDB,name:'g265-evaluation-escrow-disposable-concurrent-capture'});
 const raceSession=createEvaluationPreTransactionEscrowOptIn({
   pairGate:{readVerified:async()=>{
-    captureReads++;notifyCaptureRead();
-    await new Promise(resolve=>{releaseCaptureRead=resolve;});
+    captureReads++;
+    // Only the initial read is intentionally delayed; the new post-escrow
+    // revalidation read must complete rather than waiting on a second latch.
+    if(captureReads===1){
+      notifyCaptureRead();
+      await new Promise(resolve=>{releaseCaptureRead=resolve;});
+    }
     return captureReadGate.readVerified();
   }},
   escrow:{
@@ -213,6 +218,7 @@ await assert.rejects(raceSession.capture(captureRevision),
 assert.equal(captureReads,1);
 releaseCaptureRead();
 const firstCaptureResult=await firstCapturePending;
+assert.equal(captureReads,2); // Initial read + post-escrow revision revalidation.
 assert.equal(firstCaptureResult.status,'ESCROW_VERIFIED');
 assert.equal(raceSession.status().status,'ARMED');
 assert.equal(captureWrites,1);
