@@ -1,3 +1,8 @@
+## G265 fifteenth Recipe Workbench native Chromium two-tab recovery — SOURCE CANDIDATE
+
+- New isolated native browser Source/Test fixture: `scripts/g265-native-chromium-fifteenth-recipe-cas.mjs`, exact unchanged `saveRecipeState()` under disposable Web Locks/IndexedDB/SQL.js SHA-256 CAS; two writers one ACK, stale zero write, rollback, ACK-loss and independent durable readback. No production admission; 23 Legacy Writers/Crash Restore/Named Draft Apply/Android DoD HOLD.
+- #666 verified predecessor: final PR head `cfa44625a00db29bf7c6748d38ebf584c1488bcf` 6/6 CI, protected merge `2438945c326dc8822428ae369e71566b6fd7b964`, same-main 7/7 Push CI/Pages SUCCESS. Issue #19 OPEN; 11/02 04:00+08 end-exclusive pending; #644 and Halloween prior OWNER_PASS retained. Two formal docs remain sole authority.
+
 ## G265 fifteenth Recipe Workbench opt-in CAS / rollback recovery — SOURCE CANDIDATE
 
 - Isolated unchanged `saveRecipeState()` in synthetic SQL.js VM under existing SHA-256 Web Locks CAS; one ACK, stale zero writes, rollback, ACK-loss recovery and unavailable-lock fail-closed. Production Legacy Writer still unadmitted; Android Owner DoD HOLD. #665 merged exact-main `c4aa36f7c9a0d3f43e321deaa03058d2e765d930` with PR/main CI and Pages SUCCESS. Formal authority remains the two canonical governance documents.
