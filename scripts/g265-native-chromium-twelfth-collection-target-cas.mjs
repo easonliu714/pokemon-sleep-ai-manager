@@ -1,0 +1,1101 @@
+// G265 twelfth collection target: disposable native Chromium two-tab CAS/recovery.
+// Real SQL.js/WASM, native Web Locks and IndexedDB on loopback; never a player DB.
+// The production legacy collectionAddForm remains unchanged and unsafe.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {createHash} from 'node:crypto';
+import {chromium} from 'playwright';
+import initSqlJs from 'sql.js';
+
+const legacy=fs.readFileSync(new URL('../assets/js/g3-planning.js',import.meta.url),'utf8');
+const marker='export function setupG3Pages() {';
+assert.equal(legacy.split(marker).length,2);
+const operation=legacy.slice(legacy.indexOf(marker));
+assert.match(operation,/document\.getElementById\('collectionAddForm'\)\.onsubmit/);
+assert.match(operation,/await snapshot\('manual:collection-target'\)/);
+assert.match(operation,/INSERT OR REPLACE INTO collection_targets/);
+assert.match(operation,/await persist\(\)/);
+assert.doesNotMatch(legacy,/sqlite-collection-target-optin/);
+console.log('PASS G265_TWELFTH_NATIVE_EXACT_LEGACY_SOURCE_BOUND_NOT_PRODUCTION_WIRED');
+
+const base=new URL(process.env.BASE_URL||'http://127.0.0.1:4173/');
+assert.equal(base.hostname,'127.0.0.1');
+const SQL=await initSqlJs();
+const seedDb=new SQL.Database();
+seedDb.run('CREATE TABLE collection_targets(target_id TEXT PRIMARY KEY,species TEXT NOT NULL,target_type TEXT,priority TEXT,camp TEXT,desired_traits TEXT,capture_strategy TEXT,status TEXT,notes TEXT,updated_at TEXT NOT NULL)');
+seedDb.run("INSERT INTO collection_targets VALUES('target_seed','SYNTHETIC_SEED','observe','B','','','','active','','2026-10-29T00:00:00.000Z')");
+seedDb.run('CREATE TABLE public_event_master(event_id TEXT PRIMARY KEY,payload TEXT)');
+seedDb.run("INSERT INTO public_event_master VALUES('fixture-event','SYNTHETIC_PUBLIC_MASTER_UNCHANGED')");
+seedDb.run("CREATE TRIGGER deny_native_collection_target BEFORE INSERT ON collection_targets WHEN NEW.species='SYNTHETIC_BLOCKED' BEGIN SELECT RAISE(ABORT,'native-collection-target-insert-rejection'); END");
+const seed=Array.from(seedDb.export());seedDb.close();
+const digest=bytes=>createHash('sha256').update(Uint8Array.from(bytes)).digest('hex');
+const seedHash=digest(seed);
+const browserJs=fs.readFileSync('node_modules/sql.js/dist/sql-wasm.js');
+const browserWasm=fs.readFileSync('node_modules/sql.js/dist/sql-wasm.wasm');
+const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+const context=await browser.newContext({serviceWorkers:'block'});
+const pages=[];
+async function newTab(){
+  const page=await context.newPage();pages.push(page);
+  await page.goto(new URL('g265-target-native-blank',base).href);
+  await page.addScriptTag({url:new URL('g265-target-native.js',base).href});
+  await page.evaluate(async()=>{
+    const storage=await import('/assets/js/storage.js');
+    const {createSqliteVersionNeutralAtomicPairGate}=await import('/assets/js/sqlite-version-neutral-atomic-pair-gate.js');
+    const {createCollectionTargetOptIn}=await import('/assets/js/sqlite-collection-target-optin.js');
+    const SQL=await window.initSqlJs({locateFile:()=>'/g265-target-native.wasm'});
+    const open=()=>new Promise((resolve,reject)=>{
+      const req=indexedDB.open('pokemon_sleep_ai_manager');
+      req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+    });
+    window.__g265={storage,SQL,open,createSqliteVersionNeutralAtomicPairGate,
+      createCollectionTargetOptIn,opened:0,db:null,pair:null,writer:null};
+    window.__g265.reset=()=>{
+      const v=window.__g265;
+      v.pair=v.createSqliteVersionNeutralAtomicPairGate({db:v.db});
+      v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+        openSqlite:bytes=>{v.opened++;return new v.SQL.Database(bytes);}});
+    };
+  });
+  assert.deepEqual(await page.evaluate(()=>({
+    secure:isSecureContext,locks:typeof navigator.locks?.request==='function',
+    digest:typeof crypto.subtle?.digest==='function'
+  })),{secure:true,locks:true,digest:true});
+  return page;
+}
+const input=(targetId,species,generation,sha256,
+  updatedAt='2026-10-30T01:00:00.000Z',expectedPreviousUpdatedAt=null)=>({
+    targetId,species,targetType:'observe',priority:'A',camp:'SYNTHETIC_CAMP',
+    desiredTraits:'SYNTHETIC_TRAITS',captureStrategy:'SYNTHETIC_STRATEGY',
+    updatedAt,expectedPreviousUpdatedAt,expectedGeneration:generation,
+    expectedFingerprint:sha256
+  });
+const run=(page,payload)=>page.evaluate(async data=>{
+  try{return {ok:true,result:await window.__g265.writer.execute(data)};}
+  catch(error){return {ok:false,code:error.code||error.message};}
+},payload);
+const inspect=page=>page.evaluate(async()=>{
+  const v=window.__g265;
+  const current=await v.pair.readVerified();
+  const sql=new v.SQL.Database(current.bytes);
+  try{return {generation:current.generation,sha256:current.sha256,
+    bytes:Array.from(current.bytes),
+    rows:sql.exec('SELECT target_id,species,status,updated_at FROM collection_targets ORDER BY target_id')?.[0]?.values||[],
+    master:sql.exec('SELECT event_id,payload FROM public_event_master')?.[0]?.values||[]};
+  }finally{sql.close();}
+});
+const has=(state,id)=>state.rows.find(row=>row[0]===id);
+try{
+  await context.route('**/g265-target-native-blank',route=>route.fulfill({
+    status:200,contentType:'text/html',body:'<!doctype html><title>G265 disposable weekly context</title>'
+  }));
+  await context.route('**/g265-target-native.js',route=>route.fulfill({
+    status:200,contentType:'application/javascript',body:browserJs
+  }));
+  await context.route('**/g265-target-native.wasm',route=>route.fulfill({
+    status:200,contentType:'application/wasm',body:browserWasm
+  }));
+  const a=await newTab(),b=await newTab();
+  await a.evaluate(bytes=>window.__g265.storage.saveDatabaseBytes(Uint8Array.from(bytes)),seed);
+  await a.evaluate(async sha256=>{
+    const db=await window.__g265.open();
+    try{await new Promise((resolve,reject)=>{
+      const tx=db.transaction('metadata','readwrite');
+      tx.objectStore('metadata').put({generation:0,sha256},'revision:primary');
+      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+    });}finally{db.close();}
+  },seedHash);
+  for(const page of [a,b])await page.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+
+  // Invalid identity or blank species must fail before any SQL.js open.
+  const invalid=await run(a,input('target_invalid','',0,seedHash));
+  assert.deepEqual(invalid,{ok:false,code:'G265_COLLECTION_TARGET_INPUT_INVALID'});
+  const invalidId=await run(a,input('other_invalid','SYNTHETIC_BAD',0,seedHash));
+  assert.deepEqual(invalidId,{ok:false,code:'G265_COLLECTION_TARGET_INPUT_INVALID'});
+  assert.equal(await a.evaluate(()=>window.__g265.opened),0);
+  assert.equal((await inspect(a)).generation,0);
+  console.log('PASS G265_TWELFTH_NATIVE_INVALID_SPECIES_ID_PRE_SQL');
+
+  // Malformed UTC provenance and control characters must be rejected before
+  // SQL.js opens, with no durable bytes/generation or public-master changes.
+  const baseline=await inspect(a);
+  const badUpdatedAt=await run(a,input('target_bad_time','SYNTHETIC_TIME',0,seedHash,
+    '2026-10-30T01:00:00Z'));
+  assert.deepEqual(badUpdatedAt,{ok:false,code:'G265_COLLECTION_TARGET_PROVENANCE_INVALID'});
+  const badPreviousAt=await run(a,input('target_bad_previous','SYNTHETIC_PREVIOUS',0,seedHash,
+    '2026-10-30T01:00:00.000Z','2026-10-30T99:00:00.000Z'));
+  assert.deepEqual(badPreviousAt,{ok:false,code:'G265_COLLECTION_TARGET_PROVENANCE_INVALID'});
+  const controlChar=await run(a,input('target_bad_control','SYNTHETIC'+String.fromCharCode(0)+'CONTROL',0,seedHash));
+  assert.deepEqual(controlChar,{ok:false,code:'G265_COLLECTION_TARGET_INPUT_INVALID'});
+  assert.equal(await a.evaluate(()=>window.__g265.opened),0);
+  assert.deepEqual(await inspect(b),baseline);
+  console.log('PASS G265_TWELFTH_NATIVE_PROVENANCE_CONTROL_PRE_SQL_ZERO_DURABLE_DELTA');
+
+  const race=await Promise.all([
+    run(a,input('target_a','SYNTHETIC_A',0,seedHash)),
+    run(b,input('target_b','SYNTHETIC_B',0,seedHash))
+  ]);
+  assert.equal(race.filter(x=>x.ok).length,1,JSON.stringify(race));
+  assert.equal(race.filter(x=>!x.ok)[0].code,'G265_PAIR_STALE_RELOAD_REQUIRED');
+  const active=race[0].ok?a:b,loser=race[0].ok?b:a;
+  const winnerId=race[0].ok?'target_a':'target_b';
+  const loserId=race[0].ok?'target_b':'target_a';
+  assert.equal(await loser.evaluate(()=>window.__g265.opened),0);
+  assert.equal(await loser.evaluate(()=>window.__g265.writer.status().status),'UNVERIFIED_RELOAD_REQUIRED');
+  const first=await inspect(active);
+  assert.equal(first.generation,1);assert.equal(first.sha256,digest(first.bytes));
+  assert.equal(first.rows.length,2);assert.ok(has(first,winnerId));
+  assert.equal(has(first,loserId),undefined);
+  assert.deepEqual(first.master,[['fixture-event','SYNTHETIC_PUBLIC_MASTER_UNCHANGED']]);
+  console.log('PASS G265_TWELFTH_NATIVE_TWO_TABS_ONE_ACK_STALE_ZERO_SQLJS');
+
+  await loser.evaluate(()=>window.__g265.reset());
+  const second=await run(loser,input(loserId,'SYNTHETIC_SECOND',1,first.sha256,
+    '2026-10-30T01:01:00.000Z'));
+  assert.equal(second.ok,true,JSON.stringify(second));
+  const after=await inspect(loser);
+  assert.equal(after.generation,2);assert.equal(after.sha256,digest(after.bytes));
+  assert.equal(after.rows.length,3);
+  assert.deepEqual(has(after,'target_seed'),has(first,'target_seed'));
+  assert.deepEqual(has(after,winnerId),has(first,winnerId));
+  assert.ok(has(after,loserId));
+  assert.deepEqual(after.master,first.master);
+  console.log('PASS G265_TWELFTH_NATIVE_FRESH_DURABLE_ALL_ACK_TARGETS_MASTER_PRESERVED');
+
+  await active.evaluate(()=>window.__g265.reset());
+  const wrong=await run(active,input(winnerId,'SYNTHETIC_REPLACE',2,after.sha256,
+    '2026-10-30T01:02:00.000Z',null));
+  assert.deepEqual(wrong,{ok:false,code:'G265_COLLECTION_TARGET_PREVIOUS_REVISION_CHANGED'});
+  assert.equal(await active.evaluate(()=>window.__g265.writer.status().status),'UNVERIFIED_RELOAD_REQUIRED');
+  assert.deepEqual(await inspect(loser),after);
+  console.log('PASS G265_TWELFTH_NATIVE_PREVIOUS_ROW_REVISION_CONFLICT_ZERO_DURABLE_DELTA');
+
+  await active.evaluate(()=>window.__g265.reset());
+  const update=await run(active,input(winnerId,'SYNTHETIC_REPLACE',2,after.sha256,
+    '2026-10-30T01:02:00.000Z','2026-10-30T01:00:00.000Z'));
+  assert.equal(update.ok,true,JSON.stringify(update));
+  const updated=await inspect(active);
+  assert.equal(updated.generation,3);assert.equal(updated.sha256,digest(updated.bytes));
+  assert.equal(has(updated,winnerId)[1],'SYNTHETIC_REPLACE');
+  assert.deepEqual(has(updated,loserId),has(after,loserId));
+  assert.deepEqual(updated.master,after.master);
+  console.log('PASS G265_TWELFTH_NATIVE_EXACT_ROW_PRECONDITION_ACK_READBACK');
+
+  await active.evaluate(()=>window.__g265.db.close());await active.close();
+  const c=await newTab();
+  await c.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
+  assert.deepEqual(await inspect(c),updated);
+  const openedBefore=await c.evaluate(()=>window.__g265.opened);
+  const replay=await run(c,input('target_replay','SYNTHETIC_REPLAY',2,after.sha256));
+  assert.deepEqual(replay,{ok:false,code:'G265_PAIR_STALE_RELOAD_REQUIRED'});
+  assert.equal(await c.evaluate(()=>window.__g265.opened),openedBefore);
+  assert.equal(await c.evaluate(()=>window.__g265.writer.status().status),'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_TAB_CLOSE_ACK_LOSS_STALE_REPLAY_ZERO_SQLJS');
+
+  await c.evaluate(()=>window.__g265.reset());
+  const abort=await run(c,input('target_blocked','SYNTHETIC_BLOCKED',3,updated.sha256));
+  assert.equal(abort.ok,false,JSON.stringify(abort));
+  assert.match(abort.code,/native-collection-target-insert-rejection/);
+  assert.equal(await c.evaluate(()=>window.__g265.writer.status().status),'UNVERIFIED_RELOAD_REQUIRED');
+  const d=await newTab();
+  await d.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
+  assert.deepEqual(await inspect(d),updated);
+  console.log('PASS G265_TWELFTH_NATIVE_SQL_ROLLBACK_INDEPENDENT_DURABLE_READBACK_UNCHANGED');
+
+  // Synthetic torn metadata: never repair a digest mismatch automatically.
+  // A fresh tab must fail closed before opening SQL.js; only an explicit
+  // fixture-only metadata repair can permit a newly constructed reader.
+  const beforeTorn=await inspect(d);
+  const openedBeforeTorn=await d.evaluate(()=>window.__g265.opened);
+  await d.evaluate(async generation=>{
+    const db=window.__g265.db;
+    await new Promise((resolve,reject)=>{
+      const tx=db.transaction('metadata','readwrite');
+      tx.objectStore('metadata').put({generation,sha256:'0'.repeat(64)},'revision:primary');
+      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+    });
+  },beforeTorn.generation);
+  await d.evaluate(()=>window.__g265.reset());
+  const torn=await run(d,input('target_torn','SYNTHETIC_TORN',beforeTorn.generation,beforeTorn.sha256));
+  assert.deepEqual(torn,{ok:false,code:'G265_PAIR_DIGEST_MISMATCH'});
+  assert.equal(await d.evaluate(()=>window.__g265.opened),openedBeforeTorn);
+  assert.equal(await d.evaluate(()=>window.__g265.writer.status().status),'UNVERIFIED_RELOAD_REQUIRED');
+  assert.deepEqual(await d.evaluate(async()=>
+    Array.from(new Uint8Array(await window.__g265.storage.loadDatabaseBytes()))),beforeTorn.bytes);
+  const e=await newTab();
+  await e.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
+  const secondTorn=await run(e,input('target_torn_other','SYNTHETIC_OTHER',beforeTorn.generation,beforeTorn.sha256));
+  assert.deepEqual(secondTorn,{ok:false,code:'G265_PAIR_DIGEST_MISMATCH'});
+  assert.equal(await e.evaluate(()=>window.__g265.opened),0);
+  // Explicit repair is restricted to this disposable fixture, never the player DB.
+  await d.evaluate(async revision=>{
+    await new Promise((resolve,reject)=>{
+      const tx=window.__g265.db.transaction('metadata','readwrite');
+      tx.objectStore('metadata').put(revision,'revision:primary');
+      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+    });
+  },{generation:beforeTorn.generation,sha256:beforeTorn.sha256});
+  const f=await newTab();
+  await f.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
+  assert.deepEqual(await inspect(f),beforeTorn);
+  assert.equal(await d.evaluate(()=>window.__g265.writer.status().status),'UNVERIFIED_RELOAD_REQUIRED');
+  assert.equal(await e.evaluate(()=>window.__g265.writer.status().status),'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_TORN_METADATA_FAIL_CLOSED_EXPLICIT_FIXTURE_REPAIR_ONLY');
+  // Disposable crash-boundary negative: revision metadata can disappear while
+  // durable SQLite bytes remain. No tab may silently bootstrap or persist.
+  // Recovery below is explicit fixture repair, not a player-data operation.
+  const beforeMissing=await inspect(f);
+  await f.evaluate(async()=>{
+    await new Promise((resolve,reject)=>{
+      const tx=window.__g265.db.transaction('metadata','readwrite');
+      tx.objectStore('metadata').delete('revision:primary');
+      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+    });
+  });
+  const g=await newTab();
+  await g.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
+  const missing=await run(g,input('target_missing_revision','SYNTHETIC_MISSING',
+    beforeMissing.generation,beforeMissing.sha256));
+  assert.deepEqual(missing,{ok:false,code:'G265_PAIR_MISSING_OR_INVALID'});
+  assert.equal(await g.evaluate(()=>window.__g265.opened),0);
+  assert.equal(await g.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  assert.deepEqual(await g.evaluate(async()=>
+    Array.from(new Uint8Array(await window.__g265.storage.loadDatabaseBytes()))),
+    beforeMissing.bytes);
+  const h=await newTab();
+  await h.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
+  const missingAgain=await run(h,input('target_missing_revision_other','SYNTHETIC_OTHER',
+    beforeMissing.generation,beforeMissing.sha256));
+  assert.deepEqual(missingAgain,{ok:false,code:'G265_PAIR_MISSING_OR_INVALID'});
+  assert.equal(await h.evaluate(()=>window.__g265.opened),0);
+  await f.evaluate(async revision=>{
+    await new Promise((resolve,reject)=>{
+      const tx=window.__g265.db.transaction('metadata','readwrite');
+      tx.objectStore('metadata').put(revision,'revision:primary');
+      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+    });
+  },{generation:beforeMissing.generation,sha256:beforeMissing.sha256});
+  const i=await newTab();
+  await i.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
+  assert.deepEqual(await inspect(i),beforeMissing);
+  assert.equal(await g.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  assert.equal(await h.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_MISSING_REVISION_FAIL_CLOSED_FIXTURE_REPAIR_ONLY');
+
+  // Disposable crash-boundary negative: durable bytes change without matching
+  // revision metadata. Never infer success, rewrite metadata or auto-restore.
+  // The explicit byte restoration below is confined to this synthetic fixture.
+  const beforeBytesTorn=await inspect(i);
+  const alteredBytes=beforeBytesTorn.bytes.slice();
+  alteredBytes[alteredBytes.length-1]^=1;
+  assert.notEqual(digest(alteredBytes),beforeBytesTorn.sha256);
+  await i.evaluate(async bytes=>
+    window.__g265.storage.saveDatabaseBytes(Uint8Array.from(bytes)),alteredBytes);
+  const j=await newTab();
+  await j.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
+  const bytesTorn=await run(j,input('target_bytes_torn','SYNTHETIC_BYTES_TORN',
+    beforeBytesTorn.generation,beforeBytesTorn.sha256));
+  assert.deepEqual(bytesTorn,{ok:false,code:'G265_PAIR_DIGEST_MISMATCH'});
+  assert.equal(await j.evaluate(()=>window.__g265.opened),0);
+  assert.equal(await j.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  const k=await newTab();
+  await k.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
+  const secondBytesTorn=await run(k,input('target_bytes_torn_other','SYNTHETIC_OTHER',
+    beforeBytesTorn.generation,beforeBytesTorn.sha256));
+  assert.deepEqual(secondBytesTorn,{ok:false,code:'G265_PAIR_DIGEST_MISMATCH'});
+  assert.equal(await k.evaluate(()=>window.__g265.opened),0);
+  assert.deepEqual(await k.evaluate(async()=>
+    Array.from(new Uint8Array(await window.__g265.storage.loadDatabaseBytes()))),
+    alteredBytes);
+  // Fixture-only explicit repair: no automatic metadata or durable repair.
+  await i.evaluate(async bytes=>
+    window.__g265.storage.saveDatabaseBytes(Uint8Array.from(bytes)),beforeBytesTorn.bytes);
+  const l=await newTab();
+  await l.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
+  assert.deepEqual(await inspect(l),beforeBytesTorn);
+  assert.equal(await j.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  assert.equal(await k.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_DURABLE_BYTES_TORN_FAIL_CLOSED_FIXTURE_REPAIR_ONLY');
+
+  // Synthetic revision counter exhaustion: a valid digest and maximum safe
+  // generation must never wrap, ACK or persist the SQL.js mutation. The IDB
+  // transaction must abort atomically; repair below touches only this fixture.
+  const beforeExhaustion=await inspect(l);
+  await l.evaluate(async sha256=>{
+    await new Promise((resolve,reject)=>{
+      const tx=window.__g265.db.transaction('metadata','readwrite');
+      tx.objectStore('metadata').put({generation:Number.MAX_SAFE_INTEGER,sha256},'revision:primary');
+      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+    });
+  },beforeExhaustion.sha256);
+  const m=await newTab();
+  await m.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
+  const exhausted=await run(m,input('target_exhausted','SYNTHETIC_EXHAUSTED',
+    Number.MAX_SAFE_INTEGER,beforeExhaustion.sha256));
+  assert.deepEqual(exhausted,{ok:false,code:'G265_PAIR_GENERATION_EXHAUSTED'});
+  assert.equal(await m.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  const exhaustedReadback=await inspect(l);
+  assert.equal(exhaustedReadback.generation,Number.MAX_SAFE_INTEGER);
+  assert.equal(exhaustedReadback.sha256,beforeExhaustion.sha256);
+  assert.deepEqual(exhaustedReadback.bytes,beforeExhaustion.bytes);
+  assert.deepEqual(exhaustedReadback.rows,beforeExhaustion.rows);
+  assert.deepEqual(exhaustedReadback.master,beforeExhaustion.master);
+  const n=await newTab();
+  await n.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
+  const secondExhausted=await run(n,input('target_exhausted_other','SYNTHETIC_OTHER',
+    Number.MAX_SAFE_INTEGER,beforeExhaustion.sha256));
+  assert.deepEqual(secondExhausted,{ok:false,code:'G265_PAIR_GENERATION_EXHAUSTED'});
+  assert.equal(await n.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  assert.deepEqual((await inspect(l)).bytes,beforeExhaustion.bytes);
+  // Explicit synthetic fixture reset; neither failed session may auto-recover.
+  await l.evaluate(async revision=>{
+    await new Promise((resolve,reject)=>{
+      const tx=window.__g265.db.transaction('metadata','readwrite');
+      tx.objectStore('metadata').put(revision,'revision:primary');
+      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+    });
+  },{generation:beforeExhaustion.generation,sha256:beforeExhaustion.sha256});
+  const o=await newTab();
+  await o.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
+  assert.deepEqual(await inspect(o),beforeExhaustion);
+  assert.equal(await m.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  assert.equal(await n.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_GENERATION_EXHAUSTION_CAS_ABORT_NO_DURABLE_DELTA');
+
+  // Synthetic post-commit ACK ambiguity: durable CAS succeeds, but the
+  // adapter's independent post-commit readback is interrupted. Never return
+  // success or retry the same uncertain session; inspect from a fresh tab.
+  // This is a disposable failure-injection fixture, NOT player DB recovery.
+  const beforeAmbiguousAck=await inspect(o);
+  const p=await newTab();
+  await p.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();v.reset();
+    const actualPair=v.pair;
+    const interruptedPair={
+      write:options=>actualPair.write(options),
+      readVerified:async()=>{
+        const error=new Error('G265_SYNTHETIC_POST_COMMIT_READBACK_INTERRUPTED');
+        error.code=error.message;
+        throw error;
+      }
+    };
+    v.writer=v.createCollectionTargetOptIn({pairGate:interruptedPair,
+      openSqlite:bytes=>{v.opened++;return new v.SQL.Database(bytes);}});
+  });
+  const ambiguousPayload=input('target_ack_ambiguous','SYNTHETIC_ACK_AMBIGUOUS',
+    beforeAmbiguousAck.generation,beforeAmbiguousAck.sha256,
+    '2026-10-30T01:03:00.000Z');
+  const ambiguous=await run(p,ambiguousPayload);
+  assert.deepEqual(ambiguous,
+    {ok:false,code:'G265_SYNTHETIC_POST_COMMIT_READBACK_INTERRUPTED'});
+  assert.equal(await p.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  const sqlOpenedAfterAmbiguous=await p.evaluate(()=>window.__g265.opened);
+  assert.equal(sqlOpenedAfterAmbiguous,1);
+  const ambiguousReplay=await run(p,ambiguousPayload);
+  assert.deepEqual(ambiguousReplay,
+    {ok:false,code:'G265_COLLECTION_TARGET_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.equal(await p.evaluate(()=>window.__g265.opened),sqlOpenedAfterAmbiguous);
+  const q=await newTab();
+  await q.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
+  const afterAmbiguousAck=await inspect(q);
+  assert.equal(afterAmbiguousAck.generation,beforeAmbiguousAck.generation+1);
+  assert.equal(afterAmbiguousAck.sha256,digest(afterAmbiguousAck.bytes));
+  assert.equal(afterAmbiguousAck.rows.length,beforeAmbiguousAck.rows.length+1);
+  assert.ok(has(afterAmbiguousAck,'target_ack_ambiguous'));
+  for(const row of beforeAmbiguousAck.rows)
+    assert.deepEqual(has(afterAmbiguousAck,row[0]),row);
+  assert.deepEqual(afterAmbiguousAck.master,beforeAmbiguousAck.master);
+  assert.equal(await p.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_POST_COMMIT_ACK_LOSS_STICKY_SINGLE_PERSIST_INDEPENDENT_READBACK');
+
+  // Native browser capability-loss negative: the isolated pair gate must
+  // fail closed when Web Locks cannot be requested, before SQL.js opens.
+  // No fallback to legacy direct saveDatabaseBytes is allowed.
+  const beforeLockless=await inspect(q);
+  const locklessTab=await newTab();
+  await locklessTab.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();
+    v.pair=v.createSqliteVersionNeutralAtomicPairGate({db:v.db,locks:{}});
+    v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+      openSqlite:bytes=>{v.opened++;return new v.SQL.Database(bytes);}});
+  });
+  const locklessPayload=input('target_lockless','SYNTHETIC_LOCKLESS',
+    beforeLockless.generation,beforeLockless.sha256,'2026-10-30T01:04:00.000Z');
+  const lockless=await run(locklessTab,locklessPayload);
+  assert.deepEqual(lockless,{ok:false,code:'G265_PAIR_WEB_LOCKS_UNAVAILABLE'});
+  assert.equal(await locklessTab.evaluate(()=>window.__g265.opened),0);
+  assert.equal(await locklessTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  assert.deepEqual(await inspect(q),beforeLockless);
+  const locklessReplay=await run(locklessTab,locklessPayload);
+  // The native pair gate, not the collection adapter, owns this sticky
+  // capability-loss state. Require the pair-level fail-closed error on replay.
+  assert.deepEqual(locklessReplay,
+    {ok:false,code:'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.equal(await locklessTab.evaluate(()=>window.__g265.opened),0);
+  const freshAfterLockless=await newTab();
+  await freshAfterLockless.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  assert.deepEqual(await inspect(freshAfterLockless),beforeLockless);
+  console.log('PASS G265_TWELFTH_NATIVE_WEB_LOCKS_UNAVAILABLE_STICKY_ZERO_SQLJS_ZERO_DURABLE_DELTA');
+
+  // Real native Chromium lock contention: another tab holds the shared
+  // exclusive Web Lock beyond the bounded opt-in timeout. The waiting writer
+  // must fail closed before SQL.js opens and must never retry this session.
+  // All storage is synthetic; no production player database is accessed.
+  const beforeWaitTimeout=await inspect(freshAfterLockless);
+  const nativeLockName='pokemon-sleep-ai-manager:sqlite-primary-exclusive-write';
+  await q.evaluate(name=>{
+    const v=window.__g265;
+    v.heldLockReady=false;
+    v.heldLockPromise=navigator.locks.request(name,{mode:'exclusive'},async()=>{
+      v.heldLockReady=true;
+      await new Promise(resolve=>{v.releaseHeldLock=resolve;});
+    });
+  },nativeLockName);
+  await q.waitForFunction(()=>window.__g265.heldLockReady===true);
+  try{
+    const waitingTab=await newTab();
+    await waitingTab.evaluate(async()=>{
+      const v=window.__g265;
+      v.db=await v.open();
+      v.pair=v.createSqliteVersionNeutralAtomicPairGate({db:v.db,timeoutMs:300});
+      v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+        openSqlite:bytes=>{v.opened++;return new v.SQL.Database(bytes);}});
+    });
+    const waitPayload=input('target_lock_wait','SYNTHETIC_LOCK_WAIT',
+      beforeWaitTimeout.generation,beforeWaitTimeout.sha256,
+      '2026-10-30T01:05:00.000Z');
+    const waitResult=await run(waitingTab,waitPayload);
+    assert.deepEqual(waitResult,
+      {ok:false,code:'G265_PAIR_LOCK_WAIT_TIMEOUT_UNCERTAIN'});
+    assert.equal(await waitingTab.evaluate(()=>window.__g265.opened),0);
+    assert.equal(await waitingTab.evaluate(()=>window.__g265.writer.status().status),
+      'UNVERIFIED_RELOAD_REQUIRED');
+    const waitReplay=await run(waitingTab,waitPayload);
+    assert.deepEqual(waitReplay,
+      {ok:false,code:'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED'});
+    assert.equal(await waitingTab.evaluate(()=>window.__g265.opened),0);
+    assert.deepEqual(await inspect(freshAfterLockless),beforeWaitTimeout);
+  }finally{
+    await q.evaluate(()=>window.__g265.releaseHeldLock?.());
+    await q.evaluate(()=>window.__g265.heldLockPromise);
+  }
+  const freshAfterWait=await newTab();
+  await freshAfterWait.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  assert.deepEqual(await inspect(freshAfterWait),beforeWaitTimeout);
+  console.log('PASS G265_TWELFTH_NATIVE_LOCK_WAIT_TIMEOUT_STICKY_ZERO_SQLJS_ZERO_DURABLE_DELTA');
+
+  // Held native Web Lock timeout after SQL.js has committed its in-memory
+  // mutation but before the next digest: a delayed async digest must not
+  // produce a late durable CAS or ACK once the pair session is sticky.
+  // Only disposable synthetic IDB/SQL.js data is used; no player storage.
+  const beforeHeldTimeout=await inspect(freshAfterWait);
+  const heldTab=await newTab();
+  await heldTab.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();v.digestCalls=0;v.digestPaused=false;
+    v.pair=v.createSqliteVersionNeutralAtomicPairGate({
+      db:v.db,timeoutMs:400,
+      fingerprint:async bytes=>{
+        v.digestCalls++;
+        if(v.digestCalls===2){
+          v.digestPaused=true;
+          await new Promise(resolve=>{v.resumeDigest=resolve;});
+          v.digestResumed=true;
+        }
+        const hash=await crypto.subtle.digest('SHA-256',bytes);
+        return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('');
+      }
+    });
+    v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+      openSqlite:bytes=>{v.opened++;return new v.SQL.Database(bytes);}});
+  });
+  const heldPayload=input('target_held_timeout','SYNTHETIC_HELD_TIMEOUT',
+    beforeHeldTimeout.generation,beforeHeldTimeout.sha256,
+    '2026-10-30T01:06:00.000Z');
+  const heldPending=run(heldTab,heldPayload);
+  await heldTab.waitForFunction(()=>window.__g265.digestPaused===true);
+  const heldResult=await heldPending;
+  assert.deepEqual(heldResult,
+    {ok:false,code:'G265_PAIR_HELD_LOCK_TIMEOUT_UNCERTAIN'});
+  assert.equal(await heldTab.evaluate(()=>window.__g265.opened),1);
+  assert.equal(await heldTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  assert.deepEqual(await inspect(freshAfterWait),beforeHeldTimeout);
+  const heldReplay=await run(heldTab,heldPayload);
+  assert.deepEqual(heldReplay,
+    {ok:false,code:'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.equal(await heldTab.evaluate(()=>window.__g265.opened),1);
+  await heldTab.evaluate(()=>window.__g265.resumeDigest());
+  await heldTab.waitForFunction(()=>window.__g265.digestResumed===true);
+  await heldTab.waitForFunction(async name=>{
+    const state=await navigator.locks.query();
+    return !state.held.some(lock=>lock.name===name);
+  },nativeLockName);
+  const freshAfterHeld=await newTab();
+  await freshAfterHeld.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  assert.deepEqual(await inspect(freshAfterHeld),beforeHeldTimeout);
+  assert.equal(await heldTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_HELD_LOCK_DIGEST_TIMEOUT_NO_LATE_CAS_ACK_ZERO_DURABLE_DELTA');
+
+  // Native Chromium cryptographic-provider corruption: after the latest durable
+  // pair verifies and SQL.js mutates only in memory, a malformed second SHA-256
+  // digest must fail closed before any atomic CAS, durable write or success ACK.
+  // This fault injection is confined to disposable synthetic IndexedDB.
+  const beforeInvalidNextDigest=await inspect(freshAfterHeld);
+  const invalidDigestTab=await newTab();
+  await invalidDigestTab.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();v.invalidDigestCalls=0;
+    v.pair=v.createSqliteVersionNeutralAtomicPairGate({
+      db:v.db,
+      fingerprint:async bytes=>{
+        v.invalidDigestCalls++;
+        if(v.invalidDigestCalls===2)return 'INVALID_SYNTHETIC_SHA256';
+        const hash=await crypto.subtle.digest('SHA-256',bytes);
+        return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('');
+      }
+    });
+    v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+      openSqlite:bytes=>{v.opened++;return new v.SQL.Database(bytes);}});
+  });
+  const invalidDigestPayload=input('target_invalid_digest','SYNTHETIC_INVALID_DIGEST',
+    beforeInvalidNextDigest.generation,beforeInvalidNextDigest.sha256,
+    '2026-10-30T01:07:00.000Z');
+  const invalidDigestResult=await run(invalidDigestTab,invalidDigestPayload);
+  assert.deepEqual(invalidDigestResult,
+    {ok:false,code:'G265_PAIR_INVALID_NEXT_DIGEST'});
+  assert.equal(await invalidDigestTab.evaluate(()=>window.__g265.invalidDigestCalls),2);
+  assert.equal(await invalidDigestTab.evaluate(()=>window.__g265.opened),1);
+  assert.equal(await invalidDigestTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  assert.deepEqual(await inspect(freshAfterHeld),beforeInvalidNextDigest);
+  const invalidDigestReplay=await run(invalidDigestTab,invalidDigestPayload);
+  assert.deepEqual(invalidDigestReplay,
+    {ok:false,code:'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.equal(await invalidDigestTab.evaluate(()=>window.__g265.opened),1);
+  const freshAfterInvalidDigest=await newTab();
+  await freshAfterInvalidDigest.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  assert.deepEqual(await inspect(freshAfterInvalidDigest),beforeInvalidNextDigest);
+  assert.equal(await invalidDigestTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_INVALID_NEXT_DIGEST_STICKY_ZERO_DURABLE_DELTA');
+
+  // Cryptographic provider rejection is distinct from a malformed hash. The
+  // first digest verifies the latest synthetic durable pair; the second
+  // rejects only after SQL.js has committed in memory, before durable CAS.
+  // A failed provider must never fall back to legacy direct persistence.
+  const beforeRejectedDigest=await inspect(freshAfterInvalidDigest);
+  const rejectedDigestTab=await newTab();
+  await rejectedDigestTab.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();v.rejectedDigestCalls=0;
+    v.pair=v.createSqliteVersionNeutralAtomicPairGate({
+      db:v.db,
+      fingerprint:async bytes=>{
+        v.rejectedDigestCalls++;
+        if(v.rejectedDigestCalls===2)
+          throw new Error('SYNTHETIC_NEXT_DIGEST_PROVIDER_REJECTED');
+        const hash=await crypto.subtle.digest('SHA-256',bytes);
+        return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('');
+      }
+    });
+    v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+      openSqlite:bytes=>{v.opened++;return new v.SQL.Database(bytes);}});
+  });
+  const rejectedDigestPayload=input('target_rejected_digest','SYNTHETIC_DIGEST_REJECT',
+    beforeRejectedDigest.generation,beforeRejectedDigest.sha256,
+    '2026-10-30T01:08:00.000Z');
+  const rejectedDigestResult=await run(rejectedDigestTab,rejectedDigestPayload);
+  assert.deepEqual(rejectedDigestResult,
+    {ok:false,code:'SYNTHETIC_NEXT_DIGEST_PROVIDER_REJECTED'});
+  assert.equal(await rejectedDigestTab.evaluate(()=>window.__g265.rejectedDigestCalls),2);
+  assert.equal(await rejectedDigestTab.evaluate(()=>window.__g265.opened),1);
+  assert.equal(await rejectedDigestTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  assert.deepEqual(await inspect(freshAfterInvalidDigest),beforeRejectedDigest);
+  const rejectedDigestReplay=await run(rejectedDigestTab,rejectedDigestPayload);
+  assert.deepEqual(rejectedDigestReplay,
+    {ok:false,code:'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.equal(await rejectedDigestTab.evaluate(()=>window.__g265.opened),1);
+  const freshAfterRejectedDigest=await newTab();
+  await freshAfterRejectedDigest.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  assert.deepEqual(await inspect(freshAfterRejectedDigest),beforeRejectedDigest);
+  assert.equal(await rejectedDigestTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_REJECTED_NEXT_DIGEST_STICKY_ZERO_DURABLE_DELTA');
+
+  // Distinct pre-SQL cryptographic-provider failure: the first SHA-256 call
+  // rejects while verifying the latest durable pair, before opening SQL.js.
+  // The synthetic-only session must fail closed without CAS or legacy fallback.
+  const beforeCurrentDigestReject=await inspect(freshAfterRejectedDigest);
+  const currentDigestTab=await newTab();
+  await currentDigestTab.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();v.currentDigestCalls=0;
+    v.pair=v.createSqliteVersionNeutralAtomicPairGate({
+      db:v.db,
+      fingerprint:async()=>{
+        v.currentDigestCalls++;
+        throw new Error('SYNTHETIC_CURRENT_DIGEST_PROVIDER_REJECTED');
+      }
+    });
+    v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+      openSqlite:bytes=>{v.opened++;return new v.SQL.Database(bytes);}});
+  });
+  const currentDigestPayload=input('target_current_digest_reject',
+    'SYNTHETIC_CURRENT_DIGEST_REJECT',beforeCurrentDigestReject.generation,
+    beforeCurrentDigestReject.sha256,'2026-10-30T01:09:00.000Z');
+  const currentDigestResult=await run(currentDigestTab,currentDigestPayload);
+  assert.deepEqual(currentDigestResult,
+    {ok:false,code:'SYNTHETIC_CURRENT_DIGEST_PROVIDER_REJECTED'});
+  assert.equal(await currentDigestTab.evaluate(()=>window.__g265.currentDigestCalls),1);
+  assert.equal(await currentDigestTab.evaluate(()=>window.__g265.opened),0);
+  assert.equal(await currentDigestTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  const currentDigestReplay=await run(currentDigestTab,currentDigestPayload);
+  assert.deepEqual(currentDigestReplay,
+    {ok:false,code:'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.equal(await currentDigestTab.evaluate(()=>window.__g265.currentDigestCalls),1);
+  assert.equal(await currentDigestTab.evaluate(()=>window.__g265.opened),0);
+  const freshAfterCurrentDigestReject=await newTab();
+  await freshAfterCurrentDigestReject.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  assert.deepEqual(await inspect(freshAfterCurrentDigestReject),beforeCurrentDigestReject);
+  assert.equal(await currentDigestTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_REJECTED_CURRENT_DIGEST_PRE_SQL_STICKY_ZERO_DURABLE_DELTA');
+
+  // Native Chromium same-tab reentrant submission: while the first isolated
+  // opt-in writer holds the real Web Lock and awaits its next digest, a second
+  // submission from the SAME session must be rejected, not queued or ACKed.
+  // Release the synthetic digest and independently verify exactly one commit.
+  const beforeReentrant=await inspect(freshAfterCurrentDigestReject);
+  const reentrantTab=await newTab();
+  await reentrantTab.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();v.reentrantDigestCalls=0;v.reentrantPaused=false;
+    v.pair=v.createSqliteVersionNeutralAtomicPairGate({
+      db:v.db,timeoutMs:5000,
+      fingerprint:async bytes=>{
+        v.reentrantDigestCalls++;
+        if(v.reentrantDigestCalls===2){
+          v.reentrantPaused=true;
+          await new Promise(resolve=>{v.resumeReentrantDigest=resolve;});
+        }
+        const hash=await crypto.subtle.digest('SHA-256',bytes);
+        return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('');
+      }
+    });
+    v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+      openSqlite:bytes=>{v.opened++;return new v.SQL.Database(bytes);}});
+  });
+  const reentrantFirst=input('target_reentrant_first','SYNTHETIC_REENTRANT_FIRST',
+    beforeReentrant.generation,beforeReentrant.sha256,'2026-10-30T01:10:00.000Z');
+  const reentrantSecond=input('target_reentrant_second','SYNTHETIC_REENTRANT_SECOND',
+    beforeReentrant.generation,beforeReentrant.sha256,'2026-10-30T01:11:00.000Z');
+  const firstReentrantPending=run(reentrantTab,reentrantFirst);
+  await reentrantTab.waitForFunction(()=>window.__g265.reentrantPaused===true);
+  const secondReentrantResult=await run(reentrantTab,reentrantSecond);
+  assert.deepEqual(secondReentrantResult,
+    {ok:false,code:'G265_PAIR_SESSION_ALREADY_ACTIVE'});
+  assert.equal(await reentrantTab.evaluate(()=>window.__g265.opened),1);
+  assert.equal(await reentrantTab.evaluate(()=>window.__g265.writer.status().status),
+    'IN_FLIGHT');
+  assert.deepEqual(await inspect(freshAfterCurrentDigestReject),beforeReentrant);
+  await reentrantTab.evaluate(()=>window.__g265.resumeReentrantDigest());
+  const firstReentrantResult=await firstReentrantPending;
+  assert.equal(firstReentrantResult.ok,true);
+  assert.equal(firstReentrantResult.result.status,'PERSISTED');
+  assert.equal(firstReentrantResult.result.generation,beforeReentrant.generation+1);
+  assert.equal(await reentrantTab.evaluate(()=>window.__g265.writer.status().status),
+    'READY');
+  const freshAfterReentrant=await newTab();
+  await freshAfterReentrant.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  const afterReentrant=await inspect(freshAfterReentrant);
+  assert.equal(afterReentrant.generation,beforeReentrant.generation+1);
+  assert.ok(has(afterReentrant,'target_reentrant_first'));
+  assert.equal(has(afterReentrant,'target_reentrant_second'),undefined);
+  assert.deepEqual(afterReentrant.master,beforeReentrant.master);
+  assert.deepEqual(afterReentrant.rows.filter(row=>row[0]!=='target_reentrant_first'),
+    beforeReentrant.rows);
+  console.log('PASS G265_TWELFTH_NATIVE_SAME_TAB_REENTRANT_ONE_ACK_SECOND_REJECTED_INDEPENDENT_READBACK');
+
+  // Separate opt-in sessions in ONE native Chromium tab share the same real
+  // Web Lock. Unlike same-session reentry, the second session must queue, then
+  // reject the now-stale revision BEFORE opening SQL.js. Synthetic IDB only.
+  const beforeDualSession=await inspect(freshAfterReentrant);
+  const dualSessionTab=await newTab();
+  await dualSessionTab.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();v.dualDigestCalls=0;v.dualDigestPaused=false;v.openedSecond=0;
+    v.pair=v.createSqliteVersionNeutralAtomicPairGate({
+      db:v.db,timeoutMs:5000,
+      fingerprint:async bytes=>{
+        v.dualDigestCalls++;
+        if(v.dualDigestCalls===2){
+          v.dualDigestPaused=true;
+          await new Promise(resolve=>{v.releaseDualDigest=resolve;});
+        }
+        const hash=await crypto.subtle.digest('SHA-256',bytes);
+        return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('');
+      }
+    });
+    v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+      openSqlite:bytes=>{v.opened++;return new v.SQL.Database(bytes);}});
+    v.pairSecond=v.createSqliteVersionNeutralAtomicPairGate({db:v.db,timeoutMs:5000});
+    v.writerSecond=v.createCollectionTargetOptIn({pairGate:v.pairSecond,
+      openSqlite:bytes=>{v.openedSecond++;return new v.SQL.Database(bytes);}});
+  });
+  const dualFirst=input('target_dual_first','SYNTHETIC_DUAL_FIRST',
+    beforeDualSession.generation,beforeDualSession.sha256,'2026-10-30T01:12:00.000Z');
+  const dualSecond=input('target_dual_second','SYNTHETIC_DUAL_SECOND',
+    beforeDualSession.generation,beforeDualSession.sha256,'2026-10-30T01:13:00.000Z');
+  const dualFirstPending=run(dualSessionTab,dualFirst);
+  await dualSessionTab.waitForFunction(()=>window.__g265.dualDigestPaused===true);
+  const dualSecondPending=dualSessionTab.evaluate(async data=>{
+    try{return {ok:true,result:await window.__g265.writerSecond.execute(data)};}
+    catch(error){return {ok:false,code:error.code||error.message};}
+  },dualSecond);
+  await dualSessionTab.waitForFunction(async name=>{
+    const state=await navigator.locks.query();
+    return state.pending.some(lock=>lock.name===name);
+  },nativeLockName);
+  assert.equal(await dualSessionTab.evaluate(()=>window.__g265.openedSecond),0);
+  assert.deepEqual(await inspect(freshAfterReentrant),beforeDualSession);
+  await dualSessionTab.evaluate(()=>window.__g265.releaseDualDigest());
+  const dualFirstResult=await dualFirstPending;
+  const dualSecondResult=await dualSecondPending;
+  assert.equal(dualFirstResult.ok,true,JSON.stringify(dualFirstResult));
+  assert.equal(dualFirstResult.result.status,'PERSISTED');
+  assert.deepEqual(dualSecondResult,{ok:false,code:'G265_PAIR_STALE_RELOAD_REQUIRED'});
+  assert.equal(await dualSessionTab.evaluate(()=>window.__g265.openedSecond),0);
+  assert.equal(await dualSessionTab.evaluate(()=>window.__g265.writerSecond.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  const dualReplay=await dualSessionTab.evaluate(async data=>{
+    try{return {ok:true,result:await window.__g265.writerSecond.execute(data)};}
+    catch(error){return {ok:false,code:error.code||error.message};}
+  },dualSecond);
+  assert.deepEqual(dualReplay,{ok:false,code:'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.equal(await dualSessionTab.evaluate(()=>window.__g265.openedSecond),0);
+  const freshAfterDual=await newTab();
+  await freshAfterDual.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  const afterDual=await inspect(freshAfterDual);
+  assert.equal(afterDual.generation,beforeDualSession.generation+1);
+  assert.ok(has(afterDual,'target_dual_first'));
+  assert.equal(has(afterDual,'target_dual_second'),undefined);
+  assert.deepEqual(afterDual.master,beforeDualSession.master);
+  assert.deepEqual(afterDual.rows.filter(row=>row[0]!=='target_dual_first'),
+    beforeDualSession.rows);
+  console.log('PASS G265_TWELFTH_NATIVE_SAME_TAB_TWO_SESSIONS_LOCK_QUEUE_STALE_ZERO_SECOND_SQLJS');
+
+  // Independent opt-in sessions in the SAME native Chromium tab: a short
+  // waiting Web Lock timeout must remain sticky even when the first writer
+  // subsequently commits. Never allow a late CAS/ACK from the timed-out session.
+  // Only disposable SQL.js/IndexedDB fixtures are used, never player storage.
+  const beforeSameTabTimeout=await inspect(freshAfterDual);
+  const sameTabTimeoutTab=await newTab();
+  await sameTabTimeoutTab.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();v.sameTabTimeoutDigestCalls=0;
+    v.sameTabTimeoutPaused=false;v.openedTimedOut=0;
+    v.pair=v.createSqliteVersionNeutralAtomicPairGate({
+      db:v.db,timeoutMs:5000,
+      fingerprint:async bytes=>{
+        v.sameTabTimeoutDigestCalls++;
+        if(v.sameTabTimeoutDigestCalls===2){
+          v.sameTabTimeoutPaused=true;
+          await new Promise(resolve=>{v.releaseSameTabTimeoutDigest=resolve;});
+        }
+        const hash=await crypto.subtle.digest('SHA-256',bytes);
+        return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('');
+      }
+    });
+    v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+      openSqlite:bytes=>{v.opened++;return new v.SQL.Database(bytes);}});
+    v.timedOutPair=v.createSqliteVersionNeutralAtomicPairGate({db:v.db,timeoutMs:300});
+    v.timedOutWriter=v.createCollectionTargetOptIn({pairGate:v.timedOutPair,
+      openSqlite:bytes=>{v.openedTimedOut++;return new v.SQL.Database(bytes);}});
+  });
+  const timeoutFirstPayload=input('target_same_tab_timeout_first',
+    'SYNTHETIC_TIMEOUT_FIRST',beforeSameTabTimeout.generation,
+    beforeSameTabTimeout.sha256,'2026-10-30T01:14:00.000Z');
+  const timeoutSecondPayload=input('target_same_tab_timeout_second',
+    'SYNTHETIC_TIMEOUT_SECOND',beforeSameTabTimeout.generation,
+    beforeSameTabTimeout.sha256,'2026-10-30T01:15:00.000Z');
+  const timeoutFirstPending=run(sameTabTimeoutTab,timeoutFirstPayload);
+  await sameTabTimeoutTab.waitForFunction(()=>window.__g265.sameTabTimeoutPaused===true);
+  const timeoutSecondPending=sameTabTimeoutTab.evaluate(async data=>{
+    try{return {ok:true,result:await window.__g265.timedOutWriter.execute(data)};}
+    catch(error){return {ok:false,code:error.code||error.message};}
+  },timeoutSecondPayload);
+  await sameTabTimeoutTab.waitForFunction(async name=>{
+    const state=await navigator.locks.query();
+    return state.pending.some(lock=>lock.name===name);
+  },nativeLockName);
+  const timeoutSecondResult=await timeoutSecondPending;
+  assert.deepEqual(timeoutSecondResult,
+    {ok:false,code:'G265_PAIR_LOCK_WAIT_TIMEOUT_UNCERTAIN'});
+  assert.equal(await sameTabTimeoutTab.evaluate(()=>window.__g265.openedTimedOut),0);
+  assert.equal(await sameTabTimeoutTab.evaluate(()=>window.__g265.timedOutWriter.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  const timeoutSecondReplay=await sameTabTimeoutTab.evaluate(async data=>{
+    try{return {ok:true,result:await window.__g265.timedOutWriter.execute(data)};}
+    catch(error){return {ok:false,code:error.code||error.message};}
+  },timeoutSecondPayload);
+  assert.deepEqual(timeoutSecondReplay,
+    {ok:false,code:'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.deepEqual(await inspect(freshAfterDual),beforeSameTabTimeout);
+  await sameTabTimeoutTab.evaluate(()=>window.__g265.releaseSameTabTimeoutDigest());
+  const timeoutFirstResult=await timeoutFirstPending;
+  assert.equal(timeoutFirstResult.ok,true,JSON.stringify(timeoutFirstResult));
+  assert.equal(timeoutFirstResult.result.status,'PERSISTED');
+  const freshAfterSameTabTimeout=await newTab();
+  await freshAfterSameTabTimeout.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  const afterSameTabTimeout=await inspect(freshAfterSameTabTimeout);
+  assert.equal(afterSameTabTimeout.generation,beforeSameTabTimeout.generation+1);
+  assert.ok(has(afterSameTabTimeout,'target_same_tab_timeout_first'));
+  assert.equal(has(afterSameTabTimeout,'target_same_tab_timeout_second'),undefined);
+  assert.deepEqual(afterSameTabTimeout.master,beforeSameTabTimeout.master);
+  assert.deepEqual(afterSameTabTimeout.rows.filter(row=>
+    row[0]!=='target_same_tab_timeout_first'),beforeSameTabTimeout.rows);
+  assert.equal(await sameTabTimeoutTab.evaluate(()=>window.__g265.openedTimedOut),0);
+  assert.equal(await sameTabTimeoutTab.evaluate(()=>window.__g265.timedOutWriter.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_SAME_TAB_INDEPENDENT_SESSION_WAIT_TIMEOUT_NO_LATE_CAS_ONE_ACK');
+
+
+  // Isolated native SQL.js factory rejection after the latest durable pair is
+  // verified but before BEGIN. The failed session must stay fail-closed with
+  // zero CAS/ACK, while a fresh independent tab can recover without a lock leak.
+  // No production database, legacy writer or player data is used.
+  const beforeOpenReject=await inspect(freshAfterSameTabTimeout);
+  const openRejectTab=await newTab();
+  await openRejectTab.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();v.openRejectCalls=0;
+    v.pair=v.createSqliteVersionNeutralAtomicPairGate({db:v.db});
+    v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+      openSqlite:()=>{
+        v.openRejectCalls++;
+        throw new Error('SYNTHETIC_SQLJS_OPEN_FACTORY_REJECTED');
+      }});
+  });
+  const rejectedOpenPayload=input('target_open_factory_rejected',
+    'SYNTHETIC_OPEN_FACTORY_REJECTED',beforeOpenReject.generation,
+    beforeOpenReject.sha256,'2026-10-30T01:16:00.000Z');
+  const rejectedOpenResult=await run(openRejectTab,rejectedOpenPayload);
+  assert.deepEqual(rejectedOpenResult,
+    {ok:false,code:'SYNTHETIC_SQLJS_OPEN_FACTORY_REJECTED'});
+  assert.equal(await openRejectTab.evaluate(()=>window.__g265.openRejectCalls),1);
+  assert.equal(await openRejectTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  const rejectedOpenReplay=await run(openRejectTab,rejectedOpenPayload);
+  assert.deepEqual(rejectedOpenReplay,
+    {ok:false,code:'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.equal(await openRejectTab.evaluate(()=>window.__g265.openRejectCalls),1);
+  const freshAfterOpenReject=await newTab();
+  await freshAfterOpenReject.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  assert.deepEqual(await inspect(freshAfterOpenReject),beforeOpenReject);
+  const healthyOpenPayload=input('target_open_factory_recovery',
+    'SYNTHETIC_OPEN_FACTORY_RECOVERY',beforeOpenReject.generation,
+    beforeOpenReject.sha256,'2026-10-30T01:17:00.000Z');
+  const healthyOpenResult=await run(freshAfterOpenReject,healthyOpenPayload);
+  assert.equal(healthyOpenResult.ok,true,JSON.stringify(healthyOpenResult));
+  assert.equal(healthyOpenResult.result.status,'PERSISTED');
+  const independentOpenReadback=await newTab();
+  await independentOpenReadback.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  const afterOpenRecovery=await inspect(independentOpenReadback);
+  assert.equal(afterOpenRecovery.generation,beforeOpenReject.generation+1);
+  assert.equal(afterOpenRecovery.sha256,digest(afterOpenRecovery.bytes));
+  assert.equal(has(afterOpenRecovery,'target_open_factory_rejected'),undefined);
+  assert.ok(has(afterOpenRecovery,'target_open_factory_recovery'));
+  assert.deepEqual(afterOpenRecovery.master,beforeOpenReject.master);
+  assert.deepEqual(afterOpenRecovery.rows.filter(row=>
+    row[0]!=='target_open_factory_recovery'),beforeOpenReject.rows);
+  assert.equal(await openRejectTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_SQLJS_OPEN_FACTORY_REJECTED_STICKY_ZERO_CAS_FRESH_TAB_RECOVERY');
+
+
+  // Native SQL.js BEGIN IMMEDIATE rejection is distinct from connection-factory
+  // failure: a real connection was opened and MUST be closed before returning.
+  // The isolated pair must remain unchanged; only a fresh tab may recover.
+  const beforeBeginReject=await inspect(independentOpenReadback);
+  const beginRejectTab=await newTab();
+  await beginRejectTab.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();v.beginRejectCalls=0;v.beginRejectClosed=0;
+    v.pair=v.createSqliteVersionNeutralAtomicPairGate({db:v.db});
+    v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+      openSqlite:bytes=>{
+        v.opened++;
+        const sql=new v.SQL.Database(bytes);
+        const runSql=sql.run.bind(sql),closeSql=sql.close.bind(sql);
+        sql.run=(statement,...params)=>{
+          if(statement==='BEGIN IMMEDIATE'){
+            v.beginRejectCalls++;
+            throw new Error('SYNTHETIC_SQLJS_BEGIN_REJECTED');
+          }
+          return runSql(statement,...params);
+        };
+        sql.close=()=>{v.beginRejectClosed++;return closeSql();};
+        return sql;
+      }});
+  });
+  const rejectedBeginPayload=input('target_begin_rejected',
+    'SYNTHETIC_BEGIN_REJECTED',beforeBeginReject.generation,
+    beforeBeginReject.sha256,'2026-10-30T01:18:00.000Z');
+  const rejectedBeginResult=await run(beginRejectTab,rejectedBeginPayload);
+  assert.deepEqual(rejectedBeginResult,
+    {ok:false,code:'SYNTHETIC_SQLJS_BEGIN_REJECTED'});
+  assert.deepEqual(await beginRejectTab.evaluate(()=>({
+    opened:window.__g265.opened,beginCalls:window.__g265.beginRejectCalls,
+    closed:window.__g265.beginRejectClosed,status:window.__g265.writer.status().status
+  })),{opened:1,beginCalls:1,closed:1,status:'UNVERIFIED_RELOAD_REQUIRED'});
+  assert.deepEqual(await run(beginRejectTab,rejectedBeginPayload),
+    {ok:false,code:'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.equal(await beginRejectTab.evaluate(()=>window.__g265.beginRejectCalls),1);
+  const freshAfterBeginReject=await newTab();
+  await freshAfterBeginReject.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  assert.deepEqual(await inspect(freshAfterBeginReject),beforeBeginReject);
+  const healthyBeginPayload=input('target_begin_recovery',
+    'SYNTHETIC_BEGIN_RECOVERY',beforeBeginReject.generation,
+    beforeBeginReject.sha256,'2026-10-30T01:19:00.000Z');
+  const healthyBeginResult=await run(freshAfterBeginReject,healthyBeginPayload);
+  assert.equal(healthyBeginResult.ok,true,JSON.stringify(healthyBeginResult));
+  assert.equal(healthyBeginResult.result.status,'PERSISTED');
+  const beginReadbackTab=await newTab();
+  await beginReadbackTab.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  const afterBeginRecovery=await inspect(beginReadbackTab);
+  assert.equal(afterBeginRecovery.generation,beforeBeginReject.generation+1);
+  assert.equal(afterBeginRecovery.sha256,digest(afterBeginRecovery.bytes));
+  assert.equal(has(afterBeginRecovery,'target_begin_rejected'),undefined);
+  assert.ok(has(afterBeginRecovery,'target_begin_recovery'));
+  assert.deepEqual(afterBeginRecovery.master,beforeBeginReject.master);
+  assert.deepEqual(afterBeginRecovery.rows.filter(row=>
+    row[0]!=='target_begin_recovery'),beforeBeginReject.rows);
+  assert.equal(await beginRejectTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_SQLJS_BEGIN_REJECTED_CLOSED_STICKY_FRESH_TAB_RECOVERY');
+
+  // Isolated real SQL.js COMMIT rejection: BEGIN and row mutation succeed
+  // in memory, but a failing COMMIT must trigger exactly one ROLLBACK and
+  // close. No CAS/ACK or durable change is allowed; a fresh tab must recover.
+  // This is a synthetic opt-in fixture, never the production player DB.
+  const beforeCommitReject=await inspect(beginReadbackTab);
+  const commitRejectTab=await newTab();
+  await commitRejectTab.evaluate(async()=>{
+    const v=window.__g265;
+    v.db=await v.open();v.commitRejectCalls=0;v.commitRollbackCalls=0;
+    v.commitRejectClosed=0;
+    v.pair=v.createSqliteVersionNeutralAtomicPairGate({db:v.db});
+    v.writer=v.createCollectionTargetOptIn({pairGate:v.pair,
+      openSqlite:bytes=>{
+        v.opened++;
+        const sql=new v.SQL.Database(bytes);
+        const originalRun=sql.run.bind(sql),originalClose=sql.close.bind(sql);
+        sql.run=(statement,...params)=>{
+          if(statement==='COMMIT'){
+            v.commitRejectCalls++;
+            throw new Error('SYNTHETIC_SQLJS_COMMIT_REJECTED');
+          }
+          if(statement==='ROLLBACK')v.commitRollbackCalls++;
+          return originalRun(statement,...params);
+        };
+        sql.close=()=>{v.commitRejectClosed++;return originalClose();};
+        return sql;
+      }});
+  });
+  const commitRejectedPayload=input('target_commit_rejected',
+    'SYNTHETIC_COMMIT_REJECTED',beforeCommitReject.generation,
+    beforeCommitReject.sha256,'2026-10-30T01:20:00.000Z');
+  const commitRejectedResult=await run(commitRejectTab,commitRejectedPayload);
+  assert.deepEqual(commitRejectedResult,
+    {ok:false,code:'SYNTHETIC_SQLJS_COMMIT_REJECTED'});
+  assert.deepEqual(await commitRejectTab.evaluate(()=>({
+    opened:window.__g265.opened,commits:window.__g265.commitRejectCalls,
+    rollbacks:window.__g265.commitRollbackCalls,
+    closed:window.__g265.commitRejectClosed,
+    status:window.__g265.writer.status().status
+  })),{opened:1,commits:1,rollbacks:1,closed:1,
+    status:'UNVERIFIED_RELOAD_REQUIRED'});
+  assert.deepEqual(await run(commitRejectTab,commitRejectedPayload),
+    {ok:false,code:'G265_PAIR_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.equal(await commitRejectTab.evaluate(()=>window.__g265.commitRejectCalls),1);
+  const freshAfterCommitReject=await newTab();
+  await freshAfterCommitReject.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  assert.deepEqual(await inspect(freshAfterCommitReject),beforeCommitReject);
+  const healthyCommitPayload=input('target_commit_recovery',
+    'SYNTHETIC_COMMIT_RECOVERY',beforeCommitReject.generation,
+    beforeCommitReject.sha256,'2026-10-30T01:21:00.000Z');
+  const healthyCommitResult=await run(freshAfterCommitReject,healthyCommitPayload);
+  assert.equal(healthyCommitResult.ok,true,JSON.stringify(healthyCommitResult));
+  assert.equal(healthyCommitResult.result.status,'PERSISTED');
+  const commitReadbackTab=await newTab();
+  await commitReadbackTab.evaluate(async()=>{
+    window.__g265.db=await window.__g265.open();window.__g265.reset();
+  });
+  const afterCommitRecovery=await inspect(commitReadbackTab);
+  assert.equal(afterCommitRecovery.generation,beforeCommitReject.generation+1);
+  assert.equal(afterCommitRecovery.sha256,digest(afterCommitRecovery.bytes));
+  assert.equal(has(afterCommitRecovery,'target_commit_rejected'),undefined);
+  assert.ok(has(afterCommitRecovery,'target_commit_recovery'));
+  assert.deepEqual(afterCommitRecovery.master,beforeCommitReject.master);
+  assert.deepEqual(afterCommitRecovery.rows.filter(row=>
+    row[0]!=='target_commit_recovery'),beforeCommitReject.rows);
+  assert.equal(await commitRejectTab.evaluate(()=>window.__g265.writer.status().status),
+    'UNVERIFIED_RELOAD_REQUIRED');
+  console.log('PASS G265_TWELFTH_NATIVE_SQLJS_COMMIT_REJECTED_ROLLBACK_CLOSED_FRESH_TAB_RECOVERY');
+
+  console.log('HOLD G265_TWELFTH_NATIVE_OPTIN_NOT_PRODUCTION_ALL_WRITERS_CRASH_RESTORE_ANDROID');
+}finally{
+  for(const page of pages)if(!page.isClosed()){
+    try{await page.evaluate(()=>window.__g265?.db?.close());}catch{}
+  }
+  await context.close();await browser.close();
+}
