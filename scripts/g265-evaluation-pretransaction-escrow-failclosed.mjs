@@ -320,6 +320,62 @@ await assert.rejects(recoveryObserver.restore(),
 assert.deepEqual(await inspect(),recoveryAfter);
 console.log('PASS G265_ESCROW_RECOVERY_INTERLEAVED_NEWER_ACK_TWO_READS_HOLD_NO_RESTORE');
 
+// An untrusted/defective opt-in writer can claim PERSISTED without making
+// any durable change. The escrow must independently read back the CAS pair
+// instead of treating the writer's returned status as a successful ACK.
+const forgedBefore=await inspect();
+const forgedSession=make('forged-persisted-no-write',{
+  execute:async()=>({status:'PERSISTED',generation:forgedBefore.generation+1,
+    sha256:'1'.repeat(64)})
+});
+const forgedInput=input('SYNTHETIC_A','eval_forged_no_write',forgedBefore);
+await forgedSession.capture(forgedInput);
+await assert.rejects(forgedSession.execute(forgedInput),
+  e=>e.code==='G265_ESCROW_POST_ACK_DURABLE_MISMATCH');
+assert.equal(forgedSession.status().status,'UNVERIFIED_RELOAD_REQUIRED');
+await assert.rejects(forgedSession.execute(forgedInput),
+  e=>e.code==='G265_ESCROW_NOT_ARMED');
+assert.deepEqual(await inspect(),forgedBefore);
+const forgedRecovery=await make('forged-persisted-no-write').inspectRecovery();
+assert.equal(forgedRecovery.classification,'NO_DURABLE_DELTA');
+assert.equal(forgedRecovery.restoreAuthorized,false);
+console.log('PASS G265_ESCROW_FORGED_PERSISTED_NO_DURABLE_WRITE_NEVER_ACK');
+
+// A real atomic CAS can succeed while the writer returns a mismatched ACK
+// digest. Preserve the committed newer row, but fail closed and never restore
+// or replay based on an unverified response.
+const mismatchedBefore=await inspect();
+const realMismatchedWriter=makeWriter();
+const mismatchedSession=make('persisted-wrong-ack-digest',{
+  execute:async request=>{
+    const persisted=await realMismatchedWriter.execute(request);
+    assert.equal(persisted.status,'PERSISTED');
+    return {...persisted,sha256:'0'.repeat(64)};
+  }
+});
+const mismatchedInput={...input('SYNTHETIC_A','eval_escrow_ack_mismatch',mismatchedBefore),
+  expectedCurrentEvaluationId:'eval_A'};
+await mismatchedSession.capture(mismatchedInput);
+await assert.rejects(mismatchedSession.execute(mismatchedInput),
+  e=>e.code==='G265_ESCROW_POST_ACK_DURABLE_MISMATCH');
+assert.equal(mismatchedSession.status().status,'UNVERIFIED_RELOAD_REQUIRED');
+const mismatchedAfter=await inspect();
+assert.equal(mismatchedAfter.generation,mismatchedBefore.generation+1);
+assert.deepEqual(mismatchedAfter.rows,
+  [...mismatchedBefore.rows,'eval_escrow_ack_mismatch'].sort());
+assert.deepEqual(mismatchedAfter.master,mismatchedBefore.master);
+const mismatchedRecovery=await make('persisted-wrong-ack-digest').inspectRecovery();
+assert.equal(mismatchedRecovery.classification,'DURABLE_CHANGED_HOLD');
+assert.equal(mismatchedRecovery.restoreAuthorized,false);
+await assert.rejects(mismatchedSession.execute(mismatchedInput),
+  e=>e.code==='G265_ESCROW_NOT_ARMED');
+await assert.rejects(mismatchedSession.restore(),
+  e=>e.code==='G265_ESCROW_RESTORE_BLOCKED_ALL_WRITERS_UNADMITTED');
+assert.deepEqual(await inspect(),mismatchedAfter);
+console.log('PASS G265_ESCROW_COMMITTED_WITH_MISMATCHED_ACK_FAIL_CLOSED_NO_REPLAY');
+
+// Normal verified PERSISTED success remains covered by the earlier
+// G265_ESCROW_INDEPENDENT_PREWRITE_DURABLE_READBACK_ACK_NO_AUTO_RESTORE gate.
 db.close();
 console.log('PASS G265_ESCROW_MISSING_SNAPSHOT_RESTORE_REFUSED');
 console.log('HOLD G265_ESCROW_NOT_PRODUCTION_CRASH_RESTORE_ALL_WRITERS_OWNER_ANDROID');

@@ -103,10 +103,18 @@ export function createEvaluationPreTransactionEscrowOptIn({
     state='IN_FLIGHT';
     try{
       const outcome=await writer.execute(input);
-      // A resolved Promise is not a durable ACK: only the opt-in writer's
-      // independently read-back PERSISTED result may advance this session.
-      if(!outcome||outcome.status!=='PERSISTED')
+      // A resolved Promise (even a claimed PERSISTED result) is not a durable
+      // ACK. Require a well-formed successor revision and independently verify
+      // the actual persisted pair before acknowledging this escrow session.
+      if(!outcome||outcome.status!=='PERSISTED'
+        ||!generation(outcome.generation)||!digest(outcome.sha256)
+        ||outcome.generation!==baseline.generation+1
+        ||outcome.sha256===baseline.sha256)
         throw fail('G265_ESCROW_WRITER_ACK_NOT_VERIFIED');
+      const confirmed=await verifiedRecord(await pairGate.readVerified());
+      if(confirmed.generation!==outcome.generation
+        ||confirmed.sha256!==outcome.sha256)
+        throw fail('G265_ESCROW_POST_ACK_DURABLE_MISMATCH');
       state='ACKED';
       return outcome;
     }catch(error){state='UNVERIFIED_RELOAD_REQUIRED';throw error;}
