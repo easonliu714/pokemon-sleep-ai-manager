@@ -507,8 +507,12 @@ const executeDurableSession=createEvaluationPreTransactionEscrowOptIn({
   pairGate:{readVerified:async()=>{
     executeDurableReads++;
     if(executeDurableReads===3){
-      const competing=await makeWriter().execute(input('SYNTHETIC_BLOCKED',
-        'eval_execute_durable_race',executeDurableBefore));
+      // SYNTHETIC_BLOCKED already has the earlier post-capture evaluation;
+      // a valid competing ACK must name that current evaluation revision.
+      const competing=await makeWriter().execute({
+        ...input('SYNTHETIC_BLOCKED','eval_execute_durable_race',executeDurableBefore),
+        expectedCurrentEvaluationId:'eval_postcapture_race'
+      });
       assert.equal(competing.status,'PERSISTED');
       executeDurableCompetingAcks++;
     }
