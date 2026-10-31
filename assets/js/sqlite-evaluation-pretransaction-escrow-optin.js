@@ -83,6 +83,13 @@ export function createEvaluationPreTransactionEscrowOptIn({
       if(persisted.generation!==current.generation||persisted.sha256!==current.sha256
         ||!equal(persisted.bytes,current.bytes))
         throw fail('G265_ESCROW_READBACK_MISMATCH');
+      // Escrow persistence is asynchronous: a separate acknowledged writer may
+      // advance the durable pair while the immutable snapshot is being saved.
+      // Revalidate before arming; the downstream CAS still protects later races.
+      const latest=await verifiedRecord(await pairGate.readVerified());
+      if(latest.generation!==current.generation||latest.sha256!==current.sha256
+        ||!equal(latest.bytes,current.bytes))
+        throw fail('G265_ESCROW_POST_CAPTURE_DURABLE_CHANGED');
       baseline={generation:current.generation,sha256:current.sha256};
       state='ARMED';
       return Object.freeze({...baseline,status:'ESCROW_VERIFIED'});
