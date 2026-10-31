@@ -89,7 +89,8 @@ assert.deepEqual(await inspect(),after);
 console.log('PASS G265_ESCROW_INDEPENDENT_PREWRITE_DURABLE_READBACK_ACK_NO_AUTO_RESTORE');
 
 const duplicate=make('success');
-await assert.rejects(duplicate.capture(a),e=>e.code==='G265_ESCROW_WRITE_FAILED'
+await assert.rejects(duplicate.capture({expectedGeneration:after.generation,
+  expectedFingerprint:after.sha256}),e=>e.code==='G265_ESCROW_WRITE_FAILED'
   ||e.code==='G265_ESCROW_WRITE_ABORTED');
 assert.equal(duplicate.status().status,'UNVERIFIED_RELOAD_REQUIRED');
 assert.deepEqual(await inspect(),after);
