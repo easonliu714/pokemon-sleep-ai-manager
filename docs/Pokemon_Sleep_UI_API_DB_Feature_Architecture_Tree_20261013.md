@@ -1,3 +1,7 @@
+## G265 fifteenth Recipe Workbench opt-in CAS — isolated Source/Test only
+
+- `saveRecipeState()` remains a Legacy Direct Writer. Disposable SQL.js VM sessions and SHA-256 CAS lock admission cover stale zero-write, one ACK, fresh reload, rollback, ACK-loss and unavailable-lock fail-closed; no production admission or Android Owner PASS. Predecessor #665 protected merge `c4aa36f7c9a0d3f43e321deaa03058d2e765d930`, 6/6 PR CI and 7/7 main CI including Pages SUCCESS. Player SQLite/IDB and Public Master unchanged; #19 OPEN, end-exclusive Gate pending.
+
 ## G265 fifteenth Recipe Unified Workbench Legacy two-ACK stale recipe and audit negative — SOURCE CANDIDATE / PRODUCTION HOLD
 
 - **New distinct Source/Test Gate:** `scripts/g265-recipe-workbench-fifteenth-legacy-cross-tab-negative.mjs` extracts the unchanged production `assets/js/recipe-unified-player-workbench.js::saveRecipeState()` into two independent disposable SQL.js VM tabs. Its real legacy `snapshot → BEGIN → recipe UPSERT → import_batches/import_changes journal → COMMIT → persist` flow is exercised with synthetic recipe rows. Two successfully acknowledged saves can result in the delayed stale full-image export erasing the later acknowledged recipe, import batch and audit change. Original seed and synthetic Public Master sentinel are preserved. This is an intentionally **UNSAFE NEGATIVE reproduction**, not a fix, safe opt-in adapter or production admission. No real player DB or private data is read.
