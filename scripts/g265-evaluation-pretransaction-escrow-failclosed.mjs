@@ -589,6 +589,33 @@ for(const failKind of ['durable','escrow']){
 }
 console.log('PASS G265_ESCROW_EXECUTE_PREFLIGHT_READ_FAILURES_STICKY_ZERO_WRITES');
 
+// A request with the wrong revision must consume the armed session, not permit
+// a later corrected request to reuse an escrow captured for another attempt.
+// This is an isolated negative: no SQL.js writer or durable revision may change.
+const mismatchBefore=await inspect();
+const mismatchName='execute-revision-mismatch-sticky';
+let mismatchWriterCalls=0;
+const mismatchSession=make(mismatchName,{execute:async()=>{
+  mismatchWriterCalls++;
+  throw Error('MISMATCHED_REVISION_MUST_NOT_INVOKE_WRITER');
+}});
+const mismatchAttempt=input('SYNTHETIC_A','eval_mismatched_revision',mismatchBefore);
+await mismatchSession.capture(mismatchAttempt);
+await assert.rejects(mismatchSession.execute({
+  ...mismatchAttempt,expectedGeneration:mismatchBefore.generation+1
+}),e=>e.code==='G265_ESCROW_WRITE_REVISION_MISMATCH');
+assert.equal(mismatchSession.status().status,'UNVERIFIED_RELOAD_REQUIRED');
+await assert.rejects(mismatchSession.execute(mismatchAttempt),
+  e=>e.code==='G265_ESCROW_NOT_ARMED');
+assert.equal(mismatchWriterCalls,0);
+const mismatchRecovery=await make(mismatchName).inspectRecovery();
+assert.equal(mismatchRecovery.classification,'NO_DURABLE_DELTA');
+assert.equal(mismatchRecovery.restoreAuthorized,false);
+await assert.rejects(mismatchSession.restore(),
+  e=>e.code==='G265_ESCROW_RESTORE_BLOCKED_ALL_WRITERS_UNADMITTED');
+assert.deepEqual(await inspect(),mismatchBefore);
+console.log('PASS G265_ESCROW_EXECUTE_REVISION_MISMATCH_STICKY_NO_RETRY_ZERO_WRITES');
+
 // Normal verified PERSISTED success remains covered by the earlier
 // G265_ESCROW_INDEPENDENT_PREWRITE_DURABLE_READBACK_ACK_NO_AUTO_RESTORE gate.
 db.close();
