@@ -495,6 +495,96 @@ for(const mutation of ['replace','delete']){
 assert.deepEqual(await inspect(),preflightBefore);
 console.log('PASS G265_ESCROW_EXECUTE_REPLACED_OR_MISSING_SNAPSHOT_NO_WRITER_NO_ACK');
 
+// An acknowledged second writer can advance the durable pair after capture,
+// before the opt-in writer starts. Execute preflight must reject the stale
+// baseline without invoking a second writer or undoing the acknowledged row.
+const executeDurableBefore=await inspect();
+const executeDurableStore=createDisposableEvaluationEscrowStore({
+  indexedDB,name:'g265-evaluation-escrow-disposable-execute-durable-race'});
+let executeDurableReads=0,executeDurableCompetingAcks=0,executeDurableWriterCalls=0;
+const executeDurableSession=createEvaluationPreTransactionEscrowOptIn({
+  fingerprint:hash,
+  pairGate:{readVerified:async()=>{
+    executeDurableReads++;
+    if(executeDurableReads===3){
+      const competing=await makeWriter().execute(input('SYNTHETIC_BLOCKED',
+        'eval_execute_durable_race',executeDurableBefore));
+      assert.equal(competing.status,'PERSISTED');
+      executeDurableCompetingAcks++;
+    }
+    return pair().readVerified();
+  }},
+  escrow:executeDurableStore,
+  writer:{execute:async()=>{
+    executeDurableWriterCalls++;
+    throw Error('STALE_EXECUTE_WRITER_MUST_NOT_RUN');
+  }}
+});
+const executeDurableAttempt=input('SYNTHETIC_A',
+  'eval_execute_stale_writer',executeDurableBefore);
+await executeDurableSession.capture(executeDurableAttempt);
+await assert.rejects(executeDurableSession.execute(executeDurableAttempt),
+  e=>e.code==='G265_ESCROW_EXECUTE_DURABLE_CHANGED');
+assert.equal(executeDurableReads,3);
+assert.equal(executeDurableCompetingAcks,1);
+assert.equal(executeDurableWriterCalls,0);
+assert.equal(executeDurableSession.status().status,'UNVERIFIED_RELOAD_REQUIRED');
+await assert.rejects(executeDurableSession.execute(executeDurableAttempt),
+  e=>e.code==='G265_ESCROW_NOT_ARMED');
+const executeDurableAfter=await inspect();
+assert.equal(executeDurableAfter.generation,executeDurableBefore.generation+1);
+assert.deepEqual(executeDurableAfter.rows,
+  [...executeDurableBefore.rows,'eval_execute_durable_race'].sort());
+assert.deepEqual(executeDurableAfter.master,executeDurableBefore.master);
+const executeDurableRecovery=await make('execute-durable-race').inspectRecovery();
+assert.equal(executeDurableRecovery.classification,'DURABLE_CHANGED_HOLD');
+assert.equal(executeDurableRecovery.restoreAuthorized,false);
+await assert.rejects(executeDurableSession.restore(),
+  e=>e.code==='G265_ESCROW_RESTORE_BLOCKED_ALL_WRITERS_UNADMITTED');
+assert.deepEqual(await inspect(),executeDurableAfter);
+console.log('PASS G265_ESCROW_EXECUTE_NEWER_DURABLE_ACK_REJECTS_STALE_ZERO_WRITER');
+
+// A failed execute-time durable read, or failed escrow preflight read, must
+// stick to unverified without a writer call, false ACK, replay or restore.
+for(const failKind of ['durable','escrow']){
+  const name='execute-read-failure-'+failKind;
+  const stored=createDisposableEvaluationEscrowStore({
+    indexedDB,name:'g265-evaluation-escrow-disposable-'+name});
+  let durableReads=0,escrowReads=0,writerCalls=0;
+  const before=await inspect();
+  const session=createEvaluationPreTransactionEscrowOptIn({
+    fingerprint:hash,
+    pairGate:{readVerified:async()=>{
+      if(++durableReads===3&&failKind==='durable')
+        throw Object.assign(Error('SYNTHETIC_EXECUTE_DURABLE_READ_FAILED'),
+          {code:'SYNTHETIC_EXECUTE_DURABLE_READ_FAILED'});
+      return pair().readVerified();
+    }},
+    escrow:{write:record=>stored.write(record),read:async()=>{
+      if(++escrowReads===2&&failKind==='escrow')
+        throw Object.assign(Error('SYNTHETIC_EXECUTE_ESCROW_READ_FAILED'),
+          {code:'SYNTHETIC_EXECUTE_ESCROW_READ_FAILED'});
+      return stored.read();
+    }},
+    writer:{execute:async()=>{writerCalls++;throw Error('READ_FAILED_WRITER_MUST_NOT_RUN');}}
+  });
+  const attempt=input('SYNTHETIC_A','eval_execute_failed_'+failKind,before);
+  await session.capture(attempt);
+  await assert.rejects(session.execute(attempt),e=>e.code===
+    (failKind==='durable'?'SYNTHETIC_EXECUTE_DURABLE_READ_FAILED':
+      'SYNTHETIC_EXECUTE_ESCROW_READ_FAILED'));
+  assert.equal(writerCalls,0);
+  assert.equal(session.status().status,'UNVERIFIED_RELOAD_REQUIRED');
+  await assert.rejects(session.execute(attempt),e=>e.code==='G265_ESCROW_NOT_ARMED');
+  const recovery=await make(name).inspectRecovery();
+  assert.equal(recovery.classification,'NO_DURABLE_DELTA');
+  assert.equal(recovery.restoreAuthorized,false);
+  await assert.rejects(session.restore(),
+    e=>e.code==='G265_ESCROW_RESTORE_BLOCKED_ALL_WRITERS_UNADMITTED');
+  assert.deepEqual(await inspect(),before);
+}
+console.log('PASS G265_ESCROW_EXECUTE_PREFLIGHT_READ_FAILURES_STICKY_ZERO_WRITES');
+
 // Normal verified PERSISTED success remains covered by the earlier
 // G265_ESCROW_INDEPENDENT_PREWRITE_DURABLE_READBACK_ACK_NO_AUTO_RESTORE gate.
 db.close();
