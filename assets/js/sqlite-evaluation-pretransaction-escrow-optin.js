@@ -93,13 +93,18 @@ export function createEvaluationPreTransactionEscrowOptIn({
     ||typeof fingerprint!=='function')
     throw new TypeError('G265_ESCROW_INVALID_ADAPTER');
   let state='READY',baseline=null,boundRequest=null;
-  const verifiedRecord=async record=>{
-    if(!record||!generation(record.generation)||!digest(record.sha256))
+  const verifiedRecord=async (record,requireRequestDigest=false)=>{
+    // Escrow records must carry a digest-only request identity, or explicit
+    // null for read-only captures. Legacy/malformed records never authorize a write.
+    if(!record||!generation(record.generation)||!digest(record.sha256)
+      ||(requireRequestDigest&&(!Object.hasOwn(record,'requestDigest')
+        ||!(record.requestDigest===null||digest(record.requestDigest)))))
       throw fail('G265_ESCROW_MISSING_OR_INVALID');
     const copy=bytes(record.bytes);
     if(!copy||copy.byteLength===0||await fingerprint(copy)!==record.sha256)
       throw fail('G265_ESCROW_DIGEST_MISMATCH');
-    return {generation:record.generation,sha256:record.sha256,bytes:copy};
+    return {generation:record.generation,sha256:record.sha256,
+      bytes:copy,requestDigest:record.requestDigest};
   };
   async function capture(request={}){
     if(state!=='READY')throw fail('G265_ESCROW_SESSION_NOT_READY');
@@ -119,13 +124,20 @@ export function createEvaluationPreTransactionEscrowOptIn({
     // must never race to persist the same immutable escrow or poison an armed session.
     state='CAPTURING';
     try{
+      // Persist only the SHA-256 of canonical request JSON; never the payload.
+      // This digest is advisory across sessions, not a trusted restore token.
+      const requestDigest=identity===null?null:
+        await fingerprint(new TextEncoder().encode(identity));
+      if(requestDigest!==null&&!digest(requestDigest))
+        throw fail('G265_ESCROW_INVALID_REQUEST_DIGEST');
       const current=await verifiedRecord(await pairGate.readVerified());
       if(current.generation!==expectedGeneration||current.sha256!==expectedFingerprint)
         throw fail('G265_ESCROW_STALE_CAPTURE');
       await escrow.write({generation:current.generation,sha256:current.sha256,
-        bytes:current.bytes.slice().buffer});
-      const persisted=await verifiedRecord(await escrow.read());
+        requestDigest,bytes:current.bytes.slice().buffer});
+      const persisted=await verifiedRecord(await escrow.read(),true);
       if(persisted.generation!==current.generation||persisted.sha256!==current.sha256
+        ||persisted.requestDigest!==requestDigest
         ||!equal(persisted.bytes,current.bytes))
         throw fail('G265_ESCROW_READBACK_MISMATCH');
       // Escrow persistence is asynchronous: a separate acknowledged writer may
@@ -135,10 +147,11 @@ export function createEvaluationPreTransactionEscrowOptIn({
       if(latest.generation!==current.generation||latest.sha256!==current.sha256
         ||!equal(latest.bytes,current.bytes))
         throw fail('G265_ESCROW_POST_CAPTURE_DURABLE_CHANGED');
-      baseline={generation:current.generation,sha256:current.sha256};
+      baseline={generation:current.generation,sha256:current.sha256,requestDigest};
       boundRequest=identity;
       state='ARMED';
-      return Object.freeze({...baseline,status:'ESCROW_VERIFIED'});
+      return Object.freeze({generation:baseline.generation,sha256:baseline.sha256,
+        status:'ESCROW_VERIFIED'});
     }catch(error){state='UNVERIFIED_RELOAD_REQUIRED';throw error;}
   }
   async function execute(input){
@@ -166,10 +179,13 @@ export function createEvaluationPreTransactionEscrowOptIn({
       // Another IndexedDB actor may remove/replace it after capture but before
       // execution; fail closed before invoking any writer (advisory, not an
       // atomic guarantee against later mutation by unadmitted legacy writers).
-      const armedSnapshot=await verifiedRecord(await escrow.read());
+      const armedSnapshot=await verifiedRecord(await escrow.read(),true);
       if(armedSnapshot.generation!==baseline.generation
         ||armedSnapshot.sha256!==baseline.sha256)
         throw fail('G265_ESCROW_EXECUTE_SNAPSHOT_CHANGED');
+      // Matching SQLite bytes do not authorize a different transaction.
+      if(armedSnapshot.requestDigest!==baseline.requestDigest)
+        throw fail('G265_ESCROW_EXECUTE_REQUEST_DIGEST_CHANGED');
       // A different acknowledged writer can advance the durable pair after
       // capture and before execution. Re-read independently before invoking
       // this opt-in writer; its downstream atomic CAS still guards later races.
@@ -198,7 +214,7 @@ export function createEvaluationPreTransactionEscrowOptIn({
   }
   async function inspectRecovery(){
     // A fresh session may inspect an escrow after tab close/crash. No writes occur.
-    const saved=await verifiedRecord(await escrow.read());
+    const saved=await verifiedRecord(await escrow.read(),true);
     // Recovery is read-only, not lock-protected. A legitimate writer may ACK
     // between durable observations; never report a stable zero-delta result
     // from a single possibly stale read.
@@ -207,9 +223,11 @@ export function createEvaluationPreTransactionEscrowOptIn({
     // An external IDB actor can change even a digest-valid snapshot while
     // durable observations are in flight. Re-read before classifying no delta.
     // This is advisory, not an atomic recovery or restore authorization.
-    const savedAgain=await verifiedRecord(await escrow.read());
+    const savedAgain=await verifiedRecord(await escrow.read(),true);
     const snapshotStable=saved.generation===savedAgain.generation
-      &&saved.sha256===savedAgain.sha256&&equal(saved.bytes,savedAgain.bytes);
+      &&saved.sha256===savedAgain.sha256
+      &&saved.requestDigest===savedAgain.requestDigest
+      &&equal(saved.bytes,savedAgain.bytes);
     const observationStable=first.generation===current.generation
       &&first.sha256===current.sha256&&equal(first.bytes,current.bytes);
     const unchanged=current.generation===saved.generation

@@ -389,7 +389,7 @@ const snapshotObserver=createEvaluationPreTransactionEscrowOptIn({
     read:async()=>{
       snapshotReads++;
       return snapshotReads===1?await snapshotStore.read():
-        {generation:0,sha256:seedHash,bytes:seed.slice().buffer};
+        {generation:0,sha256:seedHash,requestDigest:null,bytes:seed.slice().buffer};
     }},
   writer:{execute:async()=>{snapshotWriterCalls++;throw Error('RECOVERY_MUST_NOT_WRITE');}}
 });
@@ -470,7 +470,8 @@ for(const mutation of ['replace','delete']){
     const tx=escrowConnection.transaction('escrow','readwrite');
     const objects=tx.objectStore('escrow');
     if(mutation==='replace')
-      objects.put({generation:0,sha256:seedHash,bytes:seed.slice().buffer},'pretransaction');
+      objects.put({generation:0,sha256:seedHash,requestDigest:null,
+        bytes:seed.slice().buffer},'pretransaction');
     else objects.delete('pretransaction');
     tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
   });
@@ -687,6 +688,91 @@ assert.equal(receivedRequest.scores.roi,5);
 assert.equal(detachedSession.status().status,'UNVERIFIED_RELOAD_REQUIRED');
 assert.deepEqual(await inspect(),detachedBefore);
 console.log('PASS G265_ESCROW_WRITER_RECEIVES_DETACHED_BOUND_REQUEST');
+
+// A persisted escrow must bind its full canonical request by digest only.
+// A second IndexedDB actor replacing just that digest with the same valid
+// SQLite Generation/SHA/bytes cannot authorize a different transaction.
+const digestBefore=await inspect();
+const digestAttempt=input('SYNTHETIC_A','eval_digest_bound',digestBefore);
+const digestName='request-digest-substitution';
+const digestStore=createDisposableEvaluationEscrowStore({
+  indexedDB,name:'g265-evaluation-escrow-disposable-'+digestName});
+let digestWriterCalls=0;
+const digestSession=createEvaluationPreTransactionEscrowOptIn({
+  pairGate:pair(),escrow:digestStore,fingerprint:hash,
+  writer:{execute:async()=>{digestWriterCalls++;throw Error('DIGEST_WRITER_MUST_NOT_RUN');}}
+});
+await digestSession.capture(digestAttempt);
+const digestSaved=await digestStore.read();
+assert.match(digestSaved.requestDigest,/^[0-9a-f]{64}$/);
+assert.equal(Object.hasOwn(digestSaved,'pokemonId'),false);
+assert.equal(Object.hasOwn(digestSaved,'evaluationId'),false);
+assert.equal(Object.hasOwn(digestSaved,'scores'),false);
+const forgedRequestDigest='0'.repeat(64);
+assert.notEqual(digestSaved.requestDigest,forgedRequestDigest);
+const digestDb=await openDb('g265-evaluation-escrow-disposable-'+digestName,1);
+await new Promise((resolve,reject)=>{
+  const tx=digestDb.transaction('escrow','readwrite');
+  tx.objectStore('escrow').put({...digestSaved,requestDigest:forgedRequestDigest},
+    'pretransaction');
+  tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+});
+digestDb.close();
+await assert.rejects(digestSession.execute(digestAttempt),
+  e=>e.code==='G265_ESCROW_EXECUTE_REQUEST_DIGEST_CHANGED');
+assert.equal(digestSession.status().status,'UNVERIFIED_RELOAD_REQUIRED');
+await assert.rejects(digestSession.execute(digestAttempt),
+  e=>e.code==='G265_ESCROW_NOT_ARMED');
+assert.equal(digestWriterCalls,0);
+assert.deepEqual(await inspect(),digestBefore);
+// A fresh reader has no trusted copy of the original request: stable bytes
+// may classify NO_DURABLE_DELTA, but never authorize replay or restore.
+const digestRecovery=await make(digestName).inspectRecovery();
+assert.equal(digestRecovery.classification,'NO_DURABLE_DELTA');
+assert.equal(digestRecovery.restoreAuthorized,false);
+await assert.rejects(digestSession.restore(),
+  e=>e.code==='G265_ESCROW_RESTORE_BLOCKED_ALL_WRITERS_UNADMITTED');
+console.log('PASS G265_ESCROW_PERSISTED_REQUEST_DIGEST_SUBSTITUTION_STICKY_ZERO_WRITES');
+
+// A digest-valid but different record returned immediately after escrow write
+// must fail before arming the session. A digest change between two independent
+// recovery observations also cannot be called a stable no-delta snapshot.
+const digestReadbackStore=createDisposableEvaluationEscrowStore({
+  indexedDB,name:'g265-evaluation-escrow-disposable-request-digest-readback'});
+let digestReadbackWriterCalls=0;
+const digestReadbackSession=createEvaluationPreTransactionEscrowOptIn({
+  pairGate:pair(),fingerprint:hash,
+  escrow:{write:record=>digestReadbackStore.write(record),
+    read:async()=>({...await digestReadbackStore.read(),requestDigest:forgedRequestDigest})},
+  writer:{execute:async()=>{digestReadbackWriterCalls++;}}
+});
+await assert.rejects(digestReadbackSession.capture(input(
+  'SYNTHETIC_A','eval_digest_readback',digestBefore)),
+  e=>e.code==='G265_ESCROW_READBACK_MISMATCH');
+assert.equal(digestReadbackSession.status().status,'UNVERIFIED_RELOAD_REQUIRED');
+assert.equal(digestReadbackWriterCalls,0);
+const digestRecoveryStore=createDisposableEvaluationEscrowStore({
+  indexedDB,name:'g265-evaluation-escrow-disposable-request-digest-recovery'});
+await make('request-digest-recovery').capture(digestAttempt);
+let digestRecoveryReads=0;
+const digestRecoveryObserver=createEvaluationPreTransactionEscrowOptIn({
+  pairGate:pair(),fingerprint:hash,
+  escrow:{write:async()=>{throw Error('RECOVERY_MUST_NOT_WRITE');},
+    read:async()=>{
+      digestRecoveryReads++;
+      const record=await digestRecoveryStore.read();
+      return digestRecoveryReads===1?record:
+        {...record,requestDigest:forgedRequestDigest};
+    }},
+  writer:{execute:async()=>{throw Error('RECOVERY_MUST_NOT_WRITE');}}
+});
+const digestChangedRecovery=await digestRecoveryObserver.inspectRecovery();
+assert.equal(digestRecoveryReads,2);
+assert.equal(digestChangedRecovery.snapshotStable,false);
+assert.equal(digestChangedRecovery.classification,'DURABLE_CHANGED_HOLD');
+assert.equal(digestChangedRecovery.restoreAuthorized,false);
+assert.deepEqual(await inspect(),digestBefore);
+console.log('PASS G265_ESCROW_REQUEST_DIGEST_READBACK_AND_RECOVERY_MUTATION_HOLD');
 
 // Normal verified PERSISTED success remains covered by the earlier
 // G265_ESCROW_INDEPENDENT_PREWRITE_DURABLE_READBACK_ACK_NO_AUTO_RESTORE gate.
