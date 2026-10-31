@@ -27,9 +27,16 @@ const canonicalRequest=input=>{
     }
     seen.add(value);
     const keys=Object.keys(value);
-    if(Array.isArray(value)&&(keys.length!==value.length
-      ||keys.some((key,i)=>key!==String(i))))
+    // JSON identity must not silently discard symbol or non-enumerable fields.
+    // Arrays have exactly one standard hidden key ('length'); no other own keys.
+    const ownKeys=Reflect.ownKeys(value);
+    if(Array.isArray(value)){
+      if(ownKeys.length!==keys.length+1||!ownKeys.includes('length')
+        ||keys.length!==value.length||keys.some((key,i)=>key!==String(i)))
+        throw fail('G265_ESCROW_INVALID_BOUND_REQUEST');
+    }else if(ownKeys.length!==keys.length){
       throw fail('G265_ESCROW_INVALID_BOUND_REQUEST');
+    }
     const result=Array.isArray(value)?[]:Object.create(null);
     for(const key of (Array.isArray(value)?keys:keys.sort())){
       const descriptor=Object.getOwnPropertyDescriptor(value,key);
@@ -113,11 +120,17 @@ export function createEvaluationPreTransactionEscrowOptIn({
     const {expectedGeneration,expectedFingerprint}=request;
     if(!generation(expectedGeneration)||!digest(expectedFingerprint))
       throw fail('G265_ESCROW_INVALID_EXPECTED_REVISION');
-    // Revision-only captures are allowed for crash/recovery observation but
-    // cannot execute a writer. Every executable capture binds its entire
-    // canonical JSON request before the first asynchronous operation.
+    // Revision-only captures are exactly two plain data fields. Reject extra
+    // symbol/hidden/inherited payload rather than silently ignoring identity.
+    const proto=Object.getPrototypeOf(request);
+    if(proto!==Object.prototype&&proto!==null)
+      throw fail('G265_ESCROW_INVALID_BOUND_REQUEST');
     const hasPayload=requestFields.some(key=>Object.hasOwn(request,key));
     if(hasPayload&&!requestFields.every(key=>Object.hasOwn(request,key)))
+      throw fail('G265_ESCROW_INVALID_BOUND_REQUEST');
+    if(!hasPayload&&(Reflect.ownKeys(request).length!==2
+      ||Reflect.ownKeys(request).some(key=>key!=='expectedGeneration'
+        &&key!=='expectedFingerprint')))
       throw fail('G265_ESCROW_INVALID_BOUND_REQUEST');
     const identity=hasPayload?canonicalRequest(request):null;
     // Reserve the session before the first await: two simultaneous captures
