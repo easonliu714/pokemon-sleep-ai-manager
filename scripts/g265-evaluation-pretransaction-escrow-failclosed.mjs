@@ -374,6 +374,78 @@ await assert.rejects(mismatchedSession.restore(),
 assert.deepEqual(await inspect(),mismatchedAfter);
 console.log('PASS G265_ESCROW_COMMITTED_WITH_MISMATCHED_ACK_FAIL_CLOSED_NO_REPLAY');
 
+// Snapshot read stability: two durable observations can be identical while a
+// separate IDB actor replaces a digest-valid escrow snapshot in between.
+const snapshotBefore=await inspect();
+const snapshotName='recovery-snapshot-stability';
+await make(snapshotName).capture({expectedGeneration:snapshotBefore.generation,
+  expectedFingerprint:snapshotBefore.sha256});
+const snapshotStore=createDisposableEvaluationEscrowStore({
+  indexedDB,name:'g265-evaluation-escrow-disposable-'+snapshotName});
+let snapshotReads=0,snapshotWriterCalls=0;
+const snapshotObserver=createEvaluationPreTransactionEscrowOptIn({
+  pairGate:pair(),fingerprint:hash,
+  escrow:{write:async()=>{throw Error('RECOVERY_ESCROW_MUST_NOT_WRITE');},
+    read:async()=>{
+      snapshotReads++;
+      return snapshotReads===1?await snapshotStore.read():
+        {generation:0,sha256:seedHash,bytes:seed.slice().buffer};
+    }},
+  writer:{execute:async()=>{snapshotWriterCalls++;throw Error('RECOVERY_MUST_NOT_WRITE');}}
+});
+const changedSnapshot=await snapshotObserver.inspectRecovery();
+assert.equal(snapshotReads,2);
+assert.equal(changedSnapshot.observationStable,true);
+assert.equal(changedSnapshot.snapshotStable,false);
+assert.equal(changedSnapshot.classification,'DURABLE_CHANGED_HOLD');
+assert.equal(changedSnapshot.restoreAuthorized,false);
+assert.equal(snapshotWriterCalls,0);
+await assert.rejects(snapshotObserver.restore(),
+  e=>e.code==='G265_ESCROW_RESTORE_BLOCKED_ALL_WRITERS_UNADMITTED');
+assert.deepEqual(await inspect(),snapshotBefore);
+const stableSnapshot=await make(snapshotName).inspectRecovery();
+assert.equal(stableSnapshot.snapshotStable,true);
+assert.equal(stableSnapshot.classification,'NO_DURABLE_DELTA');
+console.log('PASS G265_ESCROW_RECOVERY_SNAPSHOT_SECOND_READ_CHANGED_HOLD_NO_RESTORE');
+
+// Any failure in the second snapshot or durable read must reject and leave
+// the persistent revision untouched, with restore still forbidden.
+let escrowFailReads=0;
+const escrowFail=createEvaluationPreTransactionEscrowOptIn({
+  pairGate:pair(),fingerprint:hash,
+  escrow:{write:async()=>{throw Error('RECOVERY_ESCROW_MUST_NOT_WRITE');},
+    read:async()=>{
+      if(++escrowFailReads===2)
+        throw Object.assign(Error('SYNTHETIC_ESCROW_SECOND_READ_FAILED'),
+          {code:'SYNTHETIC_ESCROW_SECOND_READ_FAILED'});
+      return snapshotStore.read();
+    }},
+  writer:{execute:async()=>{throw Error('RECOVERY_MUST_NOT_WRITE');}}
+});
+await assert.rejects(escrowFail.inspectRecovery(),
+  e=>e.code==='SYNTHETIC_ESCROW_SECOND_READ_FAILED');
+assert.equal(escrowFailReads,2);
+await assert.rejects(escrowFail.restore(),
+  e=>e.code==='G265_ESCROW_RESTORE_BLOCKED_ALL_WRITERS_UNADMITTED');
+let durableFailReads=0;
+const durableFail=createEvaluationPreTransactionEscrowOptIn({
+  pairGate:{readVerified:async()=>{
+    if(++durableFailReads===2)
+      throw Object.assign(Error('SYNTHETIC_DURABLE_SECOND_READ_FAILED'),
+        {code:'SYNTHETIC_DURABLE_SECOND_READ_FAILED'});
+    return pair().readVerified();
+  }},
+  escrow:snapshotStore,fingerprint:hash,
+  writer:{execute:async()=>{throw Error('RECOVERY_MUST_NOT_WRITE');}}
+});
+await assert.rejects(durableFail.inspectRecovery(),
+  e=>e.code==='SYNTHETIC_DURABLE_SECOND_READ_FAILED');
+assert.equal(durableFailReads,2);
+await assert.rejects(durableFail.restore(),
+  e=>e.code==='G265_ESCROW_RESTORE_BLOCKED_ALL_WRITERS_UNADMITTED');
+assert.deepEqual(await inspect(),snapshotBefore);
+console.log('PASS G265_ESCROW_RECOVERY_READ_FAILURE_FAIL_CLOSED_ZERO_WRITES');
+
 // Normal verified PERSISTED success remains covered by the earlier
 // G265_ESCROW_INDEPENDENT_PREWRITE_DURABLE_READBACK_ACK_NO_AUTO_RESTORE gate.
 db.close();
