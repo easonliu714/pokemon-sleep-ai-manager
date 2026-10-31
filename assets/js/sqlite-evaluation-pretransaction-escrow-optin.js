@@ -127,13 +127,19 @@ export function createEvaluationPreTransactionEscrowOptIn({
     // from a single possibly stale read.
     const first=await verifiedRecord(await pairGate.readVerified());
     const current=await verifiedRecord(await pairGate.readVerified());
+    // An external IDB actor can change even a digest-valid snapshot while
+    // durable observations are in flight. Re-read before classifying no delta.
+    // This is advisory, not an atomic recovery or restore authorization.
+    const savedAgain=await verifiedRecord(await escrow.read());
+    const snapshotStable=saved.generation===savedAgain.generation
+      &&saved.sha256===savedAgain.sha256&&equal(saved.bytes,savedAgain.bytes);
     const observationStable=first.generation===current.generation
       &&first.sha256===current.sha256&&equal(first.bytes,current.bytes);
     const unchanged=current.generation===saved.generation
       &&current.sha256===saved.sha256&&equal(current.bytes,saved.bytes);
     return Object.freeze({
-      classification:observationStable&&unchanged?'NO_DURABLE_DELTA':'DURABLE_CHANGED_HOLD',
-      observationStable,
+      classification:observationStable&&snapshotStable&&unchanged?'NO_DURABLE_DELTA':'DURABLE_CHANGED_HOLD',
+      observationStable,snapshotStable,
       snapshotGeneration:saved.generation,currentGeneration:current.generation,
       snapshotSha256:saved.sha256,currentSha256:current.sha256,
       restoreAuthorized:false
