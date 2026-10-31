@@ -92,7 +92,7 @@ function makeTab(bytes,id,{holdPersist,failBatch,loseAck}={}){
       if(loseAck)throw Error('SYNTHETIC_ACK_LOST_AFTER_DURABLE_WRITE');
     },
     localIso:()=> '2026-11-01T04:55:00+08:00',
-    Date:{now:()=>id==='A'?1793480000001:id==='B'?1793480000002:1793480000003},
+    Date:{now:()=>1793480000000+Array.from(id).reduce((acc,ch)=>(acc*31+ch.charCodeAt(0))%100000000,0)},
     Math:{random:()=>id==='A'?0.125:id==='B'?0.625:0.375},
     JSON,Number,String,Promise,Error,console
   };
