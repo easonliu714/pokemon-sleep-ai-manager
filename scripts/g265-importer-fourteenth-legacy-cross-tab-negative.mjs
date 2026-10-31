@@ -36,6 +36,8 @@ function tab(hold){
   let snapshotReady=false,transaction=false;
   const ctx={
     KEYS:{settings:['key']},
+    // The unchanged importer write() helper closes over this pure SQL identifier quoting function.
+    quote:(value)=>'"'+String(value).replaceAll('"','""')+'"',
     CANDY_FAMILY_STORAGE_AUTHORITY_VERSION:'SYNTHETIC_ONLY',
     localIso:()=> '2026-10-31T15:55:00Z',
     dryRun(p){
