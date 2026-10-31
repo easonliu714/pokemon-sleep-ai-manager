@@ -97,9 +97,13 @@ export function createEvaluationPreTransactionEscrowOptIn({
   }
   async function execute(input){
     if(state!=='ARMED')throw fail('G265_ESCROW_NOT_ARMED');
+    // A mismatched execute request invalidates the one-use captured baseline.
+    // Do not allow a later corrected request to reuse this armed escrow session.
     if(!input||input.expectedGeneration!==baseline.generation
-      ||input.expectedFingerprint!==baseline.sha256)
+      ||input.expectedFingerprint!==baseline.sha256){
+      state='UNVERIFIED_RELOAD_REQUIRED';
       throw fail('G265_ESCROW_WRITE_REVISION_MISMATCH');
+    }
     state='IN_FLIGHT';
     try{
       // The immutable pre-transaction escrow is a required safety prerequisite.
