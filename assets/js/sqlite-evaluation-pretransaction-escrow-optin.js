@@ -10,6 +10,41 @@ const bytes=value=>value instanceof Uint8Array?new Uint8Array(value):
   value instanceof ArrayBuffer?new Uint8Array(value.slice(0)):null;
 const equal=(a,b)=>a.length===b.length&&a.every((v,i)=>v===b[i]);
 
+// Canonical, JSON-only writer request identity. Capture binds all supplied
+// transaction fields, including nested scores; no mutable caller object is
+// forwarded to the writer after asynchronous preflight.
+const canonicalRequest=input=>{
+  const seen=new WeakSet();
+  const normalize=(value,depth)=>{
+    if(value===null||typeof value==='string'||typeof value==='boolean')return value;
+    if(typeof value==='number'&&Number.isFinite(value))return value;
+    if(typeof value!=='object'||depth>24||seen.has(value))
+      throw fail('G265_ESCROW_INVALID_BOUND_REQUEST');
+    if(!Array.isArray(value)){
+      const proto=Object.getPrototypeOf(value);
+      if(proto!==Object.prototype&&proto!==null)
+        throw fail('G265_ESCROW_INVALID_BOUND_REQUEST');
+    }
+    seen.add(value);
+    const keys=Object.keys(value);
+    if(Array.isArray(value)&&(keys.length!==value.length
+      ||keys.some((key,i)=>key!==String(i))))
+      throw fail('G265_ESCROW_INVALID_BOUND_REQUEST');
+    const result=Array.isArray(value)?[]:Object.create(null);
+    for(const key of (Array.isArray(value)?keys:keys.sort())){
+      const descriptor=Object.getOwnPropertyDescriptor(value,key);
+      if(!descriptor||!Object.hasOwn(descriptor,'value'))
+        throw fail('G265_ESCROW_INVALID_BOUND_REQUEST');
+      result[key]=normalize(descriptor.value,depth+1);
+    }
+    seen.delete(value);
+    return result;
+  };
+  return JSON.stringify(normalize(input,0));
+};
+const requestFields=['pokemonId','evaluationId','inputFingerprint',
+  'evaluatedAt','expectedCurrentEvaluationId','scores'];
+
 // A dedicated disposable database, not the application's database or metadata stores.
 // "add" (not "put") makes an unresolved escrow impossible to overwrite silently.
 export function createDisposableEvaluationEscrowStore({indexedDB,name}={}){
@@ -57,7 +92,7 @@ export function createEvaluationPreTransactionEscrowOptIn({
     ||typeof escrow?.read!=='function'||typeof writer?.execute!=='function'
     ||typeof fingerprint!=='function')
     throw new TypeError('G265_ESCROW_INVALID_ADAPTER');
-  let state='READY',baseline=null;
+  let state='READY',baseline=null,boundRequest=null;
   const verifiedRecord=async record=>{
     if(!record||!generation(record.generation)||!digest(record.sha256))
       throw fail('G265_ESCROW_MISSING_OR_INVALID');
@@ -66,10 +101,20 @@ export function createEvaluationPreTransactionEscrowOptIn({
       throw fail('G265_ESCROW_DIGEST_MISMATCH');
     return {generation:record.generation,sha256:record.sha256,bytes:copy};
   };
-  async function capture({expectedGeneration,expectedFingerprint}={}){
+  async function capture(request={}){
     if(state!=='READY')throw fail('G265_ESCROW_SESSION_NOT_READY');
+    if(!request||typeof request!=='object'||Array.isArray(request))
+      throw fail('G265_ESCROW_INVALID_EXPECTED_REVISION');
+    const {expectedGeneration,expectedFingerprint}=request;
     if(!generation(expectedGeneration)||!digest(expectedFingerprint))
       throw fail('G265_ESCROW_INVALID_EXPECTED_REVISION');
+    // Revision-only captures are allowed for crash/recovery observation but
+    // cannot execute a writer. Every executable capture binds its entire
+    // canonical JSON request before the first asynchronous operation.
+    const hasPayload=requestFields.some(key=>Object.hasOwn(request,key));
+    if(hasPayload&&!requestFields.every(key=>Object.hasOwn(request,key)))
+      throw fail('G265_ESCROW_INVALID_BOUND_REQUEST');
+    const identity=hasPayload?canonicalRequest(request):null;
     // Reserve the session before the first await: two simultaneous captures
     // must never race to persist the same immutable escrow or poison an armed session.
     state='CAPTURING';
@@ -91,6 +136,7 @@ export function createEvaluationPreTransactionEscrowOptIn({
         ||!equal(latest.bytes,current.bytes))
         throw fail('G265_ESCROW_POST_CAPTURE_DURABLE_CHANGED');
       baseline={generation:current.generation,sha256:current.sha256};
+      boundRequest=identity;
       state='ARMED';
       return Object.freeze({...baseline,status:'ESCROW_VERIFIED'});
     }catch(error){state='UNVERIFIED_RELOAD_REQUIRED';throw error;}
@@ -104,6 +150,16 @@ export function createEvaluationPreTransactionEscrowOptIn({
       state='UNVERIFIED_RELOAD_REQUIRED';
       throw fail('G265_ESCROW_WRITE_REVISION_MISMATCH');
     }
+    // Matching Generation/SHA is insufficient: a different Pokemon,
+    // evaluation, expected-current revision, or nested score is a new
+    // transaction. Consume the session on any identity mismatch.
+    let requestJson;
+    try{
+      if(boundRequest===null)throw fail('G265_ESCROW_EXECUTE_REQUEST_UNBOUND');
+      requestJson=canonicalRequest(input);
+      if(requestJson!==boundRequest)
+        throw fail('G265_ESCROW_EXECUTE_REQUEST_MISMATCH');
+    }catch(error){state='UNVERIFIED_RELOAD_REQUIRED';throw error;}
     state='IN_FLIGHT';
     try{
       // The immutable pre-transaction escrow is a required safety prerequisite.
@@ -123,7 +179,7 @@ export function createEvaluationPreTransactionEscrowOptIn({
         ||latestBeforeWriter.sha256!==baseline.sha256
         ||!equal(latestBeforeWriter.bytes,armedSnapshot.bytes))
         throw fail('G265_ESCROW_EXECUTE_DURABLE_CHANGED');
-      const outcome=await writer.execute(input);
+      const outcome=await writer.execute(JSON.parse(requestJson));
       // A resolved Promise (even a claimed PERSISTED result) is not a durable
       // ACK. Require a well-formed successor revision and independently verify
       // the actual persisted pair before acknowledging this escrow session.
