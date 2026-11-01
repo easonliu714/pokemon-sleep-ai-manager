@@ -276,3 +276,7 @@ try{
   assert.equal(final.sha256,digest(final.bytes));
   console.log('PASS G265_EIGHTEENTH_NATIVE_NO_LOCK_FAIL_CLOSED_INDEPENDENT_DURABLE_SHA');
   console.log('HOLD G265_EIGHTEENTH_PROFESSOR_NATIVE_TEST_ONLY_NO_CANDY_PRODUCTION_23_WRITERS_ANDROID');
+}finally{
+  for(const page of pages)if(!page.isClosed())await page.close().catch(()=>{});
+  await context.close();await browser.close();
+}
