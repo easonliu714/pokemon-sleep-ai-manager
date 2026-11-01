@@ -599,6 +599,9 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-native-chromium-twentieth-ability-evidence-cas.mjs
 
+      - name: G265 Twenty-First Analysis Revision Legacy Two-ACK Stale Durable Negative
+        run: node scripts/g265-analysis-revision-twenty-first-legacy-cross-tab-negative.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
