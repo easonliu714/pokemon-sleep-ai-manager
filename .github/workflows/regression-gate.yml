@@ -588,6 +588,9 @@ jobs:
       - name: G265 Nineteenth Identity Convergence Native Chromium Two-Tab CAS and Recovery Gate
         run: node scripts/g265-native-chromium-nineteenth-identity-convergence-cas.mjs
 
+      - name: G265 Twentieth Ability Evidence Legacy Two-ACK Stale Identity Negative
+        run: node scripts/g265-ability-evidence-twentieth-legacy-cross-tab-negative.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
