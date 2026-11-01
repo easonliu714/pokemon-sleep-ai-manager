@@ -633,6 +633,11 @@ jobs:
       - name: G265 Canonical Analysis Target Identity Isolated Atomic CAS Rollback and ACK-loss Gate
         run: node scripts/g265-analysis-target-identity-canonical-legacy-optin-cas-recovery.mjs
 
+      - name: G265 Canonical Analysis Target Identity Native Chromium Two-Tab CAS and Recovery Gate
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-native-chromium-canonical-analysis-target-identity-cas.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
