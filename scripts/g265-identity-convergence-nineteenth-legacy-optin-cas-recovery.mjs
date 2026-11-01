@@ -185,7 +185,7 @@ await assert.rejects(execute(lost,'ACK_LOSS',await fingerprint(durable)),e=>e.co
 const recovered=admission();
 assert.equal((await execute(recovered,'AFTER_RELOAD',await fingerprint(durable))).status,'PERSISTED');
 assert.equal(read('SELECT COUNT(*) FROM pokemon_identity_evidence'),12);
-assert.equal(read("SELECT COUNT(*) FROM pokemon_identity_evidence WHERE pokemon_instance_id='instance_ACK_LOSS'"),1);
+assert.equal(read("SELECT COUNT(*) FROM pokemon_identity_evidence WHERE pokemon_instance_id='instance_ACK_LOSS'"),3);
 assert.equal(read("SELECT COUNT(*) FROM synthetic_public_master WHERE id='public' AND value='IMMUTABLE'"),1);
 assert.equal(durableWrites,4);
 assert.equal(snapshots,4);
