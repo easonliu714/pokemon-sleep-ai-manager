@@ -574,6 +574,11 @@ jobs:
       - name: G265 Eighteenth Professor Transfer Isolated Opt-in CAS Rollback and ACK-loss
         run: node scripts/g265-professor-transfer-eighteenth-legacy-optin-cas-recovery.mjs
 
+      - name: G265 Eighteenth Professor Transfer Native Chromium Two-Tab CAS and Recovery Gate
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-native-chromium-eighteenth-professor-cas.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
