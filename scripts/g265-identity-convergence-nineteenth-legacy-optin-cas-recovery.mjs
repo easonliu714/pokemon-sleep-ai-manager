@@ -189,7 +189,7 @@ assert.equal(read("SELECT COUNT(*) FROM pokemon_identity_evidence WHERE pokemon_
 assert.equal(read("SELECT COUNT(*) FROM synthetic_public_master WHERE id='public' AND value='IMMUTABLE'"),1);
 assert.equal(durableWrites,4);
 assert.equal(snapshots,5,'failed precommit transaction still took its snapshot');
-assert.equal(dispatches,4);
+assert.equal(dispatches,3,'ACK-loss after durable write suppresses post-persist UI dispatch');
 console.log('PASS G265_NINETEENTH_CONVERGENCE_ACK_LOSS_STICKY_HOLD_FRESH_DURABLE_READBACK');
 
 const noLocks=createSqliteCrossTabWriteAdmission({
