@@ -591,6 +591,9 @@ jobs:
       - name: G265 Twentieth Ability Evidence Legacy Two-ACK Stale Identity Negative
         run: node scripts/g265-ability-evidence-twentieth-legacy-cross-tab-negative.mjs
 
+      - name: Verify G265 twentieth Ability Evidence isolated opt-in CAS and recovery
+        run: node scripts/g265-ability-evidence-twentieth-legacy-optin-cas-recovery.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
