@@ -627,6 +627,9 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-native-chromium-canonical-evolution-override-cas.mjs
 
+      - name: G265 Canonical Analysis Target Identity Legacy Two-ACK Stale Instance and History Negative
+        run: node scripts/g265-analysis-target-identity-canonical-legacy-cross-tab-negative.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
