@@ -1,3 +1,9 @@
+## G265 Evolution Override native Chromium source Gate — CANDIDATE / PRODUCTION HOLD
+
+- New test-only `scripts/g265-native-chromium-canonical-evolution-override-cas.mjs`: unchanged canonical evolution override writer; real Chromium tabs/Web Locks/IndexedDB/SQL.js, isolated durable SHA CAS; one ACK / stale zero SQL, fresh reload, rollback, ACK-loss and fail-closed. PR exact-head CI → protected merge → new-main CI/Pages needed before VERIFIED_SOURCE; no production wiring or Android UAT.
+- #689 isolated VM predecessor VERIFIED_SOURCE: [PR #689](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/689), exact HEAD `5917386ffcb6b42abdf745dc159833e918efda1b`, [PR CI](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/41344441397) 6/6 SUCCESS; protected main `0ec7dfd1ae3931712a5aca3d137bec434f407346`, [Push CI](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/41344671324) 7/7 and [Pages](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/41344671335) SUCCESS.
+- G9R 2026-11-02 04:00 Asia/Taipei end-exclusive Android read-only UAT due, OWNER_PASS NOT_VERIFIED; one-time [Issue #19 notice](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/19#issuecomment-6563174620) already issued. Do not repeat. Issue #19 OPEN. 23 Legacy Writers, Crash Restore, Named Draft Apply, Android multi-tab DoD HOLD; 10/26 ×2, 10/31 ×3, #644 Android visual OWNER_PASS preserved. Two formal ledgers above remain sole authorities.
+
 ## G265 canonical Evolution Override isolated Atomic CAS / Rollback / ACK-loss — SOURCE CANDIDATE / PRODUCTION HOLD
 
 - **Auxiliary index only:** the two formal governance ledgers remain sole authority.
