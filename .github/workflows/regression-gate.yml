@@ -582,6 +582,9 @@ jobs:
       - name: G265 Nineteenth Identity Convergence Legacy Two-ACK Stale Evidence Negative
         run: node scripts/g265-identity-convergence-nineteenth-legacy-cross-tab-negative.mjs
 
+      - name: G265 Nineteenth Identity Convergence Isolated Opt-in CAS Rollback and ACK-loss
+        run: node scripts/g265-identity-convergence-nineteenth-legacy-optin-cas-recovery.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
