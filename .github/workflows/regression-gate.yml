@@ -585,6 +585,9 @@ jobs:
       - name: G265 Nineteenth Identity Convergence Isolated Opt-in CAS Rollback and ACK-loss
         run: node scripts/g265-identity-convergence-nineteenth-legacy-optin-cas-recovery.mjs
 
+      - name: G265 Nineteenth Identity Convergence Native Chromium Two-Tab CAS and Recovery Gate
+        run: node scripts/g265-native-chromium-nineteenth-identity-convergence-cas.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
