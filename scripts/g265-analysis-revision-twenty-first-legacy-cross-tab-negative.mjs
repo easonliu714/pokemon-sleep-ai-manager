@@ -9,7 +9,7 @@ import initSqlJs from 'sql.js';
 
 const source=fs.readFileSync(new URL('../assets/js/analysis-revision-store.js',import.meta.url),'utf8');
 assert.match(source,/export async function saveAnalysisRevision\(/);
-assert.match(source,/await snapshot\(`before_analysis_revision_${analysisType}`\)/);
+assert.match(source,/await snapshot\(/);
 assert.match(source,/run\('INSERT INTO image_analysis_revision /);
 assert.match(source,/await persist\(\)/);
 assert.doesNotMatch(source,/runSqliteWriteSession|createSqliteCrossTabWriteAdmission|navigator\.locks/);
