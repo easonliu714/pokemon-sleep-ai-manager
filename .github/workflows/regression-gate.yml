@@ -611,6 +611,11 @@ jobs:
       - name: G265 Canonical Identity Dedup Isolated Atomic CAS Rollback and ACK-loss Gate
         run: node scripts/g265-identity-dedup-canonical-legacy-optin-cas-recovery.mjs
 
+      - name: G265 Canonical Identity Dedup Native Chromium Two-Tab CAS and Recovery Gate
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-native-chromium-canonical-identity-dedup-cas.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
