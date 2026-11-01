@@ -560,6 +560,9 @@ jobs:
       - name: G265 Seventeenth Identity Review Legacy Two-ACK Stale Confirmation Negative
         run: node scripts/g265-identity-review-seventeenth-legacy-cross-tab-negative.mjs
 
+      - name: G265 Seventeenth Identity Review Isolated Opt-in CAS Rollback and ACK-loss
+        run: node scripts/g265-identity-review-seventeenth-legacy-optin-cas-recovery.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
