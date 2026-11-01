@@ -619,6 +619,9 @@ jobs:
       - name: G265 Canonical Evolution Override Legacy Two-ACK Stale Instance and History Negative
         run: node scripts/g265-evolution-override-canonical-legacy-cross-tab-negative.mjs
 
+      - name: G265 Canonical Evolution Override Isolated Atomic CAS Rollback and ACK-loss Gate
+        run: node scripts/g265-evolution-override-canonical-legacy-optin-cas-recovery.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
