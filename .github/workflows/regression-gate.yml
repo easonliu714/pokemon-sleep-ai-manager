@@ -602,6 +602,9 @@ jobs:
       - name: G265 Twenty-First Analysis Revision Legacy Two-ACK Stale Durable Negative
         run: node scripts/g265-analysis-revision-twenty-first-legacy-cross-tab-negative.mjs
 
+      - name: G265 Canonical 23 Legacy Writer Identity and Duplicate Ordinal Audit
+        run: node scripts/g265-canonical-legacy-writer-identity-dedup-audit.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
