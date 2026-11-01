@@ -552,6 +552,11 @@ jobs:
       - name: G265 Sixteenth Recipe Display Name Isolated Opt-in CAS and Recovery Gate
         run: node scripts/g265-recipe-display-name-sixteenth-legacy-optin-cas-recovery.mjs
 
+      - name: G265 Sixteenth Recipe Evidence Native Chromium Two-Tab CAS and Recovery Gate
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-native-chromium-sixteenth-recipe-evidence-cas.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
