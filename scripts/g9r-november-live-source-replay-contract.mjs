@@ -92,7 +92,31 @@ export async function replayNovemberOfficialHtml({
     android_owner_uat:'NOT_VERIFIED'});
 }
 
+// The scheduled official-source watch previously ran only the Growth Week parser.
+// Source-bind both the offline published November parity and live drift check to
+// the EXISTING Data Boundary workflow; never schedule a writer or mutate Master.
+function assertNovemberSourceWatchWiring(){
+  const workflow=readFileSync(new URL('../.github/workflows/data-boundary-regression.yml',import.meta.url),'utf8');
+  const parts=workflow.split('  g9r-source-watch:');
+  assert.equal(parts.length,2,'exactly one existing G9R scheduled source-watch job');
+  const parity=parts[0].split('  parity-configuration:')[1];
+  assert.ok(parity,'existing Data Boundary parity job must remain present');
+  assert.match(parity,/run: node scripts\/g9r-november-live-source-replay-contract\.mjs\s*$/m,
+    'published November Master/manifest parity must execute in normal PR CI');
+  const watch=parts[1];
+  assert.match(watch,/if: github\.event_name == 'schedule'/,
+    'live official fetch must remain schedule-only');
+  assert.match(watch,/run: node scripts\/g9r-official-event-source-refresh\.mjs\s*$/m,
+    'existing Growth Week watch must not be removed');
+  assert.match(watch,/if: always\(\)\s*\n\s*run: node scripts\/g9r-november-live-source-replay-contract\.mjs --live/,
+    'November live source drift must still run when Growth Week watch fails');
+  assert.doesNotMatch(watch,/--write|git push|gh pr create|update_file|sqlite|indexedDB/i,
+    'scheduled watch must be strictly read-only');
+  console.log('PASS G9R_NOVEMBER_SCHEDULED_LIVE_SOURCE_WATCH_AND_OFFLINE_PR_PARITY_WIRED');
+}
+
 async function offlineRegression(){
+  assertNovemberSourceWatchWiring();
   const originalPayload=readFileSync(PAYLOAD,'utf8');
   const originalManifest=readFileSync(MANIFEST,'utf8');
   const source=new Map([
