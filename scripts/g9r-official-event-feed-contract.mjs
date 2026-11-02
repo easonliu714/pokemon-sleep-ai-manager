@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {validateNovemberPublishedEvent} from './g9r-november-data-only-admission-contract.mjs';
 import {discoverOfficialNoticeUrls,parseVerifiedGrowthNotice,discoverAndStage,verifyG9RDataOnlyRelease} from './g9r-official-event-source-refresh.mjs';
 import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
@@ -43,6 +44,12 @@ for(const e of payload.events.slice(3)){
     assert.equal(e.phases[0].end_at,e.phases[1].start_at);
     assert.ok(e.phases.every(p=>p.authority_status==='VERIFIED'&&Object.keys(p.effects).length===1));
     assert.deepEqual(e.missions,[],'No official per-mission rewards have been verified, keep blank');
+    continue;
+  }
+  // November source-bound exceptions are NOT Growth Week auto-discovery.
+  // This branch becomes active only after a separate protected data-only release.
+  if(['new_moon_day_19_2026_11','meal_prep_week_vol1_2026_11'].includes(e.event_id)){
+    assert.equal(validateNovemberPublishedEvent(e),true);
     continue;
   }
   assert.match(e.event_id,/^growth_week_vol[0-9]+_20[0-9]{2}_[0-9]{2}$/,'Only fully verified known-pattern future events may join the automatic feed');

@@ -128,3 +128,6 @@ rejects(moonHtml.replace('僅適用倍率最大的獎勵','將倍率相乘'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'overlap authority drift');
 console.log('PASS G9R_NOVEMBER_STRICT_NEGATIVE_MUTATIONS_FAIL_CLOSED_NO_BANQUET_PROMOTION');
 console.log('HOLD G9R_NOVEMBER_LIVE_HTML_REPLAY_DATA_ONLY_MASTER_MANIFEST_AND_ANDROID_OWNER_UAT');
+
+// Explicit offline official excerpts reused by the independent append-only release guard.
+export {moonHtml,prepHtml};

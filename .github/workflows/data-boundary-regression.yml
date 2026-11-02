@@ -120,6 +120,8 @@ jobs:
         run: node scripts/g9r-official-event-feed-contract.mjs
       - name: Verify November official notice strict parsing and conditional reward fail-closed
         run: node scripts/g9r-november-official-notice-strict-contract.mjs
+      - name: Verify November append-only SHA256 source-bound release admission (synthetic only)
+        run: node scripts/g9r-november-data-only-admission-contract.mjs
 
   g9r-source-watch:
     if: github.event_name == 'schedule'
