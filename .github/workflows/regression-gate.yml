@@ -646,6 +646,8 @@ jobs:
 
       - name: G265 Canonical Analysis Confirmation Isolated Atomic CAS Rollback and ACK-loss Gate
         run: node scripts/g265-analysis-confirmation-canonical-legacy-optin-cas-recovery.mjs
+      - name: Verify G265 canonical Analysis Confirmation native Chromium CAS rollback ACK-loss
+        run: node scripts/g265-native-chromium-canonical-analysis-confirmation-cas.mjs
 
       - name: Print static server log on failure
         if: failure()
