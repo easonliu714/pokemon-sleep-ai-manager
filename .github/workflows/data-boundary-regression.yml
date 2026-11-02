@@ -118,6 +118,8 @@ jobs:
         run: node scripts/ci-p8-safety-boundary-parity-contract.mjs
       - name: Verify G9-R verified official event data, SHA and 04:00 boundaries
         run: node scripts/g9r-official-event-feed-contract.mjs
+      - name: Verify November official notice strict parsing and conditional reward fail-closed
+        run: node scripts/g9r-november-official-notice-strict-contract.mjs
 
   g9r-source-watch:
     if: github.event_name == 'schedule'
