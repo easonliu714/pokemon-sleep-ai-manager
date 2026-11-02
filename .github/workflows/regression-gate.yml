@@ -162,6 +162,9 @@ jobs:
       - name: Verify v0.4.27.3 weekly recipe semantic intake
         run: node scripts/v04273-weekly-recipe-semantic-intake-contract.mjs
 
+      - name: G9R November official campaign multi-event camp-independent read-only contract
+        run: node scripts/g9r-november-2026-official-overlap-readonly-contract.mjs
+
       - name: Verify v0.4.27.6 public event predecessor contract
         run: node scripts/v04276-public-event-predecessor-contract-runner.mjs
 
