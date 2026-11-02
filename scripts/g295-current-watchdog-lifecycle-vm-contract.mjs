@@ -70,4 +70,13 @@ assert.deepEqual(nativeCalls.map(x=>x[0]),['confirm','prompt','alert','prompt'])
 now+=6000;interval();assert.equal(detected(),beforeDialogs+1,'native-dialog grace must expire; real detector remains live');
 emit(events,'pagehide');emit(events,'pageshow');assert.equal(intervals.size,1);
 assert.equal(raf.length>=1,true,'requestAnimationFrame remains scheduled');
-console.log('PASS G295_SOURCE_BOUND_LIFECYCLE_VM hidden/resume/pageshow/focus/native_dialog/recovery/real_stall; ANDROID_OWNER_NOT_VERIFIED');
+// Page Lifecycle resume may arrive without visibilitychange/pageshow/focus.
+// A 20-second frozen clock gap must not masquerade as a foreground stall.
+const preFreeze=detected();
+emit(docEvents,'freeze');now+=20000;emit(docEvents,'resume');interval();
+assert.equal(detected(),preFreeze,'freeze/resume gap without visibility event must be ignored');
+assert.ok(resetReason('page-freeze'));
+assert.ok(resetReason('page-resume'));
+now+=6000;interval();
+assert.equal(detected(),preFreeze+1,'real foreground stall after freeze grace must still warn');
+console.log('PASS G295_SOURCE_BOUND_LIFECYCLE_VM hidden/resume/pageshow/focus/native_dialog/freeze/resume/recovery/real_stall; ANDROID_OWNER_NOT_VERIFIED');
