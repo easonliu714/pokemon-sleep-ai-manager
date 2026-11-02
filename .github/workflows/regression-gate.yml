@@ -638,6 +638,9 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-native-chromium-canonical-analysis-target-identity-cas.mjs
 
+      - name: G265 Canonical Analysis Confirmation Legacy Two-ACK Stale Evidence and Child History Negative
+        run: node scripts/g265-analysis-confirmation-canonical-legacy-cross-tab-negative.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
