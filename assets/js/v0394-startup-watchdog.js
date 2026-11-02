@@ -94,6 +94,11 @@ function startHeartbeat(){
 }
 startHeartbeat();
 document.addEventListener('visibilitychange',()=>resetHeartbeatForVisibility(document.visibilityState==='visible'?'foreground-resume':'background-pause'));
+// Chromium Page Lifecycle can freeze/resume a PWA without a paired visibilitychange,
+// pageshow or focus event. A suspended timer gap must never be reported as a
+// foreground main-thread stall; the existing 1200ms grace and detector remain.
+document.addEventListener('freeze',()=>resetHeartbeatForVisibility('page-freeze'));
+document.addEventListener('resume',()=>resetHeartbeatForVisibility('page-resume'));
 document.querySelector('nav')?.addEventListener('click',event=>{
   const targetPage=event.target?.closest?.('button[data-view]')?.dataset?.view;
   const badge=document.getElementById('pageLoadStatus');
