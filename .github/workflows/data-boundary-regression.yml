@@ -120,6 +120,8 @@ jobs:
         run: node scripts/g9r-official-event-feed-contract.mjs
       - name: Verify November official notice strict parsing and conditional reward fail-closed
         run: node scripts/g9r-november-official-notice-strict-contract.mjs
+      - name: Verify published November Master against two isolated official HTML fixtures and scheduled live-watch wiring
+        run: node scripts/g9r-november-live-source-replay-contract.mjs
       - name: Verify November append-only SHA256 source-bound release admission (synthetic only)
         run: node scripts/g9r-november-data-only-admission-contract.mjs
       - name: Verify published November official event data-only SHA256 and immutable history
@@ -137,3 +139,6 @@ jobs:
           node-version: '22'
       - name: Inspect official event announcements (read-only, no PR/commits)
         run: node scripts/g9r-official-event-source-refresh.mjs
+      - name: Revalidate published November notices live against immutable Master and SHA manifest (read-only)
+        if: always()
+        run: node scripts/g9r-november-live-source-replay-contract.mjs --live
