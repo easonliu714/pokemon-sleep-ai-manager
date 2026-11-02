@@ -644,6 +644,9 @@ jobs:
       - name: G265 Canonical Analysis Confirmation Legacy Two-ACK Stale Evidence and Child History Negative
         run: node scripts/g265-analysis-confirmation-canonical-legacy-cross-tab-negative.mjs
 
+      - name: G265 Canonical Analysis Confirmation Isolated Atomic CAS Rollback and ACK-loss Gate
+        run: node scripts/g265-analysis-confirmation-canonical-legacy-optin-cas-recovery.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
