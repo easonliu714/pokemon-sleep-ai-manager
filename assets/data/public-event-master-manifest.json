@@ -1,10 +1,10 @@
 {
   "schema": "pokemon-sleep-public-event-manifest/1.0",
-  "master_version": "public-event-master-tw-2026-10-14-halloween2026-official-a",
+  "master_version": "public-event-master-tw-2026-11-02-november-official-source-a",
   "payload_path": "./assets/data/public-event-master.json",
-  "payload_sha256": "9f0fedb0a434184fb4101705660c6ecb57e1f3d2c72c4a387f22a4623561d80c",
+  "payload_sha256": "4e96c3319158251c6ee8792b16a5961e765992f462d0efb46de53df03bcfca90",
   "locale": "zh-TW",
   "region": "TW",
-  "generated_at": "2026-10-14T04:09:09.853Z",
+  "generated_at": "2026-11-02T06:55:00.000Z",
   "authority_version": "public-event-authority-2026-08-17-a"
 }
