@@ -47,3 +47,6 @@ assert.equal(result.app_version_bump,false);
 console.log('PASS G9R_NOVEMBER_PUBLISHED_TWO_OFFICIAL_SOURCES_APPEND_ONLY_SHA256_0400');
 console.log('PASS G9R_NOVEMBER_PUBLISHED_CONDITIONAL_EFFECTS_NO_PLAYER_WRITE');
 console.log('HOLD G9R_NOVEMBER_LIVE_HTML_REPLAY_AND_ANDROID_OWNER_UAT');
+
+// CI: network-free official HTML replay contract. Live fetch is explicit --live only.
+await import('./g9r-november-live-source-replay-contract.mjs');
