@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   NOVEMBER_OFFICIAL_NOTICE_URLS,parseVerifiedNovemberOfficialNotice,MEAL_PREP_OFFICIAL_CAMP_SPECIES,
+  MEAL_PREP_POST_EVENT_INCENSE_SPECIES,
 } from './g9r-november-official-notice-strict-parser.mjs';
 import {
   PUBLIC_EVENT_MASTER_SCHEMA,validatePublicEventPayload,resolvePublicEventProjection,
@@ -62,7 +63,9 @@ const prepHtml=fixture({
     +'<p>使用「迷你糖果增強」後，幫手寶可夢在使用糖果時可獲得的EXP會變成2倍，但使用1個糖果所需的夢之碎片消耗量會是平時的4倍。每天最多可使用50個糖果。</p>'
     +'<p>※此功能在企畫期間的預設為ON。</p>'
     +'<p>・〖重要〗企畫結束後，就無法在萌綠之島的睡眠研究中遇見下列寶可夢，但仍可以透過在2026/11/23 3:59前使用寶可夢的薰香，在萌綠之島與牠們相遇。</p>'
+    +'<p>'+MEAL_PREP_POST_EVENT_INCENSE_SPECIES['萌綠之島']+'</p>'
     +'<p>・〖重要〗企畫結束後，就無法在萌綠之島EX的睡眠研究中遇見下列寶可夢，但仍可以透過在2026/11/23 3:59前使用寶可夢的薰香，在萌綠之島EX與牠們相遇。</p>'
+    +'<p>'+MEAL_PREP_POST_EVENT_INCENSE_SPECIES['萌綠之島EX']+'</p>'
     +'<p>・企畫結束後，將無法使用期間限定「迷你糖果增強」。</p>',
 });
 const parse=(html,url)=>parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt:'2026-11-02T02:58:00.000Z'});
@@ -181,6 +184,23 @@ rejects(prepHtml.replace('〖黃金舊發電廠〗','〖天青沙灘〗'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'duplicate camp');
 rejects(prepHtml.replace('〖天青沙灘EX〗','〖天青沙灘〗'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'EX camp lost');
+// Independently source-bound post-event incense lists: no general boosted
+// encounter roster, player camp switch, or extended event bonus is implied.
+assert.equal(Object.keys(MEAL_PREP_POST_EVENT_INCENSE_SPECIES).length,2);
+assert.equal(MEAL_PREP_POST_EVENT_INCENSE_SPECIES['萌綠之島'].split('、').length,6);
+assert.equal(MEAL_PREP_POST_EVENT_INCENSE_SPECIES['萌綠之島EX'].split('、').length,8);
+rejects(prepHtml.replace(MEAL_PREP_POST_EVENT_INCENSE_SPECIES['萌綠之島'],
+  '大顎蟻、 小貓怪、 魔尼尼、 雪笠怪、 石居蟹、 百變怪'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'Greengrass incense-only roster drift');
+rejects(prepHtml.replace(MEAL_PREP_POST_EVENT_INCENSE_SPECIES['萌綠之島EX'],
+  '地鼠、 喇叭芽、 小拳石、 大顎蟻、 小貓怪、 魔尼尼、 石居蟹、 百變怪'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'Greengrass EX incense-only roster drift');
+rejects(prepHtml.replace(MEAL_PREP_POST_EVENT_INCENSE_SPECIES['萌綠之島'],
+  MEAL_PREP_POST_EVENT_INCENSE_SPECIES['萌綠之島EX']),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'EX incense roster wrongly copied to ordinary camp');
+rejects(prepHtml.replace('<p>'+MEAL_PREP_POST_EVENT_INCENSE_SPECIES['萌綠之島EX']+'</p>',''),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'missing EX incense exception list');
+console.log('PASS G9R_MEAL_PREP_TWO_POST_EVENT_INCENSE_ONLY_CAMP_ROSTERS_FAIL_CLOSED');
 console.log('PASS G9R_MEAL_PREP_NINE_OFFICIAL_CAMP_ROSTERS_SOURCE_SCOPE_FAIL_CLOSED');
 console.log('PASS G9R_NOVEMBER_DARKRAI_PITY_EXTRA_ENCOUNTER_AND_MINI_CANDY_END_SOURCE_FAIL_CLOSED');
 console.log('PASS G9R_NOVEMBER_OFFICIAL_SLEEP_START_LATE_REPORT_TUTORIAL_FAIL_CLOSED');
