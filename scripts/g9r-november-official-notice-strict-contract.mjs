@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {
-  NOVEMBER_OFFICIAL_NOTICE_URLS,parseVerifiedNovemberOfficialNotice,
+  NOVEMBER_OFFICIAL_NOTICE_URLS,parseVerifiedNovemberOfficialNotice,MEAL_PREP_OFFICIAL_CAMP_SPECIES,
 } from './g9r-november-official-notice-strict-parser.mjs';
 import {
   PUBLIC_EVENT_MASTER_SCHEMA,validatePublicEventPayload,resolvePublicEventProjection,
@@ -55,7 +55,10 @@ const moonHtml=fixture({
 const prepHtml=fixture({
   title:'〖企畫〗「備料週vol.1」',published:'2026/10/28',
   period:'11/9 (週一) 4:00～11/16 (週一) 3:59',lines:prepLines,
-  details:'<p>期間限定「迷你糖果增強」</p>'
+  details:'<h2>各營地能遇見的寶可夢</h2>'
+    +Object.entries(MEAL_PREP_OFFICIAL_CAMP_SPECIES).map(([camp,roster])=>
+      '<h3>〖'+camp+'〗</h3><p>'+roster+'</p>').join('')
+    +'<h2>各項目詳情</h2><p>期間限定「迷你糖果增強」</p>'
     +'<p>使用「迷你糖果增強」後，幫手寶可夢在使用糖果時可獲得的EXP會變成2倍，但使用1個糖果所需的夢之碎片消耗量會是平時的4倍。每天最多可使用50個糖果。</p>'
     +'<p>※此功能在企畫期間的預設為ON。</p>'
     +'<p>・〖重要〗企畫結束後，就無法在萌綠之島的睡眠研究中遇見下列寶可夢，但仍可以透過在2026/11/23 3:59前使用寶可夢的薰香，在萌綠之島與牠們相遇。</p>'
@@ -169,6 +172,16 @@ rejects(prepHtml.replaceAll('2026/11/23 3:59','2026/11/24 3:59'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'incense exception deadline');
 rejects(prepHtml.replace('萌綠之島EX的睡眠研究','萌綠之島的睡眠研究'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'incense two camp independence');
+assert.equal(Object.keys(MEAL_PREP_OFFICIAL_CAMP_SPECIES).length,9);
+assert.ok(MEAL_PREP_OFFICIAL_CAMP_SPECIES['萌綠之島'].includes('童偶熊'));
+assert.ok(!MEAL_PREP_OFFICIAL_CAMP_SPECIES['天青沙灘'].includes('童偶熊'));
+rejects(prepHtml.replace('穿山鼠、穿山王、地鼠、三地鼠','穿山鼠、穿山王、地鼠、百變怪'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'Greengrass roster changed');
+rejects(prepHtml.replace('〖黃金舊發電廠〗','〖天青沙灘〗'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'duplicate camp');
+rejects(prepHtml.replace('〖天青沙灘EX〗','〖天青沙灘〗'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'EX camp lost');
+console.log('PASS G9R_MEAL_PREP_NINE_OFFICIAL_CAMP_ROSTERS_SOURCE_SCOPE_FAIL_CLOSED');
 console.log('PASS G9R_NOVEMBER_DARKRAI_PITY_EXTRA_ENCOUNTER_AND_MINI_CANDY_END_SOURCE_FAIL_CLOSED');
 console.log('PASS G9R_NOVEMBER_OFFICIAL_SLEEP_START_LATE_REPORT_TUTORIAL_FAIL_CLOSED');
 console.log('PASS G9R_NOVEMBER_STRICT_NEGATIVE_MUTATIONS_FAIL_CLOSED_NO_BANQUET_PROMOTION');
