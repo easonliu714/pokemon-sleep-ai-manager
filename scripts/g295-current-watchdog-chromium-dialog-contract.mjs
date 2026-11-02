@@ -38,6 +38,7 @@ try{
         advance(ms){clock+=ms;},
         visibility(hidden){visible=!hidden;document.dispatchEvent(new Event('visibilitychange'));},
         event(name){window.dispatchEvent(new Event(name));},
+        documentEvent(name){document.dispatchEvent(new Event(name));},
         frames(count){for(let i=0;i<count;i++){clock+=16;const fn=raf.shift();if(!fn)throw Error('missing RAF');fn(clock);}},
         state(){const warning=document.getElementById('storageWarning');return {detected:trace.filter(e=>e.event==='main_thread_block_detected').length,recovered:trace.filter(e=>e.event==='main_thread_block_recovered').length,resets:trace.filter(e=>e.event==='main_thread_watchdog_visibility_reset').map(e=>e.detail?.details?.reason),visibleWarning:!warning.classList.contains('hidden'),timerActive:Boolean(timer),traceCount:trace.length};}
       };
@@ -83,7 +84,16 @@ try{
     for(const reason of ['background-pause','foreground-resume','pageshow-resume','focus-resume','native-dialog-return:confirm','native-dialog-return:prompt','native-dialog-return:alert']){
       assert.ok(s.resets.includes(reason),'missing reset provenance: '+reason);
     }
-    console.log('PASS G295_CHROMIUM_SOURCE_BOUND_NATIVE_DIALOG_DOM_LIFECYCLE hidden/resume/pageshow/focus/alert/confirm/prompt/grace_expiry/real_stall');
+    // Real Chromium document dispatch exercises the actual Page Lifecycle listener.
+    // The test does not simulate a player DB, Service Worker or Android device.
+    const beforeFreeze=s.detected;
+    await act(()=>{window.__g295.documentEvent('freeze');window.__g295.advance(20000);window.__g295.documentEvent('resume');window.__g295.tick();});
+    s=await state();
+    assert.equal(s.detected,beforeFreeze,'frozen timer gap must not be a foreground false positive');
+    assert.ok(s.resets.includes('page-freeze')&&s.resets.includes('page-resume'),'freeze/resume provenance required');
+    await act(()=>window.__g295.tick(6000));
+    assert.equal((await state()).detected,beforeFreeze+1,'real foreground stall after resume grace remains detectable');
+    console.log('PASS G295_CHROMIUM_SOURCE_BOUND_NATIVE_DIALOG_DOM_LIFECYCLE hidden/resume/pageshow/focus/alert/confirm/prompt/freeze/resume/grace_expiry/real_stall');
     console.log('HOLD G295_ANDROID_OWNER_UAT_NOT_VERIFIED');
   }finally{await context.close();}
 }finally{await browser.close();}
