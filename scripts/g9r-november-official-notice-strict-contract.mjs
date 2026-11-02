@@ -28,14 +28,14 @@ const prepLines=[
   '研究主技能是「食材精選S」的寶可夢時，夢之碎片獲得量變成1.5倍。',
   '※「怪力鉗（食材精選S）」等名稱中包含「食材精選S」的主技能也同樣適用。',
 ];
-function fixture({title,published,period,lines,details}){
+function fixture({title,published,period,lines,details,noticeExtra=''}){
   return '<html><body><h1>'+title+'</h1><p>'+published+'</p>'
     +'<h2>〖舉辦期間〗</h2><p>・'+period+'</p>'
     +'<h2>〖活動營地〗</h2><p>・所有營地</p>'
     +'<h2>獎勵</h2><h3>〖所有日子〗</h3>'
     +lines.map(line=>'<p>・'+line+'</p>').join('')
     +'<h2>機率提升</h2>'+details
-    +'<h2>注意事項</h2><p>・〖重要〗活動、企畫舉辦日期的切換時間為每日4:00。</p>'
+    +'<h2>注意事項</h2>'+noticeExtra+'<p>・〖重要〗活動、企畫舉辦日期的切換時間為每日4:00。</p>'
     +'<p>・相同的獎勵在不同的活動、企畫中同時登場時，僅適用倍率最大的獎勵。</p>'
     +'<p>・獎勵僅適用於活動／企畫期間內開始測量的睡眠資料。</p>'
     +'<p>・若將「活動／企畫開始前測量的睡眠資料」留到活動／企畫期間內進行「稍後再報告」，則不適用獎勵。</p>'
@@ -62,11 +62,12 @@ const prepHtml=fixture({
     +'<h2>各項目詳情</h2><p>期間限定「迷你糖果增強」</p>'
     +'<p>使用「迷你糖果增強」後，幫手寶可夢在使用糖果時可獲得的EXP會變成2倍，但使用1個糖果所需的夢之碎片消耗量會是平時的4倍。每天最多可使用50個糖果。</p>'
     +'<p>※此功能在企畫期間的預設為ON。</p>'
-    +'<p>・〖重要〗企畫結束後，就無法在萌綠之島的睡眠研究中遇見下列寶可夢，但仍可以透過在2026/11/23 3:59前使用寶可夢的薰香，在萌綠之島與牠們相遇。</p>'
+
+    +'<p>・企畫結束後，將無法使用期間限定「迷你糖果增強」。</p>',
+  noticeExtra:'<p>・〖重要〗企畫結束後，就無法在萌綠之島的睡眠研究中遇見下列寶可夢，但仍可以透過在2026/11/23 3:59前使用寶可夢的薰香，在萌綠之島與牠們相遇。</p>'
     +'<p>'+MEAL_PREP_POST_EVENT_INCENSE_SPECIES['萌綠之島']+'</p>'
     +'<p>・〖重要〗企畫結束後，就無法在萌綠之島EX的睡眠研究中遇見下列寶可夢，但仍可以透過在2026/11/23 3:59前使用寶可夢的薰香，在萌綠之島EX與牠們相遇。</p>'
     +'<p>'+MEAL_PREP_POST_EVENT_INCENSE_SPECIES['萌綠之島EX']+'</p>'
-    +'<p>・企畫結束後，將無法使用期間限定「迷你糖果增強」。</p>',
 });
 const parse=(html,url)=>parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt:'2026-11-02T02:58:00.000Z'});
 const moon=parse(moonHtml,NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon);
