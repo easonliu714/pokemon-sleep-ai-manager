@@ -90,6 +90,28 @@ export const MEAL_PREP_OFFICIAL_CAMP_SPECIES=Object.freeze({
   "萌綠之島EX": "穿山鼠、穿山王、地鼠、喇叭芽、小拳石、吉利蛋、袋獸、百變怪、黑暗鴉、信使鳥、幸福蛋、幼基拉斯、沙基拉斯、班基拉斯、大嘴娃、大顎蟻、小貓怪、烏鴉頭頭、魔尼尼、小福蛋、雪笠怪、暴雪王、石居蟹、摔角鷹人、南瓜精、南瓜怪人、萌虻、蝶結萌虻、童偶熊、花療環環、老翁龍、潤水鴨、湧躍鴨、狂歡浪舞鴨",
   "天青沙灘EX": "吉利蛋、百變怪、幸福蛋、小福蛋、摔角鷹人、萌虻、蝶結萌虻、花療環環、老翁龍"
 });
+// Exact post-event incense-only exceptions are two separate camp rosters.
+// These are SOURCE AUDIT facts, not a continuation of event bonuses or spawn probabilities.
+export const MEAL_PREP_POST_EVENT_INCENSE_SPECIES=Object.freeze({
+  '萌綠之島':'大顎蟻、 小貓怪、 魔尼尼、 雪笠怪、 石居蟹、 童偶熊',
+  '萌綠之島EX':'地鼠、 喇叭芽、 小拳石、 大顎蟻、 小貓怪、 魔尼尼、 石居蟹、 童偶熊',
+});
+function assertMealPrepPostEventIncenseSource(text){
+  const notice=text.slice(text.indexOf('注意事項'));
+  const lines=notice.split('\n').map(line=>line.trim()).filter(Boolean);
+  const scoped=lines.filter(line=>compact(line).includes(compact('企畫結束後，就無法在'))
+    &&compact(line).includes(compact('睡眠研究中遇見下列寶可夢')));
+  if(scoped.length!==2)fail('INCENSE_EXCEPTION_CAMP_COUNT_CHANGED');
+  for(const [camp,roster] of Object.entries(MEAL_PREP_POST_EVENT_INCENSE_SPECIES)){
+    const authority='・〖重要〗企畫結束後，就無法在'+camp
+      +'的睡眠研究中遇見下列寶可夢，但仍可以透過在2026/11/23 3:59前使用寶可夢的薰香，在'
+      +camp+'與牠們相遇。';
+    const index=lines.findIndex(line=>compact(line)===compact(authority));
+    if(index<0)fail('INCENSE_EXCEPTION_CAMP_OR_CUTOFF_DRIFT:'+camp);
+    if(compact(lines[index+1]||'')!==compact(roster))
+      fail('INCENSE_EXCEPTION_SPECIES_SOURCE_DRIFT:'+camp);
+  }
+}
 function assertMealPrepCampSpeciesSource(text){
   const source=section(text,'各營地能遇見的寶可夢','各項目詳情');
   const lines=source.split('\n').map(line=>line.trim()).filter(Boolean);
@@ -164,6 +186,7 @@ export function parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt=new Dat
     start:'11/9 (週一) 4:00',end:'11/16 (週一) 3:59'});
   requireLines(bonus,PREP_LINES,'MEAL_PREP');
   assertMealPrepCampSpeciesSource(text);
+  assertMealPrepPostEventIncenseSource(text);
   if(!compact(text).includes(compact('使用「迷你糖果增強」後，幫手寶可夢在使用糖果時可獲得的EXP會變成2倍，但使用1個糖果所需的夢之碎片消耗量會是平時的4倍。每天最多可使用50個糖果。')))
     fail('MINI_CANDY_USE_EXP_SHARD_SCOPE_CHANGED');
   // The post-event incense exception is NOT an extension of Meal Prep bonuses.
