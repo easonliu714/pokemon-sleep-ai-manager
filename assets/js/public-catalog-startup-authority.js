@@ -49,7 +49,8 @@ export function decidePublicCatalogStartup({authority,integrity_ok=false,persist
 }
 
 export function publicCatalogProjectionViewForLocalEntity(entity){
-  const mapping=Object.freeze({ingredient_inventory:'ingredients',item_inventory:'items',recipes:'recipes',recipe_status:'recipes'});
+  // G6.2: player feedback invalidates only the Recipe read projection, never Public Master fingerprint.
+  const mapping=Object.freeze({ingredient_inventory:'ingredients',item_inventory:'items',recipes:'recipes',recipe_status:'recipes',recipe_feedback_state:'recipes',recipe_attempt_feedback:'recipes'});
   return mapping[String(entity||'')]||null;
 }
 

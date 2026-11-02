@@ -4,6 +4,8 @@ import {analyzeIngredientGaps,sortGapResults} from './ingredient-gap-engine.js';
 import {currentWeeklyContext} from './weekly-context-store.js';
 import {normalizeDishCategory} from './weekly-context-normalization.js';
 import {localIso} from './time-utils.js';
+import {applyRecipeAttemptFeedback} from './recipe-attempt-feedback.js';
+import {listRecipeAttemptFeedbackSummaries} from './recipe-attempt-feedback-local.js';
 
 export const RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION='recipe-unified-player-workbench-2026-08-12-b-summary-cards';
 
@@ -25,7 +27,8 @@ function sortRows(data){
 function recommendations(data,week){
   const category=normalizeDishCategory(week?.dish_category);
   if(!category)return new Set();
-  const pool=data.filter(row=>normalizeDishCategory(row.category)===category);
+  // G6.2: player-paused recipes remain in the catalog, but cannot receive a weekly recommendation badge.
+  const pool=data.filter(row=>normalizeDishCategory(row.category)===category&&row.recommendation_paused!==true);
   return new Set(sortGapResults(pool,'shortage').slice(0,3).map(row=>String(row.recipe_id)));
 }
 
@@ -39,10 +42,11 @@ function categoryStatistics(catalogRows){
   return Object.freeze(stats);
 }
 
-export function buildRecipeUnifiedWorkbenchProjection({catalogRows=[],inventory=[],week={}}={}){
+export function buildRecipeUnifiedWorkbenchProjection({catalogRows=[],inventory=[],week={},recipeFeedback=[]}={}){
   const ids=catalogRows.map(row=>String(row.recipe_id));
   const duplicateIds=[...new Set(ids.filter((id,index)=>ids.indexOf(id)!==index))];
-  const analyzed=analyzeIngredientGaps({recipes:catalogRows,recipeIngredients:ingredientRows,inventory});
+  // G6.2: reuse canonical read-only feedback overlay; do not mutate readiness or Public Recipe Master.
+  const analyzed=applyRecipeAttemptFeedback(analyzeIngredientGaps({recipes:catalogRows,recipeIngredients:ingredientRows,inventory}),recipeFeedback);
   const unlockedBase=analyzed.filter(row=>Number(row.unlocked||0)===1);
   const lockedBase=analyzed.filter(row=>Number(row.unlocked||0)!==1);
   const unlockedRecommended=recommendations(unlockedBase,week),lockedRecommended=recommendations(lockedBase,week);
@@ -135,7 +139,7 @@ function playerControls(row,readonly){
 
 function rowsHtml(data,readonly){
   if(!data.length)return '<tr><td colspan="9">目前沒有資料</td></tr>';
-  return data.map(row=>`<tr class="${row.weekly_recommended?'weekly-recommended':''}" data-recipe-id="${esc(row.recipe_id)}"><td>${row.weekly_recommended?'<b>推薦</b>':'—'}</td><td>${esc(row.category||'')}</td><td><b>${esc(row.recipe_name||'')}</b></td><td class="recipe-formula-cell">${ingredientText(row.requirements)}</td><td class="recipe-shortage-cell">${shortageText(row.requirements)}</td>${playerControls(row,readonly)}</tr>`).join('');
+  return data.map(row=>`<tr class="${row.weekly_recommended?'weekly-recommended':''}" data-recipe-id="${esc(row.recipe_id)}"><td>${row.weekly_recommended?'<b>推薦</b>':row.recommendation_paused===true?'已暫停':'—'}</td><td>${esc(row.category||'')}</td><td><b>${esc(row.recipe_name||'')}</b></td><td class="recipe-formula-cell">${ingredientText(row.requirements)}</td><td class="recipe-shortage-cell">${shortageText(row.requirements)}</td>${playerControls(row,readonly)}</tr>`).join('');
 }
 
 function renderTable(table,data,readonly){
@@ -203,7 +207,7 @@ function energyCapacity(value){return value===null||value===undefined||!Number.i
 
 export function renderRecipeUnifiedWorkbench(){
   const shell=ensureShell();if(!shell)return null;
-  const readonly=!dbReady(),projection=buildRecipeUnifiedWorkbenchProjection({catalogRows:catalogRows(),inventory:inventoryRows(),week:weeklyContext()});
+  const readonly=!dbReady(),projection=buildRecipeUnifiedWorkbenchProjection({catalogRows:catalogRows(),inventory:inventoryRows(),week:weeklyContext(),recipeFeedback:readonly?[]:listRecipeAttemptFeedbackSummaries()});
   if(!projection.partition_complete)throw new Error(`recipe_workbench_partition_invalid:${projection.duplicate_recipe_ids.join(',')}`);
   renderSummary(shell.summary,projection);renderTable(shell.table,projection.unlocked,readonly);renderTable(shell.lockedTable,projection.locked,readonly);bindTable(shell.table,projection);bindTable(shell.lockedTable,projection);
   shell.section.dataset.recipeWorkbenchAuthority=RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION;
