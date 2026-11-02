@@ -76,6 +76,37 @@ const PREP_LINES=[
   '研究主技能是「食材精選S」的寶可夢時，夢之碎片獲得量變成1.5倍。',
   '※「怪力鉗（食材精選S）」等名稱中包含「食材精選S」的主技能也同樣適用。',
 ];
+// Source-bound encounter scopes: the event bonus applies to ALL camps, but
+// the listed boosted species do NOT. Never infer a global spawn roster or rates.
+// Exact zh-TW 2026-10-28 notice roster, read-only audit only (not a consumer).
+export const MEAL_PREP_OFFICIAL_CAMP_SPECIES=Object.freeze({
+  "萌綠之島": "穿山鼠、穿山王、地鼠、三地鼠、喇叭芽、口呆花、大食花、小拳石、隆隆石、吉利蛋、袋獸、百變怪、黑暗鴉、信使鳥、幸福蛋、幼基拉斯、大嘴娃、大顎蟻、小貓怪、烏鴉頭頭、魔尼尼、小福蛋、雪笠怪、石居蟹、摔角鷹人、南瓜精、南瓜怪人、萌虻、蝶結萌虻、童偶熊、花療環環、老翁龍、潤水鴨",
+  "天青沙灘": "喇叭芽、袋獸、魔牆人偶、百變怪、魔尼尼、摔角鷹人、萌虻、蝶結萌虻、花療環環",
+  "灰褐洞窟": "穿山鼠、穿山王、地鼠、三地鼠、小拳石、隆隆石、隆隆岩、百變怪、幼基拉斯、沙基拉斯、班基拉斯、大顎蟻、超音波幼蟲、沙漠蜻蜓",
+  "白花雪原": "吉利蛋、百變怪、黑暗鴉、信使鳥、幸福蛋、烏鴉頭頭、小福蛋、雪笠怪、暴雪王",
+  "寶藍湖畔": "喇叭芽、口呆花、大食花、百變怪、摔角鷹人、童偶熊、穿著熊、老翁龍、潤水鴨、湧躍鴨、狂歡浪舞鴨",
+  "黃金舊發電廠": "百變怪、黑暗鴉、大嘴娃、小貓怪、勒克貓、倫琴貓、烏鴉頭頭、南瓜精、南瓜怪人",
+  "琥褐溪谷": "穿山鼠、穿山王、吉利蛋、百變怪、幸福蛋、幼基拉斯、大嘴娃、大顎蟻、超音波幼蟲、沙漠蜻蜓、小福蛋、石居蟹、岩殿居蟹、老翁龍",
+  "萌綠之島EX": "穿山鼠、穿山王、地鼠、喇叭芽、小拳石、吉利蛋、袋獸、百變怪、黑暗鴉、信使鳥、幸福蛋、幼基拉斯、沙基拉斯、班基拉斯、大嘴娃、大顎蟻、小貓怪、烏鴉頭頭、魔尼尼、小福蛋、雪笠怪、暴雪王、石居蟹、摔角鷹人、南瓜精、南瓜怪人、萌虻、蝶結萌虻、童偶熊、花療環環、老翁龍、潤水鴨、湧躍鴨、狂歡浪舞鴨",
+  "天青沙灘EX": "吉利蛋、百變怪、幸福蛋、小福蛋、摔角鷹人、萌虻、蝶結萌虻、花療環環、老翁龍"
+});
+function assertMealPrepCampSpeciesSource(text){
+  const source=section(text,'各營地能遇見的寶可夢','各項目詳情');
+  const lines=source.split('\n').map(line=>line.trim()).filter(Boolean);
+  const observed=new Map();
+  if(lines.length!==Object.keys(MEAL_PREP_OFFICIAL_CAMP_SPECIES).length*2)
+    fail('MEAL_PREP_CAMP_ROSTER_LAYOUT_OR_COUNT_CHANGED');
+  for(let index=0;index<lines.length;index+=2){
+    const header=lines[index].match(/^〖([^〗]+)〗$/);
+    if(!header||observed.has(header[1]))fail('MEAL_PREP_CAMP_ROSTER_HEADER_CHANGED');
+    observed.set(header[1],compact(lines[index+1]));
+  }
+  for(const [camp,roster] of Object.entries(MEAL_PREP_OFFICIAL_CAMP_SPECIES)){
+    if(observed.get(camp)!==compact(roster))fail('MEAL_PREP_CAMP_ROSTER_SOURCE_DRIFT:'+camp);
+  }
+  if(observed.size!==Object.keys(MEAL_PREP_OFFICIAL_CAMP_SPECIES).length)
+    fail('MEAL_PREP_CAMP_ROSTER_EXTRA_CAMP');
+}
 function event({id,title,url,start,end,effects,mechanics,verifiedAt,verifiedKeys,unmodeled}){
   const source={source_type:'OFFICIAL_ANNOUNCEMENT',
     source_name:'Pokémon Sleep 官方繁體中文公告：'+title,
@@ -132,6 +163,7 @@ export function parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt=new Dat
   commonEvidence(text,{title:'備料週vol.1',published:'2026/10/28',
     start:'11/9 (週一) 4:00',end:'11/16 (週一) 3:59'});
   requireLines(bonus,PREP_LINES,'MEAL_PREP');
+  assertMealPrepCampSpeciesSource(text);
   if(!compact(text).includes(compact('使用「迷你糖果增強」後，幫手寶可夢在使用糖果時可獲得的EXP會變成2倍，但使用1個糖果所需的夢之碎片消耗量會是平時的4倍。每天最多可使用50個糖果。')))
     fail('MINI_CANDY_USE_EXP_SHARD_SCOPE_CHANGED');
   // The post-event incense exception is NOT an extension of Meal Prep bonuses.
