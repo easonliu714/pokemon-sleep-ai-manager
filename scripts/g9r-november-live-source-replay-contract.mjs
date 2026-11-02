@@ -38,7 +38,10 @@ export async function replayNovemberOfficialHtml({
   if(typeof fetchImpl!=='function')fail('FETCH_UNAVAILABLE');
   const manifest=validatePublicEventManifest(JSON.parse(manifestText));
   if(hash(payloadText)!==manifest.payload_sha256)fail('PUBLISHED_MANIFEST_SHA256');
-  const payload=validatePublicEventPayload(JSON.parse(payloadText),
+  // The validator normalizes nested effect keys/metadata for projection; compare
+  // source events to the raw published JSON object, not its normalized view.
+  const rawPayload=JSON.parse(payloadText);
+  const payload=validatePublicEventPayload(rawPayload,
     {expectedVersion:manifest.master_version});
   const verifiedAt=payload.events.find(e=>e.event_id===EXPECTED[0].id)?.source?.verified_at;
   if(!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(verifiedAt||''))
@@ -63,7 +66,7 @@ export async function replayNovemberOfficialHtml({
     const parsed=parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt});
     if(parsed.event_id!==item.id)fail('CROSS_SOURCE_EVENT_ID:'+item.key);
     validateNovemberPublishedEvent(parsed);
-    const published=payload.events.find(e=>e.event_id===item.id);
+    const published=rawPayload.events.find(e=>e.event_id===item.id);
     if(!published||canonical(published)!==canonical(parsed))
       fail('PUBLISHED_EVENT_SOURCE_DRIFT:'+item.key);
     observed.push(Object.freeze({event_id:item.id,url,html_sha256:hash(html)}));
