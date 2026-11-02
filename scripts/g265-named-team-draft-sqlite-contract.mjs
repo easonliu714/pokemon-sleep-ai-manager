@@ -86,3 +86,6 @@ assert.equal(c.readNamedTeamDraft('draft_gggggggggggggggg').payload.game_applied
 assert.equal(rows('SELECT value FROM public_master_guard WHERE id=1')[0].value,'immutable');
 console.log('PASS G265_NAMED_DRAFT_SQLITE_SETTINGS_SOURCE_BOUND_RELOAD_IDEMPOTENCY_UNCERTAIN');
 console.log('HOLD G265_RUNTIME_UI_BINDING_ANDROID_UAT_AND_CROSS_MODULE_WRITE_COORDINATION_NOT_VERIFIED');
+
+// B-lane independent durable-reload read-only future-Apply review; no production admission.
+await import('./g265-named-draft-durable-reload-review-contract.mjs');
