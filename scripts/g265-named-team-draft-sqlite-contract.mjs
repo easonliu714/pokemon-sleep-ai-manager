@@ -89,3 +89,6 @@ console.log('HOLD G265_RUNTIME_UI_BINDING_ANDROID_UAT_AND_CROSS_MODULE_WRITE_COO
 
 // B-lane independent durable-reload read-only future-Apply review; no production admission.
 await import('./g265-named-draft-durable-reload-review-contract.mjs');
+
+// Isolated cross-tab durable CAS/ACK-loss source gate; production admission remains HOLD.
+await import('./g265-named-draft-two-tab-durable-cas-contract.mjs');
