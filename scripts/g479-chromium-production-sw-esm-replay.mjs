@@ -26,6 +26,7 @@ const cases=[
   {name:'NETWORK_REJECT_UNCACHED',success:false,path:'/assets/js/not-cached.js'},
 ];
 const hits=[];
+let transitionAttempts=0;
 const server=http.createServer((req,res)=>{
   const url=new URL(req.url||'/', 'http://127.0.0.1');
   const send=(status,body,type='text/javascript')=>{
@@ -49,6 +50,13 @@ const server=http.createServer((req,res)=>{
     if(name)hits.push(name);
     if(name==='NETWORK_REJECT_CACHED'||name==='NETWORK_REJECT_UNCACHED'){
       req.socket.destroy();
+      return;
+    }
+    if(name==='HTTP_503_THEN_200_SAME_URL'){
+      // A transport 503 is not an absent module. Switch to 200 without changing
+      // the module URL so the browser's per-document module map is exercised.
+      transitionAttempts++;
+      send(transitionAttempts===1?503:200,scriptNetwork);
       return;
     }
     if(name==='HTTP_503'){send(503,scriptNetwork);return;}
@@ -93,6 +101,50 @@ try{
       else assert.equal(outcome.name,'TypeError',c.name+' module rejection');
       assert.ok(hits.includes(c.name),c.name+' must actually reach synthetic network');
       console.log('PASS G479_CHROMIUM_PRODUCTION_SW_'+c.name);
+    }finally{
+      await context.close();
+    }
+  }
+  // G479 independent regression: a failed ESM URL can remain rejected by the
+  // document module map even after its transport recovers. Replaying each status
+  // in a fresh context (above) cannot prove this real first-boot recovery gap.
+  // Only an inert localhost fixture is used; no production SW or player writes.
+  {
+    const context=await browser.newContext({serviceWorkers:'allow'});
+    try{
+      const page=await context.newPage();
+      await page.goto(origin+'/index.html',{waitUntil:'load'});
+      await page.evaluate(async()=>{
+        await navigator.serviceWorker.register('/service-worker.js',{scope:'/'});
+        await navigator.serviceWorker.ready;
+      });
+      await page.reload({waitUntil:'load'});
+      await page.waitForFunction(()=>Boolean(navigator.serviceWorker.controller),{timeout:15000});
+      const target=origin+'/assets/js/app.js?case=HTTP_503_THEN_200_SAME_URL';
+      const attempt=()=>page.evaluate(async url=>{
+        try{
+          const module=await import(url);
+          return {success:true,evidence:module.evidence};
+        }catch(error){
+          return {success:false,name:error?.name||null,message:String(error?.message||error)};
+        }
+      },target);
+      const first=await attempt();
+      assert.equal(first.success,false,'first real Chromium HTTP 503 import must fail');
+      assert.equal(first.name,'TypeError');
+      assert.equal(transitionAttempts,1,'first failure reached the production SW network-first path');
+      const sameDocument=await attempt();
+      assert.equal(sameDocument.success,false,'same document must not claim recovery from a cached failed module');
+      assert.equal(sameDocument.name,'TypeError');
+      assert.equal(transitionAttempts,1,'same-URL retry in failed module map must not issue a second network fetch');
+      await page.reload({waitUntil:'load'});
+      await page.waitForFunction(()=>Boolean(navigator.serviceWorker.controller),{timeout:15000});
+      const nextDocument=await attempt();
+      assert.equal(nextDocument.success,true,'new document must recover once the same URL returns HTTP 200');
+      assert.equal(nextDocument.evidence,'NETWORK_CURRENT','recovery must be from the network, not an old cached module');
+      assert.equal(transitionAttempts,2,'new document must fetch the same module URL exactly once');
+      console.log('PASS G479_CHROMIUM_PRODUCTION_SW_503_SAME_DOCUMENT_FAILED_MODULE_MAP');
+      console.log('PASS G479_CHROMIUM_PRODUCTION_SW_NEW_DOCUMENT_SAME_URL_NETWORK_RECOVERY');
     }finally{
       await context.close();
     }
