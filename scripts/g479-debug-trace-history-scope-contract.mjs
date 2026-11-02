@@ -114,4 +114,34 @@ console.log('PASS G479_DEBUG_EXPORT_HISTORY_PRESERVED_AND_REDACTED');
   console.log('PASS G479_RESOURCE_TIMING_ZERO_MISSING_UNDETERMINED_AND_PRIVATE_QUERY_REDACTED');
 }
 
+
+// G479 independent source-bound regression: bootstrap must pass the exact versioned
+// ESM import URL to passive Resource Timing attribution. A bare path silently misses
+// real ?v=... entries, leaving HTTP status UNKNOWN despite available browser evidence.
+{
+  const bootstrap=readFileSync(new URL('../assets/js/bootstrap.js',import.meta.url),'utf8');
+  const captureLine=bootstrap.split('\n').find(line=>line.includes('captureModuleImportFailureProvenance(new URL('));
+  assert.ok(captureLine,'production entry-module failure must invoke passive provenance');
+  const expression=captureLine.match(/captureModuleImportFailureProvenance\((new URL\(.+?\)\.href)\)/)?.[1];
+  assert.ok(expression,'must source-bind the exact production capture expression');
+  const target=vm.runInNewContext(expression.replace('import.meta.url','bootstrapUrl'),{
+    URL,encodeURIComponent,activeModule:'app.js',VERSION:'synthetic release/1',
+    bootstrapUrl:'http://127.0.0.1/assets/js/bootstrap.js',
+  });
+  assert.equal(target,'http://127.0.0.1/assets/js/app.js?v=synthetic%20release%2F1',
+    'passive provenance must match the same version query as the production dynamic import');
+  const stale='http://127.0.0.1/assets/js/app.js';
+  scope.performance.getEntriesByType=kind=>kind==='resource'?
+    [{name:stale,responseStatus:200,duration:1,workerStart:0},
+     {name:target,responseStatus:503,duration:18,workerStart:3}]:[];
+  const evidence=trace.captureModuleImportFailureProvenance(target);
+  assert.equal(evidence.resource_timing_entries,1,'bare unversioned URL must not be attributed');
+  assert.equal(evidence.resource_response_status,503,'versioned import HTTP status must be observable');
+  assert.equal(evidence.classification,'HTTP_RESPONSE_STATUS_OBSERVED');
+  assert.equal(evidence.target_path,'/assets/js/app.js');
+  assert.equal(JSON.stringify(evidence).includes('synthetic%20release'),false,
+    'versioned query must remain private in exported diagnostics');
+  console.log('PASS G479_BOOTSTRAP_EXACT_VERSIONED_ESM_RESOURCE_TIMING_SOURCE_BOUND');
+}
+
 console.log('NOTE G479_ANDROID_ESM_ROOT_CAUSE_STILL_UNVERIFIED');
