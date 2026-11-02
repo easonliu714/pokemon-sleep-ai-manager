@@ -46,13 +46,21 @@ const moonHtml=fixture({
   title:'〖活動〗第19次「新月日」',published:'2026/10/30',
   period:'11/8 (週日) 4:00～11/11 (週三) 3:59',lines:newMoonLines,
   details:'<h3>特別機率提升</h3><p>・達克萊伊</p>'
-    +'<p>特別機率提升的寶可夢只有可能會在當天第1次的睡眠研究中出現。</p>',
+    +'<p>特別機率提升的寶可夢只有可能會在當天第1次的睡眠研究中出現。</p>'
+    +'<p>此外，若未能在睡眠研究中遇見特別機率提升的寶可夢，在新月日的睡眠研究中能遇見牠們的機率將會漸漸提升，直到遇見特別機率提升的寶可夢為止。</p>'
+    +'<p>當特別機率提升的寶可夢出現時，在睡眠研究中能遇見的寶可夢會增加1隻。</p>'
+    +'<p>若同時使用「寶可夢的薰香」和「好露營券」，則最多可遇見11隻寶可夢。</p>'
+    +'<p>・〖重要〗活動結束後，在所有活動營地皆無法遇見特別機率提升的寶可夢。</p>',
 });
 const prepHtml=fixture({
   title:'〖企畫〗「備料週vol.1」',published:'2026/10/28',
   period:'11/9 (週一) 4:00～11/16 (週一) 3:59',lines:prepLines,
   details:'<p>期間限定「迷你糖果增強」</p>'
-    +'<p>使用「迷你糖果增強」後，幫手寶可夢在使用糖果時可獲得的EXP會變成2倍，但使用1個糖果所需的夢之碎片消耗量會是平時的4倍。每天最多可使用50個糖果。</p>',
+    +'<p>使用「迷你糖果增強」後，幫手寶可夢在使用糖果時可獲得的EXP會變成2倍，但使用1個糖果所需的夢之碎片消耗量會是平時的4倍。每天最多可使用50個糖果。</p>'
+    +'<p>※此功能在企畫期間的預設為ON。</p>'
+    +'<p>・〖重要〗企畫結束後，就無法在萌綠之島的睡眠研究中遇見下列寶可夢，但仍可以透過在2026/11/23 3:59前使用寶可夢的薰香，在萌綠之島與牠們相遇。</p>'
+    +'<p>・〖重要〗企畫結束後，就無法在萌綠之島EX的睡眠研究中遇見下列寶可夢，但仍可以透過在2026/11/23 3:59前使用寶可夢的薰香，在萌綠之島EX與牠們相遇。</p>'
+    +'<p>・企畫結束後，將無法使用期間限定「迷你糖果增強」。</p>',
 });
 const parse=(html,url)=>parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt:'2026-11-02T02:58:00.000Z'});
 const moon=parse(moonHtml,NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon);
@@ -143,6 +151,25 @@ rejects(moonHtml.replace('則會適用獎勵。','則不適用獎勵。'),
 rejects(prepHtml.replace('活動獎勵不適用於新手教學中的睡眠測量。',
   '活動獎勵適用於新手教學中的睡眠測量。'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'tutorial measurement exclusion');
+// Official Darkrai pity/extra encounter and mini-candy post-event exceptions
+// must not silently change, become global numeric multipliers, or extend bonuses.
+rejects(moonHtml.replace('機率將會漸漸提升','機率將會固定不變'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'Darkrai pity source drift');
+rejects(moonHtml.replace('會增加1隻','會增加2隻'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'Darkrai extra encounter count');
+rejects(moonHtml.replace('最多可遇見11隻','最多可遇見12隻'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'Darkrai incense/camp cap');
+rejects(moonHtml.replace('皆無法遇見特別機率提升的寶可夢','仍可遇見特別機率提升的寶可夢'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'Darkrai event end exclusion');
+rejects(prepHtml.replace('預設為ON','預設為OFF'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'mini-candy default ON');
+rejects(prepHtml.replace('將無法使用期間限定','仍可使用期間限定'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'mini-candy event end');
+rejects(prepHtml.replaceAll('2026/11/23 3:59','2026/11/24 3:59'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'incense exception deadline');
+rejects(prepHtml.replace('萌綠之島EX的睡眠研究','萌綠之島的睡眠研究'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'incense two camp independence');
+console.log('PASS G9R_NOVEMBER_DARKRAI_PITY_EXTRA_ENCOUNTER_AND_MINI_CANDY_END_SOURCE_FAIL_CLOSED');
 console.log('PASS G9R_NOVEMBER_OFFICIAL_SLEEP_START_LATE_REPORT_TUTORIAL_FAIL_CLOSED');
 console.log('PASS G9R_NOVEMBER_STRICT_NEGATIVE_MUTATIONS_FAIL_CLOSED_NO_BANQUET_PROMOTION');
 console.log('HOLD G9R_NOVEMBER_LIVE_HTML_REPLAY_DATA_ONLY_MASTER_MANIFEST_AND_ANDROID_OWNER_UAT');

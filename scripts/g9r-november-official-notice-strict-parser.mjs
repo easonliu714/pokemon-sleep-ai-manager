@@ -111,6 +111,14 @@ export function parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt=new Dat
     if(!compact(text).includes(compact('特別機率提升\n・達克萊伊'))||
        !compact(text).includes(compact('特別機率提升的寶可夢只有可能會在當天第1次的睡眠研究中出現')))
       fail('DARKRAI_FIRST_RESEARCH_SCOPE_NOT_VERIFIED');
+    // Source-proven Darkrai pity and extra encounter are NOT numeric probabilities
+    // or player-owned effects; a changed official eligibility rule must fail closed.
+    for(const [label,statement] of [
+      ['DARKRAI_PITY_NON_NUMERIC','若未能在睡眠研究中遇見特別機率提升的寶可夢，在新月日的睡眠研究中能遇見牠們的機率將會漸漸提升，直到遇見特別機率提升的寶可夢為止'],
+      ['DARKRAI_EXTRA_ENCOUNTER','當特別機率提升的寶可夢出現時，在睡眠研究中能遇見的寶可夢會增加1隻'],
+      ['DARKRAI_INCENSE_CAMP_MAX_11','若同時使用「寶可夢的薰香」和「好露營券」，則最多可遇見11隻寶可夢'],
+      ['DARKRAI_END_EXCLUSIVE','活動結束後，在所有活動營地皆無法遇見特別機率提升的寶可夢'],
+    ])if(!compact(text).includes(compact(statement)))fail(label+'_SOURCE_DRIFT');
     return event({id:'new_moon_day_19_2026_11',title:'第19次「新月日」',url,
       start:'2026-11-08T04:00:00+08:00',end:'2026-11-11T04:00:00+08:00',
       effects:{shiny_encounter_possible:true,unknown_effects:[
@@ -126,6 +134,16 @@ export function parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt=new Dat
   requireLines(bonus,PREP_LINES,'MEAL_PREP');
   if(!compact(text).includes(compact('使用「迷你糖果增強」後，幫手寶可夢在使用糖果時可獲得的EXP會變成2倍，但使用1個糖果所需的夢之碎片消耗量會是平時的4倍。每天最多可使用50個糖果。')))
     fail('MINI_CANDY_USE_EXP_SHARD_SCOPE_CHANGED');
+  // The post-event incense exception is NOT an extension of Meal Prep bonuses.
+  // Mini-candy ON-by-default is a game UI rule, not a player-data writer grant.
+  for(const [label,statement] of [
+    ['MINI_CANDY_DEFAULT_ON','此功能在企畫期間的預設為ON'],
+    ['MINI_CANDY_END_EXCLUSIVE','企畫結束後，將無法使用期間限定「迷你糖果增強」'],
+    ['INCENSE_EXCEPTION_GREENGRASS','企畫結束後，就無法在萌綠之島的睡眠研究中遇見下列寶可夢'],
+    ['INCENSE_EXCEPTION_GREENGRASS_EX','企畫結束後，就無法在萌綠之島EX的睡眠研究中遇見下列寶可夢'],
+  ])if(!compact(text).includes(compact(statement)))fail(label+'_SOURCE_DRIFT');
+  if(compact(text).split(compact('2026/11/23 3:59前使用寶可夢的薰香')).length!==3)
+    fail('INCENSE_EXCEPTION_TWO_CAMPS_CUTOFF_SOURCE_DRIFT');
   return event({id:'meal_prep_week_vol1_2026_11',title:'備料週vol.1',url,
     start:'2026-11-09T04:00:00+08:00',end:'2026-11-16T04:00:00+08:00',
     effects:{recipe_final_energy_multiplier:1.25,cross_sleep_type_encounters:true,
