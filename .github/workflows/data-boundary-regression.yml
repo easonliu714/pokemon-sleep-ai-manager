@@ -122,6 +122,8 @@ jobs:
         run: node scripts/g9r-november-official-notice-strict-contract.mjs
       - name: Verify November append-only SHA256 source-bound release admission (synthetic only)
         run: node scripts/g9r-november-data-only-admission-contract.mjs
+      - name: Verify published November official event data-only SHA256 and immutable history
+        run: node scripts/g9r-november-published-data-only-contract.mjs
 
   g9r-source-watch:
     if: github.event_name == 'schedule'

@@ -1,9 +1,9 @@
 {
   "schema": "pokemon-sleep-public-event-master/1.0",
-  "master_version": "public-event-master-tw-2026-10-14-halloween2026-official-a",
+  "master_version": "public-event-master-tw-2026-11-02-november-official-source-a",
   "locale": "zh-TW",
   "region": "TW",
-  "generated_at": "2026-10-14T04:09:09.853Z",
+  "generated_at": "2026-11-02T06:55:00.000Z",
   "registry_version": "weekly-event-effect-registry-2026-08-17-b-public-event-master",
   "events": [
     {
@@ -297,6 +297,152 @@
         "model_authority": {
           "status": "REVIEW_REQUIRED",
           "reason": "Ghost-only per-type buff and berry rules cannot be promoted to global deterministic consumers."
+        }
+      }
+    },
+    {
+      "event_id": "new_moon_day_19_2026_11",
+      "title": "第19次「新月日」",
+      "locale": "zh-TW",
+      "region": "GLOBAL",
+      "start_at": "2026-11-08T04:00:00+08:00",
+      "end_at": "2026-11-11T04:00:00+08:00",
+      "camp_scope": [
+        "*"
+      ],
+      "effects": {
+        "shiny_encounter_possible": true,
+        "unknown_effects": [
+          {
+            "source_text": "首次點心時間不容易吃飽；沒有可用的機率數值"
+          },
+          {
+            "source_text": "達克萊伊特別機率提升，首次研究限定；每次遇見提升對象友情點數+3，非全域研究數值"
+          }
+        ]
+      },
+      "phases": [],
+      "missions": [],
+      "rewards": [],
+      "limited_mechanics": [
+        "所有營地；睡眠研究以活動期間開始測量為準",
+        "相同獎勵重疊僅採官方證明的最高倍率；未知碰撞保持 REVIEW_REQUIRED"
+      ],
+      "authority_status": "PARTIAL_VERIFIED",
+      "source": {
+        "source_type": "OFFICIAL_ANNOUNCEMENT",
+        "source_name": "Pokémon Sleep 官方繁體中文公告：第19次「新月日」",
+        "source_ref": "https://www.pokemonsleep.net/zh/news/343537333337383034343630393136373338/",
+        "verified_at": "2026-11-02T06:55:00.000Z",
+        "note": "Strict official notice source-bound candidate; no automatic publication or player write."
+      },
+      "field_provenance": {
+        "identity": {
+          "status": "VERIFIED",
+          "source_ref": "https://www.pokemonsleep.net/zh/news/343537333337383034343630393136373338/"
+        },
+        "period": {
+          "status": "VERIFIED",
+          "time_zone": "Asia/Taipei",
+          "end_exclusive": true,
+          "source_ref": "https://www.pokemonsleep.net/zh/news/343537333337383034343630393136373338/"
+        },
+        "camp_scope": {
+          "status": "VERIFIED",
+          "source_ref": "https://www.pokemonsleep.net/zh/news/343537333337383034343630393136373338/",
+          "scope_matches_canonical_public_camp_names": true
+        },
+        "event_effects": {
+          "status": "PARTIAL_VERIFIED",
+          "source_ref": "https://www.pokemonsleep.net/zh/news/343537333337383034343630393136373338/",
+          "verified_keys": [
+            "shiny_encounter_possible"
+          ],
+          "unmodeled": [
+            "DARKRAI_ENCOUNTER_CHANCE",
+            "FIRST_SNACK_SATIETY",
+            "DARKRAI_SCOPED_FRIENDSHIP_POINTS_PLUS_3"
+          ],
+          "deterministic_model_status": "FEATURE_ONLY_EXCEPT_EXISTING_VERIFIED_RECIPE_CONSUMER",
+          "conditional_research_rewards_not_global": true,
+          "same_key_overlaps": "MAX_IF_SOURCE_PROVEN_ELSE_REVIEW",
+          "verification_method": "EXACT_OFFICIAL_ZH_TW_NOVEMBER_2026_NOTICE_CONTRACT"
+        }
+      }
+    },
+    {
+      "event_id": "meal_prep_week_vol1_2026_11",
+      "title": "備料週vol.1",
+      "locale": "zh-TW",
+      "region": "GLOBAL",
+      "start_at": "2026-11-09T04:00:00+08:00",
+      "end_at": "2026-11-16T04:00:00+08:00",
+      "camp_scope": [
+        "*"
+      ],
+      "effects": {
+        "recipe_final_energy_multiplier": 1.25,
+        "cross_sleep_type_encounters": true,
+        "limited_feature": "迷你糖果增強",
+        "unknown_effects": [
+          {
+            "source_text": "研究食材專長或主技能含食材精選S的寶可夢時，糖果×1.5與夢之碎片×1.5；不可提升為全域研究倍率"
+          },
+          {
+            "source_text": "特定寶可夢機率小幅提升，未提供可供計算的定量機率"
+          }
+        ]
+      },
+      "phases": [],
+      "missions": [],
+      "rewards": [],
+      "limited_mechanics": [
+        "所有營地，與第19次新月日於11/09 04:00至11/11 04:00重疊",
+        "迷你糖果增強為使用糖果時 EXP×2、夢之碎片消耗×4、每天最多50顆，與睡眠研究糖果獎勵不同",
+        "研究糖果／碎片重疊僅在相同且已驗證的條件下取最高倍率；不作全域加乘"
+      ],
+      "authority_status": "PARTIAL_VERIFIED",
+      "source": {
+        "source_type": "OFFICIAL_ANNOUNCEMENT",
+        "source_name": "Pokémon Sleep 官方繁體中文公告：備料週vol.1",
+        "source_ref": "https://www.pokemonsleep.net/zh/news/343537333139333632303937383430313332/",
+        "verified_at": "2026-11-02T06:55:00.000Z",
+        "note": "Strict official notice source-bound candidate; no automatic publication or player write."
+      },
+      "field_provenance": {
+        "identity": {
+          "status": "VERIFIED",
+          "source_ref": "https://www.pokemonsleep.net/zh/news/343537333139333632303937383430313332/"
+        },
+        "period": {
+          "status": "VERIFIED",
+          "time_zone": "Asia/Taipei",
+          "end_exclusive": true,
+          "source_ref": "https://www.pokemonsleep.net/zh/news/343537333139333632303937383430313332/"
+        },
+        "camp_scope": {
+          "status": "VERIFIED",
+          "source_ref": "https://www.pokemonsleep.net/zh/news/343537333139333632303937383430313332/",
+          "scope_matches_canonical_public_camp_names": true
+        },
+        "event_effects": {
+          "status": "PARTIAL_VERIFIED",
+          "source_ref": "https://www.pokemonsleep.net/zh/news/343537333139333632303937383430313332/",
+          "verified_keys": [
+            "recipe_final_energy_multiplier",
+            "cross_sleep_type_encounters",
+            "limited_feature"
+          ],
+          "unmodeled": [
+            "INGREDIENT_SPECIALTY_RESEARCH_CANDY_AND_SHARDS_X1_5",
+            "INGREDIENT_FINDER_S_RESEARCH_CANDY_AND_SHARDS_X1_5",
+            "MINI_CANDY_USE_EXP_AND_SHARD_COST",
+            "ENCOUNTER_PROBABILITY"
+          ],
+          "deterministic_model_status": "FEATURE_ONLY_EXCEPT_EXISTING_VERIFIED_RECIPE_CONSUMER",
+          "conditional_research_rewards_not_global": true,
+          "same_key_overlaps": "MAX_IF_SOURCE_PROVEN_ELSE_REVIEW",
+          "verification_method": "EXACT_OFFICIAL_ZH_TW_NOVEMBER_2026_NOTICE_CONTRACT"
         }
       }
     }
