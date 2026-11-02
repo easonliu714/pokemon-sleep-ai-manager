@@ -202,3 +202,7 @@ try{
   assert.equal(g479FreshDb.exec('PRAGMA integrity_check')[0]?.values[0]?.[0],'ok');
   console.log('PASS G479_POST_SYNC_REAL_SQLITE_FRESH_BOOT_EXACT_AND_DRIFT_REPAIR_NO_PLAYER_WRITES');
 }finally{g479FreshDb.close();}
+
+// G479 independent actual-source terminal-stage regression: failed public hydration
+// must never emit a completed lazy-ready stage; no private database is opened.
+await import('./g479-public-catalog-runtime-stage-contract.mjs');
