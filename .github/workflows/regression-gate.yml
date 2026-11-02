@@ -182,6 +182,9 @@ jobs:
 
       - name: Verify G265 named planner team draft pure eligibility and no-write
         run: node scripts/g265-named-team-draft-eligibility-vm-contract.mjs
+      - name: G265 Named Draft Future Apply Pure Re-evaluation No-write Gate
+        run: node scripts/g265-named-draft-future-apply-review-contract.mjs
+
       - name: G265 Named Draft Local SQLite Settings Gate
         run: node scripts/g265-named-team-draft-sqlite-contract.mjs
 
