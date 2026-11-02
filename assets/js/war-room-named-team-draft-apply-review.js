@@ -15,7 +15,8 @@ const exactKeys=(object,keys)=>object&&typeof object==='object'&&!Array.isArray(
 
 export function classifyNamedDraftFutureApplyReview({
   record=null,projection=null,team=null,activeGoalProfileId=null,
-  goalDraftState='clean',explicitReviewAcknowledged=false
+  goalDraftState='clean',explicitReviewAcknowledged=false,
+  reviewedTeamName=null,reviewedDraftId=null
 }={}){
   if(!exactKeys(record,['schema','draft_id','payload','saved_at','game_applied','local_only'])||
     record.schema!=='pokemon-sleep-named-team-draft-local-record/1.0'||
@@ -43,7 +44,11 @@ export function classifyNamedDraftFutureApplyReview({
   // Compare the entire captured authority, including member order, instance IDs,
   // goal/optimizer fingerprints and satisfied constraints. Never merge old slots.
   if(!same(current.payload,p))return hold('CAPTURE_NO_LONGER_MATCHES_CURRENT_PROJECTION');
+  // The review must bind independently supplied visible name and draft identity;
+  // stored text alone cannot authenticate itself after tampering.
   if(explicitReviewAcknowledged!==true)return hold('EXPLICIT_FUTURE_APPLY_REVIEW_REQUIRED');
+  if(reviewedTeamName!==p.team_name||reviewedDraftId!==record.draft_id)
+    return hold('EXPLICIT_REVIEW_IDENTITY_MISMATCH');
   return Object.freeze({status:'READY_FOR_EXTERNAL_GAME_SIDE_REVIEW_ONLY',
     eligible:true,reason:null,draft_id:record.draft_id,
     requires_game_side_manual_action:true,player_data_write:false,game_applied:false});

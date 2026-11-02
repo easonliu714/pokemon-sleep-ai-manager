@@ -29,7 +29,8 @@ assert.equal(eligible.eligible,true);
 const record={schema:'pokemon-sleep-named-team-draft-local-record/1.0',
   draft_id:'draft_synthetic1234567890',payload:eligible.payload,
   saved_at:'2026-11-02T01:01:00.000Z',game_applied:false,local_only:true};
-const input={record,projection,team,activeGoalProfileId:'synthetic-goal'};
+const input={record,projection,team,activeGoalProfileId:'synthetic-goal',
+  reviewedTeamName:'安全隊伍',reviewedDraftId:'draft_synthetic1234567890'};
 const noConsent=check(input);
 assert.equal(noConsent.status,'HOLD');
 assert.equal(noConsent.reason,'EXPLICIT_FUTURE_APPLY_REVIEW_REQUIRED');
@@ -49,6 +50,8 @@ rejects({record:null},'UNVERIFIED_LOCAL_DRAFT_RECORD');
 rejects({record:{...record,game_applied:true}},'UNVERIFIED_LOCAL_DRAFT_RECORD');
 rejects({record:{...record,extra:'injected'}},'UNVERIFIED_LOCAL_DRAFT_RECORD');
 rejects({record:{...record,saved_at:'invalid'}},'UNVERIFIED_LOCAL_DRAFT_RECORD');
+rejects({reviewedTeamName:'unreviewed'},'EXPLICIT_REVIEW_IDENTITY_MISMATCH');
+rejects({reviewedDraftId:'draft_other123456789012'},'EXPLICIT_REVIEW_IDENTITY_MISMATCH');
 rejects({record:{...record,payload:{...record.payload,game_applied:true}}},'UNVERIFIED_CAPTURE_PROVENANCE');
 rejects({record:{...record,payload:{...record.payload,persistence_status:'PERSISTED'}}},'UNVERIFIED_CAPTURE_PROVENANCE');
 rejects({record:{...record,payload:{...record.payload,requires_re_evaluation_before_future_apply:false}}},'UNVERIFIED_CAPTURE_PROVENANCE');
@@ -66,5 +69,5 @@ rejects({record:{...record,payload:{...record.payload,extra:'untrusted'}}},
   'CAPTURE_NO_LONGER_MATCHES_CURRENT_PROJECTION');
 rejects({record:{...record,payload:{...record.payload,members:record.payload.members.slice(0,4)}}},
   'CAPTURE_NO_LONGER_MATCHES_CURRENT_PROJECTION');
-console.log('PASS G265_NAMED_DRAFT_FUTURE_APPLY_REEVALUATION_SOURCE_BOUND_POSITIVE_2_NEGATIVE_15');
+console.log('PASS G265_NAMED_DRAFT_FUTURE_APPLY_REEVALUATION_SOURCE_BOUND_POSITIVE_2_NEGATIVE_17');
 console.log('HOLD G265_NAMED_DRAFT_GAME_SIDE_APPLY_NOT_IMPLEMENTED_23_LEGACY_GLOBAL_ADMISSION_ANDROID');
