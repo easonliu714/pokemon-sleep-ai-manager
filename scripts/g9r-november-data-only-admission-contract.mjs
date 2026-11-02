@@ -38,7 +38,8 @@ export function validateNovemberPublishedEvent(event){
     &&e?.verification_method==='EXACT_OFFICIAL_ZH_TW_NOVEMBER_2026_NOTICE_CONTRACT'
     &&e?.conditional_research_rewards_not_global===true
     &&e?.same_key_overlaps==='MAX_IF_SOURCE_PROVEN_ELSE_REVIEW','EFFECT_SOURCE_SCOPE');
-  need(equal(Object.keys(event.effects||{}),r.keys),'UNKNOWN_OR_MISSING_EFFECT_KEYS');
+  // Normalized Public Event payloads sort object keys; verify the key SET, not insertion order.
+  need(equal(Object.keys(event.effects||{}).sort(),r.keys.slice().sort()),'UNKNOWN_OR_MISSING_EFFECT_KEYS');
   need(Array.isArray(event.effects.unknown_effects)&&event.effects.unknown_effects.length===2
     &&event.effects.unknown_effects.every(x=>typeof x?.source_text==='string'&&x.source_text.length>15),'REVIEW_QUEUE_MISSING');
   for(const key of ['pokemon_candy_multiplier','dream_shards_multiplier','research_exp_multiplier','drowsy_power_multiplier','main_skill_trigger_multiplier','sunday_pot_multiplier'])
