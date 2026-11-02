@@ -99,7 +99,8 @@ export const MEAL_PREP_POST_EVENT_INCENSE_SPECIES=Object.freeze({
 function assertMealPrepPostEventIncenseSource(text){
   const notice=text.slice(text.indexOf('注意事項'));
   const lines=notice.split('\n').map(line=>line.trim()).filter(Boolean);
-  const scoped=lines.filter(line=>line.includes('企畫結束後，就無法在')&&line.includes('睡眠研究中遇見下列寶可夢'));
+  const scoped=lines.filter(line=>compact(line).includes(compact('企畫結束後，就無法在'))
+    &&compact(line).includes(compact('睡眠研究中遇見下列寶可夢')));
   if(scoped.length!==2)fail('INCENSE_EXCEPTION_CAMP_COUNT_CHANGED');
   for(const [camp,roster] of Object.entries(MEAL_PREP_POST_EVENT_INCENSE_SPECIES)){
     const authority='・〖重要〗企畫結束後，就無法在'+camp
