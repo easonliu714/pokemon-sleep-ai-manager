@@ -459,6 +459,11 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-native-chromium-sixth-named-draft-cas.mjs
 
+      - name: G265 Native Chromium Unchanged Named Draft Writer Durable CAS and ACK-Loss
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-native-chromium-named-draft-source-writer-cas.mjs
+
       - name: G265 Seventh Legacy Account Pot Capacity Two-ACK Stale Overwrite Negative
         run: node scripts/g265-account-pot-seventh-legacy-cross-tab-negative.mjs
 
