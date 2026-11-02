@@ -164,7 +164,7 @@ const updated=await store.refreshPublicEventMaster({...opts,date:new Date('2026-
 assert.equal(updated.status,'UPDATED');
 assert.equal(updated.cached_version,mockNext.master_version);
 assert.equal(updated.manifest.payload_sha256,JSON.parse(offeredManifest).payload_sha256);
-assert.equal(store.loadCachedPublicEventPayload().events.length,5);
+assert.equal(store.loadCachedPublicEventPayload().events.length,base.events.length+1);
 assert.ok(updated.projection.active_events.some(x=>x.event_id===synthetic.event_id));
 assert.equal(updated.projection.feature_only_event_effects.sleep_exp_multiplier,1.5);
 assert.equal(JSON.stringify(database.privateRows),privateBefore);
@@ -186,7 +186,7 @@ const rejectedSha=await store.refreshPublicEventMaster(opts);
 assert.equal(rejectedSha.status,'OFFLINE_CACHED');
 assert.match(rejectedSha.error,/PUBLIC_EVENT_SHA256_MISMATCH/);
 assert.equal(rejectedSha.cached_version,mockNext.master_version);
-assert.equal(store.loadCachedPublicEventPayload().events.length,5);
+assert.equal(store.loadCachedPublicEventPayload().events.length,base.events.length+1);
 assert.equal(persistCount,2);
 
 offeredPayload=JSON.stringify({...mockNext,master_version:'SYNTHETIC_SQL_ROLLBACK'},null,2)+'\n';
@@ -197,7 +197,7 @@ const rolledBack=await store.refreshPublicEventMaster(opts);
 assert.equal(rolledBack.status,'OFFLINE_CACHED');
 assert.match(rolledBack.error,/G9R_SYNTHETIC_SQLITE_WRITE_FAULT/);
 assert.equal(rolledBack.cached_version,mockNext.master_version);
-assert.equal(database.events.length,5);
+assert.equal(database.events.length,base.events.length+1);
 assert.equal(database.transaction,null);
 assert.equal(rollbackCount,1);
 assert.equal(beginCount,3);
