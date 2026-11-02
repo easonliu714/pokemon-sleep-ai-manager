@@ -157,8 +157,10 @@ function handleDatabaseReady(event){
   runtime.publicFingerprint=authority.fingerprint;
   runtime.publicExactMatch=decision.action==='VERSION_MATCH_BYPASS';
   progress('PUBLIC_CATALOG_VERSION_CHECK','已比對本機與 Release 公版資料版次','completed',{fingerprint:authority.fingerprint,applied_fingerprint:authority.applied_fingerprint,exact_match:authority.exact,updated:authority.updated,updated_authorities:authority.updated_authorities,persisted_fingerprint:persisted?.fingerprint||null,decision:decision.action,reason:decision.reason,integrity_sentinel:sentinel});
-  emitLazyReady(authority,decision);
   if(runtime.publicExactMatch){
+    // G479: a completed lazy-ready stage requires an exact persisted authority.
+    // Never emit it before a failed first-install hydration has been ruled out.
+    emitLazyReady(authority,decision);
     progress('VERSION_MATCH_BYPASS','公版版次與本機持久化 fingerprint 一致；略過全量公版 hydration／reconciliation／startup render','completed',{fingerprint:authority.fingerprint,integrity_sentinel:sentinel,player_sqlite_bypassed:false,local_authority_bypassed:false,migration_bypassed:false,player_state_refresh_bypassed:false});
     return;
   }
@@ -176,6 +178,9 @@ function handleDatabaseReady(event){
     progress('PUBLIC_CATALOG_FINGERPRINT_PERSIST_FAILED','Public Master fingerprint metadata 無法持久化；本次不啟用 bypass','failed',{fingerprint:authority.fingerprint,error:error?.message||String(error)});
     return;
   }
+  // G479: same-boot reconciliation is ready only after metadata persistence.
+  // Integrity or persistence failures above must retain their failed terminal stage.
+  emitLazyReady(authority,decision);
   if(isPublicView(activeView()))requestRender(activeView(),'database-ready-after-reconcile');
 }
 function handleDataChanged(event){
