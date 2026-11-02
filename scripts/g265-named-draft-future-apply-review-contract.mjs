@@ -64,7 +64,7 @@ rejects({projection:{...projection,primary:newTeam},team:newTeam},
 const newProjection={...projection,input_fingerprint:'new-projection'};
 rejects({projection:newProjection},'CAPTURE_NO_LONGER_MATCHES_CURRENT_PROJECTION');
 rejects({record:{...record,payload:{...record.payload,team_name:'tampered'}}},
-  'CAPTURE_NO_LONGER_MATCHES_CURRENT_PROJECTION');
+  'EXPLICIT_REVIEW_IDENTITY_MISMATCH');
 rejects({record:{...record,payload:{...record.payload,extra:'untrusted'}}},
   'CAPTURE_NO_LONGER_MATCHES_CURRENT_PROJECTION');
 rejects({record:{...record,payload:{...record.payload,members:record.payload.members.slice(0,4)}}},
