@@ -101,14 +101,14 @@ function assertNovemberSourceWatchWiring(){
   assert.equal(parts.length,2,'exactly one existing G9R scheduled source-watch job');
   const parity=parts[0].split('  parity-configuration:')[1];
   assert.ok(parity,'existing Data Boundary parity job must remain present');
-  assert.match(parity,/run: node scripts\\/g9r-november-live-source-replay-contract\\.mjs\\s*$/m,
+  assert.match(parity,/run: node scripts\/g9r-november-live-source-replay-contract\.mjs\s*$/m,
     'published November Master/manifest parity must execute in normal PR CI');
   const watch=parts[1];
-  assert.match(watch,/if: github\\.event_name == 'schedule'/,
+  assert.match(watch,/if: github\.event_name == 'schedule'/,
     'live official fetch must remain schedule-only');
-  assert.match(watch,/run: node scripts\\/g9r-official-event-source-refresh\\.mjs\\s*$/m,
+  assert.match(watch,/run: node scripts\/g9r-official-event-source-refresh\.mjs\s*$/m,
     'existing Growth Week watch must not be removed');
-  assert.match(watch,/if: always\\(\\)\\s*\\n\\s*run: node scripts\\/g9r-november-live-source-replay-contract\\.mjs --live/,
+  assert.match(watch,/if: always\(\)\s*\n\s*run: node scripts\/g9r-november-live-source-replay-contract\.mjs --live/,
     'November live source drift must still run when Growth Week watch fails');
   assert.doesNotMatch(watch,/--write|git push|gh pr create|update_file|sqlite|indexedDB/i,
     'scheduled watch must be strictly read-only');
