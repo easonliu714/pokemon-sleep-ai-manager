@@ -42,6 +42,21 @@ function commonEvidence(text,{title,published,start,end}){
   if(!compact(text).includes(compact('活動、企畫舉辦日期的切換時間為每日4:00')))fail('GAME_DAY_BOUNDARY_MISSING');
   if(!compact(text).includes(compact('相同的獎勵在不同的活動、企畫中同時登場時，僅適用倍率最大的獎勵')))
     fail('OFFICIAL_OVERLAP_MAX_RULE_MISSING');
+  // Official rewards are keyed to the sleep-measurement START, not the report
+  // submission time. Delayed reports across either boundary must not be
+  // interpreted as a new event entitlement or a player-data mutation.
+  const sleepWindowAuthority=[
+    '獎勵僅適用於活動／企畫期間內開始測量的睡眠資料。',
+    '若將「活動／企畫開始前測量的睡眠資料」留到活動／企畫期間內進行「稍後再報告」，則不適用獎勵。',
+    '若將「活動／企畫期間內測量的睡眠資料」留到活動／企畫結束後進行「稍後再報告」，則會適用獎勵。',
+    '獎勵不適用於新手教學中的睡眠測量。',
+  ];
+  const notice=text.slice(text.indexOf('注意事項'));
+  if(!notice.startsWith('注意事項'))fail('OFFICIAL_NOTICE_SECTION_MISSING');
+  sleepWindowAuthority.forEach((statement,index)=>{
+    if(!compact(notice).includes(compact(statement)))
+      fail('SLEEP_MEASUREMENT_START_OR_LATE_REPORT_SCOPE_CHANGED:'+index);
+  });
 }
 const NEW_MOON_LINES=[
   '在當天第1次的點心時間，寶可夢會變得不容易吃飽。',
