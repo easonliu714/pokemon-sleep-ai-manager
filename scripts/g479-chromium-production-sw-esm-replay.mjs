@@ -27,6 +27,7 @@ const cases=[
 ];
 const hits=[];
 let transitionAttempts=0;
+let indexRequests=0;
 const server=http.createServer((req,res)=>{
   const url=new URL(req.url||'/', 'http://127.0.0.1');
   const send=(status,body,type='text/javascript')=>{
@@ -42,6 +43,7 @@ const server=http.createServer((req,res)=>{
     return;
   }
   if(url.pathname==='/'||url.pathname==='/index.html'){
+    indexRequests++;
     send(200,'<!doctype html><title>G479 inert Chromium SW fixture</title>','text/html');
     return;
   }
@@ -145,6 +147,59 @@ try{
       assert.equal(transitionAttempts,2,'new document must fetch the same module URL exactly once');
       console.log('PASS G479_CHROMIUM_PRODUCTION_SW_503_SAME_DOCUMENT_FAILED_MODULE_MAP');
       console.log('PASS G479_CHROMIUM_PRODUCTION_SW_NEW_DOCUMENT_SAME_URL_NETWORK_RECOVERY');
+    }finally{
+      await context.close();
+    }
+  }
+  // G479: execute the production bootstrap failure handler in real Chromium.
+  // Inert localhost document only; no application import or player database.
+  {
+    const bootstrapSource=readFileSync(new URL('../assets/js/bootstrap.js',import.meta.url),'utf8');
+    const start=bootstrapSource.indexOf('function showFailure(label,error){');
+    assert.ok(start>=0,'production bootstrap failure handler must exist');
+    const end=bootstrapSource.indexOf('\n}\n',start);
+    assert.ok(end>start,'extract the complete production handler, not a test copy');
+    const handler=bootstrapSource.slice(start,end+2);
+    assert.match(handler,/g479ManualReload/);
+    assert.match(handler,/location\.reload\(\)/);
+    const context=await browser.newContext({serviceWorkers:'block'});
+    try{
+      const page=await context.newPage();
+      await page.goto(origin+'/index.html',{waitUntil:'load'});
+      await page.evaluate(()=>{
+        document.body.innerHTML='<div id="dbStatus"></div><div id="storageWarning" class="hidden"></div>';
+        localStorage.setItem('g479-inert-sentinel','preserved');
+      });
+      await page.addScriptTag({content:`
+        const status=document.getElementById('dbStatus');
+        const warning=document.getElementById('storageWarning');
+        const trace=[];
+        const debugTrace={record:(...args)=>trace.push(args)};
+        ${handler}
+        globalThis.g479Fixture={showFailure,trace};
+      `});
+      await page.evaluate(()=>g479Fixture.showFailure('other_module',new Error('synthetic non-entry failure')));
+      assert.equal(await page.locator('[data-g479-manual-reload]').count(),0,'non-entry failure cannot add retry');
+      await page.evaluate(()=>g479Fixture.showFailure('entry_modules',new TypeError('synthetic ESM fetch failed')));
+      assert.equal(await page.locator('#dbStatus').textContent(),'載入失敗');
+      assert.equal(await page.locator('[data-g479-manual-reload]').count(),1);
+      assert.match(await page.locator('#storageWarning').innerText(),/重新載入頁面（保留資料）/);
+      const priorIndexRequests=indexRequests;
+      await page.waitForTimeout(150);
+      assert.equal(indexRequests,priorIndexRequests,'failure must not trigger automatic navigation');
+      const events=await page.evaluate(()=>g479Fixture.trace.map(item=>item[1]));
+      assert.ok(events.includes('module_probe_failed'));
+      assert.ok(!events.includes('module_reload_requested'),'no implicit retry');
+      await Promise.all([
+        page.waitForNavigation({waitUntil:'load'}),
+        page.locator('[data-g479-manual-reload]').click(),
+      ]);
+      assert.equal(indexRequests,priorIndexRequests+1,'exactly one user-initiated document reload');
+      assert.equal(await page.evaluate(()=>localStorage.getItem('g479-inert-sentinel')),'preserved','manual retry cannot clear synthetic storage');
+      await page.waitForTimeout(150);
+      assert.equal(indexRequests,priorIndexRequests+1,'no automatic reload loop');
+      console.log('PASS G479_CHROMIUM_BOOTSTRAP_MANUAL_FRESH_DOCUMENT_RETRY');
+      console.log('PASS G479_CHROMIUM_BOOTSTRAP_NO_AUTO_RELOAD_NO_STORAGE_CLEAR');
     }finally{
       await context.close();
     }
