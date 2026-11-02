@@ -188,6 +188,6 @@ await assert.rejects(admitted(makeGate(null),ids[2],beforeNoLocks),
   error=>error?.code==='SQLITE_CROSS_TAB_WEB_LOCKS_UNAVAILABLE');
 assert.equal(await digest(durable),beforeNoLocks);
 assert.equal(publicMaster(),'IMMUTABLE');
-assert.equal(lockEntries,5,'one stale and four independent locked sessions');
+assert.equal(lockEntries,6,'two concurrent and four sequential locked sessions');
 console.log('PASS G265_NAMED_DRAFT_TWO_TAB_DURABLE_SQLJS_CAS_STALE_ZERO_WRITE_ROLLBACK_ACK_LOSS_RELOAD');
 console.log('HOLD G265_PRODUCTION_WEB_LOCKS_23_LEGACY_WRITERS_GAME_APPLY_ANDROID_PRIVATE_SQLITE');
