@@ -91,7 +91,27 @@ const recipeSection=document.getElementById('recipes');
 const personalRecipeRetirementObserver=recipeSection?new MutationObserver(()=>retireLegacyPersonalRecipeSurface('recipe_dom_mutation')):null;
 personalRecipeRetirementObserver?.observe(recipeSection,{subtree:true,childList:true});
 addEventListener('pagehide',()=>personalRecipeRetirementObserver?.disconnect(),{once:true});
-function showFailure(label,error){console.error(`Module probe failed: ${label}`,error);debugTrace.record('bootstrap','module_probe_failed',{status:'failed',details:{label},error});if(status){status.textContent='載入失敗';status.className='badge error';}if(warning){warning.textContent=`前端模組載入失敗：${label}：${error?.message||error}。請至診斷中心匯出 JSON。`;warning.classList.remove('hidden');}}
+// G479: a failed ESM URL can remain cached in the current document module map.
+// Offer an explicit fresh-document retry; never reload automatically or clear storage.
+function showFailure(label,error){
+  console.error(`Module probe failed: ${label}`,error);
+  debugTrace.record('bootstrap','module_probe_failed',{status:'failed',details:{label},error});
+  if(status){status.textContent='載入失敗';status.className='badge error';}
+  if(!warning)return;
+  warning.textContent=`前端模組載入失敗：${label}：${error?.message||error}。請至診斷中心匯出 JSON。`;
+  warning.classList.remove('hidden');
+  if(label!=='entry_modules')return;
+  const retry=document.createElement('button');
+  retry.type='button';
+  retry.dataset.g479ManualReload='true';
+  retry.textContent='重新載入頁面（保留資料）';
+  retry.addEventListener('click',()=>{
+    retry.disabled=true;
+    debugTrace.record('bootstrap','module_reload_requested',{status:'started',details:{manual:true,entry_module:true,clears_storage:false}});
+    globalThis.location.reload();
+  },{once:true});
+  warning.append(document.createTextNode(' '),retry);
+}
 
 // v0.4.27.55.3.3 keeps startup critical-path small but introduces a single
 // page hydration authority. Layout ownership is fixed; navigation is not a data mutation.
