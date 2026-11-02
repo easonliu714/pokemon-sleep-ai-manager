@@ -36,6 +36,10 @@ function fixture({title,published,period,lines,details}){
     +'<h2>機率提升</h2>'+details
     +'<h2>注意事項</h2><p>・〖重要〗活動、企畫舉辦日期的切換時間為每日4:00。</p>'
     +'<p>・相同的獎勵在不同的活動、企畫中同時登場時，僅適用倍率最大的獎勵。</p>'
+    +'<p>・獎勵僅適用於活動／企畫期間內開始測量的睡眠資料。</p>'
+    +'<p>・若將「活動／企畫開始前測量的睡眠資料」留到活動／企畫期間內進行「稍後再報告」，則不適用獎勵。</p>'
+    +'<p>・若將「活動／企畫期間內測量的睡眠資料」留到活動／企畫結束後進行「稍後再報告」，則會適用獎勵。</p>'
+    +'<p>・活動獎勵不適用於新手教學中的睡眠測量。</p>'
     +'</body></html>';
 }
 const moonHtml=fixture({
@@ -126,6 +130,20 @@ rejects(moonHtml.replace('2026/10/30','2026/10/29'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'publication drift');
 rejects(moonHtml.replace('僅適用倍率最大的獎勵','將倍率相乘'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'overlap authority drift');
+// Official notice reward eligibility is determined by sleep-tracking START,
+// including reports submitted after the event ends. Never infer entitlement
+// from the report-submission time or treat tutorial sleep as eligible.
+rejects(moonHtml.replace('獎勵僅適用於活動／企畫期間內開始測量的睡眠資料。',
+  '獎勵僅適用於報告提交時位於活動期間的睡眠資料。'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'sleep-measurement start vs submission');
+rejects(prepHtml.replace('則不適用獎勵。','則適用獎勵。'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'pre-start measurement reported during event');
+rejects(moonHtml.replace('則會適用獎勵。','則不適用獎勵。'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'in-event measurement reported after end');
+rejects(prepHtml.replace('活動獎勵不適用於新手教學中的睡眠測量。',
+  '活動獎勵適用於新手教學中的睡眠測量。'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'tutorial measurement exclusion');
+console.log('PASS G9R_NOVEMBER_OFFICIAL_SLEEP_START_LATE_REPORT_TUTORIAL_FAIL_CLOSED');
 console.log('PASS G9R_NOVEMBER_STRICT_NEGATIVE_MUTATIONS_FAIL_CLOSED_NO_BANQUET_PROMOTION');
 console.log('HOLD G9R_NOVEMBER_LIVE_HTML_REPLAY_DATA_ONLY_MASTER_MANIFEST_AND_ANDROID_OWNER_UAT');
 
