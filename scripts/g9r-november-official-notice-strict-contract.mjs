@@ -47,6 +47,7 @@ const moonHtml=fixture({
   title:'〖活動〗第19次「新月日」',published:'2026/10/30',
   period:'11/8 (週日) 4:00～11/11 (週三) 3:59',lines:newMoonLines,
   details:'<h3>特別機率提升</h3><p>・達克萊伊</p>'
+    +'<p>※機率提升的寶可夢會出現在所有的活動營地。</p>'
     +'<p>特別機率提升的寶可夢只有可能會在當天第1次的睡眠研究中出現。</p>'
     +'<p>此外，若未能在睡眠研究中遇見特別機率提升的寶可夢，在新月日的睡眠研究中能遇見牠們的機率將會漸漸提升，直到遇見特別機率提升的寶可夢為止。</p>'
     +'<p>當特別機率提升的寶可夢出現時，在睡眠研究中能遇見的寶可夢會增加1隻。</p>'
@@ -126,6 +127,21 @@ const rejects=(html,url,marker)=>assert.throws(()=>parse(html,url),
   'Must fail closed: '+marker);
 rejects(moonHtml.replace('11/11 (週三) 3:59','11/12 (週四) 3:59'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'end-exclusive drift');
+// The zh-TW New Moon roster is exactly Darkrai. An extra Mew (retired
+// from New Moon in official Ver.3.9.0), a second line, or an altered
+// source boundary must fail closed rather than becoming a player effect.
+rejects(moonHtml.replace('・達克萊伊</p>','・達克萊伊、夢幻</p>'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'appended Mew in same boosted line');
+rejects(moonHtml.replace('・達克萊伊</p>','・達克萊伊</p><p>・夢幻</p>'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'extra boosted species line');
+rejects(moonHtml.replace('・達克萊伊</p>','・夢幻</p>'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'Darkrai replaced by Mew');
+rejects(moonHtml.replace('※機率提升的寶可夢會出現在所有的活動營地。',
+  '※機率提升的寶可夢只會出現在萌綠之島。'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'boosted species camp scope changed');
+rejects(moonHtml.replace('<h3>特別機率提升</h3>',
+  '<h3>特別機率提升</h3><h3>特別機率提升</h3>'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'duplicate boosted roster heading');
 rejects(prepHtml.replace('・所有營地','・萌綠之島'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'camp narrowed');
 rejects(prepHtml.replace('1.25倍','1.50倍'),
@@ -203,6 +219,7 @@ rejects(prepHtml.replace('<p>'+MEAL_PREP_POST_EVENT_INCENSE_SPECIES['萌綠之�
   NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'missing EX incense exception list');
 console.log('PASS G9R_MEAL_PREP_TWO_POST_EVENT_INCENSE_ONLY_CAMP_ROSTERS_FAIL_CLOSED');
 console.log('PASS G9R_MEAL_PREP_NINE_OFFICIAL_CAMP_ROSTERS_SOURCE_SCOPE_FAIL_CLOSED');
+console.log('PASS G9R_NEW_MOON_EXACT_DARKRAI_ONLY_ROSTER_MISSING_EXTRA_DUPLICATE_FAIL_CLOSED');
 console.log('PASS G9R_NOVEMBER_DARKRAI_PITY_EXTRA_ENCOUNTER_AND_MINI_CANDY_END_SOURCE_FAIL_CLOSED');
 console.log('PASS G9R_NOVEMBER_OFFICIAL_SLEEP_START_LATE_REPORT_TUTORIAL_FAIL_CLOSED');
 console.log('PASS G9R_NOVEMBER_STRICT_NEGATIVE_MUTATIONS_FAIL_CLOSED_NO_BANQUET_PROMOTION');
