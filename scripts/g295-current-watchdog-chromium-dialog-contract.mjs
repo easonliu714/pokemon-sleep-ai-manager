@@ -40,7 +40,7 @@ try{
         event(name){window.dispatchEvent(new Event(name));},
         documentEvent(name){document.dispatchEvent(new Event(name));},
         frames(count){for(let i=0;i<count;i++){clock+=16;const fn=raf.shift();if(!fn)throw Error('missing RAF');fn(clock);}},
-        state(){const warning=document.getElementById('storageWarning');return {detected:trace.filter(e=>e.event==='main_thread_block_detected').length,recovered:trace.filter(e=>e.event==='main_thread_block_recovered').length,resets:trace.filter(e=>e.event==='main_thread_watchdog_visibility_reset').map(e=>e.detail?.details?.reason),visibleWarning:!warning.classList.contains('hidden'),warningText:warning.textContent,watchdogMarker:warning.dataset.startupWatchdogWarning||null,preserved:trace.filter(e=>e.event==='main_thread_watchdog_external_warning_preserved').length,timerActive:Boolean(timer),traceCount:trace.length};}
+        state(){const warning=document.getElementById('storageWarning');return {detected:trace.filter(e=>e.event==='main_thread_block_detected').length,recovered:trace.filter(e=>e.event==='main_thread_block_recovered').length,resets:trace.filter(e=>e.event==='main_thread_watchdog_visibility_reset').map(e=>e.detail?.details?.reason),resetDetails:trace.filter(e=>e.event==='main_thread_watchdog_visibility_reset').map(e=>e.detail?.details),visibleWarning:!warning.classList.contains('hidden'),warningText:warning.textContent,watchdogMarker:warning.dataset.startupWatchdogWarning||null,preserved:trace.filter(e=>e.event==='main_thread_watchdog_external_warning_preserved').length,timerActive:Boolean(timer),traceCount:trace.length};}
       };
     },source);
     const act=fn=>page.evaluate(fn);
@@ -109,7 +109,17 @@ try{
     s=await state();
     assert.equal(s.warningText,'EXTERNAL_STORAGE_INTEGRITY_HOLD','external warning survives recovery');
     assert.equal(s.visibleWarning,true,'external warning remains visible after recovery');
-    console.log('PASS G295_CHROMIUM_SOURCE_BOUND_NATIVE_DIALOG_DOM_LIFECYCLE hidden/resume/pageshow/focus/alert/confirm/prompt/freeze/resume/grace_expiry/real_stall');
+    // A second real-Chromium stall followed by visibilitychange must preserve
+    // foreign-owned warning AND report the actual warning_cleared=false outcome.
+    const preForeignVisibility=s.detected,preResetCount=s.resetDetails.length;
+    await act(()=>{window.__g295.tick(6000);window.__g295.visibility(true);});
+    s=await state();
+    assert.equal(s.detected,preForeignVisibility+1,'new stall must remain observable');
+    assert.equal(s.resetDetails.length,preResetCount+1,'visibility reset must be recorded');
+    assert.equal(s.resetDetails.at(-1).warning_cleared,false,'foreign warning was not cleared');
+    assert.equal(s.warningText,'EXTERNAL_STORAGE_INTEGRITY_HOLD','foreign storage warning text remains');
+    assert.equal(s.visibleWarning,true,'foreign storage warning remains visible');
+    console.log('PASS G295_CHROMIUM_SOURCE_BOUND_NATIVE_DIALOG_DOM_LIFECYCLE hidden/resume/pageshow/focus/alert/confirm/prompt/freeze/resume/grace_expiry/real_stall/foreign_warning_reset_trace');
     console.log('HOLD G295_ANDROID_OWNER_UAT_NOT_VERIFIED');
   }finally{await context.close();}
 }finally{await browser.close();}

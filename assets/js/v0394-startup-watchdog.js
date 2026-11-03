@@ -88,7 +88,9 @@ function clearRecoveredHeartbeatWarning(){
     delete warning.dataset.startupWatchdogWarning;
   }
   debugTrace.record('startup','main_thread_block_recovered',{status:'completed',details:{last_checkpoint:snapshot?.checkpoint||lastStage||'unknown',checkpoint_is_causal:false,max_blocked_ms:Number(snapshot?.blocked_ms||0),warning_cleared:warningCleared,authority_switch:false,automatic_retry_restarted:false,authority}});
-  lastWarningText='';return true;
+  // Return the actual DOM ownership outcome: a foreign storage warning stays visible.
+  // The visibility-reset trace must not claim that the watchdog cleared it.
+  lastWarningText='';return warningCleared;
 }
 function resetHeartbeatForVisibility(reason){
   const now=performance.now();

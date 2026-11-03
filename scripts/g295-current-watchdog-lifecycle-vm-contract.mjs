@@ -96,4 +96,16 @@ for(let i=0;i<31;i++){now+=16;assert.ok(raf.length);raf.shift()();}
 assert.equal(warning.textContent,'EXTERNAL_STORAGE_INTEGRITY_HOLD','recovery must preserve foreign warning');
 assert.equal(classes.has('hidden'),false,'foreign warning must remain visible');
 assert.equal(trace.filter(x=>x.event==='main_thread_block_recovered').at(-1).detail.details.warning_cleared,false,'recovery must report no foreign warning cleared');
-console.log('PASS G295_SOURCE_BOUND_LIFECYCLE_VM hidden/resume/pageshow/focus/native_dialog/freeze/resume/recovery/real_stall; ANDROID_OWNER_NOT_VERIFIED');
+// Independent #295 diagnostic regression: a visibility reset during a new stall
+// must not report clearing an unrelated, still-visible storage integrity warning.
+const preForeignVisibility=detected();
+now+=6000;interval();
+assert.equal(detected(),preForeignVisibility+1,'new visible stall still diagnosed with foreign warning');
+visibilityState='hidden';emit(docEvents,'visibilitychange');
+const lastReset=trace.filter(x=>x.event==='main_thread_watchdog_visibility_reset').at(-1);
+assert.equal(lastReset.detail.details.warning_cleared,false,'visibility reset cannot claim foreign warning cleared');
+assert.equal(warning.textContent,'EXTERNAL_STORAGE_INTEGRITY_HOLD','foreign warning text remains intact');
+assert.equal(classes.has('hidden'),false,'foreign warning remains visible after reset');
+visibilityState='visible';emit(docEvents,'visibilitychange');
+interval();assert.equal(detected(),preForeignVisibility+1,'foreground resume grace remains intact');
+console.log('PASS G295_SOURCE_BOUND_LIFECYCLE_VM hidden/resume/pageshow/focus/native_dialog/freeze/resume/recovery/real_stall/foreign_warning_reset_trace; ANDROID_OWNER_NOT_VERIFIED');
