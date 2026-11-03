@@ -43,9 +43,14 @@ assert.equal(paused.total_count,baseline.total_count,'feedback must not remove c
 assert.equal(paused.partition_complete,true);
 assert.deepEqual(paused.unlocked.map(row=>row.recipe_id),baseline.unlocked.map(row=>row.recipe_id));
 assert.deepEqual(paused.locked.map(row=>row.recipe_id),baseline.locked.map(row=>row.recipe_id));
-const resumed=project(feedback.map(row=>({...row,recommendation_paused:0})));
-assert.equal(resumed.unlocked.find(row=>row.recipe_id===pausedUnlocked.recipe_id).weekly_recommended,true,'resumed unlocked recipe regains eligibility');
-assert.equal(resumed.locked.find(row=>row.recipe_id===pausedLocked.recipe_id).weekly_recommended,true,'resumed locked recipe regains eligibility');
+// Unpausing alone must not silently clear the independent suspect-source warning.
+const unpausedButSuspect=project(feedback.map(row=>({...row,recommendation_paused:0})));
+assert.equal(unpausedButSuspect.unlocked.find(row=>row.recipe_id===pausedUnlocked.recipe_id).weekly_recommended,false);
+assert.equal(unpausedButSuspect.locked.find(row=>row.recipe_id===pausedLocked.recipe_id).weekly_recommended,false);
+// A synthetic source-review clearance restores normal shortage-based eligibility.
+const reviewCleared=project(feedback.map(row=>({...row,recommendation_paused:0,reference_maybe_wrong:0})));
+assert.equal(reviewCleared.unlocked.find(row=>row.recipe_id===pausedUnlocked.recipe_id).weekly_recommended,true,'cleared unlocked recipe regains normal rank');
+assert.equal(reviewCleared.locked.find(row=>row.recipe_id===pausedLocked.recipe_id).weekly_recommended,true,'cleared locked recipe regains normal rank');
 // Independent G6.2 read-side boundary: suspect reference and pause are separate flags.
 const suspectFeedback=[
   {recipe_id:pausedUnlocked.recipe_id,recommendation_paused:0,reference_maybe_wrong:1,attempt_count:1},
