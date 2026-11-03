@@ -166,6 +166,24 @@ rejects(prepHtml.replace('每天最多可使用50個糖果','每天最多可使�
 rejects(moonHtml,NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'cross-source identity');
 rejects(moonHtml,'https://www.pokemonsleep.net/zh/news/343535303736323034303630333434333236/',
   'banquet preview is NOT a verified full event');
+// Source-identity regression: the old whole-page substring check accepted a
+// changed visible H1 if stale official title text survived elsewhere in the body.
+const moonHeading='〖活動〗第19次「新月日」';
+const prepHeading='〖企畫〗「備料週vol.1」';
+rejects(moonHtml.replace('<h1>'+moonHeading+'</h1>',
+  '<h1>〖活動〗第20次「新月日」</h1><p>'+moonHeading+'</p>'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'changed New Moon H1 with stale body quote');
+rejects(prepHtml.replace('<h1>'+prepHeading+'</h1>',
+  '<h1>〖企畫〗「備料週vol.2」</h1><p>'+prepHeading+'</p>'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'changed Meal Prep H1 with stale body quote');
+rejects(moonHtml.replace('<h1>'+moonHeading+'</h1>',
+  '<h1>'+moonHeading+'</h1><h1>〖活動〗第20次「新月日」</h1>'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'duplicate competing official H1');
+assert.equal(parse(moonHtml.replace('<h1>'+moonHeading+'</h1>',
+  '<h1>Pokémon Sleep</h1><h1><span>'+moonHeading+'</span></h1>'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon).event_id,'new_moon_day_19_2026_11',
+  'unrelated site H1 and inline article span must not cause false HOLD');
+console.log('PASS G9R_NOVEMBER_VISIBLE_ARTICLE_H1_IDENTITY_BODY_SPOOF_FAIL_CLOSED');
 rejects(moonHtml.replace('2026/10/30','2026/10/29'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'publication drift');
 rejects(moonHtml.replace('僅適用倍率最大的獎勵','將倍率相乘'),
