@@ -13,6 +13,7 @@ import {
 } from './g9r-november-official-notice-strict-parser.mjs';
 import {validateNovemberPublishedEvent} from './g9r-november-data-only-admission-contract.mjs';
 import {moonHtml,prepHtml} from './g9r-november-official-notice-strict-contract.mjs';
+import {summarizeOfficialLiveResponse} from './g9r-official-live-source-provenance.mjs';
 
 const PAYLOAD='assets/data/public-event-master.json';
 const MANIFEST='assets/data/public-event-master-manifest.json';
@@ -63,7 +64,21 @@ export async function replayNovemberOfficialHtml({
     const html=await response.text();
     if(typeof html!=='string'||html.length<100||html.length>512000||!/<html\b/i.test(html))
       fail('OFFICIAL_HTML_SIZE_OR_DOCUMENT:'+item.key);
-    const parsed=parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt});
+    // On a source parse HOLD, retain only bounded public HTTP/HTML identity
+    // evidence. Never log raw response HTML or auto-promote changed official facts.
+    let parsed;
+    try{
+      parsed=parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt});
+    }catch(error){
+      const evidence=summarizeOfficialLiveResponse({
+        key:item.key,expectedUrl:url,response,html,
+        markers:item.key==='new_moon'
+          ?{title:'第19次「新月日」',bonus:'〖所有日子〗'}
+          :{title:'備料週vol.1',bonus:'〖所有日子〗'},
+      });
+      console.error('G9R_NOVEMBER_LIVE_SOURCE_PROVENANCE='+JSON.stringify(evidence));
+      throw error;
+    }
     if(parsed.event_id!==item.id)fail('CROSS_SOURCE_EVENT_ID:'+item.key);
     validateNovemberPublishedEvent(parsed);
     const published=rawPayload.events.find(e=>e.event_id===item.id);
