@@ -49,11 +49,14 @@ const moonHtml=fixture({
   period:'11/8 (週日) 4:00～11/11 (週三) 3:59',lines:newMoonLines,
   details:'<h3>特別機率提升</h3><p>・達克萊伊</p>'
     +'<p>※機率提升的寶可夢會出現在所有的活動營地。</p>'
-    +'<p>特別機率提升的寶可夢只有可能會在當天第1次的睡眠研究中出現。</p>'
+    +'<p>特別機率提升的寶可夢只有可能會在當天第1次的睡眠研究中出現，並不會在當天第2次的睡眠研究中出現。</p>'
     +'<p>此外，若未能在睡眠研究中遇見特別機率提升的寶可夢，在新月日的睡眠研究中能遇見牠們的機率將會漸漸提升，直到遇見特別機率提升的寶可夢為止。</p>'
     +'<p>當特別機率提升的寶可夢出現時，在睡眠研究中能遇見的寶可夢會增加1隻。</p>'
     +'<p>若同時使用「寶可夢的薰香」和「好露營券」，則最多可遇見11隻寶可夢。</p>'
     +'<p>・〖重要〗活動結束後，在所有活動營地皆無法遇見特別機率提升的寶可夢。</p>',
+  // Research-reward threshold is a conditional, source-only mechanic.
+  // It is not a global research candy/shard multiplier.
+  noticeExtra:'<p>・在平時，1天進行2次睡眠研究，且1天一共研究了11隻以上的寶可夢時，自第11隻寶可夢起研究的報酬量會減少；但若特別機率提升的寶可夢出現，則自第12隻寶可夢起研究的報酬量會減少。</p>',
 });
 const prepHtml=fixture({
   title:'〖企畫〗「備料週vol.1」',published:'2026/10/28',
@@ -187,6 +190,17 @@ rejects(moonHtml.replace('會增加1隻','會增加2隻'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'Darkrai extra encounter count');
 rejects(moonHtml.replace('最多可遇見11隻','最多可遇見12隻'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'Darkrai incense/camp cap');
+// A change in the second-study exclusion or the conditional research reward
+// reduction threshold must HOLD; neither can be inferred from first-study
+// wording or from the separate 11-encounter maximum.
+rejects(moonHtml.replace('並不會在當天第2次的睡眠研究中出現','也會在當天第2次的睡眠研究中出現'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'Darkrai second study eligibility reversed');
+rejects(moonHtml.replace('，並不會在當天第2次的睡眠研究中出現',''),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'Darkrai second study exclusion removed');
+rejects(moonHtml.replace('自第12隻寶可夢起研究的報酬量會減少','自第11隻寶可夢起研究的報酬量會減少'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'Darkrai research reward reduction threshold changed');
+rejects(moonHtml.replace('自第11隻寶可夢起研究的報酬量會減少','自第12隻寶可夢起研究的報酬量會減少'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'normal research reward reduction threshold changed');
 rejects(moonHtml.replace('皆無法遇見特別機率提升的寶可夢','仍可遇見特別機率提升的寶可夢'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'Darkrai event end exclusion');
 rejects(prepHtml.replace('預設為ON','預設為OFF'),
@@ -264,6 +278,7 @@ console.log('PASS G9R_MEAL_PREP_TWO_POST_EVENT_INCENSE_ONLY_CAMP_ROSTERS_FAIL_CL
 console.log('PASS G9R_MEAL_PREP_NINE_OFFICIAL_CAMP_ROSTERS_SOURCE_SCOPE_FAIL_CLOSED');
 console.log('PASS G9R_NEW_MOON_EXACT_DARKRAI_ONLY_ROSTER_MISSING_EXTRA_DUPLICATE_FAIL_CLOSED');
 console.log('PASS G9R_NOVEMBER_DARKRAI_PITY_EXTRA_ENCOUNTER_AND_MINI_CANDY_END_SOURCE_FAIL_CLOSED');
+console.log('PASS G9R_NEW_MOON_SECOND_RESEARCH_EXCLUSION_AND_REWARD_THRESHOLD_SOURCE_FAIL_CLOSED');
 console.log('PASS G9R_NOVEMBER_OFFICIAL_SLEEP_START_LATE_REPORT_TUTORIAL_FAIL_CLOSED');
 console.log('PASS G9R_NOVEMBER_STRICT_NEGATIVE_MUTATIONS_FAIL_CLOSED_NO_BANQUET_PROMOTION');
 console.log('HOLD G9R_NOVEMBER_LIVE_HTML_REPLAY_DATA_ONLY_MASTER_MANIFEST_AND_ANDROID_OWNER_UAT');
