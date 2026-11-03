@@ -95,7 +95,8 @@ try{
     assert.equal((await state()).detected,beforeFreeze+1,'real foreground stall after resume grace remains detectable');
     // A visible warning owned by storage integrity must survive both watchdog
     // detection and stable-frame recovery in the actual Chromium DOM.
-    await act(()=>window.__g295.frames(31));
+    await act(()=>window.__g295.frames(40));
+    assert.equal((await state()).watchdogMarker,null,'previous watchdog-owned warning must recover first');
     await act(()=>{const warning=document.getElementById('storageWarning');warning.textContent='EXTERNAL_STORAGE_INTEGRITY_HOLD';warning.classList.remove('hidden');});
     const preForeign=(await state()).detected;
     await act(()=>window.__g295.tick(6000));
