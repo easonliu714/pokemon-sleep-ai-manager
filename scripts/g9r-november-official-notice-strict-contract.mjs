@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   NOVEMBER_OFFICIAL_NOTICE_URLS,parseVerifiedNovemberOfficialNotice,MEAL_PREP_OFFICIAL_CAMP_SPECIES,
   MEAL_PREP_POST_EVENT_INCENSE_SPECIES,
+  MEAL_PREP_BOOSTED_TARGET_INGREDIENTS,MEAL_PREP_BOOSTED_GLOBAL_SPECIES,
 } from './g9r-november-official-notice-strict-parser.mjs';
 import {
   PUBLIC_EVENT_MASTER_SCHEMA,validatePublicEventPayload,resolvePublicEventProjection,
@@ -57,7 +58,12 @@ const moonHtml=fixture({
 const prepHtml=fixture({
   title:'〖企畫〗「備料週vol.1」',published:'2026/10/28',
   period:'11/9 (週一) 4:00～11/16 (週一) 3:59',lines:prepLines,
-  details:'<h2>各營地能遇見的寶可夢</h2>'
+  details:'<h2>機率提升</h2>'
+    +'<p>把握能比平時更常遇見下列寶可夢的好機會吧！</p>'
+    +'<p>※適用於會撿來許多下列食材的寶可夢。</p>'
+    +'<p>'+MEAL_PREP_BOOSTED_TARGET_INGREDIENTS+'</p>'
+    +'<h3>〖機率小幅提升〗</h3><p>'+MEAL_PREP_BOOSTED_GLOBAL_SPECIES+'</p>'
+    +'<h2>各營地能遇見的寶可夢</h2>'
     +Object.entries(MEAL_PREP_OFFICIAL_CAMP_SPECIES).map(([camp,roster])=>
       '<h3>〖'+camp+'〗</h3><p>'+roster+'</p>').join('')
     +'<h2>各項目詳情</h2><p>期間限定「迷你糖果增強」</p>'
@@ -201,6 +207,20 @@ rejects(prepHtml.replace('〖黃金舊發電廠〗','〖天青沙灘〗'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'duplicate camp');
 rejects(prepHtml.replace('〖天青沙灘EX〗','〖天青沙灘〗'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'EX camp lost');
+// Official source declares a separate eight-ingredient / 46-species GLOBAL list.
+// A change in this list or the "small boost" qualifier must not be hidden by
+// nine unchanged camp rosters; no probability or player camp is inferred.
+assert.equal(MEAL_PREP_BOOSTED_TARGET_INGREDIENTS.split('、').length,8);
+assert.equal(MEAL_PREP_BOOSTED_GLOBAL_SPECIES.split('、').length,46);
+rejects(prepHtml.replace('〖機率小幅提升〗','〖機率大幅提升〗'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'global boost tier drift');
+rejects(prepHtml.replace('沉甸甸南瓜、 嫩亮酪梨','沉甸甸南瓜、 特選蘋果'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'eight target ingredient list drift');
+rejects(prepHtml.replace('穿山鼠、 穿山王、 地鼠、 三地鼠、 喇叭芽','穿山鼠、 穿山王、 地鼠、 三地鼠、 夢幻'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'global species list drift with unchanged camp rosters');
+rejects(prepHtml.replace('※適用於會撿來許多下列食材的寶可夢。','※適用於所有寶可夢。'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'source ingredient targeting scope drift');
+console.log('PASS G9R_MEAL_PREP_GLOBAL_BOOST_SPECIES_INGREDIENT_SCOPE_AND_CAMP_PARITY_FAIL_CLOSED');
 // Independently source-bound post-event incense lists: no general boosted
 // encounter roster, player camp switch, or extended event bonus is implied.
 assert.equal(Object.keys(MEAL_PREP_POST_EVENT_INCENSE_SPECIES).length,2);
