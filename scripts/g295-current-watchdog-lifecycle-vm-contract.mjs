@@ -108,4 +108,15 @@ assert.equal(warning.textContent,'EXTERNAL_STORAGE_INTEGRITY_HOLD','foreign warn
 assert.equal(classes.has('hidden'),false,'foreign warning remains visible after reset');
 visibilityState='visible';emit(docEvents,'visibilitychange');
 interval();assert.equal(detected(),preForeignVisibility+1,'foreground resume grace remains intact');
+// Independent G295 RAF-throttle regression: a visible page may stop painting
+// while its main thread continues servicing the 2s interval. Do not diagnose
+// a blocked main thread until BOTH the RAF and interval have a long gap.
+visibilityState='hidden';emit(docEvents,'visibilitychange');
+visibilityState='visible';emit(docEvents,'visibilitychange');
+const beforeRafThrottle=detected();
+for(let i=0;i<4;i++){now+=2000;interval();}
+assert.equal(detected(),beforeRafThrottle,'regular interval proves responsiveness despite 8s RAF pause');
+now+=6000;interval();
+assert.equal(detected(),beforeRafThrottle+1,'a subsequent 6s interval gap remains a detectable real stall');
+console.log('PASS G295_VISIBLE_RAF_THROTTLED_TIMER_RESPONSIVE_NO_FALSE_STALL_AND_REAL_GAP_DETECTED');
 console.log('PASS G295_SOURCE_BOUND_LIFECYCLE_VM hidden/resume/pageshow/focus/native_dialog/freeze/resume/recovery/real_stall/foreign_warning_reset_trace; ANDROID_OWNER_NOT_VERIFIED');

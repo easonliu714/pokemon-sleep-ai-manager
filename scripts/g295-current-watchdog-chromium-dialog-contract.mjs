@@ -119,6 +119,15 @@ try{
     assert.equal(s.resetDetails.at(-1).warning_cleared,false,'foreign warning was not cleared');
     assert.equal(s.warningText,'EXTERNAL_STORAGE_INTEGRITY_HOLD','foreign storage warning text remains');
     assert.equal(s.visibleWarning,true,'foreign storage warning remains visible');
+    // Real Chromium DOM + deterministic clock: visible RAF may be throttled
+    // while the JS timer is responsive. Preserve subsequent true-gap detection.
+    await act(()=>{window.__g295.visibility(true);window.__g295.visibility(false);});
+    const beforeRafThrottle=(await state()).detected;
+    await act(()=>{for(let i=0;i<4;i++)window.__g295.tick(2000);});
+    assert.equal((await state()).detected,beforeRafThrottle,'visible RAF pause with regular JS timer is not a blocked main thread');
+    await act(()=>window.__g295.tick(6000));
+    assert.equal((await state()).detected,beforeRafThrottle+1,'subsequent true timer gap still detected');
+    console.log('PASS G295_CHROMIUM_RAF_THROTTLED_RESPONSIVE_TIMER_AND_TRUE_GAP');
     console.log('PASS G295_CHROMIUM_SOURCE_BOUND_NATIVE_DIALOG_DOM_LIFECYCLE hidden/resume/pageshow/focus/alert/confirm/prompt/freeze/resume/grace_expiry/real_stall/foreign_warning_reset_trace');
     console.log('HOLD G295_ANDROID_OWNER_UAT_NOT_VERIFIED');
   }finally{await context.close();}
