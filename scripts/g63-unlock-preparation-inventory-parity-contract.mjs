@@ -36,6 +36,23 @@ const absent=buildRecipeUnlockPreparation({candidates:[locked],inventory:[{ingre
 assert.equal(absent.selected.stage,'REVIEW_INVENTORY','unobserved ingredient is not confirmed 0');
 assert.equal(absent.selected.requirements.find(x=>x.ingredient_name==='特選蘋果').deficit,null);
 assert.equal(absent.selected.unknown_ingredient_count,1);
+// G6.2 independent read-side consumer: the G6.3 unlock target selector
+// must not bypass player pause/suspect feedback already honored by G7 plans.
+const pausedTarget={...locked,recipe_id:'a-paused',recipe_name:'A已暫停',recommendation_paused:true};
+const suspectTarget={...locked,recipe_id:'b-suspect',recipe_name:'B來源待查',recommendation_paused:false,reference_maybe_wrong:true};
+const cleanTarget={...locked,recipe_id:'z-clean',recipe_name:'Z可查證',recommendation_paused:false,reference_maybe_wrong:false};
+const feedbackPrep=buildRecipeUnlockPreparation({candidates:[pausedTarget,suspectTarget,cleanTarget],inventory});
+assert.equal(feedbackPrep.summary.target_count,3,'flagged recipes remain visible for explicit review');
+assert.equal(feedbackPrep.summary.ready_count,1,'paused/suspect references cannot count as ready');
+assert.equal(feedbackPrep.summary.review_count,2,'both independent feedback reasons remain review-only');
+assert.equal(feedbackPrep.selected.recipe_id,'z-clean','automatic unlock target must choose unflagged executable alternative');
+assert.equal(feedbackPrep.targets.find(row=>row.recipe_id==='a-paused').stage,'REVIEW_PAUSED_FEEDBACK');
+assert.equal(feedbackPrep.targets.find(row=>row.recipe_id==='b-suspect').stage,'REVIEW_REFERENCE_MAYBE_WRONG');
+assert.equal(buildRecipeUnlockPreparation({candidates:[pausedTarget],inventory}).selected.stage,'REVIEW_PAUSED_FEEDBACK','all-paused fallback cannot claim actionable readiness');
+assert.equal(buildRecipeUnlockPreparation({candidates:[suspectTarget],inventory}).selected.stage,'REVIEW_REFERENCE_MAYBE_WRONG','all-suspect fallback remains review-only');
+assert.equal(buildRecipeUnlockPreparation({candidates:[pausedTarget,cleanTarget],inventory,selectedRecipeId:'a-paused'}).selected.stage,'REVIEW_PAUSED_FEEDBACK','explicit player selection preserves review, never silently unpauses');
+assert.equal(buildRecipeUnlockPreparation({candidates:[{...suspectTarget,pot_fit:false}],inventory}).selected.stage,'BLOCKED_POT_CAPACITY','feedback must not override a preexisting hard pot block');
+assert.equal(pausedTarget.recommendation_paused,true,'read-side projection must not mutate player feedback');
 const scored=targetPokemonScoreRows({target:shortage.selected,pokemonCandidates:[
  {pokemon_id:'1',weekly_ingredient_demand_covered:0},{pokemon_id:'2',weekly_ingredient_demand_covered:99}],pokemonFeatures:[
  {pokemon_id:'1',unlocked_ingredients:[{ingredient_name:'哞哞鮮奶'},{ingredient_name:'特選蘋果'}]},
@@ -55,6 +72,8 @@ assert.match(stats,/SUM\(quantity\)/);
 assert.match(ui,/未解鎖料理／精確缺料／專用補貨/);
 assert.match(ui,/遊戲內預覽/);
 assert.match(ui,/data-g63-target-recipe/);
+assert.match(ui,/REVIEW_PAUSED_FEEDBACK:'玩家已暫停推薦/,'paused target needs a visible Chinese warning');
+assert.match(ui,/REVIEW_REFERENCE_MAYBE_WRONG:'玩家標記來源待查證/,'suspect target needs a visible Chinese warning');
 assert.match(ui,/step\.unlock_opportunity\?/,'feedback cannot appear on already-unlocked meals');
 assert.match(sw,/recipe-unlock-preparation\.js/,'offline precache required');
 assert.match(version,/app_version: 'v0\.4\.27\.55\.3\.3\.20'/);
