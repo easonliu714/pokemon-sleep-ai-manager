@@ -33,8 +33,15 @@ export function readPersistedPublicCatalogFingerprint(storage=globalThis.localSt
 
 export function persistPublicCatalogFingerprint(fingerprint,storage=globalThis.localStorage){
   if(!fingerprint)throw new Error('public_catalog_fingerprint_required');
+  // G479: a silent/no-op metadata store is not a verified first-boot hydration.
+  // Only the exact same storage bytes read back may authorize public rendering.
+  if(typeof storage?.setItem!=='function'||typeof storage?.getItem!=='function')
+    throw new Error('public_catalog_fingerprint_storage_unavailable');
   const metadata=Object.freeze({fingerprint,verified_at:new Date().toISOString(),authority_version:PUBLIC_CATALOG_STARTUP_AUTHORITY_VERSION});
-  storage?.setItem?.(PUBLIC_CATALOG_FINGERPRINT_STORAGE_KEY,JSON.stringify(metadata));
+  const serialized=JSON.stringify(metadata);
+  storage.setItem(PUBLIC_CATALOG_FINGERPRINT_STORAGE_KEY,serialized);
+  if(storage.getItem(PUBLIC_CATALOG_FINGERPRINT_STORAGE_KEY)!==serialized)
+    throw new Error('public_catalog_fingerprint_readback_mismatch');
   return metadata;
 }
 
