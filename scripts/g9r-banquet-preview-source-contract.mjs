@@ -1,0 +1,121 @@
+// G9R: independent official zh-TW November banquet PREVIEW source audit.
+// PREVIEW_ONLY: no verified event end, recipe name, per-ingredient quantities,
+// numeric event bonuses, Public Master promotion, or player-data writes.
+import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+export const BANQUET_PREVIEW_URL='https://www.pokemonsleep.net/zh/news/343535303736323034303630333434333236/';
+const hold=reason=>{throw new Error('G9R_BANQUET_PREVIEW_REVIEW_REQUIRED:'+reason);};
+const compact=s=>String(s).normalize('NFKC').replace(/\s+/g,'');
+function visibleText(html){
+  return String(html).replace(/<!--[\s\S]*?-->/g,' ')
+    .replace(/<template\b[^>]*>[\s\S]*?<\/template>/gi,' ')
+    .replace(/<(?:script|style)\b[^>]*>[\s\S]*?<\/(?:script|style)>/gi,' ')
+    .replace(/<\/?(?:h[1-6]|p|li|div|section|br)\b[^>]*>/gi,'\n')
+    .replace(/<[^>]+>/g,' ').replace(/&nbsp;|&#160;/gi,' ')
+    .replace(/&amp;/gi,'&').replace(/&lt;/gi,'<').replace(/&gt;/gi,'>')
+    .normalize('NFKC').split('\n').map(x=>x.trim()).filter(Boolean);
+}
+const RECIPE_GROUPS=Object.freeze([
+  {heading:'新「咖哩、濃湯」料理會用到的食材',category:'咖哩、濃湯',ingredients:['萌綠玉米','沉甸甸南瓜','一口堅果'],total:39},
+  {heading:'新「沙拉」料理會用到的食材',category:'沙拉',ingredients:['暖暖薑','好眠番茄','嫩亮酪梨','一口堅果'],total:121},
+  {heading:'新「點心、飲料」料理會用到的食材',category:'點心、飲料',ingredients:['特選蛋','美味尾巴','萌綠大豆','一口堅果'],total:91},
+]);
+export function auditBanquetPreview(html,url=BANQUET_PREVIEW_URL){
+  if(url!==BANQUET_PREVIEW_URL)hold('UNSUPPORTED_OFFICIAL_URL');
+  const lines=visibleText(html), all=lines.map(x=>compact(x.replace(/^[・•]\s*/,'')));
+  function uniqueLine(value,label){
+    const key=compact(value),matches=all.flatMap((line,i)=>line===key?[i]:[]);
+    if(matches.length!==1)hold(label+'_MISSING_OR_DUPLICATED');
+    return matches[0];
+  }
+  uniqueLine('〖預告〗新食材、新食譜、睡姿圖鑑目標和新企畫確定登場！','TITLE');
+  uniqueLine('2026/10/20','PUBLISHED_DATE');
+  const sleepGoal=uniqueLine('2026/11/8 19:00','SLEEP_GOAL_RELEASE');
+  const ingredientRelease=uniqueLine('2026/11/15 19:00','INGREDIENT_RELEASE');
+  if(sleepGoal>=ingredientRelease||
+     !all.slice(sleepGoal+1,ingredientRelease).includes(compact('新的睡姿圖鑑目標（570種）')))
+    hold('SLEEP_GOAL_570_SOURCE_SCOPE');
+  const firstWeek=uniqueLine('第1週：備料週vol.1','WEEK_ONE');
+  const secondWeek=uniqueLine('第2週：來什麼都吃光光！大餐週vol.1','WEEK_TWO');
+  const recipeHeading=uniqueLine('新食譜','RECIPE_HEADING');
+  if(!(ingredientRelease<firstWeek&&firstWeek<secondWeek&&secondWeek<recipeHeading))
+    hold('PREVIEW_SOURCE_SECTION_ORDER');
+  const releaseDetails=all.slice(ingredientRelease+1,firstWeek);
+  if(!releaseDetails.includes(compact('食材「一口堅果」'))||
+     !releaseDetails.includes(compact('會用到一口堅果的3種食譜')))
+    hold('INGREDIENT_AND_THREE_RECIPES_SCOPE');
+  if(!all.slice(firstWeek+1,secondWeek).includes(compact('預定自11/9 (週一)起舉辦！'))||
+     !all.slice(secondWeek+1,recipeHeading).includes(compact('預定自11/16 (週一)起舉辦！')))
+    hold('PREVIEW_ONLY_WEEK_STARTS_CHANGED');
+  const recipes=RECIPE_GROUPS.map((group,i)=>{
+    const pos=uniqueLine(group.heading,'RECIPE_CATEGORY_'+i);
+    const next=RECIPE_GROUPS[i+1]&&uniqueLine(RECIPE_GROUPS[i+1].heading,'NEXT_CATEGORY_'+i);
+    if(pos<=recipeHeading||(next!==undefined&&pos+2>=next))hold('RECIPE_SECTION_ORDER_'+i);
+    const ingredientLine=compact(group.ingredients.join('、'));
+    if(all[pos+1]!==ingredientLine||all[pos+2]!==compact('所需食材的總數量：'+group.total+'個'))
+      hold('RECIPE_INGREDIENT_SET_OR_TOTAL_CHANGED_'+i);
+    if(next!==undefined&&pos+3!==next)hold('UNMODELED_RECIPE_FACT_'+i);
+    return Object.freeze({category:group.category,ingredients:Object.freeze([...group.ingredients]),
+      total_ingredient_count:group.total,recipe_name:null,ingredient_quantities:null});
+  });
+  if(!all.slice(all.indexOf(compact(RECIPE_GROUPS[2].heading))+3).includes(
+      compact('關於各個企畫的詳情，敬請期待日後的通知！')))
+    hold('DETAILS_STILL_PENDING_CLAIM_CHANGED');
+  return Object.freeze({source_url:url,source_status:'PREVIEW_ONLY',
+    preview_published:'2026/10/20',sleep_goal_release:'2026-11-08T19:00:00+08:00',
+    new_ingredient_release:'2026-11-15T19:00:00+08:00',
+    meal_prep_week_start:'2026-11-09',banquet_week_start:'2026-11-16',
+    banquet_end:null,event_effects:Object.freeze({}),recipes:Object.freeze(recipes),
+    deterministic_recipe_admission:false,player_write:false,public_master_write:false});
+}
+const fixture=[
+'<html><body><h1>〖預告〗新食材、新食譜、睡姿圖鑑目標和新企畫確定登場！</h1>',
+'<p>2026/10/20</p><p>2026/11/8 19:00</p><p>・新的睡姿圖鑑目標（570種）</p>',
+'<p>2026/11/15 19:00</p><p>・食材「一口堅果」</p><p>・會用到一口堅果的3種食譜</p>',
+'<h2>第1週：備料週vol.1</h2><p>預定自11/9 (週一)起舉辦！</p>',
+'<h2>第2週：來什麼都吃光光！大餐週vol.1</h2><p>預定自11/16 (週一)起舉辦！</p>',
+'<h2>新食譜</h2>',
+'<h3>新「咖哩、濃湯」料理會用到的食材</h3><p>萌綠玉米、 沉甸甸南瓜、 一口堅果</p><p>所需食材的總數量：39個</p>',
+'<h3>新「沙拉」料理會用到的食材</h3><p>暖暖薑、 好眠番茄、 嫩亮酪梨、 一口堅果</p><p>所需食材的總數量：121個</p>',
+'<h3>新「點心、飲料」料理會用到的食材</h3><p>特選蛋、 美味尾巴、 萌綠大豆、 一口堅果</p><p>所需食材的總數量：91個</p>',
+'<p>關於各個企畫的詳情，敬請期待日後的通知！</p></body></html>'
+].join('');
+export function offlinePreviewRegression(){
+  const base=auditBanquetPreview(fixture);
+  assert.equal(base.source_status,'PREVIEW_ONLY');
+  assert.equal(base.banquet_end,null);
+  assert.deepEqual(base.event_effects,{});
+  assert.equal(base.recipes.length,3);
+  assert.deepEqual(base.recipes.map(r=>r.total_ingredient_count),[39,121,91]);
+  assert.ok(base.recipes.every(r=>r.recipe_name===null&&r.ingredient_quantities===null));
+  assert.equal(base.deterministic_recipe_admission,false);
+  for(const [from,to,label] of [
+    ['2026/11/15 19:00','2026/11/16 19:00','ingredient-release'],
+    ['預定自11/16 (週一)起舉辦！','預定自11/17 (週二)起舉辦！','banquet-start'],
+    ['3種食譜','4種食譜','recipe-count'],
+    ['一口堅果</p>','萌綠大豆</p>','new-ingredient'],
+    ['總數量：39個','總數量：40個','curry-total'],
+    ['好眠番茄、 嫩亮酪梨','好眠番茄、 萌綠玉米','salad-ingredients'],
+    ['總數量：91個','總數量：90個','dessert-total'],
+    ['關於各個企畫的詳情，敬請期待日後的通知！','全部細節已公開！','candidate-only'],
+  ])assert.throws(()=>auditBanquetPreview(fixture.replace(from,to)),/G9R_BANQUET_PREVIEW_REVIEW_REQUIRED/,label);
+  assert.throws(()=>auditBanquetPreview(fixture,'https://example.com/'),/UNSUPPORTED_OFFICIAL_URL/);
+  assert.throws(()=>auditBanquetPreview(fixture.replace('總數量：39個','總數量：40個')+
+    '<template>所需食材的總數量：39個</template>'),/RECIPE_INGREDIENT_SET_OR_TOTAL_CHANGED/);
+  console.log('PASS G9R_BANQUET_PREVIEW_OFFICIAL_SOURCE_BOUND_3_RECIPES_39_121_91');
+  console.log('PASS G9R_BANQUET_PREVIEW_NEGATIVE_DRIFT_AND_NO_DETERMINISTIC_PROMOTION');
+  console.log('HOLD G9R_BANQUET_DETAILED_EVENT_END_RECIPE_QUANTITIES_AND_ANDROID_OWNER_UAT');
+}
+if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
+  if(process.argv.includes('--live')){
+    try{
+      const response=await fetch(BANQUET_PREVIEW_URL,{redirect:'error',signal:AbortSignal.timeout(12000)});
+      if(response.status!==200||response.url!==BANQUET_PREVIEW_URL||
+         !/^text\/html(?:;|$)/i.test(response.headers.get('content-type')||''))hold('LIVE_FETCH_SOURCE_OR_CONTENT_TYPE');
+      const html=await response.text();
+      if(html.length<100||html.length>512000||!/<html\b/i.test(html))hold('LIVE_HTML_DOCUMENT');
+      const result=auditBanquetPreview(html);
+      console.log('PASS G9R_BANQUET_LIVE_OFFICIAL_PREVIEW='+JSON.stringify(result));
+    }catch(error){console.error('HOLD G9R_BANQUET_LIVE_SOURCE',error.message);process.exitCode=1;}
+  }else offlinePreviewRegression();
+}
