@@ -70,6 +70,7 @@ const prepHtml=fixture({
       '<h3>〖'+camp+'〗</h3><p>'+roster+'</p>').join('')
     +'<h2>各項目詳情</h2><p>期間限定「迷你糖果增強」</p>'
     +'<p>使用「迷你糖果增強」後，幫手寶可夢在使用糖果時可獲得的EXP會變成2倍，但使用1個糖果所需的夢之碎片消耗量會是平時的4倍。每天最多可使用50個糖果。</p>'
+    +'<p>此功能可透過點擊「等級提升」畫面右上角的按鈕來自由切換ON/OFF。想提升幫手寶可夢的等級時，就試著使用「迷你糖果增強」吧！</p>'
     +'<p>※此功能在企畫期間的預設為ON。</p>'
 
     +'<p>・企畫結束後，將無法使用期間限定「迷你糖果增強」。</p>',
@@ -203,6 +204,14 @@ rejects(moonHtml.replace('自第11隻寶可夢起研究的報酬量會減少','�
   NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'normal research reward reduction threshold changed');
 rejects(moonHtml.replace('皆無法遇見特別機率提升的寶可夢','仍可遇見特別機率提升的寶可夢'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'Darkrai event end exclusion');
+// Independent player-control authority: default ON does not mean forced use.
+ // Keep the exact official level-up toggle evidence; no player data is touched.
+rejects(prepHtml.replace('自由切換ON/OFF','只能維持ON'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'mini-candy player choice removed');
+rejects(prepHtml.replace('「等級提升」畫面','「睡眠研究」畫面'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'mini-candy toggle screen changed');
+rejects(prepHtml.replace('此功能可透過點擊「等級提升」畫面右上角的按鈕來自由切換ON/OFF。',''),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'mini-candy toggle authority removed');
 rejects(prepHtml.replace('預設為ON','預設為OFF'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'mini-candy default ON');
 rejects(prepHtml.replace('將無法使用期間限定','仍可使用期間限定'),
@@ -278,6 +287,7 @@ console.log('PASS G9R_MEAL_PREP_TWO_POST_EVENT_INCENSE_ONLY_CAMP_ROSTERS_FAIL_CL
 console.log('PASS G9R_MEAL_PREP_NINE_OFFICIAL_CAMP_ROSTERS_SOURCE_SCOPE_FAIL_CLOSED');
 console.log('PASS G9R_NEW_MOON_EXACT_DARKRAI_ONLY_ROSTER_MISSING_EXTRA_DUPLICATE_FAIL_CLOSED');
 console.log('PASS G9R_NOVEMBER_DARKRAI_PITY_EXTRA_ENCOUNTER_AND_MINI_CANDY_END_SOURCE_FAIL_CLOSED');
+console.log('PASS G9R_MEAL_PREP_MINI_CANDY_PLAYER_TOGGLE_SOURCE_FAIL_CLOSED');
 console.log('PASS G9R_NEW_MOON_SECOND_RESEARCH_EXCLUSION_AND_REWARD_THRESHOLD_SOURCE_FAIL_CLOSED');
 console.log('PASS G9R_NOVEMBER_OFFICIAL_SLEEP_START_LATE_REPORT_TUTORIAL_FAIL_CLOSED');
 console.log('PASS G9R_NOVEMBER_STRICT_NEGATIVE_MUTATIONS_FAIL_CLOSED_NO_BANQUET_PROMOTION');

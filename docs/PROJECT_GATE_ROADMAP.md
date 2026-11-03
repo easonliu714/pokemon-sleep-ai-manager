@@ -1,3 +1,9 @@
+## 2026-11-04 A/G9R mini-candy player choice source Gate
+
+- Protected intake main `41c34bc251cfe1634553f5384dc5d9c728fd85d9` after B/G6.2 #730. Official Meal Prep notice explicitly permits player ON/OFF toggle in level-up screen, separately from default ON, EXP×2, shard cost×4 and 50/day.
+- Existing November strict parser did not verify player-choice source statement. Add source-only fail-closed guard plus three fixture negatives (forced ON, wrong screen, omitted control). No data-only Master/manifest or production Writer changes.
+- `A_GATE=G9R_MEAL_PREP_MINI_CANDY_PLAYER_TOGGLE_SOURCE` CANDIDATE pending exact PR-head CI, protected merge and exact new-main CI/Pages. #19 OPEN, Android UAT not due; #482 HOLD_OWNER_DEVICE_UNAVAILABLE, OWNER_ACTION=NONE_NOW.
+
 ## 2026-11-03 B/G479 first-boot public fingerprint exact readback — SOURCE/TEST CANDIDATE; Android HOLD
 
 - Fresh protected baseline: `05fb3b774bca9a62e5187b0c3d0b36b1bc113428` after [#726](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/726), exact-main 9/9 Push CI including [Pages](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/41616309590) SUCCESS; no open PR at intake. A/G9R official 11/08 New Moon and 11/09 Meal Prep sources remain protected; 11/16 banquet is PREVIEW_ONLY pending official details.

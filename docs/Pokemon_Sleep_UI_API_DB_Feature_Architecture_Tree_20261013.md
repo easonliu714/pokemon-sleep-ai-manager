@@ -1,3 +1,9 @@
+## A/G9R — Meal Prep player-controlled mini-candy toggle source boundary (2026-11-04)
+
+- Official [Meal Prep vol.1 zh-TW notice](https://www.pokemonsleep.net/zh/news/343537333139333632303937383430313332/) independently states that mini-candy enhancement defaults ON **and can be toggled ON/OFF by the player on the level-up screen**. Default ON is not automatic resource consumption authorization.
+- Source-only strict parser `scripts/g9r-november-official-notice-strict-parser.mjs` now rejects source drift removing free toggle, changing its screen or forcing ON; existing `scripts/g9r-november-official-notice-strict-contract.mjs` has three negative fixtures. Public Event Master payload, typed effects and player-data consumers are unchanged; no Writer admission.
+- `G9R_MEAL_PREP_MINI_CANDY_PLAYER_TOGGLE_SOURCE=CANDIDATE` until protected exact-head PR and new-main CI/Pages close; #19 Android effective event UAT 11/08–11/09 remains pending. #482 cross-device manifest HOLD_OWNER_DEVICE_UNAVAILABLE / OWNER_ACTION=NONE_NOW.
+
 ## 2026-11-03 B/G479 first-boot public fingerprint exact readback — SOURCE/TEST CANDIDATE; Android HOLD
 
 - Fresh protected baseline: `05fb3b774bca9a62e5187b0c3d0b36b1bc113428` after [#726](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/726), exact-main 9/9 Push CI including [Pages](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/41616309590) SUCCESS; no open PR at intake. A/G9R official 11/08 New Moon and 11/09 Meal Prep sources remain protected; 11/16 banquet is PREVIEW_ONLY pending official details.

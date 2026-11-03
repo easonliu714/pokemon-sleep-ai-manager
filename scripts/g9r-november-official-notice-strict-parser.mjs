@@ -226,6 +226,14 @@ export function parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt=new Dat
   assertMealPrepPostEventIncenseSource(text);
   if(!compact(text).includes(compact('使用「迷你糖果增強」後，幫手寶可夢在使用糖果時可獲得的EXP會變成2倍，但使用1個糖果所需的夢之碎片消耗量會是平時的4倍。每天最多可使用50個糖果。')))
     fail('MINI_CANDY_USE_EXP_SHARD_SCOPE_CHANGED');
+  // Official Meal Prep mini-candy is ON by default but remains a PLAYER
+  // TOGGLE at the level-up screen. A changed source claiming forced use or
+  // relocating this control must HOLD before any consumer interprets it.
+  // This is read-only source evidence, NOT a player Writer admission.
+  const miniCandyDetails=section(text,'各項目詳情','注意事項');
+  if(!compact(miniCandyDetails).includes(compact(
+    '此功能可透過點擊「等級提升」畫面右上角的按鈕來自由切換ON/OFF。')))
+    fail('MINI_CANDY_PLAYER_TOGGLE_SOURCE_DRIFT');
   // The post-event incense exception is NOT an extension of Meal Prep bonuses.
   // Mini-candy ON-by-default is a game UI rule, not a player-data writer grant.
   for(const [label,statement] of [
