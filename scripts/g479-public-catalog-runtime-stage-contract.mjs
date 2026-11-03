@@ -19,9 +19,10 @@ const actualHandler=raw.slice(start,end);
 assert.match(actualHandler,/function handleDatabaseReady\(event\)/);
 
 const metadata=new Map();
+let silentWrite=false,corruptReadback=false;
 const storage={
-  getItem:key=>metadata.get(key)||null,
-  setItem:(key,value)=>metadata.set(key,value),
+  getItem:key=>corruptReadback?'CORRUPTED_SYNTHETIC_READBACK':metadata.get(key)||null,
+  setItem:(key,value)=>{if(!silentWrite)metadata.set(key,value);},
 };
 const events=[];
 const runtime={
@@ -81,6 +82,28 @@ assert.ok(stages.includes('PUBLIC_CATALOG_FINGERPRINT_PERSIST_FAILED'));
 assert.ok(!stages.includes('PUBLIC_CATALOG_LAZY_READY'),'failed metadata persist must not claim lazy ready');
 assert.equal(metadata.size,0);
 persistFailure=false;
+
+// G479 independent failure mode: storage.setItem can be callable yet silently
+// discard metadata, or getItem can return a different value. Neither may claim
+// HYDRATE_COMPLETED or allow a public projection. No real browser storage used.
+assert.throws(()=>persistPublicCatalogFingerprint('synthetic',{setItem(){}}),
+  /public_catalog_fingerprint_storage_unavailable/);
+silentWrite=true;
+stages=fire({expected,applied:{...expected},updated:true});
+assert.ok(stages.includes('PUBLIC_CATALOG_FINGERPRINT_PERSIST_FAILED'));
+assert.ok(!stages.includes('HYDRATE_COMPLETED'));
+assert.ok(!stages.includes('PUBLIC_CATALOG_LAZY_READY'));
+assert.equal(runtime.publicAuthorityReady,false);
+assert.equal(metadata.size,0,'silent metadata discard must not be accepted');
+silentWrite=false;
+corruptReadback=true;
+stages=fire({expected,applied:{...expected},updated:true});
+assert.ok(stages.includes('PUBLIC_CATALOG_FINGERPRINT_PERSIST_FAILED'));
+assert.ok(!stages.includes('HYDRATE_COMPLETED'));
+assert.equal(runtime.publicAuthorityReady,false);
+corruptReadback=false;
+metadata.clear();
+console.log('PASS G479_SILENT_STORAGE_DISCARD_AND_CORRUPTED_READBACK_FAIL_CLOSED');
 
 stages=fire({expected,applied:{...expected},updated:true});
 assert.ok(stages.includes('HYDRATE_COMPLETED'),'reconciled authority must complete');
