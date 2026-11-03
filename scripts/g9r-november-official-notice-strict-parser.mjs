@@ -98,6 +98,27 @@ export const MEAL_PREP_POST_EVENT_INCENSE_SPECIES=Object.freeze({
   '萌綠之島':'大顎蟻、 小貓怪、 魔尼尼、 雪笠怪、 石居蟹、 童偶熊',
   '萌綠之島EX':'地鼠、 喇叭芽、 小拳石、 大顎蟻、 小貓怪、 魔尼尼、 石居蟹、 童偶熊',
 });
+// The official 2026-10-28 Meal Prep notice lists eight target ingredients and
+// 46 globally boosted species; neither list grants a global encounter rate.
+export const MEAL_PREP_BOOSTED_TARGET_INGREDIENTS='特選蛋、 暖暖薑、 好眠番茄、 美味尾巴、 萌綠大豆、 萌綠玉米、 沉甸甸南瓜、 嫩亮酪梨';
+export const MEAL_PREP_BOOSTED_GLOBAL_SPECIES='穿山鼠、 穿山王、 地鼠、 三地鼠、 喇叭芽、 口呆花、 大食花、 小拳石、 隆隆石、 隆隆岩、 吉利蛋、 袋獸、 魔牆人偶、 百變怪、 黑暗鴉、 信使鳥、 幸福蛋、 幼基拉斯、 沙基拉斯、 班基拉斯、 大嘴娃、 大顎蟻、 超音波幼蟲、 沙漠蜻蜓、 小貓怪、 勒克貓、 倫琴貓、 烏鴉頭頭、 魔尼尼、 小福蛋、 雪笠怪、 暴雪王、 石居蟹、 岩殿居蟹、 摔角鷹人、 南瓜精、 南瓜怪人、 萌虻、 蝶結萌虻、 童偶熊、 穿著熊、 花療環環、 老翁龍、 潤水鴨、 湧躍鴨、 狂歡浪舞鴨';
+function assertMealPrepGlobalBoostSource(text){
+  // Validate the independently published global source list AND its qualifier.
+  // Nine camp-specific rosters alone cannot prove that the global source stayed fixed.
+  const source=section(text,'\n機率提升\n','\n各營地能遇見的寶可夢');
+  requireLines(source,[
+    '把握能比平時更常遇見下列寶可夢的好機會吧！',
+    '※適用於會撿來許多下列食材的寶可夢。',
+    MEAL_PREP_BOOSTED_TARGET_INGREDIENTS,
+    '〖機率小幅提升〗',
+    MEAL_PREP_BOOSTED_GLOBAL_SPECIES,
+  ],'MEAL_PREP_GLOBAL_BOOST_SOURCE');
+  const union=new Set(Object.values(MEAL_PREP_OFFICIAL_CAMP_SPECIES)
+    .flatMap(value=>value.split('、').map(compact)));
+  const boosted=new Set(MEAL_PREP_BOOSTED_GLOBAL_SPECIES.split('、').map(compact));
+  if(union.size!==boosted.size||[...union].some(species=>!boosted.has(species)))
+    fail('MEAL_PREP_GLOBAL_AND_CAMP_SPECIES_INCONSISTENT');
+}
 function assertMealPrepPostEventIncenseSource(text){
   const notice=text.slice(text.indexOf('注意事項'));
   const lines=notice.split('\n').map(line=>line.trim()).filter(Boolean);
@@ -192,6 +213,7 @@ export function parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt=new Dat
   commonEvidence(text,{title:'備料週vol.1',published:'2026/10/28',
     start:'11/9 (週一) 4:00',end:'11/16 (週一) 3:59'});
   requireLines(bonus,PREP_LINES,'MEAL_PREP');
+  assertMealPrepGlobalBoostSource(text);
   assertMealPrepCampSpeciesSource(text);
   assertMealPrepPostEventIncenseSource(text);
   if(!compact(text).includes(compact('使用「迷你糖果增強」後，幫手寶可夢在使用糖果時可獲得的EXP會變成2倍，但使用1個糖果所需的夢之碎片消耗量會是平時的4倍。每天最多可使用50個糖果。')))
