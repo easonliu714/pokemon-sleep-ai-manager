@@ -71,13 +71,23 @@ export function buildRecipeAttemptFeedbackRecord({
   });
 }
 
+// G6.2 read-side safety: SQLite flags are 0/1, not arbitrary truthy values.
+// A malformed persisted flag must never silently re-admit a paused/suspect
+// recipe into recommendations; absent feedback still means no player flag.
+function feedbackFlagFailClosed(row,key){
+  if(!hasOwn(row,key))return false;
+  const value=row[key];
+  if(value===false||value===0||value==='0')return false;
+  if(value===true||value===1||value==='1')return true;
+  return true; // invalid persisted value => conservative pause/review, no write
+}
 function normalizeFeedbackRow(row={}){
   return Object.freeze({
     recipe_id:clean(row.recipe_id),
     attempt_count:nonNegativeInteger(row.attempt_count)?Number(row.attempt_count):0,
     last_failure_at:clean(row.last_failure_at)||null,
-    recommendation_paused:Number(row.recommendation_paused||0)===1||row.recommendation_paused===true,
-    reference_maybe_wrong:Number(row.reference_maybe_wrong||0)===1||row.reference_maybe_wrong===true,
+    recommendation_paused:feedbackFlagFailClosed(row,'recommendation_paused'),
+    reference_maybe_wrong:feedbackFlagFailClosed(row,'reference_maybe_wrong'),
     last_attempt_id:clean(row.last_attempt_id)||null,
     source_type:clean(row.source_type)||null,
     source_name:clean(row.source_name)||null,
