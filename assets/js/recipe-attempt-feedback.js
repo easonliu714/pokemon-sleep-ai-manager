@@ -46,8 +46,17 @@ export function buildRecipeAttemptFeedbackRecord({
   if(!recipeId)throw new Error('recipe_attempt_recipe_id_required');
   const attemptedMs=Date.parse(attemptedAt);
   if(!Number.isFinite(attemptedMs))throw new Error('recipe_attempt_time_invalid');
+  // G6.2 write boundary: reject partial/ambiguous actual ingredient evidence
+  // instead of silently dropping malformed rows; tolerant historical reads remain unchanged.
+  if(!Array.isArray(actual_ingredients)||!actual_ingredients.length)
+    throw new Error('recipe_attempt_actual_ingredients_required');
+  if(actual_ingredients.some(item=>typeof item?.ingredient_name!=='string'
+    ||!clean(item.ingredient_name)||typeof item.quantity!=='number'
+    ||!Number.isSafeInteger(item.quantity)||item.quantity<=0))
+    throw new Error('recipe_attempt_actual_ingredients_invalid');
   const ingredients=normalizeRecipeAttemptIngredients(actual_ingredients);
-  if(!ingredients.length)throw new Error('recipe_attempt_actual_ingredients_required');
+  if(ingredients.some(item=>!Number.isSafeInteger(item.quantity)))
+    throw new Error('recipe_attempt_actual_ingredients_overflow');
   return Object.freeze({
     attempt_id:id,
     recipe_id:recipeId,
