@@ -81,7 +81,9 @@ now+=6000;interval();
 assert.equal(detected(),preFreeze+1,'real foreground stall after freeze grace must still warn');
 // A pre-existing visible storage warning is foreign-owned. A new stall must
 // remain in the trace without replacing or subsequently hiding that warning.
-for(let i=0;i<31;i++){now+=16;assert.ok(raf.length);raf.shift()();}
+// Multiple pagehide/pageshow generations may leave inert RAF callbacks queued.
+for(let i=0;i<40;i++){now+=16;assert.ok(raf.length);raf.shift()();}
+assert.equal(ctx.getStartupWatchdogState().warning_active,false,'prior watchdog stall must recover before foreign warning scenario');
 warning.textContent='EXTERNAL_STORAGE_INTEGRITY_HOLD';
 classes.delete('hidden');
 const preForeign=detected();
