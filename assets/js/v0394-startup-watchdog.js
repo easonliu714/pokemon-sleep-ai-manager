@@ -13,6 +13,9 @@ const WATCHDOG_MARKER='startup-heartbeat-watchdog';
 let lastStage=null;
 let lastStageAt=performance.now();
 let heartbeatAt=performance.now();
+// A live 2s timer proves JS can run even when Chromium throttles visible-page RAF.
+// Only a delayed timer AND missing RAF indicate a main-thread scheduling gap.
+let lastIntervalTickAt=performance.now();
 let watchdogTimer=null;
 let heartbeatGeneration=0;
 let warningActive=false;
@@ -95,6 +98,7 @@ function clearRecoveredHeartbeatWarning(){
 function resetHeartbeatForVisibility(reason){
   const now=performance.now();
   heartbeatAt=now;
+  lastIntervalTickAt=now;
   recoveryStableFrames=0;
   visibilityGraceUntil=now+1200;
   const warningCleared=warningActive?clearRecoveredHeartbeatWarning():false;
@@ -102,14 +106,20 @@ function resetHeartbeatForVisibility(reason){
 }
 function startHeartbeat(){
   if(watchdogTimer!==null)return;
+  lastIntervalTickAt=performance.now();
   const generation=++heartbeatGeneration;
   const beat=()=>{if(generation!==heartbeatGeneration)return;const now=performance.now(),gap=now-heartbeatAt;heartbeatAt=now;if(warningActive){recoveryStableFrames=gap<1000?recoveryStableFrames+1:0;if(recoveryStableFrames>=RECOVERY_STABLE_FRAMES)clearRecoveredHeartbeatWarning();}requestAnimationFrame(beat);};
   requestAnimationFrame(beat);
   watchdogTimer=setInterval(()=>{
     const now=performance.now();
+    const timerGap=now-lastIntervalTickAt;
+    lastIntervalTickAt=now;
     if(document.visibilityState!=='visible'||now<visibilityGraceUntil){heartbeatAt=now;return;}
     const blockedFor=Math.round(now-heartbeatAt),stageAge=Math.round(now-lastStageAt);
-    if(blockedFor<STARTUP_BLOCK_WARN_MS)return;
+    // RAF can pause independently of the main thread (occlusion/power saving).
+    // A regularly executing timer is positive responsiveness evidence; a genuine
+    // long scheduling gap remains detectable after the normal lifecycle grace.
+    if(blockedFor<STARTUP_BLOCK_WARN_MS||timerGap<STARTUP_BLOCK_WARN_MS)return;
     showHeartbeatWarning({blockedFor,stageAge});
   },2000);
 }
