@@ -17,12 +17,20 @@ export function buildRecipeUnlockPreparation({candidates=[],inventory=[],selecte
     const unknownInventory=requirements.some(r=>r.owned===null);
     const trustedFormula=VERIFIED.has(row.formula_evidence);
     const potVerified=row.pot_fit!==null&&row.pot_fit!==undefined;
-    const stage=unknownUnlock?'REVIEW_UNLOCK_STATE':!trustedFormula?'REVIEW_FORMULA_EVIDENCE':
+    const readinessStage=unknownUnlock?'REVIEW_UNLOCK_STATE':!trustedFormula?'REVIEW_FORMULA_EVIDENCE':
       !potVerified?'REVIEW_POT_CAPACITY':!row.pot_fit?'BLOCKED_POT_CAPACITY':
       unknownInventory?'REVIEW_INVENTORY':requirements.some(r=>r.deficit>0)?'NEEDS_INGREDIENTS':'READY_FOR_IN_GAME_PREVIEW';
+    // G6.2: a paused or suspect third-party recipe must not be auto-selected
+    // as an actionable unlock/spend target; retain it for explicit review.
+    const feedbackPaused=row.recommendation_paused===true;
+    const feedbackSuspect=row.reference_maybe_wrong===true;
+    const stage=feedbackPaused?'REVIEW_PAUSED_FEEDBACK':
+      feedbackSuspect&&(readinessStage==='READY_FOR_IN_GAME_PREVIEW'||readinessStage==='NEEDS_INGREDIENTS')
+        ?'REVIEW_REFERENCE_MAYBE_WRONG':readinessStage;
     return Object.freeze({
       recipe_id:clean(row.recipe_id),recipe_name:clean(row.recipe_name),category:clean(row.category),stage,
       player_record_exists:Boolean(row.player_record_exists),unlocked:false,
+      recommendation_paused:feedbackPaused,reference_maybe_wrong:feedbackSuspect,
       pot_required:Number(row.pot_required||0),pot_capacity:row.pot_capacity??null,
       formula_evidence:row.formula_evidence??null,
       requirements:Object.freeze(requirements),
@@ -32,7 +40,7 @@ export function buildRecipeUnlockPreparation({candidates=[],inventory=[],selecte
       preview_guidance:'遊戲烹飪預覽的「？」僅能證明未發現料理，不能單獨證明確切配方；正式名稱應待正常烹飪後查證。',
     });
   });
-  const priority={READY_FOR_IN_GAME_PREVIEW:0,NEEDS_INGREDIENTS:1,REVIEW_INVENTORY:2,REVIEW_UNLOCK_STATE:3,REVIEW_FORMULA_EVIDENCE:4,REVIEW_POT_CAPACITY:5,BLOCKED_POT_CAPACITY:6};
+  const priority={READY_FOR_IN_GAME_PREVIEW:0,NEEDS_INGREDIENTS:1,REVIEW_INVENTORY:2,REVIEW_UNLOCK_STATE:3,REVIEW_FORMULA_EVIDENCE:4,REVIEW_POT_CAPACITY:5,BLOCKED_POT_CAPACITY:6,REVIEW_REFERENCE_MAYBE_WRONG:7,REVIEW_PAUSED_FEEDBACK:8};
   targets.sort((a,b)=>(priority[a.stage]??9)-(priority[b.stage]??9)||a.known_deficit_total-b.known_deficit_total||a.unknown_ingredient_count-b.unknown_ingredient_count||a.recipe_name.localeCompare(b.recipe_name,'zh-Hant'));
   const selected=targets.find(row=>row.recipe_id===selectedRecipeId)||targets[0]||null;
   return Object.freeze({schema:'pokemon-sleep-recipe-unlock-preparation/1.0',version:RECIPE_UNLOCK_PREPARATION_VERSION,
