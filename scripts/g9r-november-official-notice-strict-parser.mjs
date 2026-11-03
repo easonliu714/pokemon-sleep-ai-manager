@@ -192,12 +192,20 @@ export function parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt=new Dat
     requireLines(boostedSpecies,['達克萊伊'],'NEW_MOON_DARKRAI_ONLY');
     if(!compact(text).includes(compact('特別機率提升的寶可夢只有可能會在當天第1次的睡眠研究中出現')))
       fail('DARKRAI_FIRST_RESEARCH_SCOPE_NOT_VERIFIED');
+    // The official notice also explicitly EXCLUDES the second daily study.
+    // A first-study-only substring is insufficient source evidence if that
+    // independent exclusion is removed or changed by a future announcement.
+    if(!compact(text).includes(compact('並不會在當天第2次的睡眠研究中出現')))
+      fail('DARKRAI_SECOND_RESEARCH_EXCLUSION_SOURCE_DRIFT');
     // Source-proven Darkrai pity and extra encounter are NOT numeric probabilities
     // or player-owned effects; a changed official eligibility rule must fail closed.
     for(const [label,statement] of [
       ['DARKRAI_PITY_NON_NUMERIC','若未能在睡眠研究中遇見特別機率提升的寶可夢，在新月日的睡眠研究中能遇見牠們的機率將會漸漸提升，直到遇見特別機率提升的寶可夢為止'],
       ['DARKRAI_EXTRA_ENCOUNTER','當特別機率提升的寶可夢出現時，在睡眠研究中能遇見的寶可夢會增加1隻'],
       ['DARKRAI_INCENSE_CAMP_MAX_11','若同時使用「寶可夢的薰香」和「好露營券」，則最多可遇見11隻寶可夢'],
+      // Distinct from the maximum encounter count: the official reward
+      // reduction threshold moves from encounter 11 to 12 only if Darkrai appears.
+      ['DARKRAI_RESEARCH_REWARD_REDUCTION_THRESHOLD','在平時，1天進行2次睡眠研究，且1天一共研究了11隻以上的寶可夢時，自第11隻寶可夢起研究的報酬量會減少；但若特別機率提升的寶可夢出現，則自第12隻寶可夢起研究的報酬量會減少'],
       ['DARKRAI_END_EXCLUSIVE','活動結束後，在所有活動營地皆無法遇見特別機率提升的寶可夢'],
     ])if(!compact(text).includes(compact(statement)))fail(label+'_SOURCE_DRIFT');
     return event({id:'new_moon_day_19_2026_11',title:'第19次「新月日」',url,
