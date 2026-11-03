@@ -10,7 +10,7 @@ assert.match(raw,/main_thread_block_detected/);
 const events=new Map(),docEvents=new Map(),intervals=new Map(),raf=[],trace=[],nativeCalls=[];
 let now=0,visibilityState='visible',intervalId=0;
 const classes=new Set(['hidden']);
-const warning={textContent:'',dataset:{},classList:{add:x=>classes.add(x),remove:x=>classes.delete(x)}};
+const warning={textContent:'',dataset:{},classList:{add:x=>classes.add(x),remove:x=>classes.delete(x),contains:x=>classes.has(x)}};
 const document={
   get visibilityState(){return visibilityState;},
   get hidden(){return visibilityState!=='visible';},
