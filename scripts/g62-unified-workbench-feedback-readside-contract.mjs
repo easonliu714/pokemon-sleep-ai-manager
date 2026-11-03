@@ -52,6 +52,16 @@ const reviewCleared=project(feedback.map(row=>({...row,recommendation_paused:0,r
 assert.equal(reviewCleared.unlocked.find(row=>row.recipe_id===pausedUnlocked.recipe_id).weekly_recommended,true,'cleared unlocked recipe regains normal rank');
 assert.equal(reviewCleared.locked.find(row=>row.recipe_id===pausedLocked.recipe_id).weekly_recommended,true,'cleared locked recipe regains normal rank');
 // Independent G6.2 read-side boundary: suspect reference and pause are separate flags.
+// Malformed persisted flags must not silently re-admit a suspect reference
+// into the unified weekly badge, even when the original row was recommended.
+const corruptFeedback=project([{
+  recipe_id:pausedUnlocked.recipe_id,recommendation_paused:2,
+  reference_maybe_wrong:'UNKNOWN',attempt_count:1,
+}]);
+const corruptUnified=corruptFeedback.unlocked.find(row=>row.recipe_id===pausedUnlocked.recipe_id);
+assert.equal(corruptUnified.recommendation_paused,true);
+assert.equal(corruptUnified.reference_maybe_wrong,true);
+assert.equal(corruptUnified.weekly_recommended,false);
 const suspectFeedback=[
   {recipe_id:pausedUnlocked.recipe_id,recommendation_paused:0,reference_maybe_wrong:1,attempt_count:1},
   {recipe_id:pausedLocked.recipe_id,recommendation_paused:0,reference_maybe_wrong:1,attempt_count:1},
