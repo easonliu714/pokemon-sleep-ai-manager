@@ -79,4 +79,19 @@ assert.ok(resetReason('page-freeze'));
 assert.ok(resetReason('page-resume'));
 now+=6000;interval();
 assert.equal(detected(),preFreeze+1,'real foreground stall after freeze grace must still warn');
+// A pre-existing visible storage warning is foreign-owned. A new stall must
+// remain in the trace without replacing or subsequently hiding that warning.
+for(let i=0;i<31;i++){now+=16;assert.ok(raf.length);raf.shift()();}
+warning.textContent='EXTERNAL_STORAGE_INTEGRITY_HOLD';
+classes.delete('hidden');
+const preForeign=detected();
+now+=6000;interval();
+assert.equal(detected(),preForeign+1,'foreign warning must not disable stall diagnostics');
+assert.equal(warning.textContent,'EXTERNAL_STORAGE_INTEGRITY_HOLD','foreign warning must not be overwritten');
+assert.equal(warning.dataset.startupWatchdogWarning,undefined,'watchdog must not claim foreign warning');
+assert.ok(trace.some(x=>x.event==='main_thread_watchdog_external_warning_preserved'),'preservation must be traceable');
+for(let i=0;i<31;i++){now+=16;assert.ok(raf.length);raf.shift()();}
+assert.equal(warning.textContent,'EXTERNAL_STORAGE_INTEGRITY_HOLD','recovery must preserve foreign warning');
+assert.equal(classes.has('hidden'),false,'foreign warning must remain visible');
+assert.equal(trace.filter(x=>x.event==='main_thread_block_recovered').at(-1).detail.details.warning_cleared,false,'recovery must report no foreign warning cleared');
 console.log('PASS G295_SOURCE_BOUND_LIFECYCLE_VM hidden/resume/pageshow/focus/native_dialog/freeze/resume/recovery/real_stall; ANDROID_OWNER_NOT_VERIFIED');

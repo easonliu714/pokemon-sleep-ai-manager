@@ -59,16 +59,35 @@ function showHeartbeatWarning({blockedFor,stageAge}){
   const snapshot={checkpoint:lastStage||'unknown',blocked_ms:blockedFor,stage_age_ms:stageAge,detected_at:new Date().toISOString()};
   if(!stallSnapshot)stallSnapshot=snapshot;else if(blockedFor>Number(stallSnapshot.blocked_ms||0))stallSnapshot={...stallSnapshot,blocked_ms:blockedFor,stage_age_ms:stageAge};
   const warning=document.getElementById('storageWarning');
+  const previousWatchdogText=lastWarningText;
   lastWarningText=formatStartupHeartbeatWarning({checkpoint:snapshot.checkpoint,blocked_ms:blockedFor});
-  if(warning){warning.textContent=lastWarningText;warning.dataset.startupWatchdogWarning=WATCHDOG_MARKER;warning.classList.remove('hidden');}
+  if(warning){
+    // G295: a foreground stall must not erase an already-visible storage/data
+    // warning owned by another subsystem. Keep diagnostic evidence regardless.
+    const watchdogOwnsVisible=warning.dataset.startupWatchdogWarning===WATCHDOG_MARKER&&warning.textContent===previousWatchdogText;
+    const foreignVisible=!warning.classList.contains('hidden')&&!watchdogOwnsVisible;
+    if(!foreignVisible){
+      warning.textContent=lastWarningText;
+      warning.dataset.startupWatchdogWarning=WATCHDOG_MARKER;
+      warning.classList.remove('hidden');
+    }else{
+      debugTrace.record('startup','main_thread_watchdog_external_warning_preserved',{status:'warning',details:{last_checkpoint:snapshot.checkpoint,display_owned:false,authority}});
+    }
+  }
   debugTrace.record('startup','main_thread_block_detected',{status:'warning',details:{last_checkpoint:snapshot.checkpoint,checkpoint_is_causal:false,blocked_ms:blockedFor,stage_age_ms:stageAge,authority,authority_switch:false,automatic_retry_restarted:false}});
 }
 function clearRecoveredHeartbeatWarning(){
   if(!warningActive)return false;
   const snapshot=stallSnapshot;warningActive=false;recoveryStableFrames=0;stallSnapshot=null;
   const warning=document.getElementById('storageWarning');
-  if(warning?.dataset?.startupWatchdogWarning===WATCHDOG_MARKER){if(warning.textContent===lastWarningText){warning.classList.add('hidden');warning.textContent='';}delete warning.dataset.startupWatchdogWarning;}
-  debugTrace.record('startup','main_thread_block_recovered',{status:'completed',details:{last_checkpoint:snapshot?.checkpoint||lastStage||'unknown',checkpoint_is_causal:false,max_blocked_ms:Number(snapshot?.blocked_ms||0),warning_cleared:true,authority_switch:false,automatic_retry_restarted:false,authority}});
+  let warningCleared=false;
+  if(warning?.dataset?.startupWatchdogWarning===WATCHDOG_MARKER){
+    if(warning.textContent===lastWarningText){
+      warning.classList.add('hidden');warning.textContent='';warningCleared=true;
+    }
+    delete warning.dataset.startupWatchdogWarning;
+  }
+  debugTrace.record('startup','main_thread_block_recovered',{status:'completed',details:{last_checkpoint:snapshot?.checkpoint||lastStage||'unknown',checkpoint_is_causal:false,max_blocked_ms:Number(snapshot?.blocked_ms||0),warning_cleared:warningCleared,authority_switch:false,automatic_retry_restarted:false,authority}});
   lastWarningText='';return true;
 }
 function resetHeartbeatForVisibility(reason){
