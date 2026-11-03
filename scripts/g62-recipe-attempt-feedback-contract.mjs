@@ -38,6 +38,35 @@ assert.equal(record.reference_maybe_wrong,true);
 assert.equal(record.recommendation_paused,true);
 assert.equal(record.source.source_name,'Fixture Reference');
 
+// Source-bound negative evidence: a mixed valid+invalid attempt previously
+// dropped the invalid row and could persist an incomplete ingredient receipt.
+// Writer must reject the entire attempt before any SQL/IDB call; legacy
+// decodeRecipeAttemptIngredientJson remains tolerant for historical reads.
+const malformedWriteInputs=[
+  [{ingredient_name:'特選蘋果',quantity:2},{ingredient_name:'',quantity:3}],
+  [{ingredient_name:'特選蘋果',quantity:2},{ingredient_name:'哞哞鮮奶',quantity:0}],
+  [{ingredient_name:'特選蘋果',quantity:'2'}],
+  [{ingredient_name:'特選蘋果',quantity:1.5}],
+  [{ingredient_name:'特選蘋果',quantity:Number.NaN}],
+  [{ingredient_name:'特選蘋果',quantity:Number.MAX_SAFE_INTEGER+1}],
+  [null],
+  'not-an-array',
+];
+for(const actual_ingredients of malformedWriteInputs){
+  assert.throws(()=>buildRecipeAttemptFeedbackRecord({...record,actual_ingredients}),
+    /recipe_attempt_actual_ingredients_invalid|recipe_attempt_actual_ingredients_required/,
+    'invalid actual ingredients must fail atomically, not silently filter');
+}
+assert.throws(()=>buildRecipeAttemptFeedbackRecord({...record,actual_ingredients:[
+  {ingredient_name:'特選蘋果',quantity:Number.MAX_SAFE_INTEGER},
+  {ingredient_name:'特選蘋果',quantity:1},
+]}),/recipe_attempt_actual_ingredients_overflow/,
+  'duplicate normalized ingredient total must remain a safe integer');
+assert.equal(buildRecipeAttemptFeedbackRecord({...record,actual_ingredients:[
+  {ingredient_name:'特選蘋果',quantity:2},{ingredient_name:'特選蘋果',quantity:3},
+]}).actual_ingredients[0].quantity,5,'valid duplicate ingredients still aggregate');
+console.log('PASS G62_WRITE_INGREDIENT_RECEIPT_FAIL_CLOSED_PARTIAL_INVALID_OVERFLOW');
+
 const baseCandidates=[
   {recipe_id:'paused',recipe_name:'暫停料理',candidate_status:'UNLOCK_CANDIDATE_READY',hard_constraint_status:'PASS',unlocked:false,player_record_exists:true,base_energy:999,requirements:[{ingredient_name:'特選蘋果',required:2}]},
   {recipe_id:'active',recipe_name:'可推薦料理',candidate_status:'UNLOCK_CANDIDATE_READY',hard_constraint_status:'PASS',unlocked:false,player_record_exists:true,base_energy:100,requirements:[{ingredient_name:'特選蘋果',required:2}]},
