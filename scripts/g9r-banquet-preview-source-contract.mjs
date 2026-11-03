@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import {pathToFileURL} from 'node:url';
 import {summarizeOfficialLiveResponse} from './g9r-official-live-source-provenance.mjs';
+import {assertOfficialArticleHeading} from './g9r-official-article-heading-guard.mjs';
 export const BANQUET_PREVIEW_URL='https://www.pokemonsleep.net/zh/news/343535303736323034303630333434333236/';
 const hold=reason=>{throw new Error('G9R_BANQUET_PREVIEW_REVIEW_REQUIRED:'+reason);};
 const compact=s=>String(s).normalize('NFKC').replace(/\s+/g,'');
@@ -23,6 +24,8 @@ const RECIPE_GROUPS=Object.freeze([
 ]);
 export function auditBanquetPreview(html,url=BANQUET_PREVIEW_URL){
   if(url!==BANQUET_PREVIEW_URL)hold('UNSUPPORTED_OFFICIAL_URL');
+  // The preview article title must be the official visible H1, not a body quote.
+  assertOfficialArticleHeading(html,'〖預告〗新食材、新食譜、睡姿圖鑑目標和新企畫確定登場！');
   const lines=visibleText(html), all=lines.map(x=>compact(x.replace(/^[・•]\s*/,'')));
   function uniqueLine(value,label){
     const key=compact(value),matches=all.flatMap((line,i)=>line===key?[i]:[]);
