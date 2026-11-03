@@ -180,7 +180,14 @@ async function loadPageModules(page){
       pageProgress(page,'ready',`${label}：功能模組載入完成`,{phase:'modules',module_count:files.length,elapsed_ms:elapsedMs,generic_terminal:true});
     }
     return {page,module_count:files.length,known_page:true,hydration_owned:Boolean(hydration?.owned)};
-  })().catch(error=>{pageLoads.delete(page);debugTrace.record('bootstrap','page_feature_load_failed',{status:'failed',details:{page},error});throw error;});
+  })().catch(error=>{
+    pageLoads.delete(page);
+    // A deferred ESM failure must settle the visible page-hydration badge.
+    // The next explicit navigation may retry; no automatic reload or player write.
+    pageProgress(page,'failed',`${page==='updates'?'更新中心':page}：功能模組載入失敗；請保留本機資料，稍後重新進入此頁重試。`,{phase:'modules',retryable_on_next_navigation:true,player_write:false});
+    debugTrace.record('bootstrap','page_feature_load_failed',{status:'failed',details:{page,retryable_on_next_navigation:true,player_write:false},error});
+    throw error;
+  });
   pageLoads.set(page,promise);return promise;
 }
 async function hydrateBackupSnapshotPanel(){
