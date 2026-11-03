@@ -135,7 +135,7 @@ function applyRecipeStep({candidate,remaining,reserves,observedNames,eligibleCan
     remaining:next,usedIds:nextUsed,
     step:Object.freeze({
       step:stepIndex,recipe_id:candidate.recipe_id,recipe_name:candidate.recipe_name,unlocked_before:Boolean(candidate.unlocked),
-      unlock_opportunity:!candidate.unlocked&&!usedIds.has(candidate.recipe_id),base_energy:candidate.base_energy??null,current_energy:candidate.current_energy??null,...energy,
+      unlock_opportunity:!candidate.unlocked&&!usedIds.has(candidate.recipe_id),reference_maybe_wrong:candidate.reference_maybe_wrong===true,base_energy:candidate.base_energy??null,current_energy:candidate.current_energy??null,...energy,
       ingredients:Object.freeze(ingredients.map(Object.freeze)),
       newly_blocked_recipe_ids:Object.freeze(newlyBlocked),
       newly_blocked_recipes:Object.freeze(newlyBlocked.map(id=>({recipe_id:id,recipe_name:candidateById.get(id)?.recipe_name||id}))),
@@ -154,6 +154,7 @@ function planMetrics(state,{eligibleCandidates,reserves,observedNames,objective,
   const projectedEnergy=state.steps.reduce((sum,step)=>sum+(Number(step.projected_verified_energy)||0),0);
   return {
     completed_meals:state.steps.length,target_meals:maxMeals,target_reached:state.steps.length>=maxMeals,
+    suspect_reference_step_count:state.steps.filter(step=>step.reference_maybe_wrong===true).length,
     unlock_count:unlockCount,unique_recipe_count:uniqueCount,next_executable_count:nextExecutable.length,
     next_executable_recipe_ids:nextExecutable.map(row=>row.recipe_id).sort(),
     remaining_usable_total:usableTotal(state.remaining,reserves),
@@ -168,6 +169,10 @@ function planMetrics(state,{eligibleCandidates,reserves,observedNames,objective,
 function comparePlans(a,b,objective){
   const A=a.metrics,B=b.metrics;
   const desc=(x,y)=>y-x,asc=(x,y)=>x-y;
+  // G6.2: favor plans without player-marked suspect references before
+  // energy/meal-count optimization; keep flagged plans as explicit fallbacks.
+  const suspectPreference=asc(A.suspect_reference_step_count||0,B.suspect_reference_step_count||0);
+  if(suspectPreference)return suspectPreference;
   let c=0;
   if(objective==='unlock_recipes'){
     c=desc(A.unlock_count,B.unlock_count)||desc(A.unique_recipe_count,B.unique_recipe_count)||desc(A.completed_meals,B.completed_meals)||asc(A.exhausted_ingredient_count,B.exhausted_ingredient_count)||desc(A.remaining_usable_total,B.remaining_usable_total)||desc(A.base_energy_sum,B.base_energy_sum);
@@ -241,9 +246,9 @@ export function projectRecipePortfolioContention({
       unlock_count:m.unlock_count,unique_recipe_count:m.unique_recipe_count,next_executable_count:m.next_executable_count,
       next_executable_recipe_ids:Object.freeze(m.next_executable_recipe_ids),remaining_inventory:Object.freeze(mapObject(state.remaining)),aggregate_consumed:Object.freeze(aggregateConsumed(state.steps)),
       remaining_usable_total:m.remaining_usable_total,exhausted_ingredients:Object.freeze(m.exhausted_ingredients),low_buffer_ingredients:Object.freeze(m.low_buffer_ingredients),base_energy_sum:m.base_energy_sum,
-      projected_verified_energy_sum:m.projected_verified_energy_sum,player_current_energy_meals:m.player_current_energy_meals,base_energy_fallback_meals:m.base_energy_fallback_meals,missing_energy_meals:m.missing_energy_meals,
+      projected_verified_energy_sum:m.projected_verified_energy_sum,suspect_reference_step_count:m.suspect_reference_step_count,player_current_energy_meals:m.player_current_energy_meals,base_energy_fallback_meals:m.base_energy_fallback_meals,missing_energy_meals:m.missing_energy_meals,
       compatible_recipe_ids:Object.freeze([...new Set(state.steps.map(step=>step.recipe_id))]),
-      warnings:Object.freeze([...(m.target_reached?[]:['TARGET_MEALS_NOT_REACHED']),...(contention.contention_edge_count?['SHARED_INVENTORY_CONTENTION']:[]),...(m.exhausted_ingredient_count?['USABLE_INVENTORY_EXHAUSTED']:[]),...(m.low_buffer_ingredient_count?['LOW_BUFFER_AFTER_PLAN']:[]),...(m.base_energy_fallback_meals?['ENERGY_BASE_FALLBACK_USED']:[]),...(m.missing_energy_meals?['ENERGY_INPUT_MISSING']:[])]),
+      warnings:Object.freeze([...(m.suspect_reference_step_count?['PLAYER_MARKED_REFERENCE_REVIEW_REQUIRED']:[]),...(m.target_reached?[]:['TARGET_MEALS_NOT_REACHED']),...(contention.contention_edge_count?['SHARED_INVENTORY_CONTENTION']:[]),...(m.exhausted_ingredient_count?['USABLE_INVENTORY_EXHAUSTED']:[]),...(m.low_buffer_ingredient_count?['LOW_BUFFER_AFTER_PLAN']:[]),...(m.base_energy_fallback_meals?['ENERGY_BASE_FALLBACK_USED']:[]),...(m.missing_energy_meals?['ENERGY_INPUT_MISSING']:[])]),
     }));
     if(alternatives.length>=alternativeLimit)break;
   }
