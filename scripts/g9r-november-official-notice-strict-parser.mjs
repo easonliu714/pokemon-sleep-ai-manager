@@ -161,8 +161,13 @@ export function parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt=new Dat
     commonEvidence(text,{title:'第19次「新月日」',published:'2026/10/30',
       start:'11/8 (週日) 4:00',end:'11/11 (週三) 3:59'});
     requireLines(bonus,NEW_MOON_LINES,'NEW_MOON');
-    if(!compact(text).includes(compact('特別機率提升\n・達克萊伊'))||
-       !compact(text).includes(compact('特別機率提升的寶可夢只有可能會在當天第1次的睡眠研究中出現')))
+    // The official 2026/10/30 notice lists Darkrai alone. A substring
+    // check would incorrectly accept an appended Mew or a second species.
+    // Treat the standalone boosted-species roster as exact source evidence.
+    const boostedSpecies=section(text,'\n特別機率提升\n',
+      '\n※機率提升的寶可夢會出現在所有的活動營地。');
+    requireLines(boostedSpecies,['達克萊伊'],'NEW_MOON_DARKRAI_ONLY');
+    if(!compact(text).includes(compact('特別機率提升的寶可夢只有可能會在當天第1次的睡眠研究中出現')))
       fail('DARKRAI_FIRST_RESEARCH_SCOPE_NOT_VERIFIED');
     // Source-proven Darkrai pity and extra encounter are NOT numeric probabilities
     // or player-owned effects; a changed official eligibility rule must fail closed.
