@@ -158,8 +158,20 @@ async function offlineRegression(){
     replayNovemberOfficialHtml({fetchImpl,payloadText:originalPayload,manifestText:originalManifest}),
     /G9R_NOVEMBER_(LIVE_SOURCE_HOLD|OFFICIAL_REVIEW_REQUIRED)/,label);
   const altered=(url,body)=>new Map([...source].map(([u,h])=>[u,u===url?body:h]));
-  await rejects(mock({pages:altered(NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,
-    prepHtml.replace('1.25倍','1.50倍'))}),'recipe amount changed');
+  // Exercise the REAL strict-parser catch path with a synthetic changed
+  // official source. Diagnostic logs must contain SHA/HTTP identity but no HTML.
+  const originalError=console.error,diagnostics=[];
+  try{
+    console.error=(...args)=>diagnostics.push(args.join(' '));
+    await rejects(mock({pages:altered(NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,
+      prepHtml.replace('1.25倍','1.50倍')+'<!-- SYNTHETIC_DO_NOT_LOG -->')}),
+      'recipe amount changed');
+  }finally{console.error=originalError;}
+  assert.equal(diagnostics.length,1,'one bounded diagnostic on strict parser HOLD');
+  assert.match(diagnostics[0],/^G9R_NOVEMBER_LIVE_SOURCE_PROVENANCE=/);
+  assert.match(diagnostics[0],/"html_sha256":"[0-9a-f]{64}"/);
+  assert.ok(!diagnostics[0].includes('SYNTHETIC_DO_NOT_LOG'),
+    'must never log the raw official HTML body');
   await rejects(mock({pages:altered(NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,
     moonHtml.replace('友情點數皆會提升3','友情點數皆會提升4'))}),'scoped friendship changed');
   await rejects(mock({pages:new Map([
