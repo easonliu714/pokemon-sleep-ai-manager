@@ -29,7 +29,12 @@ function recommendations(data,week){
   if(!category)return new Set();
   // G6.2: player-paused recipes remain in the catalog, but cannot receive a weekly recommendation badge.
   const pool=data.filter(row=>normalizeDishCategory(row.category)===category&&row.recommendation_paused!==true);
-  return new Set(sortGapResults(pool,'shortage').slice(0,3).map(row=>String(row.recipe_id)));
+  // G6.2: a player-marked suspect reference remains eligible when explicitly unpaused,
+  // but must rank after independently unflagged recipes to avoid repeat waste.
+  const ranked=sortGapResults(pool,'shortage');
+  const unflagged=ranked.filter(row=>row.reference_maybe_wrong!==true);
+  const needsReview=ranked.filter(row=>row.reference_maybe_wrong===true);
+  return new Set([...unflagged,...needsReview].slice(0,3).map(row=>String(row.recipe_id)));
 }
 
 function categoryStatistics(catalogRows){
@@ -139,7 +144,7 @@ function playerControls(row,readonly){
 
 function rowsHtml(data,readonly){
   if(!data.length)return '<tr><td colspan="9">目前沒有資料</td></tr>';
-  return data.map(row=>`<tr class="${row.weekly_recommended?'weekly-recommended':''}" data-recipe-id="${esc(row.recipe_id)}"><td>${row.weekly_recommended?'<b>推薦</b>':row.recommendation_paused===true?'已暫停':'—'}</td><td>${esc(row.category||'')}</td><td><b>${esc(row.recipe_name||'')}</b></td><td class="recipe-formula-cell">${ingredientText(row.requirements)}</td><td class="recipe-shortage-cell">${shortageText(row.requirements)}</td>${playerControls(row,readonly)}</tr>`).join('');
+  return data.map(row=>`<tr class="${row.weekly_recommended?'weekly-recommended':''}" data-recipe-id="${esc(row.recipe_id)}"><td>${row.weekly_recommended?(row.reference_maybe_wrong===true?'<b>推薦（來源待查證）</b>':'<b>推薦</b>'):row.recommendation_paused===true?'已暫停':row.reference_maybe_wrong===true?'來源待查證':'—'}</td><td>${esc(row.category||'')}</td><td><b>${esc(row.recipe_name||'')}</b></td><td class="recipe-formula-cell">${ingredientText(row.requirements)}</td><td class="recipe-shortage-cell">${shortageText(row.requirements)}</td>${playerControls(row,readonly)}</tr>`).join('');
 }
 
 function renderTable(table,data,readonly){
