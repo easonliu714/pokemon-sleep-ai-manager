@@ -180,8 +180,12 @@ export function parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt=new Dat
   if(!Object.values(NOVEMBER_OFFICIAL_NOTICE_URLS).includes(url))fail('UNSUPPORTED_OFFICIAL_NOTICE_URL');
   if(!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(verifiedAt))fail('VERIFIED_AT_NOT_UTC');
   // A matching historical title in body copy cannot certify a changed article H1.
-  assertOfficialArticleHeading(html,url===NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon
-    ?'〖活動〗第19次「新月日」':'〖企畫〗「備料週vol.1」');
+  try{
+    assertOfficialArticleHeading(html,url===NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon
+      ?'〖活動〗第19次「新月日」':'〖企畫〗「備料週vol.1」');
+  }catch{
+    fail('ARTICLE_H1_SOURCE_IDENTITY_CHANGED');
+  }
   const text=htmlText(html);
   const bonus=section(text,'〖所有日子〗','\n機率提升');
   if(url===NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon){
