@@ -2,6 +2,7 @@
 // NOT wired to scheduled discovery or production Master. No guessed probabilities,
 // no global candy/shard multiplier for specialty-only research, no player writes.
 import {validatePublicEventPayload,PUBLIC_EVENT_MASTER_SCHEMA} from '../assets/js/public-event-master-contract.js';
+import {assertOfficialArticleHeading} from './g9r-official-article-heading-guard.mjs';
 
 export const NOVEMBER_OFFICIAL_NOTICE_URLS=Object.freeze({
   new_moon:'https://www.pokemonsleep.net/zh/news/343537333337383034343630393136373338/',
@@ -178,6 +179,13 @@ function event({id,title,url,start,end,effects,mechanics,verifiedAt,verifiedKeys
 export function parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt=new Date().toISOString()}={}){
   if(!Object.values(NOVEMBER_OFFICIAL_NOTICE_URLS).includes(url))fail('UNSUPPORTED_OFFICIAL_NOTICE_URL');
   if(!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(verifiedAt))fail('VERIFIED_AT_NOT_UTC');
+  // A matching historical title in body copy cannot certify a changed article H1.
+  try{
+    assertOfficialArticleHeading(html,url===NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon
+      ?'〖活動〗第19次「新月日」':'〖企畫〗「備料週vol.1」');
+  }catch{
+    fail('ARTICLE_H1_SOURCE_IDENTITY_CHANGED');
+  }
   const text=htmlText(html);
   const bonus=section(text,'〖所有日子〗','\n機率提升');
   if(url===NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon){
