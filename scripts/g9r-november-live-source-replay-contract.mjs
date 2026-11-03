@@ -13,6 +13,7 @@ import {
 } from './g9r-november-official-notice-strict-parser.mjs';
 import {validateNovemberPublishedEvent} from './g9r-november-data-only-admission-contract.mjs';
 import {moonHtml,prepHtml} from './g9r-november-official-notice-strict-contract.mjs';
+import {summarizeOfficialLiveResponse} from './g9r-official-live-source-provenance.mjs';
 
 const PAYLOAD='assets/data/public-event-master.json';
 const MANIFEST='assets/data/public-event-master-manifest.json';
@@ -63,7 +64,21 @@ export async function replayNovemberOfficialHtml({
     const html=await response.text();
     if(typeof html!=='string'||html.length<100||html.length>512000||!/<html\b/i.test(html))
       fail('OFFICIAL_HTML_SIZE_OR_DOCUMENT:'+item.key);
-    const parsed=parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt});
+    // On a source parse HOLD, retain only bounded public HTTP/HTML identity
+    // evidence. Never log raw response HTML or auto-promote changed official facts.
+    let parsed;
+    try{
+      parsed=parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt});
+    }catch(error){
+      const evidence=summarizeOfficialLiveResponse({
+        key:item.key,expectedUrl:url,response,html,
+        markers:item.key==='new_moon'
+          ?{title:'第19次「新月日」',bonus:'〖所有日子〗'}
+          :{title:'備料週vol.1',bonus:'〖所有日子〗'},
+      });
+      console.error('G9R_NOVEMBER_LIVE_SOURCE_PROVENANCE='+JSON.stringify(evidence));
+      throw error;
+    }
     if(parsed.event_id!==item.id)fail('CROSS_SOURCE_EVENT_ID:'+item.key);
     validateNovemberPublishedEvent(parsed);
     const published=rawPayload.events.find(e=>e.event_id===item.id);
@@ -143,8 +158,20 @@ async function offlineRegression(){
     replayNovemberOfficialHtml({fetchImpl,payloadText:originalPayload,manifestText:originalManifest}),
     /G9R_NOVEMBER_(LIVE_SOURCE_HOLD|OFFICIAL_REVIEW_REQUIRED)/,label);
   const altered=(url,body)=>new Map([...source].map(([u,h])=>[u,u===url?body:h]));
-  await rejects(mock({pages:altered(NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,
-    prepHtml.replace('1.25倍','1.50倍'))}),'recipe amount changed');
+  // Exercise the REAL strict-parser catch path with a synthetic changed
+  // official source. Diagnostic logs must contain SHA/HTTP identity but no HTML.
+  const originalError=console.error,diagnostics=[];
+  try{
+    console.error=(...args)=>diagnostics.push(args.join(' '));
+    await rejects(mock({pages:altered(NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,
+      prepHtml.replace('1.25倍','1.50倍')+'<!-- SYNTHETIC_DO_NOT_LOG -->')}),
+      'recipe amount changed');
+  }finally{console.error=originalError;}
+  assert.equal(diagnostics.length,1,'one bounded diagnostic on strict parser HOLD');
+  assert.match(diagnostics[0],/^G9R_NOVEMBER_LIVE_SOURCE_PROVENANCE=/);
+  assert.match(diagnostics[0],/"html_sha256":"[0-9a-f]{64}"/);
+  assert.ok(!diagnostics[0].includes('SYNTHETIC_DO_NOT_LOG'),
+    'must never log the raw official HTML body');
   await rejects(mock({pages:altered(NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,
     moonHtml.replace('友情點數皆會提升3','友情點數皆會提升4'))}),'scoped friendship changed');
   await rejects(mock({pages:new Map([
