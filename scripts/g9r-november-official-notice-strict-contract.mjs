@@ -217,6 +217,30 @@ rejects(prepHtml.replace(MEAL_PREP_POST_EVENT_INCENSE_SPECIES['萌綠之島'],
   NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'EX incense roster wrongly copied to ordinary camp');
 rejects(prepHtml.replace('<p>'+MEAL_PREP_POST_EVENT_INCENSE_SPECIES['萌綠之島EX']+'</p>',''),
   NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'missing EX incense exception list');
+// The parser must never treat non-rendered HTML as current official authority.
+// Prior generic tag stripping could leak stale text from comments containing
+// nested tags and from <template>, masking a visibly changed official fact.
+const withHiddenStaleFact=(html,oldFact,newFact,hiddenMarkup)=>{
+  assert.ok(html.includes(oldFact),'fixture must replace a visible official fact');
+  assert.ok(html.includes('</body>'),'fixture must be a complete HTML document');
+  return html.replace(oldFact,newFact).replace('</body>',hiddenMarkup+'</body>');
+};
+rejects(withHiddenStaleFact(moonHtml,
+  '活動、企畫舉辦日期的切換時間為每日4:00。',
+  '活動、企畫舉辦日期的切換時間為每日5:00。',
+  '<!-- <span>活動、企畫舉辦日期的切換時間為每日4:00。</span> -->'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'hidden comment must not mask visible 04:00 drift');
+rejects(withHiddenStaleFact(prepHtml,
+  '相同的獎勵在不同的活動、企畫中同時登場時，僅適用倍率最大的獎勵。',
+  '相同的獎勵在不同的活動、企畫中同時登場時，將倍率相乘。',
+  '<template data-stale="overlap">相同的獎勵在不同的活動、企畫中同時登場時，僅適用倍率最大的獎勵。</template>'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'hidden template must not mask visible overlap rule drift');
+rejects(withHiddenStaleFact(moonHtml,
+  '第19次「新月日」','第20次「新月日」',
+  '<template data-stale="title">第19次「新月日」</template>'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'hidden template must not mask visible event identity drift');
+console.log('PASS G9R_NOVEMBER_NON_RENDERED_COMMENT_TEMPLATE_SOURCE_EVIDENCE_FAIL_CLOSED');
+
 console.log('PASS G9R_MEAL_PREP_TWO_POST_EVENT_INCENSE_ONLY_CAMP_ROSTERS_FAIL_CLOSED');
 console.log('PASS G9R_MEAL_PREP_NINE_OFFICIAL_CAMP_ROSTERS_SOURCE_SCOPE_FAIL_CLOSED');
 console.log('PASS G9R_NEW_MOON_EXACT_DARKRAI_ONLY_ROSTER_MISSING_EXTRA_DUPLICATE_FAIL_CLOSED');
