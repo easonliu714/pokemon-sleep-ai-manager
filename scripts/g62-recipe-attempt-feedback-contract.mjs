@@ -5,6 +5,7 @@ import {
   RECIPE_ATTEMPT_FEEDBACK_VERSION,
   buildRecipeAttemptFeedbackRecord,
   applyRecipeAttemptFeedback,
+  recipeAttemptFeedbackFingerprintRows,
 } from '../assets/js/recipe-attempt-feedback.js';
 import {sortRecipeStrategyCandidates} from '../assets/js/recipe-strategy-projection.js';
 import {projectRecipePortfolioContention} from '../assets/js/recipe-portfolio-contention.js';
@@ -79,6 +80,43 @@ assert.equal(paused.candidate_status,'UNLOCK_CANDIDATE_READY','feedback must not
 assert.equal(paused.hard_constraint_status,'PASS','feedback must not invent a hard constraint failure');
 assert.equal(paused.recommendation_paused,true);
 assert.equal(paused.recommendation_feedback.advisory_only,true);
+
+// Independent G6.2 persisted-read regression: the SQLite schema has no
+// CHECK(0,1) on feedback flags. Malformed nonzero/unknown values must not
+// silently turn a paused/suspect recipe into a top recommendation.
+const corruptFlags=applyRecipeAttemptFeedback(baseCandidates,[{
+  recipe_id:'paused',attempt_count:1,recommendation_paused:2,reference_maybe_wrong:'CORRUPT',
+}]);
+const corruptRow=corruptFlags.find(row=>row.recipe_id==='paused');
+assert.equal(corruptRow.recommendation_paused,true,'invalid pause flag must fail closed');
+assert.equal(corruptRow.reference_maybe_wrong,true,'invalid review flag must fail closed');
+assert.equal(sortRecipeStrategyCandidates(corruptFlags,'unlock_recipes')[0].recipe_id,'active');
+const corruptPlan=projectRecipePortfolioContention({
+  recipeStrategy:{input_fingerprint:'g62-corrupt-readonly',candidates:corruptFlags},
+  inventory:[{ingredient_name:'特選蘋果',quantity:10}],objective:'unlock_recipes',maxMeals:1,
+});
+assert.equal(corruptPlan.summary.paused_feedback_count,1);
+assert.equal(corruptPlan.alternatives[0].steps[0].recipe_id,'active');
+const corruptUnpaused=applyRecipeAttemptFeedback(baseCandidates,[{
+  recipe_id:'paused',recommendation_paused:0,reference_maybe_wrong:-1,
+}]);
+assert.equal(corruptUnpaused.find(row=>row.recipe_id==='paused').recommendation_paused,false);
+assert.equal(corruptUnpaused.find(row=>row.recipe_id==='paused').reference_maybe_wrong,true);
+assert.equal(sortRecipeStrategyCandidates(corruptUnpaused,'unlock_recipes')[0].recipe_id,'active',
+  'invalid review flag cannot promote a high-energy suspect recipe');
+const validZero=applyRecipeAttemptFeedback(baseCandidates,[{
+  recipe_id:'paused',recommendation_paused:'0',reference_maybe_wrong:'0',
+}]);
+assert.equal(validZero.find(row=>row.recipe_id==='paused').recommendation_paused,false);
+assert.equal(validZero.find(row=>row.recipe_id==='paused').reference_maybe_wrong,false);
+assert.equal(applyRecipeAttemptFeedback(baseCandidates,[])[0].recommendation_paused,false,
+  'missing feedback is not a malformed persisted flag');
+const fingerprint=recipeAttemptFeedbackFingerprintRows([{
+  recipe_id:'paused',recommendation_paused:2,reference_maybe_wrong:'CORRUPT',
+}]);
+assert.deepEqual(fingerprint[0].slice(0,5),['paused',0,null,true,true],
+  'fingerprint must reflect conservative normalized flags');
+console.log('PASS G62_MALFORMED_PERSISTED_FEEDBACK_FLAGS_FAIL_CLOSED_READSIDE');
 
 const sorted=sortRecipeStrategyCandidates(overlaid,'unlock_recipes');
 assert.equal(sorted[0].recipe_id,'active','paused recipe must not remain highest recommendation');
