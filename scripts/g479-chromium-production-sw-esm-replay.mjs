@@ -204,6 +204,66 @@ try{
       await context.close();
     }
   }
+
+  // G479 independent deferred-page failure: a rejected feature ESM import
+  // must settle the visible hydration badge, not leave a permanent "loading".
+  // Retry is only through the next explicit navigation, with no player DB.
+  {
+    const source=readFileSync(new URL('../assets/js/bootstrap.js',import.meta.url),'utf8');
+    const start=source.indexOf('async function loadPageModules(page){');
+    const end=source.indexOf('\n}\nasync function hydrateBackupSnapshotPanel',start);
+    assert.ok(start>=0&&end>start,'extract exact production deferred page loader');
+    const actual=source.slice(start,end+2);
+    const context=await browser.newContext({serviceWorkers:'block'});
+    try{
+      const page=await context.newPage();
+      await page.goto(origin+'/index.html',{waitUntil:'load'});
+      await page.addScriptTag({content:[
+        'const pageLoads=new Map();',
+        "const pageModuleGroups={updates:['synthetic-feature']};",
+        'const events=[];',
+        'let failImport=true,attempts=0;',
+        "const debugTrace={record:(...args)=>events.push({kind:'trace',name:args[1],payload:args[2]})};",
+        "const pageProgress=(page,state,message,details={})=>events.push({kind:'progress',page,state,message,details});",
+        'const yieldToBrowser=()=>Promise.resolve();',
+        "const importFeatureModule=async()=>{attempts++;if(failImport)throw new TypeError('synthetic deferred ESM 503');return {};};",
+        'const hydrateUpdateCenterShells=async()=>{};',
+        'const startOcrOverlayForUpdates=async()=>{};',
+        'const hydrateBackupSnapshotPanel=async()=>{};',
+        actual,
+        'globalThis.g479DeferredFixture={loadPageModules,events,recover:()=>{failImport=false;},attempts:()=>attempts};',
+      ].join('\n')});
+      const observed=await page.evaluate(async()=>{
+        const fixture=globalThis.g479DeferredFixture;
+        let firstError='';
+        try{await fixture.loadPageModules('updates');}catch(error){firstError=String(error.message||error);}
+        const afterFailure=fixture.events.filter(e=>e.kind==='progress').map(e=>e.state);
+        fixture.recover();
+        await fixture.loadPageModules('updates');
+        return {
+          firstError,afterFailure,
+          states:fixture.events.filter(e=>e.kind==='progress').map(e=>e.state),
+          failed:fixture.events.find(e=>e.kind==='progress'&&e.state==='failed'),
+          traces:fixture.events.filter(e=>e.kind==='trace').map(e=>e.name),
+          attempts:fixture.attempts(),
+        };
+      });
+      assert.match(observed.firstError,/synthetic deferred ESM 503/);
+      assert.deepEqual(observed.afterFailure,['loading','failed'],
+        'first rejected ESM must settle the visible hydration badge');
+      assert.deepEqual(observed.states,['loading','failed','loading','ready'],
+        'explicit re-navigation must recover without automatic retry');
+      assert.equal(observed.failed.details.player_write,false);
+      assert.equal(observed.failed.details.retryable_on_next_navigation,true);
+      assert.match(observed.failed.message,/保留本機資料/);
+      assert.ok(observed.traces.includes('page_feature_load_failed'));
+      assert.equal(observed.attempts,2,'only one import attempt per explicit navigation');
+      console.log('PASS G479_CHROMIUM_DEFERRED_PAGE_ESM_FAILURE_TERMINAL_AND_MANUAL_RENAVIGATION');
+    }finally{
+      await context.close();
+    }
+  }
+
 }finally{
   if(browser)await browser.close();
   server.closeAllConnections();
