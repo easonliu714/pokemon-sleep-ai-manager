@@ -98,6 +98,12 @@ export function sortRecipeStrategyCandidates(candidates,mode='unlock_recipes'){
     const pausedA=a?.recommendation_paused===true?1:0;
     const pausedB=b?.recommendation_paused===true?1:0;
     if(pausedA!==pausedB)return pausedA-pausedB;
+    // G6.2: player-flagged references are a fallback, not a first choice, when
+    // equally executable unflagged recipes exist. Never outrank hard constraints.
+    if(a?.candidate_status===b?.candidate_status&&a?.hard_constraint_status==='PASS'&&b?.hard_constraint_status==='PASS'){
+      const suspectA=a?.reference_maybe_wrong===true?1:0,suspectB=b?.reference_maybe_wrong===true?1:0;
+      if(suspectA!==suspectB)return suspectA-suspectB;
+    }
     if(mode==='cook_now'){
       const readyA=a.candidate_status==='COOK_NOW_UNLOCKED'?0:1;
       const readyB=b.candidate_status==='COOK_NOW_UNLOCKED'?0:1;

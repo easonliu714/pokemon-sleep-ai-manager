@@ -80,7 +80,32 @@ const resumedPlan=projectRecipePortfolioContention({
   maxMeals:1,
 });
 assert.equal(resumedPlan.summary.paused_feedback_count,0);
-assert.equal(resumedPlan.alternatives[0].steps[0].recipe_id,'paused','resume must restore the recipe to recommendation eligibility');
+// Unpausing a suspect reference restores fallback eligibility, NOT first priority.
+assert.equal(sortRecipeStrategyCandidates(resumed,'unlock_recipes')[0].recipe_id,'active',
+  'strategy must rank an equally ready unflagged recipe before suspect high energy');
+assert.equal(resumedPlan.alternatives[0].steps[0].recipe_id,'active',
+  'portfolio must not prioritize suspect high energy over unflagged executable alternative');
+assert.equal(resumedPlan.alternatives[0].suspect_reference_step_count,0);
+const suspectFallback=resumedPlan.alternatives.find(item=>item.steps[0].recipe_id==='paused');
+assert.ok(suspectFallback,'explicitly unpaused suspect recipe must remain a fallback plan');
+assert.equal(suspectFallback.suspect_reference_step_count,1);
+assert.equal(suspectFallback.steps[0].reference_maybe_wrong,true);
+assert.ok(suspectFallback.warnings.includes('PLAYER_MARKED_REFERENCE_REVIEW_REQUIRED'));
+const onlySuspect=applyRecipeAttemptFeedback(baseCandidates,[
+  {recipe_id:'paused',recommendation_paused:0,reference_maybe_wrong:1,attempt_count:1},
+  {recipe_id:'active',recommendation_paused:0,reference_maybe_wrong:1,attempt_count:1},
+]);
+const onlySuspectPlan=projectRecipePortfolioContention({
+  recipeStrategy:{input_fingerprint:'g62-all-suspect-fixture',candidates:onlySuspect},
+  inventory:[{ingredient_name:'特選蘋果',quantity:10}],objective:'maximize_verified_energy',maxMeals:1,
+});
+assert.equal(onlySuspectPlan.alternatives[0].steps[0].recipe_id,'paused',
+  'all-suspect pool may still offer an explicitly warned fallback');
+assert.ok(onlySuspectPlan.alternatives[0].warnings.includes('PLAYER_MARKED_REFERENCE_REVIEW_REQUIRED'));
+const reviewOnly=[{...resumed.find(row=>row.recipe_id==='active'),candidate_status:'REVIEW_PROVENANCE',hard_constraint_status:'REVIEW'},
+  resumed.find(row=>row.recipe_id==='paused')];
+assert.equal(sortRecipeStrategyCandidates(reviewOnly,'unlock_recipes')[0].recipe_id,'paused',
+  'unverified unflagged candidate cannot outrank an executable suspect fallback');
 
 const schema=read('assets/js/schema.js');
 const migrations=read('assets/js/migrations.js');
