@@ -106,6 +106,21 @@ export function offlinePreviewRegression(){
   assert.throws(()=>auditBanquetPreview(fixture,'https://example.com/'),/UNSUPPORTED_OFFICIAL_URL/);
   assert.throws(()=>auditBanquetPreview(fixture.replace('總數量：39個','總數量：40個')+
     '<template>所需食材的總數量：39個</template>'),/RECIPE_INGREDIENT_SET_OR_TOTAL_CHANGED/);
+  // The whole-page title line could be preserved as stale body copy while
+  // the actual article H1 changed. Such a response must remain PREVIEW HOLD.
+  const title='〖預告〗新食材、新食譜、睡姿圖鑑目標和新企畫確定登場！';
+  assert.throws(()=>auditBanquetPreview(fixture.replace('<h1>'+title+'</h1>',
+    '<h1>〖預告〗另一項未核定企畫</h1><p>'+title+'</p>')),
+    /G9R_OFFICIAL_ARTICLE_H1_REVIEW_REQUIRED/,
+    'changed banquet H1 masked by exact stale body line');
+  assert.throws(()=>auditBanquetPreview(fixture.replace('<h1>'+title+'</h1>',
+    '<h1>'+title+'</h1><h1>〖預告〗另一項未核定企畫</h1>')),
+    /G9R_OFFICIAL_ARTICLE_H1_REVIEW_REQUIRED/,
+    'duplicate official article H1 must HOLD');
+  assert.equal(auditBanquetPreview(fixture.replace('<h1>'+title+'</h1>',
+    '<h1>Pokémon Sleep</h1><h1><span>'+title+'</span></h1>')).source_status,
+    'PREVIEW_ONLY','unrelated site H1 and inline title span accepted');
+  console.log('PASS G9R_BANQUET_VISIBLE_ARTICLE_H1_IDENTITY_BODY_SPOOF_FAIL_CLOSED');
   console.log('PASS G9R_BANQUET_PREVIEW_OFFICIAL_SOURCE_BOUND_3_RECIPES_39_121_91');
   console.log('PASS G9R_BANQUET_PREVIEW_NEGATIVE_DRIFT_AND_NO_DETERMINISTIC_PROMOTION');
   console.log('HOLD G9R_BANQUET_DETAILED_EVENT_END_RECIPE_QUANTITIES_AND_ANDROID_OWNER_UAT');
