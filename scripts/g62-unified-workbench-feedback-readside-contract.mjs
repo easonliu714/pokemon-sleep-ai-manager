@@ -46,6 +46,27 @@ assert.deepEqual(paused.locked.map(row=>row.recipe_id),baseline.locked.map(row=>
 const resumed=project(feedback.map(row=>({...row,recommendation_paused:0})));
 assert.equal(resumed.unlocked.find(row=>row.recipe_id===pausedUnlocked.recipe_id).weekly_recommended,true,'resumed unlocked recipe regains eligibility');
 assert.equal(resumed.locked.find(row=>row.recipe_id===pausedLocked.recipe_id).weekly_recommended,true,'resumed locked recipe regains eligibility');
+// Independent G6.2 read-side boundary: suspect reference and pause are separate flags.
+const suspectFeedback=[
+  {recipe_id:pausedUnlocked.recipe_id,recommendation_paused:0,reference_maybe_wrong:1,attempt_count:1},
+  {recipe_id:pausedLocked.recipe_id,recommendation_paused:0,reference_maybe_wrong:1,attempt_count:1},
+];
+const suspect=project(suspectFeedback);
+for(const id of [pausedUnlocked.recipe_id,pausedLocked.recipe_id]){
+  const row=[...suspect.unlocked,...suspect.locked].find(item=>item.recipe_id===id);
+  assert.equal(row.recommendation_paused,false,'suspect reference must not silently pause player choice');
+  assert.equal(row.reference_maybe_wrong,true);
+  assert.equal(row.weekly_recommended,false,'three unflagged alternatives must outrank a suspect reference');
+}
+assert.equal(suspect.unlocked.filter(row=>row.weekly_recommended).length,3);
+assert.equal(suspect.locked.filter(row=>row.weekly_recommended).length,3);
+const allUnlockedSuspect=project(baseline.unlocked.map(row=>({
+  recipe_id:row.recipe_id,recommendation_paused:0,reference_maybe_wrong:1,attempt_count:1,
+})));
+assert.equal(allUnlockedSuspect.unlocked.filter(row=>row.weekly_recommended).length,3,
+  'explicitly unpaused suspect references remain fallback-eligible');
+assert.ok(allUnlockedSuspect.unlocked.filter(row=>row.weekly_recommended)
+  .every(row=>row.reference_maybe_wrong===true),'fallback must retain source-warning provenance');
 for(const entity of ['recipe_feedback_state','recipe_attempt_feedback']){
   assert.equal(publicCatalogProjectionViewForLocalEntity(entity),'recipes',entity+' must invalidate recipe render cache');
   assert.equal(shouldInvalidatePublicCatalogFingerprint({entity}),false,'player feedback must not invalidate Public Master');
@@ -54,9 +75,12 @@ assert.equal(publicCatalogProjectionViewForLocalEntity('unrelated_player_entity'
 const ui=readFileSync(new URL('../assets/js/recipe-unified-player-workbench.js',import.meta.url),'utf8');
 assert.match(ui,/recipeFeedback:readonly\?\[\]:listRecipeAttemptFeedbackSummaries\(\)/,'real unified renderer must consume local feedback read-side');
 assert.match(ui,/row\.recommendation_paused===true\?'已暫停'/,'paused UI status must be explicit');
+assert.match(ui,/推薦（來源待查證）/,'suspect fallback recommendation must display source-review warning');
+assert.match(ui,/row\.reference_maybe_wrong===true\?'來源待查證'/,'suspect nonrecommended recipe must display review warning');
 const catalog=readFileSync(new URL('../assets/js/public-catalog-workbench.js',import.meta.url),'utf8');
 assert.match(catalog,/markLocalProjectionDirty\(detail\.entity\)/,'actual event bridge must use dirty mapping');
 assert.match(catalog,/window\.addEventListener\('pokemon-sleep:data-changed',handleDataChanged\)/,'real data-changed listener must refresh projection');
 console.log('PASS G62_UNIFIED_WORKBENCH_FEEDBACK_READSIDE_PAUSE_RESUME_TWO_PARTITIONS');
 console.log('PASS G62_PLAYER_FEEDBACK_INVALIDATES_RECIPE_VIEW_NOT_PUBLIC_FINGERPRINT');
+console.log('PASS G62_SUSPECT_REFERENCE_SOFT_DEPRIORITIZATION_WITH_EXPLICIT_FALLBACK_WARNING');
 console.log('NOTE G62_SYNTHETIC_READ_ONLY_NO_OWNER_ANDROID_UAT_NO_PLAYER_WRITE');
