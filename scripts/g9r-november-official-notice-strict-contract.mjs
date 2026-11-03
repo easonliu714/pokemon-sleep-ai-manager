@@ -58,8 +58,7 @@ const moonHtml=fixture({
 const prepHtml=fixture({
   title:'〖企畫〗「備料週vol.1」',published:'2026/10/28',
   period:'11/9 (週一) 4:00～11/16 (週一) 3:59',lines:prepLines,
-  details:'<h2>機率提升</h2>'
-    +'<p>把握能比平時更常遇見下列寶可夢的好機會吧！</p>'
+  details:'<p>把握能比平時更常遇見下列寶可夢的好機會吧！</p>'
     +'<p>※適用於會撿來許多下列食材的寶可夢。</p>'
     +'<p>'+MEAL_PREP_BOOSTED_TARGET_INGREDIENTS+'</p>'
     +'<h3>〖機率小幅提升〗</h3><p>'+MEAL_PREP_BOOSTED_GLOBAL_SPECIES+'</p>'
