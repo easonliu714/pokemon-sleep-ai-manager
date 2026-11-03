@@ -120,6 +120,8 @@ jobs:
         run: node scripts/g9r-official-event-feed-contract.mjs
       - name: Verify November official notice strict parsing and conditional reward fail-closed
         run: node scripts/g9r-november-official-notice-strict-contract.mjs
+      - name: Verify bounded official live HTML provenance and no raw response leakage
+        run: node scripts/g9r-official-live-source-provenance.mjs
       - name: Verify banquet preview recipe totals without invented per-ingredient quantities or event effects
         run: node scripts/g9r-banquet-preview-source-contract.mjs
       - name: Verify published November Master against two isolated official HTML fixtures and scheduled live-watch wiring
