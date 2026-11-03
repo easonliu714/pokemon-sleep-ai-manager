@@ -70,6 +70,7 @@ const UNLOCK_STAGE_LABEL=Object.freeze({
   READY_FOR_IN_GAME_PREVIEW:'食材足夠，等待遊戲內預覽',NEEDS_INGREDIENTS:'需補充食材',
   REVIEW_UNLOCK_STATE:'請先確認玩家是否已解鎖',REVIEW_FORMULA_EVIDENCE:'配方來源仍待查證',
   REVIEW_INVENTORY:'必要食材庫存尚未觀測',REVIEW_POT_CAPACITY:'本週鍋子大小未確認',BLOCKED_POT_CAPACITY:'鍋子容量不足',
+  REVIEW_REFERENCE_MAYBE_WRONG:'玩家標記來源待查證，暫不推薦投入食材',REVIEW_PAUSED_FEEDBACK:'玩家已暫停推薦，需先自行核對',
 });
 function unlockPreparationPanel(preparation,targetTeam){
   if(!preparation)return '';
