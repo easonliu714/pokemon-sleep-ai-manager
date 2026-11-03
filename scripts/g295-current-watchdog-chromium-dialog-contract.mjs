@@ -40,7 +40,7 @@ try{
         event(name){window.dispatchEvent(new Event(name));},
         documentEvent(name){document.dispatchEvent(new Event(name));},
         frames(count){for(let i=0;i<count;i++){clock+=16;const fn=raf.shift();if(!fn)throw Error('missing RAF');fn(clock);}},
-        state(){const warning=document.getElementById('storageWarning');return {detected:trace.filter(e=>e.event==='main_thread_block_detected').length,recovered:trace.filter(e=>e.event==='main_thread_block_recovered').length,resets:trace.filter(e=>e.event==='main_thread_watchdog_visibility_reset').map(e=>e.detail?.details?.reason),visibleWarning:!warning.classList.contains('hidden'),timerActive:Boolean(timer),traceCount:trace.length};}
+        state(){const warning=document.getElementById('storageWarning');return {detected:trace.filter(e=>e.event==='main_thread_block_detected').length,recovered:trace.filter(e=>e.event==='main_thread_block_recovered').length,resets:trace.filter(e=>e.event==='main_thread_watchdog_visibility_reset').map(e=>e.detail?.details?.reason),visibleWarning:!warning.classList.contains('hidden'),warningText:warning.textContent,watchdogMarker:warning.dataset.startupWatchdogWarning||null,preserved:trace.filter(e=>e.event==='main_thread_watchdog_external_warning_preserved').length,timerActive:Boolean(timer),traceCount:trace.length};}
       };
     },source);
     const act=fn=>page.evaluate(fn);
@@ -93,6 +93,22 @@ try{
     assert.ok(s.resets.includes('page-freeze')&&s.resets.includes('page-resume'),'freeze/resume provenance required');
     await act(()=>window.__g295.tick(6000));
     assert.equal((await state()).detected,beforeFreeze+1,'real foreground stall after resume grace remains detectable');
+    // A visible warning owned by storage integrity must survive both watchdog
+    // detection and stable-frame recovery in the actual Chromium DOM.
+    await act(()=>window.__g295.frames(40));
+    assert.equal((await state()).watchdogMarker,null,'previous watchdog-owned warning must recover first');
+    await act(()=>{const warning=document.getElementById('storageWarning');warning.textContent='EXTERNAL_STORAGE_INTEGRITY_HOLD';warning.classList.remove('hidden');});
+    const preForeign=(await state()).detected;
+    await act(()=>window.__g295.tick(6000));
+    s=await state();
+    assert.equal(s.detected,preForeign+1,'external warning cannot disable detector');
+    assert.equal(s.warningText,'EXTERNAL_STORAGE_INTEGRITY_HOLD','external warning must not be overwritten');
+    assert.equal(s.watchdogMarker,null,'watchdog must not claim an external warning');
+    assert.ok(s.preserved>=1,'external-warning preservation must be traceable');
+    await act(()=>window.__g295.frames(31));
+    s=await state();
+    assert.equal(s.warningText,'EXTERNAL_STORAGE_INTEGRITY_HOLD','external warning survives recovery');
+    assert.equal(s.visibleWarning,true,'external warning remains visible after recovery');
     console.log('PASS G295_CHROMIUM_SOURCE_BOUND_NATIVE_DIALOG_DOM_LIFECYCLE hidden/resume/pageshow/focus/alert/confirm/prompt/freeze/resume/grace_expiry/real_stall');
     console.log('HOLD G295_ANDROID_OWNER_UAT_NOT_VERIFIED');
   }finally{await context.close();}
