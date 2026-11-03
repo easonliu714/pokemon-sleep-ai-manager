@@ -3,6 +3,7 @@
 // numeric event bonuses, Public Master promotion, or player-data writes.
 import assert from 'node:assert/strict';
 import {pathToFileURL} from 'node:url';
+import {summarizeOfficialLiveResponse} from './g9r-official-live-source-provenance.mjs';
 export const BANQUET_PREVIEW_URL='https://www.pokemonsleep.net/zh/news/343535303736323034303630333434333236/';
 const hold=reason=>{throw new Error('G9R_BANQUET_PREVIEW_REVIEW_REQUIRED:'+reason);};
 const compact=s=>String(s).normalize('NFKC').replace(/\s+/g,'');
@@ -114,7 +115,18 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
          !/^text\/html(?:;|$)/i.test(response.headers.get('content-type')||''))hold('LIVE_FETCH_SOURCE_OR_CONTENT_TYPE');
       const html=await response.text();
       if(html.length<100||html.length>512000||!/<html\b/i.test(html))hold('LIVE_HTML_DOCUMENT');
-      const result=auditBanquetPreview(html);
+      let result;
+      try{
+        result=auditBanquetPreview(html);
+      }catch(error){
+        // Source facts remain fail-closed; diagnostic output is public-only.
+        const evidence=summarizeOfficialLiveResponse({
+          key:'banquet',expectedUrl:BANQUET_PREVIEW_URL,response,html,
+          markers:{title:'〖預告〗新食材、新食譜',recipes:'新食譜'},
+        });
+        console.error('G9R_BANQUET_LIVE_SOURCE_PROVENANCE='+JSON.stringify(evidence));
+        throw error;
+      }
       console.log('PASS G9R_BANQUET_LIVE_OFFICIAL_PREVIEW='+JSON.stringify(result));
     }catch(error){console.error('HOLD G9R_BANQUET_LIVE_SOURCE',error.message);process.exitCode=1;}
   }else offlinePreviewRegression();
