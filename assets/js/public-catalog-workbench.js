@@ -29,6 +29,8 @@ const runtime=globalThis[GLOBAL_KEY]||(globalThis[GLOBAL_KEY]={
   pendingView:null,
   publicFingerprint:null,
   publicExactMatch:false,
+  // G479: only a verified DB authority may project a public catalog.
+  publicAuthorityReady:false,
   renderedKeys:new Map(),
   localRevision:{ingredients:0,items:0,recipes:0},
   prewarmed:new Map(),
@@ -40,6 +42,8 @@ const idle=callback=>{if(typeof requestIdleCallback==='function')requestIdleCall
 const pageProgress=(view,state,message,details={})=>globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:page-hydration-progress',{detail:{page:view,state,message,...details}}));
 function prewarmPublicViewData(view,{force=false}={}){
   if(!['ingredients','items'].includes(view))return null;
+  // G479: never prewarm a public projection after failed first-boot reconciliation.
+  if(!runtime.publicAuthorityReady)return null;
   if(runtime.prewarmed.has(view)&&!force)return runtime.prewarmed.get(view);
   if(!databaseReady())return null;
   const started=performance.now();
@@ -100,6 +104,12 @@ function renderItemCatalog(){
 
 function renderView(view){
   if(!isPublicView(view))return false;
+  // G479: a ready SQLite schema alone is not verified Public Master hydration.
+  if(!runtime.publicAuthorityReady){
+    progress('PUBLIC_CATALOG_RENDER_HOLD','公版資料尚未通過 authority reconciliation；禁止顯示未驗證投影','blocked',{view,reason:'PUBLIC_AUTHORITY_NOT_VERIFIED'});
+    pageProgress(view,'failed','公版資料完整性尚未確認；請保留本機資料，稍後重試。',{reason:'PUBLIC_AUTHORITY_NOT_VERIFIED',player_write:false});
+    return false;
+  }
   if(view!=='recipes'&&!databaseReady())return false;
   const key=projectionKey(view);
   if(runtime.renderedKeys.get(view)===key){progress('RENDER_DEDUPED',`${view} 已是目前版次／玩家投影，不重建`,'completed',{view,fingerprint:runtime.publicFingerprint,local_revision:runtime.localRevision[view]||0});return true;}
@@ -150,6 +160,9 @@ function emitLazyReady(authority,decision){
   });
 }
 function handleDatabaseReady(event){
+  // G479: reset before each database-ready evaluation; failure remains terminal HOLD.
+  runtime.publicAuthorityReady=false;
+  runtime.prewarmed.clear();
   const authority=evaluatePublicCatalogVersionAuthority(event?.detail?.public_master||{});
   const sentinel=lightweightIntegritySentinel();
   const persisted=readPersistedPublicCatalogFingerprint();
@@ -158,6 +171,7 @@ function handleDatabaseReady(event){
   runtime.publicExactMatch=decision.action==='VERSION_MATCH_BYPASS';
   progress('PUBLIC_CATALOG_VERSION_CHECK','已比對本機與 Release 公版資料版次','completed',{fingerprint:authority.fingerprint,applied_fingerprint:authority.applied_fingerprint,exact_match:authority.exact,updated:authority.updated,updated_authorities:authority.updated_authorities,persisted_fingerprint:persisted?.fingerprint||null,decision:decision.action,reason:decision.reason,integrity_sentinel:sentinel});
   if(runtime.publicExactMatch){
+    runtime.publicAuthorityReady=true;
     // G479: a completed lazy-ready stage requires an exact persisted authority.
     // Never emit it before a failed first-install hydration has been ruled out.
     emitLazyReady(authority,decision);
@@ -172,6 +186,7 @@ function handleDatabaseReady(event){
   }
   try{
     const metadata=persistPublicCatalogFingerprint(authority.fingerprint);
+    runtime.publicAuthorityReady=true;
     runtime.renderedKeys.clear();
     progress('HYDRATE_COMPLETED','公版 reconciliation 已完成並持久化小型 fingerprint metadata','completed',{fingerprint:authority.fingerprint,metadata_authority:metadata.authority_version,updated_authorities:authority.updated_authorities,player_sqlite_bypassed:false,migration_bypassed:false});
   }catch(error){
@@ -186,7 +201,7 @@ function handleDatabaseReady(event){
 function handleDataChanged(event){
   const detail=event?.detail||{};
   if(shouldInvalidatePublicCatalogFingerprint(detail)){
-    runtime.publicExactMatch=false;runtime.publicFingerprint=null;runtime.renderedKeys.clear();
+    runtime.publicExactMatch=false;runtime.publicAuthorityReady=false;runtime.publicFingerprint=null;runtime.renderedKeys.clear();runtime.prewarmed.clear();
     requestRender(activeView(),'public-authority-changed');return;
   }
   const dirtyView=markLocalProjectionDirty(detail.entity);
