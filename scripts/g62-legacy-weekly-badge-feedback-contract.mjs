@@ -45,14 +45,14 @@ const document={
   getElementById:id=>id==='referenceRecipeTable'?table:null,
   addEventListener:(name,fn)=>documentEvents.set(name,fn),
 };
-let feedbackRows=[],feedbackReadFails=false,inventoryReadFails=false,inventoryRows=inventory;
+let feedbackRows=[],feedbackReadFails=false,inventoryReadFails=false,inventoryRows=inventory,masterIngredients=ingredients;
 const ctx={
   document,console:{warn:msg=>warnings.push(msg)},
   rows:sql=>{
     if(sql.startsWith('SELECT ingredient_name,quantity FROM ingredient_inventory')){if(inventoryReadFails)throw Error('synthetic inventory read failure');return inventoryRows;}
     if(sql.startsWith('SELECT recipe_name,unlocked,notes FROM recipes'))return [];
     if(sql.startsWith('SELECT * FROM recipe_master ORDER BY'))return recipes;
-    if(sql.startsWith('SELECT * FROM recipe_master_ingredients ORDER BY'))return ingredients;
+    if(sql.startsWith('SELECT * FROM recipe_master_ingredients ORDER BY'))return masterIngredients;
     throw Error('unexpected SQL: '+sql);
   },
   isDatabaseReady:()=>true,isRescueReadonly:()=>false,
@@ -122,6 +122,32 @@ ctx.apply();
 assert.deepEqual(recommended(),['測試料理3','測試料理4','測試料理5'],'verified inventory recovery re-admits safe feedback-filtered badges');
 assert.equal(table.dataset.weeklyRecommendationStatus,'VERIFIED_READ');
 assert.ok(warnings.some(msg=>msg.includes('source authority unavailable')),'inventory HOLD needs explicit diagnostic');
+// Independent source-bound regression: incomplete or coercible recipe-master
+// requirements must never become zero-demand actionable legacy badges.
+const verifiedMasterIngredients=masterIngredients;
+masterIngredients=ingredients.map((r,i)=>i===0?{...r,quantity:null}:r);
+ctx.apply();
+assert.deepEqual(recommended(),[],'NULL recipe requirement must withhold all legacy badges');
+assert.equal(table.dataset.weeklyRecommendationStatus,'HOLD_SOURCE_READ_FAILED');
+masterIngredients=ingredients.map((r,i)=>i===0?{...r,quantity:false}:r);
+ctx.apply();
+assert.deepEqual(recommended(),[],'boolean recipe requirement must not coerce to zero');
+masterIngredients=ingredients.map((r,i)=>i===0?{...r,quantity:0}:r);
+ctx.apply();
+assert.deepEqual(recommended(),[],'zero recipe requirement is unverified demand');
+masterIngredients=ingredients.map((r,i)=>i===0?{...r,quantity:1.5}:r);
+ctx.apply();
+assert.deepEqual(recommended(),[],'fractional recipe requirement is unverified demand');
+masterIngredients=ingredients.slice(1);
+ctx.apply();
+assert.deepEqual(recommended(),[],'partial recipe ingredient query must not fabricate ready recipes');
+masterIngredients=ingredients.map((r,i)=>i===0?{...r,quantity:'1'}:r);
+ctx.apply();
+assert.deepEqual(recommended(),['測試料理3','測試料理4','測試料理5'],'canonical integer requirement string remains valid');
+masterIngredients=verifiedMasterIngredients;
+ctx.apply();
+assert.deepEqual(recommended(),['測試料理3','測試料理4','測試料理5'],'verified requirement recovery restores feedback-filtered badges');
+assert.equal(table.dataset.weeklyRecommendationStatus,'VERIFIED_READ');
 assert.equal(table.dataset.weeklyContextAuthority,'SYNTHETIC');
-console.log('PASS G62_LEGACY_WEEKLY_BADGE_FEEDBACK_SOURCE_BOUND_VM paused/suspect/malformed/backfill/inventory-change/inventory-read-failure/invalid-stock/recovery');
+console.log('PASS G62_LEGACY_WEEKLY_BADGE_FEEDBACK_SOURCE_BOUND_VM paused/suspect/malformed/backfill/inventory-change/inventory-read-failure/invalid-stock/invalid-recipe-requirements/partial-requirements/recovery');
 console.log('HOLD G62_ANDROID_OWNER_UAT_NOT_VERIFIED');
