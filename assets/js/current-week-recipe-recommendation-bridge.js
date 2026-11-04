@@ -36,7 +36,8 @@ function apply(){
   applying=true;
   try{
     const week=currentEffectiveWeeklyContext(),category=normalizeDishCategory(week.dish_category),inv=inventory();
-    patchTable(personalTable,weeklyRecipeRecommendationNames(personalAnalysis(inv),category),2);
+    // Only query the personal table when that legacy surface is present.
+    if(personalTable)patchTable(personalTable,weeklyRecipeRecommendationNames(personalAnalysis(inv),category),2);
     // G6.2: fail closed if local feedback cannot be read. A legacy "推薦" badge
     // has no suspect-source qualifier and must never override a player pause.
     let referenceNames=new Set();
