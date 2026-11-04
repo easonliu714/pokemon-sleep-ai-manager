@@ -124,6 +124,8 @@ jobs:
         run: node scripts/g9r-official-live-source-provenance.mjs
       - name: Verify banquet preview recipe totals without invented per-ingredient quantities or event effects
         run: node scripts/g9r-banquet-preview-source-contract.mjs
+      - name: Verify newly published November 4 banquet detail source with conditional nut-energy fail-closed regression
+        run: node scripts/g9r-banquet-detailed-source-contract.mjs
       - name: Verify published November Master against two isolated official HTML fixtures and scheduled live-watch wiring
         run: node scripts/g9r-november-live-source-replay-contract.mjs
       - name: Verify November append-only SHA256 source-bound release admission (synthetic only)
@@ -149,3 +151,6 @@ jobs:
       - name: Audit official banquet preview source drift without deterministic promotion (read-only)
         if: always()
         run: node scripts/g9r-banquet-preview-source-contract.mjs --live
+      - name: Audit newly published November 4 banquet detail source independently (read-only)
+        if: always()
+        run: node scripts/g9r-banquet-detailed-source-contract.mjs --live
