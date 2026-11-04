@@ -66,9 +66,18 @@ function patchTable(table,names,nameCellIndex){
   });
 }
 function apply(){
-  if(applying||!isDatabaseReady()||isRescueReadonly())return;
+  if(applying)return;
   const personalTable=document.getElementById('personalRecipeAnalysisTable'),referenceTable=document.getElementById('referenceRecipeTable');
   if(!personalTable&&!referenceTable)return;
+  // G6.2: a previously verified badge must not survive a later rescue/DB loss.
+  // Clear only the read-side DOM projection; never query or mutate player storage.
+  if(isRescueReadonly()||!isDatabaseReady()){
+    patchTable(personalTable,new Set(),2);
+    patchTable(referenceTable,new Set(),2);
+    for(const table of [personalTable,referenceTable])if(table)
+      table.dataset.weeklyRecommendationStatus='HOLD_PLAYER_DATABASE_UNAVAILABLE';
+    return;
+  }
   applying=true;
   try{
     const week=currentEffectiveWeeklyContext(),category=normalizeDishCategory(week.dish_category),inv=inventory();
