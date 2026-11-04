@@ -51,6 +51,19 @@ export function auditBanquetPreview(html,url=BANQUET_PREVIEW_URL){
   if(!all.slice(firstWeek+1,secondWeek).includes(compact('預定自11/9 (週一)起舉辦！'))||
      !all.slice(secondWeek+1,recipeHeading).includes(compact('預定自11/16 (週一)起舉辦！')))
     hold('PREVIEW_ONLY_WEEK_STARTS_CHANGED');
+  // The official preview describes three distinct future mechanics without
+  // publishing a numeric multiplier, eligible species list or dish rotation.
+  // Verify the claims inside WEEK TWO, not from unrelated visible page copy.
+  // This audit never promotes a preview into deterministic Public Master effects.
+  const weekTwoPreview=all.slice(secondWeek+1,recipeHeading).join('');
+  for(const [label,claim] of [
+    ['EXTRA_NUT_COLLECTION','擅長收集食材的寶可夢會額外撿來「一口堅果」'],
+    ['POT_CAPACITY_BONUS','鍋子容量增加的獎勵也會生效'],
+    ['SNORLAX_DISH_PREFERENCE','卡比獸想吃的料理好像也會和平時有所不同'],
+  ]){
+    if(!weekTwoPreview.includes(compact(claim)))
+      hold('BANQUET_PREVIEW_MECHANIC_SCOPE_DRIFT:'+label);
+  }
   const recipes=RECIPE_GROUPS.map((group,i)=>{
     const pos=uniqueLine(group.heading,'RECIPE_CATEGORY_'+i);
     const next=RECIPE_GROUPS[i+1]&&uniqueLine(RECIPE_GROUPS[i+1].heading,'NEXT_CATEGORY_'+i);
@@ -78,6 +91,7 @@ const fixture=[
 '<p>2026/11/15 19:00</p><p>・食材「一口堅果」</p><p>・會用到一口堅果的3種食譜</p>',
 '<h2>第1週：備料週vol.1</h2><p>預定自11/9 (週一)起舉辦！</p>',
 '<h2>第2週：來什麼都吃光光！大餐週vol.1</h2><p>預定自11/16 (週一)起舉辦！</p>',
+'<p>企畫期間，除了擅長收集食材的寶可夢會額外撿來「一口堅果」之外，鍋子容量增加的獎勵也會生效。此外，卡比獸想吃的料理好像也會和平時有所不同！</p>',
 '<h2>新食譜</h2>',
 '<h3>新「咖哩、濃湯」料理會用到的食材</h3><p>萌綠玉米、 沉甸甸南瓜、 一口堅果</p><p>所需食材的總數量：39個</p>',
 '<h3>新「沙拉」料理會用到的食材</h3><p>暖暖薑、 好眠番茄、 嫩亮酪梨、 一口堅果</p><p>所需食材的總數量：121個</p>',
@@ -102,6 +116,9 @@ export function offlinePreviewRegression(){
     ['好眠番茄、 嫩亮酪梨','好眠番茄、 萌綠玉米','salad-ingredients'],
     ['總數量：91個','總數量：90個','dessert-total'],
     ['關於各個企畫的詳情，敬請期待日後的通知！','全部細節已公開！','candidate-only'],
+    ['擅長收集食材的寶可夢會額外撿來「一口堅果」','擅長收集食材的寶可夢會額外撿來其他未核定食材','extra-nut-scope'],
+    ['鍋子容量增加的獎勵也會生效','鍋子容量增加的獎勵已取消','pot-bonus-scope'],
+    ['卡比獸想吃的料理好像也會和平時有所不同','卡比獸想吃的料理保持不變','dish-preference-scope'],
   ])assert.throws(()=>auditBanquetPreview(fixture.replace(from,to)),/G9R_BANQUET_PREVIEW_REVIEW_REQUIRED/,label);
   assert.throws(()=>auditBanquetPreview(fixture,'https://example.com/'),/UNSUPPORTED_OFFICIAL_URL/);
   assert.throws(()=>auditBanquetPreview(fixture.replace('總數量：39個','總數量：40個')+
