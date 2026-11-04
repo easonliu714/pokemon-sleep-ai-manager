@@ -36,6 +36,22 @@ const absent=buildRecipeUnlockPreparation({candidates:[locked],inventory:[{ingre
 assert.equal(absent.selected.stage,'REVIEW_INVENTORY','unobserved ingredient is not confirmed 0');
 assert.equal(absent.selected.requirements.find(x=>x.ingredient_name==='特選蘋果').deficit,null);
 assert.equal(absent.selected.unknown_ingredient_count,1);
+// G6.2/G6.3: the unlock target read-side must not treat a coercible, malformed
+// SQLite inventory value as a verified stock quantity. Preserve unknown, not 0.
+for(const quantity of [null,undefined,'','12',false,true,[],{},Number.NaN,Infinity,-1,1.5,Number.MAX_SAFE_INTEGER+1]){
+  const invalid=buildRecipeUnlockPreparation({candidates:[locked],inventory:[
+    {ingredient_name:'哞哞鮮奶',quantity},{ingredient_name:'特選蘋果',quantity:9},
+  ]});
+  assert.equal(invalid.selected.stage,'REVIEW_INVENTORY','invalid stock must require review: '+String(quantity));
+  assert.equal(invalid.selected.requirements[0].owned,null,'invalid stock cannot become known 0 or available stock');
+  assert.equal(invalid.selected.unknown_ingredient_count,1,'invalid stock remains an unknown ingredient');
+}
+const typedZero=buildRecipeUnlockPreparation({candidates:[locked],inventory:[
+  {ingredient_name:'哞哞鮮奶',quantity:0},{ingredient_name:'特選蘋果',quantity:9},
+]});
+assert.equal(typedZero.selected.stage,'NEEDS_INGREDIENTS','real numeric zero remains known empty stock');
+assert.equal(typedZero.selected.requirements[0].owned,0);
+assert.equal(prep.selected.stage,'READY_FOR_IN_GAME_PREVIEW','valid numeric inventory remains actionable');
 // G6.2 independent read-side consumer: the G6.3 unlock target selector
 // must not bypass player pause/suspect feedback already honored by G7 plans.
 const pausedTarget={...locked,recipe_id:'a-paused',recipe_name:'A已暫停',recommendation_paused:true};
