@@ -11,7 +11,11 @@ export const NOVEMBER_OFFICIAL_NOTICE_URLS=Object.freeze({
 const fail=(reason)=>{throw new Error('G9R_NOVEMBER_OFFICIAL_REVIEW_REQUIRED:'+reason);};
 const compact=value=>String(value).normalize('NFKC').replace(/\s+/g,'');
 function htmlText(html){
+  // Non-rendered fallback/input text is not current article evidence: a stale
+  // 04:00 or overlap rule inside it must not certify changed visible rules.
   return String(html).replace(/<!--[\s\S]*?-->/g,' ')
+    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi,' ')
+    .replace(/<textarea\b[^>]*>[\s\S]*?<\/textarea>/gi,' ')
     .replace(/<template\b[^>]*>[\s\S]*?<\/template>/gi,' ')
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ')
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ')

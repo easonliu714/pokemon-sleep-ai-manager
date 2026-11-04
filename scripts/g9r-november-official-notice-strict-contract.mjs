@@ -328,6 +328,21 @@ rejects(visibleStaleRule(prepHtml,
   NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'stale visible MAX body quote');
 console.log('PASS G9R_NOTICE_LOCAL_0400_AND_MAX_RULE_VISIBLE_BODY_SPOOF_FAIL_CLOSED');
 
+// Synthetic source-authenticity regression: the old tag-only stripper kept
+// non-rendered <noscript>/<textarea> text. A changed visible rule plus an
+// obsolete hidden copy could therefore pass the strict November parser.
+rejects(withHiddenStaleFact(moonHtml,
+  '活動、企畫舉辦日期的切換時間為每日4:00。',
+  '活動、企畫舉辦日期的切換時間為每日5:00。',
+  '<noscript data-stale="boundary">活動、企畫舉辦日期的切換時間為每日4:00。</noscript>'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'hidden noscript must not certify 04:00');
+rejects(withHiddenStaleFact(prepHtml,
+  '相同的獎勵在不同的活動、企畫中同時登場時，僅適用倍率最大的獎勵。',
+  '相同的獎勵在不同的活動、企畫中同時登場時，將倍率相乘。',
+  '<textarea hidden>相同的獎勵在不同的活動、企畫中同時登場時，僅適用倍率最大的獎勵。</textarea>'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'hidden textarea must not certify overlap MAX');
+console.log('PASS G9R_NOVEMBER_NONRENDERED_NOSCRIPT_TEXTAREA_SOURCE_EVIDENCE_FAIL_CLOSED');
+
 console.log('PASS G9R_NOVEMBER_NON_RENDERED_COMMENT_TEMPLATE_SOURCE_EVIDENCE_FAIL_CLOSED');
 
 console.log('PASS G9R_MEAL_PREP_TWO_POST_EVENT_INCENSE_ONLY_CAMP_ROSTERS_FAIL_CLOSED');
