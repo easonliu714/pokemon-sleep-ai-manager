@@ -4,7 +4,11 @@ const compact=value=>String(value).normalize('NFKC').replace(/\s+/g,'');
 export function assertOfficialArticleHeading(html,expectedHeading){
   if(typeof html!=='string'||typeof expectedHeading!=='string'||!expectedHeading)
     throw new Error('G9R_OFFICIAL_ARTICLE_H1_REVIEW_REQUIRED:INVALID_INPUT');
+  // Ignore non-rendered fallback/input containers before selecting the authoritative article H1.
+  // Otherwise a stale hidden H1 can impersonate a changed visible official article.
   const visible=html.replace(/<!--[\s\S]*?-->/g,' ')
+    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi,' ')
+    .replace(/<textarea\b[^>]*>[\s\S]*?<\/textarea>/gi,' ')
     .replace(/<template\b[^>]*>[\s\S]*?<\/template>/gi,' ')
     .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi,' ');
   const headings=[...visible.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)]
