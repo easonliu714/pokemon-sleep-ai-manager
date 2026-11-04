@@ -85,6 +85,8 @@ jobs:
         run: node scripts/g62-recipe-attempt-feedback-ui-binding-contract.mjs
       - name: Verify G6.2 unified Recipe Workbench paused-feedback read-side
         run: node scripts/g62-unified-workbench-feedback-readside-contract.mjs
+      - name: Verify G6.2 legacy weekly recommendation feedback read-side
+        run: node scripts/g62-legacy-weekly-badge-feedback-contract.mjs
       - name: Verify G6.2 player-write single-flight and toggle uncertainty readback
         run: node scripts/g62-concurrent-player-write-overlap-repro.mjs
       - name: Verify G6.2 post-COMMIT uncertainty fail-closed and reload readback
