@@ -45,9 +45,18 @@ export function getRecipeAttemptPersistenceStatus(){
   if(!isDatabaseReady()||isRescueReadonly())return Object.freeze({status:'UNVERIFIED',...marker});
   try{
     // Read back the exact toggle target instead of querying an absent attempt_id.
+    // G6.2: only exact SQLite 0/1 can prove a recovered pause-toggle ACK.
+    // Number(null), Number('') and Number(false) are 0, but NONE is durable
+    // evidence that the player's recommendation state actually equals 0.
+    // Malformed or duplicate readback remains UNVERIFIED; retain the marker.
     const exists=marker.operation==='PAUSE_TOGGLE'
-      ?rows('SELECT recommendation_paused FROM recipe_feedback_state WHERE recipe_id=?',[marker.recipe_id])
-        .some(row=>Number(row.recommendation_paused)===marker.target_paused)
+      ?(()=>{
+        const observed=rows('SELECT recommendation_paused FROM recipe_feedback_state WHERE recipe_id=?',[marker.recipe_id]);
+        if(!Array.isArray(observed)||observed.length>1||observed.some(row=>
+          !row||![0,1,'0','1'].includes(row.recommendation_paused)))
+          throw new Error('G62_PAUSE_TOGGLE_READBACK_UNVERIFIED');
+        return observed.some(row=>Number(row.recommendation_paused)===marker.target_paused);
+      })()
       :rows('SELECT attempt_id FROM recipe_attempt_feedback WHERE attempt_id=?',[marker.attempt_id]).length===1;
     clearPersistenceMarker();
     return Object.freeze({status:exists?'PERSISTED':'NOT_PERSISTED',...marker,source:'RELOADED_SQLITE_READBACK'});

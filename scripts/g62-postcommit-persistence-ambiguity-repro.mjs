@@ -105,6 +105,30 @@ for(const mode of ['DENY_BEFORE_IDB_WRITE','ACK_LOST_AFTER_IDB_WRITE']){
   assert.equal(count(durable),1,'exactly one attempt must survive independent IDB reload');
   assert.equal(Number(query(durable,'SELECT COUNT(*) AS n FROM recipe_master')[0].n),1,'public recipe master untouched');
   assert.equal(Number(query(durable,'SELECT COUNT(*) AS n FROM recipe_feedback_state')[0].n),1,'player-private feedback state preserved');
+  // Independent G6.2 durable readback boundary: SQLite affinity can return
+  // NULL/invalid persisted flags. Number(null)===0 is NOT a verified unpause.
+  // All records here are isolated SQL.js fixtures, never player data.
+  const readbackDb=new SQL.Database();setup(readbackDb);
+  readbackDb.run("INSERT INTO recipe_feedback_state(recipe_id,recommendation_paused,reference_maybe_wrong,last_attempt_id,updated_at) VALUES('r1',NULL,0,NULL,'synthetic')");
+  const markerKey='pokemon-sleep-g62-persistence-uncertain-v1';
+  const toggleMarker={operation:'PAUSE_TOGGLE',recipe_id:'r1',target_paused:0};
+  const setToggleMarker=()=>sessionStorage.setItem(markerKey,JSON.stringify(toggleMarker));
+  setToggleMarker();
+  const readbackContext=bootContext(readbackDb);
+  assert.equal(readbackContext.__status().status,'UNVERIFIED','NULL cannot prove a persisted unpause');
+  assert.ok(sessionStorage.getItem(markerKey),'ambiguous NULL must retain the recovery marker');
+  readbackDb.run("UPDATE recipe_feedback_state SET recommendation_paused=2 WHERE recipe_id='r1'");
+  assert.equal(readbackContext.__status().status,'UNVERIFIED','out-of-range flag cannot prove an unpause');
+  assert.ok(sessionStorage.getItem(markerKey),'invalid flag must retain the recovery marker');
+  readbackDb.run("UPDATE recipe_feedback_state SET recommendation_paused=0 WHERE recipe_id='r1'");
+  assert.equal(readbackContext.__status().status,'PERSISTED','verified exact zero proves the requested unpause');
+  assert.equal(sessionStorage.getItem(markerKey),null,'only verified readback clears the marker');
+  readbackDb.run("UPDATE recipe_feedback_state SET recommendation_paused=1 WHERE recipe_id='r1'");
+  setToggleMarker();
+  assert.equal(readbackContext.__status().status,'NOT_PERSISTED','valid opposite state is verified mismatch, not uncertain');
+  assert.equal(sessionStorage.getItem(markerKey),null,'verified mismatch permits deliberate recovery');
+  readbackDb.close();
+  console.log('PASS G62_TOGGLE_RELOADED_NULL_OR_INVALID_FLAG_RETAINS_HOLD_VALID_0_OR_1_RESOLVES');
   durable.close();reloaded.close();store.close();
   console.log('PASS G62_POSTCOMMIT_'+mode+' SAME_SESSION_RETRY_BLOCKED RELOADED='+status.status+' DURABLE_ATTEMPTS=1');
 }
