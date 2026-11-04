@@ -120,6 +120,14 @@ export function offlinePreviewRegression(){
     ['鍋子容量增加的獎勵也會生效','鍋子容量增加的獎勵已取消','pot-bonus-scope'],
     ['卡比獸想吃的料理好像也會和平時有所不同','卡比獸想吃的料理保持不變','dish-preference-scope'],
   ])assert.throws(()=>auditBanquetPreview(fixture.replace(from,to)),/G9R_BANQUET_PREVIEW_REVIEW_REQUIRED/,label);
+  // An old quote elsewhere in the rendered body cannot certify a changed
+  // WEEK TWO mechanic. The source guard must remain section-local.
+  const oldPotClaim='鍋子容量增加的獎勵也會生效';
+  assert.throws(()=>auditBanquetPreview(
+    fixture.replace(oldPotClaim,'鍋子容量增加的獎勵已取消')
+      .replace('</body>','<p>'+oldPotClaim+'</p></body>')),
+    /BANQUET_PREVIEW_MECHANIC_SCOPE_DRIFT:POT_CAPACITY_BONUS/,
+    'visible stale quote outside week two must not mask changed mechanic');
   assert.throws(()=>auditBanquetPreview(fixture,'https://example.com/'),/UNSUPPORTED_OFFICIAL_URL/);
   assert.throws(()=>auditBanquetPreview(fixture.replace('總數量：39個','總數量：40個')+
     '<template>所需食材的總數量：39個</template>'),/RECIPE_INGREDIENT_SET_OR_TOTAL_CHANGED/);
