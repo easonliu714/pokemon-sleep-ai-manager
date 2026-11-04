@@ -3,8 +3,11 @@ export const RECIPE_UNLOCK_PREPARATION_VERSION='recipe-unlock-preparation-2026-1
 const VERIFIED=new Set(['OFFICIAL_VERIFIED','GAME_SCREENSHOT_VERIFIED','REFERENCE_VERIFIED']);
 const clean=v=>String(v??'').normalize('NFKC').trim();
 const nonnegative=v=>Number.isInteger(Number(v))&&Number(v)>=0;
+// G6.2/G6.3 read-side: SQLite inventory quantities must be typed safe integers.
+// Null, empty text, booleans, arrays and coercible strings are UNKNOWN, never 0.
+const verifiedInventoryQuantity=v=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=0;
 export function buildRecipeUnlockPreparation({candidates=[],inventory=[],selectedRecipeId=null}={}){
-  const observed=new Map((inventory||[]).filter(row=>clean(row?.ingredient_name)&&nonnegative(row?.quantity)).map(row=>[clean(row.ingredient_name),Number(row.quantity)]));
+  const observed=new Map((inventory||[]).filter(row=>clean(row?.ingredient_name)&&verifiedInventoryQuantity(row?.quantity)).map(row=>[clean(row.ingredient_name),row.quantity]));
   const targets=(candidates||[]).filter(row=>row?.unlocked!==true&&clean(row?.recipe_id)&&row?.lifecycle==='ACTIVE').map(row=>{
     const requirements=(row.requirements||[]).filter(r=>clean(r.ingredient_name)&&Number(r.required)>0).map(r=>{
       const name=clean(r.ingredient_name),required=Number(r.required),owned=observed.has(name)?observed.get(name):null;
