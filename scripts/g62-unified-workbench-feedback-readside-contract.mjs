@@ -139,10 +139,18 @@ const missingInventory=readRecipeInventoryForProjection({
 assert.equal(missingInventory.verified,false);
 assert.equal(missingInventory.status,'HOLD_INVENTORY_READ_FAILED');
 assert.deepEqual(missingInventory.rows,[]);
+// Regression: Number(null), Number(''), Number(false), Number([]) all equal 0;
+// none is an authoritative SQLite stock quantity. Numeric-string compatibility stays.
+assert.equal(readRecipeInventoryForProjection({readInventory:()=>[
+  {ingredient_name:'特選蘋果',quantity:'12'},
+  {ingredient_name:'特選蘋果',quantity:0},
+]}).verified,true,'canonical integer text and numeric zero remain valid');
 for(const malformed of [null,[{ingredient_name:'',quantity:1}],
   [{ingredient_name:'特選蘋果',quantity:'not-a-number'}],
   [{ingredient_name:'特選蘋果',quantity:-1}],
-  [{ingredient_name:'特選蘋果',quantity:1.5}]]) {
+  [{ingredient_name:'特選蘋果',quantity:1.5}],
+  ...[null,undefined,'','  ',false,true,[],{},'0x10','1e2','01',Infinity,NaN]
+    .map(quantity=>[{ingredient_name:'特選蘋果',quantity}])]) {
   assert.equal(readRecipeInventoryForProjection({readInventory:()=>malformed}).verified,false,
     'invalid stock rows must never certify recommendations');
 }
