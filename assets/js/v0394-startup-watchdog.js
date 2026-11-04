@@ -58,12 +58,15 @@ export function formatStartupHeartbeatWarning({checkpoint='unknown',blocked_ms=0
   return `主執行緒 heartbeat 已停滯約 ${seconds} 秒；最後 startup checkpoint：${checkpoint||'unknown'}（僅表示最後記錄位置，不代表阻塞原因）。系統不會因慢啟動自動切換唯讀；請保留本機資料並匯出診斷 JSON。`;
 }
 function showHeartbeatWarning({blockedFor,stageAge}){
+  // One continuous stall is one diagnostic episode until stable RAF recovery.
+  // Delayed interval callbacks may extend the maximum without a second alert.
+  const firstDetection=!warningActive;
   warningActive=true;recoveryStableFrames=0;
   const snapshot={checkpoint:lastStage||'unknown',blocked_ms:blockedFor,stage_age_ms:stageAge,detected_at:new Date().toISOString()};
   if(!stallSnapshot)stallSnapshot=snapshot;else if(blockedFor>Number(stallSnapshot.blocked_ms||0))stallSnapshot={...stallSnapshot,blocked_ms:blockedFor,stage_age_ms:stageAge};
   const warning=document.getElementById('storageWarning');
   const previousWatchdogText=lastWarningText;
-  lastWarningText=formatStartupHeartbeatWarning({checkpoint:snapshot.checkpoint,blocked_ms:blockedFor});
+  lastWarningText=formatStartupHeartbeatWarning({checkpoint:stallSnapshot.checkpoint,blocked_ms:stallSnapshot.blocked_ms});
   if(warning){
     // G295: a foreground stall must not erase an already-visible storage/data
     // warning owned by another subsystem. Keep diagnostic evidence regardless.
@@ -73,11 +76,11 @@ function showHeartbeatWarning({blockedFor,stageAge}){
       warning.textContent=lastWarningText;
       warning.dataset.startupWatchdogWarning=WATCHDOG_MARKER;
       warning.classList.remove('hidden');
-    }else{
+    }else if(firstDetection){
       debugTrace.record('startup','main_thread_watchdog_external_warning_preserved',{status:'warning',details:{last_checkpoint:snapshot.checkpoint,display_owned:false,authority}});
     }
   }
-  debugTrace.record('startup','main_thread_block_detected',{status:'warning',details:{last_checkpoint:snapshot.checkpoint,checkpoint_is_causal:false,blocked_ms:blockedFor,stage_age_ms:stageAge,authority,authority_switch:false,automatic_retry_restarted:false}});
+  if(firstDetection)debugTrace.record('startup','main_thread_block_detected',{status:'warning',details:{last_checkpoint:snapshot.checkpoint,checkpoint_is_causal:false,blocked_ms:blockedFor,stage_age_ms:stageAge,authority,authority_switch:false,automatic_retry_restarted:false}});
 }
 function clearRecoveredHeartbeatWarning(){
   if(!warningActive)return false;

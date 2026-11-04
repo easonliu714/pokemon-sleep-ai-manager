@@ -127,6 +127,18 @@ try{
     assert.equal((await state()).detected,beforeRafThrottle,'visible RAF pause with regular JS timer is not a blocked main thread');
     await act(()=>window.__g295.tick(6000));
     assert.equal((await state()).detected,beforeRafThrottle+1,'subsequent true timer gap still detected');
+    // Real Chromium DOM, deterministic clock: repeated delayed callbacks
+    // without stable RAF recovery are one episode, not duplicate alerts.
+    await act(()=>window.__g295.frames(80));
+    const beforeContinuous=(await state()).detected;
+    await act(()=>window.__g295.tick(6000));
+    assert.equal((await state()).detected,beforeContinuous+1,'first long timer gap must warn');
+    await act(()=>window.__g295.tick(6500));
+    assert.equal((await state()).detected,beforeContinuous+1,'second delayed callback in same stall must not duplicate warning');
+    await act(()=>window.__g295.frames(31));
+    await act(()=>window.__g295.tick(6000));
+    assert.equal((await state()).detected,beforeContinuous+2,'new stall after RAF recovery must warn');
+    console.log('PASS G295_CHROMIUM_CONTINUOUS_STALL_SINGLE_DETECTION_AND_REARM');
     console.log('PASS G295_CHROMIUM_RAF_THROTTLED_RESPONSIVE_TIMER_AND_TRUE_GAP');
     console.log('PASS G295_CHROMIUM_SOURCE_BOUND_NATIVE_DIALOG_DOM_LIFECYCLE hidden/resume/pageshow/focus/alert/confirm/prompt/freeze/resume/grace_expiry/real_stall/foreign_warning_reset_trace');
     console.log('HOLD G295_ANDROID_OWNER_UAT_NOT_VERIFIED');
