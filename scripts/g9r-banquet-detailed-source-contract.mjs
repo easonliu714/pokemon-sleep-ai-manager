@@ -3,7 +3,7 @@
 // No Public Event Master/manifest mutation, player DB access, or app-version change.
 import assert from 'node:assert/strict';
 import {pathToFileURL} from 'node:url';
-import {assertOfficialArticleHeading} from './g9r-official-article-heading-guard.mjs';
+import {assertOfficialArticleHeading,decodeOfficialVisibleEntities} from './g9r-official-article-heading-guard.mjs';
 import {summarizeOfficialLiveResponse} from './g9r-official-live-source-provenance.mjs';
 
 export const BANQUET_DETAIL_URL='https://www.pokemonsleep.net/zh/news/343537333535313639333033313031343531/';
@@ -11,11 +11,11 @@ const TITLE='〖企畫〗「來什麼都吃光光！大餐週vol.1」';
 const fail=reason=>{throw new Error('G9R_BANQUET_DETAIL_REVIEW_REQUIRED:'+reason);};
 const compact=value=>String(value).normalize('NFKC').replace(/\s+/g,'').trim();
 function linesOf(html){
-  return String(html).replace(/<!--[\s\S]*?-->/g,' ')
+  const raw=String(html).replace(/<!--[\s\S]*?-->/g,' ')
     .replace(/<(?:noscript|textarea|template|script|style)\b[^>]*>[\s\S]*?<\/(?:noscript|textarea|template|script|style)>/gi,' ')
     .replace(/<\/(?:h[1-6]|p|li|div|section)>/gi,'\n')
-    .replace(/<[^>]+>/g,' ').replace(/&nbsp;|&#160;/gi,' ')
-    .replace(/&amp;/gi,'&').replace(/&lt;/gi,'<').replace(/&gt;/gi,'>')
+    .replace(/<[^>]+>/g,' ');
+  return decodeOfficialVisibleEntities(raw)
     .normalize('NFKC').split('\n').map(s=>s.trim()).filter(Boolean);
 }
 const BONUS=Object.freeze([
@@ -143,6 +143,13 @@ export function offlineBanquetDetailRegression(){
     ['總數量：121個','總數量：120個','recipe-total'],
   ])assert.throws(()=>auditBanquetDetail(fixture.replace(before,after)),/G9R_/,label);
   assert.throws(()=>auditBanquetDetail(fixture,'https://example.com/'),/OFFICIAL_URL_IDENTITY/);
+  const entityTitle=TITLE.replace('〖','&#x3016;').replace('〗','&#12311;');
+  assert.equal(auditBanquetDetail(fixture.replace('<h1>'+TITLE+'</h1>',
+    '<h1>'+entityTitle+'</h1>')).source_status,
+    'NEW_OFFICIAL_DETAIL_CANDIDATE_REQUIRES_SEPARATE_MASTER_ADMISSION');
+  assert.throws(()=>auditBanquetDetail(fixture.replace('<h1>'+TITLE+'</h1>',
+    '<h1>'+entityTitle+'</h1><h1>'+TITLE+'</h1>')),
+    /G9R_OFFICIAL_ARTICLE_H1_REVIEW_REQUIRED/);
   assert.throws(()=>auditBanquetDetail(fixture.replace('<h1>'+TITLE+'</h1>',
     '<h1>〖企畫〗另一項活動</h1><p>'+TITLE+'</p>')),/G9R_OFFICIAL_ARTICLE_H1_REVIEW_REQUIRED/);
   assert.throws(()=>auditBanquetDetail(fixture.replace('<h1>'+TITLE+'</h1>',

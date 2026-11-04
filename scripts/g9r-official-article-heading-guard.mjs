@@ -1,6 +1,20 @@
 // G9R official article identity must come from the visible article H1,
 // never from a stale mention elsewhere in the page. Read-only source guard.
 const compact=value=>String(value).normalize('NFKC').replace(/\s+/g,'');
+// A browser renders valid decimal/hex HTML character references as characters.
+// Decode only visible text AFTER stripping markup; never treat decoded tags as HTML.
+// This preserves exact article H1 identity, duplicate rejection and fail-closed drift.
+export function decodeOfficialVisibleEntities(value){
+  return String(value).replace(/&#(?:x([0-9a-f]{1,6})|([0-9]{1,7}));/gi,
+    (original,hex,decimal)=>{
+      const code=Number.parseInt(hex??decimal,hex===undefined?10:16);
+      return Number.isInteger(code)&&code>0&&code<=0x10ffff&&
+        !(code>=0xd800&&code<=0xdfff)
+        ?String.fromCodePoint(code):original;
+    })
+    .replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&')
+    .replace(/&lt;/gi,'<').replace(/&gt;/gi,'>');
+}
 export function assertOfficialArticleHeading(html,expectedHeading){
   if(typeof html!=='string'||typeof expectedHeading!=='string'||!expectedHeading)
     throw new Error('G9R_OFFICIAL_ARTICLE_H1_REVIEW_REQUIRED:INVALID_INPUT');
@@ -12,9 +26,8 @@ export function assertOfficialArticleHeading(html,expectedHeading){
     .replace(/<template\b[^>]*>[\s\S]*?<\/template>/gi,' ')
     .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi,' ');
   const headings=[...visible.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)]
-    .map(match=>compact(match[1].replace(/<[^>]+>/g,' ')
-      .replace(/&nbsp;|&#160;/gi,' ').replace(/&amp;/gi,'&')
-      .replace(/&lt;/gi,'<').replace(/&gt;/gi,'>')));
+    .map(match=>compact(decodeOfficialVisibleEntities(
+      match[1].replace(/<[^>]+>/g,' '))));
   const articleHeadings=headings.filter(value=>
     /^〖(?:活動|企畫|預告)〗/.test(value));
   if(articleHeadings.length!==1||articleHeadings[0]!==compact(expectedHeading))

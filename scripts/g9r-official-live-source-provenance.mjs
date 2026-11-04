@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
+import {decodeOfficialVisibleEntities} from './g9r-official-article-heading-guard.mjs';
 
 const OFFICIAL=/^https:\/\/www\.pokemonsleep\.net\/zh\/news\/[0-9]+\/$/;
 
@@ -14,9 +15,8 @@ function headingStructureProbe(body,markers){
   const visible=body.replace(/<!--[\s\S]*?-->/g,' ')
     .replace(/<(?:noscript|textarea|template)\b[^>]*>[\s\S]*?<\/(?:noscript|textarea|template)>/gi,' ')
     .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi,' ');
-  const compact=value=>String(value).replace(/<[^>]+>/g,' ')
-    .replace(/&nbsp;|&#160;/gi,' ').replace(/&amp;/gi,'&')
-    .replace(/&lt;/gi,'<').replace(/&gt;/gi,'>')
+  const compact=value=>decodeOfficialVisibleEntities(
+    String(value).replace(/<[^>]+>/g,' '))
     .normalize('NFKC').replace(/\s+/g,'');
   const headings=tag=>[...visible.matchAll(new RegExp('<'+tag+'\\b[^>]*>([\\s\\S]*?)<\\/'+tag+'>','gi'))]
     .map(match=>compact(match[1]));
@@ -28,6 +28,9 @@ function headingStructureProbe(body,markers){
   const sha=value=>createHash('sha256').update(value,'utf8').digest('hex');
   return Object.freeze({
     visible_h1_count:Math.min(h1.length,99),
+    // Distinguish HTML entity encoding from an actual missing/relocated H1.
+    numeric_entity_h1_count:Math.min([...visible.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)]
+      .filter(m=>/&#(?:x[0-9a-f]+|\d+);/i.test(m[1])).length,99),
     visible_h2_count:Math.min(h2.length,99),
     article_h1_count:Math.min(articleH1.length,99),
     article_h2_count:Math.min(h2.filter(article).length,99),
@@ -103,6 +106,12 @@ export function offlineProvenanceRegression(){
   assert.equal(probe.heading_structure.diagnostic_only,true);
   assert.ok(!JSON.stringify(probe).includes(secret));
   assert.ok(!JSON.stringify(probe).includes('另一活動'));
+  const encoded=summarizeOfficialLiveResponse({key:'new_moon',expectedUrl,
+    response,html:'<html><h1>&#x3016;活動&#12311;第19次「新月日」</h1></html>',
+    markers:{title:'第19次「新月日」'}});
+  assert.equal(encoded.heading_structure.numeric_entity_h1_count,1);
+  assert.equal(encoded.heading_structure.article_h1_count,1);
+  assert.equal(encoded.heading_structure.title_fragment_h1_count,1);
   const duplicated=summarizeOfficialLiveResponse({key:'new_moon',expectedUrl,
     response,html:'<html><h1>'+title+'</h1><h1>'+title+'</h1></html>',
     markers:{title}});

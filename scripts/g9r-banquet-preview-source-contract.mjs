@@ -4,20 +4,20 @@
 import assert from 'node:assert/strict';
 import {pathToFileURL} from 'node:url';
 import {summarizeOfficialLiveResponse} from './g9r-official-live-source-provenance.mjs';
-import {assertOfficialArticleHeading} from './g9r-official-article-heading-guard.mjs';
+import {assertOfficialArticleHeading,decodeOfficialVisibleEntities} from './g9r-official-article-heading-guard.mjs';
 export const BANQUET_PREVIEW_URL='https://www.pokemonsleep.net/zh/news/343535303736323034303630333434333236/';
 const hold=reason=>{throw new Error('G9R_BANQUET_PREVIEW_REVIEW_REQUIRED:'+reason);};
 const compact=s=>String(s).normalize('NFKC').replace(/\s+/g,'');
 function visibleText(html){
   // Hidden fallback/input markup cannot supply a preview title or source fact.
-  return String(html).replace(/<!--[\s\S]*?-->/g,' ')
+  const raw=String(html).replace(/<!--[\s\S]*?-->/g,' ')
     .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi,' ')
     .replace(/<textarea\b[^>]*>[\s\S]*?<\/textarea>/gi,' ')
     .replace(/<template\b[^>]*>[\s\S]*?<\/template>/gi,' ')
     .replace(/<(?:script|style)\b[^>]*>[\s\S]*?<\/(?:script|style)>/gi,' ')
     .replace(/<\/?(?:h[1-6]|p|li|div|section|br)\b[^>]*>/gi,'\n')
-    .replace(/<[^>]+>/g,' ').replace(/&nbsp;|&#160;/gi,' ')
-    .replace(/&amp;/gi,'&').replace(/&lt;/gi,'<').replace(/&gt;/gi,'>')
+    .replace(/<[^>]+>/g,' ');
+  return decodeOfficialVisibleEntities(raw)
     .normalize('NFKC').split('\n').map(x=>x.trim()).filter(Boolean);
 }
 const RECIPE_GROUPS=Object.freeze([
@@ -148,6 +148,14 @@ export function offlinePreviewRegression(){
   assert.equal(auditBanquetPreview(fixture.replace('<h1>'+title+'</h1>',
     '<h1>Pokémon Sleep</h1><h1><span>'+title+'</span></h1>')).source_status,
     'PREVIEW_ONLY','unrelated site H1 and inline title span accepted');
+  // Decimal/hex HTML entities are equivalent to visible bracket characters.
+  // The same guard must still reject a changed or duplicated article H1.
+  const encodedTitle=title.replace('〖','&#x3016;').replace('〗','&#12311;');
+  assert.equal(auditBanquetPreview(fixture.replace('<h1>'+title+'</h1>',
+    '<h1>'+encodedTitle+'</h1>')).source_status,'PREVIEW_ONLY');
+  assert.throws(()=>auditBanquetPreview(fixture.replace('<h1>'+title+'</h1>',
+    '<h1>'+encodedTitle+'</h1><h1>'+title+'</h1>')),
+    /G9R_OFFICIAL_ARTICLE_H1_REVIEW_REQUIRED/);
   // Non-rendered H1 spoof: the old shared heading regex saw <noscript>/<textarea>
   // and the preview text stripper also admitted the hidden title as a real line.
   for(const tag of ['noscript','textarea']){
