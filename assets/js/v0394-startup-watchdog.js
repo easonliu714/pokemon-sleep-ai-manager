@@ -82,7 +82,9 @@ function showHeartbeatWarning({blockedFor,stageAge}){
   }
   if(firstDetection)debugTrace.record('startup','main_thread_block_detected',{status:'warning',details:{last_checkpoint:snapshot.checkpoint,checkpoint_is_causal:false,blocked_ms:blockedFor,stage_age_ms:stageAge,authority,authority_switch:false,automatic_retry_restarted:false}});
 }
-function clearRecoveredHeartbeatWarning(){
+// Lifecycle resets cancel an unverified stall episode; only stable RAF frames
+// prove recovery. Keep these diagnostics distinct without touching player state.
+function clearRecoveredHeartbeatWarning({interruptedBy=null}={}){
   if(!warningActive)return false;
   const snapshot=stallSnapshot;warningActive=false;recoveryStableFrames=0;stallSnapshot=null;
   const warning=document.getElementById('storageWarning');
@@ -93,7 +95,7 @@ function clearRecoveredHeartbeatWarning(){
     }
     delete warning.dataset.startupWatchdogWarning;
   }
-  debugTrace.record('startup','main_thread_block_recovered',{status:'completed',details:{last_checkpoint:snapshot?.checkpoint||lastStage||'unknown',checkpoint_is_causal:false,max_blocked_ms:Number(snapshot?.blocked_ms||0),warning_cleared:warningCleared,authority_switch:false,automatic_retry_restarted:false,authority}});
+  debugTrace.record('startup',interruptedBy?'main_thread_watchdog_lifecycle_interrupted':'main_thread_block_recovered',{status:'completed',details:{last_checkpoint:snapshot?.checkpoint||lastStage||'unknown',checkpoint_is_causal:false,max_blocked_ms:Number(snapshot?.blocked_ms||0),warning_cleared:warningCleared,...(interruptedBy?{reason:interruptedBy}:{}),authority_switch:false,automatic_retry_restarted:false,authority}});
   // Return the actual DOM ownership outcome: a foreign storage warning stays visible.
   // The visibility-reset trace must not claim that the watchdog cleared it.
   lastWarningText='';return warningCleared;
@@ -104,7 +106,7 @@ function resetHeartbeatForVisibility(reason){
   lastIntervalTickAt=now;
   recoveryStableFrames=0;
   visibilityGraceUntil=now+1200;
-  const warningCleared=warningActive?clearRecoveredHeartbeatWarning():false;
+  const warningCleared=warningActive?clearRecoveredHeartbeatWarning({interruptedBy:reason}):false;
   debugTrace.record('startup','main_thread_watchdog_visibility_reset',{status:'completed',details:{reason,visibility:document.visibilityState,warning_cleared:warningCleared,grace_ms:1200,authority}});
 }
 function startHeartbeat(){

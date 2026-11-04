@@ -136,6 +136,22 @@ assert.equal(ctx.getStartupWatchdogState().warning_active,false,'stable RAF clos
 assert.equal(trace.filter(x=>x.event==='main_thread_block_recovered').at(-1).detail.details.max_blocked_ms,maxContinuousSnapshot.blocked_ms,'recovery reports episode maximum');
 now+=6000;interval();
 assert.equal(detected(),beforeContinuous+2,'a new stall after recovery must still be diagnosed');
+// A background transition cancels an unresolved episode; it does not prove
+// 30 stable RAF recovery frames. Do not inflate the recovered-incident metric.
+const recoveredBeforeInterrupt=trace.filter(x=>x.event==='main_thread_block_recovered').length;
+const interruptedBefore=trace.filter(x=>x.event==='main_thread_watchdog_lifecycle_interrupted').length;
+visibilityState='hidden';emit(docEvents,'visibilitychange');
+assert.equal(trace.filter(x=>x.event==='main_thread_block_recovered').length,recoveredBeforeInterrupt,'backgrounding cannot claim verified RAF recovery');
+const interrupts=trace.filter(x=>x.event==='main_thread_watchdog_lifecycle_interrupted');
+assert.equal(interrupts.length,interruptedBefore+1,'lifecycle cancellation must have independent diagnostic');
+assert.equal(interrupts.at(-1).detail.details.reason,'background-pause');
+assert.equal(ctx.getStartupWatchdogState().warning_active,false,'interrupted stall must release watchdog warning state');
+visibilityState='visible';emit(docEvents,'visibilitychange');
+now+=6000;interval();
+assert.equal(detected(),beforeContinuous+3,'a fresh foreground stall must re-arm after lifecycle cancellation');
+for(let i=0;i<31;i++){now+=16;assert.ok(raf.length);raf.shift()();}
+assert.equal(trace.filter(x=>x.event==='main_thread_block_recovered').length,recoveredBeforeInterrupt+1,'only stable RAF must record recovered');
+console.log('PASS G295_LIFECYCLE_INTERRUPTED_NOT_VERIFIED_RAF_RECOVERY_AND_REARM');
 console.log('PASS G295_CONTINUOUS_STALL_SINGLE_DETECTION_MAX_GAP_AND_NEW_EPISODE');
 console.log('PASS G295_VISIBLE_RAF_THROTTLED_TIMER_RESPONSIVE_NO_FALSE_STALL_AND_REAL_GAP_DETECTED');
 console.log('PASS G295_SOURCE_BOUND_LIFECYCLE_VM hidden/resume/pageshow/focus/native_dialog/freeze/resume/recovery/real_stall/foreign_warning_reset_trace; ANDROID_OWNER_NOT_VERIFIED');
