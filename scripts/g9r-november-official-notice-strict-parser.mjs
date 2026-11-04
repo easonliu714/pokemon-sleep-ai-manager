@@ -42,7 +42,7 @@ function assertOfficialPublicationHeader(text,title,published){
   const lines=text.split('\n').map(line=>line.trim()).filter(Boolean);
   const titleKey=compact(title);
   const indices=lines.flatMap((line,index)=>
-    /^〖(?:活動|企畫)〗/.test(compact(line))&&compact(line).endsWith(titleKey)?[index]:[]);
+    /^〖(?:活動|企畫)〗/.test(compact(line))&&compact(line).includes(titleKey)?[index]:[]);
   if(indices.length!==1)fail('PUBLICATION_HEADER_TITLE_AMBIGUOUS');
   const i=indices[0];
   const nearby=lines.slice(Math.max(0,i-2),Math.min(lines.length,i+3)).map(compact);
