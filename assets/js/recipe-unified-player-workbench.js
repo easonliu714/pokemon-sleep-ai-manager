@@ -67,9 +67,14 @@ export function readRecipeInventoryForProjection({readonly=false,readInventory=(
   if(readonly)return Object.freeze({rows:[],verified:false,status:'DATABASE_READONLY_OR_NOT_READY'});
   try{
     const data=readInventory();
+    // SQLite NULL, empty text, booleans and objects must never coerce to verified zero stock.
+    // Permit actual nonnegative integer values and canonical decimal integer strings only.
+    const validQuantity=value=>(typeof value==='number'&&Number.isSafeInteger(value)&&value>=0)
+      ||(typeof value==='string'&&/^(0|[1-9][0-9]*)$/.test(value)
+        &&Number.isSafeInteger(Number(value)));
     if(!Array.isArray(data)||data.some(row=>!row||typeof row!=='object'
-      ||!String(row.ingredient_name||'').trim()||!Number.isSafeInteger(Number(row.quantity))
-      ||Number(row.quantity)<0))throw new Error('recipe_inventory_rows_invalid');
+      ||!String(row.ingredient_name||'').trim()||!validQuantity(row.quantity)))
+      throw new Error('recipe_inventory_rows_invalid');
     return Object.freeze({rows:data,verified:true,status:'VERIFIED_READ'});
   }catch{
     console.warn('Recipe inventory read unavailable; shortages and weekly recommendations withheld');
