@@ -118,5 +118,24 @@ for(let i=0;i<4;i++){now+=2000;interval();}
 assert.equal(detected(),beforeRafThrottle,'regular interval proves responsiveness despite 8s RAF pause');
 now+=6000;interval();
 assert.equal(detected(),beforeRafThrottle+1,'a subsequent 6s interval gap remains a detectable real stall');
+// Independent #295 regression: successive delayed timer callbacks with no RAF
+// recovery are ONE continuous foreground stall. Preserve the worst gap, but
+// never duplicate detection records until stable-frame recovery ends the episode.
+for(let i=0;i<80;i++){now+=16;assert.ok(raf.length);raf.shift()();}
+assert.equal(ctx.getStartupWatchdogState().warning_active,false,'previous stall must recover before independent episode');
+const beforeContinuous=detected();
+now+=6000;interval();
+assert.equal(detected(),beforeContinuous+1,'first long timer gap opens a stall episode');
+const firstContinuousSnapshot=ctx.getStartupWatchdogState().stall_snapshot;
+now+=6500;interval();
+assert.equal(detected(),beforeContinuous+1,'repeated delayed callback without RAF recovery must not duplicate one episode');
+const maxContinuousSnapshot=ctx.getStartupWatchdogState().stall_snapshot;
+assert.ok(maxContinuousSnapshot.blocked_ms>firstContinuousSnapshot.blocked_ms,'same episode retains longest blocked gap');
+for(let i=0;i<31;i++){now+=16;assert.ok(raf.length);raf.shift()();}
+assert.equal(ctx.getStartupWatchdogState().warning_active,false,'stable RAF closes the continuous episode');
+assert.equal(trace.filter(x=>x.event==='main_thread_block_recovered').at(-1).detail.details.max_blocked_ms,maxContinuousSnapshot.blocked_ms,'recovery reports episode maximum');
+now+=6000;interval();
+assert.equal(detected(),beforeContinuous+2,'a new stall after recovery must still be diagnosed');
+console.log('PASS G295_CONTINUOUS_STALL_SINGLE_DETECTION_MAX_GAP_AND_NEW_EPISODE');
 console.log('PASS G295_VISIBLE_RAF_THROTTLED_TIMER_RESPONSIVE_NO_FALSE_STALL_AND_REAL_GAP_DETECTED');
 console.log('PASS G295_SOURCE_BOUND_LIFECYCLE_VM hidden/resume/pageshow/focus/native_dialog/freeze/resume/recovery/real_stall/foreign_warning_reset_trace; ANDROID_OWNER_NOT_VERIFIED');
