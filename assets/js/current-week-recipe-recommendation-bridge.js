@@ -78,13 +78,17 @@ function apply(){
     // has no suspect-source qualifier and must never override a player pause.
     let referenceNames=new Set(),recommendationStatus='VERIFIED_READ';
     if(referenceTable){
-      try{
-        const feedbackRows=listRecipeAttemptFeedbackSummaries();
-        referenceNames=weeklyRecipeRecommendationNames(referenceAnalysis(inv),category,feedbackRows);
-      }catch{
+      let feedbackRows,feedbackVerified=true;
+      try{feedbackRows=listRecipeAttemptFeedbackSummaries();}
+      catch{
+        feedbackVerified=false;
         recommendationStatus='HOLD_FEEDBACK_READ_FAILED';
         console.warn('Weekly reference recommendations withheld: feedback authority unavailable');
       }
+      // Recipe requirement read/validation errors belong to the outer source
+      // fail-closed boundary, not the narrower feedback-authority HOLD.
+      if(feedbackVerified)
+        referenceNames=weeklyRecipeRecommendationNames(referenceAnalysis(inv),category,feedbackRows);
     }
     patchTable(referenceTable,referenceNames,2);
     for(const table of [personalTable,referenceTable])if(table){table.dataset.weeklyContextWeek=week.week_start||'';table.dataset.weeklyDishCategory=category||'';table.dataset.weeklyContextAuthority=week.player_weekly_authority_source||week.authority_source||'MISSING';table.dataset.publicEventAuthority=week.public_event_authority_status||'PUBLIC_EVENT_MASTER_UNAVAILABLE';table.dataset.weeklyRecommendationStatus=recommendationStatus;}
