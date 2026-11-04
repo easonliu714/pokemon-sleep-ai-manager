@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {PUBLIC_RECIPE_MASTER} from '../assets/js/public-recipe-current-authority.js';
-import {buildRecipeUnifiedWorkbenchProjection,readRecipeFeedbackForProjection} from '../assets/js/recipe-unified-player-workbench.js';
+import {buildRecipeUnifiedWorkbenchProjection,readRecipeFeedbackForProjection,readRecipeInventoryForProjection} from '../assets/js/recipe-unified-player-workbench.js';
 import {publicCatalogProjectionViewForLocalEntity,shouldInvalidatePublicCatalogFingerprint} from '../assets/js/public-catalog-startup-authority.js';
 
 // G6.2 source-bound, read-side only: all catalog and feedback rows are synthetic.
@@ -124,5 +124,60 @@ console.log('PASS G62_UNIFIED_WORKBENCH_FEEDBACK_READSIDE_PAUSE_RESUME_TWO_PARTI
 console.log('PASS G62_PLAYER_FEEDBACK_INVALIDATES_RECIPE_VIEW_NOT_PUBLIC_FINGERPRINT');
 console.log('PASS G62_SUSPECT_REFERENCE_SOFT_DEPRIORITIZATION_WITH_EXPLICIT_FALLBACK_WARNING');
 console.log('NOTE G62_SYNTHETIC_READ_ONLY_NO_OWNER_ANDROID_UAT_NO_PLAYER_WRITE');
+
+// Independent G6.2 inventory-read authority: a failed SQLite stock query
+// must not masquerade as verified zero inventory or advertise top-three meals.
+const verifiedInventory=readRecipeInventoryForProjection({readInventory:()=>[
+  {ingredient_name:'特選蘋果',quantity:12},
+]});
+assert.equal(verifiedInventory.verified,true);
+assert.equal(verifiedInventory.status,'VERIFIED_READ');
+assert.equal(verifiedInventory.rows.length,1);
+const missingInventory=readRecipeInventoryForProjection({
+  readInventory:()=>{throw Error('synthetic ingredient_inventory query failure');},
+});
+assert.equal(missingInventory.verified,false);
+assert.equal(missingInventory.status,'HOLD_INVENTORY_READ_FAILED');
+assert.deepEqual(missingInventory.rows,[]);
+for(const malformed of [null,[{ingredient_name:'',quantity:1}],
+  [{ingredient_name:'特選蘋果',quantity:'not-a-number'}],
+  [{ingredient_name:'特選蘋果',quantity:-1}],
+  [{ingredient_name:'特選蘋果',quantity:1.5}]]) {
+  assert.equal(readRecipeInventoryForProjection({readInventory:()=>malformed}).verified,false,
+    'invalid stock rows must never certify recommendations');
+}
+let inventoryReadCalls=0;
+const readonlyInventory=readRecipeInventoryForProjection({
+  readonly:true,readInventory:()=>{inventoryReadCalls++;return [];},
+});
+assert.equal(inventoryReadCalls,0);
+assert.equal(readonlyInventory.verified,false);
+const inventoryHeld=buildRecipeUnifiedWorkbenchProjection({
+  catalogRows,inventory:missingInventory.rows,week,recipeFeedback:verifiedRead.rows,
+  feedbackAuthorityVerified:true,inventoryAuthorityVerified:missingInventory.verified,
+});
+assert.equal(inventoryHeld.inventory_authority_status,'HOLD_INVENTORY_READ_FAILED');
+assert.equal(inventoryHeld.feedback_authority_status,'VERIFIED_READ');
+assert.equal(inventoryHeld.partition_complete,true);
+assert.equal(inventoryHeld.total_count,baseline.total_count);
+assert.equal(inventoryHeld.unlocked.filter(row=>row.weekly_recommended).length,0);
+assert.equal(inventoryHeld.locked.filter(row=>row.weekly_recommended).length,0);
+const inventoryRestored=buildRecipeUnifiedWorkbenchProjection({
+  catalogRows,inventory:verifiedInventory.rows,week,recipeFeedback:verifiedRead.rows,
+  inventoryAuthorityVerified:verifiedInventory.verified,
+});
+assert.equal(inventoryRestored.inventory_authority_status,'VERIFIED_READ');
+assert.equal(inventoryRestored.unlocked.filter(row=>row.weekly_recommended).length,3);
+assert.equal(inventoryRestored.locked.filter(row=>row.weekly_recommended).length,3);
+assert.match(ui,/readRecipeInventoryForProjection\(\{readonly\}\)/,
+  'real renderer must use guarded stock query');
+assert.match(ui,/inventory:inventory\.rows/,
+  'actual projection must use stock authority result');
+assert.match(ui,/recipeInventoryAuthority=inventory\.status/,
+  'UI must expose inventory HOLD provenance');
+assert.match(ui,/inventoryVerified\?'庫存未驗證'|inventoryVerified\?shortageText/,
+  'unverified stock must not display fabricated shortage numbers');
+console.log('PASS G62_UNIFIED_INVENTORY_READ_FAILURE_WITHHOLDS_BADGES_AND_SHORTAGES');
+console.log('NOTE G62_INVENTORY_FIXTURE_READONLY_NO_PLAYER_SQLITE_NO_OWNER_UAT');
 
 console.log('PASS G62_UNIFIED_FEEDBACK_READ_FAILURE_WITHHOLDS_BADGES_PUBLIC_CATALOG_PRESERVED');
