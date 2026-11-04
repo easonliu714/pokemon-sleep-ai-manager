@@ -6,6 +6,9 @@ import vm from 'node:vm';
 // local-store doubles. No player SQLite, IndexedDB, or Public Master is opened.
 const path=new URL('../assets/js/recipe-attempt-feedback-ui.js',import.meta.url);
 const actual=fs.readFileSync(path,'utf8');
+const localSource=fs.readFileSync(new URL('../assets/js/recipe-attempt-feedback-local.js',import.meta.url),'utf8');
+assert.match(localSource,/s\.recommendation_paused AS recommendation_paused,/,'history must expose raw nullable SQLite flag');
+assert.doesNotMatch(localSource,/COALESCE\(s\.recommendation_paused,0\) AS recommendation_paused/,'NULL must not be presented as verified unpause');
 const stripped=actual.replace(/^import\s*\{[\s\S]*?\}\s*from '\.\/recipe-attempt-feedback-local\.js';\s*/,'');
 assert.notEqual(stripped,actual,'source-bound import boundary must be recognized');
 const runnable=stripped.replace('export function bindRecipeAttemptFeedbackUi','function bindRecipeAttemptFeedbackUi');
@@ -64,14 +67,15 @@ const root={
   },
   querySelectorAll(selector){
     if(selector==='[data-g62-attempt-failed]')return [this.buttons.attempt];
-    if(selector==='[data-g62-toggle]')return [this.buttons.toggle];
+    if(selector==='[data-g62-toggle]')return this.buttons.toggle?[this.buttons.toggle]:[];
     return [];
   },
   insertAdjacentHTML(_position,markup){
     this.html=markup;
     this.buttons={
       attempt:button({g62AttemptFailed:'r1'}),
-      toggle:button({g62Toggle:'r1',g62Paused:'1'}),
+      toggle:(()=>{const match=markup.match(/data-g62-toggle="([^"]+)" data-g62-paused="([01])"/);
+        return match?button({g62Toggle:match[1],g62Paused:match[2]}):null;})(),
       save:button({}),cancel:button({}),
     };
   },
@@ -139,6 +143,33 @@ assert.doesNotMatch(root.html,/data-g62-feedback-form/);
 assert.equal(saved.length,1,'cancel must not create another failure record');
 console.log('PASS G62_ACTUAL_UI_CANCEL_NO_WRITE');
 
+// Read-side fail-closed: SQL NULL/invalid pause flags must never render an
+// actionable unpause label or a toggle that could write player state.
+for(const invalid of [null,2,'',false,'2']){
+  history[0].recommendation_paused=invalid;
+  rerender();
+  assert.match(root.html,/推薦狀態待核對/);
+  assert.match(root.html,/data-g62-pause-state-hold/);
+  assert.doesNotMatch(root.html,/data-g62-toggle=/);
+  assert.equal(root.buttons.toggle,null,'invalid readback must expose no toggle');
+}
+assert.equal(pauseChanges.length,1,'invalid history flags must not write');
+history[0].recommendation_paused=0;
+rerender();
+assert.match(root.html,/可重新推薦/);
+assert.match(root.html,/data-g62-paused="0"/);
+await root.buttons.toggle.handlers.click();
+assert.deepEqual(pauseChanges.at(-1),{recipeId:'r1',paused:true});
+history[0].recommendation_paused=1;
+rerender();
+assert.match(root.html,/已暫停推薦/);
+assert.match(root.html,/data-g62-paused="1"/);
+root.buttons.toggle.dataset.g62Paused='2';
+await root.buttons.toggle.handlers.click();
+assert.equal(pauseChanges.length,2,'forged invalid DOM flag must not trigger write');
+assert.match(root.html,/推薦暫停狀態未驗證/);
+console.log('PASS G62_ACTUAL_UI_HISTORY_NULL_INVALID_PAUSE_READBACK_FAIL_CLOSED');
+
 // An uncertain post-COMMIT write is not an ordinary retryable validation error.
 holdStatus='UNVERIFIED';
 rerender();
@@ -146,7 +177,7 @@ assert.match(root.html,/PERSISTENCE_UNCERTAIN/);
 await root.buttons.attempt.handlers.click();
 assert.doesNotMatch(root.html,/data-g62-feedback-form/,'uncertain session must not open another draft');
 await root.buttons.toggle.handlers.click();
-assert.equal(pauseChanges.length,1,'uncertain session must not write recommendation state');
+assert.equal(pauseChanges.length,2,'uncertain session must not write recommendation state');
 console.log('PASS G62_ACTUAL_UI_PERSISTENCE_UNCERTAIN_FAIL_CLOSED');
 
 assert.ok(renderCount>=7,'real UI rerender callback exercised');
