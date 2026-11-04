@@ -11,8 +11,8 @@ const recipes=Array.from({length:5},(_,i)=>({
   recipe_id:'fixture-'+(i+1),recipe_name:'測試料理'+(i+1),
   category:'咖哩／濃湯',unlocked:0,notes:'',
 }));
-const ingredients=recipes.map((r,i)=>({recipe_id:r.recipe_id,ingredient_name:'特選蘋果',quantity:i+1}));
-const inventory=[{ingredient_name:'特選蘋果',quantity:0}];
+const ingredients=recipes.map((r,i)=>({recipe_id:r.recipe_id,ingredient_name:'測試食材'+(i+1),quantity:i+1}));
+const inventory=recipes.map((r,i)=>({ingredient_name:'測試食材'+(i+1),quantity:0}));
 const analyzed=analyzeIngredientGaps({recipes,recipeIngredients:ingredients,inventory});
 const names=feedback=>[...weeklyRecipeRecommendationNames(analyzed,'咖哩、濃湯',feedback)];
 assert.deepEqual(names([]),['測試料理1','測試料理2','測試料理3']);
@@ -68,6 +68,25 @@ const recommended=()=>tableRows.filter(r=>r.cells[0].innerHTML==='<b>推薦</b>'
 ctx.apply();
 assert.deepEqual(recommended(),['測試料理1','測試料理2','測試料理3'],
   'baseline real bridge recommends by shortage');
+// G6.2 independent inventory invalidation: manual ingredient saves emit
+// ingredient_inventory, but legacy badges must refresh without navigating away.
+// A stock increase for recipe 5 changes the top-three shortlist from 1/2/3 to 5/1/2.
+const catalogSource=readFileSync(new URL('../assets/js/public-catalog-workbench.js',import.meta.url),'utf8');
+assert.match(catalogSource,/entity:'ingredient_inventory',operation:'manual_upsert'/,'actual manual ingredient save emits this entity');
+assert.ok(events.has('pokemon-sleep:data-changed'),'inventory change listener must be registered');
+const scheduledBeforeInventory=scheduled.length;
+inventory[4].quantity=5;
+events.get('pokemon-sleep:data-changed')({detail:{entity:'ingredient_inventory',operation:'manual_upsert'}});
+assert.equal(scheduled.length,scheduledBeforeInventory+1,'ingredient_inventory mutation must enqueue badge recomputation');
+scheduled.shift()();
+assert.deepEqual([...weeklyRecipeRecommendationNames(analyzeIngredientGaps({recipes,recipeIngredients:ingredients,inventory}),'咖哩、濃湯',[])],['測試料理5','測試料理1','測試料理2'],'ranking must prioritize newly stocked recipe 5');
+assert.deepEqual(recommended(),['測試料理1','測試料理2','測試料理5'],'legacy DOM preserves source row order while changing membership');
+inventory[4].quantity=0;
+ctx.apply();
+assert.deepEqual(recommended(),['測試料理1','測試料理2','測試料理3'],'reverted stock restores original recommendations');
+const scheduledBeforeUnrelated=scheduled.length;
+events.get('pokemon-sleep:data-changed')({detail:{entity:'item_inventory'}});
+assert.equal(scheduled.length,scheduledBeforeUnrelated,'unrelated item inventory should not trigger a recipe badge refresh');
 feedbackRows=feedback;
 assert.ok(events.has('pokemon-sleep:data-changed'),'feedback change listener must be registered');
 events.get('pokemon-sleep:data-changed')({detail:{entity:'recipe_feedback_state'}});
@@ -80,5 +99,5 @@ ctx.apply();
 assert.deepEqual(recommended(),[],'unavailable feedback authority must withhold reference badges');
 assert.ok(warnings.length>0,'fail-closed read must leave an explicit diagnostic');
 assert.equal(table.dataset.weeklyContextAuthority,'SYNTHETIC');
-console.log('PASS G62_LEGACY_WEEKLY_BADGE_FEEDBACK_SOURCE_BOUND_VM paused/suspect/malformed/backfill/change-event/read-failure');
+console.log('PASS G62_LEGACY_WEEKLY_BADGE_FEEDBACK_SOURCE_BOUND_VM paused/suspect/malformed/backfill/ingredient-inventory-change-event/read-failure');
 console.log('HOLD G62_ANDROID_OWNER_UAT_NOT_VERIFIED');
