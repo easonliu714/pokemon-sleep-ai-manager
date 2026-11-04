@@ -61,15 +61,32 @@ export function readRecipeFeedbackForProjection({readonly=false,readFeedback=lis
   }
 }
 
-export function buildRecipeUnifiedWorkbenchProjection({catalogRows=[],inventory=[],week={},recipeFeedback=[],feedbackAuthorityVerified=true}={}){
+// G6.2: an unreadable ingredient inventory is not proof of zero stock.
+// Preserve the public recipe catalog but withhold stock-derived recommendations.
+export function readRecipeInventoryForProjection({readonly=false,readInventory=()=>rows('SELECT ingredient_name,quantity FROM ingredient_inventory')}={}){
+  if(readonly)return Object.freeze({rows:[],verified:false,status:'DATABASE_READONLY_OR_NOT_READY'});
+  try{
+    const data=readInventory();
+    if(!Array.isArray(data)||data.some(row=>!row||typeof row!=='object'
+      ||!String(row.ingredient_name||'').trim()||!Number.isSafeInteger(Number(row.quantity))
+      ||Number(row.quantity)<0))throw new Error('recipe_inventory_rows_invalid');
+    return Object.freeze({rows:data,verified:true,status:'VERIFIED_READ'});
+  }catch{
+    console.warn('Recipe inventory read unavailable; shortages and weekly recommendations withheld');
+    return Object.freeze({rows:[],verified:false,status:'HOLD_INVENTORY_READ_FAILED'});
+  }
+}
+
+export function buildRecipeUnifiedWorkbenchProjection({catalogRows=[],inventory=[],week={},recipeFeedback=[],feedbackAuthorityVerified=true,inventoryAuthorityVerified=true}={}){
   const ids=catalogRows.map(row=>String(row.recipe_id));
   const duplicateIds=[...new Set(ids.filter((id,index)=>ids.indexOf(id)!==index))];
   // G6.2: reuse canonical read-only feedback overlay; do not mutate readiness or Public Recipe Master.
   const analyzed=applyRecipeAttemptFeedback(analyzeIngredientGaps({recipes:catalogRows,recipeIngredients:ingredientRows,inventory}),recipeFeedback);
   const unlockedBase=analyzed.filter(row=>Number(row.unlocked||0)===1);
   const lockedBase=analyzed.filter(row=>Number(row.unlocked||0)!==1);
-  const unlockedRecommended=feedbackAuthorityVerified?recommendations(unlockedBase,week):new Set();
-  const lockedRecommended=feedbackAuthorityVerified?recommendations(lockedBase,week):new Set();
+  const canRecommend=feedbackAuthorityVerified&&inventoryAuthorityVerified;
+  const unlockedRecommended=canRecommend?recommendations(unlockedBase,week):new Set();
+  const lockedRecommended=canRecommend?recommendations(lockedBase,week):new Set();
   const decorate=(data,set)=>sortRows(data).map(row=>({...row,weekly_recommended:set.has(String(row.recipe_id))}));
   const unlocked=decorate(unlockedBase,unlockedRecommended),locked=decorate(lockedBase,lockedRecommended);
   const basePot=numberOrNull(week?.pot_size);
@@ -78,6 +95,8 @@ export function buildRecipeUnifiedWorkbenchProjection({catalogRows=[],inventory=
   const boostedPot=basePot!==null&&verifiedSundayMultiplier!==null?basePot*verifiedSundayMultiplier:null;
   return Object.freeze({
     feedback_authority_status:feedbackAuthorityVerified?'VERIFIED_READ':'HOLD_FEEDBACK_READ_FAILED',
+    inventory_authority_status:inventoryAuthorityVerified?'VERIFIED_READ':'HOLD_INVENTORY_READ_FAILED',
+    inventory_authority_verified:inventoryAuthorityVerified,
     total_count:catalogRows.length,
     unlocked_count:unlocked.length,
     locked_count:locked.length,
@@ -127,11 +146,6 @@ function catalogRows(){
   });
 }
 
-function inventoryRows(){
-  if(!dbReady())return [];
-  try{return rows('SELECT ingredient_name,quantity FROM ingredient_inventory');}catch{return [];}
-}
-
 function weeklyContext(){
   if(!dbReady())return {};
   try{return currentWeeklyContext()||{};}catch{return {};}
@@ -158,14 +172,14 @@ function playerControls(row,readonly){
   return `<td><input class="canonical-recipe-unlocked" type="checkbox" ${unlocked?'checked':''} ${readonly?'disabled':''} data-id="${id}" aria-label="${esc(row.recipe_name)} 已解鎖"></td><td><input class="inline-number canonical-recipe-level" type="number" min="1" inputmode="numeric" value="${esc(level)}" ${readonly?'disabled':''} data-id="${id}" aria-label="${esc(row.recipe_name)} 料理等級"></td><td><input class="inline-number canonical-recipe-energy" type="number" min="0" inputmode="numeric" value="${esc(energy)}" ${readonly?'disabled':''} data-id="${id}" aria-label="${esc(row.recipe_name)} 目前能量"></td><td><button class="canonical-save-recipe" ${readonly?'disabled':''} data-id="${id}">${readonly?'唯讀':'儲存'}</button></td>`;
 }
 
-function rowsHtml(data,readonly){
+function rowsHtml(data,readonly,inventoryVerified=true){
   if(!data.length)return '<tr><td colspan="9">目前沒有資料</td></tr>';
-  return data.map(row=>`<tr class="${row.weekly_recommended?'weekly-recommended':''}" data-recipe-id="${esc(row.recipe_id)}"><td>${row.weekly_recommended?(row.reference_maybe_wrong===true?'<b>推薦（來源待查證）</b>':'<b>推薦</b>'):row.recommendation_paused===true?'已暫停':row.reference_maybe_wrong===true?'來源待查證':'—'}</td><td>${esc(row.category||'')}</td><td><b>${esc(row.recipe_name||'')}</b></td><td class="recipe-formula-cell">${ingredientText(row.requirements)}</td><td class="recipe-shortage-cell">${shortageText(row.requirements)}</td>${playerControls(row,readonly)}</tr>`).join('');
+  return data.map(row=>`<tr class="${row.weekly_recommended?'weekly-recommended':''}" data-recipe-id="${esc(row.recipe_id)}"><td>${row.weekly_recommended?(row.reference_maybe_wrong===true?'<b>推薦（來源待查證）</b>':'<b>推薦</b>'):row.recommendation_paused===true?'已暫停':row.reference_maybe_wrong===true?'來源待查證':'—'}</td><td>${esc(row.category||'')}</td><td><b>${esc(row.recipe_name||'')}</b></td><td class="recipe-formula-cell">${ingredientText(row.requirements)}</td><td class="recipe-shortage-cell">${inventoryVerified?shortageText(row.requirements):'庫存未驗證'}</td>${playerControls(row,readonly)}</tr>`).join('');
 }
 
-function renderTable(table,data,readonly){
+function renderTable(table,data,readonly,{inventoryVerified=true}={}){
   table.dataset.workbenchAuthority=RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION;
-  table.innerHTML=`<thead><tr><th>本週</th><th>分類</th><th>料理</th><th>配方</th><th>缺料</th><th>已解鎖</th><th>料理等級</th><th>目前能量</th><th>操作</th></tr></thead><tbody>${rowsHtml(data,readonly)}</tbody>`;
+  table.innerHTML=`<thead><tr><th>本週</th><th>分類</th><th>料理</th><th>配方</th><th>缺料</th><th>已解鎖</th><th>料理等級</th><th>目前能量</th><th>操作</th></tr></thead><tbody>${rowsHtml(data,readonly,inventoryVerified)}</tbody>`;
 }
 
 function captureDraft(event){
@@ -218,12 +232,13 @@ function renderSummary(target,projection){
     return statCard(name,`${row.unlocked} / ${row.total}`,`已解鎖 / 總數 · 未解鎖 ${row.locked}`,'category');
   }).join('');
   const feedbackNotice=projection.feedback_authority_status==='VERIFIED_READ'?'':` · Recipe Feedback <code>${esc(projection.feedback_authority_status)}</code>`;
+  const inventoryNotice=projection.inventory_authority_status==='VERIFIED_READ'?'':` · Inventory <code>${esc(projection.inventory_authority_status)}</code>`;
   target.innerHTML=`<div class="recipe-summary-grid">
     ${statCard('基礎鍋子',energyCapacity(projection.base_pot_capacity),'帳號層級可用容量','pot')}
     ${statCard('已驗證加成鍋子',boosted,boostedSub,'pot')}
     ${statCard('全部料理',`${projection.unlocked_count} / ${projection.total_count}`,`已解鎖 / 總數 · 未解鎖 ${projection.locked_count}`,'total')}
     ${categories}
-  </div><div class="recipe-summary-meta"><b>本週 ${esc(category)}</b> · ${esc(week)} · Weekly Context <code>${esc(authority)}</code>${projection.authority_update_id?` · <code>${esc(projection.authority_update_id)}</code>`:''}<br>Public Recipe Master <code>${esc(PUBLIC_RECIPE_MASTER_VERSION)}</code>${feedbackNotice}</div>`;
+  </div><div class="recipe-summary-meta"><b>本週 ${esc(category)}</b> · ${esc(week)} · Weekly Context <code>${esc(authority)}</code>${projection.authority_update_id?` · <code>${esc(projection.authority_update_id)}</code>`:''}<br>Public Recipe Master <code>${esc(PUBLIC_RECIPE_MASTER_VERSION)}</code>${feedbackNotice}${inventoryNotice}</div>`;
 }
 function energyCapacity(value){return value===null||value===undefined||!Number.isFinite(Number(value))?'未設定':Number(value).toLocaleString('zh-TW',{maximumFractionDigits:2});}
 
@@ -231,13 +246,19 @@ export function renderRecipeUnifiedWorkbench(){
   const shell=ensureShell();if(!shell)return null;
   const readonly=!dbReady();
   const feedback=readRecipeFeedbackForProjection({readonly});
+  const inventory=readRecipeInventoryForProjection({readonly});
   const projection=buildRecipeUnifiedWorkbenchProjection({
-    catalogRows:catalogRows(),inventory:inventoryRows(),week:weeklyContext(),
+    catalogRows:catalogRows(),inventory:inventory.rows,week:weeklyContext(),
     recipeFeedback:feedback.rows,feedbackAuthorityVerified:feedback.verified,
+    inventoryAuthorityVerified:inventory.verified,
   });
   if(!projection.partition_complete)throw new Error(`recipe_workbench_partition_invalid:${projection.duplicate_recipe_ids.join(',')}`);
-  renderSummary(shell.summary,projection);renderTable(shell.table,projection.unlocked,readonly);renderTable(shell.lockedTable,projection.locked,readonly);bindTable(shell.table,projection);bindTable(shell.lockedTable,projection);
+  renderSummary(shell.summary,projection);
+  renderTable(shell.table,projection.unlocked,readonly,{inventoryVerified:inventory.verified});
+  renderTable(shell.lockedTable,projection.locked,readonly,{inventoryVerified:inventory.verified});
+  bindTable(shell.table,projection);bindTable(shell.lockedTable,projection);
   shell.section.dataset.recipeFeedbackAuthority=feedback.status;
+  shell.section.dataset.recipeInventoryAuthority=inventory.status;
   shell.section.dataset.recipeWorkbenchAuthority=RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION;
   shell.section.dataset.recipePartition=`${projection.unlocked_count}+${projection.locked_count}=${projection.total_count}`;
   return projection;
