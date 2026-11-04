@@ -47,14 +47,29 @@ function categoryStatistics(catalogRows){
   return Object.freeze(stats);
 }
 
-export function buildRecipeUnifiedWorkbenchProjection({catalogRows=[],inventory=[],week={},recipeFeedback=[]}={}){
+// G6.2: feedback read failure is not proof that no recipe is paused.
+// Keep the public catalog visible, but withhold all recommendation badges.
+export function readRecipeFeedbackForProjection({readonly=false,readFeedback=listRecipeAttemptFeedbackSummaries}={}){
+  if(readonly)return Object.freeze({rows:[],verified:false,status:'DATABASE_READONLY_OR_NOT_READY'});
+  try{
+    const rows=readFeedback();
+    if(!Array.isArray(rows))throw new Error('recipe_feedback_rows_invalid');
+    return Object.freeze({rows,verified:true,status:'VERIFIED_READ'});
+  }catch{
+    console.warn('Recipe feedback read unavailable; weekly recommendation badges withheld');
+    return Object.freeze({rows:[],verified:false,status:'HOLD_FEEDBACK_READ_FAILED'});
+  }
+}
+
+export function buildRecipeUnifiedWorkbenchProjection({catalogRows=[],inventory=[],week={},recipeFeedback=[],feedbackAuthorityVerified=true}={}){
   const ids=catalogRows.map(row=>String(row.recipe_id));
   const duplicateIds=[...new Set(ids.filter((id,index)=>ids.indexOf(id)!==index))];
   // G6.2: reuse canonical read-only feedback overlay; do not mutate readiness or Public Recipe Master.
   const analyzed=applyRecipeAttemptFeedback(analyzeIngredientGaps({recipes:catalogRows,recipeIngredients:ingredientRows,inventory}),recipeFeedback);
   const unlockedBase=analyzed.filter(row=>Number(row.unlocked||0)===1);
   const lockedBase=analyzed.filter(row=>Number(row.unlocked||0)!==1);
-  const unlockedRecommended=recommendations(unlockedBase,week),lockedRecommended=recommendations(lockedBase,week);
+  const unlockedRecommended=feedbackAuthorityVerified?recommendations(unlockedBase,week):new Set();
+  const lockedRecommended=feedbackAuthorityVerified?recommendations(lockedBase,week):new Set();
   const decorate=(data,set)=>sortRows(data).map(row=>({...row,weekly_recommended:set.has(String(row.recipe_id))}));
   const unlocked=decorate(unlockedBase,unlockedRecommended),locked=decorate(lockedBase,lockedRecommended);
   const basePot=numberOrNull(week?.pot_size);
@@ -62,6 +77,7 @@ export function buildRecipeUnifiedWorkbenchProjection({catalogRows=[],inventory=
   const verifiedSundayMultiplier=Object.prototype.hasOwnProperty.call(deterministicEffects,'sunday_pot_multiplier')?numberOrNull(deterministicEffects.sunday_pot_multiplier):null;
   const boostedPot=basePot!==null&&verifiedSundayMultiplier!==null?basePot*verifiedSundayMultiplier:null;
   return Object.freeze({
+    feedback_authority_status:feedbackAuthorityVerified?'VERIFIED_READ':'HOLD_FEEDBACK_READ_FAILED',
     total_count:catalogRows.length,
     unlocked_count:unlocked.length,
     locked_count:locked.length,
@@ -201,20 +217,27 @@ function renderSummary(target,projection){
     const row=projection.category_statistics[name]||{total:0,unlocked:0,locked:0};
     return statCard(name,`${row.unlocked} / ${row.total}`,`已解鎖 / 總數 · 未解鎖 ${row.locked}`,'category');
   }).join('');
+  const feedbackNotice=projection.feedback_authority_status==='VERIFIED_READ'?'':` · Recipe Feedback <code>${esc(projection.feedback_authority_status)}</code>`;
   target.innerHTML=`<div class="recipe-summary-grid">
     ${statCard('基礎鍋子',energyCapacity(projection.base_pot_capacity),'帳號層級可用容量','pot')}
     ${statCard('已驗證加成鍋子',boosted,boostedSub,'pot')}
     ${statCard('全部料理',`${projection.unlocked_count} / ${projection.total_count}`,`已解鎖 / 總數 · 未解鎖 ${projection.locked_count}`,'total')}
     ${categories}
-  </div><div class="recipe-summary-meta"><b>本週 ${esc(category)}</b> · ${esc(week)} · Weekly Context <code>${esc(authority)}</code>${projection.authority_update_id?` · <code>${esc(projection.authority_update_id)}</code>`:''}<br>Public Recipe Master <code>${esc(PUBLIC_RECIPE_MASTER_VERSION)}</code></div>`;
+  </div><div class="recipe-summary-meta"><b>本週 ${esc(category)}</b> · ${esc(week)} · Weekly Context <code>${esc(authority)}</code>${projection.authority_update_id?` · <code>${esc(projection.authority_update_id)}</code>`:''}<br>Public Recipe Master <code>${esc(PUBLIC_RECIPE_MASTER_VERSION)}</code>${feedbackNotice}</div>`;
 }
 function energyCapacity(value){return value===null||value===undefined||!Number.isFinite(Number(value))?'未設定':Number(value).toLocaleString('zh-TW',{maximumFractionDigits:2});}
 
 export function renderRecipeUnifiedWorkbench(){
   const shell=ensureShell();if(!shell)return null;
-  const readonly=!dbReady(),projection=buildRecipeUnifiedWorkbenchProjection({catalogRows:catalogRows(),inventory:inventoryRows(),week:weeklyContext(),recipeFeedback:readonly?[]:listRecipeAttemptFeedbackSummaries()});
+  const readonly=!dbReady();
+  const feedback=readRecipeFeedbackForProjection({readonly});
+  const projection=buildRecipeUnifiedWorkbenchProjection({
+    catalogRows:catalogRows(),inventory:inventoryRows(),week:weeklyContext(),
+    recipeFeedback:feedback.rows,feedbackAuthorityVerified:feedback.verified,
+  });
   if(!projection.partition_complete)throw new Error(`recipe_workbench_partition_invalid:${projection.duplicate_recipe_ids.join(',')}`);
   renderSummary(shell.summary,projection);renderTable(shell.table,projection.unlocked,readonly);renderTable(shell.lockedTable,projection.locked,readonly);bindTable(shell.table,projection);bindTable(shell.lockedTable,projection);
+  shell.section.dataset.recipeFeedbackAuthority=feedback.status;
   shell.section.dataset.recipeWorkbenchAuthority=RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION;
   shell.section.dataset.recipePartition=`${projection.unlocked_count}+${projection.locked_count}=${projection.total_count}`;
   return projection;
