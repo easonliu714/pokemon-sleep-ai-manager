@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {PUBLIC_RECIPE_MASTER} from '../assets/js/public-recipe-current-authority.js';
-import {buildRecipeUnifiedWorkbenchProjection} from '../assets/js/recipe-unified-player-workbench.js';
+import {buildRecipeUnifiedWorkbenchProjection,readRecipeFeedbackForProjection} from '../assets/js/recipe-unified-player-workbench.js';
 import {publicCatalogProjectionViewForLocalEntity,shouldInvalidatePublicCatalogFingerprint} from '../assets/js/public-catalog-startup-authority.js';
 
 // G6.2 source-bound, read-side only: all catalog and feedback rows are synthetic.
@@ -20,6 +20,29 @@ const catalogRows=group.slice(0,8).map((row,index)=>({
 const week={dish_category:catalogRows[0].category,week_start:'2026-11-02',authority_source:'SYNTHETIC'};
 const project=recipeFeedback=>buildRecipeUnifiedWorkbenchProjection({catalogRows,inventory:[],week,recipeFeedback});
 const baseline=project([]);
+// G6.2 independent live-render read-side gap: a missing/failed feedback
+// authority must not be treated as an empty list of player pauses.
+const verifiedRead=readRecipeFeedbackForProjection({readFeedback:()=>[]});
+assert.equal(verifiedRead.verified,true);
+assert.equal(verifiedRead.status,'VERIFIED_READ');
+const failedRead=readRecipeFeedbackForProjection({readFeedback:()=>{throw Error('synthetic missing feedback table');}});
+assert.equal(failedRead.verified,false);
+assert.equal(failedRead.status,'HOLD_FEEDBACK_READ_FAILED');
+assert.deepEqual(failedRead.rows,[]);
+const invalidRead=readRecipeFeedbackForProjection({readFeedback:()=>null});
+assert.equal(invalidRead.verified,false,'malformed read result must fail closed');
+let readonlyCalls=0;
+const readonlyRead=readRecipeFeedbackForProjection({readonly:true,readFeedback:()=>{readonlyCalls++;return [];}});
+assert.equal(readonlyCalls,0,'readonly projection must not query player feedback');
+assert.equal(readonlyRead.verified,false);
+const held=buildRecipeUnifiedWorkbenchProjection({catalogRows,inventory:[],week,
+  recipeFeedback:failedRead.rows,feedbackAuthorityVerified:failedRead.verified});
+assert.equal(held.feedback_authority_status,'HOLD_FEEDBACK_READ_FAILED');
+assert.equal(held.partition_complete,true,'feedback failure must not erase public catalog');
+assert.equal(held.total_count,catalogRows.length);
+assert.equal(held.unlocked.filter(row=>row.weekly_recommended).length,0);
+assert.equal(held.locked.filter(row=>row.weekly_recommended).length,0);
+assert.equal(baseline.feedback_authority_status,'VERIFIED_READ');
 assert.equal(baseline.partition_complete,true);
 assert.equal(baseline.unlocked.filter(row=>row.weekly_recommended).length,3);
 assert.equal(baseline.locked.filter(row=>row.weekly_recommended).length,3);
@@ -88,7 +111,9 @@ for(const entity of ['recipe_feedback_state','recipe_attempt_feedback']){
 }
 assert.equal(publicCatalogProjectionViewForLocalEntity('unrelated_player_entity'),null);
 const ui=readFileSync(new URL('../assets/js/recipe-unified-player-workbench.js',import.meta.url),'utf8');
-assert.match(ui,/recipeFeedback:readonly\?\[\]:listRecipeAttemptFeedbackSummaries\(\)/,'real unified renderer must consume local feedback read-side');
+assert.match(ui,/readRecipeFeedbackForProjection\(\{readonly\}\)/,'real unified renderer must use guarded feedback read');
+assert.match(ui,/recipeFeedback:feedback\.rows,feedbackAuthorityVerified:feedback\.verified/,'real projection must bind feedback read status');
+assert.match(ui,/recipeFeedbackAuthority=feedback\.status/,'UI must expose feedback HOLD provenance');
 assert.match(ui,/row\.recommendation_paused===true\?'已暫停'/,'paused UI status must be explicit');
 assert.match(ui,/推薦（來源待查證）/,'suspect fallback recommendation must display source-review warning');
 assert.match(ui,/row\.reference_maybe_wrong===true\?'來源待查證'/,'suspect nonrecommended recipe must display review warning');
@@ -99,3 +124,5 @@ console.log('PASS G62_UNIFIED_WORKBENCH_FEEDBACK_READSIDE_PAUSE_RESUME_TWO_PARTI
 console.log('PASS G62_PLAYER_FEEDBACK_INVALIDATES_RECIPE_VIEW_NOT_PUBLIC_FINGERPRINT');
 console.log('PASS G62_SUSPECT_REFERENCE_SOFT_DEPRIORITIZATION_WITH_EXPLICIT_FALLBACK_WARNING');
 console.log('NOTE G62_SYNTHETIC_READ_ONLY_NO_OWNER_ANDROID_UAT_NO_PLAYER_WRITE');
+
+console.log('PASS G62_UNIFIED_FEEDBACK_READ_FAILURE_WITHHOLDS_BADGES_PUBLIC_CATALOG_PRESERVED');
