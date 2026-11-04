@@ -2,7 +2,7 @@
 // NOT wired to scheduled discovery or production Master. No guessed probabilities,
 // no global candy/shard multiplier for specialty-only research, no player writes.
 import {validatePublicEventPayload,PUBLIC_EVENT_MASTER_SCHEMA} from '../assets/js/public-event-master-contract.js';
-import {assertOfficialArticleHeading} from './g9r-official-article-heading-guard.mjs';
+import {assertOfficialArticleHeading,decodeOfficialVisibleEntities} from './g9r-official-article-heading-guard.mjs';
 
 export const NOVEMBER_OFFICIAL_NOTICE_URLS=Object.freeze({
   new_moon:'https://www.pokemonsleep.net/zh/news/343537333337383034343630393136373338/',
@@ -13,17 +13,15 @@ const compact=value=>String(value).normalize('NFKC').replace(/\s+/g,'');
 function htmlText(html){
   // Non-rendered fallback/input text is not current article evidence: a stale
   // 04:00 or overlap rule inside it must not certify changed visible rules.
-  return String(html).replace(/<!--[\s\S]*?-->/g,' ')
+  const raw=String(html).replace(/<!--[\s\S]*?-->/g,' ')
     .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi,' ')
     .replace(/<textarea\b[^>]*>[\s\S]*?<\/textarea>/gi,' ')
     .replace(/<template\b[^>]*>[\s\S]*?<\/template>/gi,' ')
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ')
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ')
     .replace(/<\/?(?:h[1-6]|p|li|div|section|br)\b[^>]*>/gi,'\n')
-    .replace(/<[^>]+>/g,' ')
-    .replace(/&nbsp;|&#160;/gi,' ').replace(/&amp;/gi,'&')
-    .replace(/&lt;/gi,'<').replace(/&gt;/gi,'>')
-    .replace(/&#(\d+);/g,(_,v)=>String.fromCodePoint(Number(v)))
+    .replace(/<[^>]+>/g,' ');
+  return decodeOfficialVisibleEntities(raw)
     .normalize('NFKC').replace(/[ \t]+/g,' ').replace(/\n[ \t]+/g,'\n');
 }
 function section(text,start,end){

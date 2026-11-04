@@ -170,6 +170,23 @@ rejects(moonHtml,'https://www.pokemonsleep.net/zh/news/3435353037363230343036303
 // changed visible H1 if stale official title text survived elsewhere in the body.
 const moonHeading='〖活動〗第19次「新月日」';
 const prepHeading='〖企畫〗「備料週vol.1」';
+// HTML numeric entities represent the SAME rendered official H1. This is
+// semantic normalization, never a fallback to a stale title elsewhere.
+const entityMoon=moonHeading.replace('〖','&#x3016;').replace('〗','&#12311;');
+const entityPrep=prepHeading.replace('〖','&#12310;').replace('〗','&#x3017;');
+assert.equal(parse(moonHtml.replace('<h1>'+moonHeading+'</h1>',
+  '<h1>'+entityMoon+'</h1>'),NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon).event_id,
+  'new_moon_day_19_2026_11');
+assert.equal(parse(prepHtml.replace('<h1>'+prepHeading+'</h1>',
+  '<h1>'+entityPrep+'</h1>'),NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep).event_id,
+  'meal_prep_week_vol1_2026_11');
+rejects(moonHtml.replace('<h1>'+moonHeading+'</h1>',
+  '<h1>'+entityMoon+'</h1><h1>'+moonHeading+'</h1>'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'encoded and literal duplicate article H1');
+rejects(moonHtml.replace('<h1>'+moonHeading+'</h1>',
+  '<h1>&#x3016;活動&#x3017;第20次「新月日」</h1><p>'+moonHeading+'</p>'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'encoded changed H1 with stale body');
+console.log('PASS G9R_NOVEMBER_HTML_ENTITY_VISIBLE_H1_EXACT_IDENTITY_AND_SPOOF_REJECTION');
 rejects(moonHtml.replace('<h1>'+moonHeading+'</h1>',
   '<h1>〖活動〗第20次「新月日」</h1><p>'+moonHeading+'</p>'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'changed New Moon H1 with stale body quote');
