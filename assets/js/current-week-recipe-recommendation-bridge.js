@@ -7,7 +7,18 @@ import {listRecipeAttemptFeedbackSummaries} from './recipe-attempt-feedback-loca
 
 export const CURRENT_WEEK_RECIPE_RECOMMENDATION_VERSION='current-week-recipe-recommendation-2026-08-17-c-effective-context';
 let applying=false;
-function inventory(){return rows('SELECT ingredient_name,quantity FROM ingredient_inventory');}
+// G6.2: a legacy badge is actionable advice; do not coerce unknown stock to zero.
+function inventory(){
+  const stock=rows('SELECT ingredient_name,quantity FROM ingredient_inventory');
+  if(!Array.isArray(stock)||stock.some(row=>{
+    if(!row||typeof row.ingredient_name!=='string'||!row.ingredient_name.trim())return true;
+    const quantity=row.quantity;
+    if(typeof quantity==='number')return !Number.isSafeInteger(quantity)||quantity<0;
+    if(typeof quantity==='string')return !/^(0|[1-9][0-9]*)$/.test(quantity)||!Number.isSafeInteger(Number(quantity));
+    return true;
+  }))throw new Error('G62_LEGACY_INVENTORY_UNVERIFIED');
+  return stock;
+}
 function personalAnalysis(inv){
   const recipes=rows('SELECT * FROM recipes WHERE unlocked=1 ORDER BY category,recipe_name');
   const ingredients=rows('SELECT * FROM recipe_ingredients ORDER BY recipe_id,ingredient_name');
@@ -40,17 +51,24 @@ function apply(){
     if(personalTable)patchTable(personalTable,weeklyRecipeRecommendationNames(personalAnalysis(inv),category),2);
     // G6.2: fail closed if local feedback cannot be read. A legacy "推薦" badge
     // has no suspect-source qualifier and must never override a player pause.
-    let referenceNames=new Set();
+    let referenceNames=new Set(),recommendationStatus='VERIFIED_READ';
     if(referenceTable){
       try{
         const feedbackRows=listRecipeAttemptFeedbackSummaries();
         referenceNames=weeklyRecipeRecommendationNames(referenceAnalysis(inv),category,feedbackRows);
       }catch{
+        recommendationStatus='HOLD_FEEDBACK_READ_FAILED';
         console.warn('Weekly reference recommendations withheld: feedback authority unavailable');
       }
     }
     patchTable(referenceTable,referenceNames,2);
-    for(const table of [personalTable,referenceTable])if(table){table.dataset.weeklyContextWeek=week.week_start||'';table.dataset.weeklyDishCategory=category||'';table.dataset.weeklyContextAuthority=week.player_weekly_authority_source||week.authority_source||'MISSING';table.dataset.publicEventAuthority=week.public_event_authority_status||'PUBLIC_EVENT_MASTER_UNAVAILABLE';}
+    for(const table of [personalTable,referenceTable])if(table){table.dataset.weeklyContextWeek=week.week_start||'';table.dataset.weeklyDishCategory=category||'';table.dataset.weeklyContextAuthority=week.player_weekly_authority_source||week.authority_source||'MISSING';table.dataset.publicEventAuthority=week.public_event_authority_status||'PUBLIC_EVENT_MASTER_UNAVAILABLE';table.dataset.weeklyRecommendationStatus=recommendationStatus;}
+  }catch(error){
+    // A failed or malformed inventory/recipe read cannot retain old "推薦" badges.
+    patchTable(personalTable,new Set(),2);
+    patchTable(referenceTable,new Set(),2);
+    for(const table of [personalTable,referenceTable])if(table)table.dataset.weeklyRecommendationStatus='HOLD_SOURCE_READ_FAILED';
+    console.warn('Weekly recipe recommendations withheld: source authority unavailable',error?.message||String(error));
   }finally{applying=false;}
 }
 function schedule(delay=20){setTimeout(apply,delay);}
