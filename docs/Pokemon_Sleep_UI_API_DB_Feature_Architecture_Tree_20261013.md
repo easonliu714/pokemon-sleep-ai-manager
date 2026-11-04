@@ -1,3 +1,10 @@
+## 2026-11-05 B/G6.2 — legacy recommendation badges must clear on rescue/DB authority loss (Source/Test candidate)
+
+- Fresh protected intake main `362fbb3d985bc8cf7ec182edf9b630531b224b0d`, Open PR 0, Ruleset #25813226 ACTIVE; no new independently classifiable A/G9R official HTML response since #733, so A live-source drift remains HOLD (not a fabricated source change).
+- Independent read-side risk in `current-week-recipe-recommendation-bridge.js::apply()`: the early `isRescueReadonly() || !isDatabaseReady()` return left previously rendered actionable `推薦` badges on screen after player database authority was lost. This is a source-derived lifecycle risk, not a reported Android incident; existing query/requirements/feedback failure guards do not cover this early-return transition.
+- Minimal fail-closed source correction clears both legacy badge surfaces and marks `HOLD_PLAYER_DATABASE_UNAVAILABLE` before returning, without querying SQLite or changing player data. Existing source-bound VM regression covers verified → rescue-readonly/DB-unavailable → verified recovery and asserts zero SQL reads during each HOLD. Source/Test candidate pending Draft PR exact-head CI, protected expected-head merge and new-main exact-SHA CI/Pages; not Android OWNER_PASS.
+- #6/#19/#295 remain OPEN. #19 11/08 and 11/09 effective Android UAT is not due and requires release evidence; #482 remains `HOLD_OWNER_DEVICE_UNAVAILABLE / OWNER_ACTION=NONE_NOW`, no Manifest request. No Public Master/manifest, production Writer, player SQLite/IDB, STOP, migrations, SW or app-version changes.
+
 ## 2026-11-04 B/G295 — timer-observed visibility transition fallback (Source/Test candidate)
 
 - Exact protected intake main `3cdf729197e7b743d4a8ffe864d709a1a8d751c5`; Open PR 0; Ruleset #25813226 ACTIVE. A/G9R has no independently classifiable new post-#733 scheduled official HTML response, so `A_GATE_NO_NEW_INDEPENDENT_LIVE_SOURCE_GAP` remains; no new official facts are promoted.

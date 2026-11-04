@@ -46,16 +46,18 @@ const document={
   addEventListener:(name,fn)=>documentEvents.set(name,fn),
 };
 let feedbackRows=[],feedbackReadFails=false,inventoryReadFails=false,inventoryRows=inventory,masterIngredients=ingredients;
+let rescueReadonly=false,databaseReady=true,sqlReads=0;
 const ctx={
   document,console:{warn:msg=>warnings.push(msg)},
   rows:sql=>{
+    sqlReads++;
     if(sql.startsWith('SELECT ingredient_name,quantity FROM ingredient_inventory')){if(inventoryReadFails)throw Error('synthetic inventory read failure');return inventoryRows;}
     if(sql.startsWith('SELECT recipe_name,unlocked,notes FROM recipes'))return [];
     if(sql.startsWith('SELECT * FROM recipe_master ORDER BY'))return recipes;
     if(sql.startsWith('SELECT * FROM recipe_master_ingredients ORDER BY'))return masterIngredients;
     throw Error('unexpected SQL: '+sql);
   },
-  isDatabaseReady:()=>true,isRescueReadonly:()=>false,
+  isDatabaseReady:()=>databaseReady,isRescueReadonly:()=>rescueReadonly,
   currentEffectiveWeeklyContext:()=>({dish_category:'咖哩／濃湯',week_start:'2026-11-02',player_weekly_authority_source:'SYNTHETIC'}),
   normalizeDishCategory,analyzeIngredientGaps,weeklyRecipeRecommendationNames,
   listRecipeAttemptFeedbackSummaries:()=>{if(feedbackReadFails)throw Error('synthetic feedback read failure');return feedbackRows;},
@@ -149,5 +151,26 @@ ctx.apply();
 assert.deepEqual(recommended(),['測試料理3','測試料理4','測試料理5'],'verified requirement recovery restores feedback-filtered badges');
 assert.equal(table.dataset.weeklyRecommendationStatus,'VERIFIED_READ');
 assert.equal(table.dataset.weeklyContextAuthority,'SYNTHETIC');
-console.log('PASS G62_LEGACY_WEEKLY_BADGE_FEEDBACK_SOURCE_BOUND_VM paused/suspect/malformed/backfill/inventory-change/inventory-read-failure/invalid-stock/invalid-recipe-requirements/partial-requirements/recovery');
+// Independent rescue transition: the same DOM previously displayed verified
+// badges, then player DB authority became unavailable. No SQLite read is safe.
+const readsBeforeRescue=sqlReads;
+rescueReadonly=true;
+ctx.apply();
+assert.deepEqual(recommended(),[],'rescue readonly must clear previously actionable badges');
+assert.equal(table.dataset.weeklyRecommendationStatus,'HOLD_PLAYER_DATABASE_UNAVAILABLE');
+assert.equal(sqlReads,readsBeforeRescue,'rescue mode must not query player SQLite');
+rescueReadonly=false;
+ctx.apply();
+assert.deepEqual(recommended(),['測試料理3','測試料理4','測試料理5'],'verified rescue recovery restores safe badges');
+const readsBeforeDbLoss=sqlReads;
+databaseReady=false;
+ctx.apply();
+assert.deepEqual(recommended(),[],'DB unavailable must not retain previously verified badges');
+assert.equal(table.dataset.weeklyRecommendationStatus,'HOLD_PLAYER_DATABASE_UNAVAILABLE');
+assert.equal(sqlReads,readsBeforeDbLoss,'DB unavailable must not query player SQLite');
+databaseReady=true;
+ctx.apply();
+assert.deepEqual(recommended(),['測試料理3','測試料理4','測試料理5'],'verified DB recovery restores safe badges');
+assert.equal(table.dataset.weeklyRecommendationStatus,'VERIFIED_READ');
+console.log('PASS G62_LEGACY_WEEKLY_BADGE_FEEDBACK_SOURCE_BOUND_VM paused/suspect/malformed/backfill/inventory-change/inventory-read-failure/invalid-stock/invalid-recipe-requirements/partial-requirements/rescue-readonly/db-unavailable/recovery');
 console.log('HOLD G62_ANDROID_OWNER_UAT_NOT_VERIFIED');
