@@ -133,7 +133,7 @@ export function listRecipeAttemptFeedbackHistory(limit=20){
       a.attempt_id,a.recipe_id,m.recipe_name,a.attempted_at,a.outcome,a.actual_ingredients_json,
       a.source_type,a.source_name,a.source_ref,a.reference_maybe_wrong,a.recommendation_paused_after_attempt,
       a.notes,a.created_at,
-      // Preserve NULL from absent/corrupt state; UI must not render it as an unpause.
+      -- Preserve NULL from absent/corrupt state; UI must not render it as an unpause.
       s.recommendation_paused AS recommendation_paused,
       COALESCE(s.reference_maybe_wrong,0) AS current_reference_maybe_wrong
     FROM recipe_attempt_feedback a
