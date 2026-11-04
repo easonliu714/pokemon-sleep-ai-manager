@@ -45,11 +45,11 @@ const document={
   getElementById:id=>id==='referenceRecipeTable'?table:null,
   addEventListener:(name,fn)=>documentEvents.set(name,fn),
 };
-let feedbackRows=[],feedbackReadFails=false;
+let feedbackRows=[],feedbackReadFails=false,inventoryReadFails=false,inventoryRows=inventory;
 const ctx={
   document,console:{warn:msg=>warnings.push(msg)},
   rows:sql=>{
-    if(sql.startsWith('SELECT ingredient_name,quantity FROM ingredient_inventory'))return inventory;
+    if(sql.startsWith('SELECT ingredient_name,quantity FROM ingredient_inventory')){if(inventoryReadFails)throw Error('synthetic inventory read failure');return inventoryRows;}
     if(sql.startsWith('SELECT recipe_name,unlocked,notes FROM recipes'))return [];
     if(sql.startsWith('SELECT * FROM recipe_master ORDER BY'))return recipes;
     if(sql.startsWith('SELECT * FROM recipe_master_ingredients ORDER BY'))return ingredients;
@@ -98,6 +98,30 @@ feedbackReadFails=true;
 ctx.apply();
 assert.deepEqual(recommended(),[],'unavailable feedback authority must withhold reference badges');
 assert.ok(warnings.length>0,'fail-closed read must leave an explicit diagnostic');
+// Independent G6.2 read-side gap: an inventory query failure used to throw
+// after previously rendered badges, leaving stale actionable recommendations.
+feedbackReadFails=false;
+ctx.apply();
+assert.deepEqual(recommended(),['測試料理3','測試料理4','測試料理5'],'recovery establishes previously visible recommendations');
+inventoryReadFails=true;
+ctx.apply();
+assert.deepEqual(recommended(),[],'failed stock query must clear stale badges rather than throw');
+assert.equal(table.dataset.weeklyRecommendationStatus,'HOLD_SOURCE_READ_FAILED');
+inventoryReadFails=false;
+inventoryRows=[...inventory,{ingredient_name:'測試未知',quantity:null}];
+ctx.apply();
+assert.deepEqual(recommended(),[],'NULL inventory quantity must not silently become zero stock');
+inventoryRows=[...inventory,{ingredient_name:'測試未知',quantity:false}];
+ctx.apply();
+assert.deepEqual(recommended(),[],'boolean inventory quantity must not become zero stock');
+inventoryRows=[...inventory,{ingredient_name:'測試未知',quantity:1.5}];
+ctx.apply();
+assert.deepEqual(recommended(),[],'fractional stock must not become verified integer stock');
+inventoryRows=inventory;
+ctx.apply();
+assert.deepEqual(recommended(),['測試料理3','測試料理4','測試料理5'],'verified inventory recovery re-admits safe feedback-filtered badges');
+assert.equal(table.dataset.weeklyRecommendationStatus,'VERIFIED_READ');
+assert.ok(warnings.some(msg=>msg.includes('source authority unavailable')),'inventory HOLD needs explicit diagnostic');
 assert.equal(table.dataset.weeklyContextAuthority,'SYNTHETIC');
-console.log('PASS G62_LEGACY_WEEKLY_BADGE_FEEDBACK_SOURCE_BOUND_VM paused/suspect/malformed/backfill/ingredient-inventory-change-event/read-failure');
+console.log('PASS G62_LEGACY_WEEKLY_BADGE_FEEDBACK_SOURCE_BOUND_VM paused/suspect/malformed/backfill/inventory-change/inventory-read-failure/invalid-stock/recovery');
 console.log('HOLD G62_ANDROID_OWNER_UAT_NOT_VERIFIED');
