@@ -40,7 +40,7 @@ try{
         event(name){window.dispatchEvent(new Event(name));},
         documentEvent(name){document.dispatchEvent(new Event(name));},
         frames(count){for(let i=0;i<count;i++){clock+=16;const fn=raf.shift();if(!fn)throw Error('missing RAF');fn(clock);}},
-        state(){const warning=document.getElementById('storageWarning');return {detected:trace.filter(e=>e.event==='main_thread_block_detected').length,recovered:trace.filter(e=>e.event==='main_thread_block_recovered').length,resets:trace.filter(e=>e.event==='main_thread_watchdog_visibility_reset').map(e=>e.detail?.details?.reason),resetDetails:trace.filter(e=>e.event==='main_thread_watchdog_visibility_reset').map(e=>e.detail?.details),visibleWarning:!warning.classList.contains('hidden'),warningText:warning.textContent,watchdogMarker:warning.dataset.startupWatchdogWarning||null,preserved:trace.filter(e=>e.event==='main_thread_watchdog_external_warning_preserved').length,timerActive:Boolean(timer),traceCount:trace.length};}
+        state(){const warning=document.getElementById('storageWarning');return {detected:trace.filter(e=>e.event==='main_thread_block_detected').length,recovered:trace.filter(e=>e.event==='main_thread_block_recovered').length,interrupts:trace.filter(e=>e.event==='main_thread_watchdog_lifecycle_interrupted').map(e=>e.detail?.details),resets:trace.filter(e=>e.event==='main_thread_watchdog_visibility_reset').map(e=>e.detail?.details?.reason),resetDetails:trace.filter(e=>e.event==='main_thread_watchdog_visibility_reset').map(e=>e.detail?.details),visibleWarning:!warning.classList.contains('hidden'),warningText:warning.textContent,watchdogMarker:warning.dataset.startupWatchdogWarning||null,preserved:trace.filter(e=>e.event==='main_thread_watchdog_external_warning_preserved').length,timerActive:Boolean(timer),traceCount:trace.length};}
       };
     },source);
     const act=fn=>page.evaluate(fn);
@@ -138,6 +138,20 @@ try{
     await act(()=>window.__g295.frames(31));
     await act(()=>window.__g295.tick(6000));
     assert.equal((await state()).detected,beforeContinuous+2,'new stall after RAF recovery must warn');
+    // Lifecycle interruption is not a proven stable-frame recovery, even when
+    // it safely removes a watchdog-owned warning. Preserve incident provenance.
+    const beforeInterrupt=await state();
+    await act(()=>window.__g295.visibility(true));
+    s=await state();
+    assert.equal(s.recovered,beforeInterrupt.recovered,'background transition must not claim RAF recovery');
+    assert.equal(s.interrupts.length,beforeInterrupt.interrupts.length+1,'lifecycle interruption must be recorded separately');
+    assert.equal(s.interrupts.at(-1).reason,'background-pause');
+    await act(()=>{window.__g295.visibility(false);window.__g295.tick(6000);});
+    s=await state();
+    assert.equal(s.detected,beforeContinuous+3,'new foreground stall must still re-arm');
+    await act(()=>window.__g295.frames(31));
+    assert.equal((await state()).recovered,beforeInterrupt.recovered+1,'stable RAF alone proves recovery');
+    console.log('PASS G295_CHROMIUM_LIFECYCLE_INTERRUPTED_NOT_RAF_RECOVERED');
     console.log('PASS G295_CHROMIUM_CONTINUOUS_STALL_SINGLE_DETECTION_AND_REARM');
     console.log('PASS G295_CHROMIUM_RAF_THROTTLED_RESPONSIVE_TIMER_AND_TRUE_GAP');
     console.log('PASS G295_CHROMIUM_SOURCE_BOUND_NATIVE_DIALOG_DOM_LIFECYCLE hidden/resume/pageshow/focus/alert/confirm/prompt/freeze/resume/grace_expiry/real_stall/foreign_warning_reset_trace');
