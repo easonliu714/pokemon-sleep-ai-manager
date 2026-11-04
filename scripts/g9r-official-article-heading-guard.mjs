@@ -25,9 +25,20 @@ export function assertOfficialArticleHeading(html,expectedHeading){
     .replace(/<textarea\b[^>]*>[\s\S]*?<\/textarea>/gi,' ')
     .replace(/<template\b[^>]*>[\s\S]*?<\/template>/gi,' ')
     .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi,' ');
-  const headings=[...visible.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)]
+  // A non-rendered H1 cannot certify current article identity. Attribute-level
+  // hidden/inert/aria-hidden/inline-style evidence is fail-closed; this is not
+  // a general CSS visibility engine and never relaxes the exact visible title.
+  const hiddenH1=attributes=>{
+    if(/(?:^|\s)(?:hidden|inert)(?=\s|=|$)/i.test(attributes))return true;
+    if(/(?:^|\s)aria-hidden\s*=\s*(?:"true"|'true'|true)(?=\s|$)/i.test(attributes))return true;
+    const style=attributes.match(/(?:^|\s)style\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
+    return Boolean(style&&/(?:^|;)\s*(?:display\s*:\s*none|visibility\s*:\s*hidden)(?:\s*!important)?\s*(?:;|$)/i
+      .test(style[1]??style[2]??''));
+  };
+  const headings=[...visible.matchAll(/<h1\b([^>]*)>([\s\S]*?)<\/h1>/gi)]
+    .filter(match=>!hiddenH1(match[1]))
     .map(match=>compact(decodeOfficialVisibleEntities(
-      match[1].replace(/<[^>]+>/g,' '))));
+      match[2].replace(/<[^>]+>/g,' '))));
   const articleHeadings=headings.filter(value=>
     /^〖(?:活動|企畫|預告)〗/.test(value));
   if(articleHeadings.length!==1||articleHeadings[0]!==compact(expectedHeading))
