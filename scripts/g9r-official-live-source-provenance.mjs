@@ -6,6 +6,38 @@ import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 
 const OFFICIAL=/^https:\/\/www\.pokemonsleep\.net\/zh\/news\/[0-9]+\/$/;
+
+// Structural diagnostics only: a live site can change H1 markup independently
+// of the event facts. Emit bounded counts/hashes, never raw headings or HTML.
+// This must NEVER be used to bypass the strict article-heading authority guard.
+function headingStructureProbe(body,markers){
+  const visible=body.replace(/<!--[\s\S]*?-->/g,' ')
+    .replace(/<(?:noscript|textarea|template)\b[^>]*>[\s\S]*?<\/(?:noscript|textarea|template)>/gi,' ')
+    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi,' ');
+  const compact=value=>String(value).replace(/<[^>]+>/g,' ')
+    .replace(/&nbsp;|&#160;/gi,' ').replace(/&amp;/gi,'&')
+    .replace(/&lt;/gi,'<').replace(/&gt;/gi,'>')
+    .normalize('NFKC').replace(/\s+/g,'');
+  const headings=tag=>[...visible.matchAll(new RegExp('<'+tag+'\\b[^>]*>([\\s\\S]*?)<\\/'+tag+'>','gi'))]
+    .map(match=>compact(match[1]));
+  const h1=headings('h1'),h2=headings('h2');
+  const article=value=>/^〖(?:活動|企畫|預告)〗/.test(value);
+  const articleH1=h1.filter(article);
+  const title=typeof markers.title==='string'?compact(markers.title):'';
+  const matchesTitle=value=>Boolean(title)&&value.includes(title);
+  const sha=value=>createHash('sha256').update(value,'utf8').digest('hex');
+  return Object.freeze({
+    visible_h1_count:Math.min(h1.length,99),
+    visible_h2_count:Math.min(h2.length,99),
+    article_h1_count:Math.min(articleH1.length,99),
+    article_h2_count:Math.min(h2.filter(article).length,99),
+    title_fragment_h1_count:Math.min(h1.filter(matchesTitle).length,99),
+    title_fragment_h2_count:Math.min(h2.filter(matchesTitle).length,99),
+    article_h1_normalized_sha256:Object.freeze(articleH1.slice(0,3).map(sha)),
+    diagnostic_only:true,
+  });
+}
+
 export function summarizeOfficialLiveResponse({key,expectedUrl,response,html,markers={}}={}){
   if(!/^[a-z_]{1,32}$/.test(key||'')||!OFFICIAL.test(expectedUrl||''))
     throw new Error('G9R_PROVENANCE_UNTRUSTED_SOURCE_KEY_OR_URL');
@@ -30,6 +62,7 @@ export function summarizeOfficialLiveResponse({key,expectedUrl,response,html,mar
     html_document_tag_present:/<html\b/i.test(body),
     literal_marker_presence:Object.freeze(markerPresence),
     marker_check_is_diagnostic_only:true,
+    heading_structure:headingStructureProbe(body,markers),
     raw_html_logged:false,player_data_logged:false,
   });
 }
@@ -47,6 +80,36 @@ export function offlineProvenanceRegression(){
   assert.equal(result.utf8_bytes,Buffer.byteLength(html,'utf8'));
   assert.equal(result.html_sha256,createHash('sha256').update(html).digest('hex'));
   assert.deepEqual(result.literal_marker_presence,{title:true,bonus:false});
+  assert.equal(result.heading_structure.visible_h1_count,1);
+  assert.equal(result.heading_structure.article_h1_count,0);
+  assert.equal(result.heading_structure.title_fragment_h1_count,1);
+  assert.deepEqual(result.heading_structure.article_h1_normalized_sha256,[]);
+  // Real scheduled 2026-11-04 live source-watch returned three H1 identity HOLDs.
+  // Distinguish missing, relocated and duplicated visible article headings
+  // without exposing official raw HTML, arbitrary headers or player content.
+  const title='〖活動〗第19次「新月日」';
+  const structural='<html><body><noscript><h1>'+title+'</h1></noscript>'
+    +'<textarea><h1>'+title+'</h1></textarea>'
+    +'<h1>〖活動〗另一活動</h1><h2>'+title+'</h2></body></html>';
+  const probe=summarizeOfficialLiveResponse({key:'new_moon',expectedUrl,
+    response,html:structural+secret,markers:{title}});
+  assert.equal(probe.heading_structure.visible_h1_count,1);
+  assert.equal(probe.heading_structure.article_h1_count,1);
+  assert.equal(probe.heading_structure.article_h2_count,1);
+  assert.equal(probe.heading_structure.title_fragment_h1_count,0);
+  assert.equal(probe.heading_structure.title_fragment_h2_count,1);
+  assert.equal(probe.heading_structure.article_h1_normalized_sha256.length,1);
+  assert.match(probe.heading_structure.article_h1_normalized_sha256[0],/^[a-f0-9]{64}$/);
+  assert.equal(probe.heading_structure.diagnostic_only,true);
+  assert.ok(!JSON.stringify(probe).includes(secret));
+  assert.ok(!JSON.stringify(probe).includes('另一活動'));
+  const duplicated=summarizeOfficialLiveResponse({key:'new_moon',expectedUrl,
+    response,html:'<html><h1>'+title+'</h1><h1>'+title+'</h1></html>',
+    markers:{title}});
+  assert.equal(duplicated.heading_structure.article_h1_count,2);
+  assert.equal(duplicated.heading_structure.title_fragment_h1_count,2);
+  assert.equal(duplicated.heading_structure.article_h1_normalized_sha256.length,2);
+
   assert.equal(result.raw_html_logged,false);
   assert.equal(result.player_data_logged,false);
   assert.ok(!JSON.stringify(result).includes(secret),'no response body or arbitrary headers logged');
