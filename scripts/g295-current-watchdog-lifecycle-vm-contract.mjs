@@ -151,6 +151,21 @@ now+=6000;interval();
 assert.equal(detected(),beforeContinuous+3,'a fresh foreground stall must re-arm after lifecycle cancellation');
 for(let i=0;i<31;i++){now+=16;assert.ok(raf.length);raf.shift()();}
 assert.equal(trace.filter(x=>x.event==='main_thread_block_recovered').length,recoveredBeforeInterrupt+1,'only stable RAF must record recovered');
+// Missed visibilitychange on both transitions: the interval itself observes
+// hidden then visible state. Its first visible callback must reset stale clocks,
+// but the next independent foreground gap must still be detected.
+const beforeSilentVisibility=detected();
+visibilityState='hidden';now+=20000;interval();
+assert.equal(detected(),beforeSilentVisibility,'hidden timer observation must not warn');
+assert.ok(resetReason('timer-observed-background'),'hidden timer fallback must be traceable');
+visibilityState='visible';now+=6000;interval();
+assert.equal(detected(),beforeSilentVisibility,'missed foreground event must not create false stall');
+assert.ok(resetReason('timer-observed-foreground'),'visible timer fallback must be traceable');
+now+=6000;interval();
+assert.equal(detected(),beforeSilentVisibility+1,'fresh foreground scheduling gap remains detectable');
+for(let i=0;i<31;i++){now+=16;assert.ok(raf.length);raf.shift()();}
+assert.equal(ctx.getStartupWatchdogState().warning_active,false,'fallback must preserve stable-frame recovery');
+console.log('PASS G295_TIMER_OBSERVED_VISIBILITY_MISSED_EVENTS_FAIL_CLOSED_AND_REARM');
 console.log('PASS G295_LIFECYCLE_INTERRUPTED_NOT_VERIFIED_RAF_RECOVERY_AND_REARM');
 console.log('PASS G295_CONTINUOUS_STALL_SINGLE_DETECTION_MAX_GAP_AND_NEW_EPISODE');
 console.log('PASS G295_VISIBLE_RAF_THROTTLED_TIMER_RESPONSIVE_NO_FALSE_STALL_AND_REAL_GAP_DETECTED');

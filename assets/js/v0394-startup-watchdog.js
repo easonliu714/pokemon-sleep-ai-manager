@@ -24,6 +24,8 @@ let stallSnapshot=null;
 let lastWarningText='';
 let pageHydrationHideTimer=null;
 let visibilityGraceUntil=performance.now()+1200;
+// G295: a timer may observe a visibility transition even if the event was missed.
+let lastObservedVisibility=document.visibilityState;
 const PAGE_LABELS=Object.freeze({updates:'更新中心',knowledge:'資料百科',items:'道具',ingredients:'食材',recipes:'食譜',backup:'備份還原',pokemon:'寶可夢',guide:'使用說明',diagnostics:'診斷中心'});
 const activeView=()=>document.querySelector('.view.active')?.id||'';
 function renderPageHydrationProgress(detail={}){
@@ -102,6 +104,7 @@ function clearRecoveredHeartbeatWarning({interruptedBy=null}={}){
 }
 function resetHeartbeatForVisibility(reason){
   const now=performance.now();
+  lastObservedVisibility=document.visibilityState;
   heartbeatAt=now;
   lastIntervalTickAt=now;
   recoveryStableFrames=0;
@@ -119,7 +122,21 @@ function startHeartbeat(){
     const now=performance.now();
     const timerGap=now-lastIntervalTickAt;
     lastIntervalTickAt=now;
-    if(document.visibilityState!=='visible'||now<visibilityGraceUntil){heartbeatAt=now;return;}
+    // An observed hidden timer tick is independent evidence of backgrounding,
+    // even when Chromium omitted visibilitychange. Never treat its later gap
+    // as a verified foreground main-thread stall.
+    const observedVisibility=document.visibilityState;
+    if(observedVisibility!=='visible'){
+      if(lastObservedVisibility==='visible')resetHeartbeatForVisibility('timer-observed-background');
+      lastObservedVisibility=observedVisibility;
+      heartbeatAt=now;
+      return;
+    }
+    if(lastObservedVisibility!=='visible'){
+      resetHeartbeatForVisibility('timer-observed-foreground');
+      return;
+    }
+    if(now<visibilityGraceUntil){heartbeatAt=now;return;}
     const blockedFor=Math.round(now-heartbeatAt),stageAge=Math.round(now-lastStageAt);
     // RAF can pause independently of the main thread (occlusion/power saving).
     // A regularly executing timer is positive responsiveness evidence; a genuine
