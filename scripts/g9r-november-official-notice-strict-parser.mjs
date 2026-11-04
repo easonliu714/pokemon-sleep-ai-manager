@@ -35,9 +35,24 @@ function requireLines(actual,expected,label){
   if(cleaned.length!==reference.length||cleaned.some((x,i)=>x!==reference[i]))
     fail(label+'_EXACT_BONUS_LINES_CHANGED');
 }
+// The published date is article-header authority, not an arbitrary visible body quote.
+// Both supported official pages place it immediately beside the article H1;
+// a changed date masked by a stale quote elsewhere must fail closed.
+function assertOfficialPublicationHeader(text,title,published){
+  const lines=text.split('\n').map(line=>line.trim()).filter(Boolean);
+  const titleKey=compact(title);
+  const indices=lines.flatMap((line,index)=>
+    /^〖(?:活動|企畫)〗/.test(compact(line))&&compact(line).includes(titleKey)?[index]:[]);
+  if(indices.length!==1)fail('PUBLICATION_HEADER_TITLE_AMBIGUOUS');
+  const i=indices[0];
+  const nearby=lines.slice(Math.max(0,i-2),Math.min(lines.length,i+3)).map(compact);
+  const dates=nearby.filter(line=>/^202[0-9]\/\d{1,2}\/\d{1,2}$/.test(line));
+  if(dates.length!==1||dates[0]!==compact(published))
+    fail('PUBLICATION_HEADER_DATE_CHANGED_OR_AMBIGUOUS');
+}
 function commonEvidence(text,{title,published,start,end}){
   if(!text.includes(title))fail('TITLE_CHANGED');
-  if(!text.includes(published))fail('PUBLICATION_DATE_CHANGED');
+  assertOfficialPublicationHeader(text,title,published);
   const period=compact(section(text,'〖舉辦期間〗','〖活動營地〗'));
   if(period!==compact('・'+start+'～'+end))fail('PERIOD_0400_BOUNDARY_CHANGED');
   const camps=compact(section(text,'〖活動營地〗','獎勵'));

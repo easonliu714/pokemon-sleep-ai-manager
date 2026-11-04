@@ -186,6 +186,18 @@ assert.equal(parse(moonHtml.replace('<h1>'+moonHeading+'</h1>',
 console.log('PASS G9R_NOVEMBER_VISIBLE_ARTICLE_H1_IDENTITY_BODY_SPOOF_FAIL_CLOSED');
 rejects(moonHtml.replace('2026/10/30','2026/10/29'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'publication drift');
+// An obsolete date quoted in the visible body must not certify a changed
+// current article publication date. These are isolated source fixtures only.
+rejects(moonHtml.replace('<p>2026/10/30</p>','<p>2026/10/29</p>')
+  .replace('</body>','<p>2026/10/30</p></body>'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'New Moon stale publication quote');
+rejects(prepHtml.replace('<p>2026/10/28</p>','<p>2026/10/27</p>')
+  .replace('</body>','<p>2026/10/28</p></body>'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'Meal Prep stale publication quote');
+rejects(moonHtml.replace('<p>2026/10/30</p>',
+  '<p>2026/10/30</p><p>2026/10/29</p>'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'competing header dates');
+console.log('PASS G9R_NOVEMBER_ARTICLE_HEADER_PUBLICATION_DATE_BODY_SPOOF_FAIL_CLOSED');
 rejects(moonHtml.replace('僅適用倍率最大的獎勵','將倍率相乘'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'overlap authority drift');
 // Official notice reward eligibility is determined by sleep-tracking START,
