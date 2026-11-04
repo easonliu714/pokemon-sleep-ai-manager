@@ -45,16 +45,21 @@ function formatHistoryIngredients(rows=[]){
 }
 function historyHtml(history){
   if(!history.length)return '<p class="notice">尚無料理失敗嘗試紀錄。</p>';
-  return `<div class="g62-history-list">${history.slice(0,8).map(row=>`
+  return `<div class="g62-history-list">${history.slice(0,8).map(row=>{
+    // A missing or malformed SQLite pause flag is not verified permission to resume.
+    const flag=row.recommendation_paused;
+    const verifiedPause=flag===0||flag===1||flag==='0'||flag==='1';
+    const paused=flag===1||flag==='1';
+    return `
     <article class="war-team-card g62-history-row">
       <div class="war-team-card-head"><div><b>${esc(row.recipe_name)}</b><p class="notice">${esc(row.attempted_at)}</p></div>
-        <span class="war-team-status ${Number(row.recommendation_paused)===1?'review':'ready'}">${Number(row.recommendation_paused)===1?'已暫停推薦':'可重新推薦'}</span></div>
+        <span class="war-team-status ${!verifiedPause||paused?'review':'ready'}">${!verifiedPause?'推薦狀態待核對':paused?'已暫停推薦':'可重新推薦'}</span></div>
       <p><b>實際投入：</b>${esc(formatHistoryIngredients(row.actual_ingredients))}</p>
       <p class="notice"><b>來源：</b>${esc(row.source_name||row.source_type||'玩家回報')}${row.source_ref?` · ${esc(row.source_ref)}`:''}</p>
       ${Number(row.reference_maybe_wrong)===1?'<p class="notice warning"><b>玩家標記：</b>參考配方可能錯誤</p>':''}
       ${row.notes?`<p class="notice">${esc(row.notes)}</p>`:''}
-      <div class="buttons"><button type="button" data-g62-toggle="${esc(row.recipe_id)}" data-g62-paused="${Number(row.recommendation_paused)===1?'1':'0'}">${Number(row.recommendation_paused)===1?'解除暫停推薦':'暫停推薦'}</button></div>
-    </article>`).join('')}</div>`;
+      ${verifiedPause?`<div class="buttons"><button type="button" data-g62-toggle="${esc(row.recipe_id)}" data-g62-paused="${paused?'1':'0'}">${paused?'解除暫停推薦':'暫停推薦'}</button></div>`:`<p class="notice warning" data-g62-pause-state-hold>本機推薦暫停狀態未驗證；暫不提供切換操作，請先核對資料。</p>`}
+    </article>`}).join('')}</div>`;
 }
 function draftHtml(){
   if(!draft)return '';
@@ -154,6 +159,11 @@ export function bindRecipeAttemptFeedbackUi(root,result,{rerender}={}){
   root.querySelectorAll('[data-g62-toggle]').forEach(button=>{
     button.addEventListener('click',async()=>{
       if(persistenceBlocked()){statusMessage='PERSISTENCE_UNCERTAIN：請先重新載入並核對歷程，暫停其他玩家資料寫入。';rerender?.();return;}
+      // Defense in depth: a stale/forged DOM toggle cannot bypass the read-side HOLD.
+      if(!['0','1'].includes(button.dataset.g62Paused)){
+        statusMessage='推薦暫停狀態未驗證，禁止依未知狀態切換；請先核對本機資料。';
+        rerender?.();return;
+      }
       try{
         const currentlyPaused=button.dataset.g62Paused==='1';
         const resultState=await setRecipeRecommendationPaused(button.dataset.g62Toggle,!currentlyPaused);
