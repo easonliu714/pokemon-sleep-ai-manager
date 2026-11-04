@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {assertOfficialArticleHeading} from './g9r-official-article-heading-guard.mjs';
 import {
   NOVEMBER_OFFICIAL_NOTICE_URLS,parseVerifiedNovemberOfficialNotice,MEAL_PREP_OFFICIAL_CAMP_SPECIES,
   MEAL_PREP_POST_EVENT_INCENSE_SPECIES,
@@ -372,6 +373,20 @@ rejects(withHiddenStaleFact(prepHtml,
   '<textarea hidden>相同的獎勵在不同的活動、企畫中同時登場時，僅適用倍率最大的獎勵。</textarea>'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'hidden textarea must not certify overlap MAX');
 console.log('PASS G9R_NOVEMBER_NONRENDERED_NOSCRIPT_TEXTAREA_SOURCE_EVIDENCE_FAIL_CLOSED');
+
+// Independent G9R source-identity gap: an explicit hidden H1 was previously
+// accepted as the authoritative article title even if the visible H1 changed.
+// Keep hidden duplicates out of identity counting, but never accept a hidden
+// matching H1 as proof. No network, Master or player data is involved.
+const h1Probe=html=>assertOfficialArticleHeading(html,moonHeading);
+for(const attrs of ['hidden','inert','aria-hidden="true"','style="display:none"','style="visibility: hidden !important"']){
+  const hidden='<h1 '+attrs+'>'+moonHeading+'</h1>';
+  assert.throws(()=>h1Probe('<html><body>'+hidden+'<h1>〖活動〗未核定變更</h1></body></html>'),
+    /G9R_OFFICIAL_ARTICLE_H1_REVIEW_REQUIRED/,'hidden H1 must not certify visible changed article: '+attrs);
+  assert.equal(h1Probe('<html><body><h1>'+moonHeading+'</h1>'+hidden+'</body></html>'),true,
+    'hidden duplicate must not mask exact visible title: '+attrs);
+}
+console.log('PASS G9R_HIDDEN_H1_ATTRIBUTE_SOURCE_IDENTITY_SPOOF_FAIL_CLOSED');
 
 console.log('PASS G9R_NOVEMBER_NON_RENDERED_COMMENT_TEMPLATE_SOURCE_EVIDENCE_FAIL_CLOSED');
 
