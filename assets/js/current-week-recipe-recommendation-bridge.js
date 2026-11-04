@@ -19,17 +19,42 @@ function inventory(){
   }))throw new Error('G62_LEGACY_INVENTORY_UNVERIFIED');
   return stock;
 }
+// G6.2: an incomplete or coercible recipe requirement is not verified zero demand.
+// Never rank actionable legacy badges from a partial recipe-ingredient read.
+function verifiedRequirements(recipes,requirements){
+  if(!Array.isArray(recipes)||!Array.isArray(requirements))
+    throw new Error('G62_LEGACY_RECIPE_REQUIREMENTS_UNVERIFIED');
+  const ids=new Set();
+  for(const recipe of recipes){
+    if(!recipe||recipe.recipe_id===null||recipe.recipe_id===undefined)
+      throw new Error('G62_LEGACY_RECIPE_REQUIREMENTS_UNVERIFIED');
+    ids.add(recipe.recipe_id);
+  }
+  const covered=new Set();
+  for(const item of requirements){
+    const quantity=item?.quantity;
+    const validQuantity=(typeof quantity==='number'&&Number.isSafeInteger(quantity)&&quantity>0)
+      ||(typeof quantity==='string'&&/^[1-9][0-9]*$/.test(quantity)&&Number.isSafeInteger(Number(quantity)));
+    if(!item||!ids.has(item.recipe_id)||typeof item.ingredient_name!=='string'
+      ||!item.ingredient_name.trim()||!validQuantity)
+      throw new Error('G62_LEGACY_RECIPE_REQUIREMENTS_UNVERIFIED');
+    covered.add(item.recipe_id);
+  }
+  if([...ids].some(id=>!covered.has(id)))
+    throw new Error('G62_LEGACY_RECIPE_REQUIREMENTS_UNVERIFIED');
+  return requirements;
+}
 function personalAnalysis(inv){
   const recipes=rows('SELECT * FROM recipes WHERE unlocked=1 ORDER BY category,recipe_name');
   const ingredients=rows('SELECT * FROM recipe_ingredients ORDER BY recipe_id,ingredient_name');
-  return analyzeIngredientGaps({recipes,recipeIngredients:ingredients,inventory:inv});
+  return analyzeIngredientGaps({recipes,recipeIngredients:verifiedRequirements(recipes,ingredients),inventory:inv});
 }
 function referenceAnalysis(inv){
   const personal=rows('SELECT recipe_name,unlocked,notes FROM recipes'),names=new Set();
   for(const item of personal){if(Number(item.unlocked||0)===1)names.add(item.recipe_name);const match=String(item.notes||'').match(/對照主檔名稱：(.+)$/);if(match&&Number(item.unlocked||0)===1)names.add(match[1]);}
   const recipes=rows('SELECT * FROM recipe_master ORDER BY category,base_energy DESC,recipe_name').map(row=>({...row,unlocked:names.has(row.recipe_name)?1:0}));
   const ingredients=rows('SELECT * FROM recipe_master_ingredients ORDER BY recipe_id,ingredient_name');
-  return analyzeIngredientGaps({recipes,recipeIngredients:ingredients,inventory:inv}).filter(row=>row.status!=='unlocked');
+  return analyzeIngredientGaps({recipes,recipeIngredients:verifiedRequirements(recipes,ingredients),inventory:inv}).filter(row=>row.status!=='unlocked');
 }
 function patchTable(table,names,nameCellIndex){
   if(!table)return;
