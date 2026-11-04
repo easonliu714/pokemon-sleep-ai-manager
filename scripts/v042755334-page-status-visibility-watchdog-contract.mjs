@@ -272,7 +272,9 @@ assert.match(watchdog,/offscreen:true/,'offscreen progress must remain traceable
 assert.match(watchdog,/page_hydration_badge_stale_cleared/,'navigation must clear stale badge ownership');
 assert.match(watchdog,/badge\.dataset\.page!==targetPage/);
 
-assert.match(watchdog,/document\.visibilityState!=='visible'/,'background documents must not trigger heartbeat stall warnings');
+// G295: visibility is sampled into a local variable so a missed event can be inferred safely.
+assert.match(watchdog,/const observedVisibility=document\.visibilityState;/,'heartbeat must sample the current document visibility');
+assert.match(watchdog,/if\(observedVisibility!=='visible'\)/,'background documents must not trigger heartbeat stall warnings');
 assert.match(watchdog,/main_thread_watchdog_visibility_reset/,'visibility transitions must reset heartbeat authority');
 assert.match(watchdog,/foreground-resume/);
 assert.match(watchdog,/background-pause/);

@@ -37,6 +37,7 @@ try{
         tick(ms=0){clock+=ms;if(!timer)throw Error('missing watchdog interval');timer();},
         advance(ms){clock+=ms;},
         visibility(hidden){visible=!hidden;document.dispatchEvent(new Event('visibilitychange'));},
+        visibilitySilent(hidden){visible=!hidden;},
         event(name){window.dispatchEvent(new Event(name));},
         documentEvent(name){document.dispatchEvent(new Event(name));},
         frames(count){for(let i=0;i<count;i++){clock+=16;const fn=raf.shift();if(!fn)throw Error('missing RAF');fn(clock);}},
@@ -151,6 +152,22 @@ try{
     assert.equal(s.detected,beforeContinuous+3,'new foreground stall must still re-arm');
     await act(()=>window.__g295.frames(31));
     assert.equal((await state()).recovered,beforeInterrupt.recovered+1,'stable RAF alone proves recovery');
+    // Real Chromium DOM with synthetic clock: no visibilitychange dispatch.
+    // The watchdog timer must infer the observed hidden/visible transition.
+    const beforeSilentVisibility=(await state()).detected;
+    await act(()=>{window.__g295.visibilitySilent(true);window.__g295.tick(20000);});
+    s=await state();
+    assert.equal(s.detected,beforeSilentVisibility,'hidden timer must not warn without visibility event');
+    assert.ok(s.resets.includes('timer-observed-background'),'hidden fallback provenance missing');
+    await act(()=>{window.__g295.visibilitySilent(false);window.__g295.tick(6000);});
+    s=await state();
+    assert.equal(s.detected,beforeSilentVisibility,'missed foreground event must not false-positive');
+    assert.ok(s.resets.includes('timer-observed-foreground'),'foreground fallback provenance missing');
+    await act(()=>window.__g295.tick(6000));
+    assert.equal((await state()).detected,beforeSilentVisibility+1,'true foreground gap still detected');
+    await act(()=>window.__g295.frames(31));
+    assert.equal((await state()).watchdogMarker,null,'stable-frame recovery remains effective');
+    console.log('PASS G295_CHROMIUM_TIMER_OBSERVED_MISSED_VISIBILITY_EVENTS');
     console.log('PASS G295_CHROMIUM_LIFECYCLE_INTERRUPTED_NOT_RAF_RECOVERED');
     console.log('PASS G295_CHROMIUM_CONTINUOUS_STALL_SINGLE_DETECTION_AND_REARM');
     console.log('PASS G295_CHROMIUM_RAF_THROTTLED_RESPONSIVE_TIMER_AND_TRUE_GAP');
