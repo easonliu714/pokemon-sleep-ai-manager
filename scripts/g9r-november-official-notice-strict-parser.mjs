@@ -42,8 +42,12 @@ function commonEvidence(text,{title,published,start,end}){
   if(period!==compact('・'+start+'～'+end))fail('PERIOD_0400_BOUNDARY_CHANGED');
   const camps=compact(section(text,'〖活動營地〗','獎勵'));
   if(camps!=='・所有營地')fail('ALL_CAMPS_NOT_EXACTLY_VERIFIED');
-  if(!compact(text).includes(compact('活動、企畫舉辦日期的切換時間為每日4:00')))fail('GAME_DAY_BOUNDARY_MISSING');
-  if(!compact(text).includes(compact('相同的獎勵在不同的活動、企畫中同時登場時，僅適用倍率最大的獎勵')))
+  // G9R: 04:00 and same-key MAX must belong to THIS article's Notice section.
+  // A visible historical rule quoted in the body cannot certify changed current rules.
+  const notice=text.slice(text.indexOf('注意事項'));
+  if(!notice.startsWith('注意事項'))fail('OFFICIAL_NOTICE_SECTION_MISSING');
+  if(!compact(notice).includes(compact('活動、企畫舉辦日期的切換時間為每日4:00')))fail('GAME_DAY_BOUNDARY_MISSING');
+  if(!compact(notice).includes(compact('相同的獎勵在不同的活動、企畫中同時登場時，僅適用倍率最大的獎勵')))
     fail('OFFICIAL_OVERLAP_MAX_RULE_MISSING');
   // Official rewards are keyed to the sleep-measurement START, not the report
   // submission time. Delayed reports across either boundary must not be
@@ -54,8 +58,7 @@ function commonEvidence(text,{title,published,start,end}){
     '若將「活動／企畫期間內測量的睡眠資料」留到活動／企畫結束後進行「稍後再報告」，則會適用獎勵。',
     '獎勵不適用於新手教學中的睡眠測量。',
   ];
-  const notice=text.slice(text.indexOf('注意事項'));
-  if(!notice.startsWith('注意事項'))fail('OFFICIAL_NOTICE_SECTION_MISSING');
+
   sleepWindowAuthority.forEach((statement,index)=>{
     if(!compact(notice).includes(compact(statement)))
       fail('SLEEP_MEASUREMENT_START_OR_LATE_REPORT_SCOPE_CHANGED:'+index);

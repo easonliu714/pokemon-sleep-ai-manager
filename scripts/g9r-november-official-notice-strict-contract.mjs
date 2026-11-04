@@ -299,6 +299,23 @@ rejects(withHiddenStaleFact(moonHtml,
   '第19次「新月日」','第20次「新月日」',
   '<template data-stale="title">第19次「新月日」</template>'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'hidden template must not mask visible event identity drift');
+// G9R independent visible-body spoof: a historical rule quoted before the
+// article's Notice cannot certify a changed current 04:00 or MAX rule.
+const visibleStaleRule=(html,original,revised)=>{
+  assert.ok(html.includes(original),'official rule fixture must be present');
+  return html.replace(original,revised).replace('<h2>注意事項</h2>',
+    '<p>歷史公告引用：'+original+'</p><h2>注意事項</h2>');
+};
+rejects(visibleStaleRule(moonHtml,
+  '活動、企畫舉辦日期的切換時間為每日4:00。',
+  '活動、企畫舉辦日期的切換時間為每日5:00。'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'stale visible 04:00 body quote');
+rejects(visibleStaleRule(prepHtml,
+  '相同的獎勵在不同的活動、企畫中同時登場時，僅適用倍率最大的獎勵。',
+  '相同的獎勵在不同的活動、企畫中同時登場時，將倍率相乘。'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'stale visible MAX body quote');
+console.log('PASS G9R_NOTICE_LOCAL_0400_AND_MAX_RULE_VISIBLE_BODY_SPOOF_FAIL_CLOSED');
+
 console.log('PASS G9R_NOVEMBER_NON_RENDERED_COMMENT_TEMPLATE_SOURCE_EVIDENCE_FAIL_CLOSED');
 
 console.log('PASS G9R_MEAL_PREP_TWO_POST_EVENT_INCENSE_ONLY_CAMP_ROSTERS_FAIL_CLOSED');
