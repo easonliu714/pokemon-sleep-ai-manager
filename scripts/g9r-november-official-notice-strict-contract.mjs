@@ -183,6 +183,19 @@ assert.equal(parse(moonHtml.replace('<h1>'+moonHeading+'</h1>',
   '<h1>Pokémon Sleep</h1><h1><span>'+moonHeading+'</span></h1>'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon).event_id,'new_moon_day_19_2026_11',
   'unrelated site H1 and inline article span must not cause false HOLD');
+// A stale H1 in non-rendered markup must not stand in for the visible official H1.
+// This is a distinct shared-heading guard from the previously fixed 04:00/MAX body text.
+for(const tag of ['noscript','textarea']){
+  const hidden='<'+tag+'><h1>'+moonHeading+'</h1></'+tag+'>';
+  rejects(moonHtml.replace('<h1>'+moonHeading+'</h1>',
+    '<h1>Pokémon Sleep</h1>'+hidden+'<p>'+moonHeading+'</p>'),
+    NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'hidden '+tag+' H1 cannot certify changed visible article');
+  assert.equal(parse(moonHtml.replace('<h1>'+moonHeading+'</h1>',
+    '<h1>'+moonHeading+'</h1>'+hidden),
+    NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon).event_id,'new_moon_day_19_2026_11',
+    'non-rendered '+tag+' duplicate must not falsely reject valid visible article');
+}
+console.log('PASS G9R_NOVEMBER_NONRENDERED_ARTICLE_H1_SPOOF_AND_FALSE_HOLD_REGRESSION');
 console.log('PASS G9R_NOVEMBER_VISIBLE_ARTICLE_H1_IDENTITY_BODY_SPOOF_FAIL_CLOSED');
 rejects(moonHtml.replace('2026/10/30','2026/10/29'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'publication drift');

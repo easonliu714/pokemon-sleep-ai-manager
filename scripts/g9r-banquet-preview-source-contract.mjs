@@ -9,7 +9,10 @@ export const BANQUET_PREVIEW_URL='https://www.pokemonsleep.net/zh/news/343535303
 const hold=reason=>{throw new Error('G9R_BANQUET_PREVIEW_REVIEW_REQUIRED:'+reason);};
 const compact=s=>String(s).normalize('NFKC').replace(/\s+/g,'');
 function visibleText(html){
+  // Hidden fallback/input markup cannot supply a preview title or source fact.
   return String(html).replace(/<!--[\s\S]*?-->/g,' ')
+    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi,' ')
+    .replace(/<textarea\b[^>]*>[\s\S]*?<\/textarea>/gi,' ')
     .replace(/<template\b[^>]*>[\s\S]*?<\/template>/gi,' ')
     .replace(/<(?:script|style)\b[^>]*>[\s\S]*?<\/(?:script|style)>/gi,' ')
     .replace(/<\/?(?:h[1-6]|p|li|div|section|br)\b[^>]*>/gi,'\n')
@@ -145,6 +148,19 @@ export function offlinePreviewRegression(){
   assert.equal(auditBanquetPreview(fixture.replace('<h1>'+title+'</h1>',
     '<h1>Pokémon Sleep</h1><h1><span>'+title+'</span></h1>')).source_status,
     'PREVIEW_ONLY','unrelated site H1 and inline title span accepted');
+  // Non-rendered H1 spoof: the old shared heading regex saw <noscript>/<textarea>
+  // and the preview text stripper also admitted the hidden title as a real line.
+  for(const tag of ['noscript','textarea']){
+    const hidden='<'+tag+'><h1>'+title+'</h1></'+tag+'>';
+    assert.throws(()=>auditBanquetPreview(fixture.replace('<h1>'+title+'</h1>',
+      '<h1>Pokémon Sleep</h1>'+hidden)),
+      /G9R_OFFICIAL_ARTICLE_H1_REVIEW_REQUIRED/,
+      'hidden '+tag+' heading must not certify a changed preview article');
+    assert.equal(auditBanquetPreview(fixture.replace('<h1>'+title+'</h1>',
+      '<h1>'+title+'</h1>'+hidden)).source_status,'PREVIEW_ONLY',
+      'hidden '+tag+' duplicate must not cause a false source HOLD');
+  }
+  console.log('PASS G9R_BANQUET_NONRENDERED_ARTICLE_H1_SPOOF_AND_FALSE_HOLD_REGRESSION');
   console.log('PASS G9R_BANQUET_VISIBLE_ARTICLE_H1_IDENTITY_BODY_SPOOF_FAIL_CLOSED');
   console.log('PASS G9R_BANQUET_PREVIEW_OFFICIAL_SOURCE_BOUND_3_RECIPES_39_121_91');
   console.log('PASS G9R_BANQUET_PREVIEW_NEGATIVE_DRIFT_AND_NO_DETERMINISTIC_PROMOTION');
