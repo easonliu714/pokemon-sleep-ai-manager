@@ -99,7 +99,7 @@ function commonEvidence(text,{title,published,start,end}){
   ];
   sleepWindowAuthority.forEach(([fragment,expected],index)=>{
     const matches=noticeLines.filter(line=>compact(line).includes(compact(fragment)));
-    if(matches.length!==1||compact(matches[0].replace(/^[・•]\\s*/,''))!==compact(expected))
+    if(matches.length!==1||compact(matches[0].replace(/^[・•] */, ''))!==compact(expected))
       fail('SLEEP_MEASUREMENT_START_OR_LATE_REPORT_SCOPE_CHANGED_OR_AMBIGUOUS:'+index);
   });
 }
