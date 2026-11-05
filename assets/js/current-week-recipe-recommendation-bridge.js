@@ -53,9 +53,24 @@ function personalAnalysis(inv){
   const ingredients=rows('SELECT * FROM recipe_ingredients ORDER BY recipe_id,ingredient_name').filter(item=>ids.has(item?.recipe_id));
   return analyzeIngredientGaps({recipes,recipeIngredients:verifiedRequirements(recipes,ingredients),inventory:inv});
 }
+// G6.2: an unverified player unlock flag must not become an actionable
+// "locked" reference recommendation via Number()/truthiness coercion.
+function verifiedPlayerUnlock(value){
+  if(value===0||value==='0')return false;
+  if(value===1||value==='1')return true;
+  throw new Error('G62_LEGACY_PLAYER_UNLOCK_UNVERIFIED');
+}
 function referenceAnalysis(inv){
   const personal=rows('SELECT recipe_name,unlocked,notes FROM recipes'),names=new Set();
-  for(const item of personal){if(Number(item.unlocked||0)===1)names.add(item.recipe_name);const match=String(item.notes||'').match(/對照主檔名稱：(.+)$/);if(match&&Number(item.unlocked||0)===1)names.add(match[1]);}
+  if(!Array.isArray(personal))throw new Error('G62_LEGACY_PLAYER_UNLOCK_UNVERIFIED');
+  for(const item of personal){
+    if(!item||typeof item.recipe_name!=='string'||!item.recipe_name.trim())
+      throw new Error('G62_LEGACY_PLAYER_UNLOCK_UNVERIFIED');
+    if(!verifiedPlayerUnlock(item.unlocked))continue;
+    names.add(item.recipe_name);
+    const match=String(item.notes||'').match(/對照主檔名稱：(.+)$/);
+    if(match)names.add(match[1]);
+  }
   const recipes=rows('SELECT * FROM recipe_master ORDER BY category,base_energy DESC,recipe_name').map(row=>({...row,unlocked:names.has(row.recipe_name)?1:0}));
   const ingredients=rows('SELECT * FROM recipe_master_ingredients ORDER BY recipe_id,ingredient_name');
   return analyzeIngredientGaps({recipes,recipeIngredients:verifiedRequirements(recipes,ingredients),inventory:inv}).filter(row=>row.status!=='unlocked');
