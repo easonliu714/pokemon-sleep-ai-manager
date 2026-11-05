@@ -165,6 +165,29 @@ now+=6000;interval();
 assert.equal(detected(),beforeSilentVisibility+1,'fresh foreground scheduling gap remains detectable');
 for(let i=0;i<31;i++){now+=16;assert.ok(raf.length);raf.shift()();}
 assert.equal(ctx.getStartupWatchdogState().warning_active,false,'fallback must preserve stable-frame recovery');
+// Independent #295 missed-event path: hidden RAF may still fire for 30+ frames.
+// Those frames must interrupt a foreground stall, NOT certify stable recovery.
+const beforeRafHidden=detected();
+now+=6000;interval();
+assert.equal(detected(),beforeRafHidden+1,'new foreground stall opens before missed hidden event');
+assert.equal(ctx.getStartupWatchdogState().warning_active,true);
+const recoveredBeforeRafHidden=trace.filter(x=>x.event==='main_thread_block_recovered').length;
+const interruptedBeforeRafHidden=trace.filter(x=>x.event==='main_thread_watchdog_lifecycle_interrupted').length;
+visibilityState='hidden'; // intentionally omit visibilitychange
+for(let i=0;i<40;i++){now+=16;assert.ok(raf.length);raf.shift()();}
+assert.equal(ctx.getStartupWatchdogState().warning_active,false,'hidden RAF cancels unresolved foreground episode');
+assert.equal(trace.filter(x=>x.event==='main_thread_block_recovered').length,recoveredBeforeRafHidden,
+  'hidden RAF must not inflate verified recovery');
+const rafInterrupts=trace.filter(x=>x.event==='main_thread_watchdog_lifecycle_interrupted');
+assert.equal(rafInterrupts.length,interruptedBeforeRafHidden+1);
+assert.equal(rafInterrupts.at(-1).detail.details.reason,'raf-observed-background');
+visibilityState='visible'; // again intentionally omit visibilitychange
+for(let i=0;i<40;i++){now+=16;assert.ok(raf.length);raf.shift()();}
+assert.ok(resetReason('raf-observed-foreground'),'RAF must re-arm after missed foreground event');
+interval();assert.equal(detected(),beforeRafHidden+1,'RAF foreground grace must not create false stall');
+now+=6000;interval();
+assert.equal(detected(),beforeRafHidden+2,'new real stall after RAF-observed foreground must remain detectable');
+console.log('PASS G295_RAF_OBSERVED_MISSED_VISIBILITY_HIDDEN_NOT_RECOVERED_AND_REARM');
 console.log('PASS G295_TIMER_OBSERVED_VISIBILITY_MISSED_EVENTS_FAIL_CLOSED_AND_REARM');
 console.log('PASS G295_LIFECYCLE_INTERRUPTED_NOT_VERIFIED_RAF_RECOVERY_AND_REARM');
 console.log('PASS G295_CONTINUOUS_STALL_SINGLE_DETECTION_MAX_GAP_AND_NEW_EPISODE');
