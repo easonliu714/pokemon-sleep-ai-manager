@@ -1,3 +1,11 @@
+## 2026-11-05 A/G9R — Growth Week camp section must certify global scope (Source/Test candidate)
+
+- **Authority:** fresh main `5c511551def1fcef711a614ecd087a506d88cd36`, single branch, no competing PR. Official Growth Week vol.6 article identifies `〖活動營地〗 ・所有營地` explicitly.
+- **Production-source gap:** `scripts/g9r-official-event-source-refresh.mjs::parseVerifiedGrowthNotice()` previously searched for `所有營地` anywhere in normalized article body. Unrelated notes could certify a global event despite a restricted/missing camp section.
+- **Change:** require exactly one explicit `〖活動營地〗` heading and exact global value, fail closed on restricted/absent/duplicated camp scope; preserve genuine two-line article layout.
+- **Source-bound test:** `scripts/g9r-official-event-feed-contract.mjs` exercises stray-note, absent-section, duplicate-conflict negative fixtures and visible two-line positive fixture. No data-only master release or player data touched.
+- **Gate:** `G9R_GROWTH_CAMP_SECTION_SCOPE_SOURCE_TEST_CANDIDATE` pending exact-head PR CI/protected merge/new-main CI+Pages; #19 OPEN; #482 HOLD with no Owner action.
+
 ## 2026-11-05 A/G9R — Growth Week inert-body source evidence (Source/Test candidate)
 
 - **Authority:** protected main `9e847ad1760bea051f503351ce4a429950df951f`, Open PR 0 before the single active branch; prior B/#762 exact-main CI/Pages SUCCESS. This is a new body-fact provenance risk, not a repeat of the visible-H1 #761 Gate or a claim of new official announcements.
