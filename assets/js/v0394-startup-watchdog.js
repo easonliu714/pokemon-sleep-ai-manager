@@ -169,7 +169,7 @@ function startHeartbeat(){
       resetHeartbeatForVisibility('timer-observed-foreground');
       return;
     }
-    if(now<visibilityGraceUntil){heartbeatAt=now;pendingRafFirstGapMs=0;return;}
+    if(now<visibilityGraceUntil){pendingRafFirstGapMs=0;heartbeatAt=now;return;}
     const blockedFor=Math.round(Math.max(now-heartbeatAt,pendingRafFirstGapMs)),stageAge=Math.round(now-lastStageAt);
     pendingRafFirstGapMs=0;
     // RAF can pause independently of the main thread (occlusion/power saving).
