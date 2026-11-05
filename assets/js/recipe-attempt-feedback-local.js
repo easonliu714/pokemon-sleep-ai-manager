@@ -81,7 +81,16 @@ export function getRecipeAttemptPersistenceStatus(){
           throw new Error('G62_PAUSE_TOGGLE_READBACK_UNVERIFIED');
         return observed.some(row=>Number(row.recommendation_paused)===marker.target_paused);
       })()
-      :rows('SELECT attempt_id FROM recipe_attempt_feedback WHERE attempt_id=?',[marker.attempt_id]).length===1;
+      :(()=>{
+        // A recovered attempt must belong to the SAME recipe named in its
+        // write-ahead marker. An ID match for another recipe is corrupted
+        // recovery evidence, never a verified durable feedback write.
+        const observed=rows('SELECT recipe_id FROM recipe_attempt_feedback WHERE attempt_id=?',[marker.attempt_id]);
+        if(!Array.isArray(observed)||observed.length>1||
+          observed.some(row=>!row||row.recipe_id!==marker.recipe_id))
+          throw new Error('G62_ATTEMPT_RECIPE_IDENTITY_READBACK_UNVERIFIED');
+        return observed.length===1;
+      })();
     clearPersistenceMarker();
     return Object.freeze({status:exists?'PERSISTED':'NOT_PERSISTED',...marker,source:'RELOADED_SQLITE_READBACK'});
   }catch{
