@@ -174,6 +174,27 @@ assert.equal(parsed.field_provenance.event_effects.pokemon_candy_multiplier_scop
 // certify the article identity or trigger a VERIFIED future data-only release.
 const growthHeading='〖企畫〗寶可夢快快長大週vol.6';
 const growthNow={now:new Date('2026-10-12T12:00:00+08:00')};
+// A/G9R independent body provenance regression: a visible correct article H1
+// is insufficient when ALL period, scope and reward evidence is in inert DOM.
+// Before the fix, htmlText() treated these hidden fragments as published facts
+// and incorrectly emitted a VERIFIED Growth Week candidate.
+const growthFactsOnly=growthHtml.replace('<main>','')
+  .replace('<h1>'+growthHeading+'</h1>','').replace('</main>','');
+for(const inertTag of ['template','noscript','textarea']){
+  const hiddenOnly='<main><h1>'+growthHeading+'</h1><'+inertTag+'>'
+    +growthFactsOnly+'</'+inertTag+'></main>';
+  assert.throws(()=>parseVerifiedGrowthNotice(hiddenOnly,growthUrl,growthNow),
+    /G9R_GROWTH_CAMP_NOT_VERIFIED/,
+    'Non-rendered '+inertTag+' must not certify Growth Week camp, dates or bonuses');
+}
+const commentedOnly='<main><h1>'+growthHeading+'</h1><!-- '
+  +growthFactsOnly+' --></main>';
+assert.throws(()=>parseVerifiedGrowthNotice(commentedOnly,growthUrl,growthNow),
+  /G9R_GROWTH_CAMP_NOT_VERIFIED/,
+  'HTML comments must not certify official Growth Week body facts');
+assert.equal(parseVerifiedGrowthNotice(growthHtml,growthUrl,growthNow).event_id,
+  'growth_week_vol6_2026_10','Visible official source facts remain admissible');
+console.log('PASS G9R_GROWTH_INERT_BODY_FACTS_CANNOT_CERTIFY_VERIFIED_SOURCE');
 const unrelatedGrowthQuote=growthHtml.replace('<h1>'+growthHeading+'</h1>',
   '<h1>〖企畫〗另一項活動</h1><p>'+growthHeading+'</p>');
 assert.equal(parseVerifiedGrowthNotice(unrelatedGrowthQuote,growthUrl,growthNow),null,

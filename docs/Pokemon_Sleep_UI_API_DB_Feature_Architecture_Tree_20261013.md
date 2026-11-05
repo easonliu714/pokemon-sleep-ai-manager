@@ -1,3 +1,10 @@
+## 2026-11-05 A/G9R — Growth Week inert-body source evidence (Source/Test candidate)
+
+- **Authority:** protected main `9e847ad1760bea051f503351ce4a429950df951f`, Open PR 0 before the single active branch; prior B/#762 exact-main CI/Pages SUCCESS. This is a new body-fact provenance risk, not a repeat of the visible-H1 #761 Gate or a claim of new official announcements.
+- **Function-level change:** `scripts/g9r-official-event-source-refresh.mjs::htmlText()` removes HTML comments, `<template>`, `<noscript>`, and `<textarea>` before deriving official Growth Week scope, 04:00 period, and exactly two reward lines. The existing `parseVerifiedGrowthNotice()` strict H1, effect typing and append-only data-only release guard remain unchanged.
+- **Source-bound regression:** `scripts/g9r-official-event-feed-contract.mjs` now requires hidden-only facts in all three inert containers and comments to HOLD; the visible published synthetic fixture still parses. No Public Event Master/manifest or player data mutation, no STOP/Migration/SW/App version change.
+- **Gate:** `G9R_GROWTH_INERT_BODY_PROVENANCE_SOURCE_TEST_CANDIDATE` pending Draft PR exact-head CI, expected-head protected merge and new main CI/Pages. Live official H1 source identity stays `HOLD_SOURCE_REVIEW`; #19 OPEN, 11/08 and 11/09 effective Android UAT not yet due; #482 `HOLD_OWNER_DEVICE_UNAVAILABLE / OWNER_ACTION=NONE_NOW`.
+
 ## 2026-11-05 A/G9R — Growth Week auto-feed visible H1 identity (Source/Test candidate)
 
 - **Authority:** fresh protected main `0afea354b38fabf1ead29316c00b0ed8dc207e24`, Open PR 0, Ruleset #25813226 ACTIVE. Previous B/#760 protected MERGED with exact-main CI/Pages SUCCESS. This is an independent A-line source admission gap, not a new official event or repeat of November #758 H1 verification.
