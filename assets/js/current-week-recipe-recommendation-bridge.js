@@ -81,25 +81,24 @@ function apply(){
   applying=true;
   try{
     const week=currentEffectiveWeeklyContext(),category=normalizeDishCategory(week.dish_category),inv=inventory();
-    // Only query the personal table when that legacy surface is present.
-    if(personalTable)patchTable(personalTable,weeklyRecipeRecommendationNames(personalAnalysis(inv),category),2);
-    // G6.2: fail closed if local feedback cannot be read. A legacy "推薦" badge
-    // has no suspect-source qualifier and must never override a player pause.
-    let referenceNames=new Set(),recommendationStatus='VERIFIED_READ';
-    if(referenceTable){
-      let feedbackRows,feedbackVerified=true;
-      try{feedbackRows=listRecipeAttemptFeedbackSummaries();}
-      catch{
-        feedbackVerified=false;
-        recommendationStatus='HOLD_FEEDBACK_READ_FAILED';
-        console.warn('Weekly reference recommendations withheld: feedback authority unavailable');
-      }
-      // Recipe requirement read/validation errors belong to the outer source
-      // fail-closed boundary, not the narrower feedback-authority HOLD.
-      if(feedbackVerified)
-        referenceNames=weeklyRecipeRecommendationNames(referenceAnalysis(inv),category,feedbackRows);
+    // G6.2: BOTH legacy badge surfaces are actionable advice. The personal
+    // table previously bypassed player pause/suspect feedback entirely.
+    // Read one verified feedback snapshot for both tables; if unavailable,
+    // withhold both projections rather than re-admitting paused recipes.
+    let feedbackRows=null,recommendationStatus='VERIFIED_READ';
+    try{
+      feedbackRows=listRecipeAttemptFeedbackSummaries();
+      if(!Array.isArray(feedbackRows))throw new Error('G62_LEGACY_FEEDBACK_UNVERIFIED');
+    }catch{
+      recommendationStatus='HOLD_FEEDBACK_READ_FAILED';
+      console.warn('Weekly recipe recommendations withheld: feedback authority unavailable');
     }
-    patchTable(referenceTable,referenceNames,2);
+    // Only query each recipe source when its legacy table is present AND
+    // the shared feedback read succeeded. This never writes player state.
+    if(personalTable)patchTable(personalTable,feedbackRows
+      ?weeklyRecipeRecommendationNames(personalAnalysis(inv),category,feedbackRows):new Set(),2);
+    if(referenceTable)patchTable(referenceTable,feedbackRows
+      ?weeklyRecipeRecommendationNames(referenceAnalysis(inv),category,feedbackRows):new Set(),2);
     for(const table of [personalTable,referenceTable])if(table){table.dataset.weeklyContextWeek=week.week_start||'';table.dataset.weeklyDishCategory=category||'';table.dataset.weeklyContextAuthority=week.player_weekly_authority_source||week.authority_source||'MISSING';table.dataset.publicEventAuthority=week.public_event_authority_status||'PUBLIC_EVENT_MASTER_UNAVAILABLE';table.dataset.weeklyRecommendationStatus=recommendationStatus;}
   }catch(error){
     // A failed or malformed inventory/recipe read cannot retain old "推薦" badges.
