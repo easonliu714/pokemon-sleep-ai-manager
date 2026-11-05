@@ -198,7 +198,13 @@ async function hydrateBackupSnapshotPanel(){
     const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     host.innerHTML=snapshots.length?snapshots.map(item=>`<div class="snapshot"><b>${esc(item.reason)}</b><br><small>${esc(formatLocal(item.created_at))}</small></div>`).join(''):'尚無自動快照';host.dataset.pageHydration='ready';
     debugTrace.record('bootstrap','backup_snapshot_page_hydrated',{status:'completed',details:{snapshot_count:snapshots.length,elapsed_ms:Math.round(performance.now()-started),metadata_only:true,navigation_only:true,core_module_identity_reused:true}});
-  }catch(error){host.dataset.pageHydration='failed';debugTrace.record('bootstrap','backup_snapshot_page_hydration_failed',{status:'failed',error});}
+  }catch(error){
+    host.dataset.pageHydration='failed';
+    debugTrace.record('bootstrap','backup_snapshot_page_hydration_failed',{status:'failed',error});
+    // G479: never let the enclosing page loader announce READY after a failed snapshot read.
+    // The existing page-load catch reports FAILED and permits an explicit navigation retry.
+    throw error;
+  }
 }
 async function hydrateUpdateCenterShells(){
   const pageAuthority=globalThis.PokemonSleepPageHydrationAuthorityV042755331||globalThis.PokemonSleepPageHydrationAuthorityV04275533;

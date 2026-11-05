@@ -145,3 +145,60 @@ console.log('PASS G479_DEBUG_EXPORT_HISTORY_PRESERVED_AND_REDACTED');
 }
 
 console.log('NOTE G479_ANDROID_ESM_ROOT_CAUSE_STILL_UNVERIFIED');
+
+
+// G479 independent production-source-bound page-status regression.
+// A backup snapshot metadata read failure must never be converted to generic READY.
+// Only synthetic metadata and a VM are used: no player backup, SQLite/IDB or network.
+{
+  const bootstrapSource=readFileSync(new URL('../assets/js/bootstrap.js',import.meta.url),'utf8');
+  const loaderStart=bootstrapSource.indexOf('async function loadPageModules(page){');
+  const backupStart=bootstrapSource.indexOf('\nasync function hydrateBackupSnapshotPanel(){',loaderStart);
+  const backupEnd=bootstrapSource.indexOf('\nasync function hydrateUpdateCenterShells(){',backupStart);
+  assert.ok(loaderStart>=0&&backupStart>loaderStart&&backupEnd>backupStart,
+    'canonical page loader and backup hydration functions required');
+  const loader=bootstrapSource.slice(loaderStart,backupStart);
+  const backup=bootstrapSource.slice(backupStart,backupEnd);
+  const actualImport="Promise.all([import('./storage.js'),import('./time-utils.js')])";
+  assert.ok(backup.includes(actualImport),'actual backup module imports must be source-bound');
+  const isolatedBackup=backup.replace(actualImport,'Promise.all([syntheticStorage(),syntheticTime()])');
+  const events=[],progress=[],host={dataset:{},innerHTML:''};
+  let failSnapshots=true,clock=0;
+  const context={
+    pageModuleGroups:Object.freeze({backup:Object.freeze([])}),
+    pageLoads:new Map(),
+    debugTrace:{record:(category,event,detail)=>events.push({category,event,detail})},
+    pageProgress:(page,state,message,details)=>progress.push({page,state,message,details}),
+    document:{getElementById:id=>id==='snapshotList'?host:null},
+    performance:{now:()=>++clock},
+    syntheticStorage:async()=>({listSnapshots:async()=>{
+      if(failSnapshots)throw new Error('synthetic backup metadata read denied');
+      return [];
+    }}),
+    syntheticTime:async()=>({formatLocal:value=>String(value)}),
+  };
+  vm.runInNewContext(loader+'\n'+isolatedBackup+'\nglobalThis.__loadPageModules=loadPageModules;',
+    context,{filename:'production-bootstrap-backup-source-bound.js',timeout:3000});
+  const load=context.__loadPageModules;
+  assert.equal(typeof load,'function');
+  await assert.rejects(load('backup'),/synthetic backup metadata read denied/,
+    'backup metadata read failure must reject enclosing navigation');
+  assert.equal(host.dataset.pageHydration,'failed');
+  assert.deepEqual(progress.map(event=>event.state),['loading','failed'],
+    'failed backup must not emit generic READY');
+  assert.ok(events.some(event=>event.event==='backup_snapshot_page_hydration_failed'));
+  assert.ok(events.some(event=>event.event==='page_feature_load_failed'));
+  assert.ok(!events.some(event=>event.event==='page_feature_load_completed'));
+  assert.equal(context.pageLoads.has('backup'),false,
+    'failed page load must allow explicit navigation retry');
+  failSnapshots=false;
+  progress.length=0;events.length=0;
+  const recovered=await load('backup');
+  assert.equal(recovered.known_page,true);
+  assert.equal(host.dataset.pageHydration,'ready');
+  assert.equal(host.innerHTML,'尚無自動快照');
+  assert.deepEqual(progress.map(event=>event.state),['loading','ready']);
+  assert.ok(events.some(event=>event.event==='page_feature_load_completed'));
+  assert.equal(context.pageLoads.has('backup'),true);
+  console.log('PASS G479_BACKUP_HYDRATION_FAILURE_NEVER_REPORTS_READY_AND_EXPLICIT_RETRY_RECOVERS');
+}
