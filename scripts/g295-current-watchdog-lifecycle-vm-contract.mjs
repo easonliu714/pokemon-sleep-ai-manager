@@ -220,6 +220,32 @@ for(let i=0;i<4;i++){now+=2000;interval();}
 now+=16;assert.ok(raf.length);raf.shift()();
 now+=2000;interval();
 assert.equal(detected(),beforeResponsive,'regular timer + delayed RAF alone must not trigger false stall');
+// B/G479 independent startup guard: a privacy-restricted browser may allow SW
+// registration but deny sessionStorage. This must not reject the bootstrap's
+// await enforceLiveVersionHandoff() as a misleading entry-module failure.
+let syntheticReloads=0,syntheticGuardWrites=0;
+ctx.location={reload(){syntheticReloads++;}};
+ctx.navigator={serviceWorker:{controller:null,register:async()=>({active:{},update:async()=>{}})}};
+ctx.sessionStorage={getItem(){throw new Error('synthetic sessionStorage denied');},setItem(){throw new Error('synthetic sessionStorage denied');}};
+const deniedHandoff=await ctx.enforceLiveVersionHandoff();
+assert.equal(deniedHandoff.supported,true);
+assert.equal(deniedHandoff.registered,true);
+assert.equal(deniedHandoff.controlled,false);
+assert.equal(deniedHandoff.reload_guard_available,false);
+assert.equal(deniedHandoff.update_on_critical_path,false);
+assert.equal(syntheticReloads,0,'denied durable reload guard must not reload indefinitely');
+assert.ok(trace.some(x=>x.event==='version_handoff_reload_guard_unavailable'&&x.detail.status==='blocked'&&x.detail.details.reload_suppressed===true),'denied storage guard must be traced as SW handoff HOLD, not ESM failure');
+ctx.sessionStorage={getItem(){return null;},setItem(){syntheticGuardWrites++;}};
+const allowedHandoff=await ctx.enforceLiveVersionHandoff();
+assert.equal(allowedHandoff.reloading,true,'available reload guard preserves first-controller handoff');
+assert.equal(syntheticGuardWrites,1);
+assert.equal(syntheticReloads,1);
+ctx.navigator.serviceWorker.controller={};
+const controlledHandoff=await ctx.enforceLiveVersionHandoff();
+assert.equal(controlledHandoff.controlled,true,'controlled SW must not need sessionStorage reload guard');
+assert.equal(syntheticReloads,1);
+console.log('PASS G479_SW_RELOAD_SESSIONSTORAGE_DENIAL_FAIL_CLOSED_AND_NORMAL_CONTROL');
+
 console.log('PASS G295_RAF_FIRST_DELAYED_TIMER_INDEPENDENT_GAP_AND_RESPONSIVE_CONTROL');
 console.log('PASS G295_PAGEHIDE_ACTIVE_STALL_INTERRUPTED_NOT_RECOVERED_AND_REARM');
 console.log('PASS G295_RAF_OBSERVED_MISSED_VISIBILITY_HIDDEN_NOT_RECOVERED_AND_REARM');
