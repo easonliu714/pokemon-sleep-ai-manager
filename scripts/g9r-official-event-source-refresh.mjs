@@ -14,7 +14,14 @@ const ID_RE=/^https:\/\/www\.pokemonsleep\.net\/zh\/news\/[0-9]+\/$/;
 const digest=s=>createHash('sha256').update(s,'utf8').digest('hex');
 
 function htmlText(html){
-  return String(html).replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ')
+  // Inert HTML fragments are not published visible facts. The official H1
+  // guard already excludes them; the body-fact verifier must do the same.
+  // Otherwise a visible Growth Week H1 plus a stale <template>/<noscript>
+  // can silently promote hidden dates, camp scope or bonuses as VERIFIED.
+  return String(html)
+    .replace(/<!--[\s\S]*?-->/g,' ')
+    .replace(/<(noscript|textarea|template)\b[^>]*>[\s\S]*?<\/\1>/gi,' ')
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ')
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ')
     .replace(/<\/(?:p|h1|h2|h3|li|div|section|br)>/gi,'\n')
     .replace(/<[^>]+>/g,' ')
