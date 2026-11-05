@@ -1,3 +1,10 @@
+## 2026-11-05 B/G6.2 — Legacy reference player unlock flag strict authority (Source/Test candidate)
+
+- **Fresh intake:** protected main `d25a32393081a34b197275d60143398ebefcb0a1`, Open PR 0, Ruleset #25813226 ACTIVE, after A/#767 exact-main CI/Pages SUCCESS. Existing G6.2/#766 durability HOLD and A/#767 period-source fixes are preserved; this is a distinct read-side player-unlock classification risk.
+- **Code-proven gap:** `assets/js/current-week-recipe-recommendation-bridge.js::referenceAnalysis()` used `Number(item.unlocked||0)===1`. Invalid or absent persisted player unlock flags were silently treated as locked, and coercible flags such as `true`, `'01'`, or `'1.0'` were treated as verified unlocked. This can produce actionable `推薦` badges from unverified player state.
+- **Minimal read-only fix:** `verifiedPlayerUnlock()` accepts only exact SQLite integer 0/1 or canonical strings `'0'`/`'1'`; missing, malformed or coercible flags throw into existing `HOLD_SOURCE_READ_FAILED` badge clearing. No player data or database mutation. `scripts/g62-legacy-weekly-badge-feedback-contract.mjs` executes the real bridge in a synthetic VM and covers ten invalid flags, valid 0/1, unlocked suppression and recovery.
+- **Acceptance:** `B_GATE=G62_LEGACY_PLAYER_UNLOCK_STRICT_AUTHORITY_SOURCE_TEST_CANDIDATE` pending Draft PR exact-head Recipe Regression/required regression-gate, protected expected-head merge, and new main exact-SHA CI/Pages. #6 remains OPEN; #19 11/08 and 11/09 Android event-effective UAT is date/deploy gated; #482 remains `HOLD_OWNER_DEVICE_UNAVAILABLE / OWNER_ACTION=NONE_NOW`. No Android Owner UAT is claimed. No Public Master/manifest, STOP, migration, SW, app version or production Writer admission changes.
+
 ## 2026-11-05 A/G9R — Growth Week published-period provenance (Source/Test candidate)
 
 - **Fresh authority:** protected main `8cb81fd7c06a0f1339103f6c70f45779c622247a`, Open PR 0, Ruleset #25813226 ACTIVE; prior B/#766 protected MERGED with exact-head and new-main 8/8 CI including Pages SUCCESS. This is a new period provenance gap, not a repeat of A/#765 camp-scope authority.
