@@ -1,3 +1,11 @@
+## 2026-11-05 A/G9R — Growth Week published-period provenance (Source/Test candidate)
+
+- **Fresh authority:** protected main `8cb81fd7c06a0f1339103f6c70f45779c622247a`, Open PR 0, Ruleset #25813226 ACTIVE; prior B/#766 protected MERGED with exact-head and new-main 8/8 CI including Pages SUCCESS. This is a new period provenance gap, not a repeat of A/#765 camp-scope authority.
+- **Official source:** the published Growth Week vol.6 notice explicitly labels `〖舉辦期間〗` and then the exact 10/12 04:00–10/19 03:59 period, before `〖活動營地〗`. A valid 7-day range elsewhere in the article is not authoritative for the event period.
+- **Source-proven gap:** `parseVerifiedGrowthNotice()` previously searched the whole normalized article for the first 04:00–03:59 range, permitting a stale note to certify `VERIFIED` when the actual published period heading was absent or changed. The correction requires exactly one published period heading and exactly one anchored period line in its section, rejecting missing, duplicate or conflicting dates.
+- **Regression:** `scripts/g9r-official-event-feed-contract.mjs` tests stray note, absent heading, duplicated period section, conflicting second period, and genuine two-line positive source format. This is synthetic source-bound evidence, not a claim of a new live announcement.
+- **Gate:** `A_GATE=G9R_GROWTH_PERIOD_SECTION_PROVENANCE_SOURCE_TEST_CANDIDATE` until Draft PR exact-head CI, protected expected-head Merge Commit and new-main CI/Pages. No Public Master/manifest, player SQLite/IDB, STOP, migration, service worker, App version or production Writer changes. `G9R_LIVE_SOURCE=HOLD_SOURCE_REVIEW`; #19 remains OPEN, 11/08–11/09 Android event UAT time/deploy gated; #482 `HOLD_OWNER_DEVICE_UNAVAILABLE / OWNER_ACTION=NONE_NOW`.
+
 ## 2026-11-05 A/G9R — Growth Week published camp-section scope authority (Source/Test candidate)
 
 - **Fresh authority:** protected main `5c511551def1fcef711a614ecd087a506d88cd36`, Open PR 0 and Ruleset #25813226 ACTIVE before this sole Writer branch; previous B/#764 protected MERGED with exact-main CI/Pages SUCCESS. Official October Growth Week article explicitly publishes `〖活動營地〗 ・所有營地`; no new November announcement is invented.

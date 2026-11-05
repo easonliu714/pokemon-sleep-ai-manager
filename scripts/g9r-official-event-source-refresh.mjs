@@ -71,7 +71,15 @@ export function parseVerifiedGrowthNotice(html,url,{now=new Date()}={}){
   const pub=text.match(/202[0-9]\/(\d{1,2})\/(\d{1,2})/);
   const yearText=text.match(/(202[0-9])\/\d{1,2}\/\d{1,2}/);
   if(!yearText||!pub)throw new Error('G9R_GROWTH_PUBLICATION_YEAR_NOT_VERIFIED');
-  const period=text.match(/(\d{1,2})\/(\d{1,2})[^\n]{0,35}?4:00\s*[～~−–\-]\s*(\d{1,2})\/(\d{1,2})[^\n]{0,35}?3:59/);
+  // The event window is authoritative only inside the unique published
+  // 〖舉辦期間〗 section. A stale 7-day window in notes or another section
+  // must never substitute for a missing, changed or duplicated period.
+  const periodMarkers=[...text.matchAll(/〖舉辦期間〗/g)];
+  const periodSection=text.match(/〖舉辦期間〗([\s\S]*?)〖活動營地〗/);
+  const periodLines=periodSection?.[1].split('\n').map(line=>line.trim()).filter(Boolean)||[];
+  const periodLine=/^(?:[・•]\s*)?(\d{1,2})\/(\d{1,2})[^\n]{0,35}?4:00\s*[～~−–\-]\s*(\d{1,2})\/(\d{1,2})[^\n]{0,35}?3:59\s*$/;
+  const period=periodMarkers.length===1&&periodLines.length===1
+    ?periodLines[0].match(periodLine):null;
   if(!period)throw new Error('G9R_GROWTH_PERIOD_NOT_VERIFIED');
   let year=Number(yearText[1]),m=Number(period[1]),day=Number(period[2]);
   if(m<Number(pub[1])-6)year+=1;
