@@ -111,6 +111,19 @@ for(const mode of ['DENY_BEFORE_IDB_WRITE','ACK_LOST_AFTER_IDB_WRITE']){
   const readbackDb=new SQL.Database();setup(readbackDb);
   readbackDb.run("INSERT INTO recipe_feedback_state(recipe_id,recommendation_paused,reference_maybe_wrong,last_attempt_id,updated_at) VALUES('r1',NULL,0,NULL,'synthetic')");
   const markerKey='pokemon-sleep-g62-persistence-uncertain-v1';
+  // G6.2 independent recovery identity regression: a marker for another recipe
+  // must not be certified by an unrelated attempt_id already in durable SQLite.
+  // The marker may be corrupted or stale; never clear it as verified durability.
+  const existingAttempt=query(durable,'SELECT attempt_id,recipe_id FROM recipe_attempt_feedback')[0];
+  assert.equal(existingAttempt.recipe_id,'r1');
+  const crossRecipeMarker={attempt_id:existingAttempt.attempt_id,recipe_id:'r-other'};
+  sessionStorage.setItem(markerKey,JSON.stringify(crossRecipeMarker));
+  const crossRecipeContext=bootContext(durable);
+  assert.equal(crossRecipeContext.__status().status,'UNVERIFIED',
+    'attempt reload authority must bind both attempt_id and recipe_id, not just the ID');
+  assert.ok(sessionStorage.getItem(markerKey),
+    'cross-recipe recovery marker must remain for manual review');
+  sessionStorage.removeItem(markerKey);
   const toggleMarker={operation:'PAUSE_TOGGLE',recipe_id:'r1',target_paused:0};
   const setToggleMarker=()=>sessionStorage.setItem(markerKey,JSON.stringify(toggleMarker));
   setToggleMarker();
