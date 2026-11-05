@@ -31,6 +31,39 @@ assert.equal(failedRead.status,'HOLD_FEEDBACK_READ_FAILED');
 assert.deepEqual(failedRead.rows,[]);
 const invalidRead=readRecipeFeedbackForProjection({readFeedback:()=>null});
 assert.equal(invalidRead.verified,false,'malformed read result must fail closed');
+// Separate from the already-fixed legacy weekly badges: unified workbench
+// recommendations previously read in-memory SQL after a failed IDB persist,
+// with no durable-authority guard or uncertainty-event render invalidation.
+let uncertainSqlReads=0;
+for(const state of ['UNVERIFIED','IN_FLIGHT','UNKNOWN']){
+  const uncertain=readRecipeFeedbackForProjection({
+    readPersistenceStatus:()=>({status:state}),
+    readFeedback:()=>{uncertainSqlReads++;return [];},
+  });
+  assert.equal(uncertain.verified,false,`${state} must not authorize unified badges`);
+  assert.equal(uncertain.status,'HOLD_FEEDBACK_PERSISTENCE_UNCERTAIN');
+  assert.deepEqual(uncertain.rows,[]);
+  const heldProjection=buildRecipeUnifiedWorkbenchProjection({
+    catalogRows,inventory:[],week,recipeFeedback:uncertain.rows,
+    feedbackAuthorityVerified:uncertain.verified,feedbackAuthorityStatus:uncertain.status,
+  });
+  assert.equal(heldProjection.feedback_authority_status,'HOLD_FEEDBACK_PERSISTENCE_UNCERTAIN');
+  assert.equal(heldProjection.partition_complete,true,'durability HOLD preserves public catalog');
+  assert.equal(heldProjection.unlocked.filter(row=>row.weekly_recommended).length,0);
+  assert.equal(heldProjection.locked.filter(row=>row.weekly_recommended).length,0);
+}
+assert.equal(uncertainSqlReads,0,'unverified durability must not read player feedback SQLite');
+for(const state of ['CLEAR','PERSISTED','NOT_PERSISTED']){
+  const verified=readRecipeFeedbackForProjection({
+    readPersistenceStatus:()=>({status:state}),readFeedback:()=>[],
+  });
+  assert.equal(verified.verified,true,`${state} permits read-side recomputation`);
+  assert.equal(verified.status,'VERIFIED_READ');
+}
+assert.equal(readRecipeFeedbackForProjection({
+  readPersistenceStatus:()=>null,readFeedback:()=>{throw Error('should not read');},
+}).status,'HOLD_FEEDBACK_PERSISTENCE_UNCERTAIN','missing persistence authority must fail closed');
+console.log('PASS G62_UNIFIED_FEEDBACK_DURABILITY_UNCERTAIN_READSIDE_NO_SQL_BADGES');
 let readonlyCalls=0;
 const readonlyRead=readRecipeFeedbackForProjection({readonly:true,readFeedback:()=>{readonlyCalls++;return [];}});
 assert.equal(readonlyCalls,0,'readonly projection must not query player feedback');
@@ -113,6 +146,8 @@ assert.equal(publicCatalogProjectionViewForLocalEntity('unrelated_player_entity'
 const ui=readFileSync(new URL('../assets/js/recipe-unified-player-workbench.js',import.meta.url),'utf8');
 assert.match(ui,/readRecipeFeedbackForProjection\(\{readonly\}\)/,'real unified renderer must use guarded feedback read');
 assert.match(ui,/recipeFeedback:feedback\.rows,feedbackAuthorityVerified:feedback\.verified/,'real projection must bind feedback read status');
+assert.match(ui,/feedbackAuthorityStatus:feedback\.status/,'real unified projection must expose precise durability HOLD');
+assert.match(ui,/readPersistenceStatus=getRecipeAttemptPersistenceStatus/,'unified feedback reader must bind actual writer durability authority');
 assert.match(ui,/recipeFeedbackAuthority=feedback\.status/,'UI must expose feedback HOLD provenance');
 assert.match(ui,/row\.recommendation_paused===true\?'已暫停'/,'paused UI status must be explicit');
 assert.match(ui,/推薦（來源待查證）/,'suspect fallback recommendation must display source-review warning');
@@ -120,6 +155,10 @@ assert.match(ui,/row\.reference_maybe_wrong===true\?'來源待查證'/,'suspect 
 const catalog=readFileSync(new URL('../assets/js/public-catalog-workbench.js',import.meta.url),'utf8');
 assert.match(catalog,/markLocalProjectionDirty\(detail\.entity\)/,'actual event bridge must use dirty mapping');
 assert.match(catalog,/window\.addEventListener\('pokemon-sleep:data-changed',handleDataChanged\)/,'real data-changed listener must refresh projection');
+assert.match(catalog,/window\.addEventListener\('pokemon-sleep:recipe-attempt-persistence-uncertain'/,
+  'real catalog renderer must invalidate unified view on ambiguous durability without data-changed');
+assert.match(catalog,/requestRender\(dirtyView,'feedback-persistence-uncertain'\)/,
+  'active unified recipe view must re-render after durability HOLD event');
 console.log('PASS G62_UNIFIED_WORKBENCH_FEEDBACK_READSIDE_PAUSE_RESUME_TWO_PARTITIONS');
 console.log('PASS G62_PLAYER_FEEDBACK_INVALIDATES_RECIPE_VIEW_NOT_PUBLIC_FINGERPRINT');
 console.log('PASS G62_SUSPECT_REFERENCE_SOFT_DEPRIORITIZATION_WITH_EXPLICIT_FALLBACK_WARNING');
