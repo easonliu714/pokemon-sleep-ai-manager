@@ -116,7 +116,30 @@ function startHeartbeat(){
   if(watchdogTimer!==null)return;
   lastIntervalTickAt=performance.now();
   const generation=++heartbeatGeneration;
-  const beat=()=>{if(generation!==heartbeatGeneration)return;const now=performance.now(),gap=now-heartbeatAt;heartbeatAt=now;if(warningActive){recoveryStableFrames=gap<1000?recoveryStableFrames+1:0;if(recoveryStableFrames>=RECOVERY_STABLE_FRAMES)clearRecoveredHeartbeatWarning();}requestAnimationFrame(beat);};
+  // A missed visibilitychange can leave RAF running briefly after backgrounding.
+  // Hidden RAF frames are NOT proof of foreground main-thread recovery.
+  const beat=()=>{
+    if(generation!==heartbeatGeneration)return;
+    const now=performance.now(),observedVisibility=document.visibilityState;
+    if(observedVisibility!=='visible'){
+      if(lastObservedVisibility==='visible')resetHeartbeatForVisibility('raf-observed-background');
+      lastObservedVisibility=observedVisibility;
+      heartbeatAt=now;
+      requestAnimationFrame(beat);
+      return;
+    }
+    if(lastObservedVisibility!=='visible'){
+      resetHeartbeatForVisibility('raf-observed-foreground');
+      requestAnimationFrame(beat);
+      return;
+    }
+    const gap=now-heartbeatAt;heartbeatAt=now;
+    if(warningActive){
+      recoveryStableFrames=gap<1000?recoveryStableFrames+1:0;
+      if(recoveryStableFrames>=RECOVERY_STABLE_FRAMES)clearRecoveredHeartbeatWarning();
+    }
+    requestAnimationFrame(beat);
+  };
   requestAnimationFrame(beat);
   watchdogTimer=setInterval(()=>{
     const now=performance.now();
