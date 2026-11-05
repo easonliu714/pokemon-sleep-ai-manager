@@ -17,7 +17,7 @@ const digest=s=>createHash('sha256').update(s,'utf8').digest('hex');
 // is not published visible evidence. This is deliberately limited to inline
 // hidden/inert/aria-hidden/style evidence; it is NOT a CSS visibility engine.
 // On malformed hidden nesting, discarding more text fails closed.
-function visibleOfficialHtml(html){
+export function visibleOfficialHtml(html){
   const source=String(html)
     .replace(/<!--[\s\S]*?-->/g,' ')
     .replace(/<(noscript|textarea|template|script|style)\b[^>]*>[\s\S]*?<\/\1>/gi,' ');
