@@ -1,3 +1,10 @@
+## 2026-11-05 A/G9R — Published period source boundary (Source/Test candidate)
+
+- **Authority:** main `8cb81fd7c06a0f1339103f6c70f45779c622247a` with no open PR before the sole branch; B/#766 completed protected merge and 8/8 new-main CI/Pages. The official Growth Week vol.6 page uses `〖舉辦期間〗` with an exact seven-day 04:00–03:59 range.
+- **Source:** `scripts/g9r-official-event-source-refresh.mjs::parseVerifiedGrowthNotice` now derives `start_at/end_at` only from a unique published period section ending at `〖活動營地〗`, with exactly one complete period line. A global regex previously accepted a date range in unrelated notes when the actual period was absent/changed.
+- **Regression:** `scripts/g9r-official-event-feed-contract.mjs` exercises absent/duplicate/conflicting period and unrelated valid-range spoof, plus the official two-line positive layout. Existing H1/camp/typed-effects/end-exclusive checks remain; data-only Master and manifest unchanged.
+- **Gate:** `G9R_GROWTH_PERIOD_SECTION_PROVENANCE_SOURCE_TEST_CANDIDATE`, not PASS until real PR exact-head CI, protected merge, new-main CI/Pages. Live November source H1 still HOLD; #19 OPEN, #482 `HOLD_OWNER_DEVICE_UNAVAILABLE`; no Owner action or Android UAT request.
+
 ## 2026-11-05 A/G9R — Growth Week camp section must certify global scope (Source/Test candidate)
 
 - **Authority:** fresh main `5c511551def1fcef711a614ecd087a506d88cd36`, single branch, no competing PR. Official Growth Week vol.6 article identifies `〖活動營地〗 ・所有營地` explicitly.
