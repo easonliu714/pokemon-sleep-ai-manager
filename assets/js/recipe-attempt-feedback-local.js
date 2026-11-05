@@ -33,8 +33,23 @@ function readPersistenceMarker(){
       ?marker:PERSISTENCE_MARKER_STORAGE_UNAVAILABLE;
   }catch{return PERSISTENCE_MARKER_STORAGE_UNAVAILABLE;}
 }
-function writePersistenceMarker(marker){
-  try{globalThis.sessionStorage?.setItem(PERSISTENCE_HOLD_KEY,JSON.stringify(marker));}catch{}
+// Recovery intent must be durable in this tab BEFORE SQLite can be mutated.
+// A post-COMMIT best-effort marker is too late: if sessionStorage denies or
+// silently drops writes, an ambiguous IDB ACK would look CLEAR after reload.
+function armPersistenceMarker(marker){
+  const serialized=JSON.stringify(marker);
+  try{
+    const storage=globalThis.sessionStorage;
+    if(!storage||typeof storage.setItem!=='function'||typeof storage.getItem!=='function')
+      throw new Error('sessionStorage_write_readback_unavailable');
+    storage.setItem(PERSISTENCE_HOLD_KEY,serialized);
+    if(storage.getItem(PERSISTENCE_HOLD_KEY)!==serialized)
+      throw new Error('sessionStorage_recovery_marker_not_readable_after_write');
+  }catch(cause){
+    throw Object.assign(new Error('PERSISTENCE_MARKER_STORAGE_UNAVAILABLE：無法驗證重載恢復標記；未開始玩家資料寫入。'),{
+      code:'PERSISTENCE_MARKER_STORAGE_UNAVAILABLE',cause,
+    });
+  }
 }
 function clearPersistenceMarker(){
   try{globalThis.sessionStorage?.removeItem(PERSISTENCE_HOLD_KEY);}catch{}
@@ -195,6 +210,8 @@ export async function recordRecipeAttemptFailure({
   recordInFlight=true;
   playerWriteInFlight=true;
   try{
+    // Write-ahead recovery marker is verified before the first SQL mutation.
+    armPersistenceMarker({attempt_id:record.attempt_id,recipe_id:record.recipe_id});
     begin();
     try{
       run(`INSERT INTO recipe_attempt_feedback(
@@ -224,13 +241,15 @@ export async function recordRecipeAttemptFailure({
     }catch(error){
       // A committed SQL row may already be durable, even when IDB rejects or times out.
       pendingPersistenceHold={attempt_id:record.attempt_id,recipe_id:record.recipe_id};
-      writePersistenceMarker(pendingPersistenceHold);
+      // The pre-COMMIT recovery marker remains intact for reload readback.
       try{globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:recipe-attempt-persistence-uncertain',{detail:{
         code:'PERSISTENCE_UNCERTAIN',attempt_id:record.attempt_id,recipe_id:record.recipe_id,
         recovery:'RELOAD_AND_READBACK',shared_master_write:false,
       }}));}catch{}
       throw persistenceUncertainError(pendingPersistenceHold,error);
     }
+    // Only an acknowledged durable persist may retire the recovery intent.
+    clearPersistenceMarker();
     // Listener failures cannot convert an already durable write into a retryable error.
     try{
       globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:recipe-attempt-feedback-changed',{detail:{
@@ -255,6 +274,8 @@ export async function setRecipeRecommendationPaused(recipeId,paused){
   const marker={operation:'PAUSE_TOGGLE',recipe_id:recipe.recipe_id,target_paused:paused?1:0};
   playerWriteInFlight=true;
   try{
+    // The pause toggle is also a player write; require recovery intent first.
+    armPersistenceMarker(marker);
     run(`INSERT INTO recipe_feedback_state(recipe_id,recommendation_paused,reference_maybe_wrong,last_attempt_id,updated_at)
     VALUES(?,?,0,NULL,?)
     ON CONFLICT(recipe_id) DO UPDATE SET recommendation_paused=excluded.recommendation_paused,updated_at=excluded.updated_at`,[
@@ -264,13 +285,14 @@ export async function setRecipeRecommendationPaused(recipeId,paused){
       await persist();
     }catch(error){
       pendingPersistenceHold=marker;
-      writePersistenceMarker(marker);
+      // Retain the verified pre-COMMIT marker until reload confirms durability.
       try{globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:recipe-attempt-persistence-uncertain',{detail:{
         code:'PERSISTENCE_UNCERTAIN',operation:'PAUSE_TOGGLE',recipe_id:recipe.recipe_id,
         recovery:'RELOAD_AND_READBACK',shared_master_write:false,
       }}));}catch{}
       throw persistenceUncertainError(marker,error);
     }
+    clearPersistenceMarker();
     // Post-durability observer failures must never invite a blind retry.
     try{
       globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:recipe-attempt-feedback-changed',{detail:{
