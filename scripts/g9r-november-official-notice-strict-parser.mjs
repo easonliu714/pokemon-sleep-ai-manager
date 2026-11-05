@@ -260,7 +260,7 @@ export function parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt=new Dat
       fail('DARKRAI_THRESHOLD_NOTICE_SECTION_AMBIGUOUS');
     const thresholdMatches=noticeLines.slice(noticeIndex+1).filter(line=>
       compact(line).includes(compact('在平時，1天進行2次睡眠研究，且1天一共研究了11隻以上的寶可夢時')));
-    if(thresholdMatches.length!==1||compact(thresholdMatches[0])!==compact('・'+thresholdStatement))
+    if(thresholdMatches.length!==1||compact(thresholdMatches[0])!==compact('・'+thresholdStatement+'。'))
       fail('DARKRAI_RESEARCH_REWARD_REDUCTION_THRESHOLD_SOURCE_DRIFT_OR_AMBIGUOUS');
     // Source-proven Darkrai pity and extra encounter are NOT numeric probabilities
     // or player-owned effects; a changed official eligibility rule must fail closed.
