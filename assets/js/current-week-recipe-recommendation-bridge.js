@@ -46,7 +46,11 @@ function verifiedRequirements(recipes,requirements){
 }
 function personalAnalysis(inv){
   const recipes=rows('SELECT * FROM recipes WHERE unlocked=1 ORDER BY category,recipe_name');
-  const ingredients=rows('SELECT * FROM recipe_ingredients ORDER BY recipe_id,ingredient_name');
+  // G6.2: personal analysis contains only unlocked recipes; the recipe_ingredients
+  // table also holds valid locked-recipe requirements. Scope rows to eligible IDs
+  // before the strict per-recipe coverage check, without treating missing rows as zero.
+  const ids=new Set(recipes.map(recipe=>recipe.recipe_id));
+  const ingredients=rows('SELECT * FROM recipe_ingredients ORDER BY recipe_id,ingredient_name').filter(item=>ids.has(item?.recipe_id));
   return analyzeIngredientGaps({recipes,recipeIngredients:verifiedRequirements(recipes,ingredients),inventory:inv});
 }
 function referenceAnalysis(inv){
