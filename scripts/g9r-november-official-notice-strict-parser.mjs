@@ -62,11 +62,24 @@ function commonEvidence(text,{title,published,start,end}){
   if(camps!=='・所有營地')fail('ALL_CAMPS_NOT_EXACTLY_VERIFIED');
   // G9R: 04:00 and same-key MAX must belong to THIS article's Notice section.
   // A visible historical rule quoted in the body cannot certify changed current rules.
-  const notice=text.slice(text.indexOf('注意事項'));
-  if(!notice.startsWith('注意事項'))fail('OFFICIAL_NOTICE_SECTION_MISSING');
-  if(!compact(notice).includes(compact('活動、企畫舉辦日期的切換時間為每日4:00')))fail('GAME_DAY_BOUNDARY_MISSING');
-  if(!compact(notice).includes(compact('相同的獎勵在不同的活動、企畫中同時登場時，僅適用倍率最大的獎勵')))
-    fail('OFFICIAL_OVERLAP_MAX_RULE_MISSING');
+  // The published Notice is a unique section. A duplicated historical
+  // "注意事項" section or a second contradictory bullet must not certify
+  // a changed current 04:00 boundary or same-key MAX rule by substring.
+  const allLines=text.split('\n').map(line=>line.trim()).filter(Boolean);
+  const noticeHeadings=allLines.flatMap((line,index)=>line==='注意事項'?[index]:[]);
+  if(noticeHeadings.length!==1)fail('OFFICIAL_NOTICE_SECTION_MISSING_OR_DUPLICATED');
+  const noticeLines=allLines.slice(noticeHeadings[0]+1);
+  const notice=noticeLines.join('\n');
+  const requireUniqueRule=(fragment,expected,label)=>{
+    const matches=noticeLines.filter(line=>compact(line).includes(compact(fragment)));
+    if(matches.length!==1||compact(matches[0])!==compact(expected))fail(label);
+  };
+  requireUniqueRule('活動、企畫舉辦日期的切換時間為每日',
+    '・〖重要〗活動、企畫舉辦日期的切換時間為每日4:00。',
+    'GAME_DAY_BOUNDARY_CHANGED_OR_AMBIGUOUS');
+  requireUniqueRule('相同的獎勵在不同的活動、企畫中同時登場時',
+    '・相同的獎勵在不同的活動、企畫中同時登場時，僅適用倍率最大的獎勵。',
+    'OFFICIAL_OVERLAP_MAX_CHANGED_OR_AMBIGUOUS');
   // Official rewards are keyed to the sleep-measurement START, not the report
   // submission time. Delayed reports across either boundary must not be
   // interpreted as a new event entitlement or a player-data mutation.
