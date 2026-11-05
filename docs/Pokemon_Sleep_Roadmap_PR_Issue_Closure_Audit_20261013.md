@@ -1,3 +1,10 @@
+## 2026-11-05 A/G9R — November unique published Notice rule provenance (Source/Test candidate)
+
+- **Authority:** baseline protected main `094ea748d74a26ceb2746a85c304a795f2ca887f`, prior B/#772 protected MERGED with exact-head and new-main CI/Pages SUCCESS, Open PR 0 before sole Writer Draft #773. Ruleset #25813226 ACTIVE.
+- **Independent risk:** November `commonEvidence()` used the first substring `注意事項` and any later `includes` of 04:00 / same-key MAX. A duplicate historical Notice heading or a contradictory bullet within the current Notice could falsely certify changed official rules. This is distinct from #771 hidden-ancestor and earlier stale pre-Notice text fixes.
+- **Minimal source/test:** require exactly one visible published `注意事項` heading and exactly one exact canonical 04:00 / same-key MAX bullet; reject duplicated Notice, missing/reformulated/contradictory rules. Isolated New Moon and Meal Prep negative/positive fixtures added to `scripts/g9r-november-official-notice-strict-contract.mjs`.
+- **Gate:** `A_GATE=G9R_NOVEMBER_UNIQUE_NOTICE_RULE_AUTHORITY_SOURCE_TEST_CANDIDATE` pending Draft #773 exact-head CI, protected expected-head merge, and new-main exact SHA CI/Pages. Official live H1 source remains `HOLD_SOURCE_REVIEW`, no new Master/manifest admission, no player SQLite/IDB/STOP/Migration/SW/App-version/production Writer changes. #19 OPEN with 11/08–11/09 Android effective UAT time/deploy gated; #482 `HOLD_OWNER_DEVICE_UNAVAILABLE / OWNER_ACTION=NONE_NOW`.
+
 ## 2026-11-05 A/G9R — November official notice hidden-ancestor source provenance (Source/Test candidate)
 
 - **Fresh baseline:** protected main `740a66bcd86969da00c26eb077584e6fbb349f00`, Open PR 0, sole GitHub Writer. Prior B/#770 protected MERGED with exact-head PR CI and new-main CI/Pages SUCCESS. Official 2026-10-30 New Moon and 2026-10-28 Meal Prep pages rechecked; no newly authenticated event or changed numeric rule is claimed.

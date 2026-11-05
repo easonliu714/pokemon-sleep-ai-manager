@@ -358,6 +358,34 @@ rejects(visibleStaleRule(prepHtml,
   '相同的獎勵在不同的活動、企畫中同時登場時，將倍率相乘。'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'stale visible MAX body quote');
 console.log('PASS G9R_NOTICE_LOCAL_0400_AND_MAX_RULE_VISIBLE_BODY_SPOOF_FAIL_CLOSED');
+// Independent published-Notice ambiguity: a second visible Notice section with
+// a stale valid rule must never certify a changed rule in the current section.
+// A conflicting second bullet within the ONE Notice is equally non-authoritative.
+const oldBoundary='活動、企畫舉辦日期的切換時間為每日4:00。';
+const newBoundary='活動、企畫舉辦日期的切換時間為每日5:00。';
+const oldMax='相同的獎勵在不同的活動、企畫中同時登場時，僅適用倍率最大的獎勵。';
+const newMax='相同的獎勵在不同的活動、企畫中同時登場時，將倍率相乘。';
+const staleNoticeSection=(html,original,revised,bullet)=>{
+  assert.ok(html.includes(original));
+  return html.replace(original,revised).replace('<h2>注意事項</h2>',
+    '<h2>注意事項</h2><p>'+bullet+original+'</p><h2>注意事項</h2>');
+};
+rejects(staleNoticeSection(moonHtml,oldBoundary,newBoundary,'・〖重要〗'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'duplicate Notice masks changed New Moon 04:00');
+rejects(staleNoticeSection(prepHtml,oldMax,newMax,'・'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'duplicate Notice masks changed Meal Prep MAX');
+rejects(moonHtml.replace('<p>・〖重要〗'+oldBoundary+'</p>',
+  '<p>・〖重要〗'+oldBoundary+'</p><p>・〖重要〗'+newBoundary+'</p>'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'conflicting 04:00 and 05:00 bullets in one Notice');
+rejects(prepHtml.replace('<p>・'+oldMax+'</p>',
+  '<p>・'+oldMax+'</p><p>・'+newMax+'</p>'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'conflicting MAX and multiplication bullets in one Notice');
+assert.equal(parse(moonHtml,NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon).event_id,
+  'new_moon_day_19_2026_11','published unique New Moon Notice remains accepted');
+assert.equal(parse(prepHtml,NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep).event_id,
+  'meal_prep_week_vol1_2026_11','published unique Meal Prep Notice remains accepted');
+console.log('PASS G9R_NOVEMBER_UNIQUE_PUBLISHED_NOTICE_0400_MAX_AMBIGUITY_FAIL_CLOSED');
+
 
 // Synthetic source-authenticity regression: the old tag-only stripper kept
 // non-rendered <noscript>/<textarea> text. A changed visible rule plus an

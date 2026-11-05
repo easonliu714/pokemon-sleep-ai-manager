@@ -1,3 +1,9 @@
+## 2026-11-05 A/G9R — November published Notice unique-rule source guard (Source/Test candidate)
+
+- **Source:** `scripts/g9r-november-official-notice-strict-parser.mjs::commonEvidence()` now derives the Notice from exactly one visible line-level `注意事項` heading. It requires a unique exact `・〖重要〗...每日4:00。` and `・相同的獎勵...僅適用倍率最大的獎勵。` bullet, rejecting duplicate Notice headings or contradictory/reformulated rules. No changes to event dates, typed effect projection or Public Master authority.
+- **Regression:** `scripts/g9r-november-official-notice-strict-contract.mjs` uses synthetic source-bound New Moon / Meal Prep fixtures to prove that a stale duplicate Notice or a second contradictory rule cannot mask official 04:00/MAX drift, while both published-layout positive fixtures remain valid. Separate from #771 hidden-ancestor source guard.
+- **Governance:** `A_GATE=G9R_NOVEMBER_UNIQUE_NOTICE_RULE_AUTHORITY_SOURCE_TEST_CANDIDATE` on sole Draft PR #773, baseline protected main `094ea748d74a26ceb2746a85c304a795f2ca887f`; exact-head PR CI, protected expected-head merge, new-main CI/Pages required before PASS. `G9R_LIVE_SOURCE=HOLD_SOURCE_REVIEW`, #19 OPEN and 11/08–11/09 Android UAT date/deploy gated; #482 `HOLD_OWNER_DEVICE_UNAVAILABLE / OWNER_ACTION=NONE_NOW`. No player SQLite/IDB, STOP, migration, SW, app version, data-only Master/manifest or production Writer admission.
+
 ## 2026-11-05 A/G9R — November official notice hidden-ancestor source provenance (Source/Test candidate)
 
 - **Fresh baseline:** protected main `740a66bcd86969da00c26eb077584e6fbb349f00`, Open PR 0, sole GitHub Writer. Prior B/#770 protected MERGED with exact-head PR CI and new-main CI/Pages SUCCESS. Official 2026-10-30 New Moon and 2026-10-28 Meal Prep pages rechecked; no newly authenticated event or changed numeric rule is claimed.
