@@ -213,6 +213,13 @@ function install(){
   runtime.installed=true;
   document.querySelectorAll('nav button[data-view]').forEach(button=>button.addEventListener('click',()=>requestRender(button.dataset.view,'navigation')));
   window.addEventListener('pokemon-sleep:data-changed',handleDataChanged);
+  // G6.2: the writer intentionally emits no data-changed event when SQL COMMIT
+  // succeeds but IndexedDB persistence is uncertain. Invalidate the active
+  // unified recipe read-side projection without mutating player/public data.
+  window.addEventListener('pokemon-sleep:recipe-attempt-persistence-uncertain',()=>{
+    const dirtyView=markLocalProjectionDirty('recipe_feedback_state');
+    if(activeView()===dirtyView)requestRender(dirtyView,'feedback-persistence-uncertain');
+  });
   window.addEventListener('pokemon-sleep:database-ready',handleDatabaseReady);
   window.addEventListener('pokemon-sleep:app-ready',()=>idle(()=>{try{prewarmPublicViewData('ingredients');prewarmPublicViewData('items');}catch(error){progress('PUBLIC_CATALOG_DATA_PREWARM_FAILED','本機公版投影預熱失敗','warning',{error:error?.message||String(error)});}}),{once:true});
   window.dispatchEvent(new CustomEvent('pokemon-sleep:public-catalog-ready',{detail:{build:BUILD,lazy_renderer:true,mutation_observer:false,first_entry_after_navigation:true,global_singleton:true,persisted_public_fingerprint:true,public_version_match_bypass:true,local_change_does_not_invalidate_public_fingerprint:true,cause_aware_generation_queue:true,schema_compatible_items:true,ingredient_unlock_state_semantics:true,recipe_authority:PUBLIC_RECIPE_MASTER_VERSION,recipe_workbench_authority:RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION}}));

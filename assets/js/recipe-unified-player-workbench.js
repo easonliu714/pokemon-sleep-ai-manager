@@ -5,7 +5,7 @@ import {currentWeeklyContext} from './weekly-context-store.js';
 import {normalizeDishCategory} from './weekly-context-normalization.js';
 import {localIso} from './time-utils.js';
 import {applyRecipeAttemptFeedback} from './recipe-attempt-feedback.js';
-import {listRecipeAttemptFeedbackSummaries} from './recipe-attempt-feedback-local.js';
+import {listRecipeAttemptFeedbackSummaries,getRecipeAttemptPersistenceStatus} from './recipe-attempt-feedback-local.js';
 
 export const RECIPE_UNIFIED_PLAYER_WORKBENCH_VERSION='recipe-unified-player-workbench-2026-08-12-b-summary-cards';
 
@@ -49,9 +49,15 @@ function categoryStatistics(catalogRows){
 
 // G6.2: feedback read failure is not proof that no recipe is paused.
 // Keep the public catalog visible, but withhold all recommendation badges.
-export function readRecipeFeedbackForProjection({readonly=false,readFeedback=listRecipeAttemptFeedbackSummaries}={}){
+export function readRecipeFeedbackForProjection({readonly=false,readFeedback=listRecipeAttemptFeedbackSummaries,readPersistenceStatus=getRecipeAttemptPersistenceStatus}={}){
   if(readonly)return Object.freeze({rows:[],verified:false,status:'DATABASE_READONLY_OR_NOT_READY'});
   try{
+    // G6.2: an in-memory SQL COMMIT is not a verified durable player feedback read.
+    // Match the legacy badge gate: no recommendation until persistence settles or
+    // an independent reload resolves the exact ambiguous attempt/toggle marker.
+    const persistence=readPersistenceStatus();
+    if(!persistence||!['CLEAR','PERSISTED','NOT_PERSISTED'].includes(persistence.status))
+      return Object.freeze({rows:[],verified:false,status:'HOLD_FEEDBACK_PERSISTENCE_UNCERTAIN'});
     const rows=readFeedback();
     if(!Array.isArray(rows))throw new Error('recipe_feedback_rows_invalid');
     return Object.freeze({rows,verified:true,status:'VERIFIED_READ'});
@@ -82,7 +88,7 @@ export function readRecipeInventoryForProjection({readonly=false,readInventory=(
   }
 }
 
-export function buildRecipeUnifiedWorkbenchProjection({catalogRows=[],inventory=[],week={},recipeFeedback=[],feedbackAuthorityVerified=true,inventoryAuthorityVerified=true}={}){
+export function buildRecipeUnifiedWorkbenchProjection({catalogRows=[],inventory=[],week={},recipeFeedback=[],feedbackAuthorityVerified=true,feedbackAuthorityStatus=null,inventoryAuthorityVerified=true}={}){
   const ids=catalogRows.map(row=>String(row.recipe_id));
   const duplicateIds=[...new Set(ids.filter((id,index)=>ids.indexOf(id)!==index))];
   // G6.2: reuse canonical read-only feedback overlay; do not mutate readiness or Public Recipe Master.
@@ -99,7 +105,7 @@ export function buildRecipeUnifiedWorkbenchProjection({catalogRows=[],inventory=
   const verifiedSundayMultiplier=Object.prototype.hasOwnProperty.call(deterministicEffects,'sunday_pot_multiplier')?numberOrNull(deterministicEffects.sunday_pot_multiplier):null;
   const boostedPot=basePot!==null&&verifiedSundayMultiplier!==null?basePot*verifiedSundayMultiplier:null;
   return Object.freeze({
-    feedback_authority_status:feedbackAuthorityVerified?'VERIFIED_READ':'HOLD_FEEDBACK_READ_FAILED',
+    feedback_authority_status:feedbackAuthorityVerified?'VERIFIED_READ':(feedbackAuthorityStatus||'HOLD_FEEDBACK_READ_FAILED'),
     inventory_authority_status:inventoryAuthorityVerified?'VERIFIED_READ':'HOLD_INVENTORY_READ_FAILED',
     inventory_authority_verified:inventoryAuthorityVerified,
     total_count:catalogRows.length,
@@ -255,7 +261,7 @@ export function renderRecipeUnifiedWorkbench(){
   const projection=buildRecipeUnifiedWorkbenchProjection({
     catalogRows:catalogRows(),inventory:inventory.rows,week:weeklyContext(),
     recipeFeedback:feedback.rows,feedbackAuthorityVerified:feedback.verified,
-    inventoryAuthorityVerified:inventory.verified,
+    feedbackAuthorityStatus:feedback.status,inventoryAuthorityVerified:inventory.verified,
   });
   if(!projection.partition_complete)throw new Error(`recipe_workbench_partition_invalid:${projection.duplicate_recipe_ids.join(',')}`);
   renderSummary(shell.summary,projection);
