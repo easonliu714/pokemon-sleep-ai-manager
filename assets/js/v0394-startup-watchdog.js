@@ -16,6 +16,9 @@ let heartbeatAt=performance.now();
 // A live 2s timer proves JS can run even when Chromium throttles visible-page RAF.
 // Only a delayed timer AND missing RAF indicate a main-thread scheduling gap.
 let lastIntervalTickAt=performance.now();
+// A resumed RAF can run before an overdue interval and erase the RAF gap.
+// Preserve that evidence only until the independently delayed timer checks it.
+let pendingRafFirstGapMs=0;
 let watchdogTimer=null;
 let heartbeatGeneration=0;
 let warningActive=false;
@@ -107,6 +110,7 @@ function resetHeartbeatForVisibility(reason){
   lastObservedVisibility=document.visibilityState;
   heartbeatAt=now;
   lastIntervalTickAt=now;
+  pendingRafFirstGapMs=0;
   recoveryStableFrames=0;
   visibilityGraceUntil=now+1200;
   const warningCleared=warningActive?clearRecoveredHeartbeatWarning({interruptedBy:reason}):false;
@@ -133,7 +137,13 @@ function startHeartbeat(){
       requestAnimationFrame(beat);
       return;
     }
-    const gap=now-heartbeatAt;heartbeatAt=now;
+    const gap=now-heartbeatAt;
+    // RAF may be the first callback after a real foreground scheduling stall.
+    // Do not let it erase a delayed RAF gap before the timer independently
+    // verifies that it too missed its scheduled execution window.
+    if(gap>=STARTUP_BLOCK_WARN_MS&&now-lastIntervalTickAt>=STARTUP_BLOCK_WARN_MS)
+      pendingRafFirstGapMs=Math.max(pendingRafFirstGapMs,gap);
+    heartbeatAt=now;
     if(warningActive){
       recoveryStableFrames=gap<1000?recoveryStableFrames+1:0;
       if(recoveryStableFrames>=RECOVERY_STABLE_FRAMES)clearRecoveredHeartbeatWarning();
@@ -159,8 +169,9 @@ function startHeartbeat(){
       resetHeartbeatForVisibility('timer-observed-foreground');
       return;
     }
-    if(now<visibilityGraceUntil){heartbeatAt=now;return;}
-    const blockedFor=Math.round(now-heartbeatAt),stageAge=Math.round(now-lastStageAt);
+    if(now<visibilityGraceUntil){heartbeatAt=now;pendingRafFirstGapMs=0;return;}
+    const blockedFor=Math.round(Math.max(now-heartbeatAt,pendingRafFirstGapMs)),stageAge=Math.round(now-lastStageAt);
+    pendingRafFirstGapMs=0;
     // RAF can pause independently of the main thread (occlusion/power saving).
     // A regularly executing timer is positive responsiveness evidence; a genuine
     // long scheduling gap remains detectable after the normal lifecycle grace.
