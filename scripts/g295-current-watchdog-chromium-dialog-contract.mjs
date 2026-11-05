@@ -186,6 +186,20 @@ try{
     assert.equal((await state()).detected,beforePagehide.detected,'BFCache first resumed timer tick is grace-protected');
     await act(()=>window.__g295.tick(6000));
     assert.equal((await state()).detected,beforePagehide.detected+1,'post-BFCache real foreground stall remains detectable');
+    // Actual Chromium DOM and source, synthetic clock and explicit callback
+    // order: overdue RAF first, overdue interval second. No player data.
+    await act(()=>window.__g295.frames(40));
+    assert.equal((await state()).watchdogMarker,null,'previous watchdog incident recovered');
+    const beforeRafFirst=(await state()).detected;
+    await act(()=>{window.__g295.advance(6000);window.__g295.frames(1);window.__g295.tick();});
+    s=await state();
+    assert.equal(s.detected,beforeRafFirst+1,'RAF-first after 6s visible scheduling gap must detect');
+    assert.equal(s.watchdogMarker,'startup-heartbeat-watchdog','RAF-first warning must own DOM marker');
+    await act(()=>window.__g295.frames(40));
+    const beforeResponsive=(await state()).detected;
+    await act(()=>{for(let i=0;i<4;i++)window.__g295.tick(2000);window.__g295.frames(1);window.__g295.tick(2000);});
+    assert.equal((await state()).detected,beforeResponsive,'responsive timers with delayed RAF must not false-positive');
+    console.log('PASS G295_CHROMIUM_RAF_FIRST_DELAYED_TIMER_AND_RESPONSIVE_CONTROL');
     console.log('PASS G295_CHROMIUM_PAGEHIDE_ACTIVE_STALL_INTERRUPTED_AND_REARM');
     console.log('PASS G295_CHROMIUM_TIMER_OBSERVED_MISSED_VISIBILITY_EVENTS');
     console.log('PASS G295_CHROMIUM_LIFECYCLE_INTERRUPTED_NOT_RAF_RECOVERED');
