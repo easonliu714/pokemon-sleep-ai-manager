@@ -241,9 +241,24 @@ export async function enforceLiveVersionHandoff(){
   const active=registration?.active||null;
   const controller=navigator.serviceWorker.controller;
   debugTrace.record('service_worker','version_handoff_checked',{status:'completed',details:{authority,registered:Boolean(registration),active:Boolean(active),controlled:Boolean(controller),update_on_critical_path:false}});
-  if(!controller&&active){const alreadyReloaded=sessionStorage.getItem(RELOAD_KEY)==='1';if(!alreadyReloaded){sessionStorage.setItem(RELOAD_KEY,'1');location.reload();return {reloading:true};}}
+  // G479: sessionStorage may be denied even when Service Worker registration succeeds.
+  // Never misreport a reload-guard SecurityError as a failed ESM module import.
+  // Without durable reload-loop protection, skip automatic reload and continue
+  // normal bootstrap with an explicit diagnostic HOLD and background SW update.
+  let reloadGuardAvailable=true;
+  if(!controller&&active){
+    let alreadyReloaded=false;
+    try{
+      alreadyReloaded=sessionStorage.getItem(RELOAD_KEY)==='1';
+      if(!alreadyReloaded)sessionStorage.setItem(RELOAD_KEY,'1');
+    }catch(error){
+      reloadGuardAvailable=false;
+      debugTrace.record('service_worker','version_handoff_reload_guard_unavailable',{status:'blocked',details:{authority,reload_suppressed:true,storage_guard_available:false,update_on_critical_path:false},error});
+    }
+    if(reloadGuardAvailable&&!alreadyReloaded){location.reload();return {reloading:true};}
+  }
   scheduleBackgroundServiceWorkerUpdate(registration);
-  return {supported:true,registered:Boolean(registration),controlled:Boolean(controller),update_on_critical_path:false};
+  return {supported:true,registered:Boolean(registration),controlled:Boolean(controller),reload_guard_available:reloadGuardAvailable,update_on_critical_path:false};
 }
 export function getLastStartupStage(){try{return JSON.parse(sessionStorage.getItem(STAGE_KEY)||'null');}catch{return null;}}
 export function getStartupWatchdogState(){return {last_checkpoint:lastStage,warning_active:warningActive,recovery_stable_frames:recoveryStableFrames,stall_snapshot:stallSnapshot?{...stallSnapshot}:null};}
