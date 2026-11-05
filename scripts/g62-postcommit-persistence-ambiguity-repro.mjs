@@ -133,3 +133,24 @@ for(const mode of ['DENY_BEFORE_IDB_WRITE','ACK_LOST_AFTER_IDB_WRITE']){
   console.log('PASS G62_POSTCOMMIT_'+mode+' SAME_SESSION_RETRY_BLOCKED RELOADED='+status.status+' DURABLE_ATTEMPTS=1');
 }
 console.log('G62_SOURCE_BOUND_PERSISTENCE_UNCERTAIN_SAFETY_PASS; ANDROID_OWNER_UAT_PENDING; ISSUE_6_OPEN');
+
+
+// Independent B/G6.2 negative reproduction: if sessionStorage marker read is
+// denied or unavailable, absence of a readable marker is NOT proof of CLEAR.
+// This source-bound VM has no player SQLite/IDB, no production writer, no app version change.
+for(const mode of ['DENIED_GET','MISSING_STORAGE','READABLE_EMPTY']){
+  const storage=mode==='DENIED_GET'?{getItem(){throw Error('synthetic_session_storage_denied');}}
+    :mode==='READABLE_EMPTY'?{getItem(){return null;}}:undefined;
+  const context=vm.createContext({
+    ...(storage?{sessionStorage:storage}:{}),
+    isDatabaseReady:()=>true,isRescueReadonly:()=>false,
+  });
+  vm.runInContext(executable+'\n;globalThis.__status=getRecipeAttemptPersistenceStatus;',context,{timeout:3000});
+  const status=context.__status();
+  if(mode==='READABLE_EMPTY')assert.equal(status.status,'CLEAR','readable empty marker remains normal');
+  else {
+    assert.equal(status.status,'UNVERIFIED',mode+' must not promote missing marker authority to CLEAR');
+    assert.equal(status.reason,'PERSISTENCE_MARKER_STORAGE_UNAVAILABLE');
+  }
+}
+console.log('PASS G62_PERSISTENCE_MARKER_READ_DENIAL_HOLDS_READSIDE_RECOMMENDATIONS');
