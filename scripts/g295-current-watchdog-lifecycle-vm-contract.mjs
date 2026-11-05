@@ -203,6 +203,24 @@ assert.equal(pagehideInterrupts.at(-1).detail.details.reason,'pagehide-suspend')
 emit(events,'pageshow');assert.equal(intervals.size,1,'pageshow restores one timer');
 now+=100;interval();assert.equal(detected(),pagehideBefore,'first BFCache return tick must not warn');
 now+=6000;interval();assert.equal(detected(),pagehideBefore+1,'post-BFCache true foreground stall still detected');
+// Independent G295: after a real visible 6s JS scheduling gap, Chromium may
+// dispatch the pending RAF before the overdue interval. Both were delayed.
+// RAF-first must not erase evidence before the timer's independent check.
+for(let i=0;i<40;i++){now+=16;assert.ok(raf.length);raf.shift()();}
+assert.equal(ctx.getStartupWatchdogState().warning_active,false,'precondition: RAF recovered previous episode');
+const beforeRafFirst=detected();
+now+=6000;assert.ok(raf.length);raf.shift()();interval();
+assert.equal(detected(),beforeRafFirst+1,'RAF-first overdue callback must still detect verified timer+RAF gap');
+assert.equal(ctx.getStartupWatchdogState().warning_active,true,'RAF-first gap opens a diagnostic episode');
+assert.ok(trace.filter(x=>x.event==='main_thread_block_detected').at(-1).detail.details.blocked_ms>=6000);
+for(let i=0;i<40;i++){now+=16;assert.ok(raf.length);raf.shift()();}
+assert.equal(ctx.getStartupWatchdogState().warning_active,false,'stable visible RAF recovers after RAF-first stall');
+const beforeResponsive=detected();
+for(let i=0;i<4;i++){now+=2000;interval();}
+now+=16;assert.ok(raf.length);raf.shift()();
+now+=2000;interval();
+assert.equal(detected(),beforeResponsive,'regular timer + delayed RAF alone must not trigger false stall');
+console.log('PASS G295_RAF_FIRST_DELAYED_TIMER_INDEPENDENT_GAP_AND_RESPONSIVE_CONTROL');
 console.log('PASS G295_PAGEHIDE_ACTIVE_STALL_INTERRUPTED_NOT_RECOVERED_AND_REARM');
 console.log('PASS G295_RAF_OBSERVED_MISSED_VISIBILITY_HIDDEN_NOT_RECOVERED_AND_REARM');
 console.log('PASS G295_TIMER_OBSERVED_VISIBILITY_MISSED_EVENTS_FAIL_CLOSED_AND_REARM');
