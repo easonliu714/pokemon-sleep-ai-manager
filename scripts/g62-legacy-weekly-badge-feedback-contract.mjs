@@ -40,9 +40,18 @@ const tableRows=recipes.map(r=>({
   classList:{toggle(name,enabled){assert.equal(name,'weekly-recommended');this.recommended=enabled;}},
 }));
 const table={dataset:{},querySelectorAll:selector=>{assert.equal(selector,'tbody tr');return tableRows;}};
+// Independent G6.2 regression: the personal legacy badge surface must use
+// the same verified pause/suspect feedback as the reference badge surface.
+const personalRecipes=recipes.map(r=>({...r,unlocked:1}));
+const personalRows=personalRecipes.map(r=>({
+  cells:[{innerHTML:''},{textContent:'—'},{textContent:r.recipe_name}],
+  classList:{toggle(name,enabled){assert.equal(name,'weekly-recommended');this.recommended=enabled;}},
+}));
+const personalTable={dataset:{},querySelectorAll:selector=>{assert.equal(selector,'tbody tr');return personalRows;}};
+let personalEnabled=false;
 const document={
   readyState:'loading',
-  getElementById:id=>id==='referenceRecipeTable'?table:null,
+  getElementById:id=>id==='referenceRecipeTable'?table:id==='personalRecipeAnalysisTable'&&personalEnabled?personalTable:null,
   addEventListener:(name,fn)=>documentEvents.set(name,fn),
 };
 let feedbackRows=[],feedbackReadFails=false,inventoryReadFails=false,inventoryRows=inventory,masterIngredients=ingredients;
@@ -53,6 +62,8 @@ const ctx={
     sqlReads++;
     if(sql.startsWith('SELECT ingredient_name,quantity FROM ingredient_inventory')){if(inventoryReadFails)throw Error('synthetic inventory read failure');return inventoryRows;}
     if(sql.startsWith('SELECT recipe_name,unlocked,notes FROM recipes'))return [];
+    if(sql.startsWith('SELECT * FROM recipes WHERE unlocked=1'))return personalRecipes;
+    if(sql.startsWith('SELECT * FROM recipe_ingredients ORDER BY'))return ingredients;
     if(sql.startsWith('SELECT * FROM recipe_master ORDER BY'))return recipes;
     if(sql.startsWith('SELECT * FROM recipe_master_ingredients ORDER BY'))return masterIngredients;
     throw Error('unexpected SQL: '+sql);
@@ -67,6 +78,7 @@ const ctx={
 ctx.globalThis=ctx;
 vm.runInNewContext(bridge,ctx,{filename:'assets/js/current-week-recipe-recommendation-bridge.js',timeout:3000});
 const recommended=()=>tableRows.filter(r=>r.cells[0].innerHTML==='<b>推薦</b>').map(r=>r.cells[2].textContent);
+const personalRecommended=()=>personalRows.filter(r=>r.cells[0].innerHTML==='<b>推薦</b>').map(r=>r.cells[2].textContent);
 ctx.apply();
 assert.deepEqual(recommended(),['測試料理1','測試料理2','測試料理3'],
   'baseline real bridge recommends by shortage');
@@ -96,9 +108,19 @@ assert.ok(scheduled.length,'feedback event must schedule a badge refresh');
 scheduled.shift()();
 assert.deepEqual(recommended(),['測試料理3','測試料理4','測試料理5'],
   'actual legacy table must not re-badge paused/suspect recipes');
+// The old personal branch called weeklyRecipeRecommendationNames without
+// feedbackRows, silently re-badging recipes 1/2 despite explicit player HOLD.
+personalEnabled=true;
+ctx.apply();
+assert.deepEqual(personalRecommended(),['測試料理3','測試料理4','測試料理5'],
+  'personal weekly badges must honor paused and suspect recipe IDs');
+assert.equal(personalTable.dataset.weeklyRecommendationStatus,'VERIFIED_READ');
 feedbackReadFails=true;
 ctx.apply();
 assert.deepEqual(recommended(),[],'unavailable feedback authority must withhold reference badges');
+assert.deepEqual(personalRecommended(),[],'unavailable feedback authority must also withhold personal badges');
+assert.equal(personalTable.dataset.weeklyRecommendationStatus,'HOLD_FEEDBACK_READ_FAILED');
+personalEnabled=false;
 assert.ok(warnings.length>0,'fail-closed read must leave an explicit diagnostic');
 // Independent G6.2 read-side gap: an inventory query failure used to throw
 // after previously rendered badges, leaving stale actionable recommendations.
@@ -172,5 +194,5 @@ databaseReady=true;
 ctx.apply();
 assert.deepEqual(recommended(),['測試料理3','測試料理4','測試料理5'],'verified DB recovery restores safe badges');
 assert.equal(table.dataset.weeklyRecommendationStatus,'VERIFIED_READ');
-console.log('PASS G62_LEGACY_WEEKLY_BADGE_FEEDBACK_SOURCE_BOUND_VM paused/suspect/malformed/backfill/inventory-change/inventory-read-failure/invalid-stock/invalid-recipe-requirements/partial-requirements/rescue-readonly/db-unavailable/recovery');
+console.log('PASS G62_LEGACY_WEEKLY_BADGE_FEEDBACK_SOURCE_BOUND_VM personal-and-reference-pause-suspect-shared-feedback-fail-closed/paused/suspect/malformed/backfill/inventory-change/inventory-read-failure/invalid-stock/invalid-recipe-requirements/partial-requirements/rescue-readonly/db-unavailable/recovery');
 console.log('HOLD G62_ANDROID_OWNER_UAT_NOT_VERIFIED');
