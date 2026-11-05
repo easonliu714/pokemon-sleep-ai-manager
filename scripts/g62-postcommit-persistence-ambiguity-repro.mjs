@@ -156,3 +156,53 @@ for(const mode of ['DENIED_GET','MISSING_STORAGE','MALFORMED_JSON','INVALID_MARK
   }
 }
 console.log('PASS G62_PERSISTENCE_MARKER_READ_DENIAL_HOLDS_READSIDE_RECOMMENDATIONS');
+
+
+// Independent G6.2 negative-first gate: sessionStorage can permit reads while
+// denying/dropping writes. A post-COMMIT-only marker cannot survive reload,
+// so neither attempt recording nor pause toggle may touch SQLite until a
+// same-tab recovery intent has been written AND read back successfully.
+// Synthetic SQL.js-free VM mocks; no real player database or writer admission.
+for(const mode of ['DENIED_SET','SILENT_DROP_SET']){
+  let sqlMutations=0,persistCalls=0;
+  const storage={
+    getItem:()=>null,
+    setItem:mode==='DENIED_SET'
+      ?()=>{throw new Error('synthetic_sessionStorage_set_denied');}
+      :()=>{},
+    removeItem:()=>{},
+  };
+  const context=vm.createContext({
+    sessionStorage:storage,
+    rows:(sql)=>{
+      if(sql.includes('FROM recipe_master'))return [{recipe_id:'r1',recipe_name:'Synthetic Recipe',category:'synthetic'}];
+      if(sql.includes('FROM ingredient_master'))return [{ingredient_name:'特選蘋果'}];
+      return [];
+    },
+    run:()=>{sqlMutations++;},
+    begin:()=>{sqlMutations++;},
+    commit:()=>{sqlMutations++;},
+    rollback:()=>{},
+    persist:async()=>{persistCalls++;},
+    isDatabaseReady:()=>true,isRescueReadonly:()=>false,
+    PUBLIC_RECIPE_PROVENANCE:[{recipe_id:'r1',lifecycle:'ACTIVE',formula_source_type:'PUBLIC_RECIPE_PROVENANCE'}],
+    buildRecipeAttemptFeedbackRecord,RECIPE_ATTEMPT_FEEDBACK_VERSION,
+    crypto:{randomUUID:()=> 'synthetic-denied-marker'},
+    CustomEvent:class{constructor(type,options){this.type=type;this.detail=options?.detail;}},
+    dispatchEvent:()=>{},
+  });
+  vm.runInContext(executable+
+    '\n;globalThis.__record=recordRecipeAttemptFailure;globalThis.__toggle=setRecipeRecommendationPaused;',
+    context,{timeout:3000});
+  const attempt={recipe_id:'r1',attempted_at:'2026-10-24T00:00:00Z',
+    actual_ingredients:[{ingredient_name:'特選蘋果',quantity:2}],recommendation_paused:true};
+  await assert.rejects(context.__record(attempt),
+    error=>error.code==='PERSISTENCE_MARKER_STORAGE_UNAVAILABLE',
+    mode+' attempt must reject BEFORE SQL COMMIT when recovery marker is unwritable');
+  await assert.rejects(context.__toggle('r1',true),
+    error=>error.code==='PERSISTENCE_MARKER_STORAGE_UNAVAILABLE',
+    mode+' pause toggle must reject BEFORE SQLite mutation');
+  assert.equal(sqlMutations,0,mode+' cannot mutate player SQLite before verified recovery intent');
+  assert.equal(persistCalls,0,mode+' cannot call IndexedDB persist without verified intent');
+}
+console.log('PASS G62_PRECOMMIT_MARKER_WRITE_READBACK_REQUIRED_BEFORE_SQL_MUTATION');

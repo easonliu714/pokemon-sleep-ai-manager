@@ -27,6 +27,10 @@ let enteredA,releaseA,writeCount=0;
 const firstPersistEntered=new Promise(resolve=>{enteredA=resolve;});
 function tab(name,holdPersist=false){
   let staged=null;
+  // Independent synthetic tab-local sessionStorage is readable and writable.
+  // This G265 test isolates the existing cross-tab durable-image lost update,
+  // not the separate G6.2 denied-marker-storage negative regression.
+  const markerStore=new Map();
   const api={
     rows(sql){
       if(sql.includes('FROM recipe_master'))return [{recipe_id:'fixture-recipe',recipe_name:'Fixture',category:'fixture'}];
@@ -53,9 +57,12 @@ function tab(name,holdPersist=false){
     },
     isDatabaseReady:()=>true,
     isRescueReadonly:()=>false,
-    // Each synthetic browser tab has readable empty marker storage; a denied
-    // marker is a distinct G6.2 HOLD, not this legacy cross-tab bypass fixture.
-    sessionStorage:{getItem:()=>null,setItem(){},removeItem(){}},
+    // Keep recovery-marker write/readback functional in each independent tab.
+    sessionStorage:{
+      getItem:key=>markerStore.get(key)??null,
+      setItem:(key,value)=>markerStore.set(key,String(value)),
+      removeItem:key=>markerStore.delete(key),
+    },
     PUBLIC_RECIPE_PROVENANCE:[{recipe_id:'fixture-recipe',lifecycle:'ACTIVE',formula_source_type:'PUBLIC_RECIPE_PROVENANCE'}],
     buildRecipeAttemptFeedbackRecord:input=>({...input,outcome:'FAILURE'}),
     decodeRecipeAttemptIngredientJson:JSON.parse,
