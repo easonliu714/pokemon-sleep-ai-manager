@@ -42,7 +42,7 @@ function fixture({title,published,period,lines,details,noticeExtra=''}){
     +'<p>・獎勵僅適用於活動／企畫期間內開始測量的睡眠資料。</p>'
     +'<p>・若將「活動／企畫開始前測量的睡眠資料」留到活動／企畫期間內進行「稍後再報告」，則不適用獎勵。</p>'
     +'<p>・若將「活動／企畫期間內測量的睡眠資料」留到活動／企畫結束後進行「稍後再報告」，則會適用獎勵。</p>'
-    +'<p>・活動獎勵不適用於新手教學中的睡眠測量。</p>'
+    +'<p>・'+(title.includes('第19次')?'活動獎勵':'獎勵')+'不適用於新手教學中的睡眠測量。</p>'
     +'</body></html>';
 }
 const moonHtml=fixture({
@@ -241,9 +241,41 @@ rejects(prepHtml.replace('則不適用獎勵。','則適用獎勵。'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'pre-start measurement reported during event');
 rejects(moonHtml.replace('則會適用獎勵。','則不適用獎勵。'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'in-event measurement reported after end');
-rejects(prepHtml.replace('活動獎勵不適用於新手教學中的睡眠測量。',
-  '活動獎勵適用於新手教學中的睡眠測量。'),
+rejects(prepHtml.replace('獎勵不適用於新手教學中的睡眠測量。',
+  '獎勵適用於新手教學中的睡眠測量。'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'tutorial measurement exclusion');
+// Distinct from #773's 04:00/MAX checks: a valid sleep-start or late-report
+// Notice bullet followed by a contradictory visible bullet was previously
+// accepted by whole-Notice substring matching. The source must HOLD instead.
+// These are isolated synthetic fixtures, never a player-data or live event write.
+const duplicatedSleepAuthority=(html,valid,conflict)=>{
+  const exact='<p>・'+valid+'</p>';
+  assert.ok(html.includes(exact),'fixture must contain one official Notice bullet');
+  return html.replace(exact,exact+'<p>・'+conflict+'</p>');
+};
+for(const [html,url,valid,conflict,label] of [
+  [moonHtml,NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,
+    '獎勵僅適用於活動／企畫期間內開始測量的睡眠資料。',
+    '獎勵僅適用於活動／企畫期間內完成報告的睡眠資料。','start-vs-report'],
+  [prepHtml,NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,
+    '若將「活動／企畫開始前測量的睡眠資料」留到活動／企畫期間內進行「稍後再報告」，則不適用獎勵。',
+    '若將「活動／企畫開始前測量的睡眠資料」留到活動／企畫期間內進行「稍後再報告」，則適用獎勵。','pre-start-late-report'],
+  [moonHtml,NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,
+    '若將「活動／企畫期間內測量的睡眠資料」留到活動／企畫結束後進行「稍後再報告」，則會適用獎勵。',
+    '若將「活動／企畫期間內測量的睡眠資料」留到活動／企畫結束後進行「稍後再報告」，則不適用獎勵。','post-end-late-report'],
+  [prepHtml,NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,
+    '獎勵不適用於新手教學中的睡眠測量。',
+    '獎勵適用於新手教學中的睡眠測量。','tutorial-exclusion'],
+]){
+  rejects(duplicatedSleepAuthority(html,valid,conflict),url,'contradictory Notice '+label);
+  rejects(duplicatedSleepAuthority(html,valid,valid),url,'duplicated exact Notice '+label);
+}
+assert.equal(parse(moonHtml,NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon).event_id,
+  'new_moon_day_19_2026_11');
+assert.equal(parse(prepHtml,NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep).event_id,
+  'meal_prep_week_vol1_2026_11');
+console.log('PASS G9R_NOVEMBER_UNIQUE_SLEEP_START_LATE_REPORT_TUTORIAL_NOTICE_AUTHORITY');
+
 // Official Darkrai pity/extra encounter and mini-candy post-event exceptions
 // must not silently change, become global numeric multipliers, or extend bonuses.
 rejects(moonHtml.replace('機率將會漸漸提升','機率將會固定不變'),
