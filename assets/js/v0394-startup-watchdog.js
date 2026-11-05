@@ -187,6 +187,9 @@ document.querySelector('nav')?.addEventListener('click',event=>{
 // G295: BFCache restores need a fresh timer/RAF generation; focus and native-dialog
 // returns reset only the watchdog clock, never player state or application results.
 addEventListener('pagehide',()=>{
+  // G295: pagehide may suspend into BFCache without visibilitychange. Cancel
+  // a foreground stall immediately; a suspended page is not RAF-recovered.
+  resetHeartbeatForVisibility('pagehide-suspend');
   clearInterval(watchdogTimer);
   watchdogTimer=null;
   heartbeatGeneration++;
