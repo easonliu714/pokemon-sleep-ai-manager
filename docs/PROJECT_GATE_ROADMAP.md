@@ -1,3 +1,10 @@
+## A/G9R — Unique official Growth Week period section (2026-11-05 candidate)
+
+- Protected baseline `8cb81fd7c06a0f1339103f6c70f45779c622247a`; single Writer, Open PR 0 before branch. Prior B/#766 merged with new-main CI/Pages SUCCESS.
+- Independent Source/Test risk: whole-article 04:00–03:59 regex could promote a stale unrelated range when `〖舉辦期間〗` is absent or changed. The parser now requires a unique published period heading and one anchored period line before `〖活動營地〗`.
+- Synthetic source-bound negative fixtures cover unrelated note, missing heading, duplicate period and conflicting period; valid two-line official layout remains accepted.
+- `G9R_GROWTH_PERIOD_SECTION_PROVENANCE_SOURCE_TEST_CANDIDATE` pending exact-head PR CI/protected merge/new-main CI+Pages. No live official announcement promotion, Public Master/manifest or player-data mutation; #19 OPEN and 11/08–11/09 Android time gated, #482 HOLD with `OWNER_ACTION=NONE_NOW`.
+
 ## A/G9R — Published camp section authority (2026-11-05 candidate)
 
 - From protected main `5c511551def1fcef711a614ecd087a506d88cd36`, single Writer branch. `parseVerifiedGrowthNotice` now requires one explicit official `〖活動營地〗 ・所有營地` section instead of accepting stray “all camps” body text. New source-bound regression covers missing/restricted/duplicated camp section and a valid two-line section.
