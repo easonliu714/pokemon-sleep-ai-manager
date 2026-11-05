@@ -170,6 +170,32 @@ assert.equal(parsed.start_at,'2026-10-12T04:00:00+08:00');
 assert.equal(parsed.end_at,'2026-10-19T04:00:00+08:00');
 assert.equal(parsed.effects.pokemon_candy_multiplier,1.5);
 assert.equal(parsed.field_provenance.event_effects.pokemon_candy_multiplier_scope,'FIRST_SLEEP_RESEARCH_OF_DAY_ONLY');
+// Source-bound A/G9R period provenance: a plausible 7-day window elsewhere
+// in the article is NOT evidence for the official 〖舉辦期間〗 field.
+// Before the fix, the first global date-range regex falsely VERIFIED these.
+const growthWindow='10/12 (週一) 4:00～10/19 (週一) 3:59';
+const growthPeriodHeading='〖舉辦期間〗 ';
+const periodNow={now:new Date('2026-10-12T12:00:00+08:00')};
+const staleNoteWindow=growthHtml
+  .replace(growthPeriodHeading+growthWindow,'〖舉辦期間〗 日期待確認')
+  .replace('<p>注意事項</p>','<p>注意事項</p><p>'+growthWindow+'</p>');
+assert.throws(()=>parseVerifiedGrowthNotice(staleNoteWindow,growthUrl,periodNow),
+  /G9R_GROWTH_PERIOD_NOT_VERIFIED/,'A stray note cannot replace the published event period');
+assert.throws(()=>parseVerifiedGrowthNotice(growthHtml.replace(growthPeriodHeading,''),growthUrl,periodNow),
+  /G9R_GROWTH_PERIOD_NOT_VERIFIED/,'An unscoped period cannot certify an official event');
+assert.throws(()=>parseVerifiedGrowthNotice(growthHtml.replace('<p>〖活動營地〗',
+  '<p>〖舉辦期間〗 '+growthWindow+'</p><p>〖活動營地〗'),growthUrl,periodNow),
+  /G9R_GROWTH_PERIOD_NOT_VERIFIED/,'Duplicate published period sections must HOLD');
+assert.throws(()=>parseVerifiedGrowthNotice(growthHtml.replace('<p>〖活動營地〗',
+  '<p>10/19 (週一) 4:00～10/26 (週一) 3:59</p><p>〖活動營地〗'),growthUrl,periodNow),
+  /G9R_GROWTH_PERIOD_NOT_VERIFIED/,'Conflicting extra period line must HOLD');
+const publishedTwoLinePeriod=growthHtml.replace(
+  '<p>'+growthPeriodHeading+growthWindow+'</p>',
+  '<p>〖舉辦期間〗</p><p>・'+growthWindow+'</p>');
+assert.equal(parseVerifiedGrowthNotice(publishedTwoLinePeriod,growthUrl,periodNow).event_id,
+  'growth_week_vol6_2026_10','Published two-line period remains accepted');
+console.log('PASS G9R_GROWTH_PERIOD_SECTION_PROVENANCE_FAIL_CLOSED');
+
 // Independent A/G9R auto-feed risk: a stale Growth Week body quote cannot
 // certify the article identity or trigger a VERIFIED future data-only release.
 const growthHeading='〖企畫〗寶可夢快快長大週vol.6';
