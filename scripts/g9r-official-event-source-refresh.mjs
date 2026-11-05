@@ -66,7 +66,7 @@ export function parseVerifiedGrowthNotice(html,url,{now=new Date()}={}){
   // An unrelated all-camps note or a conflicting duplicate must fail closed.
   const campSections=[...text.matchAll(/〖活動營地〗/g)];
   if(campSections.length!==1
-    || !/〖活動營地〗[ \t\r\n]*(?:・[ \t]*)?所有營地(?=[ \t\r\n]*(?:〖|獎勵|$))/.test(text))
+    || !/〖活動營地〗[ \t\r\n]*(?:・[ \t]*)?所有營地(?=[ \t\r\n]|$)/.test(text))
     throw new Error('G9R_GROWTH_CAMP_NOT_VERIFIED');
   const pub=text.match(/202[0-9]\/(\d{1,2})\/(\d{1,2})/);
   const yearText=text.match(/(202[0-9])\/\d{1,2}\/\d{1,2}/);
