@@ -50,6 +50,7 @@ const moonHtml=fixture({
   period:'11/8 (週日) 4:00～11/11 (週三) 3:59',lines:newMoonLines,
   details:'<h3>特別機率提升</h3><p>・達克萊伊</p>'
     +'<p>※機率提升的寶可夢會出現在所有的活動營地。</p>'
+    +'<h2>各項目詳情</h2><p>關於特別機率提升</p>'
     +'<p>特別機率提升的寶可夢只有可能會在當天第1次的睡眠研究中出現，並不會在當天第2次的睡眠研究中出現。</p>'
     +'<p>此外，若未能在睡眠研究中遇見特別機率提升的寶可夢，在新月日的睡眠研究中能遇見牠們的機率將會漸漸提升，直到遇見特別機率提升的寶可夢為止。</p>'
     +'<p>當特別機率提升的寶可夢出現時，在睡眠研究中能遇見的寶可夢會增加1隻。</p>'
@@ -139,6 +140,33 @@ const rejects=(html,url,marker)=>assert.throws(()=>parse(html,url),
 // threshold must be a UNIQUE published Notice bullet. A valid historical
 // quote, an identical duplicate, or a conflicting second threshold cannot
 // authorize a 12th-encounter reward rule. No player data or numeric rates.
+// Independent New Moon source authority: a valid historical first-study
+// quote cannot certify a changed current published eligibility rule.
+// The original whole-page two-substring check accepted all three negatives.
+const researchScope='特別機率提升的寶可夢只有可能會在當天第1次的睡眠研究中出現，並不會在當天第2次的睡眠研究中出現。';
+const researchScopeP='<p>'+researchScope+'</p>';
+const contradictoryScopeP='<p>特別機率提升的寶可夢在當天第2次的睡眠研究中也可能出現。</p>';
+assert.ok(moonHtml.includes(researchScopeP),'source-bound first/second research fixture');
+const contradictoryStudy=moonHtml.replace(researchScopeP,researchScopeP+contradictoryScopeP);
+assert.ok(contradictoryStudy.includes('第1次的睡眠研究中出現')
+  &&contradictoryStudy.includes('並不會在當天第2次的睡眠研究中出現'),
+  'legacy whole-page substring accepted contradictory second-study entitlement');
+rejects(contradictoryStudy,NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,
+  'contradictory second-study eligibility in current published details');
+rejects(moonHtml.replace(researchScopeP,researchScopeP+researchScopeP),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,
+  'duplicated first/second research entitlement');
+const changedResearchScopeP='<p>特別機率提升的寶可夢只有可能會在當天第2次的睡眠研究中出現。</p>';
+const historicalScope=moonHtml.replace(researchScopeP,changedResearchScopeP)
+  .replace('<h2>各項目詳情</h2>',
+    '<p>歷史公告引用：'+researchScope+'</p><h2>各項目詳情</h2>');
+assert.ok(historicalScope.includes(researchScope),'legacy body quote masks changed current rule');
+rejects(historicalScope,NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,
+  'historical first-study quote masks changed published research eligibility');
+assert.equal(parse(moonHtml,NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon).event_id,
+  'new_moon_day_19_2026_11','unchanged published first/second study rule accepted');
+console.log('PASS G9R_DARKRAI_FIRST_SECOND_RESEARCH_UNIQUE_PUBLISHED_DETAIL_SOURCE');
+
 const darkraiThreshold='在平時，1天進行2次睡眠研究，且1天一共研究了11隻以上的寶可夢時，自第11隻寶可夢起研究的報酬量會減少；但若特別機率提升的寶可夢出現，則自第12隻寶可夢起研究的報酬量會減少';
 const darkraiThresholdBullet='<p>・'+darkraiThreshold+'。</p>';
 const changedThresholdBullet=darkraiThresholdBullet.replace('自第12隻','自第13隻');

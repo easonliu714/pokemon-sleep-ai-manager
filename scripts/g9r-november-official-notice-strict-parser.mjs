@@ -243,13 +243,18 @@ export function parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt=new Dat
     const boostedSpecies=section(text,'\n特別機率提升\n',
       '\n※機率提升的寶可夢會出現在所有的活動營地。');
     requireLines(boostedSpecies,['達克萊伊'],'NEW_MOON_DARKRAI_ONLY');
-    if(!compact(text).includes(compact('特別機率提升的寶可夢只有可能會在當天第1次的睡眠研究中出現')))
-      fail('DARKRAI_FIRST_RESEARCH_SCOPE_NOT_VERIFIED');
-    // The official notice also explicitly EXCLUDES the second daily study.
-    // A first-study-only substring is insufficient source evidence if that
-    // independent exclusion is removed or changed by a future announcement.
-    if(!compact(text).includes(compact('並不會在當天第2次的睡眠研究中出現')))
-      fail('DARKRAI_SECOND_RESEARCH_EXCLUSION_SOURCE_DRIFT');
+    // The FIRST-only and SECOND-excluded research rule is one published
+    // detail sentence. Whole-page substrings accepted a stale body quote
+    // even if the current detail was changed or contradicted. Keep the
+    // source-only entitlement out of player and probability projections.
+    const newMoonDetails=section(text,'各項目詳情','注意事項');
+    const researchScopeLines=newMoonDetails.split('\n').map(line=>line.trim())
+      .filter(line=>compact(line).includes(compact('第1次的睡眠研究'))
+        ||compact(line).includes(compact('第2次的睡眠研究')));
+    const expectedResearchScope='特別機率提升的寶可夢只有可能會在當天第1次的睡眠研究中出現，並不會在當天第2次的睡眠研究中出現。';
+    if(researchScopeLines.length!==1
+      ||compact(researchScopeLines[0])!==compact(expectedResearchScope))
+      fail('DARKRAI_FIRST_SECOND_RESEARCH_SCOPE_SOURCE_DRIFT_OR_AMBIGUOUS');
     // G9R: the conditional research-reward threshold is a published Notice
     // entitlement, not a whole-page substring. A valid historical quote or
     // duplicate conflicting threshold cannot certify today's Notice.
