@@ -1,3 +1,9 @@
+## 2026-11-05 A/G9R — November unique published Notice 04:00/MAX guard (#773 candidate)
+
+- Source/Test: `scripts/g9r-november-official-notice-strict-parser.mjs::commonEvidence()` rejects duplicate `注意事項` headings and contradictory/duplicate published 04:00/MAX rule bullets, instead of accepting any stale substring. Synthetic regression covers both official November events with positive fixtures; no Master/manifest or player-data changes.
+- `A_GATE=G9R_NOVEMBER_UNIQUE_NOTICE_RULE_AUTHORITY_SOURCE_TEST_CANDIDATE`; sole Draft #773 based on `094ea748d74a26ceb2746a85c304a795f2ca887f`. Exact-head PR CI, Ruleset #25813226 protected merge and fresh main CI/Pages required. Live official H1 remains `HOLD_SOURCE_REVIEW`; #19 OPEN / 11/08–11/09 time-and-deploy-gated; #482 `HOLD_OWNER_DEVICE_UNAVAILABLE / OWNER_ACTION=NONE_NOW`.
+- This is an auxiliary index, not a third authority. Canonical Roadmap and Architecture ledgers remain authoritative.
+
 ## 2026-11-05 A/G9R — November official notice hidden-ancestor source provenance (Source/Test candidate)
 
 - **Fresh baseline:** protected main `740a66bcd86969da00c26eb077584e6fbb349f00`, Open PR 0, sole GitHub Writer. Prior B/#770 protected MERGED with exact-head PR CI and new-main CI/Pages SUCCESS. Official 2026-10-30 New Moon and 2026-10-28 Meal Prep pages rechecked; no newly authenticated event or changed numeric rule is claimed.
