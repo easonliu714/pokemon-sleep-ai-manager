@@ -1,3 +1,11 @@
+## 2026-11-05 A/G9R — Growth Week published camp-section scope authority (Source/Test candidate)
+
+- **Fresh authority:** protected main `5c511551def1fcef711a614ecd087a506d88cd36`, Open PR 0 and Ruleset #25813226 ACTIVE before this sole Writer branch; previous B/#764 protected MERGED with exact-main CI/Pages SUCCESS. Official October Growth Week article explicitly publishes `〖活動營地〗 ・所有營地`; no new November announcement is invented.
+- **Independent source-proven risk:** `parseVerifiedGrowthNotice()` previously accepted `/所有營地/` anywhere in the article. A camp-restricted article could contain an unrelated “all camps” note while still being auto-promoted to a global VERIFIED event. This is separate from #763 inert-body filtering and #761 visible-H1 identity.
+- **Narrow fail-closed fix:** require exactly one `〖活動營地〗` section with the exact published all-camps value. Reject absent, restricted or conflicting duplicate sections. Keep positive one-line/two-line official formats, strict H1, 04:00 boundaries, typed effects and append-only manifest admission.
+- **Regression:** `scripts/g9r-official-event-feed-contract.mjs` now checks restricted-scope with stray global note, missing camp section, conflicting duplicate, and valid two-line positive. Source: `scripts/g9r-official-event-source-refresh.mjs::parseVerifiedGrowthNotice`.
+- **Acceptance:** `A_GATE=G9R_GROWTH_CAMP_SECTION_SCOPE_SOURCE_TEST_CANDIDATE` until Draft PR exact-head CI, protected expected-head merge and new main CI/Pages. Live November H1 source remains `HOLD_SOURCE_REVIEW`; #19 OPEN and 11/08–11/09 Android event UAT time/deployment gated. #482 `HOLD_OWNER_DEVICE_UNAVAILABLE / OWNER_ACTION=NONE_NOW`. No Public Master/manifest, player DB/IDB, STOP, migration, SW, App version or production Writer change.
+
 ## 2026-11-05 A/G9R — Growth Week visible body-fact provenance (Source/Test candidate)
 
 - **Authority:** fresh protected main `9e847ad1760bea051f503351ce4a429950df951f`, Open PR 0 before this single Writer branch. Previous B/#762 protected MERGED with exact-main CI/Pages SUCCESS. No new independently verified official announcement or live-H1 promotion is claimed.
