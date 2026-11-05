@@ -55,13 +55,15 @@ const document={
   addEventListener:(name,fn)=>documentEvents.set(name,fn),
 };
 let feedbackRows=[],feedbackReadFails=false,inventoryReadFails=false,inventoryRows=inventory,masterIngredients=ingredients;
+// Isolated synthetic player recipe flags; no real SQLite or player data.
+let playerReferenceRows=[];
 let rescueReadonly=false,databaseReady=true,sqlReads=0,persistenceStatus='CLEAR';
 const ctx={
   document,console:{warn:msg=>warnings.push(msg)},
   rows:sql=>{
     sqlReads++;
     if(sql.startsWith('SELECT ingredient_name,quantity FROM ingredient_inventory')){if(inventoryReadFails)throw Error('synthetic inventory read failure');return inventoryRows;}
-    if(sql.startsWith('SELECT recipe_name,unlocked,notes FROM recipes'))return [];
+    if(sql.startsWith('SELECT recipe_name,unlocked,notes FROM recipes'))return playerReferenceRows;
     if(sql.startsWith('SELECT * FROM recipes WHERE unlocked=1'))return personalRecipes.filter(r=>r.unlocked===1);
     if(sql.startsWith('SELECT * FROM recipe_ingredients ORDER BY'))return ingredients;
     if(sql.startsWith('SELECT * FROM recipe_master ORDER BY'))return recipes;
@@ -247,6 +249,36 @@ persistenceStatus='NOT_PERSISTED';ctx.apply();
 assert.deepEqual(recommended(),['測試料理3','測試料理4','測試料理5'],
   'verified post-reload non-persistence readback can restore prior safe advice');
 persistenceStatus='CLEAR';
+
+// Independent G6.2 player unlock authority: a coercible or missing persisted
+// flag is not evidence that a reference recipe is safely locked. Both badge
+// projection and its status must fail closed; canonical SQLite 0/1 still work.
+feedbackRows=[];
+for(const invalid of [null,undefined,true,false,'01','1.0','true',2,-1,'']){
+  playerReferenceRows=[{recipe_name:'測試料理1',unlocked:invalid,notes:''}];
+  ctx.apply();
+  assert.deepEqual(recommended(),[],'invalid player unlock flag must withhold badges: '+String(invalid));
+  assert.equal(table.dataset.weeklyRecommendationStatus,'HOLD_SOURCE_READ_FAILED');
+}
+playerReferenceRows=[{recipe_name:'測試料理1',unlocked:'1',notes:''}];
+ctx.apply();
+assert.equal(table.dataset.weeklyRecommendationStatus,'VERIFIED_READ','canonical string 1 must remain accepted');
+assert.ok(!recommended().includes('測試料理1'),'verified unlocked recipe cannot be recommended as locked');
+playerReferenceRows=[{recipe_name:'測試料理1',unlocked:0,notes:''}];
+ctx.apply();
+assert.equal(table.dataset.weeklyRecommendationStatus,'VERIFIED_READ','numeric 0 must remain accepted');
+assert.ok(recommended().includes('測試料理1'),'verified locked recipe can remain eligible');
+playerReferenceRows=[{recipe_name:'測試料理1',unlocked:'0',notes:''}];
+ctx.apply();
+assert.equal(table.dataset.weeklyRecommendationStatus,'VERIFIED_READ','canonical string 0 must remain accepted');
+playerReferenceRows=[{recipe_name:'測試料理1',unlocked:1,notes:''}];
+ctx.apply();
+assert.equal(table.dataset.weeklyRecommendationStatus,'VERIFIED_READ','numeric 1 must remain accepted');
+assert.ok(!recommended().includes('測試料理1'));
+playerReferenceRows=[];
+ctx.apply();
+assert.deepEqual(recommended(),['測試料理1','測試料理2','測試料理3'],'valid empty player mapping restores baseline');
+console.log('PASS G62_LEGACY_PLAYER_UNLOCK_STRICT_SQLITE_01_FAIL_CLOSED_SOURCE_BOUND_VM');
 
 console.log('PASS G62_LEGACY_WEEKLY_BADGE_FEEDBACK_SOURCE_BOUND_VM personal-and-reference-pause-suspect-shared-feedback-fail-closed/paused/suspect/malformed/backfill/recipe-state-change/inventory-change/inventory-read-failure/invalid-stock/invalid-recipe-requirements/partial-requirements/rescue-readonly/db-unavailable/recovery');
 console.log('HOLD G62_ANDROID_OWNER_UAT_NOT_VERIFIED');
