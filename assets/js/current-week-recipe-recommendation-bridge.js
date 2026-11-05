@@ -3,7 +3,7 @@ import {currentEffectiveWeeklyContext} from './effective-weekly-context.js';
 import {normalizeDishCategory} from './weekly-context-normalization.js';
 import {analyzeIngredientGaps} from './ingredient-gap-engine.js';
 import {weeklyRecipeRecommendationNames} from './recipe-weekly-feedback-recommendation.js';
-import {listRecipeAttemptFeedbackSummaries} from './recipe-attempt-feedback-local.js';
+import {listRecipeAttemptFeedbackSummaries,getRecipeAttemptPersistenceStatus} from './recipe-attempt-feedback-local.js';
 
 export const CURRENT_WEEK_RECIPE_RECOMMENDATION_VERSION='current-week-recipe-recommendation-2026-08-17-c-effective-context';
 let applying=false;
@@ -84,6 +84,17 @@ function apply(){
   }
   applying=true;
   try{
+    // G6.2: a SQL COMMIT with an unconfirmed IDB ACK is not durable feedback
+    // authority. Never leave actionable legacy badges visible during that HOLD.
+    // The existing readback contract may release the HOLD after a fresh reload.
+    const persistence=getRecipeAttemptPersistenceStatus();
+    if(!persistence||!['CLEAR','PERSISTED','NOT_PERSISTED'].includes(persistence.status)){
+      patchTable(personalTable,new Set(),2);
+      patchTable(referenceTable,new Set(),2);
+      for(const table of [personalTable,referenceTable])if(table)
+        table.dataset.weeklyRecommendationStatus='HOLD_FEEDBACK_PERSISTENCE_UNCERTAIN';
+      return;
+    }
     const week=currentEffectiveWeeklyContext(),category=normalizeDishCategory(week.dish_category),inv=inventory();
     // G6.2: BOTH legacy badge surfaces are actionable advice. The personal
     // table previously bypassed player pause/suspect feedback entirely.
@@ -117,6 +128,9 @@ function install(){
   document.addEventListener('click',event=>{if(event.target.closest?.('[data-view="recipes"]'))schedule(40);},true);
   document.addEventListener('pokemon-sleep-data-refreshed',()=>schedule(40));
   globalThis.addEventListener?.('pokemon-sleep:database-ready',()=>schedule(40));
+  // The feedback writer emits this on post-COMMIT persistence uncertainty
+  // without emitting data-changed. Invalidate visible advice immediately.
+  globalThis.addEventListener?.('pokemon-sleep:recipe-attempt-persistence-uncertain',()=>apply());
   // G6.2: recipe unlock/state saves emit 'recipes'; refresh both legacy badge
   // projections so a previously recommended recipe cannot retain stale advice.
   globalThis.addEventListener?.('pokemon-sleep:data-changed',event=>{if(['weekly_context','public_event_master','recipe_feedback_state','recipe_attempt_feedback','ingredient_inventory','recipes'].includes(event.detail?.entity))schedule(40);});

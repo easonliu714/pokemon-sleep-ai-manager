@@ -55,7 +55,7 @@ const document={
   addEventListener:(name,fn)=>documentEvents.set(name,fn),
 };
 let feedbackRows=[],feedbackReadFails=false,inventoryReadFails=false,inventoryRows=inventory,masterIngredients=ingredients;
-let rescueReadonly=false,databaseReady=true,sqlReads=0;
+let rescueReadonly=false,databaseReady=true,sqlReads=0,persistenceStatus='CLEAR';
 const ctx={
   document,console:{warn:msg=>warnings.push(msg)},
   rows:sql=>{
@@ -72,6 +72,7 @@ const ctx={
   currentEffectiveWeeklyContext:()=>({dish_category:'咖哩／濃湯',week_start:'2026-11-02',player_weekly_authority_source:'SYNTHETIC'}),
   normalizeDishCategory,analyzeIngredientGaps,weeklyRecipeRecommendationNames,
   listRecipeAttemptFeedbackSummaries:()=>{if(feedbackReadFails)throw Error('synthetic feedback read failure');return feedbackRows;},
+  getRecipeAttemptPersistenceStatus:()=>({status:persistenceStatus}),
   setTimeout:fn=>{scheduled.push(fn);return scheduled.length;},
   addEventListener:(name,fn)=>events.set(name,fn),
 };
@@ -218,5 +219,34 @@ databaseReady=true;
 ctx.apply();
 assert.deepEqual(recommended(),['測試料理3','測試料理4','測試料理5'],'verified DB recovery restores safe badges');
 assert.equal(table.dataset.weeklyRecommendationStatus,'VERIFIED_READ');
+// Independent post-COMMIT/IDB-ACK-loss risk: the writer emits only a
+// persistence-uncertain event, NOT data-changed. Legacy badges must be cleared
+// synchronously and must not reappear on unrelated later refreshes.
+const feedbackWriter=readFileSync(new URL('../assets/js/recipe-attempt-feedback-local.js',import.meta.url),'utf8');
+assert.match(feedbackWriter,/pokemon-sleep:recipe-attempt-persistence-uncertain/);
+assert.ok(events.has('pokemon-sleep:recipe-attempt-persistence-uncertain'),
+  'legacy bridge must subscribe to the actual writer uncertainty event');
+assert.deepEqual(recommended(),['測試料理3','測試料理4','測試料理5']);
+const readsBeforeUncertain=sqlReads;
+persistenceStatus='UNVERIFIED';
+events.get('pokemon-sleep:recipe-attempt-persistence-uncertain')({detail:{code:'PERSISTENCE_UNCERTAIN'}});
+assert.deepEqual(recommended(),[],'uncertain post-COMMIT feedback must immediately clear old badges');
+assert.equal(table.dataset.weeklyRecommendationStatus,'HOLD_FEEDBACK_PERSISTENCE_UNCERTAIN');
+assert.equal(sqlReads,readsBeforeUncertain,'uncertain feedback must not read player SQLite');
+const beforeRefresh=scheduled.length;
+events.get('pokemon-sleep:data-changed')({detail:{entity:'ingredient_inventory'}});
+assert.equal(scheduled.length,beforeRefresh+1);
+scheduled.at(-1)();
+assert.deepEqual(recommended(),[],'unrelated refresh cannot re-admit uncertain feedback');
+persistenceStatus='IN_FLIGHT';ctx.apply();
+assert.deepEqual(recommended(),[],'in-flight feedback writes must not admit badges');
+persistenceStatus='PERSISTED';ctx.apply();
+assert.deepEqual(recommended(),['測試料理3','測試料理4','測試料理5'],
+  'verified post-reload persistence readback can restore feedback-filtered advice');
+persistenceStatus='NOT_PERSISTED';ctx.apply();
+assert.deepEqual(recommended(),['測試料理3','測試料理4','測試料理5'],
+  'verified post-reload non-persistence readback can restore prior safe advice');
+persistenceStatus='CLEAR';
+
 console.log('PASS G62_LEGACY_WEEKLY_BADGE_FEEDBACK_SOURCE_BOUND_VM personal-and-reference-pause-suspect-shared-feedback-fail-closed/paused/suspect/malformed/backfill/recipe-state-change/inventory-change/inventory-read-failure/invalid-stock/invalid-recipe-requirements/partial-requirements/rescue-readonly/db-unavailable/recovery');
 console.log('HOLD G62_ANDROID_OWNER_UAT_NOT_VERIFIED');
