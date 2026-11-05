@@ -15,16 +15,23 @@ let pendingPersistenceHold=null;
 let recordInFlight=false;
 // G6.2: serialize all player-private writes until their IndexedDB result settles.
 let playerWriteInFlight=false;
+// A missing, unreadable or malformed sessionStorage marker is not proof that
+// a prior player-feedback IndexedDB persist completed. Preserve read-side HOLD.
+const PERSISTENCE_MARKER_STORAGE_UNAVAILABLE=Symbol('G62_PERSISTENCE_MARKER_STORAGE_UNAVAILABLE');
 function readPersistenceMarker(){
   try{
-    const value=globalThis.sessionStorage?.getItem(PERSISTENCE_HOLD_KEY);
+    const storage=globalThis.sessionStorage;
+    if(!storage||typeof storage.getItem!=='function')return PERSISTENCE_MARKER_STORAGE_UNAVAILABLE;
+    const value=storage.getItem(PERSISTENCE_HOLD_KEY);
     if(!value)return null;
     const marker=JSON.parse(value);
-    if(typeof marker?.recipe_id!=='string')return null;
+    if(typeof marker?.recipe_id!=='string'||!marker.recipe_id.trim())
+      return PERSISTENCE_MARKER_STORAGE_UNAVAILABLE;
     if(marker.operation==='PAUSE_TOGGLE')
-      return marker.target_paused===0||marker.target_paused===1?marker:null;
-    return typeof marker.attempt_id==='string'?marker:null;
-  }catch{return null;}
+      return marker.target_paused===0||marker.target_paused===1?marker:PERSISTENCE_MARKER_STORAGE_UNAVAILABLE;
+    return typeof marker.attempt_id==='string'&&marker.attempt_id.trim()
+      ?marker:PERSISTENCE_MARKER_STORAGE_UNAVAILABLE;
+  }catch{return PERSISTENCE_MARKER_STORAGE_UNAVAILABLE;}
 }
 function writePersistenceMarker(marker){
   try{globalThis.sessionStorage?.setItem(PERSISTENCE_HOLD_KEY,JSON.stringify(marker));}catch{}
@@ -41,6 +48,8 @@ export function getRecipeAttemptPersistenceStatus(){
   if(pendingPersistenceHold)return Object.freeze({status:'UNVERIFIED',...pendingPersistenceHold});
   if(playerWriteInFlight)return Object.freeze({status:'IN_FLIGHT',operation:'G62_PLAYER_WRITE'});
   const marker=readPersistenceMarker();
+  if(marker===PERSISTENCE_MARKER_STORAGE_UNAVAILABLE)
+    return Object.freeze({status:'UNVERIFIED',reason:'PERSISTENCE_MARKER_STORAGE_UNAVAILABLE'});
   if(!marker)return Object.freeze({status:'CLEAR'});
   if(!isDatabaseReady()||isRescueReadonly())return Object.freeze({status:'UNVERIFIED',...marker});
   try{

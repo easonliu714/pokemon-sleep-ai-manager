@@ -138,8 +138,10 @@ console.log('G62_SOURCE_BOUND_PERSISTENCE_UNCERTAIN_SAFETY_PASS; ANDROID_OWNER_U
 // Independent B/G6.2 negative reproduction: if sessionStorage marker read is
 // denied or unavailable, absence of a readable marker is NOT proof of CLEAR.
 // This source-bound VM has no player SQLite/IDB, no production writer, no app version change.
-for(const mode of ['DENIED_GET','MISSING_STORAGE','READABLE_EMPTY']){
+for(const mode of ['DENIED_GET','MISSING_STORAGE','MALFORMED_JSON','INVALID_MARKER','READABLE_EMPTY']){
   const storage=mode==='DENIED_GET'?{getItem(){throw Error('synthetic_session_storage_denied');}}
+    :mode==='MALFORMED_JSON'?{getItem(){return '{invalid json';}}
+    :mode==='INVALID_MARKER'?{getItem(){return JSON.stringify({recipe_id:'r1',operation:'PAUSE_TOGGLE',target_paused:'not-a-flag'});}}
     :mode==='READABLE_EMPTY'?{getItem(){return null;}}:undefined;
   const context=vm.createContext({
     ...(storage?{sessionStorage:storage}:{}),
