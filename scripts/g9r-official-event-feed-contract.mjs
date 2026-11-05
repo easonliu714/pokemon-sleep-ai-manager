@@ -170,6 +170,32 @@ assert.equal(parsed.start_at,'2026-10-12T04:00:00+08:00');
 assert.equal(parsed.end_at,'2026-10-19T04:00:00+08:00');
 assert.equal(parsed.effects.pokemon_candy_multiplier,1.5);
 assert.equal(parsed.field_provenance.event_effects.pokemon_candy_multiplier_scope,'FIRST_SLEEP_RESEARCH_OF_DAY_ONLY');
+// Independent A/G9R auto-feed risk: a stale Growth Week body quote cannot
+// certify the article identity or trigger a VERIFIED future data-only release.
+const growthHeading='〖企畫〗寶可夢快快長大週vol.6';
+const growthNow={now:new Date('2026-10-12T12:00:00+08:00')};
+const unrelatedGrowthQuote=growthHtml.replace('<h1>'+growthHeading+'</h1>',
+  '<h1>〖企畫〗另一項活動</h1><p>'+growthHeading+'</p>');
+assert.equal(parseVerifiedGrowthNotice(unrelatedGrowthQuote,growthUrl,growthNow),null,
+  'An unrelated official H1 cannot promote a stale Growth Week body quote');
+assert.equal(parseVerifiedGrowthNotice(growthHtml.replace('<h1>'+growthHeading+'</h1>',
+  '<h1>〖企畫〗另一項活動</h1><noscript><h1>'+growthHeading+'</h1></noscript>'),growthUrl,growthNow),null,
+  'A hidden fallback H1 cannot certify Growth Week');
+assert.equal(parseVerifiedGrowthNotice(growthHtml.replace('</main>',
+  '<template><h1>'+growthHeading+'</h1></template></main>'),growthUrl,growthNow).event_id,
+  'growth_week_vol6_2026_10','A hidden duplicate must not reject the genuine article');
+assert.equal(parseVerifiedGrowthNotice(growthHtml.replace(growthHeading,
+  '&#x3016;企畫&#x3017;寶可夢快快長大週vol.6'),growthUrl,growthNow).event_id,
+  'growth_week_vol6_2026_10','Visible numeric HTML entities preserve exact H1 identity');
+assert.throws(()=>parseVerifiedGrowthNotice(growthHtml.replace('</h1>',
+  '</h1><h1>'+growthHeading+'</h1>'),growthUrl,growthNow),
+  /G9R_GROWTH_HEADING_DUPLICATED/,'Duplicate visible Growth H1 must HOLD');
+assert.throws(()=>parseVerifiedGrowthNotice(growthHtml.replace('<h1>'+growthHeading+'</h1>',
+  '<h1>〖企畫〗寶可夢快快長大週vol.7</h1><p>'+growthHeading+'</p>'),growthUrl,growthNow),
+  /G9R_GROWTH_HEADING_BODY_CONFLICT_REVIEW_REQUIRED/,
+  'A changed volume must not inherit stale volume identity from the body');
+console.log('PASS G9R_GROWTH_VISIBLE_H1_SOURCE_IDENTITY_STALE_BODY_AND_HIDDEN_SPOOF');
+
 assert.throws(()=>parseVerifiedGrowthNotice(growthHtml,'https://evil.example/zh/news/123/',{now:new Date('2026-10-12T04:00:00+08:00')}),/G9R_OFFICIAL_DOMAIN_ONLY/);
 assert.throws(()=>parseVerifiedGrowthNotice(growthHtml.replace('第1次','第2次'),growthUrl,{now:new Date('2026-10-12T04:00:00+08:00')}),/G9R_GROWTH_EFFECT_NOT_EXACTLY_VERIFIED/);
 const discovered=discoverOfficialNoticeUrls('<a href="/zh/news/1234/">official</a><a href="/zh/news/1234/">dup</a><a href="https://evil.example/zh/news/999/">no</a>');
