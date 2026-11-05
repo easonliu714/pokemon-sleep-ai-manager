@@ -4,6 +4,12 @@ import {PUBLIC_RECIPE_MASTER} from '../assets/js/public-recipe-current-authority
 import {buildRecipeUnifiedWorkbenchProjection,readRecipeFeedbackForProjection,readRecipeInventoryForProjection} from '../assets/js/recipe-unified-player-workbench.js';
 import {publicCatalogProjectionViewForLocalEntity,shouldInvalidatePublicCatalogFingerprint} from '../assets/js/public-catalog-startup-authority.js';
 
+// Node has no browser sessionStorage by default. The normal verified-read
+// fixture must explicitly provide an accessible, empty marker authority;
+// missing/denied storage is separately covered by the negative VM contract.
+Object.defineProperty(globalThis,'sessionStorage',{configurable:true,value:{
+  getItem:()=>null,setItem(){},removeItem(){},
+}});
 // G6.2 source-bound, read-side only: all catalog and feedback rows are synthetic.
 // No player SQLite/IDB, network, public master mutation, cooking, or App version change.
 const grouped=new Map();

@@ -53,6 +53,9 @@ function tab(name,holdPersist=false){
     },
     isDatabaseReady:()=>true,
     isRescueReadonly:()=>false,
+    // Each synthetic browser tab has readable empty marker storage; a denied
+    // marker is a distinct G6.2 HOLD, not this legacy cross-tab bypass fixture.
+    sessionStorage:{getItem:()=>null,setItem(){},removeItem(){}},
     PUBLIC_RECIPE_PROVENANCE:[{recipe_id:'fixture-recipe',lifecycle:'ACTIVE',formula_source_type:'PUBLIC_RECIPE_PROVENANCE'}],
     buildRecipeAttemptFeedbackRecord:input=>({...input,outcome:'FAILURE'}),
     decodeRecipeAttemptIngredientJson:JSON.parse,
