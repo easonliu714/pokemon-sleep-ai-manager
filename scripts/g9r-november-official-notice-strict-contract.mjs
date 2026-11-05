@@ -386,6 +386,35 @@ for(const attrs of ['hidden','inert','aria-hidden="true"','style="display:none"'
   assert.equal(h1Probe('<html><body><h1>'+moonHeading+'</h1>'+hidden+'</body></html>'),true,
     'hidden duplicate must not mask exact visible title: '+attrs);
 }
+// Independent November source provenance: hidden ANCESTORS were not filtered
+// by the strict November parser (unlike Growth Week). A hidden copy of a
+// stale 04:00/MAX rule could incorrectly certify changed visible rules.
+for(const attrs of ['hidden','inert','aria-hidden="true"','style="display:none"','style="visibility:hidden"']){
+  for(const [html,url] of [
+    [moonHtml,NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon],
+    [prepHtml,NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep],
+  ]){
+    rejects(html.replace('<body>','<body><section '+attrs+'>')
+      .replace('</body>','</section></body>'),url,
+      'hidden-ancestor entire official article cannot certify source: '+attrs);
+  }
+  rejects(withHiddenStaleFact(moonHtml,
+    '活動、企畫舉辦日期的切換時間為每日4:00。',
+    '活動、企畫舉辦日期的切換時間為每日5:00。',
+    '<div '+attrs+'><p>活動、企畫舉辦日期的切換時間為每日4:00。</p></div>'),
+    NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'hidden ancestor cannot mask visible 04:00 drift: '+attrs);
+  rejects(withHiddenStaleFact(prepHtml,
+    '相同的獎勵在不同的活動、企畫中同時登場時，僅適用倍率最大的獎勵。',
+    '相同的獎勵在不同的活動、企畫中同時登場時，將倍率相乘。',
+    '<section '+attrs+'><p>相同的獎勵在不同的活動、企畫中同時登場時，僅適用倍率最大的獎勵。</p></section>'),
+    NOVEMBER_OFFICIAL_NOTICE_URLS.meal_prep,'hidden ancestor cannot mask visible MAX drift: '+attrs);
+}
+assert.equal(parse(moonHtml.replace('</body>',
+  '<div hidden><p>unrelated menu fallback</p></div></body>'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon).event_id,'new_moon_day_19_2026_11',
+  'unrelated hidden UI must not reject genuine visible official source');
+console.log('PASS G9R_NOVEMBER_HIDDEN_ANCESTOR_H1_AND_BODY_FACT_PROVENANCE_FAIL_CLOSED');
+
 console.log('PASS G9R_HIDDEN_H1_ATTRIBUTE_SOURCE_IDENTITY_SPOOF_FAIL_CLOSED');
 
 console.log('PASS G9R_NOVEMBER_NON_RENDERED_COMMENT_TEMPLATE_SOURCE_EVIDENCE_FAIL_CLOSED');

@@ -1,3 +1,11 @@
+## 2026-11-05 A/G9R — November official notice hidden-ancestor source provenance (Source/Test candidate)
+
+- **Fresh baseline:** protected main `740a66bcd86969da00c26eb077584e6fbb349f00`, Open PR 0, sole GitHub Writer. Prior B/#770 protected MERGED with exact-head PR CI and new-main CI/Pages SUCCESS. Official 2026-10-30 New Moon and 2026-10-28 Meal Prep pages rechecked; no newly authenticated event or changed numeric rule is claimed.
+- **Independent code-proven risk:** the November strict parser stripped HTML tags but did not discard visible-looking article H1/04:00/MAX facts inside `hidden`, `inert`, `aria-hidden=true` or inline CSS-hidden **ancestor** elements. Growth Week had already closed this gap, but November was still independently vulnerable to stale hidden-source evidence.
+- **Minimal read-only fix:** export and reuse the existing `visibleOfficialHtml()` source guard from Growth Week, applying it before BOTH November H1 identity and body-fact extraction. Never interpret invisible DOM as official publication authority. Existing visible official text remains valid; no new event promotion.
+- **Source-bound regression:** two independently scoped November synthetic fixtures × five hidden-ancestor attributes, with full-article H1 spoof, changed visible 04:00 rule masked by hidden old rule, changed visible overlap MAX masked by hidden old rule, plus genuine visible-source/unrelated hidden UI positive control.
+- **Gate:** `A_GATE=G9R_NOVEMBER_HIDDEN_ANCESTOR_SOURCE_PROVENANCE_CANDIDATE` pending Draft PR exact-head regression CI, protected expected-head merge and fresh main CI/Pages. `G9R_LIVE_SOURCE=HOLD_SOURCE_REVIEW`; #19 OPEN and 11/08–11/09 Android event UAT remains time/deploy gated; #482 `HOLD_OWNER_DEVICE_UNAVAILABLE / OWNER_ACTION=NONE_NOW`. No Public Master/manifest, player SQLite/IDB, STOP, Migration, service worker, app version or production Writer changes.
+
 ## 2026-11-05 B/G295 — pagehide foreground-stall suspension provenance (Source/Test candidate)
 
 - **Fresh baseline:** protected main `9a8fc9a54a09d633702a4a91b6a18bc02bebac30`, Open PR 0 after A/#769 exact-head and new-main CI/Pages success. This is a distinct BFCache pagehide-without-visibilitychange path, not a repeat of prior background/freeze/timer/RAF lifecycle regressions.
