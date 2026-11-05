@@ -167,6 +167,26 @@ try{
     assert.equal((await state()).detected,beforeSilentVisibility+1,'true foreground gap still detected');
     await act(()=>window.__g295.frames(31));
     assert.equal((await state()).watchdogMarker,null,'stable-frame recovery remains effective');
+    // G295: BFCache pagehide can arrive without visibilitychange. The real
+    // Chromium DOM must drop a stale foreground warning before suspension.
+    await act(()=>{const w=document.getElementById('storageWarning');w.classList.add('hidden');w.textContent='';});
+    await act(()=>window.__g295.tick(6000));
+    const beforePagehide=await state();
+    assert.equal(beforePagehide.visibleWarning,true,'precondition: watchdog-owned foreground warning');
+    assert.equal(beforePagehide.watchdogMarker,'startup-heartbeat-watchdog');
+    await act(()=>window.__g295.event('pagehide'));
+    s=await state();
+    assert.equal(s.timerActive,false,'pagehide must stop the interval');
+    assert.equal(s.watchdogMarker,null,'pagehide must release watchdog warning ownership');
+    assert.equal(s.visibleWarning,false,'pagehide must hide stale watchdog-owned warning');
+    assert.equal(s.recovered,beforePagehide.recovered,'pagehide must not claim stable-RAF recovery');
+    assert.equal(s.interrupts.length,beforePagehide.interrupts.length+1,'pagehide interruption trace required');
+    assert.equal(s.interrupts.at(-1).reason,'pagehide-suspend');
+    await act(()=>{window.__g295.event('pageshow');window.__g295.tick(100);});
+    assert.equal((await state()).detected,beforePagehide.detected,'BFCache first resumed timer tick is grace-protected');
+    await act(()=>window.__g295.tick(6000));
+    assert.equal((await state()).detected,beforePagehide.detected+1,'post-BFCache real foreground stall remains detectable');
+    console.log('PASS G295_CHROMIUM_PAGEHIDE_ACTIVE_STALL_INTERRUPTED_AND_REARM');
     console.log('PASS G295_CHROMIUM_TIMER_OBSERVED_MISSED_VISIBILITY_EVENTS');
     console.log('PASS G295_CHROMIUM_LIFECYCLE_INTERRUPTED_NOT_RAF_RECOVERED');
     console.log('PASS G295_CHROMIUM_CONTINUOUS_STALL_SINGLE_DETECTION_AND_REARM');

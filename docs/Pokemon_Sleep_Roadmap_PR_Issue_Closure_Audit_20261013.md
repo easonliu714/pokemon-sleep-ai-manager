@@ -1,3 +1,11 @@
+## 2026-11-05 B/G295 — pagehide foreground-stall suspension provenance (Source/Test candidate)
+
+- **Fresh baseline:** protected main `9a8fc9a54a09d633702a4a91b6a18bc02bebac30`, Open PR 0 after A/#769 exact-head and new-main CI/Pages success. This is a distinct BFCache pagehide-without-visibilitychange path, not a repeat of prior background/freeze/timer/RAF lifecycle regressions.
+- **Code-proven risk:** `v0394-startup-watchdog.js` stopped its interval on `pagehide` but left `warningActive` and the watchdog-owned warning visible until a later `pageshow`. A page suspended in BFCache without a visibility event retained a stale foreground incident, incorrectly implying ongoing foreground blocking.
+- **Minimal source fix:** call existing `resetHeartbeatForVisibility('pagehide-suspend')` before stopping the interval. This cancels the episode as `main_thread_watchdog_lifecycle_interrupted`, never `main_thread_block_recovered`; keeps native dialogs, foreground detector, 1200ms resume grace and player data unchanged.
+- **Regression:** actual watchdog source under deterministic VM and real Chromium DOM with synthetic clock: active stall → pagehide without visibilitychange → immediate warning/marker cleanup, interruption-only trace, pageshow one-timer restore, grace-protected first tick and subsequent real stall re-arm. No player SQLite/IDB, service worker, STOP, migration, version or Public Master change.
+- **Acceptance:** `B_GATE=G295_PAGEHIDE_ACTIVE_STALL_INTERRUPTION_SOURCE_TEST_CANDIDATE` pending Draft PR exact-head CI, Ruleset-protected expected-head Merge Commit and fresh main CI/Pages. #295 remains OPEN until full DoD; #19 remains OPEN and 11/08–11/09 Android effective UAT is time/deploy gated. #482 remains `HOLD_OWNER_DEVICE_UNAVAILABLE / OWNER_ACTION=NONE_NOW`. No Owner action or Android UAT notification.
+
 ## 2026-11-05 A/G9R — Hidden-ancestor official source evidence (Source/Test candidate)
 
 - **Fresh intake:** protected main `55357ab02f0208fc66c20cb2d2d557057e9fa708`, Open PR 0, Ruleset #25813226 ACTIVE; B/#768 exact-head PR CI and new-main CI/Pages SUCCESS. This is a separate attribute-hidden ancestor provenance gap, not a repeat of A/#763 inert tags or A/#767 period section.

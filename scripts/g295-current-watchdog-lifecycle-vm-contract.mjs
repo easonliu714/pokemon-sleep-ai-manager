@@ -187,6 +187,23 @@ assert.ok(resetReason('raf-observed-foreground'),'RAF must re-arm after missed f
 interval();assert.equal(detected(),beforeRafHidden+1,'RAF foreground grace must not create false stall');
 now+=6000;interval();
 assert.equal(detected(),beforeRafHidden+2,'new real stall after RAF-observed foreground must remain detectable');
+// Independent G295: pagehide without visibilitychange/pageshow must cancel an
+// active foreground warning before BFCache suspension, not claim RAF recovery.
+const pagehideBefore=detected();
+const pagehideRecovered=trace.filter(x=>x.event==='main_thread_block_recovered').length;
+const pagehideInterrupted=trace.filter(x=>x.event==='main_thread_watchdog_lifecycle_interrupted').length;
+assert.equal(ctx.getStartupWatchdogState().warning_active,true,'precondition: active stall before pagehide');
+emit(events,'pagehide');
+assert.equal(intervals.size,0,'pagehide suspends heartbeat timer');
+assert.equal(ctx.getStartupWatchdogState().warning_active,false,'pagehide must cancel stale foreground stall immediately');
+assert.equal(trace.filter(x=>x.event==='main_thread_block_recovered').length,pagehideRecovered,'pagehide is not verified RAF recovery');
+const pagehideInterrupts=trace.filter(x=>x.event==='main_thread_watchdog_lifecycle_interrupted');
+assert.equal(pagehideInterrupts.length,pagehideInterrupted+1,'pagehide must record distinct lifecycle interruption');
+assert.equal(pagehideInterrupts.at(-1).detail.details.reason,'pagehide-suspend');
+emit(events,'pageshow');assert.equal(intervals.size,1,'pageshow restores one timer');
+now+=100;interval();assert.equal(detected(),pagehideBefore,'first BFCache return tick must not warn');
+now+=6000;interval();assert.equal(detected(),pagehideBefore+1,'post-BFCache true foreground stall still detected');
+console.log('PASS G295_PAGEHIDE_ACTIVE_STALL_INTERRUPTED_NOT_RECOVERED_AND_REARM');
 console.log('PASS G295_RAF_OBSERVED_MISSED_VISIBILITY_HIDDEN_NOT_RECOVERED_AND_REARM');
 console.log('PASS G295_TIMER_OBSERVED_VISIBILITY_MISSED_EVENTS_FAIL_CLOSED_AND_REARM');
 console.log('PASS G295_LIFECYCLE_INTERRUPTED_NOT_VERIFIED_RAF_RECOVERY_AND_REARM');
