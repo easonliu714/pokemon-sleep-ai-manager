@@ -62,7 +62,12 @@ export function parseVerifiedGrowthNotice(html,url,{now=new Date()}={}){
   if([...text.matchAll(/寶可夢快快長大週\s*vol\.?\s*([0-9]+)/gi)]
     .some(match=>Number(match[1])!==Number(title[1])))
     throw new Error('G9R_GROWTH_HEADING_BODY_CONFLICT_REVIEW_REQUIRED');
-  if(!/所有營地/.test(text))throw new Error('G9R_GROWTH_CAMP_NOT_VERIFIED');
+  // Only the unique published camp section can certify global scope.
+  // An unrelated all-camps note or a conflicting duplicate must fail closed.
+  const campSections=[...text.matchAll(/〖活動營地〗/g)];
+  if(campSections.length!==1
+    || !/〖活動營地〗[ \t\r\n]*(?:・[ \t]*)?所有營地(?=[ \t\r\n]*(?:〖|獎勵|$))/.test(text))
+    throw new Error('G9R_GROWTH_CAMP_NOT_VERIFIED');
   const pub=text.match(/202[0-9]\/(\d{1,2})\/(\d{1,2})/);
   const yearText=text.match(/(202[0-9])\/\d{1,2}\/\d{1,2}/);
   if(!yearText||!pub)throw new Error('G9R_GROWTH_PUBLICATION_YEAR_NOT_VERIFIED');
