@@ -194,6 +194,24 @@ assert.throws(()=>parseVerifiedGrowthNotice(commentedOnly,growthUrl,growthNow),
   'HTML comments must not certify official Growth Week body facts');
 assert.equal(parseVerifiedGrowthNotice(growthHtml,growthUrl,growthNow).event_id,
   'growth_week_vol6_2026_10','Visible official source facts remain admissible');
+// Camp-scope authority must be the published section, not an unrelated note.
+const campScopedQuote=growthHtml.replace('<p>〖活動營地〗 所有營地</p>',
+  '<p>〖活動營地〗 萌綠之島</p><p>備註：所有營地均可查看公告</p>');
+assert.throws(()=>parseVerifiedGrowthNotice(campScopedQuote,growthUrl,growthNow),
+  /G9R_GROWTH_CAMP_NOT_VERIFIED/,'Camp-restricted notice must not borrow a stray global note');
+const missingCampSection=growthHtml.replace('<p>〖活動營地〗 所有營地</p>',
+  '<p>備註：所有營地均可查看公告</p>');
+assert.throws(()=>parseVerifiedGrowthNotice(missingCampSection,growthUrl,growthNow),
+  /G9R_GROWTH_CAMP_NOT_VERIFIED/,'Missing published camp section must HOLD');
+const duplicateCampSection=growthHtml.replace('<p>〖活動營地〗 所有營地</p>',
+  '<p>〖活動營地〗 所有營地</p><p>〖活動營地〗 萌綠之島</p>');
+assert.throws(()=>parseVerifiedGrowthNotice(duplicateCampSection,growthUrl,growthNow),
+  /G9R_GROWTH_CAMP_NOT_VERIFIED/,'Conflicting duplicate camp sections must HOLD');
+assert.equal(parseVerifiedGrowthNotice(growthHtml.replace(
+  '<p>〖活動營地〗 所有營地</p>','<p>〖活動營地〗</p><p>・所有營地</p>'),
+  growthUrl,growthNow).camp_scope[0],'*',
+  'Published two-line official camp scope remains admissible');
+console.log('PASS G9R_GROWTH_CAMP_SECTION_EXACT_SCOPE_AND_DUPLICATE_FAIL_CLOSED');
 console.log('PASS G9R_GROWTH_INERT_BODY_FACTS_CANNOT_CERTIFY_VERIFIED_SOURCE');
 const unrelatedGrowthQuote=growthHtml.replace('<h1>'+growthHeading+'</h1>',
   '<h1>〖企畫〗另一項活動</h1><p>'+growthHeading+'</p>');

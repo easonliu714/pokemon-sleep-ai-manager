@@ -1,3 +1,8 @@
+## A/G9R — Published camp section authority (2026-11-05 candidate)
+
+- From protected main `5c511551def1fcef711a614ecd087a506d88cd36`, single Writer branch. `parseVerifiedGrowthNotice` now requires one explicit official `〖活動營地〗 ・所有營地` section instead of accepting stray “all camps” body text. New source-bound regression covers missing/restricted/duplicated camp section and a valid two-line section.
+- Gate `G9R_GROWTH_CAMP_SECTION_SCOPE_SOURCE_TEST_CANDIDATE` pending Draft PR exact-head CI, protected merge and new-main CI/Pages. Official live H1 remains HOLD; #19 OPEN; #482 `HOLD_OWNER_DEVICE_UNAVAILABLE`, no Owner action. No Public Master/manifest, player SQLite, STOP, migration, SW or version changes.
+
 ## 2026-11-05 A/G9R — Growth Week inert-body source evidence (Source/Test candidate)
 
 - **Authority:** protected main `9e847ad1760bea051f503351ce4a429950df951f`, Open PR 0 before the single active branch; prior B/#762 exact-main CI/Pages SUCCESS. This is a new body-fact provenance risk, not a repeat of the visible-H1 #761 Gate or a claim of new official announcements.
