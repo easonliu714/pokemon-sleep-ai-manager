@@ -113,7 +113,9 @@ function install(){
   document.addEventListener('click',event=>{if(event.target.closest?.('[data-view="recipes"]'))schedule(40);},true);
   document.addEventListener('pokemon-sleep-data-refreshed',()=>schedule(40));
   globalThis.addEventListener?.('pokemon-sleep:database-ready',()=>schedule(40));
-  globalThis.addEventListener?.('pokemon-sleep:data-changed',event=>{if(['weekly_context','public_event_master','recipe_feedback_state','recipe_attempt_feedback','ingredient_inventory'].includes(event.detail?.entity))schedule(40);});
+  // G6.2: recipe unlock/state saves emit 'recipes'; refresh both legacy badge
+  // projections so a previously recommended recipe cannot retain stale advice.
+  globalThis.addEventListener?.('pokemon-sleep:data-changed',event=>{if(['weekly_context','public_event_master','recipe_feedback_state','recipe_attempt_feedback','ingredient_inventory','recipes'].includes(event.detail?.entity))schedule(40);});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>schedule(60),{once:true});else schedule(60);
 }
 install();

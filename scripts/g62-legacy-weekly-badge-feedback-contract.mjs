@@ -62,7 +62,7 @@ const ctx={
     sqlReads++;
     if(sql.startsWith('SELECT ingredient_name,quantity FROM ingredient_inventory')){if(inventoryReadFails)throw Error('synthetic inventory read failure');return inventoryRows;}
     if(sql.startsWith('SELECT recipe_name,unlocked,notes FROM recipes'))return [];
-    if(sql.startsWith('SELECT * FROM recipes WHERE unlocked=1'))return personalRecipes;
+    if(sql.startsWith('SELECT * FROM recipes WHERE unlocked=1'))return personalRecipes.filter(r=>r.unlocked===1);
     if(sql.startsWith('SELECT * FROM recipe_ingredients ORDER BY'))return ingredients;
     if(sql.startsWith('SELECT * FROM recipe_master ORDER BY'))return recipes;
     if(sql.startsWith('SELECT * FROM recipe_master_ingredients ORDER BY'))return masterIngredients;
@@ -82,6 +82,30 @@ const personalRecommended=()=>personalRows.filter(r=>r.cells[0].innerHTML==='<b>
 ctx.apply();
 assert.deepEqual(recommended(),['測試料理1','測試料理2','測試料理3'],
   'baseline real bridge recommends by shortage');
+// Independent G6.2 source-bound risk: unified recipe-state saves emit 'recipes'.
+// Without that listener, an already visible personal badge stays recommended
+// after the recipe is marked locked/unavailable until unrelated navigation.
+const recipeWorkbenchSource=readFileSync(new URL('../assets/js/recipe-unified-player-workbench.js',import.meta.url),'utf8');
+assert.match(recipeWorkbenchSource,/entity:'recipes',operation:'manual_upsert'/,
+  'actual recipe state save must emit the tested recipes entity');
+personalEnabled=true;
+ctx.apply();
+assert.deepEqual(personalRecommended(),['測試料理1','測試料理2','測試料理3'],
+  'personal baseline must be actionable before recipe state changes');
+personalRecipes[0].unlocked=0;
+const scheduledBeforeRecipe=scheduled.length;
+events.get('pokemon-sleep:data-changed')({detail:{entity:'recipes',operation:'manual_upsert',recipe_id:'fixture-1'}});
+assert.equal(scheduled.length,scheduledBeforeRecipe+1,
+  'recipe state change must enqueue recomputation of legacy personal badges');
+scheduled.shift()();
+assert.deepEqual(personalRecommended(),['測試料理2','測試料理3','測試料理4'],
+  'locked recipe must lose its stale personal recommendation after recipe-state save');
+personalRecipes[0].unlocked=1;
+ctx.apply();
+assert.deepEqual(personalRecommended(),['測試料理1','測試料理2','測試料理3'],
+  'verified recipe state recovery must restore only eligible badges');
+personalEnabled=false;
+
 // G6.2 independent inventory invalidation: manual ingredient saves emit
 // ingredient_inventory, but legacy badges must refresh without navigating away.
 // A stock increase for recipe 5 changes the top-three shortlist from 1/2/3 to 5/1/2.
@@ -194,5 +218,5 @@ databaseReady=true;
 ctx.apply();
 assert.deepEqual(recommended(),['測試料理3','測試料理4','測試料理5'],'verified DB recovery restores safe badges');
 assert.equal(table.dataset.weeklyRecommendationStatus,'VERIFIED_READ');
-console.log('PASS G62_LEGACY_WEEKLY_BADGE_FEEDBACK_SOURCE_BOUND_VM personal-and-reference-pause-suspect-shared-feedback-fail-closed/paused/suspect/malformed/backfill/inventory-change/inventory-read-failure/invalid-stock/invalid-recipe-requirements/partial-requirements/rescue-readonly/db-unavailable/recovery');
+console.log('PASS G62_LEGACY_WEEKLY_BADGE_FEEDBACK_SOURCE_BOUND_VM personal-and-reference-pause-suspect-shared-feedback-fail-closed/paused/suspect/malformed/backfill/recipe-state-change/inventory-change/inventory-read-failure/invalid-stock/invalid-recipe-requirements/partial-requirements/rescue-readonly/db-unavailable/recovery');
 console.log('HOLD G62_ANDROID_OWNER_UAT_NOT_VERIFIED');
