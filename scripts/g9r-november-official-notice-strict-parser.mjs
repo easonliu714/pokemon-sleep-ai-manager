@@ -254,7 +254,7 @@ export function parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt=new Dat
     // entitlement, not a whole-page substring. A valid historical quote or
     // duplicate conflicting threshold cannot certify today's Notice.
     const thresholdStatement='在平時，1天進行2次睡眠研究，且1天一共研究了11隻以上的寶可夢時，自第11隻寶可夢起研究的報酬量會減少；但若特別機率提升的寶可夢出現，則自第12隻寶可夢起研究的報酬量會減少';
-    const noticeLines=text.split('\\n').map(line=>line.trim()).filter(Boolean);
+    const noticeLines=text.split('\n').map(line=>line.trim()).filter(Boolean);
     const noticeIndex=noticeLines.indexOf('注意事項');
     if(noticeIndex<0||noticeLines.lastIndexOf('注意事項')!==noticeIndex)
       fail('DARKRAI_THRESHOLD_NOTICE_SECTION_AMBIGUOUS');
