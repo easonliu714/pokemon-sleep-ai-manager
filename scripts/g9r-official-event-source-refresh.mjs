@@ -3,6 +3,7 @@
 import {createHash} from 'node:crypto';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
+import {readOfficialArticleHeadings,assertOfficialArticleHeading} from './g9r-official-article-heading-guard.mjs';
 import {validatePublicEventManifest,validatePublicEventPayload} from '../assets/js/public-event-master-contract.js';
 
 const BASE='https://www.pokemonsleep.net';
@@ -36,9 +37,24 @@ function isoAt(year,month,day){
 }
 export function parseVerifiedGrowthNotice(html,url,{now=new Date()}={}){
   if(!ID_RE.test(url))throw new Error('G9R_OFFICIAL_DOMAIN_ONLY');
+  // Only the current visible official article H1 may certify a Growth Week version.
+  // Old volume text in an unrelated notice body is not a publication authority.
+  const headings=readOfficialArticleHeadings(html);
+  const growthHeadings=headings.filter(heading=>/^〖企畫〗寶可夢快快長大週vol\.?[0-9]+$/i.test(heading));
+  if(!growthHeadings.length){
+    if(headings.some(heading=>heading.includes('寶可夢快快長大週')))
+      throw new Error('G9R_GROWTH_HEADING_REVIEW_REQUIRED');
+    return null;
+  }
+  if(growthHeadings.length!==1)throw new Error('G9R_GROWTH_HEADING_DUPLICATED');
+  const heading=growthHeadings[0];
+  assertOfficialArticleHeading(html,heading);
+  const title=heading.match(/寶可夢快快長大週vol\.?([0-9]+)/i);
   const text=htmlText(html);
-  const title=text.match(/寶可夢快快長大週\s*vol\.?\s*(\d+)/i);
-  if(!title)return null; // Other activity families remain unsupported by this exact adapter.
+  // A conflicting body volume cannot silently borrow the article H1 identity.
+  if([...text.matchAll(/寶可夢快快長大週\s*vol\.?\s*([0-9]+)/gi)]
+    .some(match=>Number(match[1])!==Number(title[1])))
+    throw new Error('G9R_GROWTH_HEADING_BODY_CONFLICT_REVIEW_REQUIRED');
   if(!/所有營地/.test(text))throw new Error('G9R_GROWTH_CAMP_NOT_VERIFIED');
   const pub=text.match(/202[0-9]\/(\d{1,2})\/(\d{1,2})/);
   const yearText=text.match(/(202[0-9])\/\d{1,2}\/\d{1,2}/);

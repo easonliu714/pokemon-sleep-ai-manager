@@ -1,3 +1,11 @@
+## 2026-11-05 A/G9R — Growth Week auto-feed visible H1 identity (Source/Test candidate)
+
+- **Authority:** fresh protected main `0afea354b38fabf1ead29316c00b0ed8dc207e24`, Open PR 0, Ruleset #25813226 ACTIVE. Previous B/#760 protected MERGED with exact-main CI/Pages SUCCESS. This is an independent A-line source admission gap, not a new official event or repeat of November #758 H1 verification.
+- **Code-proven gap:** `parseVerifiedGrowthNotice` inferred the Growth Week volume from whole-page text, so a stale vol.6 body quote in a different official article could be treated as auto-VERIFIED when matching legacy reward strings were present. The November parser already used the shared visible-H1 guard; the Growth Week auto-feed did not.
+- **Minimal fail-closed change:** reuse shared visible official article H1 extraction, require exactly one matching Growth Week H1, reject changed/duplicate volume and conflicting body volume; unrelated official articles with Growth Week quotations return no candidate. No official source promotion or Public Master/manifest mutation.
+- **Regression:** extend the existing source-bound G9R feed contract with unrelated-article stale quote, hidden fallback and duplicate H1, HTML-entity title, and changed H1/body-volume conflict. Keep existing synthetic dry-run, immutable manifest SHA, 04:00 end-exclusive, and no-player-write checks.
+- **Acceptance:** only after Draft PR exact-head regression CI, protected expected-head merge and new main CI/Pages may this be marked Source/Test PASS. `G9R_LIVE_SOURCE=HOLD_SOURCE_REVIEW` remains pending independent H1 live evidence; #19 OPEN; 11/08 and 11/09 Android event UAT not due. #482 `HOLD_OWNER_DEVICE_UNAVAILABLE / OWNER_ACTION=NONE_NOW`.
+
 ## 2026-11-05 B/G6.2 — personal weekly badge feedback authority (Source/Test candidate)
 
 - **Fresh authority:** main `d75af01e4bd6f039ec1b0f90f9df04d46a438abf`, Open PR 0, Ruleset #25813226 ACTIVE; previous A/G9R #758 protected MERGED with 7/7 main CI/Pages SUCCESS. This is a separate B-line risk; do not repeat #751/#756/#757 or the #758 H1 Gate.

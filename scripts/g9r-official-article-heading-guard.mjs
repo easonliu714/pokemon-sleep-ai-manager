@@ -15,8 +15,8 @@ export function decodeOfficialVisibleEntities(value){
     .replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&')
     .replace(/&lt;/gi,'<').replace(/&gt;/gi,'>');
 }
-export function assertOfficialArticleHeading(html,expectedHeading){
-  if(typeof html!=='string'||typeof expectedHeading!=='string'||!expectedHeading)
+export function readOfficialArticleHeadings(html){
+  if(typeof html!=='string')
     throw new Error('G9R_OFFICIAL_ARTICLE_H1_REVIEW_REQUIRED:INVALID_INPUT');
   // Ignore non-rendered fallback/input containers before selecting the authoritative article H1.
   // Otherwise a stale hidden H1 can impersonate a changed visible official article.
@@ -39,8 +39,12 @@ export function assertOfficialArticleHeading(html,expectedHeading){
     .filter(match=>!hiddenH1(match[1]))
     .map(match=>compact(decodeOfficialVisibleEntities(
       match[2].replace(/<[^>]+>/g,' '))));
-  const articleHeadings=headings.filter(value=>
-    /^〖(?:活動|企畫|預告)〗/.test(value));
+  return headings.filter(value=>/^〖(?:活動|企畫|預告)〗/.test(value));
+}
+export function assertOfficialArticleHeading(html,expectedHeading){
+  if(typeof html!=='string'||typeof expectedHeading!=='string'||!expectedHeading)
+    throw new Error('G9R_OFFICIAL_ARTICLE_H1_REVIEW_REQUIRED:INVALID_INPUT');
+  const articleHeadings=readOfficialArticleHeadings(html);
   if(articleHeadings.length!==1||articleHeadings[0]!==compact(expectedHeading))
     throw new Error('G9R_OFFICIAL_ARTICLE_H1_REVIEW_REQUIRED:ARTICLE_HEADING_CHANGED_OR_DUPLICATED');
   return true;
