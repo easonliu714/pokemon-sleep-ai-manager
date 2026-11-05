@@ -83,16 +83,24 @@ function commonEvidence(text,{title,published,start,end}){
   // Official rewards are keyed to the sleep-measurement START, not the report
   // submission time. Delayed reports across either boundary must not be
   // interpreted as a new event entitlement or a player-data mutation.
+  // G9R: four independent sleep-measurement eligibility rules must each be
+  // a UNIQUE exact published Notice bullet. The former substring check could
+  // certify a changed sleep-start/late-report rule from a stale valid bullet
+  // while a contradictory second bullet remained visible in the same Notice.
+  // New Moon and Meal Prep have different official tutorial bullet prefixes.
   const sleepWindowAuthority=[
-    '獎勵僅適用於活動／企畫期間內開始測量的睡眠資料。',
-    '若將「活動／企畫開始前測量的睡眠資料」留到活動／企畫期間內進行「稍後再報告」，則不適用獎勵。',
-    '若將「活動／企畫期間內測量的睡眠資料」留到活動／企畫結束後進行「稍後再報告」，則會適用獎勵。',
-    '獎勵不適用於新手教學中的睡眠測量。',
+    ['獎勵僅適用於','獎勵僅適用於活動／企畫期間內開始測量的睡眠資料。'],
+    ['若將「活動／企畫開始前測量的睡眠資料」',
+      '若將「活動／企畫開始前測量的睡眠資料」留到活動／企畫期間內進行「稍後再報告」，則不適用獎勵。'],
+    ['若將「活動／企畫期間內測量的睡眠資料」',
+      '若將「活動／企畫期間內測量的睡眠資料」留到活動／企畫結束後進行「稍後再報告」，則會適用獎勵。'],
+    ['新手教學中的睡眠測量',
+      (title.startsWith('第19次')?'活動獎勵':'獎勵')+'不適用於新手教學中的睡眠測量。'],
   ];
-
-  sleepWindowAuthority.forEach((statement,index)=>{
-    if(!compact(notice).includes(compact(statement)))
-      fail('SLEEP_MEASUREMENT_START_OR_LATE_REPORT_SCOPE_CHANGED:'+index);
+  sleepWindowAuthority.forEach(([fragment,expected],index)=>{
+    const matches=noticeLines.filter(line=>compact(line).includes(compact(fragment)));
+    if(matches.length!==1||compact(matches[0].replace(/^[・•]\\s*/,''))!==compact(expected))
+      fail('SLEEP_MEASUREMENT_START_OR_LATE_REPORT_SCOPE_CHANGED_OR_AMBIGUOUS:'+index);
   });
 }
 const NEW_MOON_LINES=[
