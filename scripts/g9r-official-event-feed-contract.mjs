@@ -213,6 +213,25 @@ for(const inertTag of ['template','noscript','textarea']){
     /G9R_GROWTH_CAMP_NOT_VERIFIED/,
     'Non-rendered '+inertTag+' must not certify Growth Week camp, dates or bonuses');
 }
+// A/G9R: hidden ancestor markup is NOT published source evidence.
+// The old extractor admitted an H1 and all event facts under a hidden parent;
+// prior inert-tag tests do not cover ordinary div/section ancestors.
+for(const attribute of ['hidden','inert','aria-hidden="true"','style="display:none"','style="visibility:hidden"']){
+  const hiddenArticle='<main><div '+attribute+'>'+growthHtml.replace(/^<main>|<\/main>$/g,'')+'</div></main>';
+  assert.equal(parseVerifiedGrowthNotice(hiddenArticle,growthUrl,growthNow),null,
+    'Hidden-ancestor official H1 cannot certify an event: '+attribute);
+  const hiddenFacts='<main><h1>'+growthHeading+'</h1><section '+attribute+'>'
+    +growthFactsOnly+'</section></main>';
+  assert.throws(()=>parseVerifiedGrowthNotice(hiddenFacts,growthUrl,growthNow),
+    /G9R_GROWTH_CAMP_NOT_VERIFIED/,
+    'Visible H1 with hidden-ancestor period/camp/bonuses must HOLD: '+attribute);
+}
+const hiddenUnrelatedUi=growthHtml.replace('</main>',
+  '<div hidden><p>unrelated hidden menu text</p></div></main>');
+assert.equal(parseVerifiedGrowthNotice(hiddenUnrelatedUi,growthUrl,growthNow).event_id,
+  'growth_week_vol6_2026_10','Unrelated hidden UI must not block real published facts');
+console.log('PASS G9R_HIDDEN_ANCESTOR_OFFICIAL_EVIDENCE_FAIL_CLOSED');
+
 const commentedOnly='<main><h1>'+growthHeading+'</h1><!-- '
   +growthFactsOnly+' --></main>';
 assert.throws(()=>parseVerifiedGrowthNotice(commentedOnly,growthUrl,growthNow),

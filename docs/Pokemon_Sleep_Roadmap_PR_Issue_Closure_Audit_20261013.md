@@ -1,3 +1,10 @@
+## 2026-11-05 A/G9R — Hidden-ancestor official source evidence (Source/Test candidate)
+
+- **Fresh intake:** protected main `55357ab02f0208fc66c20cb2d2d557057e9fa708`, Open PR 0, Ruleset #25813226 ACTIVE; B/#768 exact-head PR CI and new-main CI/Pages SUCCESS. This is a separate attribute-hidden ancestor provenance gap, not a repeat of A/#763 inert tags or A/#767 period section.
+- **Code-proven gap:** `parseVerifiedGrowthNotice()` previously passed raw HTML to both visible-H1 extraction and body-fact extraction. An article title or period/camp/bonus under a parent `hidden`, `inert`, `aria-hidden="true"`, `display:none` or `visibility:hidden` could still be promoted as published visible evidence.
+- **Minimal read-only fix:** `visibleOfficialHtml()` removes attribute-hidden subtrees before both H1 and body verification, retaining genuinely visible article content; malformed hidden nesting fails closed. It is not a general external-CSS visibility engine. Synthetic source-bound regression covers five ancestor attributes, hidden H1, hidden facts, and unrelated hidden UI positive control.
+- **Gate:** `A_GATE=G9R_HIDDEN_ANCESTOR_SOURCE_PROVENANCE_CANDIDATE` pending exact-head Draft PR CI, protected expected-head merge and new-main CI/Pages. `G9R_LIVE_SOURCE=HOLD_SOURCE_REVIEW`; no new November source VERIFIED, no Public Master/manifest/player SQLite/IDB/STOP/Migration/SW/App-version change. #19 remains OPEN with 11/08–11/09 Android UAT time/deploy gated; #482 `HOLD_OWNER_DEVICE_UNAVAILABLE / OWNER_ACTION=NONE_NOW`.
+
 ## 2026-11-05 B/G6.2 — Legacy reference player unlock flag strict authority (Source/Test candidate)
 
 - **Fresh intake:** protected main `d25a32393081a34b197275d60143398ebefcb0a1`, Open PR 0, Ruleset #25813226 ACTIVE, after A/#767 exact-main CI/Pages SUCCESS. Existing G6.2/#766 durability HOLD and A/#767 period-source fixes are preserved; this is a distinct read-side player-unlock classification risk.
