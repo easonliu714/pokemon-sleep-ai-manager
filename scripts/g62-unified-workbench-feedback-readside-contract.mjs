@@ -79,6 +79,34 @@ assert.equal(baseline.feedback_authority_status,'VERIFIED_READ');
 assert.equal(baseline.partition_complete,true);
 assert.equal(baseline.unlocked.filter(row=>row.weekly_recommended).length,3);
 assert.equal(baseline.locked.filter(row=>row.weekly_recommended).length,3);
+
+// G6.2 independent unified player-state risk: Number(true) and Number('01')
+// previously promoted malformed unlock flags to actionable unlocked badges.
+// No player DB or writer is used; the public catalog remains fully visible.
+for(const invalid of [null,undefined,true,false,'01','1.0','true',2,-1,'']){
+  const invalidCatalog=catalogRows.map((row,index)=>index===0?{...row,unlocked:invalid}:row);
+  const withheld=buildRecipeUnifiedWorkbenchProjection({
+    catalogRows:invalidCatalog,inventory:[],week,recipeFeedback:[],
+  });
+  assert.equal(withheld.player_unlock_authority_status,'HOLD_PLAYER_UNLOCK_UNVERIFIED',
+    'invalid persisted unlock flag must hold the entire actionable projection');
+  assert.equal(withheld.partition_complete,true,'unknown unlock state must not delete catalog rows');
+  assert.equal(withheld.total_count,catalogRows.length);
+  assert.equal(withheld.unlocked.filter(row=>row.weekly_recommended).length,0);
+  assert.equal(withheld.locked.filter(row=>row.weekly_recommended).length,0);
+  const unsafeRow=[...withheld.unlocked,...withheld.locked].find(row=>row.recipe_id===catalogRows[0].recipe_id);
+  assert.equal(unsafeRow.status,'unverified','unknown unlock flag must remain visibly unverified');
+  assert.equal(unsafeRow.can_attempt,false,'unknown player state cannot be treated as safe-to-attempt');
+}
+for(const valid of [0,1,'0','1']){
+  const validCatalog=catalogRows.map((row,index)=>index===0?{...row,unlocked:valid}:row);
+  const restored=buildRecipeUnifiedWorkbenchProjection({catalogRows:validCatalog,inventory:[],week,recipeFeedback:[]});
+  assert.equal(restored.player_unlock_authority_status,'VERIFIED_READ',
+    'canonical SQLite 0/1 and text 0/1 must remain compatible');
+  assert.equal(restored.unlocked.filter(row=>row.weekly_recommended).length,3);
+  assert.equal(restored.locked.filter(row=>row.weekly_recommended).length,3);
+}
+console.log('PASS G62_UNIFIED_PLAYER_UNLOCK_STRICT_01_FAIL_CLOSED_BOTH_BADGE_PARTITIONS');
 const pausedUnlocked=baseline.unlocked.find(row=>row.weekly_recommended);
 const pausedLocked=baseline.locked.find(row=>row.weekly_recommended);
 assert.ok(pausedUnlocked&&pausedLocked);
@@ -222,6 +250,12 @@ assert.match(ui,/inventory:inventory\.rows/,
   'actual projection must use stock authority result');
 assert.match(ui,/recipeInventoryAuthority=inventory\.status/,
   'UI must expose inventory HOLD provenance');
+assert.match(ui,/recipePlayerUnlockAuthority=projection\.player_unlock_authority_status/,
+  'UI must expose the strict player-unlock HOLD provenance');
+assert.match(ui,/!validPlayerUnlock\(row\.unlocked\)\?'玩家狀態待核對'/,
+  'invalid unlock state must be visible rather than a false recommendation');
+assert.match(ui,/readonly=readonly\|\|!validPlayerUnlock\(row\.unlocked\)/,
+  'unknown player state must not be silently overwritten through default checkbox');
 assert.match(ui,/inventoryVerified\?'庫存未驗證'|inventoryVerified\?shortageText/,
   'unverified stock must not display fabricated shortage numbers');
 console.log('PASS G62_UNIFIED_INVENTORY_READ_FAILURE_WITHHOLDS_BADGES_AND_SHORTAGES');
