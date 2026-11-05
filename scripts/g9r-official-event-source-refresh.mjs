@@ -13,6 +13,47 @@ const MANIFEST='assets/data/public-event-master-manifest.json';
 const ID_RE=/^https:\/\/www\.pokemonsleep\.net\/zh\/news\/[0-9]+\/$/;
 const digest=s=>createHash('sha256').update(s,'utf8').digest('hex');
 
+// G9R: an article title or source fact inside an attribute-hidden ancestor
+// is not published visible evidence. This is deliberately limited to inline
+// hidden/inert/aria-hidden/style evidence; it is NOT a CSS visibility engine.
+// On malformed hidden nesting, discarding more text fails closed.
+function visibleOfficialHtml(html){
+  const source=String(html)
+    .replace(/<!--[\s\S]*?-->/g,' ')
+    .replace(/<(noscript|textarea|template|script|style)\b[^>]*>[\s\S]*?<\/\1>/gi,' ');
+  const voidTags=new Set(['area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr']);
+  const stack=[];
+  let hiddenDepth=0,cursor=0,visible='';
+  for(const match of source.matchAll(/<\/?([a-z][\w:-]*)\b[^>]*>/gi)){
+    if(hiddenDepth===0)visible+=source.slice(cursor,match.index);
+    const tag=match[0],name=match[1].toLowerCase();
+    if(tag.startsWith('</')){
+      const index=stack.map(frame=>frame.name).lastIndexOf(name);
+      if(index<0){
+        if(hiddenDepth===0)visible+=tag;
+      }else{
+        const wasHidden=hiddenDepth>0;
+        for(const frame of stack.splice(index))if(frame.hidden)hiddenDepth--;
+        if(!wasHidden)visible+=tag;
+      }
+    }else{
+      const hiddenAttr=/(?:^|\s)(?:hidden|inert)(?=\s|=|\/?>)/i.test(tag)
+        ||/(?:^|\s)aria-hidden\s*=\s*(?:"true"|'true'|true)(?=\s|\/?>)/i.test(tag);
+      const style=tag.match(/(?:^|\s)style\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
+      const hiddenStyle=Boolean(style&&/(?:^|;)\s*(?:display\s*:\s*none|visibility\s*:\s*hidden)(?:\s*!important)?\s*(?:;|$)/i.test(style[1]??style[2]??''));
+      const hidden=hiddenAttr||hiddenStyle;
+      if(hiddenDepth===0&&!hidden)visible+=tag;
+      if(!voidTags.has(name)&&!(/\/\s*>$/.test(tag))){
+        stack.push({name,hidden});
+        if(hidden)hiddenDepth++;
+      }
+    }
+    cursor=match.index+tag.length;
+  }
+  if(hiddenDepth===0)visible+=source.slice(cursor);
+  return visible;
+}
+
 function htmlText(html){
   // Inert HTML fragments are not published visible facts. The official H1
   // guard already excludes them; the body-fact verifier must do the same.
@@ -46,7 +87,8 @@ export function parseVerifiedGrowthNotice(html,url,{now=new Date()}={}){
   if(!ID_RE.test(url))throw new Error('G9R_OFFICIAL_DOMAIN_ONLY');
   // Only the current visible official article H1 may certify a Growth Week version.
   // Old volume text in an unrelated notice body is not a publication authority.
-  const headings=readOfficialArticleHeadings(html);
+  const visibleHtml=visibleOfficialHtml(html);
+  const headings=readOfficialArticleHeadings(visibleHtml);
   const growthHeadings=headings.filter(heading=>/^〖企畫〗寶可夢快快長大週vol\.?[0-9]+$/i.test(heading));
   if(!growthHeadings.length){
     if(headings.some(heading=>heading.includes('寶可夢快快長大週')))
@@ -55,9 +97,9 @@ export function parseVerifiedGrowthNotice(html,url,{now=new Date()}={}){
   }
   if(growthHeadings.length!==1)throw new Error('G9R_GROWTH_HEADING_DUPLICATED');
   const heading=growthHeadings[0];
-  assertOfficialArticleHeading(html,heading);
+  assertOfficialArticleHeading(visibleHtml,heading);
   const title=heading.match(/寶可夢快快長大週vol\.?([0-9]+)/i);
-  const text=htmlText(html);
+  const text=htmlText(visibleHtml);
   // A conflicting body volume cannot silently borrow the article H1 identity.
   if([...text.matchAll(/寶可夢快快長大週\s*vol\.?\s*([0-9]+)/gi)]
     .some(match=>Number(match[1])!==Number(title[1])))
