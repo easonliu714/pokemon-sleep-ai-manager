@@ -1,3 +1,11 @@
+## 2026-11-06 A/G9R — New Moon unique published conditional research threshold (Source/Test candidate)
+
+- **Authority:** fresh protected main `5b7d9cbb05357d89494e3d6fcedd47a55c1ef16f`, Open PR 0; B/#776 protected MERGED with new-main 10/10 CI+Pages SUCCESS. Sole Writer branch `fix/g9r-new-moon-threshold-notice-authority`, Ruleset #25813226 active.
+- **Independent source risk:** `parseVerifiedNovemberOfficialNotice()` used whole-page `includes()` to certify the Darkrai-specific 11th→12th research reward-reduction threshold. A historical valid body quote or duplicate conflicting Notice threshold could falsely certify a revised current published rule. This is separate from A/#775 sleep-measurement start and late-report entitlement.
+- **Minimal read-only source fix:** require exactly one canonical published `注意事項` threshold bullet, with original 11th/12th conditional language and terminal punctuation; reject duplicate, contradictory or historical-body-only authority. The official 2026-10-30 New Moon notice remains the source; no invented encounter probability or player-owned reward.
+- **Regression:** three isolated negative cases (conflicting second threshold, identical duplicate, changed Notice masked by stale body quote), plus unchanged positive source fixture and legacy-substring reproduction, in `scripts/g9r-november-official-notice-strict-contract.mjs`.
+- **Gate:** `A_GATE=G9R_DARKRAI_UNIQUE_RESEARCH_THRESHOLD_SOURCE_TEST_CANDIDATE` pending Draft PR exact-head CI, protected expected-head merge, and new-main exact-SHA CI/Pages. `G9R_LIVE_SOURCE=HOLD_SOURCE_REVIEW`; no Public Master/manifest admission, player SQLite/IDB, production Writer, STOP, Migration, SW or app version change. #19 OPEN (11/08 and 11/09 Android UAT time/deploy gated); #482 `HOLD_OWNER_DEVICE_UNAVAILABLE / OWNER_ACTION=NONE_NOW`. No Owner action or UAT notification.
+
 ## 2026-11-06 A/G9R — Unique published sleep-start and late-report Notice authority (Source/Test candidate)
 
 - **Fresh intake:** protected main `cf8686f252454ca0f8521e79433a9eea6c411c18`, Open PR 0, previous B/#774 protected MERGED with exact-head and new-main CI/Pages SUCCESS; sole Writer branch `fix/g9r-november-sleep-window-unique-notice`. No second Writer or direct-main write.

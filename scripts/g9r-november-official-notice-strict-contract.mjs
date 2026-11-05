@@ -135,6 +135,28 @@ console.log('PASS G9R_NOVEMBER_STRICT_PARSED_SCHEMA_CAMP_INDEPENDENT_OVERLAP_AND
 const rejects=(html,url,marker)=>assert.throws(()=>parse(html,url),
   error=>error?.message?.startsWith('G9R_NOVEMBER_OFFICIAL_REVIEW_REQUIRED:'),
   'Must fail closed: '+marker);
+// G9R independent Notice authority: the New Moon conditional research reward
+// threshold must be a UNIQUE published Notice bullet. A valid historical
+// quote, an identical duplicate, or a conflicting second threshold cannot
+// authorize a 12th-encounter reward rule. No player data or numeric rates.
+const darkraiThreshold='在平時，1天進行2次睡眠研究，且1天一共研究了11隻以上的寶可夢時，自第11隻寶可夢起研究的報酬量會減少；但若特別機率提升的寶可夢出現，則自第12隻寶可夢起研究的報酬量會減少';
+const darkraiThresholdBullet='<p>・'+darkraiThreshold+'。</p>';
+const changedThresholdBullet=darkraiThresholdBullet.replace('自第12隻','自第13隻');
+assert.ok(moonHtml.includes(darkraiThresholdBullet),'source-bound threshold fixture required');
+// Prior whole-page includes() accepted each of these stale-source scenarios.
+assert.ok(moonHtml.replace(darkraiThresholdBullet,darkraiThresholdBullet+changedThresholdBullet)
+  .includes(darkraiThreshold),'legacy substring proof of conflicting rule');
+rejects(moonHtml.replace(darkraiThresholdBullet,darkraiThresholdBullet+changedThresholdBullet),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'conflicting second conditional research threshold');
+rejects(moonHtml.replace(darkraiThresholdBullet,darkraiThresholdBullet+darkraiThresholdBullet),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'duplicate identical conditional research threshold');
+rejects(moonHtml.replace(darkraiThresholdBullet,changedThresholdBullet)
+  .replace('<h2>注意事項</h2>',
+    '<p>歷史公告引用：'+darkraiThreshold+'</p><h2>注意事項</h2>'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'historical body quote masks changed current threshold');
+assert.equal(parse(moonHtml,NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon).event_id,
+  'new_moon_day_19_2026_11','single published threshold remains valid');
+console.log('PASS G9R_DARKRAI_UNIQUE_PUBLISHED_RESEARCH_THRESHOLD_FAIL_CLOSED');
 rejects(moonHtml.replace('11/11 (週三) 3:59','11/12 (週四) 3:59'),
   NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'end-exclusive drift');
 // The zh-TW New Moon roster is exactly Darkrai. An extra Mew (retired
