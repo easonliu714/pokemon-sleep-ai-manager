@@ -173,7 +173,9 @@ export function listRecipeAttemptFeedbackHistory(limit=20){
       a.notes,a.created_at,
       -- Preserve NULL from absent/corrupt state; UI must not render it as an unpause.
       s.recommendation_paused AS recommendation_paused,
-      COALESCE(s.reference_maybe_wrong,0) AS current_reference_maybe_wrong
+      -- Preserve raw current-state NULL/invalid values; historical attempt flags
+      -- must not authorize toggles when present state cannot be verified.
+      s.reference_maybe_wrong AS current_reference_maybe_wrong
     FROM recipe_attempt_feedback a
     JOIN recipe_master m ON m.recipe_id=a.recipe_id
     LEFT JOIN recipe_feedback_state s ON s.recipe_id=a.recipe_id
