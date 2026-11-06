@@ -59,6 +59,10 @@ export function capturePokemonRatingRefreshAuthority(input={}){
 export function reviewPokemonRatingRefreshAuthority({captured,latest}={}){
   if(captured?.status!=='CAPTURED_READ_ONLY'||!captured.token)
     return result('HOLD_SOURCE_UNVERIFIED','CAPTURE_MISSING_OR_INVALID');
+  // A newly published rule version makes the previous review stale, even
+  // though a fresh token cannot be captured until that rule is deployed.
+  if(validText(latest?.rule_version)&&latest.rule_version!==captured.token.rule_version)
+    return result('STALE_REVIEW_REQUIRED','RULE_VERSION_STALE');
   const fresh=capturePokemonRatingRefreshAuthority(latest);
   if(fresh.status!=='CAPTURED_READ_ONLY')
     return result('HOLD_SOURCE_UNVERIFIED',fresh.reason_codes[0]);
