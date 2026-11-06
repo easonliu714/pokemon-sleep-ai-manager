@@ -203,6 +203,9 @@ jobs:
       - name: G265 Bare Persist ACK-Loss Direct Writer Fail-Closed
         run: node scripts/g265-bare-persist-uncertain-direct-write-hold.mjs
 
+      - name: G265 Bare Persist In-Flight Direct SQL Fail-Closed
+        run: node scripts/g265-bare-persist-inflight-direct-sql-hold.mjs
+
       - name: G265 SQLite Mutation Boundary Source-Bound Negative Audit
         run: node scripts/g265-sqlite-mutation-boundary-audit.mjs
 
