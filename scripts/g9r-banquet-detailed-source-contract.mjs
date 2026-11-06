@@ -86,6 +86,28 @@ export function auditBanquetDetail(html,url=BANQUET_DETAIL_URL){
     fail('BOOST_SECTION_ORDER');
   if(flat[habitat+1]!==compact('萌綠之島、 天青沙灘、 琥褐溪谷、 萌綠之島EX、 天青沙灘EX'))
     fail('BOOST_SPECIES_CAMPS');
+  // The published banquet Notice is independent authority for event-day,
+  // sleep-start, late-report and same-key overlap semantics. Never infer
+  // these rules from the eight bonus lines or stale historical body quotes.
+  // A missing/duplicate Notice, contradictory current rule or unknown scope
+  // must fail closed before any candidate can be admitted to Public Master.
+  const notice=once('注意事項','NOTICE_HEADING');
+  if(notice<=recipesHeading)fail('NOTICE_SECTION_ORDER');
+  const noticeLines=lines.slice(notice+1);
+  const noticeAnchors=[
+    '活動、企畫舉辦日期的切換時間',
+    '獎勵僅適用於',
+    '若將「活動／企畫開始前測量的睡眠資料」',
+    '若將「活動／企畫期間內測量的睡眠資料」',
+    '新手教學中的睡眠測量',
+    '相同的獎勵在不同的活動、企畫中同時登場時',
+  ];
+  for(let i=0;i<NOTICE_RULES.length;i++){
+    const matching=noticeLines.filter(line=>
+      compact(line).includes(compact(noticeAnchors[i])));
+    if(matching.length!==1||compact(matching[0])!==compact(NOTICE_RULES[i]))
+      fail('NOTICE_RULE_CHANGED_OR_AMBIGUOUS:'+i);
+  }
   const recipes=RECIPES.map((r,i)=>{
     const at=once(r.heading,'RECIPE_'+i);
     if(at<=recipesHeading||flat[at+1]!==compact(r.ingredients)||
