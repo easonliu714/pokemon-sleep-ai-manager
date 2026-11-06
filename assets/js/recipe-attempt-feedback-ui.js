@@ -10,7 +10,18 @@ const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt
 let draft=null;
 let statusMessage='';
 let saveInFlight=false;
-const persistenceBlocked=()=>['UNVERIFIED','IN_FLIGHT'].includes(getRecipeAttemptPersistenceStatus().status);
+// A missing, malformed or unreadable persistence authority is never permission
+// to create feedback or change a recipe recommendation. Preserve the three
+// existing verified readback states; every other state fails closed.
+const VERIFIED_PERSISTENCE_STATUSES=new Set(['CLEAR','PERSISTED','NOT_PERSISTED']);
+function readPersistenceStatus(){
+  try{
+    const status=getRecipeAttemptPersistenceStatus()?.status;
+    if(VERIFIED_PERSISTENCE_STATUSES.has(status)||status==='IN_FLIGHT')return status;
+  }catch{}
+  return 'UNVERIFIED';
+}
+const persistenceBlocked=()=>!VERIFIED_PERSISTENCE_STATUSES.has(readPersistenceStatus());
 
 function localDateTimeValue(date=new Date()){
   const offset=date.getTimezoneOffset()*60000;
@@ -91,7 +102,7 @@ function panelHtml(history,result){
 
 export function bindRecipeAttemptFeedbackUi(root,result,{rerender}={}){
   if(!root)return;
-  const recovery=getRecipeAttemptPersistenceStatus();
+  const recovery={status:readPersistenceStatus()};
   if(recovery.status==='IN_FLIGHT')statusMessage='本機資料寫入進行中，請等待儲存完成再修改推薦狀態。';
   if(recovery.status==='UNVERIFIED')statusMessage='PERSISTENCE_UNCERTAIN：本次 SQLite 已提交，但持久化未確認。請正常重新載入，等待資料庫就緒並核對本機歷程；本頁禁止重試及修改推薦狀態。';
   if(recovery.status==='PERSISTED')statusMessage='重新載入後讀回確認：原失敗紀錄已持久化，請勿再次提交同一次嘗試。';
