@@ -1,3 +1,9 @@
+## 2026-11-06 G14.RATE.2 Screenshot/OCR/AI Review 初評｜受控 Source/Test 候選
+
+- Canonical product outcome [#796](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/796) 仍 **OPEN**；RATE.1 read-only foundation 已由 [#795](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/795) protected merge 進 main。此段 RATE.2 於獨立 branch `feat/g14-rate2-observation-review-preview-20261106` 增加 `pokemon-provisional-review-preview.js` 的 Observation v2 evidence-gated 純函數、現有 `analysis-confirmation-workbench.js` 人工確認頁的唯讀初評區，以及 `g14-rate2-screenshot-review-contract.mjs` 負向 fixture，接入原 War Room regression。候選未完成 exact-head PR CI/Protected Merge/Android Owner UAT 前，不得宣稱正式 PASS。
+- 缺來源圖、缺 per-field confidence、低信心、身份警告、來源與草稿不同、Baseline 值冒充新觀測、欄位衝突或不完整副技能均顯示 `REVIEW_REQUIRED` 且不顯示確定級別；完整高信心 fixture 才顯示 15 階平台啟發式建議、規則版本、CURRENT/FUTURE、缺項與來源。原始 Observation、`pokemon.rating`、`ai_score`、玩家 SQLite/IDB、Public Master、Migration、STOP、SW、app_version 不變。
+- 這是 **RATE.2 Source/Test candidate**，不是 RATE.3 全盒可見差異、RATE.4 snapshot+explicit consent+durable guarded overwrite、RATE.5 stale refresh 或 RATE.6 Android Owner PASS。Issue #482 保持 HOLD_OWNER_DEVICE_UNAVAILABLE / OWNER_ACTION=NONE_NOW；不要求手機移機或私人 Manifest。下一唯一產品 Gate 依 #796 DoD，完成 RATE.2 後才 RATE.3。
+
 ## 2026-11-06 Owner approved product sequence — after 15-band rating closure
 
 **Handoff Snapshot (non-authoritative):** [`docs/handoffs/Pokemon_Sleep_Rating_Product_Phases_Snapshot_20261106.md`](handoffs/Pokemon_Sleep_Rating_Product_Phases_Snapshot_20261106.md). On new conversation, re-fetch latest main, PR exact HEAD and Issue #796; use the two formal governance ledgers, not the Snapshot, as authority.
