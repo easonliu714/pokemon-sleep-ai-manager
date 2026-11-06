@@ -18,7 +18,7 @@ const saved=[],pauseChanges=[],history=[{
   recipe_id:'r1',recipe_name:'<synthetic unsafe markup>',
   attempted_at:'2026-10-24T00:00:00Z',
   actual_ingredients:[{ingredient_name:'特選蘋果',quantity:3}],
-  source_name:'Synthetic',recommendation_paused:1,
+  source_name:'Synthetic',recommendation_paused:1,reference_maybe_wrong:0,
 }];
 let rejectSave=false,renderCount=0,holdStatus='CLEAR';
 const context=vm.createContext({
