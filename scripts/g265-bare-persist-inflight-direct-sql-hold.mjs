@@ -28,6 +28,8 @@ function runtime(saveDatabaseBytes){
   return {context,fixture};
 }
 function blocked(context){
+  assert.throws(()=>context.beginSqliteWriteWindow(),
+    e=>e.code==='SQLITE_DIRECT_WRITE_BLOCKED_DURING_PERSIST');
   for(const op of [
     ()=>context.run("INSERT INTO bare_inflight_gate VALUES ('blocked')"),
     ()=>context.begin(),
