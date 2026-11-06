@@ -86,10 +86,23 @@ try{
     };
 
     const db=await import('./assets/js/database.js');
+    // G265: this legacy browser fixture writes disposable SQL rows while the
+    // app may still have a bare IndexedDB save in flight. A denied direct run
+    // has not executed; wait for its ACK, never retry an uncertain outcome.
+    const runFixtureSqlWhenReady=async(sql,params=[])=>{
+      for(let attempt=0;attempt<200;attempt++){
+        try{return db.run(sql,params);}
+        catch(error){
+          if(error?.code!=='SQLITE_DIRECT_WRITE_BLOCKED_DURING_PERSIST')throw error;
+          await new Promise(resolve=>setTimeout(resolve,50));
+        }
+      }
+      throw new Error('V042723_FIXTURE_SQL_PERSIST_WINDOW_TIMEOUT');
+    };
     globalThis.PokemonSleepPlayerEvolutionOverrideV042721.ensureTable();
     const pokemonId='v042723-detail-fixture';
     const now=new Date().toISOString();
-    db.run(`INSERT OR REPLACE INTO pokemon_evolution_override(
+    await runFixtureSqlWhenReady(`INSERT OR REPLACE INTO pokemon_evolution_override(
       pokemon_id,authority_mode,override_status,target_override,override_reason,
       required_level,required_sleep_hours,required_candy,required_item,other_requirement,
       source_analysis_id,created_at,updated_at
@@ -108,7 +121,7 @@ try{
       authority:evolutionSection?.dataset.v042723EvolutionAuthority||null,
       publicText:publicSection?.textContent||'',
     };
-    db.run('DELETE FROM pokemon_evolution_override WHERE pokemon_id=?',[pokemonId]);
+    await runFixtureSqlWhenReady('DELETE FROM pokemon_evolution_override WHERE pokemon_id=?',[pokemonId]);
     globalThis.PokemonSleepMultiCaptureConsistency.closeActiveGroup?.('v042723_browser_fixture_cleanup');
     return {version:globalThis.PokemonSleepVersionAuthority?.app_version,apiVersion:api.version,pure,confirmation,detail};
   });
