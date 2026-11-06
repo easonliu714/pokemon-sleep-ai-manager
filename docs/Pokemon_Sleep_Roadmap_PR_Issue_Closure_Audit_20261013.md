@@ -1,3 +1,11 @@
+## 2026-11-06 Owner approved product sequence — after 15-band rating closure
+
+- **P0 / FIRST:** Finish unified Pokémon Box and screenshot provisional 15-band grading, including a single versioned rule, OCR/AI Review preview, existing-box regrade diffs, user-confirmed protected replacement of prior `pokemon.rating`, durable SQLite/snapshot/readback/rollback and Android Owner UAT. Source-only heuristic or CI success is **not** closure. Preserve old values/audit; missing evidence stays REVIEW_REQUIRED; do not override raw observations or allow unadmitted cross-tab Writer paths.
+- **PHASE 1 / NEXT:** Complete reliability and formal acceptance for existing user-visible functions: G6.2 #6, G9R #19, G479 #479, G295 #295. Distinguish Source/Exact-head CI/PAGES success from real Android OWNER_PASS; do not close parental Issues prematurely.
+- **PHASE 2 / THEN:** Close the actual user workflow Pokémon → ingredient inventory → cooking → weekly event → War Room → seven-day planning, prioritizing G8 #18, G10 #20 and WAR.1 #40. No duplicate data sources or parallel planning engines.
+- **PHASE 3 / LAST:** Advance G14 Training Coach #43, G15 Simulator #44, G13 multimodel AI #42 and Public Master/individual completeness (#48/#144/#278/#164). Existing G14/G13 foundations used by P0 rating are dependencies, **not** permission to skip this order.
+- **Execution/governance:** One hourly GitHub Writer, serial PRs, fresh-main/branch/Draft PR/exact-head CI/protected merge/new-main CI/Pages, and only necessary Owner UAT. Previously closed gates and Owner PASS remain valid. Independent urgent P0 player-data protection and scheduled time-bound events remain safety exceptions, not a replacement product roadmap.
+
 ## 2026-11-06 Owner P0 — G14×G13 15-tier Pokémon box/screenshot provisional role-fit (Source/Test Gate)
 
 - **Owner approved priority and target:** unify previously AI-generated but noncomparable box ratings under one versioned `S+/S/S-/A+/A/A-/B+/B/B-/C+/C/C-/D+/D/D-` heuristic. Both reviewed screenshot Observation and existing Pokémon use the same pure scorer. This is a proposed PRODUCT heuristic, never an official game stat, proven energy forecast or activated `intrinsic_score`.
