@@ -1,7 +1,7 @@
 import {inspectDatabaseRecord,loadDatabaseBytes,loadDatabaseBytesInWorker,cancelWorkerDatabaseLoad,resetStorageConnection,saveDatabaseBytes,createSnapshot} from './storage.js';
 import {DDL,SEED_SQL} from './schema.js';
 import {createSqlitePersistCoordinator} from './sqlite-persist-coordinator.js';
-import {assertSqliteDirectWriteAllowed,markSqliteDurabilityUncertain} from './sqlite-direct-write-window-guard.js';
+import {assertSqliteDirectWriteAllowed,beginSqliteBarePersistWindow,markSqliteDurabilityUncertain} from './sqlite-direct-write-window-guard.js';
 import {applyAllMigrations,applyFreshDatabaseBootstrap} from './migrations.js';
 import {applyCandyFamilyStorageMigration} from './candy-family-storage-authority.js';
 let SQL=null,db=null;
@@ -85,6 +85,9 @@ export async function persist(){
   if(rescueReadonly)throw new Error('readonly_rescue_mode');
   if(sqlitePersistCoordinator.status().status!=='READY')
     throw Object.assign(new Error('SQLITE_PERSIST_UNCERTAIN_RELOAD_REQUIRED'),{code:'SQLITE_PERSIST_UNCERTAIN_RELOAD_REQUIRED'});
+  // Hold direct same-page SQL across capture, pending IDB save and queued ACKs.
+  // This is not cross-tab admission and does not change raw-byte persistence.
+  const endBarePersistWindow=beginSqliteBarePersistWindow();
   emit('SQLITE_PERSIST_RUNNING','正在儲存 SQLite');
   try{
     const outcome=await sqlitePersistCoordinator.persist();
@@ -96,6 +99,8 @@ export async function persist(){
       markSqliteDurabilityUncertain();
     emit('SQLITE_PERSIST_FAILED','SQLite 持久化結果未確認；請重新載入並讀回','failed',{persist_status:sqlitePersistCoordinator.status().status},error);
     throw error;
+  }finally{
+    endBarePersistWindow();
   }
 }
 export async function snapshot(reason){if(!db)throw new Error('database_not_ready');if(rescueReadonly)throw new Error('readonly_rescue_mode');emit('SQLITE_SNAPSHOT_RUNNING',`正在建立快照：${reason}`);const exported=db.export();const result=await timeout(createSnapshot(exported,reason),30000,'SQLite 快照');emit('SQLITE_SNAPSHOT_COMPLETED',`快照已建立：${reason}`);return result;}
