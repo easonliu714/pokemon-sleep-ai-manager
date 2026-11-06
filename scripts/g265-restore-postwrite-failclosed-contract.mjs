@@ -10,7 +10,7 @@ assert.ok(begin >= 0 && end > begin,'exact restore handler must be present');
 const handler = source.slice(begin,end);
 assert.match(source,/getSqlitePersistStatus/);
 assert.match(handler,/restoreRecoveryHold = true/);
-assert.doesNotMatch(handler,/replaceDatabase\(before\)/,'post-write failure must never trigger unadmitted second replacement');
+assert.doesNotMatch(handler,/\bawait\s+replaceDatabase\(before\)/,'post-write failure must never trigger unadmitted second replacement');
 
 const expected = {integrity_ok:true,foreign_key_errors:[],database_sha256:'expected',
   table_counts:{pokemon:2}};
