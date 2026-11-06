@@ -29,6 +29,11 @@ function readPersistenceMarker(){
       return PERSISTENCE_MARKER_STORAGE_UNAVAILABLE;
     if(marker.operation==='PAUSE_TOGGLE')
       return marker.target_paused===0||marker.target_paused===1?marker:PERSISTENCE_MARKER_STORAGE_UNAVAILABLE;
+    // G6.2: only legacy no-operation attempt markers and explicit PAUSE_TOGGLE
+    // are authorized. An unknown operation with a historical attempt_id must
+    // never be reclassified as an attempt and clear an unresolved recovery HOLD.
+    if(Object.prototype.hasOwnProperty.call(marker,'operation'))
+      return PERSISTENCE_MARKER_STORAGE_UNAVAILABLE;
     return typeof marker.attempt_id==='string'&&marker.attempt_id.trim()
       ?marker:PERSISTENCE_MARKER_STORAGE_UNAVAILABLE;
   }catch{return PERSISTENCE_MARKER_STORAGE_UNAVAILABLE;}
