@@ -169,7 +169,10 @@ const fixture=[
   ...BONUS.map(x=>'<p>・'+x+'</p>'),
   '<h2>關於含有「一口堅果」的料理的獎勵</h2>',
   '<p>例1：料理的所需食材包含「一口堅果」，且只使用了和所需食材量同數量的「一口堅果」。</p>',
+  '<p>・顯示於食譜一覽的料理能量變成1.5倍。</p>',
   '<p>例2：料理的所需食材包含「一口堅果」，且使用了比所需食材量還多的「一口堅果」。</p>',
+  '<p>・顯示於食譜一覽的料理能量變成1.5倍。</p>',
+  '<p>・超過料理所需數量而額外加入的「一口堅果」能量變成1.5倍。</p>',
   '<p>例3：料理的所需食材不包含「一口堅果」，並且使用了「一口堅果」。</p>',
   '<p>顯示於食譜一覽的料理能量倍率不變。</p>',
   '<p>額外使用的「一口堅果」能量變成1.5倍。</p>',
@@ -287,6 +290,20 @@ export function offlineBanquetDetailRegression(){
   assert.throws(()=>auditBanquetDetail(fixture.replace('<h1>'+TITLE+'</h1>',
     '<h1>〖企畫〗另一項活動</h1><noscript><h1>'+TITLE+'</h1></noscript>')),
     /G9R_OFFICIAL_ARTICLE_H1_REVIEW_REQUIRED/);
+  // Published examples 1 and 2 are separate conditional energy authorities.
+  // The prior audit checked only their headings and example 3, so a changed
+  // 1.5x recipe-base or extra-nut value could be silently accepted.
+  const recipeEnergyLine='<p>・顯示於食譜一覽的料理能量變成1.5倍。</p>';
+  const extraNutLine='<p>・超過料理所需數量而額外加入的「一口堅果」能量變成1.5倍。</p>';
+  assert.equal(fixture.split(recipeEnergyLine).length-1,2,'published example 1 and 2 fixtures');
+  for(const [mutated,label] of [
+    [fixture.replace(recipeEnergyLine,recipeEnergyLine.replace('1.5倍','2倍')),'example 1 recipe energy'],
+    [fixture.replace(extraNutLine,extraNutLine.replace('1.5倍','2倍')),'example 2 extra nut energy'],
+    [fixture.replace(extraNutLine,''),'example 2 missing extra nut'],
+    [fixture.replace(recipeEnergyLine,recipeEnergyLine+recipeEnergyLine),'example 1 duplicated recipe energy'],
+  ])assert.throws(()=>auditBanquetDetail(mutated),/G9R_BANQUET_DETAIL_REVIEW_REQUIRED/,
+    'each current official example must independently fail closed: '+label);
+  console.log('PASS G9R_BANQUET_CONDITIONAL_EXAMPLE_1_2_ENERGY_SCOPE_FAIL_CLOSED');
   console.log('PASS G9R_BANQUET_NEW_20261104_OFFICIAL_DETAIL_SOURCE_BOUNDARY');
   console.log('PASS G9R_BANQUET_CONDITIONAL_NUT_ENERGY_NOT_GLOBAL_0400_HALF_OPEN');
   console.log('PASS G9R_BANQUET_NEGATIVE_SOURCE_DRIFT_AND_NO_MASTER_PLAYER_WRITES');
