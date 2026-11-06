@@ -1,6 +1,7 @@
 import {rows,run,begin,commit,rollback,persist,snapshot} from './database.js';
 import {resolveEvolutionAuthority,hydrateEvolutionDraft,evolutionAuthorityLabel} from './analysis-confirmation-evolution-authority.js';
 import {normalizeGameDateForInput} from './player-profile-consistency-v042723.js';
+import {buildPokemonScreenshotRatingPreview,renderPokemonScreenshotRatingPreviewHtml} from './pokemon-provisional-review-preview.js';
 
 const VERSION=globalThis.PokemonSleepVersionAuthority?.app_version||'unknown';
 const BUILD=globalThis.PokemonSleepVersionAuthority?.app_build||'unknown';
@@ -95,6 +96,30 @@ function refreshNavigationControls(detail=navigationState()){
   if(next){next.textContent=detail.has_next?'下一隻寶可夢 →':'下一隻寶可夢／建立新群組 →';next.disabled=false;}
 }
 
+// RATE.2 display-only draft projection. Do not dehydrate baseline or call any DB writer.
+function readRatingPreviewDraft(root){
+  const draft={...currentDraft};
+  root.querySelectorAll('.analysis-confirmation [data-field]').forEach(node=>{
+    draft[node.dataset.field]=node.type==='number'?(node.value===''?null:asNumber(node.value)):node.value.trim();
+  });
+  draft.ingredients=ING_LEVELS.map(level=>({unlock_level:level,
+    ingredient_name:text(root.querySelector(`[data-field="ingredient_name_${level}"]`)?.value),
+    quantity:asNumber(root.querySelector(`[data-field="ingredient_qty_${level}"]`)?.value)}))
+    .filter(row=>row.ingredient_name);
+  draft.subskills=SUB_LEVELS.map(level=>({unlock_level:level,
+    subskill_name:text(root.querySelector(`[data-field="subskill_name_${level}"]`)?.value)}))
+    .filter(row=>row.subskill_name);
+  return draft;
+}
+function refreshRatingPreview(root){
+  const node=root?.querySelector('#analysisProvisionalRatingPreview');
+  if(!node||!currentRevision||!currentDraft)return;
+  const preview=buildPokemonScreenshotRatingPreview({
+    draft:readRatingPreviewDraft(root),revision:currentRevision,
+  });
+  node.innerHTML=renderPokemonScreenshotRatingPreviewHtml(preview);
+}
+
 function render(){
   const root=ensureRoot();if(!root)return;if(!currentRevision||!currentDraft){root.innerHTML='<div class="notice">完成 OCR 或 AI 分析後，結果會出現在此處供人工確認。</div>';return;}
   const options=pokemonOptions();const d=currentDraft;const nav=navigationState();const registeredDateInputValue=normalizeGameDateForInput(d.registered_at)||'';
@@ -108,6 +133,7 @@ function render(){
   <h3>食材配置與正名</h3><div class="skill-list">${ING_LEVELS.map(level=>canonicalRow('ingredient',level,d.ingredients.find(row=>Number(row.unlock_level)===level))).join('')}</div>
   <h3>副技能與正名</h3><div class="skill-list">${SUB_LEVELS.map(level=>canonicalRow('subskill',level,d.subskills.find(row=>Number(row.unlock_level)===level))).join('')}</div>
   <details><summary>原始證據與欄位 Evidence</summary><textarea data-field="source_text" rows="6">${esc(d.source_text)}</textarea><pre class="prompt-box">${esc(JSON.stringify(d.field_evidence,null,2))}</pre></details>
+  <div id="analysisProvisionalRatingPreview" role="status" aria-live="polite"></div>
   <fieldset><legend>寫入目標</legend><label><input type="radio" name="analysisTarget" value="new" checked> 建立新個體</label><label><input type="radio" name="analysisTarget" value="existing"> 疊加更新既有個體</label><label><input type="radio" name="analysisTarget" value="hold"> 暫存待判斷，不寫入正式個體</label><select id="analysisExistingPokemon"><option value="">選擇既有個體</option>${options.map(row=>`<option value="${esc(row.pokemon_id)}">${esc(row.nickname||row.species)} · Lv.${esc(row.level??'—')} · SP ${esc(row.sp??'—')}</option>`).join('')}</select></fieldset>
   <div class="buttons"><button id="applyConfirmedAnalysis">確認處置</button><button id="discardAnalysisDraft" class="secondary">捨棄本次草稿</button></div><div id="analysisConfirmationStatus" class="notice"></div></section>`;
   root.querySelector('#applyConfirmedAnalysis').onclick=applyConfirmed;
@@ -115,6 +141,10 @@ function render(){
   root.querySelector('#previousAnalysisGroup').onclick=()=>navigateConfirmation(-1);
   root.querySelector('#nextAnalysisGroup').onclick=()=>navigateConfirmation(1);
   refreshNavigationControls(nav);
+  refreshRatingPreview(root);
+  const reviewPanel=root.querySelector('.analysis-confirmation');
+  reviewPanel?.addEventListener('input',()=>refreshRatingPreview(root));
+  reviewPanel?.addEventListener('change',()=>refreshRatingPreview(root));
 }
 function normalizedIngredientRows(value){return (Array.isArray(value)?value:[]).map(row=>({unlock_level:Number(row.unlock_level),ingredient_name:text(row.ingredient_name),quantity:asNumber(row.quantity)})).sort((a,b)=>a.unlock_level-b.unlock_level);}
 function normalizedSubskillRows(value){return (Array.isArray(value)?value:[]).map(row=>({unlock_level:Number(row.unlock_level),subskill_name:text(row.subskill_name),is_unlocked:Boolean(row.is_unlocked)})).sort((a,b)=>a.unlock_level-b.unlock_level);}
