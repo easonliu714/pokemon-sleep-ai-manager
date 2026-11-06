@@ -23,7 +23,11 @@ const saved=[],pauseChanges=[],history=[{
 let rejectSave=false,renderCount=0,holdStatus='CLEAR';
 const context=vm.createContext({
   listRecipeAttemptFeedbackHistory:()=>history,
-  getRecipeAttemptPersistenceStatus:()=>({status:holdStatus}),
+  getRecipeAttemptPersistenceStatus:()=>{
+    if(holdStatus==='THROW')throw new Error('synthetic persistence status denied');
+    if(holdStatus==='NULL')return null;
+    return {status:holdStatus};
+  },
   recipeAttemptDefaultSource:()=>({
     source_type:'PLAYER_REPORTED_REFERENCE',
     source_name:'Synthetic Reference',source_ref:null,
@@ -179,6 +183,27 @@ assert.doesNotMatch(root.html,/data-g62-feedback-form/,'uncertain session must n
 await root.buttons.toggle.handlers.click();
 assert.equal(pauseChanges.length,2,'uncertain session must not write recommendation state');
 console.log('PASS G62_ACTUAL_UI_PERSISTENCE_UNCERTAIN_FAIL_CLOSED');
+
+// Independent G6.2 negative-first: an unknown/unavailable durability status is
+// NOT authorization for the UI to write player feedback or toggle recommendations.
+// Existing source only blocks UNVERIFIED/IN_FLIGHT, so UNKNOWN wrongly permits
+// a toggle; null/throw additionally crash rendering instead of showing HOLD.
+for(const invalidStatus of ['UNKNOWN','NULL','THROW']){
+  holdStatus=invalidStatus;
+  rerender();
+  const beforeWrites=pauseChanges.length;
+  await root.buttons.toggle.handlers.click();
+  assert.equal(pauseChanges.length,beforeWrites,
+    'unverified persistence authority must not permit toggle: '+invalidStatus);
+  await root.buttons.attempt.handlers.click();
+  assert.doesNotMatch(root.html,/data-g62-feedback-form/,
+    'unverified persistence authority must not open a new write draft: '+invalidStatus);
+  assert.match(root.html,/PERSISTENCE_UNCERTAIN/,
+    'unknown persistence status must display explicit HOLD: '+invalidStatus);
+}
+holdStatus='CLEAR';
+rerender();
+console.log('PASS G62_UI_UNKNOWN_NULL_THROW_PERSISTENCE_AUTHORITY_FAIL_CLOSED');
 
 assert.ok(renderCount>=7,'real UI rerender callback exercised');
 console.log('NOTE G62_SYNTHETIC_SOURCE_BOUND_UI_GATE_NOT_ANDROID_OWNER_UAT');
