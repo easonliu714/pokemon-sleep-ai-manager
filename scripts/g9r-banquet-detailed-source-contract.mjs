@@ -5,13 +5,16 @@ import assert from 'node:assert/strict';
 import {pathToFileURL} from 'node:url';
 import {assertOfficialArticleHeading,decodeOfficialVisibleEntities} from './g9r-official-article-heading-guard.mjs';
 import {summarizeOfficialLiveResponse} from './g9r-official-live-source-provenance.mjs';
+import {visibleOfficialHtml} from './g9r-official-event-source-refresh.mjs';
 
 export const BANQUET_DETAIL_URL='https://www.pokemonsleep.net/zh/news/343537333535313639333033313031343531/';
 const TITLE='〖企畫〗「來什麼都吃光光！大餐週vol.1」';
 const fail=reason=>{throw new Error('G9R_BANQUET_DETAIL_REVIEW_REQUIRED:'+reason);};
 const compact=value=>String(value).normalize('NFKC').replace(/\s+/g,'').trim();
 function linesOf(html){
-  const raw=String(html).replace(/<!--[\s\S]*?-->/g,' ')
+  // Non-rendered ancestor facts are not current official publication authority.
+  // Reuse the existing conservative G9R visibility guard before text extraction.
+  const raw=visibleOfficialHtml(html).replace(/<!--[\s\S]*?-->/g,' ')
     .replace(/<(?:noscript|textarea|template|script|style)\b[^>]*>[\s\S]*?<\/(?:noscript|textarea|template|script|style)>/gi,' ')
     .replace(/<\/(?:h[1-6]|p|li|div|section)>/gi,'\n')
     .replace(/<[^>]+>/g,' ');
@@ -142,6 +145,22 @@ export function offlineBanquetDetailRegression(){
     ['木棉球、 風妖精','木棉球、 皮卡丘','boosted-species'],
     ['總數量：121個','總數量：120個','recipe-total'],
   ])assert.throws(()=>auditBanquetDetail(fixture.replace(before,after)),/G9R_/,label);
+  // A fact inside a hidden ancestor is not an official *visible* published bonus.
+  // The pre-fix linesOf() removed tags but retained hidden text, silently
+  // certifying a hidden pot-capacity +30 as the currently published effect.
+  const potBonus='<p>・'+BONUS[5]+'</p>';
+  assert.ok(fixture.includes(potBonus),'source-bound pot bonus fixture');
+  for(const [attribute,label] of [
+    ['hidden','HTML hidden ancestor'],
+    ['inert','inert ancestor'],
+    ['aria-hidden="true"','ARIA hidden ancestor'],
+    ['style="display:none"','inline display none ancestor'],
+    ['style="visibility:hidden"','inline visibility hidden ancestor'],
+  ]){
+    const hidden=fixture.replace(potBonus,'<section '+attribute+'>'+potBonus+'</section>');
+    assert.throws(()=>auditBanquetDetail(hidden),/G9R_BANQUET_DETAIL_REVIEW_REQUIRED/,
+      'must reject non-visible official pot bonus: '+label);
+  }
   assert.throws(()=>auditBanquetDetail(fixture,'https://example.com/'),/OFFICIAL_URL_IDENTITY/);
   const entityTitle=TITLE.replace('〖','&#x3016;').replace('〗','&#12311;');
   assert.equal(auditBanquetDetail(fixture.replace('<h1>'+TITLE+'</h1>',
