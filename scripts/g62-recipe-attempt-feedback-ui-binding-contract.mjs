@@ -18,7 +18,7 @@ const saved=[],pauseChanges=[],history=[{
   recipe_id:'r1',recipe_name:'<synthetic unsafe markup>',
   attempted_at:'2026-10-24T00:00:00Z',
   actual_ingredients:[{ingredient_name:'特選蘋果',quantity:3}],
-  source_name:'Synthetic',recommendation_paused:1,
+  source_name:'Synthetic',recommendation_paused:1,reference_maybe_wrong:0,
 }];
 let rejectSave=false,renderCount=0,holdStatus='CLEAR';
 const context=vm.createContext({
@@ -173,6 +173,30 @@ await root.buttons.toggle.handlers.click();
 assert.equal(pauseChanges.length,2,'forged invalid DOM flag must not trigger write');
 assert.match(root.html,/推薦暫停狀態未驗證/);
 console.log('PASS G62_ACTUAL_UI_HISTORY_NULL_INVALID_PAUSE_READBACK_FAIL_CLOSED');
+
+// Independent G6.2 source-bound negative: a malformed SQLite history
+// reference flag must not be interpreted as verified "not suspect" or offer
+// an actionable pause toggle. The attempt-history table has no CHECK(0,1).
+history[0].recommendation_paused=0;
+for(const invalidReference of [null,2,'',false,'2',true,'01']){
+  history[0].reference_maybe_wrong=invalidReference;
+  rerender();
+  assert.match(root.html,/data-g62-reference-state-hold/,
+    'unverified reference flag must display HOLD: '+String(invalidReference));
+  assert.doesNotMatch(root.html,/data-g62-toggle=/,
+    'unverified reference flag must suppress player-state toggle: '+String(invalidReference));
+  assert.equal(root.buttons.toggle,null);
+}
+assert.equal(pauseChanges.length,2,'invalid reference flags must not trigger writes');
+history[0].reference_maybe_wrong=1;
+rerender();
+assert.match(root.html,/參考配方可能錯誤/,'verified suspect flag remains visible');
+assert.match(root.html,/data-g62-toggle=/,'verified pause and reference flags retain existing action');
+history[0].reference_maybe_wrong=0;
+rerender();
+assert.doesNotMatch(root.html,/data-g62-reference-state-hold/,'verified zero remains valid');
+assert.match(root.html,/data-g62-toggle=/,'verified zero retains existing action');
+console.log('PASS G62_HISTORY_REFERENCE_FLAG_UNVERIFIED_FAIL_CLOSED');
 
 // An uncertain post-COMMIT write is not an ordinary retryable validation error.
 holdStatus='UNVERIFIED';
