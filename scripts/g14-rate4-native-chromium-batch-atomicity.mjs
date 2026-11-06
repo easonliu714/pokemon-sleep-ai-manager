@@ -144,9 +144,11 @@ try{
     const r=window.__rate4,session=r.make('latefailure');
     try{await session.writer.execute(r.input(['C','D'],rev,'rate_native_failure001'));
       return {code:'UNEXPECTED_PASS'};}
-    catch(error){return {code:error.code||error.message,
-      status:session.writer.status().status,
-      snapshot:await session.store.read()};}
+    catch(error){const snapshot=await session.store.read();
+      return {code:error.code||error.message,
+        status:session.writer.status().status,
+        snapshot:{generation:snapshot.generation,sha256:snapshot.sha256,
+          bytes:Array.from(new Uint8Array(snapshot.bytes))}};}
   },before);
   assert.notEqual(failed.code,'UNEXPECTED_PASS');
   assert.equal(failed.status,'UNVERIFIED_RELOAD_REQUIRED');
@@ -160,7 +162,8 @@ try{
     const r=window.__rate4,session=r.make('batchsuccess');
     const result=await session.writer.execute(r.input(['A','B'],rev,'rate_native_success001'));
     const snapshot=await session.store.read();
-    return {result,snapshot};
+    return {result,snapshot:{generation:snapshot.generation,
+      sha256:snapshot.sha256,bytes:Array.from(new Uint8Array(snapshot.bytes))}};
   },before);
   assert.equal(succeeded.result.status,'ISOLATED_PERSISTED');
   assert.equal(succeeded.result.recordCount,2);
