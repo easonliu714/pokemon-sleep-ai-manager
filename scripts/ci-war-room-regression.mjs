@@ -14,6 +14,7 @@ const contracts=Object.freeze([
   'scripts/g14-rate3-roster-diff-ui-contract.mjs',
   'scripts/g14-rate4-preapply-consent-stale-contract.mjs',
   'scripts/g14-rate5-full-source-refresh-contract.mjs',
+  'scripts/g265-restore-postwrite-failclosed-contract.mjs',
   'scripts/war2a-current-readiness-runtime-bridge-contract.mjs',
   'scripts/v045-current-readiness-runtime-release-contract.mjs',
   'scripts/g7-recipe-portfolio-contention-contract.mjs',
