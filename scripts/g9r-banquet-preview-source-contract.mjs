@@ -84,6 +84,9 @@ export function auditBanquetPreview(html,url=BANQUET_PREVIEW_URL){
   return Object.freeze({source_url:url,source_status:'PREVIEW_ONLY',
     preview_published:'2026/10/20',sleep_goal_release:'2026-11-08T19:00:00+08:00',
     new_ingredient_release:'2026-11-15T19:00:00+08:00',
+    // The preview explicitly groups the three new recipes under this release.
+    // Keep separate typed authority from the later banquet detail announcement.
+    new_recipe_release_at:'2026-11-15T19:00:00+08:00',
     meal_prep_week_start:'2026-11-09',banquet_week_start:'2026-11-16',
     banquet_end:null,event_effects:Object.freeze({}),recipes:Object.freeze(recipes),
     deterministic_recipe_admission:false,player_write:false,public_master_write:false});
