@@ -5,10 +5,13 @@ import {
   exportBytes,
   replaceDatabase,
   snapshot,
+  isRescueReadonly,
+  getSqlitePersistStatus,
 } from './database.js';
 import { dryRun, applyPayload } from './importer.js';
 import { listSnapshots, clearAllStorage } from './storage.js';
 import { setupPokemonDetail, openPokemonDetail } from './pokemon-detail.js';
+import {setupPokemonRosterRatingPreview,invalidatePokemonRosterRatingPreview} from './pokemon-roster-rating-preview.js';
 import { validateWorkflow, approveReviewed } from './ai-workflow.js';
 import { saveIngredient, saveItem } from './manual-editor.js';
 import { PROMPT_CATALOG, buildScenarioTemplate } from './prompt-catalog.js';
@@ -68,6 +71,8 @@ function bindNavigation() {
 }
 
 function renderPokemon() {
+  // RATE.3: never leave a previously generated comparison looking current after refresh.
+  invalidatePokemonRosterRatingPreview();
   const query = $('pokemonSearch')?.value.trim().toLowerCase() ?? '';
   const rating = $('ratingFilter')?.value ?? '';
   const specialty = $('specialtyFilter')?.value ?? '';
@@ -469,6 +474,12 @@ async function start() {
   try {
     setupPrompts();
     setupPokemonDetail(refresh);
+    // RATE.3 reads only verified local SELECT results on explicit user request.
+    setupPokemonRosterRatingPreview({
+      readRoster:()=>{if(isRescueReadonly()||getSqlitePersistStatus().status!=='READY')throw new Error('RATE3_SOURCE_UNCERTAIN');return rows("SELECT * FROM pokemon WHERE status='active' ORDER BY pokemon_id");},
+      readIngredients:()=>rows('SELECT * FROM pokemon_ingredients ORDER BY pokemon_id,unlock_level'),
+      readSubskills:()=>rows('SELECT * FROM pokemon_subskills ORDER BY pokemon_id,unlock_level'),
+    });
     setupEventHandlers();
     bindNavigation();
 
