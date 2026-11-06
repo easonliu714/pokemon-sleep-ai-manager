@@ -9,6 +9,10 @@ const actual=fs.readFileSync(path,'utf8');
 const localSource=fs.readFileSync(new URL('../assets/js/recipe-attempt-feedback-local.js',import.meta.url),'utf8');
 assert.match(localSource,/s\.recommendation_paused AS recommendation_paused,/,'history must expose raw nullable SQLite flag');
 assert.doesNotMatch(localSource,/COALESCE\(s\.recommendation_paused,0\) AS recommendation_paused/,'NULL must not be presented as verified unpause');
+// Independent current-state authority: an older attempt's verified flag cannot
+// authorize a toggle if the latest recipe_feedback_state reference flag is NULL.
+assert.match(localSource,/s\.reference_maybe_wrong AS current_reference_maybe_wrong/,
+  'current reference state must preserve raw nullable SQLite authority');
 const stripped=actual.replace(/^import\s*\{[\s\S]*?\}\s*from '\.\/recipe-attempt-feedback-local\.js';\s*/,'');
 assert.notEqual(stripped,actual,'source-bound import boundary must be recognized');
 const runnable=stripped.replace('export function bindRecipeAttemptFeedbackUi','function bindRecipeAttemptFeedbackUi');
@@ -18,7 +22,7 @@ const saved=[],pauseChanges=[],history=[{
   recipe_id:'r1',recipe_name:'<synthetic unsafe markup>',
   attempted_at:'2026-10-24T00:00:00Z',
   actual_ingredients:[{ingredient_name:'特選蘋果',quantity:3}],
-  source_name:'Synthetic',recommendation_paused:1,reference_maybe_wrong:0,
+  source_name:'Synthetic',recommendation_paused:1,reference_maybe_wrong:0,current_reference_maybe_wrong:0,
 }];
 let rejectSave=false,renderCount=0,holdStatus='CLEAR';
 const context=vm.createContext({
@@ -197,6 +201,28 @@ rerender();
 assert.doesNotMatch(root.html,/data-g62-reference-state-hold/,'verified zero remains valid');
 assert.match(root.html,/data-g62-toggle=/,'verified zero retains existing action');
 console.log('PASS G62_HISTORY_REFERENCE_FLAG_UNVERIFIED_FAIL_CLOSED');
+
+// The attempt flag can be valid while current state is missing/corrupt.
+// Never use historical attempt provenance to authorize a current player toggle.
+history[0].reference_maybe_wrong=0;
+history[0].recommendation_paused=0;
+for(const invalidCurrent of [null,2,'',false,'2',true,'01']){
+  history[0].current_reference_maybe_wrong=invalidCurrent;
+  rerender();
+  assert.match(root.html,/data-g62-current-reference-state-hold/,
+    'unverified current reference state must HOLD: '+String(invalidCurrent));
+  assert.doesNotMatch(root.html,/data-g62-toggle=/,
+    'unverified current state cannot authorize player toggle: '+String(invalidCurrent));
+  assert.equal(root.buttons.toggle,null);
+}
+assert.equal(pauseChanges.length,2,'invalid current reference state must never write');
+history[0].current_reference_maybe_wrong=1;
+rerender();
+assert.match(root.html,/data-g62-toggle=/,'verified current suspect flag preserves action');
+history[0].current_reference_maybe_wrong=0;
+rerender();
+assert.match(root.html,/data-g62-toggle=/,'verified current zero preserves action');
+console.log('PASS G62_HISTORY_CURRENT_REFERENCE_STATE_RAW_NULL_INVALID_HOLD');
 
 // An uncertain post-COMMIT write is not an ordinary retryable validation error.
 holdStatus='UNVERIFIED';
