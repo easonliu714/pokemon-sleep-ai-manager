@@ -54,11 +54,11 @@ const moonHtml=fixture({
     +'<p>特別機率提升的寶可夢只有可能會在當天第1次的睡眠研究中出現，並不會在當天第2次的睡眠研究中出現。</p>'
     +'<p>此外，若未能在睡眠研究中遇見特別機率提升的寶可夢，在新月日的睡眠研究中能遇見牠們的機率將會漸漸提升，直到遇見特別機率提升的寶可夢為止。</p>'
     +'<p>當特別機率提升的寶可夢出現時，在睡眠研究中能遇見的寶可夢會增加1隻。</p>'
-    +'<p>若同時使用「寶可夢的薰香」和「好露營券」，則最多可遇見11隻寶可夢。</p>'
-    +'<p>・〖重要〗活動結束後，在所有活動營地皆無法遇見特別機率提升的寶可夢。</p>',
+    +'<p>若同時使用「寶可夢的薰香」和「好露營券」，則最多可遇見11隻寶可夢。</p>',
   // Research-reward threshold is a conditional, source-only mechanic.
   // It is not a global research candy/shard multiplier.
-  noticeExtra:'<p>・在平時，1天進行2次睡眠研究，且1天一共研究了11隻以上的寶可夢時，自第11隻寶可夢起研究的報酬量會減少；但若特別機率提升的寶可夢出現，則自第12隻寶可夢起研究的報酬量會減少。</p>',
+  noticeExtra:'<p>・在平時，1天進行2次睡眠研究，且1天一共研究了11隻以上的寶可夢時，自第11隻寶可夢起研究的報酬量會減少；但若特別機率提升的寶可夢出現，則自第12隻寶可夢起研究的報酬量會減少。</p>'
+    +'<p>・〖重要〗活動結束後，在所有活動營地皆無法遇見特別機率提升的寶可夢。</p>',
 });
 const prepHtml=fixture({
   title:'〖企畫〗「備料週vol.1」',published:'2026/10/28',
@@ -189,6 +189,45 @@ rejects(stalePity,NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,
 assert.equal(parse(moonHtml,NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon).event_id,
   'new_moon_day_19_2026_11','unchanged source-proven pity detail accepted');
 console.log('PASS G9R_DARKRAI_UNIQUE_PUBLISHED_PITY_DETAIL_SOURCE');
+
+// G9R independent published-source authority: extra encounter (+1), combined
+// incense/camp cap (11), and post-event Darkrai exclusion are THREE separate
+// source-only rules. The legacy whole-page includes() can be satisfied by a
+// stale historical quote even when the current section contradicts the rule.
+const extraEncounter='當特別機率提升的寶可夢出現時，在睡眠研究中能遇見的寶可夢會增加1隻。';
+const incenseCap='若同時使用「寶可夢的薰香」和「好露營券」，則最多可遇見11隻寶可夢。';
+const darkraiEnd='・〖重要〗活動結束後，在所有活動營地皆無法遇見特別機率提升的寶可夢。';
+const extraP='<p>'+extraEncounter+'</p>';
+const capP='<p>'+incenseCap+'</p>';
+const endP='<p>'+darkraiEnd+'</p>';
+for(const [label,original,changed] of [
+  ['extra encounter +2',extraP,extraP+'<p>'+extraEncounter.replace('增加1隻','增加2隻')+'</p>'],
+  ['duplicate extra encounter',extraP,extraP+extraP],
+  ['incense cap 12',capP,capP+'<p>'+incenseCap.replace('11隻','12隻')+'</p>'],
+  ['duplicate post-event exclusion',endP,endP+endP],
+]){
+  assert.ok(moonHtml.includes(original),'official current fixture: '+label);
+  rejects(moonHtml.replace(original,changed),NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,label);
+}
+const staleExtra=moonHtml.replace(extraP,'<p>'+extraEncounter.replace('增加1隻','增加2隻')+'</p>')
+  .replace('<h2>各項目詳情</h2>',
+    '<p>歷史公告引用：'+extraEncounter+'</p><h2>各項目詳情</h2>');
+rejects(staleExtra,NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,
+  'historical extra encounter quote cannot authorize changed current detail');
+const staleCap=moonHtml.replace(capP,'<p>'+incenseCap.replace('11隻','12隻')+'</p>')
+  .replace('<h2>各項目詳情</h2>',
+    '<p>歷史公告引用：'+incenseCap+'</p><h2>各項目詳情</h2>');
+rejects(staleCap,NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,
+  'historical incense cap quote cannot authorize changed current detail');
+const staleEnd=moonHtml.replace(endP,
+    '<p>'+darkraiEnd.replace('所有活動營地','萌綠之島')+'</p>')
+  .replace('<h2>注意事項</h2>',
+    '<p>歷史公告引用：'+darkraiEnd+'</p><h2>注意事項</h2>');
+rejects(staleEnd,NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,
+  'historical end exclusion quote cannot authorize changed Notice');
+assert.equal(parse(moonHtml,NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon).event_id,
+  'new_moon_day_19_2026_11','unchanged source-bound encounter and exclusion accepted');
+console.log('PASS G9R_DARKRAI_ENCOUNTER_CAP_END_CURRENT_SOURCE_UNIQUE_FAIL_CLOSED');
 
 const darkraiThreshold='在平時，1天進行2次睡眠研究，且1天一共研究了11隻以上的寶可夢時，自第11隻寶可夢起研究的報酬量會減少；但若特別機率提升的寶可夢出現，則自第12隻寶可夢起研究的報酬量會減少';
 const darkraiThresholdBullet='<p>・'+darkraiThreshold+'。</p>';
