@@ -5,13 +5,16 @@ import assert from 'node:assert/strict';
 import {pathToFileURL} from 'node:url';
 import {assertOfficialArticleHeading,decodeOfficialVisibleEntities} from './g9r-official-article-heading-guard.mjs';
 import {summarizeOfficialLiveResponse} from './g9r-official-live-source-provenance.mjs';
+import {visibleOfficialHtml} from './g9r-official-event-source-refresh.mjs';
 
 export const BANQUET_DETAIL_URL='https://www.pokemonsleep.net/zh/news/343537333535313639333033313031343531/';
 const TITLE='〖企畫〗「來什麼都吃光光！大餐週vol.1」';
 const fail=reason=>{throw new Error('G9R_BANQUET_DETAIL_REVIEW_REQUIRED:'+reason);};
 const compact=value=>String(value).normalize('NFKC').replace(/\s+/g,'').trim();
 function linesOf(html){
-  const raw=String(html).replace(/<!--[\s\S]*?-->/g,' ')
+  // Non-rendered ancestor facts are not current official publication authority.
+  // Reuse the existing conservative G9R visibility guard before text extraction.
+  const raw=visibleOfficialHtml(html).replace(/<!--[\s\S]*?-->/g,' ')
     .replace(/<(?:noscript|textarea|template|script|style)\b[^>]*>[\s\S]*?<\/(?:noscript|textarea|template|script|style)>/gi,' ')
     .replace(/<\/(?:h[1-6]|p|li|div|section)>/gi,'\n')
     .replace(/<[^>]+>/g,' ');
