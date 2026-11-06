@@ -255,6 +255,15 @@ export function parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt=new Dat
     if(researchScopeLines.length!==1
       ||compact(researchScopeLines[0])!==compact(expectedResearchScope))
       fail('DARKRAI_FIRST_SECOND_RESEARCH_SCOPE_SOURCE_DRIFT_OR_AMBIGUOUS');
+    // The non-numeric Darkrai pity rule is a separate published detail.
+    // Whole-page includes() accepted stale body quotes and duplicate or
+    // contradictory current details. Require exactly one source-bound line;
+    // never derive a probability or mutate a player's event state.
+    const pityStatement='此外，若未能在睡眠研究中遇見特別機率提升的寶可夢，在新月日的睡眠研究中能遇見牠們的機率將會漸漸提升，直到遇見特別機率提升的寶可夢為止。';
+    const pityLines=newMoonDetails.split('\n').map(line=>line.trim()).filter(line=>
+      compact(line).includes(compact('若未能在睡眠研究中遇見特別機率提升的寶可夢')));
+    if(pityLines.length!==1||compact(pityLines[0])!==compact(pityStatement))
+      fail('DARKRAI_PITY_UNIQUE_PUBLISHED_DETAIL_SOURCE_DRIFT_OR_AMBIGUOUS');
     // G9R: the conditional research-reward threshold is a published Notice
     // entitlement, not a whole-page substring. A valid historical quote or
     // duplicate conflicting threshold cannot certify today's Notice.
@@ -270,7 +279,6 @@ export function parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt=new Dat
     // Source-proven Darkrai pity and extra encounter are NOT numeric probabilities
     // or player-owned effects; a changed official eligibility rule must fail closed.
     for(const [label,statement] of [
-      ['DARKRAI_PITY_NON_NUMERIC','若未能在睡眠研究中遇見特別機率提升的寶可夢，在新月日的睡眠研究中能遇見牠們的機率將會漸漸提升，直到遇見特別機率提升的寶可夢為止'],
       ['DARKRAI_EXTRA_ENCOUNTER','當特別機率提升的寶可夢出現時，在睡眠研究中能遇見的寶可夢會增加1隻'],
       ['DARKRAI_INCENSE_CAMP_MAX_11','若同時使用「寶可夢的薰香」和「好露營券」，則最多可遇見11隻寶可夢'],
       ['DARKRAI_END_EXCLUSIVE','活動結束後，在所有活動營地皆無法遇見特別機率提升的寶可夢'],

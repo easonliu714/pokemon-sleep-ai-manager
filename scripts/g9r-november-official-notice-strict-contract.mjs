@@ -167,6 +167,29 @@ assert.equal(parse(moonHtml,NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon).event_id,
   'new_moon_day_19_2026_11','unchanged published first/second study rule accepted');
 console.log('PASS G9R_DARKRAI_FIRST_SECOND_RESEARCH_UNIQUE_PUBLISHED_DETAIL_SOURCE');
 
+// G9R source-only Darkrai pity entitlement: a whole-page includes() check
+// can borrow a historical quote and accept a changed current detail, or
+// silently accept duplicate/contradictory current details. Never infer rates.
+const pitySource='此外，若未能在睡眠研究中遇見特別機率提升的寶可夢，在新月日的睡眠研究中能遇見牠們的機率將會漸漸提升，直到遇見特別機率提升的寶可夢為止。';
+const pityP='<p>'+pitySource+'</p>';
+assert.ok(moonHtml.includes(pityP),'source-bound Darkrai pity detail fixture');
+const conflictingPity=pitySource.replace('機率將會漸漸提升','機率將會固定不變');
+assert.ok(moonHtml.replace(pityP,pityP+'<p>'+conflictingPity+'</p>').includes(pitySource),
+  'legacy whole-page check accepted contradictory pity detail');
+rejects(moonHtml.replace(pityP,pityP+'<p>'+conflictingPity+'</p>'),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'contradictory current pity rule');
+rejects(moonHtml.replace(pityP,pityP+pityP),
+  NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,'duplicate current pity rule');
+const stalePity=moonHtml.replace(pityP,'<p>'+conflictingPity+'</p>')
+  .replace('<h2>各項目詳情</h2>',
+    '<p>歷史公告引用：'+pitySource+'</p><h2>各項目詳情</h2>');
+assert.ok(stalePity.includes(pitySource),'legacy historical quote masks changed current pity rule');
+rejects(stalePity,NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon,
+  'historical pity quote cannot certify changed published detail');
+assert.equal(parse(moonHtml,NOVEMBER_OFFICIAL_NOTICE_URLS.new_moon).event_id,
+  'new_moon_day_19_2026_11','unchanged source-proven pity detail accepted');
+console.log('PASS G9R_DARKRAI_UNIQUE_PUBLISHED_PITY_DETAIL_SOURCE');
+
 const darkraiThreshold='在平時，1天進行2次睡眠研究，且1天一共研究了11隻以上的寶可夢時，自第11隻寶可夢起研究的報酬量會減少；但若特別機率提升的寶可夢出現，則自第12隻寶可夢起研究的報酬量會減少';
 const darkraiThresholdBullet='<p>・'+darkraiThreshold+'。</p>';
 const changedThresholdBullet=darkraiThresholdBullet.replace('自第12隻','自第13隻');
