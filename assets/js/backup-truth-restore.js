@@ -1,4 +1,4 @@
-import { exportBytes, replaceDatabase, snapshot, rows, scalar } from './database.js';
+import { exportBytes, replaceDatabase, snapshot, rows, scalar, getSqlitePersistStatus } from './database.js';
 
 const APP_VERSION = 'v0.3.77';
 const APP_BUILD = '20260804-v0377a-backup-truth-restore-verification';
@@ -14,6 +14,8 @@ const CORE_TABLES = [
 const $ = (id) => document.getElementById(id);
 const enc = new TextEncoder();
 let staged = null;
+// A failed post-replacement readback is not permission to perform a second write.
+let restoreRecoveryHold = false;
 
 function safeCount(table, where = '') {
   try { return Number(scalar(`SELECT COUNT(*) FROM "${table}" ${where}`) || 0); }
@@ -152,8 +154,11 @@ async function stageRestore(file) {
 }
 
 async function commitRestore() {
+  if (restoreRecoveryHold) throw Object.assign(
+    new Error('還原結果未確認；請先重新載入並檢查備份，禁止在本頁重試'),
+    { code: 'RESTORE_RECOVERY_HOLD_RELOAD_REQUIRED' }
+  );
   if (!staged) throw new Error('請先選擇 SQLite 並完成 Preflight');
-  const before = exportBytes();
   await snapshot('before-verified-restore');
   try {
     await replaceDatabase(staged.bytes);
@@ -166,8 +171,15 @@ async function commitRestore() {
     renderReport('還原完成且對帳 PASS', after);
     window.dispatchEvent(new CustomEvent('pokemon-sleep:data-changed', { detail: { entity: 'database', operation: 'verified_restore' } }));
   } catch (error) {
-    await replaceDatabase(before);
-    throw new Error(`還原失敗，已 rollback：${error.message}`);
+    // G265: post-replacement persistence or readback may be uncertain.
+    // A second replaceDatabase(before) is a NEW unadmitted durable write, not
+    // a proven rollback. Preserve the preflight snapshot and require reload.
+    restoreRecoveryHold = true;
+    const persistStatus = getSqlitePersistStatus().status;
+    throw Object.assign(
+      new Error(`還原結果未確認（${persistStatus}）；禁止自動回寫舊資料。請停止編輯、重新載入並核對備份：${error.message}`),
+      { code: 'RESTORE_POSTWRITE_REVIEW_REQUIRED', cause: error, persist_status: persistStatus }
+    );
   }
 }
 
