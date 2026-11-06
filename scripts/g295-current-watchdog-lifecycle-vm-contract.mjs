@@ -235,7 +235,8 @@ assert.equal(deniedHandoff.reload_guard_available,false);
 assert.equal(deniedHandoff.update_on_critical_path,false);
 assert.equal(syntheticReloads,0,'denied durable reload guard must not reload indefinitely');
 assert.ok(trace.some(x=>x.event==='version_handoff_reload_guard_unavailable'&&x.detail.status==='blocked'&&x.detail.details.reload_suppressed===true),'denied storage guard must be traced as SW handoff HOLD, not ESM failure');
-ctx.sessionStorage={getItem(){return null;},setItem(){syntheticGuardWrites++;}};
+const syntheticGuardStore=new Map();
+ctx.sessionStorage={getItem(key){return syntheticGuardStore.get(key)||null;},setItem(key,value){syntheticGuardWrites++;syntheticGuardStore.set(key,value);}};
 const allowedHandoff=await ctx.enforceLiveVersionHandoff();
 assert.equal(allowedHandoff.reloading,true,'available reload guard preserves first-controller handoff');
 assert.equal(syntheticGuardWrites,1);
@@ -244,6 +245,16 @@ ctx.navigator.serviceWorker.controller={};
 const controlledHandoff=await ctx.enforceLiveVersionHandoff();
 assert.equal(controlledHandoff.controlled,true,'controlled SW must not need sessionStorage reload guard');
 assert.equal(syntheticReloads,1);
+// Independent G479 failure mode: storage writes may silently disappear without
+// throwing. A missing reload-loop token must never authorize location.reload().
+ctx.navigator.serviceWorker.controller=null;
+ctx.sessionStorage={getItem(){return null;},setItem(){}};
+const silentDropHandoff=await ctx.enforceLiveVersionHandoff();
+assert.equal(silentDropHandoff.reload_guard_available,false,'silently dropped reload token is not durable');
+assert.equal(silentDropHandoff.update_on_critical_path,false);
+assert.equal(syntheticReloads,1,'silently dropped reload token must not trigger an infinite reload loop');
+assert.ok(trace.some(x=>x.event==='version_handoff_reload_guard_unavailable'&&x.detail.details.reload_suppressed===true),'silent-drop reload guard must have explicit blocked provenance');
+console.log('PASS G479_SW_RELOAD_SILENT_DROP_WRITE_READBACK_FAIL_CLOSED');
 console.log('PASS G479_SW_RELOAD_SESSIONSTORAGE_DENIAL_FAIL_CLOSED_AND_NORMAL_CONTROL');
 
 console.log('PASS G295_RAF_FIRST_DELAYED_TIMER_INDEPENDENT_GAP_AND_RESPONSIVE_CONTROL');
