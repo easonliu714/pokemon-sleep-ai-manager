@@ -85,6 +85,34 @@ export function auditBanquetDetail(html,url=BANQUET_DETAIL_URL){
     '顯示於食譜一覽的料理能量倍率不變。',
     '額外使用的「一口堅果」能量變成1.5倍。',
   ])if(!conditional.includes(compact(claim)))fail('CONDITIONAL_RECIPE_VS_EXTRA_NUT_SCOPE');
+  // Each published cooking example has its own energy rule. Merely finding
+  // example headings plus example 3 cannot certify example 1/2 multipliers.
+  // Require the exact visible example body and its adjacent, ordered rules.
+  const exampleSection=flat.slice(detail+1,boost);
+  const examples=[
+    {heading:'例1：料理的所需食材包含「一口堅果」，且只使用了和所需食材量同數量的「一口堅果」。',
+      rules:['・顯示於食譜一覽的料理能量變成1.5倍。']},
+    {heading:'例2：料理的所需食材包含「一口堅果」，且使用了比所需食材量還多的「一口堅果」。',
+      rules:['・顯示於食譜一覽的料理能量變成1.5倍。',
+        '・超過料理所需數量而額外加入的「一口堅果」能量變成1.5倍。']},
+    {heading:'例3：料理的所需食材不包含「一口堅果」，並且使用了「一口堅果」。',
+      rules:['・顯示於食譜一覽的料理能量倍率不變。',
+        '・額外使用的「一口堅果」能量變成1.5倍。']},
+  ];
+  const positions=examples.map((example,i)=>{
+    const found=exampleSection.flatMap((line,j)=>line===compact(example.heading)?[j]:[]);
+    if(found.length!==1)fail('CONDITIONAL_EXAMPLE_'+(i+1)+'_HEADING');
+    return found[0];
+  });
+  if(!(positions[0]<positions[1]&&positions[1]<positions[2]))
+    fail('CONDITIONAL_EXAMPLE_ORDER');
+  for(let i=0;i<examples.length;i++){
+    const next=i+1<positions.length?positions[i+1]:exampleSection.length;
+    const observed=exampleSection.slice(positions[i]+1,next);
+    const expected=examples[i].rules.map(compact);
+    if(observed.length!==expected.length||observed.some((line,j)=>line!==expected[j]))
+      fail('CONDITIONAL_EXAMPLE_'+(i+1)+'_ENERGY_SCOPE');
+  }
   const boostKind=once('〖機率中幅提升〗','BOOST_KIND');
   const species=once('木棉球、 風妖精','BOOST_SPECIES');
   const habitat=once('〖木棉球、 風妖精〗','SPECIES_HABITAT');
