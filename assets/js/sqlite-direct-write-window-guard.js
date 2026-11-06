@@ -4,6 +4,7 @@ const guardError=code=>Object.assign(new Error(code),{code});
 let activeWindows=0,activeBarePersists=0,privilegedDepth=0,uncertain=false;
 export function beginSqliteWriteWindow(){
   if(uncertain)throw guardError('SQLITE_DIRECT_WRITE_UNVERIFIED_RELOAD_REQUIRED');
+  if(activeBarePersists>0)throw guardError('SQLITE_DIRECT_WRITE_BLOCKED_DURING_PERSIST');
   activeWindows++;
   let closed=false;
   return function endSqliteWriteWindow({uncertainOutcome=false}={}){
