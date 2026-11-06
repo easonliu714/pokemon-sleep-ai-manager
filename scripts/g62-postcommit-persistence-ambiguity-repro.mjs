@@ -123,6 +123,17 @@ for(const mode of ['DENY_BEFORE_IDB_WRITE','ACK_LOST_AFTER_IDB_WRITE']){
     'attempt reload authority must bind both attempt_id and recipe_id, not just the ID');
   assert.ok(sessionStorage.getItem(markerKey),
     'cross-recipe recovery marker must remain for manual review');
+  // G6.2 independent recovery provenance: an unrecognized operation must
+  // never be silently reinterpreted as an ATTEMPT_FAILURE simply because a
+  // matching historical attempt_id exists in the durable synthetic database.
+  // Otherwise an ambiguous PAUSE_TOGGLE-like recovery could be certified and
+  // its hold marker deleted without verifying the requested operation.
+  const unknownOperationMarker={operation:'UNKNOWN_RECOVERY_OPERATION',attempt_id:existingAttempt.attempt_id,recipe_id:'r1'};
+  sessionStorage.setItem(markerKey,JSON.stringify(unknownOperationMarker));
+  assert.equal(crossRecipeContext.__status().status,'UNVERIFIED',
+    'unknown recovery operation must not reuse a matching attempt as persistence proof');
+  assert.equal(sessionStorage.getItem(markerKey),JSON.stringify(unknownOperationMarker),
+    'unknown recovery operation must preserve marker for review');
   sessionStorage.removeItem(markerKey);
   const toggleMarker={operation:'PAUSE_TOGGLE',recipe_id:'r1',target_paused:0};
   const setToggleMarker=()=>sessionStorage.setItem(markerKey,JSON.stringify(toggleMarker));
