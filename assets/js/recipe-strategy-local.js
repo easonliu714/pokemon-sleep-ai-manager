@@ -6,7 +6,7 @@ import {
 } from './public-recipe-provenance.js';
 import {projectRecipeStrategy} from './recipe-strategy-projection.js';
 import {getActiveStrategyGoalProfile} from './strategy-goal-store.js';
-import {listRecipeAttemptFeedbackSummaries} from './recipe-attempt-feedback-local.js';
+import {listRecipeAttemptFeedbackSummaries,getRecipeAttemptPersistenceStatus} from './recipe-attempt-feedback-local.js';
 import {currentEffectiveWeeklyContext} from './effective-weekly-context.js';
 
 export function buildLocalRecipeStrategyProjection({
@@ -31,6 +31,30 @@ export function buildLocalRecipeStrategyProjection({
       excluded:{},
       candidates:[],
       missing_inputs:['player_database'],
+      player_data_write:false,
+    };
+  }
+
+  // G6.2: War Room strategy is an actionable consumer of player feedback.
+  // A pending SQL/IndexedDB ACK, denied recovery marker, or in-flight write
+  // cannot authorize recipe candidates from an unverified in-memory snapshot.
+  // Withhold advice before any player SQLite query; never write player state.
+  let feedbackPersistence=null;
+  try{feedbackPersistence=getRecipeAttemptPersistenceStatus();}catch{}
+  if(!feedbackPersistence||!['CLEAR','PERSISTED','NOT_PERSISTED'].includes(feedbackPersistence.status)){
+    return {
+      schema:'pokemon-sleep-recipe-strategy-projection/1.0',
+      projection_status:'FEEDBACK_PERSISTENCE_UNVERIFIED',
+      engine_version:null,
+      master_version:PUBLIC_RECIPE_MASTER_VERSION,
+      provenance_version:PUBLIC_RECIPE_PROVENANCE_VERSION,
+      input_fingerprint:null,
+      context:{dish_category:dishCategory??null,pot_size:potSize??null},
+      summary:{candidate_count:0,status_counts:{},hard_constraint_counts:{REVIEW:1},excluded_counts:{}},
+      excluded:{},
+      candidates:[],
+      missing_inputs:['recipe_feedback_persistence'],
+      feedback_persistence_status:feedbackPersistence?.status||'UNAVAILABLE',
       player_data_write:false,
     };
   }
