@@ -18,11 +18,16 @@ required = [
     'quality_summary',
     'before-verified-restore',
     '正式替換後 SHA-256 不一致',
-    '已 rollback',
+    'RESTORE_POSTWRITE_REVIEW_REQUIRED',
+    'restoreRecoveryHold = true',
     'pokemon-sleep:data-changed',
 ]
 for token in required:
     assert token in module, token
+
+# G265: an unknown durable outcome must not be advertised as a successful rollback.
+assert 'await replaceDatabase(before)' not in module
+assert '已 rollback' not in module
 
 version_match = re.search(r"app_version:\s*'(v\d+(?:\.\d+){2,})'", authority)
 build_match = re.search(r"app_build:\s*'([^']+)'", authority)
