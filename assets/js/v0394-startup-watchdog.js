@@ -250,7 +250,12 @@ export async function enforceLiveVersionHandoff(){
     let alreadyReloaded=false;
     try{
       alreadyReloaded=sessionStorage.getItem(RELOAD_KEY)==='1';
-      if(!alreadyReloaded)sessionStorage.setItem(RELOAD_KEY,'1');
+      if(!alreadyReloaded){
+        // G479: a silent storage write-drop must not authorize repeated reloads.
+        // Verify the exact per-build token is readable before navigating away.
+        sessionStorage.setItem(RELOAD_KEY,'1');
+        if(sessionStorage.getItem(RELOAD_KEY)!=='1')throw new Error('SW_RELOAD_GUARD_NOT_DURABLE');
+      }
     }catch(error){
       reloadGuardAvailable=false;
       debugTrace.record('service_worker','version_handoff_reload_guard_unavailable',{status:'blocked',details:{authority,reload_suppressed:true,storage_guard_available:false,update_on_critical_path:false},error});
