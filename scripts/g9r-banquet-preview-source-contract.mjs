@@ -101,6 +101,8 @@ const fixture=[
 '<h3>新「點心、飲料」料理會用到的食材</h3><p>特選蛋、 美味尾巴、 萌綠大豆、 一口堅果</p><p>所需食材的總數量：91個</p>',
 '<p>關於各個企畫的詳情，敬請期待日後的通知！</p></body></html>'
 ].join('');
+// Export only synthetic published-source fixture for independent cross-notice regression.
+export const BANQUET_PREVIEW_FIXTURE=fixture;
 export function offlinePreviewRegression(){
   const base=auditBanquetPreview(fixture);
   assert.equal(base.source_status,'PREVIEW_ONLY');
