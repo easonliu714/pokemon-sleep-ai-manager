@@ -6,6 +6,7 @@ import {pathToFileURL} from 'node:url';
 import {assertOfficialArticleHeading,decodeOfficialVisibleEntities} from './g9r-official-article-heading-guard.mjs';
 import {summarizeOfficialLiveResponse} from './g9r-official-live-source-provenance.mjs';
 import {visibleOfficialHtml} from './g9r-official-event-source-refresh.mjs';
+import {auditBanquetPreview,BANQUET_PREVIEW_FIXTURE} from './g9r-banquet-preview-source-contract.mjs';
 
 export const BANQUET_DETAIL_URL='https://www.pokemonsleep.net/zh/news/343537333535313639333033313031343531/';
 const TITLE='〖企畫〗「來什麼都吃光光！大餐週vol.1」';
@@ -149,7 +150,7 @@ const fixture=[
   '<p>額外使用的「一口堅果」能量變成1.5倍。</p>',
   '<h2>機率提升</h2><h3>〖機率中幅提升〗</h3><p>木棉球、 風妖精</p>',
   '<h3>〖木棉球、 風妖精〗</h3><p>萌綠之島、 天青沙灘、 琥褐溪谷、 萌綠之島EX、 天青沙灘EX</p>',
-  '<h2>新食譜</h2>',
+  '<h2>新食譜</h2><p>自11/16 (週一) 4:00起將追加新食譜。</p>',
   ...RECIPES.map(x=>'<h3>'+x.heading+'</h3><p>'+x.ingredients+'</p><p>所需食材的總數量：'+x.total+'個</p>'),
   '<h2>各項目詳情</h2><h2>注意事項</h2>',
   ...NOTICE_RULES.map(rule=>'<p>'+rule+'</p>'),
@@ -157,6 +158,15 @@ const fixture=[
 ].join('');
 export function offlineBanquetDetailRegression(){
   const baseline=auditBanquetDetail(fixture);
+  // Negative-first: both official notices independently pass today, yet their
+  // published recipe-release times disagree (10/20 19:00 vs 11/16 04:00).
+  // Do not silently certify a recipe unlock date from the banquet event start.
+  const preview=auditBanquetPreview(BANQUET_PREVIEW_FIXTURE);
+  assert.equal(preview.new_ingredient_release,'2026-11-15T19:00:00+08:00');
+  assert.equal(baseline.new_recipe_release_at,'2026-11-16T04:00:00+08:00',
+    'published detail recipe-release time must be independently source-bound');
+  assert.equal(reconcileBanquetRecipeRelease(preview,baseline).status,
+    'HOLD_OFFICIAL_RECIPE_RELEASE_CONFLICT');
   assert.equal(baseline.end_at,'2026-11-23T04:00:00+08:00');
   assert.equal(baseline.camp_scope[0],'*');
   assert.equal(baseline.conditional_facts.pot_capacity_additive,30);
