@@ -142,6 +142,22 @@ export function offlineBanquetDetailRegression(){
     ['木棉球、 風妖精','木棉球、 皮卡丘','boosted-species'],
     ['總數量：121個','總數量：120個','recipe-total'],
   ])assert.throws(()=>auditBanquetDetail(fixture.replace(before,after)),/G9R_/,label);
+  // A fact inside a hidden ancestor is not an official *visible* published bonus.
+  // The pre-fix linesOf() removed tags but retained hidden text, silently
+  // certifying a hidden pot-capacity +30 as the currently published effect.
+  const potBonus='<p>・'+BONUS[5]+'</p>';
+  assert.ok(fixture.includes(potBonus),'source-bound pot bonus fixture');
+  for(const [attribute,label] of [
+    ['hidden','HTML hidden ancestor'],
+    ['inert','inert ancestor'],
+    ['aria-hidden="true"','ARIA hidden ancestor'],
+    ['style="display:none"','inline display none ancestor'],
+    ['style="visibility:hidden"','inline visibility hidden ancestor'],
+  ]){
+    const hidden=fixture.replace(potBonus,'<section '+attribute+'>'+potBonus+'</section>');
+    assert.throws(()=>auditBanquetDetail(hidden),/G9R_BANQUET_DETAIL_REVIEW_REQUIRED/,
+      'must reject non-visible official pot bonus: '+label);
+  }
   assert.throws(()=>auditBanquetDetail(fixture,'https://example.com/'),/OFFICIAL_URL_IDENTITY/);
   const entityTitle=TITLE.replace('〖','&#x3016;').replace('〗','&#12311;');
   assert.equal(auditBanquetDetail(fixture.replace('<h1>'+TITLE+'</h1>',
