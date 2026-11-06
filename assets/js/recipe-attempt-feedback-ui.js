@@ -61,15 +61,21 @@ function historyHtml(history){
     const flag=row.recommendation_paused;
     const verifiedPause=flag===0||flag===1||flag==='0'||flag==='1';
     const paused=flag===1||flag==='1';
+    // G6.2: the attempt-history source-review flag has no SQL CHECK(0,1).
+    // Unknown, NULL or coerced truthy values are not proof of a clean source.
+    // Keep the player's existing state unchanged until the flag is verified.
+    const referenceFlag=row.reference_maybe_wrong;
+    const verifiedReference=referenceFlag===0||referenceFlag===1||referenceFlag==='0'||referenceFlag==='1';
+    const suspectReference=referenceFlag===1||referenceFlag==='1';
     return `
     <article class="war-team-card g62-history-row">
       <div class="war-team-card-head"><div><b>${esc(row.recipe_name)}</b><p class="notice">${esc(row.attempted_at)}</p></div>
-        <span class="war-team-status ${!verifiedPause||paused?'review':'ready'}">${!verifiedPause?'推薦狀態待核對':paused?'已暫停推薦':'可重新推薦'}</span></div>
+        <span class="war-team-status ${!verifiedPause||!verifiedReference||paused?'review':'ready'}">${!verifiedPause?'推薦狀態待核對':!verifiedReference?'參考來源狀態待核對':paused?'已暫停推薦':'可重新推薦'}</span></div>
       <p><b>實際投入：</b>${esc(formatHistoryIngredients(row.actual_ingredients))}</p>
       <p class="notice"><b>來源：</b>${esc(row.source_name||row.source_type||'玩家回報')}${row.source_ref?` · ${esc(row.source_ref)}`:''}</p>
-      ${Number(row.reference_maybe_wrong)===1?'<p class="notice warning"><b>玩家標記：</b>參考配方可能錯誤</p>':''}
+      ${!verifiedReference?'<p class="notice warning" data-g62-reference-state-hold>參考配方標記狀態未驗證；暫不提供推薦狀態切換，請先核對資料。</p>':suspectReference?'<p class="notice warning"><b>玩家標記：</b>參考配方可能錯誤</p>':''}
       ${row.notes?`<p class="notice">${esc(row.notes)}</p>`:''}
-      ${verifiedPause?`<div class="buttons"><button type="button" data-g62-toggle="${esc(row.recipe_id)}" data-g62-paused="${paused?'1':'0'}">${paused?'解除暫停推薦':'暫停推薦'}</button></div>`:`<p class="notice warning" data-g62-pause-state-hold>本機推薦暫停狀態未驗證；暫不提供切換操作，請先核對資料。</p>`}
+      ${verifiedPause&&verifiedReference?`<div class="buttons"><button type="button" data-g62-toggle="${esc(row.recipe_id)}" data-g62-paused="${paused?'1':'0'}">${paused?'解除暫停推薦':'暫停推薦'}</button></div>`:!verifiedPause?`<p class="notice warning" data-g62-pause-state-hold>本機推薦暫停狀態未驗證；暫不提供切換操作，請先核對資料。</p>`:''}
     </article>`}).join('')}</div>`;
 }
 function draftHtml(){
