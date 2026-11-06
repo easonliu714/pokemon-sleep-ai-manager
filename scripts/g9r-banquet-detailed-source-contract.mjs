@@ -31,6 +31,15 @@ const BONUS=Object.freeze([
   '睡眠研究時，特定寶可夢的出現機率提升。',
   '不論研究者當天的睡眠類型為何，都也能遇見其他睡眠類型的寶可夢。',
 ]);
+// Published 2026-11-04 banquet Notice: six distinct scope authorities.
+const NOTICE_RULES=Object.freeze([
+  '・〖重要〗活動、企畫舉辦日期的切換時間為每日4:00。',
+  '・獎勵僅適用於活動／企畫期間內開始測量的睡眠資料。',
+  '・若將「活動／企畫開始前測量的睡眠資料」留到活動／企畫期間內進行「稍後再報告」，則不適用獎勵。',
+  '・若將「活動／企畫期間內測量的睡眠資料」留到活動／企畫結束後進行「稍後再報告」，則會適用獎勵。',
+  '・獎勵不適用於新手教學中的睡眠測量。',
+  '・相同的獎勵在不同的活動、企畫中同時登場時，僅適用倍率最大的獎勵。',
+]);
 const RECIPES=Object.freeze([
   {heading:'新「咖哩、濃湯」料理會用到的食材',ingredients:'萌綠玉米、 沉甸甸南瓜、 一口堅果',total:39},
   {heading:'新「沙拉」料理會用到的食材',ingredients:'暖暖薑、 好眠番茄、 嫩亮酪梨、 一口堅果',total:121},
@@ -77,6 +86,28 @@ export function auditBanquetDetail(html,url=BANQUET_DETAIL_URL){
     fail('BOOST_SECTION_ORDER');
   if(flat[habitat+1]!==compact('萌綠之島、 天青沙灘、 琥褐溪谷、 萌綠之島EX、 天青沙灘EX'))
     fail('BOOST_SPECIES_CAMPS');
+  // The published banquet Notice is independent authority for event-day,
+  // sleep-start, late-report and same-key overlap semantics. Never infer
+  // these rules from the eight bonus lines or stale historical body quotes.
+  // A missing/duplicate Notice, contradictory current rule or unknown scope
+  // must fail closed before any candidate can be admitted to Public Master.
+  const notice=once('注意事項','NOTICE_HEADING');
+  if(notice<=recipesHeading)fail('NOTICE_SECTION_ORDER');
+  const noticeLines=lines.slice(notice+1);
+  const noticeAnchors=[
+    '活動、企畫舉辦日期的切換時間',
+    '獎勵僅適用於',
+    '若將「活動／企畫開始前測量的睡眠資料」',
+    '若將「活動／企畫期間內測量的睡眠資料」',
+    '新手教學中的睡眠測量',
+    '相同的獎勵在不同的活動、企畫中同時登場時',
+  ];
+  for(let i=0;i<NOTICE_RULES.length;i++){
+    const matching=noticeLines.filter(line=>
+      compact(line).includes(compact(noticeAnchors[i])));
+    if(matching.length!==1||compact(matching[0])!==compact(NOTICE_RULES[i]))
+      fail('NOTICE_RULE_CHANGED_OR_AMBIGUOUS:'+i);
+  }
   const recipes=RECIPES.map((r,i)=>{
     const at=once(r.heading,'RECIPE_'+i);
     if(at<=recipesHeading||flat[at+1]!==compact(r.ingredients)||
@@ -120,6 +151,8 @@ const fixture=[
   '<h3>〖木棉球、 風妖精〗</h3><p>萌綠之島、 天青沙灘、 琥褐溪谷、 萌綠之島EX、 天青沙灘EX</p>',
   '<h2>新食譜</h2>',
   ...RECIPES.map(x=>'<h3>'+x.heading+'</h3><p>'+x.ingredients+'</p><p>所需食材的總數量：'+x.total+'個</p>'),
+  '<h2>各項目詳情</h2><h2>注意事項</h2>',
+  ...NOTICE_RULES.map(rule=>'<p>'+rule+'</p>'),
   '</body></html>',
 ].join('');
 export function offlineBanquetDetailRegression(){
@@ -132,6 +165,37 @@ export function offlineBanquetDetailRegression(){
   assert.deepEqual(baseline.recipes.map(r=>r.total_ingredient_count),[39,121,91]);
   assert.ok(baseline.recipes.every(r=>r.per_ingredient_quantities===null));
   assert.equal(baseline.public_master_write,false);
+  // Independent negative-first source-bound regression: the banquet audit
+  // currently checks bonuses but does NOT inspect the official Notice at all.
+  // A changed 04:00, sleep-start, delayed-report or same-key MAX rule must HOLD
+  // before any verified event candidate can be considered for Master admission.
+  const noticeP=index=>'<p>'+NOTICE_RULES[index]+'</p>';
+  for(const [index,changed,label] of [
+    [0,noticeP(0).replace('4:00','5:00'),'daily 04:00 boundary'],
+    [1,noticeP(1).replace('開始測量','完成報告'),'sleep start vs report time'],
+    [2,noticeP(2).replace('不適用獎勵','適用獎勵'),'pre-start late report'],
+    [3,noticeP(3).replace('會適用獎勵','不適用獎勵'),'post-end late report'],
+    [4,noticeP(4).replace('不適用','適用'),'tutorial sleep exclusion'],
+    [5,noticeP(5).replace('僅適用倍率最大的獎勵','將倍率相乘'),'same-key MAX not multiply'],
+    [5,noticeP(5)+noticeP(5),'duplicate MAX authority'],
+  ]){
+    assert.ok(fixture.includes(noticeP(index)),'notice fixture: '+label);
+    assert.throws(()=>auditBanquetDetail(fixture.replace(noticeP(index),changed)),
+      /G9R_BANQUET_DETAIL_REVIEW_REQUIRED/,'banquet Notice must HOLD: '+label);
+  }
+  assert.throws(()=>auditBanquetDetail(fixture.replace('<h2>注意事項</h2>','')),
+    /G9R_BANQUET_DETAIL_REVIEW_REQUIRED/,'missing Notice heading');
+  assert.throws(()=>auditBanquetDetail(fixture.replace('<h2>注意事項</h2>',
+    '<h2>注意事項</h2><h2>注意事項</h2>')),
+    /G9R_BANQUET_DETAIL_REVIEW_REQUIRED/,'duplicate Notice heading');
+  const staleMax=fixture.replace(noticeP(5),
+      noticeP(5).replace('僅適用倍率最大的獎勵','將倍率相乘'))
+    .replace('<h2>注意事項</h2>',
+      '<p>歷史公告引用：'+NOTICE_RULES[5]+'</p><h2>注意事項</h2>');
+  assert.throws(()=>auditBanquetDetail(staleMax),
+    /G9R_BANQUET_DETAIL_REVIEW_REQUIRED/,
+    'stale historical MAX quote must not certify changed current Notice');
+  console.log('PASS G9R_BANQUET_NOTICE_SCOPE_UNIQUE_SOURCE_BOUND_FAIL_CLOSED');
   for(const [before,after,label] of [
     ['2026/11/4','2026/11/3','publication'],
     ['11/23 (週一) 3:59','11/24 (週二) 3:59','end-exclusive'],
