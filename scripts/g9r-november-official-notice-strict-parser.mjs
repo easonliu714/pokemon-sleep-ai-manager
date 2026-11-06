@@ -276,13 +276,30 @@ export function parseVerifiedNovemberOfficialNotice(html,url,{verifiedAt=new Dat
       compact(line).includes(compact('在平時，1天進行2次睡眠研究，且1天一共研究了11隻以上的寶可夢時')));
     if(thresholdMatches.length!==1||compact(thresholdMatches[0])!==compact('・'+thresholdStatement+'。'))
       fail('DARKRAI_RESEARCH_REWARD_REDUCTION_THRESHOLD_SOURCE_DRIFT_OR_AMBIGUOUS');
-    // Source-proven Darkrai pity and extra encounter are NOT numeric probabilities
-    // or player-owned effects; a changed official eligibility rule must fail closed.
-    for(const [label,statement] of [
-      ['DARKRAI_EXTRA_ENCOUNTER','當特別機率提升的寶可夢出現時，在睡眠研究中能遇見的寶可夢會增加1隻'],
-      ['DARKRAI_INCENSE_CAMP_MAX_11','若同時使用「寶可夢的薰香」和「好露營券」，則最多可遇見11隻寶可夢'],
-      ['DARKRAI_END_EXCLUSIVE','活動結束後，在所有活動營地皆無法遇見特別機率提升的寶可夢'],
-    ])if(!compact(text).includes(compact(statement)))fail(label+'_SOURCE_DRIFT');
+    // Source-only Darkrai entitlements must be UNIQUE in their current
+    // published section. Whole-page includes() can borrow a stale historical
+    // quote to certify a contradictory +1 encounter, 11-encounter cap, or
+    // post-event exclusion. Never promote these rules to numeric probability
+    // or player-owned state.
+    const currentDetailLines=newMoonDetails.split('\n').map(line=>line.trim()).filter(Boolean);
+    const currentNoticeLines=noticeLines.slice(noticeIndex+1);
+    const requireUniquePublishedRule=(lines,anchor,expected,label)=>{
+      const matches=lines.filter(line=>compact(line).includes(compact(anchor)));
+      if(matches.length!==1||compact(matches[0])!==compact(expected))
+        fail(label+'_CURRENT_SOURCE_DRIFT_OR_AMBIGUOUS');
+    };
+    requireUniquePublishedRule(currentDetailLines,
+      '當特別機率提升的寶可夢出現時',
+      '當特別機率提升的寶可夢出現時，在睡眠研究中能遇見的寶可夢會增加1隻。',
+      'DARKRAI_EXTRA_ENCOUNTER');
+    requireUniquePublishedRule(currentDetailLines,
+      '若同時使用「寶可夢的薰香」和「好露營券」',
+      '若同時使用「寶可夢的薰香」和「好露營券」，則最多可遇見11隻寶可夢。',
+      'DARKRAI_INCENSE_CAMP_MAX_11');
+    requireUniquePublishedRule(currentNoticeLines,
+      '活動結束後',
+      '・〖重要〗活動結束後，在所有活動營地皆無法遇見特別機率提升的寶可夢。',
+      'DARKRAI_END_EXCLUSIVE');
     return event({id:'new_moon_day_19_2026_11',title:'第19次「新月日」',url,
       start:'2026-11-08T04:00:00+08:00',end:'2026-11-11T04:00:00+08:00',
       effects:{shiny_encounter_possible:true,unknown_effects:[
