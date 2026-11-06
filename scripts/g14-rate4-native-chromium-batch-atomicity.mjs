@@ -183,6 +183,23 @@ try{
   assert.equal(afterSuccess.master,'UNCHANGED');
   console.log('PASS G14_RATE4_NATIVE_TWO_RECORD_ATOMIC_SUCCESS_SNAPSHOT_AUDIT_RELOAD');
 
+  // Evidence changed between the original preview and the independent fresh
+  // projection: reject before taking any snapshot or acquiring a writer lock.
+  const evidence=await pages[0].evaluate(async rev=>{
+    const r=window.__rate4,session=r.make('evidencedrift');
+    const request=r.input(['C'],rev,'rate_native_evidence001');
+    request.freshView={...r.preview,rows:r.preview.rows.map(row=>
+      row.pokemon_id==='fixture-C'?{...row,current_evidence:[
+        ...row.current_evidence,{source:'synthetic',name:'changed',scope:'CURRENT'}
+      ]}:row)};
+    try{await session.writer.execute(request);return {code:'UNEXPECTED_PASS'};}
+    catch(error){return {code:error.code||error.message,
+      status:session.writer.status().status};}
+  },afterSuccess);
+  assert.deepEqual(evidence,{code:'G14_RATE4_PREAPPLY_REJECTED',status:'READY'});
+  assert.deepEqual(await pages[1].evaluate(()=>window.__rate4.read()),afterSuccess);
+  console.log('PASS G14_RATE4_NATIVE_STALE_EVIDENCE_PREFLIGHT_NO_WRITE');
+
   // Stale instance and level are rejected against the latest durable rows.
   for(const [tag,id,change] of [
     ['identity','C',{pokemon_instance_id:'instance-C-wrong'}],
