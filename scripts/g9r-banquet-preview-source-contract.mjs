@@ -84,6 +84,9 @@ export function auditBanquetPreview(html,url=BANQUET_PREVIEW_URL){
   return Object.freeze({source_url:url,source_status:'PREVIEW_ONLY',
     preview_published:'2026/10/20',sleep_goal_release:'2026-11-08T19:00:00+08:00',
     new_ingredient_release:'2026-11-15T19:00:00+08:00',
+    // The preview explicitly groups the three new recipes under this release.
+    // Keep separate typed authority from the later banquet detail announcement.
+    new_recipe_release_at:'2026-11-15T19:00:00+08:00',
     meal_prep_week_start:'2026-11-09',banquet_week_start:'2026-11-16',
     banquet_end:null,event_effects:Object.freeze({}),recipes:Object.freeze(recipes),
     deterministic_recipe_admission:false,player_write:false,public_master_write:false});
@@ -101,6 +104,8 @@ const fixture=[
 '<h3>新「點心、飲料」料理會用到的食材</h3><p>特選蛋、 美味尾巴、 萌綠大豆、 一口堅果</p><p>所需食材的總數量：91個</p>',
 '<p>關於各個企畫的詳情，敬請期待日後的通知！</p></body></html>'
 ].join('');
+// Export only synthetic published-source fixture for independent cross-notice regression.
+export const BANQUET_PREVIEW_FIXTURE=fixture;
 export function offlinePreviewRegression(){
   const base=auditBanquetPreview(fixture);
   assert.equal(base.source_status,'PREVIEW_ONLY');

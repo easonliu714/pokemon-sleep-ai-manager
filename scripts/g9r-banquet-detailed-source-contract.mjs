@@ -6,6 +6,7 @@ import {pathToFileURL} from 'node:url';
 import {assertOfficialArticleHeading,decodeOfficialVisibleEntities} from './g9r-official-article-heading-guard.mjs';
 import {summarizeOfficialLiveResponse} from './g9r-official-live-source-provenance.mjs';
 import {visibleOfficialHtml} from './g9r-official-event-source-refresh.mjs';
+import {auditBanquetPreview,BANQUET_PREVIEW_FIXTURE,BANQUET_PREVIEW_URL} from './g9r-banquet-preview-source-contract.mjs';
 
 export const BANQUET_DETAIL_URL='https://www.pokemonsleep.net/zh/news/343537333535313639333033313031343531/';
 const TITLE='〖企畫〗「來什麼都吃光光！大餐週vol.1」';
@@ -62,6 +63,11 @@ export function auditBanquetDetail(html,url=BANQUET_DETAIL_URL){
   const detail=once('關於含有「一口堅果」的料理的獎勵','CONDITIONAL_ENERGY_HEADING');
   const boost=once('機率提升','BOOST_HEADING');
   const recipesHeading=once('新食譜','RECIPES_HEADING');
+  // The 11/04 detail states 11/16 04:00 for recipe availability; the 10/20
+  // preview instead groups all three recipes with 11/15 19:00. Bind the
+  // published detail line independently, never infer it from event start.
+  const recipeRelease=once('自11/16 (週一) 4:00起將追加新食譜。','RECIPE_RELEASE');
+  if(recipeRelease!==recipesHeading+1)fail('RECIPE_RELEASE_SECTION_SCOPE');
   if(!(title<pub&&pub<period&&period<camp&&camp<mission&&mission<bonus&&bonus<detail&&detail<boost&&boost<recipesHeading))
     fail('ARTICLE_SECTION_ORDER');
   const time='11/16 (週一) 4:00～11/23 (週一) 3:59';
@@ -118,6 +124,7 @@ export function auditBanquetDetail(html,url=BANQUET_DETAIL_URL){
   });
   return Object.freeze({
     source_url:url,source_published:'2026/11/4',
+    new_recipe_release_at:'2026-11-16T04:00:00+08:00',
     source_status:'NEW_OFFICIAL_DETAIL_CANDIDATE_REQUIRES_SEPARATE_MASTER_ADMISSION',
     start_at:'2026-11-16T04:00:00+08:00',end_at:'2026-11-23T04:00:00+08:00',
     mission_start_at:'2026-11-16T04:00:00+08:00',mission_end_at:'2026-11-23T04:00:00+08:00',
@@ -132,6 +139,25 @@ export function auditBanquetDetail(html,url=BANQUET_DETAIL_URL){
     effects:Object.freeze({}),recipes:Object.freeze(recipes),
     deterministic_strategy_admission:false,public_master_write:false,
     player_write:false,app_version_bump:false,android_owner_uat:'NOT_READY',
+  });
+}
+// Two individually verified official publications disagree on the new recipe
+// release instant. Do not choose one automatically or treat event start as
+// recipe unlock authority. Even matching notices remain source-only candidates.
+export function reconcileBanquetRecipeRelease(preview,detail){
+  if(preview?.source_url!==BANQUET_PREVIEW_URL||preview?.source_status!=='PREVIEW_ONLY'
+    ||detail?.source_url!==BANQUET_DETAIL_URL
+    ||detail?.source_status!=='NEW_OFFICIAL_DETAIL_CANDIDATE_REQUIRES_SEPARATE_MASTER_ADMISSION')
+    fail('CROSS_NOTICE_SOURCE_IDENTITY');
+  const previewAt=preview.new_recipe_release_at,detailAt=detail.new_recipe_release_at;
+  if(!/^2026-11-\d\dT\d\d:\d\d:\d\d\+08:00$/.test(previewAt||'')
+    ||!/^2026-11-\d\dT\d\d:\d\d:\d\d\+08:00$/.test(detailAt||''))
+    fail('CROSS_NOTICE_RELEASE_TIMESTAMP_NOT_VERIFIED');
+  return Object.freeze({
+    status:previewAt===detailAt?'SOURCE_CONSISTENT_CANDIDATE_ONLY':'HOLD_OFFICIAL_RECIPE_RELEASE_CONFLICT',
+    preview_recipe_release_at:previewAt,detail_recipe_release_at:detailAt,
+    public_master_write:false,player_write:false,deterministic_recipe_admission:false,
+    android_owner_uat:'NOT_READY',
   });
 }
 const fixture=[
@@ -149,7 +175,7 @@ const fixture=[
   '<p>額外使用的「一口堅果」能量變成1.5倍。</p>',
   '<h2>機率提升</h2><h3>〖機率中幅提升〗</h3><p>木棉球、 風妖精</p>',
   '<h3>〖木棉球、 風妖精〗</h3><p>萌綠之島、 天青沙灘、 琥褐溪谷、 萌綠之島EX、 天青沙灘EX</p>',
-  '<h2>新食譜</h2>',
+  '<h2>新食譜</h2><p>自11/16 (週一) 4:00起將追加新食譜。</p>',
   ...RECIPES.map(x=>'<h3>'+x.heading+'</h3><p>'+x.ingredients+'</p><p>所需食材的總數量：'+x.total+'個</p>'),
   '<h2>各項目詳情</h2><h2>注意事項</h2>',
   ...NOTICE_RULES.map(rule=>'<p>'+rule+'</p>'),
@@ -157,6 +183,29 @@ const fixture=[
 ].join('');
 export function offlineBanquetDetailRegression(){
   const baseline=auditBanquetDetail(fixture);
+  // Negative-first: both official notices independently pass today, yet their
+  // published recipe-release times disagree (10/20 19:00 vs 11/16 04:00).
+  // Do not silently certify a recipe unlock date from the banquet event start.
+  const preview=auditBanquetPreview(BANQUET_PREVIEW_FIXTURE);
+  assert.equal(preview.new_ingredient_release,'2026-11-15T19:00:00+08:00');
+  assert.equal(preview.new_recipe_release_at,'2026-11-15T19:00:00+08:00');
+  assert.equal(baseline.new_recipe_release_at,'2026-11-16T04:00:00+08:00',
+    'published detail recipe-release time must be independently source-bound');
+  const crossNotice=reconcileBanquetRecipeRelease(preview,baseline);
+  assert.equal(crossNotice.status,'HOLD_OFFICIAL_RECIPE_RELEASE_CONFLICT');
+  assert.equal(crossNotice.public_master_write,false);
+  assert.equal(crossNotice.deterministic_recipe_admission,false);
+  assert.equal(reconcileBanquetRecipeRelease(preview,
+    {...baseline,new_recipe_release_at:preview.new_recipe_release_at}).status,
+    'SOURCE_CONSISTENT_CANDIDATE_ONLY');
+  const releaseLine='<p>自11/16 (週一) 4:00起將追加新食譜。</p>';
+  for(const [replacement,label] of [
+    ['<p>自11/15 (週日) 19:00起將追加新食譜。</p>','changed detail release'],
+    ['','missing detail release'],
+    [releaseLine+releaseLine,'duplicated detail release'],
+  ])assert.throws(()=>auditBanquetDetail(fixture.replace(releaseLine,replacement)),
+    /G9R_BANQUET_DETAIL_REVIEW_REQUIRED/,'release authority HOLD: '+label);
+  console.log('PASS G9R_BANQUET_CROSS_NOTICE_RECIPE_RELEASE_CONFLICT_HOLD');
   assert.equal(baseline.end_at,'2026-11-23T04:00:00+08:00');
   assert.equal(baseline.camp_scope[0],'*');
   assert.equal(baseline.conditional_facts.pot_capacity_additive,30);
