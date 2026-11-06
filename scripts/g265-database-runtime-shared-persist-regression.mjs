@@ -4,6 +4,8 @@ import vm from 'node:vm';
 // G265 actual database.persist() VM replay; synthetic bytes and mocked IDB only.
 const dbSource=fs.readFileSync('assets/js/database.js','utf8');
 const coordSource=fs.readFileSync('assets/js/sqlite-persist-coordinator.js','utf8');
+// Production persist now propagates ACK uncertainty to the same-page direct-write guard.
+const guardSource=fs.readFileSync('assets/js/sqlite-direct-write-window-guard.js','utf8');
 assert.match(dbSource,/import \{createSqlitePersistCoordinator\} from '\.\/sqlite-persist-coordinator\.js'/);
 assert.match(dbSource,/sqlitePersistCoordinator\.persist\(\)/);
 assert.doesNotMatch(dbSource,/const exported=db\.export\(\);await timeout\(saveDatabaseBytes\(exported\)/);
@@ -12,6 +14,7 @@ const bypass=fs.readdirSync('assets/js').filter(n=>n.endsWith('.js')&&!['databas
 assert.deepEqual(bypass,[],'all direct SQLite byte saves must use database.persist()');
 function runtime(captureBytes,saveDatabaseBytes){
   const c=vm.createContext({Promise,Error,TypeError,Object,Number,setTimeout,clearTimeout,saveDatabaseBytes,captureBytes,console});
+  vm.runInContext(guardSource.replace(/^export /gm,''),c,{timeout:3000});
   vm.runInContext(coordSource.replace(/^export /gm,''),c,{timeout:3000});
   vm.runInContext(dbSource.replace(/^import [^\n]*\n/gm,'').replace(/^export /gm,''),c,{timeout:3000});
   vm.runInContext('db={export:()=>captureBytes()};rescueReadonly=false;',c);
