@@ -1,7 +1,7 @@
 import {inspectDatabaseRecord,loadDatabaseBytes,loadDatabaseBytesInWorker,cancelWorkerDatabaseLoad,resetStorageConnection,saveDatabaseBytes,createSnapshot} from './storage.js';
 import {DDL,SEED_SQL} from './schema.js';
 import {createSqlitePersistCoordinator} from './sqlite-persist-coordinator.js';
-import {assertSqliteDirectWriteAllowed} from './sqlite-direct-write-window-guard.js';
+import {assertSqliteDirectWriteAllowed,markSqliteDurabilityUncertain} from './sqlite-direct-write-window-guard.js';
 import {applyAllMigrations,applyFreshDatabaseBootstrap} from './migrations.js';
 import {applyCandyFamilyStorageMigration} from './candy-family-storage-authority.js';
 let SQL=null,db=null;
@@ -90,6 +90,10 @@ export async function persist(){
     const outcome=await sqlitePersistCoordinator.persist();
     emit('SQLITE_PERSIST_COMPLETED','SQLite 儲存完成','completed',{byte_length:outcome.byte_length});
   }catch(error){
+    // A legacy bare persist has no session window to propagate its uncertain IDB outcome.
+    // Only mark when the coordinator confirms uncertainty (not a pre-write capture error).
+    if(sqlitePersistCoordinator.status().status==='UNVERIFIED_RELOAD_REQUIRED')
+      markSqliteDurabilityUncertain();
     emit('SQLITE_PERSIST_FAILED','SQLite 持久化結果未確認；請重新載入並讀回','failed',{persist_status:sqlitePersistCoordinator.status().status},error);
     throw error;
   }

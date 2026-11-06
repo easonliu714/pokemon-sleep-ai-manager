@@ -18,6 +18,9 @@ export function withSqliteCoordinatedMutation(fn){
   privilegedDepth++;
   try{return fn();}finally{privilegedDepth--;}
 }
+// A bare database.persist() can lose its IDB ACK without an opt-in write window.
+// Keep all same-page direct SQL mutations fail-closed until reload/readback.
+export function markSqliteDurabilityUncertain(){uncertain=true;}
 export function assertSqliteDirectWriteAllowed(){
   if(uncertain)throw guardError('SQLITE_DIRECT_WRITE_UNVERIFIED_RELOAD_REQUIRED');
   if(activeWindows>0&&privilegedDepth===0)

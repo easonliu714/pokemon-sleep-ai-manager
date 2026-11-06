@@ -200,6 +200,9 @@ jobs:
       - name: G265 Database Runtime Shared SQLite Persist Regression
         run: node scripts/g265-database-runtime-shared-persist-regression.mjs
 
+      - name: G265 Bare Persist ACK-Loss Direct Writer Fail-Closed
+        run: node scripts/g265-bare-persist-uncertain-direct-write-hold.mjs
+
       - name: G265 SQLite Mutation Boundary Source-Bound Negative Audit
         run: node scripts/g265-sqlite-mutation-boundary-audit.mjs
 
