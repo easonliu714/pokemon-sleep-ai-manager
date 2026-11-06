@@ -13,6 +13,7 @@ const contracts=Object.freeze([
   'scripts/v045-current-readiness-runtime-release-contract.mjs',
   'scripts/g7-recipe-portfolio-contention-contract.mjs',
   'scripts/g62-recipe-attempt-feedback-contract.mjs',
+  'scripts/g62-warroom-strategy-feedback-durability-contract.mjs',
   'scripts/war2b-recipe-discovery-stockpile-contract.mjs',
   'scripts/v046-recipe-discovery-release-contract.mjs',
   'scripts/v047-release-contract.mjs',
