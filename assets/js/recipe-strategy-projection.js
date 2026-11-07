@@ -130,6 +130,12 @@ export function sortRecipeStrategyCandidates(candidates,mode='unlock_recipes'){
     const pausedA=a?.recommendation_paused===true?1:0;
     const pausedB=b?.recommendation_paused===true?1:0;
     if(pausedA!==pausedB)return pausedA-pausedB;
+    // G6.2: a formula/provenance REVIEW has no trusted ingredient shortage.
+    // In stockpile mode its synthetic zero must not outrank verified advice;
+    // preserve the player's explicit pause priority above this safety rank.
+    const reviewA=a?.hard_constraint_status==='REVIEW'?1:0;
+    const reviewB=b?.hard_constraint_status==='REVIEW'?1:0;
+    if(reviewA!==reviewB)return reviewA-reviewB;
     // G6.2: player-flagged references are a fallback, not a first choice, when
     // equally executable unflagged recipes exist. Never outrank hard constraints.
     if(a?.candidate_status===b?.candidate_status&&a?.hard_constraint_status==='PASS'&&b?.hard_constraint_status==='PASS'){
@@ -301,6 +307,9 @@ export function projectRecipeStrategy({
     // The ranking mode changes candidate ordering independently of source rows.
     // Evidence fingerprints must not alias two different recommendation orders.
     sort_mode:String(sortMode),
+    // Ranking policy changes must invalidate cached strategy evidence even
+    // when the same recipe, inventory, goal and sort-mode inputs are reused.
+    ranking_policy:'review-after-evidence-backed-v1',
     pot_size:normalizedPot,
     require_verified_master:Boolean(requireVerifiedMaster),
     near_shortage_max:Math.max(0,integer(nearShortageMax,10)),
