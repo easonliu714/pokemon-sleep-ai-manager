@@ -1,5 +1,5 @@
 import {rows,isRescueReadonly} from './database.js';
-import {PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-current-authority.js';
+import {PUBLIC_RECIPE_MASTER,PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-current-authority.js';
 import {
   PUBLIC_RECIPE_PROVENANCE,
   PUBLIC_RECIPE_PROVENANCE_VERSION,
@@ -80,6 +80,7 @@ export function buildLocalRecipeStrategyProjection({
     ...projectRecipeStrategy({
       recipes,
       recipeIngredients,
+      authoritativeRecipes:PUBLIC_RECIPE_MASTER,
       recipeStates,
       inventory,
       provenance:PUBLIC_RECIPE_PROVENANCE,

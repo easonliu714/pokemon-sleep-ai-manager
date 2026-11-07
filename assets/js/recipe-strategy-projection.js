@@ -70,6 +70,20 @@ function normalizeStates(input){
   }));
 }
 function normalizeProvenance(input){return new Map((input||[]).map(row=>[String(row.recipe_id||''),row]));}
+// Immutable public formula parity is required before local SQLite can yield
+// actionable advice. Matching totals alone do not certify ingredient identity.
+function matchesCanonicalFormula(recipe,observed,canonical){
+  if(!canonical||!Array.isArray(canonical.ingredients)||
+    recipe.total_ingredients!==canonical.total_ingredients||
+    normalizeCategory(recipe.category)!==normalizeCategory(canonical.category))return false;
+  const canonicalRows=canonical.ingredients.map(item=>[
+    String(item.ingredient_name||''),item.quantity,
+  ]).sort(([a],[b])=>a.localeCompare(b,'zh-Hant'));
+  const localRows=observed.map(item=>[item.ingredient_name,item.quantity])
+    .sort(([a],[b])=>a.localeCompare(b,'zh-Hant'));
+  return canonicalRows.length===localRows.length&&canonicalRows.every(([name,quantity],i)=>
+    name===localRows[i][0]&&Number.isSafeInteger(quantity)&&quantity>0&&quantity===localRows[i][1]);
+}
 function groupRecipeIngredients(input){
   const map=new Map();
   for(const row of input||[]){
@@ -164,6 +178,7 @@ export function sortRecipeStrategyCandidates(candidates,mode='unlock_recipes'){
 export function projectRecipeStrategy({
   recipes=[],
   recipeIngredients=[],
+  authoritativeRecipes=null,
   recipeStates=[],
   inventory=[],
   provenance=[],
@@ -183,6 +198,8 @@ export function projectRecipeStrategy({
   const stateMap=normalizeStates(recipeStates);
   const provenanceMap=normalizeProvenance(provenance);
   const ingredientsByRecipe=groupRecipeIngredients(recipeIngredients);
+  const authoritativeMap=Array.isArray(authoritativeRecipes)
+    ?new Map(authoritativeRecipes.map(row=>[String(row.recipe_id||''),row])):null;
   const normalizedDish=normalizeCategory(dishCategory);
   // G6.2: weekly/player pot capacity is a hard cooking constraint. A REAL,
   // malformed TEXT or negative value must not be truncated/clamped into a
@@ -247,6 +264,8 @@ export function projectRecipeStrategy({
     // A missing join row previously understated shortages and returned READY.
     const observedTotal=requirements.reduce((sum,row)=>sum+row.required,0);
     const expectedTotal=recipe.total_ingredients;
+    const authorityFormulaVerified=authoritativeMap===null||matchesCanonicalFormula(
+      recipe,ingredientsByRecipe.get(id)||[],authoritativeMap.get(id));
     const requirementsVerified=Number.isSafeInteger(expectedTotal)&&expectedTotal>0
       &&requirements.length>0
       // G6.2: a matching ingredient sum cannot verify an unknown/legacy-alias
@@ -255,7 +274,8 @@ export function projectRecipeStrategy({
         &&PUBLIC_INGREDIENT_CANONICAL_NAMES.includes(row.ingredient_name)
         &&row.quantity_verified===true
         &&Number.isSafeInteger(row.required)&&row.required>0)
-      &&Number.isSafeInteger(observedTotal)&&observedTotal===expectedTotal;
+      &&Number.isSafeInteger(observedTotal)&&observedTotal===expectedTotal
+      &&authorityFormulaVerified;
     const potRequired=Math.max(0,integer(expectedTotal,observedTotal));
     const potFit=normalizedPot===null?null:normalizedPot>=potRequired;
     const provenanceVerified=VERIFIED_FORMULA_EVIDENCE.has(evidence.formula_evidence);
@@ -264,6 +284,7 @@ export function projectRecipeStrategy({
     const missingInputs=[];
     if(normalizedPot===null)missingInputs.push('pot_size');
     if(!requirementsVerified)missingInputs.push('recipe_ingredient_requirements');
+    if(!authorityFormulaVerified)missingInputs.push('recipe_master_authority');
     if(!inventoryVerified)missingInputs.push('ingredient_inventory');
     if(!reserveVerified)missingInputs.push('ingredient_safe_reserve');
     if(!state.unlocked_verified)missingInputs.push('recipe_unlock_state');
@@ -328,6 +349,15 @@ export function projectRecipeStrategy({
       row.requirements.map(item=>[item.ingredient_name,item.required,item.quantity_verified]),
       row.provenance_status,row.formula_evidence,row.lifecycle,
     ]),
+    // Canonical authority drift invalidates cached evidence even if local
+    // SQLite rows and the declared public master version remain unchanged.
+    canonical_recipe_authority:authoritativeMap===null?null:candidates.map(row=>{
+      const canonical=authoritativeMap.get(row.recipe_id);
+      return [row.recipe_id,canonical?.category??null,canonical?.total_ingredients??null,
+        Array.isArray(canonical?.ingredients)?canonical.ingredients.map(item=>[
+          item.ingredient_name,item.quantity,
+        ]).sort(([a],[b])=>String(a).localeCompare(String(b),'zh-Hant')):null];
+    }),
     recipe_feedback:recipeAttemptFeedbackFingerprintRows(recipeFeedback),
   };
   const candidatesWithFeedback=applyRecipeAttemptFeedback(candidates,recipeFeedback);
