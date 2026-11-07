@@ -105,6 +105,12 @@ for(const invalidQuantity of [7.5,'7.5']){
   assert(get(invalidStock,'特選蘋果咖哩').missing_inputs.includes('ingredient_inventory'),
     'strategy_fractional_stock_reason_missing');
 }
+const unrelatedInvalidStock=run({inventory:[
+  {ingredient_name:'特選蘋果',quantity:7},
+  {ingredient_name:'豆製肉',quantity:1.5},
+]});
+assert(get(unrelatedInvalidStock,'特選蘋果咖哩').candidate_status==='UNLOCK_CANDIDATE_READY',
+  'strategy_unrelated_invalid_stock_must_not_suppress_verified_recipe');
 const sqliteIntegerTextStock=run({inventory:[{ingredient_name:'特選蘋果',quantity:'7'}]});
 assert(get(sqliteIntegerTextStock,'特選蘋果咖哩').candidate_status==='UNLOCK_CANDIDATE_READY',
   'strategy_integer_text_stock_remains_compatible');
