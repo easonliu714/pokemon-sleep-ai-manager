@@ -138,6 +138,35 @@ const sqliteIntegerTextStock=run({inventory:[{ingredient_name:'特選蘋果',qua
 assert(get(sqliteIntegerTextStock,'特選蘋果咖哩').candidate_status==='UNLOCK_CANDIDATE_READY',
   'strategy_integer_text_stock_remains_compatible');
 
+// G6.2 independent player-unlock read-side authority: SQLite INTEGER affinity
+// does not constrain legacy/corrupt values to 0/1. The unified workbench
+// already rejects noncanonical flags; strategy must not recommend an unlock
+// when a present player's unlock flag is invalid (2/-1/TEXT).
+for(const invalidUnlock of [2,-1,'INVALID_UNLOCK']){
+  const invalid=run({recipeStates:[{
+    recipe_id:byName('特選蘋果咖哩').recipe_id,
+    unlocked:invalidUnlock,player_record_exists:1,
+    player_recipe_id:'player:invalid-unlock',
+  }]});
+  const row=get(invalid,'特選蘋果咖哩');
+  assert(row.candidate_status==='REVIEW_MISSING_INPUT','strategy_invalid_player_unlock_must_hold');
+  assert(row.hard_constraint_status==='REVIEW','strategy_invalid_player_unlock_must_not_pass');
+  assert(row.missing_inputs.includes('recipe_unlock_state'),'strategy_invalid_player_unlock_reason_missing');
+  const canonicalLocked=run({recipeStates:[{
+    recipe_id:byName('特選蘋果咖哩').recipe_id,
+    unlocked:0,player_record_exists:1,
+    player_recipe_id:'player:invalid-unlock',
+  }]});
+  assert(invalid.input_fingerprint!==canonicalLocked.input_fingerprint,
+    'strategy_invalid_unlock_must_not_alias_canonical_locked_fingerprint');
+}
+const canonicalTextUnlock=run({recipeStates:[{
+  recipe_id:byName('特選蘋果咖哩').recipe_id,
+  unlocked:'1',player_record_exists:1,player_recipe_id:'player:canonical-text',
+}]});
+assert(get(canonicalTextUnlock,'特選蘋果咖哩').candidate_status==='COOK_NOW_UNLOCKED',
+  'strategy_canonical_text_unlock_remains_compatible');
+
 const cookNow=run({recipeStates:states([byName('特選蘋果咖哩')],true)});
 assert(get(cookNow,'特選蘋果咖哩').candidate_status==='COOK_NOW_UNLOCKED','cook_now_status');
 assert(get(cookNow,'特選蘋果咖哩').hard_constraint_status==='PASS','cook_now_hard_status');

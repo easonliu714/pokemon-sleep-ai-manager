@@ -55,12 +55,19 @@ function verifiedInventoryQuantity(value){
 function normalizeInventory(input){
   return new Map((input||[]).map(row=>[String(row.ingredient_name||''),verifiedInventoryQuantity(row.quantity)]));
 }
+// A present SQLite player unlock flag must be canonical 0/1. Numeric coercion
+// of malformed legacy values must not authorize actionable recipe advice.
 function normalizeStates(input){
-  return new Map((input||[]).map(row=>[String(row.recipe_id||''),{
-    unlocked:Number(row.unlocked||0)===1,
-    player_record_exists:Number(row.player_record_exists||0)===1,
-    player_recipe_id:row.player_recipe_id||null,
-  }]));
+  return new Map((input||[]).map(row=>{
+    const flag=row.unlocked;
+    const unlockedVerified=flag===0||flag===1||flag==='0'||flag==='1';
+    return [String(row.recipe_id||''),{
+      unlocked:flag===1||flag==='1',
+      unlocked_verified:unlockedVerified,
+      player_record_exists:Number(row.player_record_exists||0)===1,
+      player_recipe_id:row.player_recipe_id||null,
+    }];
+  }));
 }
 function normalizeProvenance(input){return new Map((input||[]).map(row=>[String(row.recipe_id||''),row]));}
 function groupRecipeIngredients(input){
@@ -90,11 +97,11 @@ function ingredientReadiness({unlocked,rawShortage,strategyShortage,missingKinds
   return 'BLOCKED_INGREDIENT_SHORTAGE';
 }
 
-function candidateStatus({ingredientStatus,potFit,provenanceVerified,requireVerifiedMaster,requirementsVerified,inventoryVerified,reserveVerified}){
+function candidateStatus({ingredientStatus,potFit,provenanceVerified,requireVerifiedMaster,requirementsVerified,inventoryVerified,reserveVerified,stateVerified}){
   if(requireVerifiedMaster&&!provenanceVerified)return 'REVIEW_PROVENANCE';
   // G6.2: neither a partial formula nor malformed observed stock can certify
   // an actionable recipe. An absent stock row retains existing zero-stock UX.
-  if(!requirementsVerified||!inventoryVerified||!reserveVerified)return 'REVIEW_MISSING_INPUT';
+  if(!requirementsVerified||!inventoryVerified||!reserveVerified||!stateVerified)return 'REVIEW_MISSING_INPUT';
   if(potFit===null)return 'REVIEW_MISSING_INPUT';
   if(potFit===false)return 'BLOCKED_POT_CAPACITY';
   return ingredientStatus;
@@ -182,7 +189,7 @@ export function projectRecipeStrategy({
     if(evidence.lifecycle!=='ACTIVE'){excluded.non_active_provenance.push(id);continue;}
     if(normalizedDish&&normalizeCategory(recipe.category)!==normalizedDish){excluded.category.push(id);continue;}
 
-    const state=stateMap.get(id)||{unlocked:false,player_record_exists:false,player_recipe_id:null};
+    const state=stateMap.get(id)||{unlocked:false,unlocked_verified:true,player_record_exists:false,player_recipe_id:null};
     const requirements=(ingredientsByRecipe.get(id)||[]).map(item=>{
       const required=item.quantity;
       const quantityVerified=item.quantity_verified===true;
@@ -241,13 +248,14 @@ export function projectRecipeStrategy({
     const potRequired=Math.max(0,integer(expectedTotal,observedTotal));
     const potFit=normalizedPot===null?null:normalizedPot>=potRequired;
     const provenanceVerified=VERIFIED_FORMULA_EVIDENCE.has(evidence.formula_evidence);
-    const status=candidateStatus({ingredientStatus,potFit,provenanceVerified,requireVerifiedMaster:Boolean(requireVerifiedMaster),requirementsVerified,inventoryVerified,reserveVerified});
+    const status=candidateStatus({ingredientStatus,potFit,provenanceVerified,requireVerifiedMaster:Boolean(requireVerifiedMaster),requirementsVerified,inventoryVerified,reserveVerified,stateVerified:state.unlocked_verified});
     const failedConstraints=[];
     const missingInputs=[];
     if(normalizedPot===null)missingInputs.push('pot_size');
     if(!requirementsVerified)missingInputs.push('recipe_ingredient_requirements');
     if(!inventoryVerified)missingInputs.push('ingredient_inventory');
     if(!reserveVerified)missingInputs.push('ingredient_safe_reserve');
+    if(!state.unlocked_verified)missingInputs.push('recipe_unlock_state');
     if(requireVerifiedMaster&&!provenanceVerified)failedConstraints.push('require_verified_master');
     if(potFit===false)failedConstraints.push('pot_capacity_limit');
     if(totalRawShortage>0)failedConstraints.push('ingredient_availability');
@@ -292,7 +300,7 @@ export function projectRecipeStrategy({
     near_missing_kinds_max:Math.max(0,integer(nearMissingKindsMax,2)),
     safe_reserve:stableEntries(Object.fromEntries(reserveMap)),
     inventory:[...inventoryMap.entries()].sort(([a],[b])=>a.localeCompare(b,'zh-Hant')),
-    states:[...stateMap.entries()].map(([id,state])=>[id,state.unlocked,state.player_record_exists,state.player_recipe_id]).sort(([a],[b])=>a.localeCompare(b)),
+    states:[...stateMap.entries()].map(([id,state])=>[id,state.unlocked,state.unlocked_verified,state.player_record_exists,state.player_recipe_id]).sort(([a],[b])=>a.localeCompare(b)),
     active_recipe_ids:candidates.map(row=>row.recipe_id).sort(),
     recipe_feedback:recipeAttemptFeedbackFingerprintRows(recipeFeedback),
   };
