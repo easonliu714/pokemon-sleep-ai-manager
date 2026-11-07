@@ -284,6 +284,29 @@ assert(upcomingExcluded.excluded.non_active_provenance.includes(fakeUpcoming.rec
 assert(!upcomingExcluded.candidates.some(row=>row.recipe_name==='UPCOMING FIXTURE'),'upcoming_runtime_leak');
 assert(PUBLIC_RECIPE_UPCOMING_EVIDENCE.length===2,'real_upcoming_evidence_fixture_changed');
 
+// G6.2 negative-first: stockpile ranking must not promote a formula-unknown
+// REVIEW candidate above a verified near-ready recipe merely because the
+// missing formula misleadingly produces zero computed shortage. This is a
+// distinct no-waste ranking guard, not the sort-mode fingerprint fix.
+const stockpileReview=projectRecipeStrategy({
+  recipes:[byName('特選蘋果咖哩'),byName('忍者咖哩')],
+  recipeIngredients:relations([byName('特選蘋果咖哩')]),
+  recipeStates:states([byName('特選蘋果咖哩'),byName('忍者咖哩')],false),
+  inventory:[{ingredient_name:'特選蘋果',quantity:3}],
+  provenance:PUBLIC_RECIPE_PROVENANCE,
+  potSize:100,
+  requireVerifiedMaster:true,
+  sortMode:'ingredient_stockpile',
+  masterVersion:PUBLIC_RECIPE_MASTER_VERSION,
+  provenanceVersion:PUBLIC_RECIPE_PROVENANCE_VERSION,
+});
+assert(get(stockpileReview,'忍者咖哩').candidate_status==='REVIEW_MISSING_INPUT',
+  'stockpile_review_control_missing_formula');
+assert(get(stockpileReview,'特選蘋果咖哩').candidate_status==='UNLOCK_CANDIDATE_NEAR',
+  'stockpile_review_control_verified_near');
+assert(stockpileReview.candidates[0].recipe_name==='特選蘋果咖哩',
+  'strategy_review_must_not_lead_stockpile');
+
 const orderA=projectRecipeStrategy({
   recipes:[byName('忍者咖哩'),byName('特選蘋果咖哩')],
   recipeIngredients:relations([byName('忍者咖哩'),byName('特選蘋果咖哩')]),
