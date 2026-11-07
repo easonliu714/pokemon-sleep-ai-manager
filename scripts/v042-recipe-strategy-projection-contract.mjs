@@ -91,6 +91,33 @@ const canonicalNormal=projectRecipeStrategy(canonicalInput);
 assert(canonicalNormal.candidates[0].candidate_status==='UNLOCK_CANDIDATE_READY',
   'strategy_canonical_formula_positive_control');
 
+// G6.2 negative-first: a stale local recipe display name can point the player
+// to the wrong dish even while recipe ID, formula, energy and static provenance
+// remain verified. Name identity is part of immutable canonical recipe evidence.
+const localRecipeNameDrift=projectRecipeStrategy({
+  ...canonicalInput,
+  recipes:[{...canonicalApple,recipe_name:'錯誤料理名稱'}],
+});
+assert(localRecipeNameDrift.candidates[0].candidate_status==='REVIEW_MISSING_INPUT',
+  'strategy_local_recipe_name_drift_must_hold');
+assert(localRecipeNameDrift.candidates[0].missing_inputs.includes('recipe_master_authority'),
+  'strategy_local_recipe_name_drift_authority_reason');
+assert(localRecipeNameDrift.input_fingerprint!==canonicalNormal.input_fingerprint,
+  'strategy_local_recipe_name_drift_fingerprint');
+
+// Independent canonical-only drift: the local SQLite recipe remains unchanged.
+// Even if the public version string was not bumped, the evidence fingerprint
+// must not alias the previous trusted recommendation.
+const canonicalRecipeNameDrift=projectRecipeStrategy({
+  ...canonicalInput,
+  authoritativeRecipes:CURRENT_PUBLIC_RECIPE_MASTER.map(row=>
+    row.recipe_id===canonicalApple.recipe_id?{...row,recipe_name:'另一種料理'}:row),
+});
+assert(canonicalRecipeNameDrift.candidates[0].candidate_status==='REVIEW_MISSING_INPUT',
+  'strategy_canonical_recipe_name_drift_must_hold');
+assert(canonicalRecipeNameDrift.input_fingerprint!==canonicalNormal.input_fingerprint,
+  'strategy_canonical_recipe_name_drift_must_invalidate_fingerprint');
+
 // G6.2 independent immutable energy authority: local SQLite recipe_master
 // can retain a verified formula but drift in base_energy. Energy is the final
 // tie-breaker for actionable recipe recommendations, so unverified local
