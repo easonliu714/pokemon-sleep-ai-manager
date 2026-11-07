@@ -93,6 +93,22 @@ const missingTotal=run({recipes:[{...byName('特選蘋果咖哩'),total_ingredie
 assert(get(missingTotal,'特選蘋果咖哩').candidate_status==='REVIEW_MISSING_INPUT','strategy_unknown_recipe_total_must_hold');
 
 
+// G6.2 independent strategy read-side negative: SQLite has dynamic typing, so a
+// malformed REAL/text stock quantity may be observed despite INTEGER affinity.
+// Truncating 7.5 to 7 must not certify an actionable cooking recommendation.
+for(const invalidQuantity of [7.5,'7.5']){
+  const invalidStock=run({inventory:[{ingredient_name:'特選蘋果',quantity:invalidQuantity}]});
+  assert(get(invalidStock,'特選蘋果咖哩').candidate_status==='REVIEW_MISSING_INPUT',
+    'strategy_fractional_stock_must_hold');
+  assert(get(invalidStock,'特選蘋果咖哩').hard_constraint_status==='REVIEW',
+    'strategy_fractional_stock_must_not_pass');
+  assert(get(invalidStock,'特選蘋果咖哩').missing_inputs.includes('ingredient_inventory'),
+    'strategy_fractional_stock_reason_missing');
+}
+const sqliteIntegerTextStock=run({inventory:[{ingredient_name:'特選蘋果',quantity:'7'}]});
+assert(get(sqliteIntegerTextStock,'特選蘋果咖哩').candidate_status==='UNLOCK_CANDIDATE_READY',
+  'strategy_integer_text_stock_remains_compatible');
+
 const cookNow=run({recipeStates:states([byName('特選蘋果咖哩')],true)});
 assert(get(cookNow,'特選蘋果咖哩').candidate_status==='COOK_NOW_UNLOCKED','cook_now_status');
 assert(get(cookNow,'特選蘋果咖哩').hard_constraint_status==='PASS','cook_now_hard_status');
