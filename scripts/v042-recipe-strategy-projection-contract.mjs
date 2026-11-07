@@ -152,6 +152,13 @@ for(const invalidUnlock of [2,-1,'INVALID_UNLOCK']){
   assert(row.candidate_status==='REVIEW_MISSING_INPUT','strategy_invalid_player_unlock_must_hold');
   assert(row.hard_constraint_status==='REVIEW','strategy_invalid_player_unlock_must_not_pass');
   assert(row.missing_inputs.includes('recipe_unlock_state'),'strategy_invalid_player_unlock_reason_missing');
+  const canonicalLocked=run({recipeStates:[{
+    recipe_id:byName('特選蘋果咖哩').recipe_id,
+    unlocked:0,player_record_exists:1,
+    player_recipe_id:'player:invalid-unlock',
+  }]});
+  assert(invalid.input_fingerprint!==canonicalLocked.input_fingerprint,
+    'strategy_invalid_unlock_must_not_alias_canonical_locked_fingerprint');
 }
 const canonicalTextUnlock=run({recipeStates:[{
   recipe_id:byName('特選蘋果咖哩').recipe_id,
