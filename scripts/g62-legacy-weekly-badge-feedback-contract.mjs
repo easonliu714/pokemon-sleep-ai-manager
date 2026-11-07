@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import {analyzeIngredientGaps} from '../assets/js/ingredient-gap-engine.js';
 import {normalizeDishCategory} from '../assets/js/weekly-context-normalization.js';
 import {weeklyRecipeRecommendationNames} from '../assets/js/recipe-weekly-feedback-recommendation.js';
+import {PUBLIC_INGREDIENT_CANONICAL_NAMES} from '../assets/js/public-ingredient-identity.js';
 
 // G6.2: execute the real legacy badge bridge in an isolated VM with synthetic
 // catalog and feedback. No player SQLite, IDB, network, public Master or writer.
@@ -11,8 +12,8 @@ const recipes=Array.from({length:5},(_,i)=>({
   recipe_id:'fixture-'+(i+1),recipe_name:'測試料理'+(i+1),
   category:'咖哩／濃湯',unlocked:0,notes:'',
 }));
-const ingredients=recipes.map((r,i)=>({recipe_id:r.recipe_id,ingredient_name:'測試食材'+(i+1),quantity:i+1}));
-const inventory=recipes.map((r,i)=>({ingredient_name:'測試食材'+(i+1),quantity:0}));
+const ingredients=recipes.map((r,i)=>({recipe_id:r.recipe_id,ingredient_name:PUBLIC_INGREDIENT_CANONICAL_NAMES[i],quantity:i+1}));
+const inventory=recipes.map((r,i)=>({ingredient_name:PUBLIC_INGREDIENT_CANONICAL_NAMES[i],quantity:0}));
 const analyzed=analyzeIngredientGaps({recipes,recipeIngredients:ingredients,inventory});
 const names=feedback=>[...weeklyRecipeRecommendationNames(analyzed,'咖哩、濃湯',feedback)];
 assert.deepEqual(names([]),['測試料理1','測試料理2','測試料理3']);
@@ -73,6 +74,7 @@ const ctx={
   isDatabaseReady:()=>databaseReady,isRescueReadonly:()=>rescueReadonly,
   currentEffectiveWeeklyContext:()=>({dish_category:'咖哩／濃湯',week_start:'2026-11-02',player_weekly_authority_source:'SYNTHETIC'}),
   normalizeDishCategory,analyzeIngredientGaps,weeklyRecipeRecommendationNames,
+  PUBLIC_INGREDIENT_CANONICAL_NAMES,
   listRecipeAttemptFeedbackSummaries:()=>{if(feedbackReadFails)throw Error('synthetic feedback read failure');return feedbackRows;},
   getRecipeAttemptPersistenceStatus:()=>({status:persistenceStatus}),
   setTimeout:fn=>{scheduled.push(fn);return scheduled.length;},
@@ -173,6 +175,14 @@ inventoryRows=[];
 ctx.apply();
 assert.deepEqual(recommended(),[],'zero observed inventory rows cannot retain old legacy badges');
 assert.deepEqual(personalRecommended(),[],'zero observed inventory rows cannot authorize personal badges');
+assert.equal(table.dataset.weeklyRecommendationStatus,'HOLD_SOURCE_READ_FAILED');
+// Negative-first independent G6.2: a successful SQL read with a nonempty
+// UNKNOWN-only inventory cannot certify any canonical ingredient stock.
+// Both legacy badge surfaces must fail closed despite quantity=0 being valid.
+inventoryRows=[{ingredient_name:'UNKNOWN_SYNTHETIC_INGREDIENT',quantity:0}];
+ctx.apply();
+assert.deepEqual(recommended(),[],'unknown-only inventory must clear reference badges');
+assert.deepEqual(personalRecommended(),[],'unknown-only inventory must clear personal badges');
 assert.equal(table.dataset.weeklyRecommendationStatus,'HOLD_SOURCE_READ_FAILED');
 inventoryRows=inventory;
 ctx.apply();

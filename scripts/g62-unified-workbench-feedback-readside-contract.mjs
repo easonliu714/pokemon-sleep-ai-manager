@@ -215,6 +215,24 @@ assert.deepEqual(missingInventory.rows,[]);
 // Negative-first G6.2: an empty ingredient_inventory result is not an
 // independently verified zero for every canonical ingredient. Withhold
 // actionable badges; explicit observed quantity=0 remains a valid row.
+// Negative-first independent G6.2 canonical identity gap: a nonempty SQL
+// result containing only an unknown ingredient is NOT observed canonical stock.
+// The current no-rows guard alone cannot distinguish this from real coverage.
+const unknownOnlyInventory=readRecipeInventoryForProjection({readInventory:()=>[
+  {ingredient_name:'UNKNOWN_SYNTHETIC_INGREDIENT',quantity:0},
+]});
+assert.equal(unknownOnlyInventory.verified,false,'unknown-only stock cannot authorize weekly advice');
+assert.equal(unknownOnlyInventory.status,'HOLD_INVENTORY_IDENTITY_UNVERIFIED');
+const unknownHeld=buildRecipeUnifiedWorkbenchProjection({
+  catalogRows,inventory:unknownOnlyInventory.rows,week,recipeFeedback:verifiedRead.rows,
+  feedbackAuthorityVerified:true,inventoryAuthorityVerified:unknownOnlyInventory.verified,
+});
+assert.equal(unknownHeld.unlocked.filter(row=>row.weekly_recommended).length,0);
+assert.equal(unknownHeld.locked.filter(row=>row.weekly_recommended).length,0);
+// Exact canonical identity and explicitly observed zero remain valid.
+assert.equal(readRecipeInventoryForProjection({readInventory:()=>[
+  {ingredient_name:'特選蘋果',quantity:0},
+]}).verified,true);
 const emptyInventory=readRecipeInventoryForProjection({readInventory:()=>[]});
 assert.equal(emptyInventory.verified,false,'zero observed stock rows cannot authorize recipes');
 assert.equal(emptyInventory.status,'HOLD_INVENTORY_NOT_OBSERVED');

@@ -1,5 +1,6 @@
 import {rows,run,persist,snapshot,begin,commit,rollback,isRescueReadonly} from './database.js';
 import {PUBLIC_RECIPE_MASTER,PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-current-authority.js';
+import {PUBLIC_INGREDIENT_CANONICAL_NAMES} from './public-ingredient-identity.js';
 import {analyzeIngredientGaps,sortGapResults} from './ingredient-gap-engine.js';
 import {currentWeeklyContext} from './weekly-context-store.js';
 import {normalizeDishCategory} from './weekly-context-normalization.js';
@@ -85,6 +86,12 @@ export function readRecipeInventoryForProjection({readonly=false,readInventory=(
     if(!Array.isArray(data)||data.some(row=>!row||typeof row!=='object'
       ||!String(row.ingredient_name||'').trim()||!validQuantity(row.quantity)))
       throw new Error('recipe_inventory_rows_invalid');
+    // G6.2 independent canonical-identity admission: a nonempty SQL result
+    // containing only unknown/legacy-alias names is not observed canonical
+    // stock. A malformed row also cannot certify other otherwise-valid rows.
+    // This is read-only; never silently rewrite player ingredient identities.
+    if(data.some(row=>!PUBLIC_INGREDIENT_CANONICAL_NAMES.includes(row.ingredient_name)))
+      return Object.freeze({rows:[],verified:false,status:'HOLD_INVENTORY_IDENTITY_UNVERIFIED'});
     // G6.2: no observed ingredient rows is not proof that every stock is zero.
     // Keep the public catalog visible but withhold actionable weekly badges.
     if(data.length===0)return Object.freeze({rows:[],verified:false,status:'HOLD_INVENTORY_NOT_OBSERVED'});
