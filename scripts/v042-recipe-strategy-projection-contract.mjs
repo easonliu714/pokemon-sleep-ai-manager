@@ -56,6 +56,27 @@ assert(get(unlockReady,'特選蘋果咖哩').hard_constraint_status==='PASS','un
 assert(get(unlockReady,'特選蘋果咖哩').total_strategy_shortage===0,'unlock_ready_shortage');
 assert(get(unlockReady,'特選蘋果咖哩').pot_fit===true,'unlock_ready_pot');
 
+// G6.2 independent strategy consumer: incomplete formula rows must not
+// masquerade as an executable UNLOCK_CANDIDATE_READY recommendation.
+// The legacy weekly badges have a separate guard; this is the strategy path.
+const missingAllRequirements=run({recipeIngredients:[]});
+assert(get(missingAllRequirements,'特選蘋果咖哩').candidate_status==='REVIEW_MISSING_INPUT','strategy_missing_all_recipe_ingredients_must_hold');
+assert(get(missingAllRequirements,'特選蘋果咖哩').hard_constraint_status==='REVIEW','strategy_missing_all_recipe_ingredients_must_not_pass');
+const partialRecipe=byName('忍者咖哩');
+const partialIngredients=relations([partialRecipe]);
+assert(partialIngredients.length>1,'fixture_requires_multi_ingredient_recipe');
+const partialDemand=run({
+  recipes:[partialRecipe],
+  recipeIngredients:partialIngredients.slice(1),
+  inventory:partialIngredients.map(item=>({ingredient_name:item.ingredient_name,quantity:999})),
+  potSize:100,
+});
+assert(get(partialDemand,'忍者咖哩').candidate_status==='REVIEW_MISSING_INPUT','strategy_partial_recipe_ingredient_demand_must_hold');
+assert(get(partialDemand,'忍者咖哩').missing_inputs.includes('recipe_ingredient_requirements'),'strategy_partial_demand_must_explain_hold');
+const missingTotal=run({recipes:[{...byName('特選蘋果咖哩'),total_ingredients:null}]});
+assert(get(missingTotal,'特選蘋果咖哩').candidate_status==='REVIEW_MISSING_INPUT','strategy_unknown_recipe_total_must_hold');
+
+
 const cookNow=run({recipeStates:states([byName('特選蘋果咖哩')],true)});
 assert(get(cookNow,'特選蘋果咖哩').candidate_status==='COOK_NOW_UNLOCKED','cook_now_status');
 assert(get(cookNow,'特選蘋果咖哩').hard_constraint_status==='PASS','cook_now_hard_status');
