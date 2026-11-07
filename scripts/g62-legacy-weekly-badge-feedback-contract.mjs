@@ -168,6 +168,11 @@ assert.deepEqual(recommended(),[],'boolean inventory quantity must not become ze
 inventoryRows=[...inventory,{ingredient_name:'測試未知',quantity:1.5}];
 ctx.apply();
 assert.deepEqual(recommended(),[],'fractional stock must not become verified integer stock');
+inventoryRows=[];
+ctx.apply();
+assert.deepEqual(recommended(),[],'zero observed inventory rows cannot retain old legacy badges');
+assert.deepEqual(personalRecommended(),[],'zero observed inventory rows cannot authorize personal badges');
+assert.equal(table.dataset.weeklyRecommendationStatus,'HOLD_SOURCE_READ_FAILED');
 inventoryRows=inventory;
 ctx.apply();
 assert.deepEqual(recommended(),['測試料理3','測試料理4','測試料理5'],'verified inventory recovery re-admits safe feedback-filtered badges');
