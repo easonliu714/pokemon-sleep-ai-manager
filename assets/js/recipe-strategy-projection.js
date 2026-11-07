@@ -361,6 +361,10 @@ export function projectRecipeStrategy({
     canonical_recipe_authority:authoritativeMap===null?null:candidates.map(row=>{
       const canonical=authoritativeMap.get(row.recipe_id);
       return [row.recipe_id,canonical?.category??null,canonical?.total_ingredients??null,
+        // #824: the immutable energy is an actionable tie-breaker and #823
+        // rejects local/canonical drift. Bind the canonical value too so a
+        // source-only change cannot reuse READY evidence for a REVIEW result.
+        canonical?.base_energy??null,
         Array.isArray(canonical?.ingredients)?canonical.ingredients.map(item=>[
           item.ingredient_name,item.quantity,
         ]).sort(([a],[b])=>String(a).localeCompare(String(b),'zh-Hant')):null];
