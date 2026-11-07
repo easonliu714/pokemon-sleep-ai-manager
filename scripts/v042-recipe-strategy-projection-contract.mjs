@@ -307,6 +307,34 @@ assert(get(stockpileReview,'特選蘋果咖哩').candidate_status==='UNLOCK_CAND
 assert(stockpileReview.candidates[0].recipe_name==='特選蘋果咖哩',
   'strategy_review_must_not_lead_stockpile');
 
+// G6.2 independent no-waste negative: a player-marked suspect formula that is
+// merely READY-to-unlock must not outrank a verified, unflagged COOK_NOW recipe.
+// Existing equal-status feedback tests do not cover this cross-status priority.
+const suspectApple=byName('特選蘋果咖哩');
+const trustedNinja=byName('忍者咖哩');
+const suspectCrossStatus=projectRecipeStrategy({
+  recipes:[suspectApple,trustedNinja],
+  recipeIngredients:relations([suspectApple,trustedNinja]),
+  recipeStates:[
+    {recipe_id:suspectApple.recipe_id,unlocked:0,player_record_exists:1},
+    {recipe_id:trustedNinja.recipe_id,unlocked:1,player_record_exists:1},
+  ],
+  inventory:relations([suspectApple,trustedNinja]).map(item=>({ingredient_name:item.ingredient_name,quantity:999})),
+  provenance:PUBLIC_RECIPE_PROVENANCE,
+  recipeFeedback:[{recipe_id:suspectApple.recipe_id,recommendation_paused:0,reference_maybe_wrong:1}],
+  potSize:100,
+  requireVerifiedMaster:true,
+  sortMode:'unlock_recipes',
+  masterVersion:PUBLIC_RECIPE_MASTER_VERSION,
+  provenanceVersion:PUBLIC_RECIPE_PROVENANCE_VERSION,
+});
+assert(get(suspectCrossStatus,'特選蘋果咖哩').candidate_status==='UNLOCK_CANDIDATE_READY',
+  'suspect_cross_status_control_ready');
+assert(get(suspectCrossStatus,'忍者咖哩').candidate_status==='COOK_NOW_UNLOCKED',
+  'suspect_cross_status_control_cook_now');
+assert(suspectCrossStatus.candidates[0].recipe_id===trustedNinja.recipe_id,
+  'strategy_suspect_cross_status_must_not_lead');
+
 const orderA=projectRecipeStrategy({
   recipes:[byName('忍者咖哩'),byName('特選蘋果咖哩')],
   recipeIngredients:relations([byName('忍者咖哩'),byName('特選蘋果咖哩')]),
