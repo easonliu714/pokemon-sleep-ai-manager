@@ -40,8 +40,13 @@ function verifiedRequirements(recipes,requirements){
     const quantity=item?.quantity;
     const validQuantity=(typeof quantity==='number'&&Number.isSafeInteger(quantity)&&quantity>0)
       ||(typeof quantity==='string'&&/^[1-9][0-9]*$/.test(quantity)&&Number.isSafeInteger(Number(quantity)));
+    // The recipe requirement table has no FK to canonical ingredient names.
+    // Unknown/legacy aliases are not evidence of a verified recipe demand.
+    // Never rank a recipe by treating such an unrecognized demand as zero stock.
     if(!item||!ids.has(item.recipe_id)||typeof item.ingredient_name!=='string'
-      ||!item.ingredient_name.trim()||!validQuantity)
+      ||!item.ingredient_name.trim()
+      ||!PUBLIC_INGREDIENT_CANONICAL_NAMES.includes(item.ingredient_name)
+      ||!validQuantity)
       throw new Error('G62_LEGACY_RECIPE_REQUIREMENTS_UNVERIFIED');
     covered.add(item.recipe_id);
   }

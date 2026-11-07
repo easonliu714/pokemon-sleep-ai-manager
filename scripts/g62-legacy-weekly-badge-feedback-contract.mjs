@@ -209,6 +209,13 @@ assert.deepEqual(recommended(),[],'fractional recipe requirement is unverified d
 masterIngredients=ingredients.slice(1);
 ctx.apply();
 assert.deepEqual(recommended(),[],'partial recipe ingredient query must not fabricate ready recipes');
+// G6.2 independent source-bound negative: the recipe requirement table has
+// no canonical ingredient-name FK. A successful read with an unknown ingredient
+// must not be ranked as a verified recipe with zero known stock for that name.
+masterIngredients=ingredients.map((r,i)=>i===0?{...r,ingredient_name:'UNKNOWN_SYNTHETIC_INGREDIENT'}:r);
+ctx.apply();
+assert.deepEqual(recommended(),[],'unknown recipe requirement identity must withhold legacy badges');
+assert.equal(table.dataset.weeklyRecommendationStatus,'HOLD_SOURCE_READ_FAILED');
 masterIngredients=ingredients.map((r,i)=>i===0?{...r,quantity:'1'}:r);
 ctx.apply();
 assert.deepEqual(recommended(),['測試料理3','測試料理4','測試料理5'],'canonical integer requirement string remains valid');
