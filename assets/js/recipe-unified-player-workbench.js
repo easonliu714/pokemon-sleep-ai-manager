@@ -85,6 +85,9 @@ export function readRecipeInventoryForProjection({readonly=false,readInventory=(
     if(!Array.isArray(data)||data.some(row=>!row||typeof row!=='object'
       ||!String(row.ingredient_name||'').trim()||!validQuantity(row.quantity)))
       throw new Error('recipe_inventory_rows_invalid');
+    // G6.2: no observed ingredient rows is not proof that every stock is zero.
+    // Keep the public catalog visible but withhold actionable weekly badges.
+    if(data.length===0)return Object.freeze({rows:[],verified:false,status:'HOLD_INVENTORY_NOT_OBSERVED'});
     return Object.freeze({rows:data,verified:true,status:'VERIFIED_READ'});
   }catch{
     console.warn('Recipe inventory read unavailable; shortages and weekly recommendations withheld');

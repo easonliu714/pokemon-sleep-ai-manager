@@ -212,6 +212,19 @@ const missingInventory=readRecipeInventoryForProjection({
 assert.equal(missingInventory.verified,false);
 assert.equal(missingInventory.status,'HOLD_INVENTORY_READ_FAILED');
 assert.deepEqual(missingInventory.rows,[]);
+// Negative-first G6.2: an empty ingredient_inventory result is not an
+// independently verified zero for every canonical ingredient. Withhold
+// actionable badges; explicit observed quantity=0 remains a valid row.
+const emptyInventory=readRecipeInventoryForProjection({readInventory:()=>[]});
+assert.equal(emptyInventory.verified,false,'zero observed stock rows cannot authorize recipes');
+assert.equal(emptyInventory.status,'HOLD_INVENTORY_NOT_OBSERVED');
+const emptyHeld=buildRecipeUnifiedWorkbenchProjection({
+  catalogRows,inventory:emptyInventory.rows,week,recipeFeedback:verifiedRead.rows,
+  feedbackAuthorityVerified:true,inventoryAuthorityVerified:emptyInventory.verified,
+});
+assert.equal(emptyHeld.unlocked.filter(row=>row.weekly_recommended).length,0);
+assert.equal(emptyHeld.locked.filter(row=>row.weekly_recommended).length,0);
+
 // Regression: Number(null), Number(''), Number(false), Number([]) all equal 0;
 // none is an authoritative SQLite stock quantity. Numeric-string compatibility stays.
 assert.equal(readRecipeInventoryForProjection({readInventory:()=>[
