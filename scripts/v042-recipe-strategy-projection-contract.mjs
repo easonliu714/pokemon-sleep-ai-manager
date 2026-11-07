@@ -110,6 +110,23 @@ assert(canonicalEnergyDrift.candidates[0].missing_inputs.includes('recipe_master
 assert(canonicalEnergyDrift.input_fingerprint!==canonicalNormal.input_fingerprint,
   'strategy_canonical_energy_drift_fingerprint_must_change');
 
+// G6.2 independent canonical-authority fingerprint regression: the immutable
+// authority itself may change without a version bump while local SQLite stays
+// byte-for-byte unchanged. #823 rejects the now-stale local energy as REVIEW,
+// but the evidence fingerprint must also change across that source drift.
+const changedCanonicalEnergy=projectRecipeStrategy({
+  ...canonicalInput,
+  authoritativeRecipes:CURRENT_PUBLIC_RECIPE_MASTER.map(row=>row.recipe_id===canonicalApple.recipe_id
+    ?{...row,base_energy:row.base_energy+1}:row),
+});
+assert(changedCanonicalEnergy.candidates[0].candidate_status==='REVIEW_MISSING_INPUT',
+  'strategy_canonical_authority_energy_drift_control_must_hold');
+assert(changedCanonicalEnergy.candidates[0].missing_inputs.includes('recipe_master_authority'),
+  'strategy_canonical_authority_energy_drift_reason');
+assert(changedCanonicalEnergy.input_fingerprint!==canonicalNormal.input_fingerprint,
+  'strategy_canonical_authority_energy_drift_must_invalidate_fingerprint');
+
+
 const canonicalSubstituted=projectRecipeStrategy({...canonicalInput,recipeIngredients:[{
   recipe_id:canonicalApple.recipe_id,ingredient_name:'豆製肉',quantity:7,
 }]});
