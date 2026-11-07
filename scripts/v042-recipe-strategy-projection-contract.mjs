@@ -73,6 +73,22 @@ const partialDemand=run({
 });
 assert(get(partialDemand,'忍者咖哩').candidate_status==='REVIEW_MISSING_INPUT','strategy_partial_recipe_ingredient_demand_must_hold');
 assert(get(partialDemand,'忍者咖哩').missing_inputs.includes('recipe_ingredient_requirements'),'strategy_partial_demand_must_explain_hold');
+// G6.2 independent strategy consumer: the recipe ingredient table has no
+// canonical-name FK. A noncanonical ingredient with matching quantity/total
+// must never be actionable, even when a synthetic inventory row covers it.
+// This is NOT the legacy weekly badge consumer already guarded in #808.
+const unknownDemand=run({
+  recipeIngredients:[{
+    recipe_id:byName('特選蘋果咖哩').recipe_id,
+    ingredient_name:'UNKNOWN_SYNTHETIC_INGREDIENT',
+    quantity:7,
+  }],
+  inventory:[{ingredient_name:'UNKNOWN_SYNTHETIC_INGREDIENT',quantity:7}],
+});
+assert(get(unknownDemand,'特選蘋果咖哩').candidate_status==='REVIEW_MISSING_INPUT','strategy_unknown_ingredient_identity_must_hold');
+assert(get(unknownDemand,'特選蘋果咖哩').hard_constraint_status==='REVIEW','strategy_unknown_ingredient_identity_must_not_pass');
+assert(get(unknownDemand,'特選蘋果咖哩').missing_inputs.includes('recipe_ingredient_requirements'),'strategy_unknown_ingredient_identity_reason_missing');
+
 const missingTotal=run({recipes:[{...byName('特選蘋果咖哩'),total_ingredients:null}]});
 assert(get(missingTotal,'特選蘋果咖哩').candidate_status==='REVIEW_MISSING_INPUT','strategy_unknown_recipe_total_must_hold');
 
