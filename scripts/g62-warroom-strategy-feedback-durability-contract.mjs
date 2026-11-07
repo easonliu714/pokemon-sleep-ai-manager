@@ -10,6 +10,10 @@ const executable=raw.replace(/^import[\s\S]*?from '[^']+';\r?\n/gm,'')
   .replace(/^export function /gm,'function ');
 assert.match(raw,/function buildLocalRecipeStrategyProjection/);
 let status='UNVERIFIED',throwStatus=false,sqlReads=0,feedbackReads=0,projectCalls=0;
+// The source-bound VM strips ES imports: explicitly inject the same immutable
+// recipe authority passed by production, not a new player-data dependency.
+const canonicalAuthority=Object.freeze([{recipe_id:'r1',category:'甜點／飲料',total_ingredients:1,
+  ingredients:[{ingredient_name:'特選蘋果',quantity:1}]}]);
 const context=vm.createContext({
   isRescueReadonly:()=>false,
   getRecipeAttemptPersistenceStatus:()=>{
@@ -20,11 +24,14 @@ const context=vm.createContext({
   currentEffectiveWeeklyContext:()=>({pot_size:20,dish_category:'甜點／飲料',week_start:'2026-11-02',context_id:'synthetic'}),
   rows:sql=>{sqlReads++;if(sql.includes('FROM recipe_master '))return [{recipe_id:'r1',recipe_name:'Synthetic Recipe',category:'甜點／飲料'}];return [];},
   listRecipeAttemptFeedbackSummaries:()=>{feedbackReads++;return [{recipe_id:'r1',recommendation_paused:1}];},
-  projectRecipeStrategy:()=>{projectCalls++;return {
+  projectRecipeStrategy:({authoritativeRecipes})=>{
+    assert.equal(authoritativeRecipes,canonicalAuthority,'local strategy must forward immutable public formula authority');
+    projectCalls++;return {
     schema:'pokemon-sleep-recipe-strategy-projection/1.0',
     candidates:[{recipe_id:'r1',candidate_status:'COOK_NOW_UNLOCKED',hard_constraint_status:'PASS'}],
     summary:{candidate_count:1,status_counts:{COOK_NOW_UNLOCKED:1},hard_constraint_counts:{PASS:1},excluded_counts:{}},
   };},
+  PUBLIC_RECIPE_MASTER:canonicalAuthority,
   PUBLIC_RECIPE_MASTER_VERSION:'synthetic',
   PUBLIC_RECIPE_PROVENANCE_VERSION:'synthetic',
   PUBLIC_RECIPE_PROVENANCE:[{recipe_id:'r1',lifecycle:'ACTIVE'}],

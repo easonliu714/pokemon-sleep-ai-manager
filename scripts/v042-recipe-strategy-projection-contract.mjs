@@ -6,6 +6,7 @@ import {
   PUBLIC_RECIPE_MASTER,
   PUBLIC_RECIPE_MASTER_VERSION,
 } from '../assets/js/public-recipe-master.js';
+import {PUBLIC_RECIPE_MASTER as CURRENT_PUBLIC_RECIPE_MASTER} from '../assets/js/public-recipe-current-authority.js';
 import {
   PUBLIC_RECIPE_PROVENANCE,
   PUBLIC_RECIPE_PROVENANCE_VERSION,
@@ -68,6 +69,36 @@ assert(get(formulaDrift,'特選蘋果咖哩').candidate_status==='UNLOCK_CANDIDA
   'strategy_formula_drift_control_must_change_readiness');
 assert(formulaDrift.input_fingerprint!==unlockReady.input_fingerprint,
   'strategy_formula_drift_must_invalidate_fingerprint');
+
+// G6.2 independent canonical-source parity negative: a same-total local
+// recipe_master_ingredients substitution is still internally self-consistent,
+// but the static VERIFIED provenance belongs to the immutable public formula.
+// The local read-side must HOLD instead of advising a different ingredient.
+const canonicalApple=CURRENT_PUBLIC_RECIPE_MASTER.find(row=>row.recipe_id===byName('特選蘋果咖哩').recipe_id);
+assert(canonicalApple&&canonicalApple.ingredients.length===1,'canonical_parity_fixture_required');
+const canonicalInput={
+  recipes:[canonicalApple],
+  recipeIngredients:relations([canonicalApple]),
+  recipeStates:states([canonicalApple],false),
+  inventory:[{ingredient_name:'特選蘋果',quantity:7},{ingredient_name:'豆製肉',quantity:7}],
+  provenance:PUBLIC_RECIPE_PROVENANCE,
+  authoritativeRecipes:CURRENT_PUBLIC_RECIPE_MASTER,
+  potSize:20,requireVerifiedMaster:true,
+  masterVersion:PUBLIC_RECIPE_MASTER_VERSION,
+  provenanceVersion:PUBLIC_RECIPE_PROVENANCE_VERSION,
+};
+const canonicalNormal=projectRecipeStrategy(canonicalInput);
+assert(canonicalNormal.candidates[0].candidate_status==='UNLOCK_CANDIDATE_READY',
+  'strategy_canonical_formula_positive_control');
+const canonicalSubstituted=projectRecipeStrategy({...canonicalInput,recipeIngredients:[{
+  recipe_id:canonicalApple.recipe_id,ingredient_name:'豆製肉',quantity:7,
+}]});
+assert(canonicalSubstituted.candidates[0].candidate_status==='REVIEW_MISSING_INPUT',
+  'strategy_canonical_formula_substitution_must_hold');
+assert(canonicalSubstituted.candidates[0].missing_inputs.includes('recipe_master_authority'),
+  'strategy_canonical_formula_substitution_reason_missing');
+assert(canonicalSubstituted.input_fingerprint!==canonicalNormal.input_fingerprint,
+  'strategy_canonical_formula_drift_fingerprint_must_change');
 
 
 // G6.2 independent strategy consumer: incomplete formula rows must not
