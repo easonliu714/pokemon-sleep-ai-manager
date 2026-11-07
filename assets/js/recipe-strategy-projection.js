@@ -300,7 +300,7 @@ export function projectRecipeStrategy({
     near_missing_kinds_max:Math.max(0,integer(nearMissingKindsMax,2)),
     safe_reserve:stableEntries(Object.fromEntries(reserveMap)),
     inventory:[...inventoryMap.entries()].sort(([a],[b])=>a.localeCompare(b,'zh-Hant')),
-    states:[...stateMap.entries()].map(([id,state])=>[id,state.unlocked,state.player_record_exists,state.player_recipe_id]).sort(([a],[b])=>a.localeCompare(b)),
+    states:[...stateMap.entries()].map(([id,state])=>[id,state.unlocked,state.unlocked_verified,state.player_record_exists,state.player_recipe_id]).sort(([a],[b])=>a.localeCompare(b)),
     active_recipe_ids:candidates.map(row=>row.recipe_id).sort(),
     recipe_feedback:recipeAttemptFeedbackFingerprintRows(recipeFeedback),
   };
