@@ -10,7 +10,9 @@ let applying=false;
 // G6.2: a legacy badge is actionable advice; do not coerce unknown stock to zero.
 function inventory(){
   const stock=rows('SELECT ingredient_name,quantity FROM ingredient_inventory');
-  if(!Array.isArray(stock)||stock.some(row=>{
+  // G6.2: empty stock coverage is not an authoritative zero for every
+  // ingredient; clear previously rendered legacy recommendation badges.
+  if(!Array.isArray(stock)||stock.length===0||stock.some(row=>{
     if(!row||typeof row.ingredient_name!=='string'||!row.ingredient_name.trim())return true;
     const quantity=row.quantity;
     if(typeof quantity==='number')return !Number.isSafeInteger(quantity)||quantity<0;
