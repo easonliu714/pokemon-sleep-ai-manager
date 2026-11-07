@@ -65,7 +65,14 @@ function groupRecipeIngredients(input){
   for(const row of input||[]){
     const id=String(row.recipe_id||'');
     if(!map.has(id))map.set(id,[]);
-    map.get(id).push({ingredient_name:String(row.ingredient_name||''),quantity:Math.max(0,integer(row.quantity,0))});
+    // Preserve validity before normalizing. Truncating a REAL or decimal TEXT
+    // recipe requirement could turn an invalid formula into a READY candidate.
+    const verifiedQuantity=verifiedInventoryQuantity(row.quantity);
+    map.get(id).push({
+      ingredient_name:String(row.ingredient_name||''),
+      quantity:verifiedQuantity??0,
+      quantity_verified:verifiedQuantity!==null&&verifiedQuantity>0,
+    });
   }
   for(const rows of map.values())rows.sort((a,b)=>a.ingredient_name.localeCompare(b.ingredient_name,'zh-Hant'));
   return map;
@@ -174,7 +181,8 @@ export function projectRecipeStrategy({
 
     const state=stateMap.get(id)||{unlocked:false,player_record_exists:false,player_recipe_id:null};
     const requirements=(ingredientsByRecipe.get(id)||[]).map(item=>{
-      const required=Math.max(0,integer(item.quantity,0));
+      const required=item.quantity;
+      const quantityVerified=item.quantity_verified===true;
       const owned=Math.max(0,integer(inventoryMap.get(item.ingredient_name),0));
       const safeReserve=Math.max(0,integer(reserveMap.get(item.ingredient_name),0));
       const usable=Math.max(0,owned-safeReserve);
@@ -184,6 +192,7 @@ export function projectRecipeStrategy({
       return {
         ingredient_name:item.ingredient_name,
         required,
+        quantity_verified:quantityVerified,
         owned,
         safe_reserve:safeReserve,
         usable,
@@ -219,6 +228,7 @@ export function projectRecipeStrategy({
       // ingredient identity; unlike a canonical name, it may not be cookable.
       &&requirements.every(row=>row.ingredient_name
         &&PUBLIC_INGREDIENT_CANONICAL_NAMES.includes(row.ingredient_name)
+        &&row.quantity_verified===true
         &&Number.isSafeInteger(row.required)&&row.required>0)
       &&Number.isSafeInteger(observedTotal)&&observedTotal===expectedTotal;
     const potRequired=Math.max(0,integer(expectedTotal,observedTotal));
