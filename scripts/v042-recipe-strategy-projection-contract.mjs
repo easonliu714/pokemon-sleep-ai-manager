@@ -155,6 +155,20 @@ assert(reserveRow.total_strategy_shortage===2,'reserve_strategy_shortage');
 assert(reserveRow.requirements[0].owned===7&&reserveRow.requirements[0].usable===5,'reserve_owned_usable');
 assert(reserveRow.failed_constraints.includes('ingredient_safe_reserve'),'reserve_failed_constraint');
 
+// G6.2 distinct persisted goal-policy authority: an invalid safe reserve
+// must not be truncated/clamped to zero and silently certify a cookable recipe.
+// This is independent of observed stock (#812) and recipe demand (#813).
+for(const invalidReserve of [0.5,'0.5',-1]){
+  const invalid=run({ingredientSafeReserve:{'特選蘋果':invalidReserve}});
+  const row=get(invalid,'特選蘋果咖哩');
+  assert(row.candidate_status==='REVIEW_MISSING_INPUT','strategy_invalid_safe_reserve_must_hold');
+  assert(row.hard_constraint_status==='REVIEW','strategy_invalid_safe_reserve_must_not_pass');
+  assert(row.missing_inputs.includes('ingredient_safe_reserve'),'strategy_invalid_safe_reserve_reason_missing');
+}
+const unrelatedReserve=run({ingredientSafeReserve:{'特選蘋果':0,'豆製肉':0.5}});
+assert(get(unrelatedReserve,'特選蘋果咖哩').candidate_status==='UNLOCK_CANDIDATE_READY',
+  'unrelated invalid reserve must not suppress a verified recipe');
+
 const potBlocked=run({potSize:5});
 assert(get(potBlocked,'特選蘋果咖哩').candidate_status==='BLOCKED_POT_CAPACITY','pot_blocked_status');
 assert(get(potBlocked,'特選蘋果咖哩').failed_constraints.includes('pot_capacity_limit'),'pot_constraint_missing');
