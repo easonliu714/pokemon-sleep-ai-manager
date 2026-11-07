@@ -92,6 +92,29 @@ assert(get(unknownDemand,'特選蘋果咖哩').missing_inputs.includes('recipe_i
 const missingTotal=run({recipes:[{...byName('特選蘋果咖哩'),total_ingredients:null}]});
 assert(get(missingTotal,'特選蘋果咖哩').candidate_status==='REVIEW_MISSING_INPUT','strategy_unknown_recipe_total_must_hold');
 
+// G6.2 negative-first: SQLite INTEGER affinity does not prevent a malformed
+// fractional recipe_master_ingredients row. Truncating 1.5 to 1 can make an
+// otherwise matching trusted total look executable. This is distinct from
+// the legacy weekly badge fixture and fractional observed stock protection.
+for(const malformedDemand of [1.5,'1.5']){
+  const recipe=byName('特選蘋果咖哩');
+  const invalidDemand=run({
+    recipes:[{...recipe,total_ingredients:1}],
+    recipeIngredients:[{recipe_id:recipe.recipe_id,ingredient_name:'特選蘋果',quantity:malformedDemand}],
+  });
+  assert(get(invalidDemand,'特選蘋果咖哩').candidate_status==='REVIEW_MISSING_INPUT',
+    'strategy_fractional_recipe_demand_must_hold');
+  assert(get(invalidDemand,'特選蘋果咖哩').hard_constraint_status==='REVIEW',
+    'strategy_fractional_recipe_demand_must_not_pass');
+  assert(get(invalidDemand,'特選蘋果咖哩').missing_inputs.includes('recipe_ingredient_requirements'),
+    'strategy_fractional_recipe_demand_reason_missing');
+}
+const integerTextDemand=run({
+  recipeIngredients:[{recipe_id:byName('特選蘋果咖哩').recipe_id,ingredient_name:'特選蘋果',quantity:'7'}],
+});
+assert(get(integerTextDemand,'特選蘋果咖哩').candidate_status==='UNLOCK_CANDIDATE_READY',
+  'strategy_canonical_integer_text_recipe_demand_remains_compatible');
+
 
 // G6.2 independent strategy read-side negative: SQLite has dynamic typing, so a
 // malformed REAL/text stock quantity may be observed despite INTEGER affinity.
