@@ -68,8 +68,10 @@ function ingredientReadiness({unlocked,rawShortage,strategyShortage,missingKinds
   return 'BLOCKED_INGREDIENT_SHORTAGE';
 }
 
-function candidateStatus({ingredientStatus,potFit,provenanceVerified,requireVerifiedMaster}){
+function candidateStatus({ingredientStatus,potFit,provenanceVerified,requireVerifiedMaster,requirementsVerified}){
   if(requireVerifiedMaster&&!provenanceVerified)return 'REVIEW_PROVENANCE';
+  // G6.2: never certify readiness from a partial or unknown formula.
+  if(!requirementsVerified)return 'REVIEW_MISSING_INPUT';
   if(potFit===null)return 'REVIEW_MISSING_INPUT';
   if(potFit===false)return 'BLOCKED_POT_CAPACITY';
   return ingredientStatus;
@@ -189,13 +191,22 @@ export function projectRecipeStrategy({
       nearShortageMax:Math.max(0,integer(nearShortageMax,10)),
       nearMissingKindsMax:Math.max(0,integer(nearMissingKindsMax,2)),
     });
-    const potRequired=Math.max(0,integer(recipe.total_ingredients,requirements.reduce((sum,row)=>sum+row.required,0)));
+    // The trusted per-recipe total is independent of the joined ingredient rows.
+    // A missing join row previously understated shortages and returned READY.
+    const observedTotal=requirements.reduce((sum,row)=>sum+row.required,0);
+    const expectedTotal=recipe.total_ingredients;
+    const requirementsVerified=Number.isSafeInteger(expectedTotal)&&expectedTotal>0
+      &&requirements.length>0
+      &&requirements.every(row=>row.ingredient_name&&Number.isSafeInteger(row.required)&&row.required>0)
+      &&Number.isSafeInteger(observedTotal)&&observedTotal===expectedTotal;
+    const potRequired=Math.max(0,integer(expectedTotal,observedTotal));
     const potFit=normalizedPot===null?null:normalizedPot>=potRequired;
     const provenanceVerified=VERIFIED_FORMULA_EVIDENCE.has(evidence.formula_evidence);
-    const status=candidateStatus({ingredientStatus,potFit,provenanceVerified,requireVerifiedMaster:Boolean(requireVerifiedMaster)});
+    const status=candidateStatus({ingredientStatus,potFit,provenanceVerified,requireVerifiedMaster:Boolean(requireVerifiedMaster),requirementsVerified});
     const failedConstraints=[];
     const missingInputs=[];
     if(normalizedPot===null)missingInputs.push('pot_size');
+    if(!requirementsVerified)missingInputs.push('recipe_ingredient_requirements');
     if(requireVerifiedMaster&&!provenanceVerified)failedConstraints.push('require_verified_master');
     if(potFit===false)failedConstraints.push('pot_capacity_limit');
     if(totalRawShortage>0)failedConstraints.push('ingredient_availability');
