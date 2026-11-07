@@ -198,6 +198,21 @@ const unrelatedReserve=run({ingredientSafeReserve:{'特選蘋果':0,'豆製肉':
 assert(get(unrelatedReserve,'特選蘋果咖哩').candidate_status==='UNLOCK_CANDIDATE_READY',
   'unrelated invalid reserve must not suppress a verified recipe');
 
+// G6.2 independent pot-capacity read-side authority: a malformed weekly
+// capacity (REAL/TEXT fractional or negative) must not be rounded into an
+// actionable seven-ingredient recipe. This is distinct from recipe demand,
+// observed stock, safe reserve and unlock-state admission.
+for(const invalidPot of [7.5,'7.5',-7,'INVALID_POT']){
+  const invalid=run({potSize:invalidPot});
+  const row=get(invalid,'特選蘋果咖哩');
+  assert(row.candidate_status==='REVIEW_MISSING_INPUT','strategy_invalid_pot_capacity_must_hold');
+  assert(row.hard_constraint_status==='REVIEW','strategy_invalid_pot_capacity_must_not_pass');
+  assert(row.missing_inputs.includes('pot_size'),'strategy_invalid_pot_capacity_reason_missing');
+}
+const canonicalTextPot=run({potSize:'7'});
+assert(get(canonicalTextPot,'特選蘋果咖哩').candidate_status==='UNLOCK_CANDIDATE_READY',
+  'strategy_canonical_text_pot_capacity_remains_compatible');
+
 const potBlocked=run({potSize:5});
 assert(get(potBlocked,'特選蘋果咖哩').candidate_status==='BLOCKED_POT_CAPACITY','pot_blocked_status');
 assert(get(potBlocked,'特選蘋果咖哩').failed_constraints.includes('pot_capacity_limit'),'pot_constraint_missing');
