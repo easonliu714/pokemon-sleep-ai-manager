@@ -1,4 +1,5 @@
 import {applyRecipeAttemptFeedback,recipeAttemptFeedbackFingerprintRows} from './recipe-attempt-feedback.js';
+import {PUBLIC_INGREDIENT_CANONICAL_NAMES} from './public-ingredient-identity.js';
 
 export const RECIPE_STRATEGY_ENGINE_VERSION='recipe-strategy-2026-08-09-a';
 
@@ -197,7 +198,11 @@ export function projectRecipeStrategy({
     const expectedTotal=recipe.total_ingredients;
     const requirementsVerified=Number.isSafeInteger(expectedTotal)&&expectedTotal>0
       &&requirements.length>0
-      &&requirements.every(row=>row.ingredient_name&&Number.isSafeInteger(row.required)&&row.required>0)
+      // G6.2: a matching ingredient sum cannot verify an unknown/legacy-alias
+      // ingredient identity; unlike a canonical name, it may not be cookable.
+      &&requirements.every(row=>row.ingredient_name
+        &&PUBLIC_INGREDIENT_CANONICAL_NAMES.includes(row.ingredient_name)
+        &&Number.isSafeInteger(row.required)&&row.required>0)
       &&Number.isSafeInteger(observedTotal)&&observedTotal===expectedTotal;
     const potRequired=Math.max(0,integer(expectedTotal,observedTotal));
     const potFit=normalizedPot===null?null:normalizedPot>=potRequired;
