@@ -75,7 +75,10 @@ function normalizeProvenance(input){return new Map((input||[]).map(row=>[String(
 function matchesCanonicalFormula(recipe,observed,canonical){
   if(!canonical||!Array.isArray(canonical.ingredients)||
     recipe.total_ingredients!==canonical.total_ingredients||
-    normalizeCategory(recipe.category)!==normalizeCategory(canonical.category))return false;
+    normalizeCategory(recipe.category)!==normalizeCategory(canonical.category)||
+    // Base energy breaks otherwise equal recommendation ties. A stale local
+    // energy value cannot inherit immutable public recipe authority.
+    recipe.base_energy!==canonical.base_energy)return false;
   const canonicalRows=canonical.ingredients.map(item=>[
     String(item.ingredient_name||''),item.quantity,
   ]).sort(([a],[b])=>a.localeCompare(b,'zh-Hant'));
