@@ -38,8 +38,19 @@ function normalizeSafeReserve(input){
   }
   return new Map(stableEntries(input||{}).map(([name,value])=>[String(name),Math.max(0,integer(value,0))]));
 }
+// SQLite INTEGER affinity is not a guarantee: a corrupted/legacy row can be
+// REAL or TEXT. Never truncate a fractional observed stock into cookable units.
+// Null is a private read-side invalid marker, not an inferred zero.
+function verifiedInventoryQuantity(value){
+  if(typeof value==='number')return Number.isSafeInteger(value)&&value>=0?value:null;
+  if(typeof value==='string'&&/^(0|[1-9][0-9]*)$/.test(value)){
+    const parsed=Number(value);
+    return Number.isSafeInteger(parsed)?parsed:null;
+  }
+  return null;
+}
 function normalizeInventory(input){
-  return new Map((input||[]).map(row=>[String(row.ingredient_name||''),Math.max(0,integer(row.quantity,0))]));
+  return new Map((input||[]).map(row=>[String(row.ingredient_name||''),verifiedInventoryQuantity(row.quantity)]));
 }
 function normalizeStates(input){
   return new Map((input||[]).map(row=>[String(row.recipe_id||''),{
@@ -69,10 +80,11 @@ function ingredientReadiness({unlocked,rawShortage,strategyShortage,missingKinds
   return 'BLOCKED_INGREDIENT_SHORTAGE';
 }
 
-function candidateStatus({ingredientStatus,potFit,provenanceVerified,requireVerifiedMaster,requirementsVerified}){
+function candidateStatus({ingredientStatus,potFit,provenanceVerified,requireVerifiedMaster,requirementsVerified,inventoryVerified}){
   if(requireVerifiedMaster&&!provenanceVerified)return 'REVIEW_PROVENANCE';
-  // G6.2: never certify readiness from a partial or unknown formula.
-  if(!requirementsVerified)return 'REVIEW_MISSING_INPUT';
+  // G6.2: neither a partial formula nor malformed observed stock can certify
+  // an actionable recipe. An absent stock row retains existing zero-stock UX.
+  if(!requirementsVerified||!inventoryVerified)return 'REVIEW_MISSING_INPUT';
   if(potFit===null)return 'REVIEW_MISSING_INPUT';
   if(potFit===false)return 'BLOCKED_POT_CAPACITY';
   return ingredientStatus;
@@ -180,6 +192,11 @@ export function projectRecipeStrategy({
         reserve_blocked:reserveBlocked,
       };
     });
+    // An observed but invalid SQLite quantity is not verified inventory.
+    // Scope this HOLD to ingredients required by this recipe; unrelated rows
+    // cannot suppress an otherwise verified candidate.
+    const inventoryVerified=requirements.every(row=>!inventoryMap.has(row.ingredient_name)
+      ||inventoryMap.get(row.ingredient_name)!==null);
     const totalRawShortage=requirements.reduce((sum,row)=>sum+row.raw_shortage,0);
     const totalStrategyShortage=requirements.reduce((sum,row)=>sum+row.strategy_shortage,0);
     const missingKinds=requirements.filter(row=>row.raw_shortage>0).length;
@@ -207,11 +224,12 @@ export function projectRecipeStrategy({
     const potRequired=Math.max(0,integer(expectedTotal,observedTotal));
     const potFit=normalizedPot===null?null:normalizedPot>=potRequired;
     const provenanceVerified=VERIFIED_FORMULA_EVIDENCE.has(evidence.formula_evidence);
-    const status=candidateStatus({ingredientStatus,potFit,provenanceVerified,requireVerifiedMaster:Boolean(requireVerifiedMaster),requirementsVerified});
+    const status=candidateStatus({ingredientStatus,potFit,provenanceVerified,requireVerifiedMaster:Boolean(requireVerifiedMaster),requirementsVerified,inventoryVerified});
     const failedConstraints=[];
     const missingInputs=[];
     if(normalizedPot===null)missingInputs.push('pot_size');
     if(!requirementsVerified)missingInputs.push('recipe_ingredient_requirements');
+    if(!inventoryVerified)missingInputs.push('ingredient_inventory');
     if(requireVerifiedMaster&&!provenanceVerified)failedConstraints.push('require_verified_master');
     if(potFit===false)failedConstraints.push('pot_capacity_limit');
     if(totalRawShortage>0)failedConstraints.push('ingredient_availability');
