@@ -137,8 +137,9 @@ export function sortRecipeStrategyCandidates(candidates,mode='unlock_recipes'){
     const reviewB=b?.hard_constraint_status==='REVIEW'?1:0;
     if(reviewA!==reviewB)return reviewA-reviewB;
     // G6.2: player-flagged references are a fallback, not a first choice, when
-    // equally executable unflagged recipes exist. Never outrank hard constraints.
-    if(a?.candidate_status===b?.candidate_status&&a?.hard_constraint_status==='PASS'&&b?.hard_constraint_status==='PASS'){
+    // an unflagged PASS recipe exists, even across READY and COOK_NOW statuses.
+    // Pause, REVIEW and hard constraints still take precedence.
+    if(a?.hard_constraint_status==='PASS'&&b?.hard_constraint_status==='PASS'){
       const suspectA=a?.reference_maybe_wrong===true?1:0,suspectB=b?.reference_maybe_wrong===true?1:0;
       if(suspectA!==suspectB)return suspectA-suspectB;
     }
@@ -309,7 +310,7 @@ export function projectRecipeStrategy({
     sort_mode:String(sortMode),
     // Ranking policy changes must invalidate cached strategy evidence even
     // when the same recipe, inventory, goal and sort-mode inputs are reused.
-    ranking_policy:'review-after-evidence-backed-v1',
+    ranking_policy:'review-and-cross-status-suspect-fallback-v1',
     pot_size:normalizedPot,
     require_verified_master:Boolean(requireVerifiedMaster),
     near_shortage_max:Math.max(0,integer(nearShortageMax,10)),
