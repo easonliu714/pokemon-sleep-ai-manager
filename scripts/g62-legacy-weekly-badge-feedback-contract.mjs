@@ -10,7 +10,7 @@ import {PUBLIC_INGREDIENT_CANONICAL_NAMES} from '../assets/js/public-ingredient-
 // catalog and feedback. No player SQLite, IDB, network, public Master or writer.
 const recipes=Array.from({length:5},(_,i)=>({
   recipe_id:'fixture-'+(i+1),recipe_name:'測試料理'+(i+1),
-  category:'咖哩／濃湯',unlocked:0,notes:'',
+  category:'咖哩／濃湯',unlocked:0,notes:'',total_ingredients:i+1,
 }));
 const ingredients=recipes.map((r,i)=>({recipe_id:r.recipe_id,ingredient_name:PUBLIC_INGREDIENT_CANONICAL_NAMES[i],quantity:i+1}));
 const inventory=recipes.map((r,i)=>({ingredient_name:PUBLIC_INGREDIENT_CANONICAL_NAMES[i],quantity:0}));
@@ -219,6 +219,22 @@ assert.equal(table.dataset.weeklyRecommendationStatus,'HOLD_SOURCE_READ_FAILED')
 masterIngredients=ingredients.map((r,i)=>i===0?{...r,quantity:'1'}:r);
 ctx.apply();
 assert.deepEqual(recommended(),['測試料理3','測試料理4','測試料理5'],'canonical integer requirement string remains valid');
+// Independent G6.2 negative-first source-bound proof: a recipe can retain one
+// valid requirement row after a second required ingredient disappears. The
+// legacy coverage-by-recipe-ID check accepts it and undercounts total demand.
+// Both personal/public recipes have a separately stored total_ingredients sum.
+recipes[0].total_ingredients+=7;
+masterIngredients=[...ingredients,{recipe_id:'fixture-1',ingredient_name:PUBLIC_INGREDIENT_CANONICAL_NAMES[5],quantity:7}];
+ctx.apply();
+assert.equal(table.dataset.weeklyRecommendationStatus,'VERIFIED_READ','complete two-ingredient formula must remain actionable');
+masterIngredients=ingredients;
+ctx.apply();
+assert.deepEqual(recommended(),[],'missing second requirement row must not rank a partial recipe as actionable');
+assert.equal(table.dataset.weeklyRecommendationStatus,'HOLD_SOURCE_READ_FAILED','partial formula needs explicit read-side HOLD');
+recipes[0].total_ingredients-=7;
+masterIngredients=verifiedMasterIngredients;
+ctx.apply();
+assert.equal(table.dataset.weeklyRecommendationStatus,'VERIFIED_READ','complete formula recovery restores verified read');
 masterIngredients=verifiedMasterIngredients;
 ctx.apply();
 assert.deepEqual(recommended(),['測試料理3','測試料理4','測試料理5'],'verified requirement recovery restores feedback-filtered badges');

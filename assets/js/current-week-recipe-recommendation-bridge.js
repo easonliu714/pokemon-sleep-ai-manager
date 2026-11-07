@@ -29,13 +29,22 @@ function inventory(){
 function verifiedRequirements(recipes,requirements){
   if(!Array.isArray(recipes)||!Array.isArray(requirements))
     throw new Error('G62_LEGACY_RECIPE_REQUIREMENTS_UNVERIFIED');
-  const ids=new Set();
+  // G6.2: a positive row for each recipe is insufficient if a second
+  // ingredient row was omitted. Both player and public recipe authorities
+  // retain the independently computed total_ingredients checksum.
+  const ids=new Set(),expectedTotals=new Map();
   for(const recipe of recipes){
     if(!recipe||recipe.recipe_id===null||recipe.recipe_id===undefined)
       throw new Error('G62_LEGACY_RECIPE_REQUIREMENTS_UNVERIFIED');
+    const total=recipe.total_ingredients;
+    const validTotal=(typeof total==='number'&&Number.isSafeInteger(total)&&total>0)
+      ||(typeof total==='string'&&/^[1-9][0-9]*$/.test(total)&&Number.isSafeInteger(Number(total)));
+    if(!validTotal||ids.has(recipe.recipe_id))
+      throw new Error('G62_LEGACY_RECIPE_REQUIREMENTS_UNVERIFIED');
     ids.add(recipe.recipe_id);
+    expectedTotals.set(recipe.recipe_id,Number(total));
   }
-  const covered=new Set();
+  const covered=new Set(),observedTotals=new Map();
   for(const item of requirements){
     const quantity=item?.quantity;
     const validQuantity=(typeof quantity==='number'&&Number.isSafeInteger(quantity)&&quantity>0)
@@ -49,8 +58,12 @@ function verifiedRequirements(recipes,requirements){
       ||!validQuantity)
       throw new Error('G62_LEGACY_RECIPE_REQUIREMENTS_UNVERIFIED');
     covered.add(item.recipe_id);
+    const sum=(observedTotals.get(item.recipe_id)||0)+Number(quantity);
+    if(!Number.isSafeInteger(sum))
+      throw new Error('G62_LEGACY_RECIPE_REQUIREMENTS_UNVERIFIED');
+    observedTotals.set(item.recipe_id,sum);
   }
-  if([...ids].some(id=>!covered.has(id)))
+  if([...ids].some(id=>!covered.has(id)||observedTotals.get(id)!==expectedTotals.get(id)))
     throw new Error('G62_LEGACY_RECIPE_REQUIREMENTS_UNVERIFIED');
   return requirements;
 }
