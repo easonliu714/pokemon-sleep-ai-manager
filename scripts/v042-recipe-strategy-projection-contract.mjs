@@ -311,6 +311,31 @@ const orderB=projectRecipeStrategy({
 assert(orderA.input_fingerprint===orderB.input_fingerprint,'fingerprint_depends_on_input_order');
 assert(JSON.stringify(orderA.candidates)===JSON.stringify(orderB.candidates),'projection_depends_on_input_order');
 
+// G6.2 negative-first: a change in ranking policy must invalidate strategy
+// evidence even when recipe, inventory and provenance bytes are unchanged.
+// Stockpile sorting can put a pot-blocked zero-shortage recipe ahead of a
+// near-ready recipe; unlock sorting does the opposite.
+const modeInput={
+  recipes:[byName('特選蘋果咖哩'),byName('忍者咖哩')],
+  recipeIngredients:relations([byName('特選蘋果咖哩'),byName('忍者咖哩')]),
+  recipeStates:states([byName('特選蘋果咖哩'),byName('忍者咖哩')],false),
+  inventory:[{ingredient_name:'特選蘋果',quantity:3},
+    ...relations([byName('忍者咖哩')]).map(item=>({ingredient_name:item.ingredient_name,quantity:999}))],
+  provenance:PUBLIC_RECIPE_PROVENANCE,
+  potSize:20,
+  requireVerifiedMaster:true,
+  masterVersion:PUBLIC_RECIPE_MASTER_VERSION,
+  provenanceVersion:PUBLIC_RECIPE_PROVENANCE_VERSION,
+};
+const unlockMode=projectRecipeStrategy({...modeInput,sortMode:'unlock_recipes'});
+const stockpileMode=projectRecipeStrategy({...modeInput,sortMode:'ingredient_stockpile'});
+assert(unlockMode.candidates[0].candidate_status==='UNLOCK_CANDIDATE_NEAR',
+  'strategy_sort_mode_unlock_control');
+assert(stockpileMode.candidates[0].candidate_status==='BLOCKED_POT_CAPACITY',
+  'strategy_sort_mode_stockpile_control');
+assert(unlockMode.input_fingerprint!==stockpileMode.input_fingerprint,
+  'strategy_sort_mode_drift_must_invalidate_fingerprint');
+
 const categoryFilter=projectRecipeStrategy({
   recipes:[byName('忍者咖哩'),byName('特選蘋果沙拉')],
   recipeIngredients:relations([byName('忍者咖哩'),byName('特選蘋果沙拉')]),

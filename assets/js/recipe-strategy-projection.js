@@ -298,6 +298,9 @@ export function projectRecipeStrategy({
     master_version:String(masterVersion||''),
     provenance_version:String(provenanceVersion||''),
     dish_category:normalizedDish,
+    // The ranking mode changes candidate ordering independently of source rows.
+    // Evidence fingerprints must not alias two different recommendation orders.
+    sort_mode:String(sortMode),
     pot_size:normalizedPot,
     require_verified_master:Boolean(requireVerifiedMaster),
     near_shortage_max:Math.max(0,integer(nearShortageMax,10)),
