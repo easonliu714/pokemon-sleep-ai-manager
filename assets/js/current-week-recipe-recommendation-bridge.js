@@ -3,6 +3,7 @@ import {currentEffectiveWeeklyContext} from './effective-weekly-context.js';
 import {normalizeDishCategory} from './weekly-context-normalization.js';
 import {analyzeIngredientGaps} from './ingredient-gap-engine.js';
 import {weeklyRecipeRecommendationNames} from './recipe-weekly-feedback-recommendation.js';
+import {PUBLIC_INGREDIENT_CANONICAL_NAMES} from './public-ingredient-identity.js';
 import {listRecipeAttemptFeedbackSummaries,getRecipeAttemptPersistenceStatus} from './recipe-attempt-feedback-local.js';
 
 export const CURRENT_WEEK_RECIPE_RECOMMENDATION_VERSION='current-week-recipe-recommendation-2026-08-17-c-effective-context';
@@ -14,6 +15,8 @@ function inventory(){
   // ingredient; clear previously rendered legacy recommendation badges.
   if(!Array.isArray(stock)||stock.length===0||stock.some(row=>{
     if(!row||typeof row.ingredient_name!=='string'||!row.ingredient_name.trim())return true;
+    // Unknown/legacy-alias-only stock is not canonical ingredient coverage.
+    if(!PUBLIC_INGREDIENT_CANONICAL_NAMES.includes(row.ingredient_name))return true;
     const quantity=row.quantity;
     if(typeof quantity==='number')return !Number.isSafeInteger(quantity)||quantity<0;
     if(typeof quantity==='string')return !/^(0|[1-9][0-9]*)$/.test(quantity)||!Number.isSafeInteger(Number(quantity));
