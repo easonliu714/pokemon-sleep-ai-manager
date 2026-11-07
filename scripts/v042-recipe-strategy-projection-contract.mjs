@@ -56,6 +56,20 @@ assert(get(unlockReady,'特選蘋果咖哩').hard_constraint_status==='PASS','un
 assert(get(unlockReady,'特選蘋果咖哩').total_strategy_shortage===0,'unlock_ready_shortage');
 assert(get(unlockReady,'特選蘋果咖哩').pot_fit===true,'unlock_ready_pot');
 
+// G6.2 negative-first: a local recipe-master formula can drift while the
+// advertised master version stays unchanged (stale/corrupt read-side SQLite).
+// Distinct ingredient identities and provenance must invalidate a strategy
+// evidence fingerprint even when the candidate recipe ID is unchanged.
+const formulaDrift=run({recipeIngredients:[{
+  recipe_id:byName('特選蘋果咖哩').recipe_id,
+  ingredient_name:'豆製肉',quantity:7,
+}]});
+assert(get(formulaDrift,'特選蘋果咖哩').candidate_status==='BLOCKED_INGREDIENT_SHORTAGE',
+  'strategy_formula_drift_control_must_change_readiness');
+assert(formulaDrift.input_fingerprint!==unlockReady.input_fingerprint,
+  'strategy_formula_drift_must_invalidate_fingerprint');
+
+
 // G6.2 independent strategy consumer: incomplete formula rows must not
 // masquerade as an executable UNLOCK_CANDIDATE_READY recommendation.
 // The legacy weekly badges have a separate guard; this is the strategy path.
@@ -243,6 +257,8 @@ const unverifiedProvenance=PUBLIC_RECIPE_PROVENANCE.map(row=>row.recipe_id===byN
 const provenanceReview=run({provenance:unverifiedProvenance});
 assert(get(provenanceReview,'特選蘋果咖哩').candidate_status==='REVIEW_PROVENANCE','provenance_review_status');
 assert(get(provenanceReview,'特選蘋果咖哩').failed_constraints.includes('require_verified_master'),'provenance_constraint_missing');
+assert(provenanceReview.input_fingerprint!==unlockReady.input_fingerprint,
+  'strategy_provenance_drift_must_invalidate_fingerprint');
 
 const active=byName('特選蘋果咖哩');
 const fakeUpcoming={
