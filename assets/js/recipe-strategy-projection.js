@@ -32,11 +32,14 @@ function fnv1a(value){
 }
 function deterministicFingerprint(payload){return `recipe_strategy:${fnv1a(JSON.stringify(payload))}`;}
 
+// Goal-profile JSON may contain fractional/negative safe reserves. Do not
+// silently truncate a policy protecting the player's ingredients into zero.
+// A null marker is a read-side HOLD; only required ingredients are affected.
 function normalizeSafeReserve(input){
-  if(Array.isArray(input)){
-    return new Map(input.map(row=>[String(row.ingredient_name||''),Math.max(0,integer(row.safe_reserve,0))]));
-  }
-  return new Map(stableEntries(input||{}).map(([name,value])=>[String(name),Math.max(0,integer(value,0))]));
+  const entries=Array.isArray(input)
+    ?input.map(row=>[String(row?.ingredient_name||''),row?.safe_reserve])
+    :stableEntries(input||{});
+  return new Map(entries.map(([name,value])=>[String(name),verifiedInventoryQuantity(value)]));
 }
 // SQLite INTEGER affinity is not a guarantee: a corrupted/legacy row can be
 // REAL or TEXT. Never truncate a fractional observed stock into cookable units.
@@ -87,11 +90,11 @@ function ingredientReadiness({unlocked,rawShortage,strategyShortage,missingKinds
   return 'BLOCKED_INGREDIENT_SHORTAGE';
 }
 
-function candidateStatus({ingredientStatus,potFit,provenanceVerified,requireVerifiedMaster,requirementsVerified,inventoryVerified}){
+function candidateStatus({ingredientStatus,potFit,provenanceVerified,requireVerifiedMaster,requirementsVerified,inventoryVerified,reserveVerified}){
   if(requireVerifiedMaster&&!provenanceVerified)return 'REVIEW_PROVENANCE';
   // G6.2: neither a partial formula nor malformed observed stock can certify
   // an actionable recipe. An absent stock row retains existing zero-stock UX.
-  if(!requirementsVerified||!inventoryVerified)return 'REVIEW_MISSING_INPUT';
+  if(!requirementsVerified||!inventoryVerified||!reserveVerified)return 'REVIEW_MISSING_INPUT';
   if(potFit===null)return 'REVIEW_MISSING_INPUT';
   if(potFit===false)return 'BLOCKED_POT_CAPACITY';
   return ingredientStatus;
@@ -206,6 +209,10 @@ export function projectRecipeStrategy({
     // cannot suppress an otherwise verified candidate.
     const inventoryVerified=requirements.every(row=>!inventoryMap.has(row.ingredient_name)
       ||inventoryMap.get(row.ingredient_name)!==null);
+    // Persisted goal policies are not guaranteed valid just because a write
+    // form normally validates them. A required invalid reserve must HOLD.
+    const reserveVerified=requirements.every(row=>!reserveMap.has(row.ingredient_name)
+      ||reserveMap.get(row.ingredient_name)!==null);
     const totalRawShortage=requirements.reduce((sum,row)=>sum+row.raw_shortage,0);
     const totalStrategyShortage=requirements.reduce((sum,row)=>sum+row.strategy_shortage,0);
     const missingKinds=requirements.filter(row=>row.raw_shortage>0).length;
@@ -234,12 +241,13 @@ export function projectRecipeStrategy({
     const potRequired=Math.max(0,integer(expectedTotal,observedTotal));
     const potFit=normalizedPot===null?null:normalizedPot>=potRequired;
     const provenanceVerified=VERIFIED_FORMULA_EVIDENCE.has(evidence.formula_evidence);
-    const status=candidateStatus({ingredientStatus,potFit,provenanceVerified,requireVerifiedMaster:Boolean(requireVerifiedMaster),requirementsVerified,inventoryVerified});
+    const status=candidateStatus({ingredientStatus,potFit,provenanceVerified,requireVerifiedMaster:Boolean(requireVerifiedMaster),requirementsVerified,inventoryVerified,reserveVerified});
     const failedConstraints=[];
     const missingInputs=[];
     if(normalizedPot===null)missingInputs.push('pot_size');
     if(!requirementsVerified)missingInputs.push('recipe_ingredient_requirements');
     if(!inventoryVerified)missingInputs.push('ingredient_inventory');
+    if(!reserveVerified)missingInputs.push('ingredient_safe_reserve');
     if(requireVerifiedMaster&&!provenanceVerified)failedConstraints.push('require_verified_master');
     if(potFit===false)failedConstraints.push('pot_capacity_limit');
     if(totalRawShortage>0)failedConstraints.push('ingredient_availability');
