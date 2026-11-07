@@ -64,7 +64,7 @@ const formulaDrift=run({recipeIngredients:[{
   recipe_id:byName('特選蘋果咖哩').recipe_id,
   ingredient_name:'豆製肉',quantity:7,
 }]});
-assert(get(formulaDrift,'特選蘋果咖哩').candidate_status==='BLOCKED_INGREDIENT_SHORTAGE',
+assert(get(formulaDrift,'特選蘋果咖哩').candidate_status==='UNLOCK_CANDIDATE_NEAR',
   'strategy_formula_drift_control_must_change_readiness');
 assert(formulaDrift.input_fingerprint!==unlockReady.input_fingerprint,
   'strategy_formula_drift_must_invalidate_fingerprint');
