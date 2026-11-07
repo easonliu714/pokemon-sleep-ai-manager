@@ -210,6 +210,10 @@ export function projectRecipeStrategy({
   const candidates=[];
 
   const sortedRecipes=[...recipes].sort((a,b)=>String(a.recipe_id).localeCompare(String(b.recipe_id)));
+  // Preserve the exact SQLite master total for fingerprinting. The display
+  // pot_required is truncated for legacy output compatibility and cannot
+  // distinguish a malformed REAL 7.5 from a verified INTEGER 7.
+  const rawRecipeTotals=new Map(sortedRecipes.map(recipe=>[String(recipe.recipe_id||''),recipe.total_ingredients]));
   for(const recipe of sortedRecipes){
     const id=String(recipe.recipe_id||'');
     const evidence=provenanceMap.get(id);
@@ -345,7 +349,7 @@ export function projectRecipeStrategy({
     // Bind actual sorted source evidence, not only the active recipe IDs.
     recipe_authority:candidates.map(row=>[
       row.recipe_id,row.recipe_name??null,row.category??null,row.base_energy,
-      row.total_ingredients,
+      row.total_ingredients,rawRecipeTotals.get(row.recipe_id)??null,
       row.requirements.map(item=>[item.ingredient_name,item.required,item.quantity_verified]),
       row.provenance_status,row.formula_evidence,row.lifecycle,
     ]),

@@ -100,6 +100,29 @@ assert(canonicalSubstituted.candidates[0].missing_inputs.includes('recipe_master
 assert(canonicalSubstituted.input_fingerprint!==canonicalNormal.input_fingerprint,
   'strategy_canonical_formula_drift_fingerprint_must_change');
 
+// G6.2 negative-first: a malformed local recipe_master.total_ingredients
+// (SQLite REAL) is already REVIEW, but its truncated display pot_required
+// must not alias the verified integer formula's evidence fingerprint.
+// The immutable canonical authority and declared master version are identical.
+const fractionalCanonicalTotal=projectRecipeStrategy({
+  ...canonicalInput,
+  recipes:[{...canonicalApple,total_ingredients:7.5}],
+});
+assert(fractionalCanonicalTotal.candidates[0].candidate_status==='REVIEW_MISSING_INPUT',
+  'strategy_fractional_master_total_control_must_hold');
+assert(fractionalCanonicalTotal.candidates[0].missing_inputs.includes('recipe_master_authority'),
+  'strategy_fractional_master_total_authority_reason');
+assert(fractionalCanonicalTotal.input_fingerprint!==canonicalNormal.input_fingerprint,
+  'strategy_fractional_master_total_must_invalidate_fingerprint');
+const secondFractionalTotal=projectRecipeStrategy({
+  ...canonicalInput,
+  recipes:[{...canonicalApple,total_ingredients:7.25}],
+});
+assert(secondFractionalTotal.candidates[0].candidate_status==='REVIEW_MISSING_INPUT',
+  'strategy_second_fractional_total_control_must_hold');
+assert(secondFractionalTotal.input_fingerprint!==fractionalCanonicalTotal.input_fingerprint,
+  'strategy_distinct_fractional_master_totals_must_not_alias');
+
 
 // G6.2 independent strategy consumer: incomplete formula rows must not
 // masquerade as an executable UNLOCK_CANDIDATE_READY recommendation.
