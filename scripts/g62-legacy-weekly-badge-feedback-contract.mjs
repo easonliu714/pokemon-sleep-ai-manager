@@ -168,6 +168,7 @@ assert.deepEqual(recommended(),[],'boolean inventory quantity must not become ze
 inventoryRows=[...inventory,{ingredient_name:'測試未知',quantity:1.5}];
 ctx.apply();
 assert.deepEqual(recommended(),[],'fractional stock must not become verified integer stock');
+personalEnabled=true;
 inventoryRows=[];
 ctx.apply();
 assert.deepEqual(recommended(),[],'zero observed inventory rows cannot retain old legacy badges');
@@ -176,6 +177,7 @@ assert.equal(table.dataset.weeklyRecommendationStatus,'HOLD_SOURCE_READ_FAILED')
 inventoryRows=inventory;
 ctx.apply();
 assert.deepEqual(recommended(),['測試料理3','測試料理4','測試料理5'],'verified inventory recovery re-admits safe feedback-filtered badges');
+personalEnabled=false;
 assert.equal(table.dataset.weeklyRecommendationStatus,'VERIFIED_READ');
 assert.ok(warnings.some(msg=>msg.includes('source authority unavailable')),'inventory HOLD needs explicit diagnostic');
 // Independent source-bound regression: incomplete or coercible recipe-master
