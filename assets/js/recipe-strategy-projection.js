@@ -177,7 +177,11 @@ export function projectRecipeStrategy({
   const provenanceMap=normalizeProvenance(provenance);
   const ingredientsByRecipe=groupRecipeIngredients(recipeIngredients);
   const normalizedDish=normalizeCategory(dishCategory);
-  const normalizedPot=potSize===null||potSize===undefined||potSize===''?null:Math.max(0,integer(potSize,0));
+  // G6.2: weekly/player pot capacity is a hard cooking constraint. A REAL,
+  // malformed TEXT or negative value must not be truncated/clamped into a
+  // cookable integer; withhold strategy advice until authority is reviewed.
+  const verifiedPot=verifiedInventoryQuantity(potSize);
+  const normalizedPot=verifiedPot!==null&&verifiedPot>0?verifiedPot:null;
   const excluded={non_active_provenance:[],missing_provenance:[],category:[]};
   const candidates=[];
 
