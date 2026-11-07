@@ -306,6 +306,15 @@ export function projectRecipeStrategy({
     inventory:[...inventoryMap.entries()].sort(([a],[b])=>a.localeCompare(b,'zh-Hant')),
     states:[...stateMap.entries()].map(([id,state])=>[id,state.unlocked,state.unlocked_verified,state.player_record_exists,state.player_recipe_id]).sort(([a],[b])=>a.localeCompare(b)),
     active_recipe_ids:candidates.map(row=>row.recipe_id).sort(),
+    // G6.2: a stale/corrupt local recipe formula or provenance row can change
+    // the actionable candidate while declared master versions remain unchanged.
+    // Bind actual sorted source evidence, not only the active recipe IDs.
+    recipe_authority:candidates.map(row=>[
+      row.recipe_id,row.recipe_name??null,row.category??null,row.base_energy,
+      row.total_ingredients,
+      row.requirements.map(item=>[item.ingredient_name,item.required,item.quantity_verified]),
+      row.provenance_status,row.formula_evidence,row.lifecycle,
+    ]),
     recipe_feedback:recipeAttemptFeedbackFingerprintRows(recipeFeedback),
   };
   const candidatesWithFeedback=applyRecipeAttemptFeedback(candidates,recipeFeedback);
