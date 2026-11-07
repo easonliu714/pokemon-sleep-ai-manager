@@ -90,6 +90,26 @@ const canonicalInput={
 const canonicalNormal=projectRecipeStrategy(canonicalInput);
 assert(canonicalNormal.candidates[0].candidate_status==='UNLOCK_CANDIDATE_READY',
   'strategy_canonical_formula_positive_control');
+
+// G6.2 independent immutable energy authority: local SQLite recipe_master
+// can retain a verified formula but drift in base_energy. Energy is the final
+// tie-breaker for actionable recipe recommendations, so unverified local
+// energy must not inherit the canonical formula's trusted provenance.
+assert(Number.isSafeInteger(canonicalApple.base_energy)&&canonicalApple.base_energy>0,
+  'strategy_canonical_energy_fixture_requires_verified_value');
+const canonicalEnergyDrift=projectRecipeStrategy({
+  ...canonicalInput,
+  recipes:[{...canonicalApple,base_energy:canonicalApple.base_energy+100000}],
+});
+assert(canonicalEnergyDrift.candidates[0].candidate_status==='REVIEW_MISSING_INPUT',
+  'strategy_canonical_energy_drift_must_hold');
+assert(canonicalEnergyDrift.candidates[0].hard_constraint_status==='REVIEW',
+  'strategy_canonical_energy_drift_must_not_be_actionable');
+assert(canonicalEnergyDrift.candidates[0].missing_inputs.includes('recipe_master_authority'),
+  'strategy_canonical_energy_drift_authority_reason');
+assert(canonicalEnergyDrift.input_fingerprint!==canonicalNormal.input_fingerprint,
+  'strategy_canonical_energy_drift_fingerprint_must_change');
+
 const canonicalSubstituted=projectRecipeStrategy({...canonicalInput,recipeIngredients:[{
   recipe_id:canonicalApple.recipe_id,ingredient_name:'豆製肉',quantity:7,
 }]});
