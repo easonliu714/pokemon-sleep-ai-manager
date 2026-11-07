@@ -307,6 +307,9 @@ export function projectRecipeStrategy({
     // The ranking mode changes candidate ordering independently of source rows.
     // Evidence fingerprints must not alias two different recommendation orders.
     sort_mode:String(sortMode),
+    // Ranking policy changes must invalidate cached strategy evidence even
+    // when the same recipe, inventory, goal and sort-mode inputs are reused.
+    ranking_policy:'review-after-evidence-backed-v1',
     pot_size:normalizedPot,
     require_verified_master:Boolean(requireVerifiedMaster),
     near_shortage_max:Math.max(0,integer(nearShortageMax,10)),
