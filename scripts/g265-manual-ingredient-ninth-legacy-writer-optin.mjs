@@ -1,6 +1,6 @@
 // G265 ninth manual ingredient isolated opt-in: real SQL.js, fake IndexedDB,
 // cooperative Web Locks, durable generation/SHA CAS, UNKNOWN unlock and private audit.
-// Synthetic fixtures only. Original production source is asserted, never production-wired.
+// Synthetic fixtures only. Independent opt-in adapter remains unmounted; live named production writer is guarded.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {webcrypto} from 'node:crypto';
@@ -24,7 +24,7 @@ assert.doesNotMatch(source,/commit\(\);await persist\(\)/);
 assert.match(audit,/INSERT INTO import_batches/);
 assert.match(audit,/INSERT INTO import_changes/);
 assert.doesNotMatch(legacy,/sqlite-manual-ingredient-optin/);
-console.log('PASS G265_NINTH_MANUAL_INGREDIENT_EXACT_LEGACY_SOURCE_BOUND_NOT_PRODUCTION_WIRED');
+console.log('PASS G265_NINTH_MANUAL_INGREDIENT_GUARDED_SOURCE_AND_ISOLATED_ADAPTER_NOT_WIRED');
 
 const SQL=await initSqlJs();
 const seedSql=new SQL.Database();
