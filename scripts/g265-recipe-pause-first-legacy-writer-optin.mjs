@@ -15,6 +15,8 @@ assert.match(original,/canonicalRecipe\(recipeId\)/);
 assert.ok(original.includes('INSERT INTO recipe_feedback_state(recipe_id,recommendation_paused,reference_maybe_wrong,last_attempt_id,updated_at)'));
 assert.match(original,/VALUES\(\?,\?,0,NULL,\?\)/);
 assert.match(original,/ON CONFLICT\(recipe_id\) DO UPDATE SET recommendation_paused=excluded\.recommendation_paused,updated_at=excluded\.updated_at/);
+const frozen=fs.readFileSync('scripts/fixtures/g265-recipe-pause-pre-admission-source.txt','utf8');
+assert.match(frozen,/await persist\(\)/,'frozen historical pre-admission bypass remains auditable');
 assert.match(original,/withPrimarySqliteMutationLock\(async lease/);
 assert.match(original,/persist\(\{primaryMutationLease:lease\}\)/);
 assert.match(original,/operation:'PAUSE_TOGGLE'/);
