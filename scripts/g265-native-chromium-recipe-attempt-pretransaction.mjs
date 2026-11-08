@@ -57,7 +57,7 @@ async function newTab(){
     const factory=new Function('deps',`
       let recordInFlight=false,playerWriteInFlight=false,pendingPersistenceHold=null;
       const {canonicalRecipe,provenanceFor,recipeAttemptDefaultSource,buildRecipeAttemptFeedbackRecord,
-        eventId,nowIso,canonicalIngredientNames,requireWritableDatabase,armPersistenceMarker,
+        eventId,nowIso,clean,canonicalIngredientNames,requireWritableDatabase,armPersistenceMarker,
         clearPersistenceMarker,persistenceUncertainError,beginSqliteExclusiveWriteWindow,
         withPrimarySqliteMutationLock,withSqliteCoordinatedMutation,rows,run,begin,commit,
         rollback,snapshot,persist,RECIPE_ATTEMPT_FEEDBACK_VERSION}=deps;
@@ -72,6 +72,7 @@ async function newTab(){
       recipeAttemptDefaultSource:()=>({source_type:'PUBLIC_RECIPE_PROVENANCE',source_name:'Synthetic'}),
       buildRecipeAttemptFeedbackRecord:x=>({...x,outcome:'DID_NOT_UNLOCK'}),
       eventId:()=> 'fixture-attempt-'+(++v.seq)+'-'+window.name,
+      clean:value=>String(value??'').normalize('NFKC').trim(),
       nowIso:()=>v.now,
       canonicalIngredientNames:()=>new Set(rows('SELECT ingredient_name FROM ingredient_master').map(x=>x.ingredient_name)),
       requireWritableDatabase:()=>{if(v.uncertain)throw Error('SQLITE_UNVERIFIED_RELOAD_REQUIRED');},
