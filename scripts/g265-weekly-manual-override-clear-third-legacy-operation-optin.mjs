@@ -8,14 +8,16 @@ import {createSqliteVersionNeutralAtomicPairGate} from '../assets/js/sqlite-vers
 import {createWeeklyManualOverrideClearOptIn,createWeeklyManualOverrideClearNoopProbe} from '../assets/js/sqlite-weekly-manual-override-clear-optin.js';
 
 // Third exact legacy operation: source-bound, isolated, never production-wired.
-const legacy=fs.readFileSync(new URL('../assets/js/weekly-context-manual-override.js',import.meta.url),'utf8');
+const legacy=fs.readFileSync(new URL('./fixtures/g265-weekly-clear-pre-admission-source.mjs',import.meta.url),'utf8');
+const current=fs.readFileSync(new URL('../assets/js/weekly-context-manual-override.js',import.meta.url),'utf8');
+assert.match(current.split('export async function clearWeeklyManualOverride(')[1],/withPrimarySqliteMutationLock\(async lease/,'production clear must no longer use legacy bypass');
 const original=legacy.split('export async function clearWeeklyManualOverride(')[1];
 assert.ok(original,'clearWeeklyManualOverride legacy writer must exist');
 assert.match(original,/await snapshot\('manual:weekly-context-override-clear'\)/);
 assert.match(original,/run\('DELETE FROM settings WHERE key=\?',\[settingKey\(epoch\)\]\)/);
 assert.match(original,/await persist\(\)/);
 assert.doesNotMatch(legacy,/sqlite-weekly-manual-override-clear-optin/);
-console.log('PASS G265_WEEKLY_CLEAR_THIRD_EXACT_LEGACY_OPERATION_SOURCE_BOUND_NOT_WIRED');
+console.log('PASS G265_WEEKLY_CLEAR_THIRD_FROZEN_PRE_ADMISSION_WITNESS_OPTIN_NOT_WIRED');
 
 globalThis.indexedDB=indexedDB;
 const {saveDatabaseBytes,loadDatabaseBytes,closeStorageConnection}=await import('../assets/js/storage.js');

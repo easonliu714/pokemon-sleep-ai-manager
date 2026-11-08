@@ -48,6 +48,7 @@ const releases={
   'v0.4.27.55.3.3.31':{build:'20261024-v0427553331-g479-passive-esm-provenance',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.31-v0427553331-g479-passive-esm-provenance'},
   'v0.4.27.55.3.3.32':{build:'20261024-v0427553332-g479-exact-resource-provenance',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.32-v0427553332-g479-exact-resource-provenance'},
   // G265: exact .33 page-hydration successor, no fuzzy release acceptance.
+  'v0.4.27.55.3.3.44':{build:'20261108-v0427553344-g265-weekly-clear-pre-sql',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.44-v0427553344-g265-weekly-clear-pre-sql'},
   'v0.4.27.55.3.3.43':{build:'20261108-v0427553343-g265-weekly-override-pre-sql',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.43-v0427553343-g265-weekly-override-pre-sql'},
   'v0.4.27.55.3.3.42':{build:'20261108-v0427553342-g265-manual-item-pre-sql',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.42-v0427553342-g265-manual-item-pre-sql'},
   'v0.4.27.55.3.3.41':{build:'20261108-v0427553341-g265-manual-ingredient-pre-sql',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.41-v0427553341-g265-manual-ingredient-pre-sql'},

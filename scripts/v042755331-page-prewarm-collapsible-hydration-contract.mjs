@@ -22,7 +22,7 @@ const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 // G265 .33 exact successor retains .32 and original prewarm/visibility ownership contracts.
 
 // G9-R .37 read-side Halloween camp alias successor; frozen .36 exact checks retained.
-if(appVersion==='v0.4.27.55.3.3.43'||appVersion==='v0.4.27.55.3.3.42'||appVersion==='v0.4.27.55.3.3.41'||appVersion==='v0.4.27.55.3.3.40'||appVersion==='v0.4.27.55.3.3.39'||appVersion==='v0.4.27.55.3.3.38'||appVersion==='v0.4.27.55.3.3.37'){
+if(appVersion==='v0.4.27.55.3.3.44'||appVersion==='v0.4.27.55.3.3.43'||appVersion==='v0.4.27.55.3.3.42'||appVersion==='v0.4.27.55.3.3.41'||appVersion==='v0.4.27.55.3.3.40'||appVersion==='v0.4.27.55.3.3.39'||appVersion==='v0.4.27.55.3.3.38'||appVersion==='v0.4.27.55.3.3.37'){
   // Exact .36 successor inherits ALL frozen .35 assertions below.
   assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.36'"),'missing .35 predecessor bridge');
 

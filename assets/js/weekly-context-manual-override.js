@@ -113,11 +113,32 @@ export async function saveWeeklyManualOverride({weekStart,basedOnImportRevision,
   }
 }
 
+// G265: even an apparent no-op must not read a stale tab's weekly override.
+// Hold one loaded-primary Web Lock from the first row read through SQL and ACK.
 export async function clearWeeklyManualOverride(weekStart){
   const epoch=String(weekStart||'').trim();if(!epoch)return false;
-  if(!readWeeklyManualOverride(epoch))return false;
-  await snapshot('manual:weekly-context-override-clear');
-  run('DELETE FROM settings WHERE key=?',[settingKey(epoch)]);
-  await persist();
-  return true;
+  const close=beginSqliteExclusiveWriteWindow();
+  let acknowledged=false;
+  try{
+    return await withPrimarySqliteMutationLock(async lease=>{
+      if(!readWeeklyManualOverride(epoch)){
+        acknowledged=true; // admitted, read-only no-op; no durable write needed
+        return false;
+      }
+      await snapshot('manual:weekly-context-override-clear');
+      withSqliteCoordinatedMutation(begin);
+      try{
+        withSqliteCoordinatedMutation(()=>run('DELETE FROM settings WHERE key=?',[settingKey(epoch)]));
+        withSqliteCoordinatedMutation(commit);
+        await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
+        acknowledged=true;
+        return true;
+      }catch(error){
+        withSqliteCoordinatedMutation(rollback);
+        throw error;
+      }
+    });
+  }finally{
+    close({uncertainOutcome:!acknowledged});
+  }
 }
