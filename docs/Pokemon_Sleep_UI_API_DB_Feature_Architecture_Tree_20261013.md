@@ -1,3 +1,7 @@
+## 2026-11-08 G265 #832 exact release successor | same material PR
+- Production item pre-SQL writer requires a new cache identity: exact `v0.4.27.55.3.3.42`, build `20261108-v0427553342-g265-manual-item-pre-sql`, cache `pokemon-sleep-ai-v0.4.27.55.3.3.42-v0427553342-g265-manual-item-pre-sql`. Preserve immutable .41 and all predecessor tuples, and extend exact browser, hydration, Candy and Watchdog regressions without weakening legacy checks.
+- SOURCE_TEST_CANDIDATE until final exact-head PR CI, protected expected-head merge, and new-main CI/Pages. No player DB test or Android Owner PASS. G265 global/RATE_PERSISTED_APPLY HOLD; independent #19/#295/#479 material rotation still pending.
+
 ## 2026-11-08 G265 #832 named manual item pre-SQL admission | material Draft candidate
 - Fresh main at intake `8cde16356f3151e20d7841373bddf0dc41135edd`; Ruleset #25813226 ACTIVE, no competing Open PR; #831 new-main 12/12 Push CI+Pages SUCCESS. #829 read-only 15-grade keep/adopt UI already VERIFIED_SOURCE; do not repeat.
 - Independent production risk: `manual-editor.js::saveItem` performed item inventory/master reads, snapshot, BEGIN, SQL mutation, private audit and COMMIT **before** its later `persist()` CAS/Web Lock. Existing #830 Pokémon and #831 ingredient named admissions do not cover item writer.
