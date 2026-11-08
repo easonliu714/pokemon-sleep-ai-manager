@@ -58,6 +58,7 @@ async function newTab(){
     const run=(sql,params=[])=>{v.mutations++;v.db.run(sql,params);};
     const snapshot=async()=>{
       v.snapshots++;
+      v.snapshotBytes=Array.from(v.db.export()); // immutable pre-BEGIN disposable SQLite image
       if(v.hold){
         v.enteredResolve();
         await new Promise(resolve=>{v.release=resolve;});
@@ -132,6 +133,7 @@ try{
   assert.ok(state.inventory.some(x=>x[0]==='ING_A'&&x[1]===9&&x[2]===1));
   assert.ok(!state.inventory.some(x=>x[0]==='ING_B'));
   assert.equal(state.batches.length,1);assert.equal(state.changes.length,1);
+  assert.deepEqual(await a.evaluate(()=>window.__ingredient.snapshotBytes),seed);
   console.log('PASS G265_NATIVE_INGREDIENT_NAMED_A_HELD_B_QUEUED_STALE_PRE_SQL_AUDIT_PRESERVED');
   const staleRetry=await attempt(b,'ING_B',0);
   assert.equal(staleRetry.ok,false);
@@ -164,6 +166,7 @@ try{
   const blocked=await attempt(c,'BLOCKED',4);
   assert.match(String(blocked.code),/synthetic-ingredient-rollback/);
   assert.deepEqual((await durable(c)).bytes,before.bytes);
+  assert.deepEqual(await c.evaluate(()=>window.__ingredient.snapshotBytes),before.bytes);
   assert.equal((await attempt(c,'ING_B',1)).ok,false);
   console.log('PASS G265_NATIVE_INGREDIENT_SQL_TRIGGER_ROLLBACK_NO_DURABLE_DELTA');
   console.log('HOLD G265_REMAINING_LEGACY_WRITERS_AND_ANDROID_OWNER_UAT');
