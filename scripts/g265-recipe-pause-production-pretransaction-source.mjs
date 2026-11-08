@@ -10,7 +10,7 @@ const marker='export async function setRecipeRecommendationPaused(';
 assert.equal(source.split(marker).length,2,'exact named production writer required');
 const code='let playerWriteInFlight=false;let pendingPersistenceHold=null;\n'+
   'async function setRecipeRecommendationPaused('+source.split(marker)[1];
-function fixture({stale=false,sqlFailure=false,ackLoss=false}={}){
+function fixture({stale=false,missingRecipe=false,locksUnavailable=false,sqlFailure=false,ackLoss=false}={}){
   let held=false,exclusive=false,uncertain=false,privileged=0;
   let row={recipe_id:'r',recommendation_paused:0,reference_maybe_wrong:1,
     last_attempt_id:'keep-attempt',updated_at:'before'};
@@ -21,7 +21,7 @@ function fixture({stale=false,sqlFailure=false,ackLoss=false}={}){
   const ctx={
     requireWritableDatabase(){if(uncertain)throw Error('SQLITE_UNVERIFIED_RELOAD_REQUIRED');},
     canonicalRecipe(id){calls.read++;requireHeld();
-      return id==='r'?{recipe_id:'r',recipe_name:'Synthetic'}:null;},
+      return !missingRecipe&&id==='r'?{recipe_id:'r',recipe_name:'Synthetic'}:null;},
     nowIso:()=> '2026-11-08T11:55:00.000Z',
     armPersistenceMarker(m){requireHeld();calls.marker++;markerArmed=true;
       assert.equal(m.operation,'PAUSE_TOGGLE');},
@@ -33,6 +33,7 @@ function fixture({stale=false,sqlFailure=false,ackLoss=false}={}){
       return ({uncertainOutcome=false}={})=>{exclusive=false;if(uncertainOutcome)uncertain=true;};
     },
     async withPrimarySqliteMutationLock(fn){calls.lock++;
+      if(locksUnavailable)throw Error('SQLITE_PRIMARY_WEB_LOCKS_UNAVAILABLE');
       if(stale)throw Error('SQLITE_PRIMARY_STALE_REVISION_RELOAD_REQUIRED');
       held=true;try{return await fn(ctx.lease);}finally{held=false;}},
     withSqliteCoordinatedMutation(fn){privileged++;try{return fn();}finally{privileged--;}},
@@ -78,6 +79,25 @@ function fixture({stale=false,sqlFailure=false,ackLoss=false}={}){
   const f=fixture({stale:true});
   await assert.rejects(f.call('r',true),/STALE_REVISION/);
   assert.equal(f.calls.read,0,'stale tab cannot read recipe before admission');
+  assert.equal(f.calls.marker,0);
+  assert.equal(f.calls.run,0);
+  assert.equal(f.calls.persist,0);
+  assert.equal(f.uncertain,true);
+}
+{
+  const f=fixture({missingRecipe:true});
+  await assert.rejects(f.call('r',true),/canonical_recipe_required/);
+  assert.equal(f.calls.lock,1);
+  assert.equal(f.calls.read,1,'canonical lookup must occur inside the admitted lock');
+  assert.equal(f.calls.marker,0);
+  assert.equal(f.calls.run,0);
+  assert.equal(f.calls.persist,0);
+  assert.equal(f.uncertain,true,'failed admitted session is not silently reusable');
+}
+{
+  const f=fixture({locksUnavailable:true});
+  await assert.rejects(f.call('r',true),/WEB_LOCKS_UNAVAILABLE/);
+  assert.equal(f.calls.read,0,'no Web Locks must fail before player SQL read');
   assert.equal(f.calls.marker,0);
   assert.equal(f.calls.run,0);
   assert.equal(f.calls.persist,0);
