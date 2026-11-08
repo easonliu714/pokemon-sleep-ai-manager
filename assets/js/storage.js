@@ -8,6 +8,8 @@ const META_KEY = "primary";
 const SNAPSHOT_META_PREFIX = "snapshot:";
 const PRIMARY_REVISION_KEY = "revision:primary";
 const PRIMARY_REVISION_SCHEME = "g265-atomic-primary-cas-v1";
+const PRIMARY_WRITE_LOCK_NAME = "pokemon-sleep-ai-manager:sqlite-primary-exclusive-write";
+const PRIMARY_WRITE_LOCK_WAIT_MS = 30000;
 
 // G265: bind each page to the primary SQLite image actually loaded. The raw
 // database/primary ArrayBuffer remains unchanged; revision is a metadata peer.
@@ -204,8 +206,13 @@ export async function saveDatabaseBytes(bytes){
   const revision={generation,sha256:hash};
   const metadata={byte_length:buffer.byteLength,updated_at:new Date().toISOString(),
     format:'sqlite-arraybuffer',safe_boot_version:2,revision_scheme:PRIMARY_REVISION_SCHEME};
-  const db=await openIdb();
-  await new Promise((resolve,reject)=>{
+  // G265: a cooperating opt-in writer holds the same native Web Lock for its
+  // fresh-durable SQL transaction. A legacy persist must not commit underneath
+  // that session. This lock protects the SAVE interval, not the earlier legacy
+  // SQL mutation interval; atomic IDB CAS still rejects a stale loaded image.
+  const commitAtomic=async()=>{
+    const db=await openIdb();
+    await new Promise((resolve,reject)=>{
     let tx,failCode=null,settled=false,have=0;
     const rejectOnce=error=>{if(!settled){settled=true;reject(error);}};
     try{
@@ -236,9 +243,34 @@ export async function saveDatabaseBytes(bytes){
       tx.onerror=()=>rejectOnce(primaryError(failCode||'SQLITE_PRIMARY_SAVE_FAILED',tx.error));
       tx.onabort=()=>rejectOnce(primaryError(failCode||'SQLITE_PRIMARY_SAVE_ABORTED',tx.error));
     }catch(error){rejectOnce(primaryError('SQLITE_PRIMARY_SAVE_FAILED',error));}
-  });
-  primaryBinding={exists:true,revision,metadataToken:primaryMetadataToken(metadata)};
-  return metadata;
+    });
+    primaryBinding={exists:true,revision,metadataToken:primaryMetadataToken(metadata)};
+    return metadata;
+  };
+  const locks=globalThis.navigator?.locks;
+  if(typeof locks?.request!=='function'){
+    // Version-neutral browser fallback: no unsafe blind write. The mandatory
+    // atomic CAS still guards raw bytes; full cross-tab session admission
+    // remains a separately tracked Gate on runtimes lacking Web Locks.
+    return commitAtomic();
+  }
+  if(typeof globalThis.AbortController!=='function')
+    throw primaryError('SQLITE_PRIMARY_WEB_LOCK_ABORT_UNAVAILABLE_RELOAD_REQUIRED');
+  const controller=new globalThis.AbortController();
+  let timer=setTimeout(()=>controller.abort(),PRIMARY_WRITE_LOCK_WAIT_MS);
+  try{
+    return await locks.request(PRIMARY_WRITE_LOCK_NAME,
+      {mode:'exclusive',signal:controller.signal},async lock=>{
+        clearTimeout(timer);timer=null;
+        if(!lock)throw primaryError('SQLITE_PRIMARY_WEB_LOCK_NOT_GRANTED');
+        return commitAtomic();
+      });
+  }catch(error){
+    if(error?.code)throw error;
+    if(controller.signal.aborted)
+      throw primaryError('SQLITE_PRIMARY_WEB_LOCK_TIMEOUT_RELOAD_REQUIRED',error);
+    throw primaryError('SQLITE_PRIMARY_WEB_LOCK_ACQUIRE_FAILED',error);
+  }finally{if(timer!==null)clearTimeout(timer);}
 }
 function snapshotCreatedAtFromId(id){const match=String(id||'').match(/^SNAP-(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})-/);if(!match)return null;const [,year,month,day,hour,minute,second]=match;return `${year}-${month}-${day}T${hour}:${minute}:${second}.000Z`;}
 async function readSnapshotMetadata(db,snapshotKeys){if(!db.objectStoreNames.contains(META_STORE))return new Map();const ids=(snapshotKeys||[]).map(String);return new Promise((resolve,reject)=>{const tx=db.transaction(META_STORE,'readonly');const store=tx.objectStore(META_STORE);const byId=new Map();for(const id of ids){const req=store.get(snapshotMetaKey(id));req.onsuccess=()=>{if(req.result)byId.set(id,req.result);};}tx.oncomplete=()=>resolve(byId);tx.onerror=()=>reject(tx.error||new Error('snapshot_metadata_read_failed'));tx.onabort=()=>reject(tx.error||new Error('snapshot_metadata_read_aborted'));});}
