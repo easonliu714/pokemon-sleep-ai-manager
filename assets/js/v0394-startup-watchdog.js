@@ -46,6 +46,20 @@ function renderPageHydrationProgress(detail={}){
   badge.classList.add(state==='failed'?'error':state==='ready'?'ok':'pending');
   badge.dataset.page=page;badge.dataset.pageHydrationState=state;
   recordStage({stage:`PAGE_HYDRATION_${page||'UNKNOWN'}_${state.toUpperCase()}`,message,status:state==='failed'?'failed':state==='ready'?'completed':'running',details:{page,state,source:'page-hydration-watchdog'}});
+  // G479: only a user-initiated fresh document can clear a failed ESM URL.
+  // Never auto-reload or erase player storage.
+  if(state==='failed'&&detail.manual_reload_required===true){
+    const retry=document.createElement('button');
+    retry.type='button';
+    retry.dataset.g479DeferredManualReload='true';
+    retry.textContent='重新載入頁面（保留資料）';
+    retry.addEventListener('click',()=>{
+      retry.disabled=true;
+      debugTrace.record('bootstrap','module_reload_requested',{status:'started',details:{manual:true,deferred_module:true,clears_storage:false}});
+      globalThis.location.reload();
+    },{once:true});
+    badge.append(document.createTextNode(' '),retry);
+  }
   if(state==='ready')pageHydrationHideTimer=setTimeout(()=>badge.classList.add('hidden'),1800);
 }
 
