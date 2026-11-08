@@ -24,6 +24,19 @@ function headingStructureProbe(body,markers){
   const article=value=>/^〖(?:活動|企畫|預告)〗/.test(value);
   const articleH1=h1.filter(article);
   const title=typeof markers.title==='string'?compact(markers.title):'';
+  // Scheduled raw-HTML H1=0 is not an invitation to trust metadata as H1.
+  // Probe ONLY the unique <head>, emit bounded counts (no raw titles/HTML),
+  // and keep every metadata observation diagnostic-only.
+  const heads=[...visible.matchAll(/<head\\b[^>]*>([\\s\\S]*?)<\\/head>/gi)];
+  const head=heads.length===1?heads[0][1]:'';
+  const documentTitles=[...head.matchAll(/<title\\b[^>]*>([\\s\\S]*?)<\\/title>/gi)]
+    .map(match=>compact(match[1]));
+  const ogTitles=[...head.matchAll(/<meta\\b[^>]*>/gi)].flatMap(match=>{
+    const property=match[0].match(/(?:^|\\s)property\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))/i);
+    if((property?.[1]??property?.[2]??property?.[3])!=='og:title')return [];
+    const content=match[0].match(/(?:^|\\s)content\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))/i);
+    return content?[compact(content[1]??content[2]??content[3])]:[];
+  });
   const matchesTitle=value=>Boolean(title)&&value.includes(title);
   const sha=value=>createHash('sha256').update(value,'utf8').digest('hex');
   return Object.freeze({
@@ -37,6 +50,14 @@ function headingStructureProbe(body,markers){
     title_fragment_h1_count:Math.min(h1.filter(matchesTitle).length,99),
     title_fragment_h2_count:Math.min(h2.filter(matchesTitle).length,99),
     article_h1_normalized_sha256:Object.freeze(articleH1.slice(0,3).map(sha)),
+    head_metadata:Object.freeze({
+      head_container_count:Math.min(heads.length,99),
+      document_title_count:Math.min(documentTitles.length,99),
+      og_title_count:Math.min(ogTitles.length,99),
+      title_fragment_document_title_count:Math.min(documentTitles.filter(matchesTitle).length,99),
+      title_fragment_og_title_count:Math.min(ogTitles.filter(matchesTitle).length,99),
+      diagnostic_only:true,
+    }),
     diagnostic_only:true,
   });
 }
