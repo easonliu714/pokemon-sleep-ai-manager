@@ -242,6 +242,9 @@ jobs:
       - name: G265 Version-Neutral Atomic Pair Legacy Boot Compatibility Feasibility
         run: node scripts/g265-legacy-compatible-atomic-pair-feasibility.mjs
 
+      - name: G265 Production Shared Primary Atomic Revision CAS Regression
+        run: node scripts/g265-production-atomic-primary-revision-cas.mjs
+
       - name: G265 Production IndexedDB Legacy Compatibility Negative Gate
         run: node scripts/g265-production-idb-compatibility-negative.mjs
 
