@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
-import {decodeOfficialVisibleEntities} from './g9r-official-article-heading-guard.mjs';
+import {assertOfficialArticleHeading,decodeOfficialVisibleEntities} from './g9r-official-article-heading-guard.mjs';
 
 const OFFICIAL=/^https:\/\/www\.pokemonsleep\.net\/zh\/news\/[0-9]+\/$/;
 
@@ -118,6 +118,35 @@ export function offlineProvenanceRegression(){
   assert.equal(duplicated.heading_structure.article_h1_count,2);
   assert.equal(duplicated.heading_structure.title_fragment_h1_count,2);
   assert.equal(duplicated.heading_structure.article_h1_normalized_sha256.length,2);
+
+  // G9R negative-first: a real scheduled raw HTML response has zero article H1
+  // even though the rendered official page exposes a title. Metadata can
+  // diagnose an SSR/markup relocation but must NEVER certify article identity.
+  const metadataHtml='<html><head><title>'+title+' - Pokémon Sleep</title>'
+    +'<meta content="'+title+'" property="og:title"></head>'
+    +'<body><div>'+secret+'</div></body></html>';
+  const metadataOnly=summarizeOfficialLiveResponse({key:'new_moon',expectedUrl,
+    response,html:metadataHtml,markers:{title}});
+  assert.equal(metadataOnly.heading_structure.article_h1_count,0);
+  assert.deepEqual(metadataOnly.heading_structure.head_metadata,{
+    head_container_count:1,document_title_count:1,og_title_count:1,
+    title_fragment_document_title_count:1,title_fragment_og_title_count:1,
+    diagnostic_only:true,
+  });
+  assert.throws(()=>assertOfficialArticleHeading(metadataHtml,title),
+    /G9R_OFFICIAL_ARTICLE_H1_REVIEW_REQUIRED/,
+    'metadata-only title is never official article authority');
+  assert.ok(!JSON.stringify(metadataOnly).includes(secret));
+  const duplicateMeta=summarizeOfficialLiveResponse({key:'new_moon',expectedUrl,
+    response,html:metadataHtml.replace('</head>',
+      '<meta property="og:title" content="'+title+'"></head>'),markers:{title}});
+  assert.equal(duplicateMeta.heading_structure.head_metadata.og_title_count,2);
+  assert.equal(duplicateMeta.heading_structure.article_h1_count,0);
+  const bodyMeta=summarizeOfficialLiveResponse({key:'new_moon',expectedUrl,
+    response,html:'<html><body><meta property="og:title" content="'+title+'"></body></html>',
+    markers:{title}});
+  assert.equal(bodyMeta.heading_structure.head_metadata.og_title_count,0);
+  console.log('PASS G9R_HEAD_METADATA_DIAGNOSTIC_ONLY_ZERO_H1_NOT_AUTHORITY');
 
   assert.equal(result.raw_html_logged,false);
   assert.equal(result.player_data_logged,false);
