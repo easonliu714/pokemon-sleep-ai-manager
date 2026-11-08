@@ -55,9 +55,37 @@ function renderPokemonRosterRatingBaseHtml(view){
 }
 
 
+// G14.RATE read-only freshness: JSON.stringify silently drops undefined and
+// functions, converts NaN/Infinity to null, and fills sparse array holes with
+// null. Such noncanonical facts cannot certify an existing user's adopt intent.
+// Reject them before tokenization; this is NOT a durable SQLite authority.
+function ratingSourceIsCanonicalJson(value,seen){
+  if(value===null||typeof value==='string'||typeof value==='boolean')return true;
+  if(typeof value==='number')return Number.isFinite(value);
+  if(typeof value!=='object'||seen.has(value))return false;
+  seen.add(value);
+  if(Array.isArray(value)){
+    // Exactly the indexed elements and the built-in length: no holes, symbols
+    // or extra properties that JSON would silently ignore.
+    if(Reflect.ownKeys(value).length!==value.length+1)return false;
+    for(let i=0;i<value.length;i++)
+      if(!Object.hasOwn(value,i)||!ratingSourceIsCanonicalJson(value[i],seen))return false;
+    return true;
+  }
+  if(Object.getPrototypeOf(value)!==Object.prototype)return false;
+  return Reflect.ownKeys(value).every(key=>{
+    if(typeof key!=='string')return false;
+    const descriptor=Object.getOwnPropertyDescriptor(value,key);
+    return descriptor?.enumerable&&Object.hasOwn(descriptor,'value')
+      &&ratingSourceIsCanonicalJson(descriptor.value,seen);
+  });
+}
 export function sourceTokenForPokemonRating({pokemon,ingredients,subskills}={}){
-  return [pokemon,ingredients,subskills].every(Array.isArray)
-    ?JSON.stringify([pokemon,ingredients,subskills]):null;
+  if(![pokemon,ingredients,subskills].every(Array.isArray))return null;
+  try{
+    const facts=[pokemon,ingredients,subskills];
+    return ratingSourceIsCanonicalJson(facts,new WeakSet())?JSON.stringify(facts):null;
+  }catch{return null;}
 }
 export function createPokemonRatingSelection(view){
   const rows=view?.status==='PREVIEW_ONLY'?view.rows:[];
@@ -184,6 +212,7 @@ export function setupPokemonRosterRatingPreview({readRoster,readIngredients,read
     panel.innerHTML='<div class="notice">正在讀取本機個體資料（不修改 SQLite）…</div>';
     try{
       const source=readSource();token=sourceTokenForPokemonRating(source);
+      if(!token)throw new Error('NON_CANONICAL_READ_ONLY_SOURCE');
       view=buildPokemonRosterRatingView(source);model=createPokemonRatingSelection(view);paint();
     }catch{
       invalidatePokemonRosterRatingPreview();

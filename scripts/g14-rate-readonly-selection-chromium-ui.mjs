@@ -59,5 +59,15 @@ try{
   assert.equal(await page.locator('[data-rate4-stale]').count(),1);
   await page.locator('[data-rate3-preview-button]').click();
   assert.match(await page.locator('[data-rate4-count]').innerText(),/擬採用 0/);
+  // Negative-first real Chromium: JSON.stringify aliases null and NaN. A changed
+  // full-source fact must clear pending adopt intent before review, even when
+  // the displayed heuristic grade would otherwise remain unchanged.
+  await page.evaluate(()=>{window.__rateSource.pokemon[0].freshness_probe=null;});
+  await page.locator('[data-rate3-preview-button]').click();
+  await page.locator('[data-rate4-choice]').check();
+  await page.evaluate(()=>{window.__rateSource.pokemon[0].freshness_probe=Number.NaN;});
+  await page.locator('[data-rate4-review]').click();
+  assert.equal(await page.locator('[data-rate4-stale]').count(),1,
+    'nonfinite source change must revoke nonpersistent selection before review');
   console.log('PASS G14_RATE_CHROMIUM_KEEP_ADOPT_REVIEW_15_LEVEL_STALE_CLEAR_ZERO_WRITE');
 }finally{await context.close();await browser.close();await new Promise(resolve=>server.close(resolve));}

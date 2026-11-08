@@ -42,6 +42,18 @@ assert.equal(sourceTokenForPokemonRating({...input,pokemon:input.pokemon.map(x=>
 assert.notEqual(sourceTokenForPokemonRating({...input,pokemon:[{...input.pokemon[0],level:21},input.pokemon[1]]}),token);
 assert.notEqual(sourceTokenForPokemonRating({...input,pokemon:[{...input.pokemon[0],rating:'S'},input.pokemon[1]]}),token);
 assert.notEqual(sourceTokenForPokemonRating({...input,subskills:[{...input.subskills[0],subskill_name:'幫忙速度S'},...input.subskills.slice(1)]}),token);
+// Negative-first: JSON.stringify silently aliases noncanonical SQL/Observation facts.
+// A missing field versus undefined, or null versus NaN, must never certify a fresh selection.
+const withMissing={pokemon:[{pokemon_id:'p1',level:20}],ingredients:[],subskills:[]};
+const withUndefined={pokemon:[{pokemon_id:'p1',level:20,source_revision:undefined}],ingredients:[],subskills:[]};
+const withNull={pokemon:[{pokemon_id:'p1',level:null}],ingredients:[],subskills:[]};
+const withNaN={pokemon:[{pokemon_id:'p1',level:Number.NaN}],ingredients:[],subskills:[]};
+assert.ok(sourceTokenForPokemonRating(withMissing),'canonical source must remain readable');
+assert.equal(sourceTokenForPokemonRating(withUndefined),null,'undefined source must fail closed, not alias a missing field');
+assert.ok(sourceTokenForPokemonRating(withNull),'explicit SQL null is canonical UNKNOWN, not zero');
+assert.equal(sourceTokenForPokemonRating(withNaN),null,'NaN must not alias explicit SQL null');
+assert.equal(sourceTokenForPokemonRating({...withMissing,pokemon:[{pokemon_id:'p1',level:Infinity}]}),null);
+assert.equal(sourceTokenForPokemonRating({...withMissing,pokemon:[{pokemon_id:'p1',level:20,opaque:()=>0}]}),null);
 assert.deepEqual(POKEMON_PROVISIONAL_RATING_LABELS,['S+','S','S-','A+','A','A-','B+','B','B-','C+','C','C-','D+','D','D-']);
 const index=fs.readFileSync('index.html','utf8');
 const select=index.match(/<select id="ratingFilter">([\s\S]*?)<\/select>/)?.[1]||'';
