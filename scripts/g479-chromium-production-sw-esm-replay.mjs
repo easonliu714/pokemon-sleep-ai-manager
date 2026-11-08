@@ -27,6 +27,7 @@ const cases=[
 ];
 const hits=[];
 let transitionAttempts=0;
+let deferredTransitionAttempts=0;
 let indexRequests=0;
 const server=http.createServer((req,res)=>{
   const url=new URL(req.url||'/', 'http://127.0.0.1');
@@ -42,7 +43,7 @@ const server=http.createServer((req,res)=>{
     send(200,versionFixture);
     return;
   }
-  if(url.pathname==='/'||url.pathname==='/index.html'){
+  if(url.pathname==='/'||url.pathname==='/index.html'||url.pathname==='/assets/js/fixture.html'){
     indexRequests++;
     send(200,'<!doctype html><title>G479 inert Chromium SW fixture</title>','text/html');
     return;
@@ -52,6 +53,11 @@ const server=http.createServer((req,res)=>{
     if(name)hits.push(name);
     if(name==='NETWORK_REJECT_CACHED'||name==='NETWORK_REJECT_UNCACHED'){
       req.socket.destroy();
+      return;
+    }
+    if(name==='HTTP_503_THEN_200_DEFERRED'){
+      deferredTransitionAttempts++;
+      send(deferredTransitionAttempts===1?503:200,scriptNetwork);
       return;
     }
     if(name==='HTTP_503_THEN_200_SAME_URL'){
@@ -262,6 +268,72 @@ try{
     }finally{
       await context.close();
     }
+  }
+
+
+  // Negative-first G479: execute the ACTUAL production deferred import/page
+  // loader and hydration badge renderer against a real Chromium HTTP 503.
+  // A same-document re-navigation cannot refresh the failed ESM module map.
+  // Only an explicit fresh-document action may recover; never clear player data.
+  {
+    const bootstrap=readFileSync(new URL('../assets/js/bootstrap.js',import.meta.url),'utf8');
+    const watchdog=readFileSync(new URL('../assets/js/v0394-startup-watchdog.js',import.meta.url),'utf8');
+    const extract=(raw,startMarker,endMarker)=>{
+      const start=raw.indexOf(startMarker),end=raw.indexOf(endMarker,start);
+      assert.ok(start>=0&&end>start,'production function extraction: '+startMarker);
+      return raw.slice(start,end+2);
+    };
+    const render=extract(watchdog,'function renderPageHydrationProgress(detail={}){','\n}\n\nfunction recordStage');
+    const importModule=extract(bootstrap,'function importFeatureModule(file){','\n}\nasync function loadPageModules');
+    const loadPage=extract(bootstrap,'async function loadPageModules(page){','\n}\nasync function hydrateBackupSnapshotPanel');
+    const context=await browser.newContext({serviceWorkers:'block'});
+    try{
+      const page=await context.newPage();
+      await page.goto(origin+'/assets/js/fixture.html',{waitUntil:'load'});
+      await page.evaluate(()=>{document.body.innerHTML='<div id="pageLoadStatus" class="hidden"></div>';localStorage.setItem('g479-deferred-sentinel','preserved');});
+      await page.addScriptTag({content:[
+        'const pageLoads=new Map(),moduleLoads=new Map(),failedFeatureModuleUrls=new Set();',
+        "const pageModuleGroups={guide:['app.js?case=HTTP_503_THEN_200_DEFERRED']};",
+        "const PAGE_LABELS={guide:'使用說明'},activeView=()=> 'guide';",
+        'let pageHydrationHideTimer=null;',
+        'const events=[];',
+        "const debugTrace={record:(...args)=>events.push({kind:'trace',name:args[1],payload:args[2]})};",
+        'const recordStage=()=>{};',
+        'const yieldToBrowser=()=>Promise.resolve();',
+        "globalThis.PokemonSleepPageHydrationAuthorityV042755331={hydrateView:async()=>({owned:true})};",
+        'const hydrateUpdateCenterShells=async()=>{};',
+        'const startOcrOverlayForUpdates=async()=>{};',
+        'const hydrateBackupSnapshotPanel=async()=>{};',
+        render,
+        "const pageProgress=(page,state,message,details={})=>{events.push({kind:'progress',page,state,message,details});renderPageHydrationProgress({page,state,message,...details});};",
+        importModule,loadPage,
+        'globalThis.g479RealDeferred={loadPageModules,events};',
+      ].join('\n')});
+      const first=await page.evaluate(async()=>{
+        let error=null;
+        try{await g479RealDeferred.loadPageModules('guide');}catch(e){error=String(e?.message||e);}
+        return {error,failed:g479RealDeferred.events.find(e=>e.kind==='progress'&&e.state==='failed')};
+      });
+      assert.match(first.error||'',/Failed to fetch dynamically imported module|HTTP|Importing a module script failed/i);
+      assert.equal(deferredTransitionAttempts,1,'actual deferred import must hit HTTP 503 once');
+      assert.equal(first.failed?.details?.player_write,false,'failed deferred module cannot write player data');
+      assert.equal(first.failed?.details?.retryable_on_next_navigation,false,'cached failed module must not claim same-document recovery');
+      assert.equal(first.failed?.details?.manual_reload_required,true,'failed module requires explicit fresh document');
+      assert.equal(await page.locator('[data-g479-deferred-manual-reload]').count(),1,'visible manual reload action must be rendered');
+      const beforeReload=indexRequests;
+      await page.waitForTimeout(150);
+      assert.equal(indexRequests,beforeReload,'no automatic navigation after deferred import failure');
+      await Promise.all([
+        page.waitForNavigation({waitUntil:'load'}),
+        page.locator('[data-g479-deferred-manual-reload]').click(),
+      ]);
+      assert.equal(indexRequests,beforeReload+1,'only explicit user click reloads document');
+      assert.equal(await page.evaluate(()=>localStorage.getItem('g479-deferred-sentinel')),'preserved','fresh-document retry preserves storage');
+      const recovered=await page.evaluate(async()=>{const module=await import('./app.js?case=HTTP_503_THEN_200_DEFERRED');return module.evidence;});
+      assert.equal(recovered,'NETWORK_CURRENT','fresh document must import recovered same URL');
+      assert.equal(deferredTransitionAttempts,2,'fresh document performs second network request exactly once');
+      console.log('PASS G479_CHROMIUM_REAL_DEFERRED_ESM_MODULE_MAP_MANUAL_FRESH_DOCUMENT');
+    }finally{await context.close();}
   }
 
 }finally{
