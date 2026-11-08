@@ -6,6 +6,53 @@ const META_STORE = "metadata";
 const DB_KEY = "primary";
 const META_KEY = "primary";
 const SNAPSHOT_META_PREFIX = "snapshot:";
+const PRIMARY_REVISION_KEY = "revision:primary";
+
+// G265: bind each page to the primary SQLite image actually loaded. The raw
+// database/primary ArrayBuffer remains unchanged; revision is a metadata peer.
+// Never silently adopt a newer durable image into an already-open SQL.js DB.
+let primaryBinding = null;
+const primaryError = (code,cause)=>Object.assign(new Error(code),{code,cause});
+const validPrimaryRevision = r=>r&&Number.isSafeInteger(r.generation)
+  &&r.generation>=0&&typeof r.sha256==='string'&&/^[a-f0-9]{64}$/.test(r.sha256);
+const primaryMetadataToken = meta=>JSON.stringify({
+  byte_length:meta?.byte_length??null,updated_at:meta?.updated_at??null,
+  format:meta?.format??null,safe_boot_version:meta?.safe_boot_version??null
+});
+const primaryRevisionMatches = (current,expected)=>expected===null
+  ?current==null
+  :validPrimaryRevision(current)&&current.generation===expected.generation
+    &&current.sha256===expected.sha256;
+async function digestPrimaryBytes(value){
+  const bytes=value instanceof ArrayBuffer?new Uint8Array(value)
+    :value instanceof Uint8Array?value:null;
+  if(!bytes)throw primaryError('SQLITE_PRIMARY_INVALID_RAW_BYTES');
+  if(!globalThis.crypto?.subtle?.digest)
+    throw primaryError('SQLITE_PRIMARY_CRYPTO_UNAVAILABLE');
+  const independent=new Uint8Array(bytes);
+  const hash=new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256',independent));
+  return Array.from(hash,b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function bindPrimaryImage({bytes,metadata,revision}){
+  if(bytes==null){
+    if(revision!=null)throw primaryError('SQLITE_PRIMARY_ORPHAN_REVISION_RELOAD_REQUIRED');
+    primaryBinding={exists:false,revision:null,metadataToken:primaryMetadataToken(metadata)};
+    return;
+  }
+  if(!(bytes instanceof ArrayBuffer))
+    throw primaryError('SQLITE_PRIMARY_LEGACY_BYTES_FORMAT_UNEXPECTED');
+  if(revision!=null){
+    if(!validPrimaryRevision(revision))
+      throw primaryError('SQLITE_PRIMARY_INVALID_REVISION_RELOAD_REQUIRED');
+    const actualHash=await digestPrimaryBytes(bytes);
+    if(actualHash!==revision.sha256)
+      throw primaryError('SQLITE_PRIMARY_REVISION_BYTES_MISMATCH_RELOAD_REQUIRED');
+  }
+  primaryBinding={exists:true,
+    revision:revision?{generation:revision.generation,sha256:revision.sha256}:null,
+    metadataToken:primaryMetadataToken(metadata)};
+}
+
 
 let connectionPromise = null;
 let connectionGeneration = 0;
@@ -45,7 +92,7 @@ function openIdb(){
       if(generation!==connectionGeneration){try{db.close();}catch{}fail(Object.assign(new Error('indexeddb_open_superseded'),{code:'indexeddb_open_superseded',retryable:true}));return;}
       if(settled){try{db.close();}catch{}return;}
       settled=true;
-      db.onversionchange=()=>{try{db.close();}catch{}if(generation===connectionGeneration){connectionGeneration+=1;connectionPromise=null;}startup('INDEXEDDB_VERSIONCHANGE','偵測到其他分頁變更本機儲存版本；已安全關閉舊連線','warning');};
+      db.onversionchange=()=>{try{db.close();}catch{}if(generation===connectionGeneration){connectionGeneration+=1;connectionPromise=null;primaryBinding=null;}startup('INDEXEDDB_VERSIONCHANGE','偵測到其他分頁變更本機儲存版本；已安全關閉舊連線','warning');};
       startup('INDEXEDDB_READY','本機儲存空間已開啟','running',{database_version:db.version,version_neutral:true,generation,legacy_snapshot_metadata_store_present:db.objectStoreNames.contains(LEGACY_SNAPSHOT_META_STORE)});
       resolve(db);
     };
@@ -59,6 +106,7 @@ export function resetStorageConnection(reason='manual_reset'){
   const previous=connectionPromise;
   connectionGeneration+=1;
   connectionPromise=null;
+  primaryBinding=null;
   Promise.resolve(previous).then(db=>{try{db?.close?.();}catch{}}).catch(()=>{});
   startup('INDEXEDDB_CONNECTION_RESET','已丟棄舊的本機儲存連線嘗試','warning',{reason,generation:connectionGeneration});
   return connectionGeneration;
@@ -83,13 +131,35 @@ export async function inspectDatabaseRecord(){
   return new Promise((resolve,reject)=>{
     const tx=db.transaction(stores,'readonly');const dbStore=tx.objectStore(DB_STORE);const keyReq=dbStore.getKey(DB_KEY);let metaReq=null;
     if(db.objectStoreNames.contains(META_STORE))metaReq=tx.objectStore(META_STORE).get(META_KEY);
-    tx.oncomplete=()=>resolve({exists:keyReq.result!==undefined,metadata:metaReq?.result||null,database_version:db.version});
+    tx.oncomplete=()=>{
+      const exists=keyReq.result!==undefined,metadata=metaReq?.result||null;
+      // A new database may be created only if the same atomic writer later
+      // still sees no primary key. Existing images must first be loaded.
+      if(!exists)primaryBinding={exists:false,revision:null,metadataToken:primaryMetadataToken(metadata)};
+      resolve({exists,metadata,database_version:db.version});
+    };
     tx.onerror=()=>reject(tx.error||new Error('indexeddb_metadata_read_failed'));
     tx.onabort=()=>reject(tx.error||new Error('indexeddb_metadata_read_aborted'));
   });
 }
 
-export async function loadDatabaseBytes(){startup('SQLITE_BYTES_READING','正在讀取本機 SQLite');const value=await request(DB_STORE,'readonly',store=>store.get(DB_KEY));startup('SQLITE_BYTES_READY','本機 SQLite 讀取完成','running',{byte_length:value?.byteLength||0});return value||null;}
+// Read the raw SQLite bytes and revision metadata from one IDB snapshot.
+export async function loadDatabaseBytes(){
+  startup('SQLITE_BYTES_READING','正在讀取本機 SQLite');
+  const db=await openIdb();
+  const result=await new Promise((resolve,reject)=>{
+    const tx=db.transaction([DB_STORE,META_STORE],'readonly');
+    const dataReq=tx.objectStore(DB_STORE).get(DB_KEY);
+    const metaStore=tx.objectStore(META_STORE);
+    const metaReq=metaStore.get(META_KEY),revReq=metaStore.get(PRIMARY_REVISION_KEY);
+    tx.oncomplete=()=>resolve({bytes:dataReq.result??null,metadata:metaReq.result??null,revision:revReq.result??null});
+    tx.onerror=()=>reject(tx.error||primaryError('SQLITE_PRIMARY_READ_FAILED'));
+    tx.onabort=()=>reject(tx.error||primaryError('SQLITE_PRIMARY_READ_ABORTED'));
+  });
+  await bindPrimaryImage(result);
+  startup('SQLITE_BYTES_READY','本機 SQLite 讀取完成','running',{byte_length:result.bytes?.byteLength||0});
+  return result.bytes||null;
+}
 
 export function cancelWorkerDatabaseLoad(){const worker=sqliteLoadWorker;if(!worker)return false;sqliteLoadWorkerGeneration+=1;if(sqliteLoadWorker===worker)sqliteLoadWorker=null;try{worker.postMessage({type:'cancel'});}catch{}setTimeout(()=>{try{worker.terminate();}catch{}},100);startup('LEGACY_DB_LOAD_CANCELLED','已取消玩家 SQLite 載入','warning');return true;}
 export function loadDatabaseBytesInWorker({maxTransferBytes=48*1024*1024,hardTimeoutMs=60000,heartbeatTimeoutMs=6000}={}){
@@ -102,13 +172,65 @@ export function loadDatabaseBytesInWorker({maxTransferBytes=48*1024*1024,hardTim
     const watchdog=setInterval(()=>{if(!isCurrent()){finish(reject,Object.assign(new Error('legacy_db_worker_superseded'),{code:'legacy_db_worker_superseded'}));return;}if(Date.now()-lastHeartbeat>heartbeatTimeoutMs){startup('LEGACY_DB_WORKER_UNRESPONSIVE','SQLite 載入 Worker 心跳中斷，已終止載入','warning');finish(reject,Object.assign(new Error('legacy_db_worker_unresponsive'),{code:'legacy_db_worker_unresponsive'}));}},1000);
     const hardTimer=setTimeout(()=>{startup('LEGACY_DB_WORKER_TIMEOUT','SQLite 載入超時，已終止 Worker','warning');finish(reject,Object.assign(new Error('legacy_db_worker_timeout'),{code:'legacy_db_worker_timeout'}));},hardTimeoutMs);watchdog?.unref?.();hardTimer?.unref?.();
     worker.onerror=event=>{if(!isCurrent())return;finish(reject,Object.assign(new Error(event.message||'legacy_db_worker_error'),{code:'legacy_db_worker_error'}));};
-    worker.onmessage=event=>{if(!isCurrent())return;const message=event.data||{};if(message.type==='heartbeat'){lastHeartbeat=Date.now();startup(message.stage||'LEGACY_DB_WORKER_HEARTBEAT','玩家 SQLite Worker 運作中','running',{at:message.at,generation});return;}if(message.type==='stage'){lastHeartbeat=Date.now();const labels={LEGACY_DB_READING:'Worker 正在讀取玩家 SQLite',LEGACY_DB_BYTES_READY:'Worker 已取得玩家 SQLite 大小',LEGACY_DB_TRANSFER:'正在安全移交 SQLite'};startup(message.stage,labels[message.stage]||message.stage,'running',{...message,generation});return;}if(message.type==='too_large'){startup('LEGACY_DB_TOO_LARGE',`玩家 SQLite ${(message.byte_length/1048576).toFixed(1)} MB，超過手機安全載入門檻`,'warning',message);finish(reject,Object.assign(new Error('legacy_database_exceeds_mobile_safe_limit'),{code:'legacy_database_exceeds_mobile_safe_limit',details:message}));return;}if(message.type==='cancelled'){finish(reject,Object.assign(new Error('worker_load_cancelled'),{code:'worker_load_cancelled'}));return;}if(message.type==='error'){finish(reject,Object.assign(new Error(message.message||'worker_load_failed'),{code:message.code||'worker_load_failed'}));return;}if(message.type==='result'){startup('LEGACY_DB_TRANSFERRED','玩家 SQLite 已由 Worker 安全移交','running',{byte_length:message.byte_length,generation});finish(resolve,message.buffer);}};
+    worker.onmessage=event=>{if(!isCurrent())return;const message=event.data||{};if(message.type==='heartbeat'){lastHeartbeat=Date.now();startup(message.stage||'LEGACY_DB_WORKER_HEARTBEAT','玩家 SQLite Worker 運作中','running',{at:message.at,generation});return;}if(message.type==='stage'){lastHeartbeat=Date.now();const labels={LEGACY_DB_READING:'Worker 正在讀取玩家 SQLite',LEGACY_DB_BYTES_READY:'Worker 已取得玩家 SQLite 大小',LEGACY_DB_TRANSFER:'正在安全移交 SQLite'};startup(message.stage,labels[message.stage]||message.stage,'running',{...message,generation});return;}if(message.type==='too_large'){startup('LEGACY_DB_TOO_LARGE',`玩家 SQLite ${(message.byte_length/1048576).toFixed(1)} MB，超過手機安全載入門檻`,'warning',message);finish(reject,Object.assign(new Error('legacy_database_exceeds_mobile_safe_limit'),{code:'legacy_database_exceeds_mobile_safe_limit',details:message}));return;}if(message.type==='cancelled'){finish(reject,Object.assign(new Error('worker_load_cancelled'),{code:'worker_load_cancelled'}));return;}if(message.type==='error'){finish(reject,Object.assign(new Error(message.message||'worker_load_failed'),{code:message.code||'worker_load_failed'}));return;}if(message.type==='result'){
+      // The Worker read bytes and metadata in one transaction. Verify the
+      // revision's SHA before handing SQL.js an independently copied image.
+      bindPrimaryImage({bytes:message.buffer,metadata:message.metadata??null,revision:message.revision??null})
+        .then(()=>{if(!isCurrent())return;startup('LEGACY_DB_TRANSFERRED','玩家 SQLite 已由 Worker 安全移交','running',{byte_length:message.byte_length,generation});finish(resolve,message.buffer);},
+          error=>{if(isCurrent())finish(reject,error);});
+    }};
     startup('LEGACY_DB_WORKER_STARTING','正在啟動玩家 SQLite 隔離載入 Worker','running',{generation});worker.postMessage({type:'load',maxTransferBytes});
   });
 }
 
 function asArrayBuffer(bytes){if(!(bytes instanceof Uint8Array))return bytes;if(bytes.byteOffset===0&&bytes.byteLength===bytes.buffer.byteLength)return bytes.buffer;return bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength);}
-export async function saveDatabaseBytes(bytes){const buffer=asArrayBuffer(bytes);const metadata={byte_length:buffer?.byteLength||0,updated_at:new Date().toISOString(),format:'sqlite-arraybuffer',safe_boot_version:2};const db=await openIdb();await new Promise((resolve,reject)=>{const tx=db.transaction([DB_STORE,META_STORE],'readwrite');tx.objectStore(DB_STORE).put(buffer,DB_KEY);tx.objectStore(META_STORE).put(metadata,META_KEY);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error||new Error('indexeddb_save_failed'));tx.onabort=()=>reject(tx.error||new Error('indexeddb_save_aborted'));});return metadata;}
+// G265: a single atomic IndexedDB CAS covers every database.persist() caller,
+// including legacy modules. It retains the old raw ArrayBuffer primary format,
+// requiring no IndexedDB upgrade or SQLite migration. A stale page cannot save
+// its older in-memory SQL.js image over a newer revision (including ABA).
+export async function saveDatabaseBytes(bytes){
+  const buffer=asArrayBuffer(bytes);
+  if(!(buffer instanceof ArrayBuffer))throw primaryError('SQLITE_PRIMARY_INVALID_RAW_BYTES');
+  if(!primaryBinding)await inspectDatabaseRecord();
+  if(!primaryBinding)throw primaryError('SQLITE_PRIMARY_NOT_LOADED_RELOAD_REQUIRED');
+  const expected=primaryBinding;
+  const hash=await digestPrimaryBytes(buffer);
+  const generation=expected.revision?expected.revision.generation+1:0;
+  if(!Number.isSafeInteger(generation))throw primaryError('SQLITE_PRIMARY_REVISION_EXHAUSTED');
+  const revision={generation,sha256:hash};
+  const metadata={byte_length:buffer.byteLength,updated_at:new Date().toISOString(),format:'sqlite-arraybuffer',safe_boot_version:2};
+  const db=await openIdb();
+  await new Promise((resolve,reject)=>{
+    let tx,failCode=null,settled=false,have=0;
+    const rejectOnce=error=>{if(!settled){settled=true;reject(error);}};
+    try{
+      tx=db.transaction([DB_STORE,META_STORE],'readwrite');
+      const rawStore=tx.objectStore(DB_STORE),metaStore=tx.objectStore(META_STORE);
+      const keyReq=rawStore.getKey(DB_KEY),metaReq=metaStore.get(META_KEY),revReq=metaStore.get(PRIMARY_REVISION_KEY);
+      const abort=code=>{failCode=code;try{tx.abort();}catch{}};
+      const stage=()=>{
+        if(++have!==3)return;
+        const exists=keyReq.result!==undefined;
+        if(exists!==expected.exists
+          ||primaryMetadataToken(metaReq.result)!==expected.metadataToken
+          ||!primaryRevisionMatches(revReq.result,expected.revision)){
+          abort('SQLITE_PRIMARY_STALE_REVISION_RELOAD_REQUIRED');return;
+        }
+        // Enqueue all three puts before returning to the IDB event loop.
+        // No await or external callback is permitted inside this transaction.
+        rawStore.put(buffer,DB_KEY);
+        metaStore.put(metadata,META_KEY);
+        metaStore.put(revision,PRIMARY_REVISION_KEY);
+      };
+      keyReq.onsuccess=stage;metaReq.onsuccess=stage;revReq.onsuccess=stage;
+      tx.oncomplete=()=>{settled=true;resolve();};
+      tx.onerror=()=>rejectOnce(primaryError(failCode||'SQLITE_PRIMARY_SAVE_FAILED',tx.error));
+      tx.onabort=()=>rejectOnce(primaryError(failCode||'SQLITE_PRIMARY_SAVE_ABORTED',tx.error));
+    }catch(error){rejectOnce(primaryError('SQLITE_PRIMARY_SAVE_FAILED',error));}
+  });
+  primaryBinding={exists:true,revision,metadataToken:primaryMetadataToken(metadata)};
+  return metadata;
+}
 function snapshotCreatedAtFromId(id){const match=String(id||'').match(/^SNAP-(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})-/);if(!match)return null;const [,year,month,day,hour,minute,second]=match;return `${year}-${month}-${day}T${hour}:${minute}:${second}.000Z`;}
 async function readSnapshotMetadata(db,snapshotKeys){if(!db.objectStoreNames.contains(META_STORE))return new Map();const ids=(snapshotKeys||[]).map(String);return new Promise((resolve,reject)=>{const tx=db.transaction(META_STORE,'readonly');const store=tx.objectStore(META_STORE);const byId=new Map();for(const id of ids){const req=store.get(snapshotMetaKey(id));req.onsuccess=()=>{if(req.result)byId.set(id,req.result);};}tx.oncomplete=()=>resolve(byId);tx.onerror=()=>reject(tx.error||new Error('snapshot_metadata_read_failed'));tx.onabort=()=>reject(tx.error||new Error('snapshot_metadata_read_aborted'));});}
 export async function createSnapshot(bytes,reason){const createdAt=new Date().toISOString();const id=`SNAP-${createdAt.replace(/[-:.TZ]/g,'').slice(0,14)}-${Math.random().toString(16).slice(2,6)}`;const buffer=asArrayBuffer(bytes);const item={id,created_at:createdAt,reason,bytes:buffer};const metadata={id,created_at:createdAt,reason,byte_length:buffer?.byteLength||0};const db=await openIdb();const putStarted=perfNow();await new Promise((resolve,reject)=>{const tx=db.transaction([SNAPSHOT_STORE,META_STORE],'readwrite');tx.objectStore(SNAPSHOT_STORE).put(item);tx.objectStore(META_STORE).put(metadata,snapshotMetaKey(id));tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error||new Error('snapshot_write_failed'));tx.onabort=()=>reject(tx.error||new Error('snapshot_write_aborted'));});const putMs=roundedMs(putStarted);snapshotMetadataCache=null;const pruneStarted=perfNow();const pruneResult=await pruneSnapshots(10);const pruneMs=roundedMs(pruneStarted);startup('SQLITE_SNAPSHOT_STORAGE_COMPLETED','SQLite 快照已寫入本機儲存','completed',{id,byte_length:metadata.byte_length,idb_put_ms:putMs,prune_ms:pruneMs,pruned_count:pruneResult.removed_count,metadata_only_prune:true,snapshot_metadata_namespace:'metadata:snapshot'});return id;}
@@ -136,5 +258,5 @@ export async function listSnapshots({force=false}={}){
   return [...await loadSnapshotMetadata()];
 }
 async function pruneSnapshots(max){const keys=(await request(SNAPSHOT_STORE,'readonly',store=>store.getAllKeys())||[]).map(String).sort((a,b)=>b.localeCompare(a));const remove=keys.slice(max);if(!remove.length)return {removed_count:0};const db=await openIdb();await new Promise((resolve,reject)=>{const stores=[SNAPSHOT_STORE,META_STORE].filter(name=>db.objectStoreNames.contains(name));const tx=db.transaction(stores,'readwrite');const snapshotStore=tx.objectStore(SNAPSHOT_STORE);const metaStore=db.objectStoreNames.contains(META_STORE)?tx.objectStore(META_STORE):null;remove.forEach(id=>{snapshotStore.delete(id);metaStore?.delete(snapshotMetaKey(id));});tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error||new Error('snapshot_prune_failed'));tx.onabort=()=>reject(tx.error||new Error('snapshot_prune_aborted'));});snapshotMetadataCache=null;return {removed_count:remove.length};}
-export async function clearAllStorage(){const db=await openIdb();const stores=[DB_STORE,SNAPSHOT_STORE,META_STORE,LEGACY_SNAPSHOT_META_STORE].filter(name=>db.objectStoreNames.contains(name));await new Promise((resolve,reject)=>{const tx=db.transaction(stores,'readwrite');stores.forEach(name=>tx.objectStore(name).clear());tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error||new Error('indexeddb_clear_failed'));tx.onabort=()=>reject(tx.error||new Error('indexeddb_clear_aborted'));});snapshotMetadataCache=[];}
+export async function clearAllStorage(){const db=await openIdb();const stores=[DB_STORE,SNAPSHOT_STORE,META_STORE,LEGACY_SNAPSHOT_META_STORE].filter(name=>db.objectStoreNames.contains(name));await new Promise((resolve,reject)=>{const tx=db.transaction(stores,'readwrite');stores.forEach(name=>tx.objectStore(name).clear());tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error||new Error('indexeddb_clear_failed'));tx.onabort=()=>reject(tx.error||new Error('indexeddb_clear_aborted'));});snapshotMetadataCache=[];primaryBinding=null;}
 export function closeStorageConnection(){cancelWorkerDatabaseLoad();resetStorageConnection('close_storage_connection');}
