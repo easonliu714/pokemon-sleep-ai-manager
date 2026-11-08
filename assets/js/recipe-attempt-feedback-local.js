@@ -198,6 +198,14 @@ export async function recordRecipeAttemptFailure({
   notes='',
 }={}){
   requireWritableDatabase();
+  // G265: the exclusive local window is acquired before the native cross-tab
+  // lock; all canonical player reads, snapshot, BEGIN and primary durable ACK
+  // must execute under the SAME lease. Never retry an ambiguous ACK.
+  const close=beginSqliteExclusiveWriteWindow();
+  let acknowledged=false;
+  playerWriteInFlight=true;
+  try{
+    return await withPrimarySqliteMutationLock(async lease=>{
   const recipe=canonicalRecipe(recipe_id);
   if(!recipe)throw new Error('recipe_attempt_canonical_recipe_required');
   const provenance=provenanceFor(recipe.recipe_id);
@@ -226,21 +234,20 @@ export async function recordRecipeAttemptFailure({
 
   if(recordInFlight)throw Object.assign(new Error('recipe_attempt_save_in_flight'),{code:'RECIPE_ATTEMPT_SAVE_IN_FLIGHT'});
   recordInFlight=true;
-  playerWriteInFlight=true;
-  try{
     // Write-ahead recovery marker is verified before the first SQL mutation.
     armPersistenceMarker({attempt_id:record.attempt_id,recipe_id:record.recipe_id});
-    begin();
+    await snapshot('recipe-feedback:record-attempt');
+    withSqliteCoordinatedMutation(begin);
     try{
-      run(`INSERT INTO recipe_attempt_feedback(
+      withSqliteCoordinatedMutation(()=>run(`INSERT INTO recipe_attempt_feedback(
       attempt_id,recipe_id,attempted_at,outcome,actual_ingredients_json,
       source_type,source_name,source_ref,reference_maybe_wrong,recommendation_paused_after_attempt,notes,created_at
     ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`,[
       record.attempt_id,record.recipe_id,record.attempted_at,record.outcome,JSON.stringify(record.actual_ingredients),
       record.source.source_type,record.source.source_name,record.source.source_ref,
       record.reference_maybe_wrong?1:0,record.recommendation_paused?1:0,record.notes,record.created_at,
-    ]);
-    run(`INSERT INTO recipe_feedback_state(recipe_id,recommendation_paused,reference_maybe_wrong,last_attempt_id,updated_at)
+    ]));
+    withSqliteCoordinatedMutation(()=>run(`INSERT INTO recipe_feedback_state(recipe_id,recommendation_paused,reference_maybe_wrong,last_attempt_id,updated_at)
       VALUES(?,?,?,?,?)
       ON CONFLICT(recipe_id) DO UPDATE SET
         recommendation_paused=excluded.recommendation_paused,
@@ -248,14 +255,14 @@ export async function recordRecipeAttemptFailure({
         last_attempt_id=excluded.last_attempt_id,
         updated_at=excluded.updated_at`,[
       record.recipe_id,record.recommendation_paused?1:0,record.reference_maybe_wrong?1:0,record.attempt_id,record.created_at,
-    ]);
-    commit();
+    ]));
+    withSqliteCoordinatedMutation(commit);
     }catch(error){
-      rollback();
+      withSqliteCoordinatedMutation(rollback);
       throw error;
     }
     try{
-      await persist();
+      await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
     }catch(error){
       // A committed SQL row may already be durable, even when IDB rejects or times out.
       pendingPersistenceHold={attempt_id:record.attempt_id,recipe_id:record.recipe_id};
@@ -266,6 +273,7 @@ export async function recordRecipeAttemptFailure({
       }}));}catch{}
       throw persistenceUncertainError(pendingPersistenceHold,error);
     }
+    acknowledged=true;
     // Only an acknowledged durable persist may retire the recovery intent.
     clearPersistenceMarker();
     // Listener failures cannot convert an already durable write into a retryable error.
@@ -277,7 +285,9 @@ export async function recordRecipeAttemptFailure({
       globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:data-changed',{detail:{entity:'recipe_attempt_feedback',recipe_id:record.recipe_id}}));
     }catch{}
     return Object.freeze({...record,recipe_name:recipe.recipe_name,shared_master_write:false});
+    });
   }finally{
+    close({uncertainOutcome:!acknowledged});
     recordInFlight=false;
     playerWriteInFlight=false;
   }

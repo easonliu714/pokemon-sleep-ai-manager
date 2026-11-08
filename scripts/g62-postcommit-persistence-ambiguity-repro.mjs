@@ -64,6 +64,10 @@ for(const mode of ['DENY_BEFORE_IDB_WRITE','ACK_LOST_AFTER_IDB_WRITE']){
       commit:()=>{activeDb.run('COMMIT');commits++;},
       rollback:()=>activeDb.run('ROLLBACK'),
       isDatabaseReady:()=>true,isRescueReadonly:()=>false,
+      beginSqliteExclusiveWriteWindow:()=>()=>{},
+      withPrimarySqliteMutationLock:async fn=>fn(Object.freeze({synthetic:true})),
+      withSqliteCoordinatedMutation:fn=>fn(),
+      snapshot:async()=>({disposable:true}),
       persist:async()=>{
         if(persistMode==='DENY_BEFORE_IDB_WRITE')throw new Error('synthetic_idb_write_denied');
         await writeSnapshot(store,activeDb.export());

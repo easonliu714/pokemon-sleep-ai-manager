@@ -472,6 +472,11 @@ jobs:
       - name: G265 named production recipe pause pre-SQL admission
         run: node scripts/g265-recipe-pause-production-pretransaction-source.mjs
 
+      - name: G265 native Chromium named recipe attempt pretransaction
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-native-chromium-recipe-attempt-pretransaction.mjs
+
       - name: G265 native Chromium named recipe pause pretransaction
         env:
           BASE_URL: http://127.0.0.1:4173/
