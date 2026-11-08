@@ -1,4 +1,6 @@
-import {rows,run,persist,snapshot} from './database.js';
+import {rows,run,persist,snapshot,begin,commit,rollback} from './database.js';
+import {withPrimarySqliteMutationLock} from './storage.js';
+import {beginSqliteExclusiveWriteWindow,withSqliteCoordinatedMutation} from './sqlite-direct-write-window-guard.js';
 import {localIso} from './time-utils.js';
 import {computeWeeklyOverrideRebase,WEEKLY_OVERRIDE_REBASE_VERSION} from './weekly-context-override-rebase.js';
 
@@ -77,6 +79,9 @@ export function rebaseWeeklyManualOverrideForImport({
   });
 }
 
+// G265: this named production writer must admit the loaded primary revision
+// before its snapshot, BEGIN, SQL mutation and durable ACK. This is not global
+// admission for the separate clear/rebase/importer writers.
 export async function saveWeeklyManualOverride({weekStart,basedOnImportRevision,fields}={}){
   const epoch=String(weekStart||'').trim();
   const revision=String(basedOnImportRevision||'').trim();
@@ -84,12 +89,28 @@ export async function saveWeeklyManualOverride({weekStart,basedOnImportRevision,
   if(!revision)throw new Error('目前沒有可綁定的 Weekly JSON revision；無 JSON 時請使用人工 fallback');
   const sanitized=cleanFields(fields||{});
   if(!Object.keys(sanitized).length)throw new Error('沒有需要儲存的人工覆寫欄位');
-  const now=localIso();
-  const record={schema:WEEKLY_MANUAL_OVERRIDE_SCHEMA,version:WEEKLY_MANUAL_OVERRIDE_VERSION,week_start:epoch,based_on_import_revision:revision,fields:sanitized,updated_at:now};
-  await snapshot('manual:weekly-context-override');
-  run(`INSERT OR REPLACE INTO settings(key,value_json,updated_at) VALUES(?,?,?)`,[settingKey(epoch),JSON.stringify(record),now]);
-  await persist();
-  return Object.freeze(record);
+  const close=beginSqliteExclusiveWriteWindow();
+  let acknowledged=false;
+  try{
+    return await withPrimarySqliteMutationLock(async lease=>{
+      const now=localIso();
+      const record={schema:WEEKLY_MANUAL_OVERRIDE_SCHEMA,version:WEEKLY_MANUAL_OVERRIDE_VERSION,week_start:epoch,based_on_import_revision:revision,fields:sanitized,updated_at:now};
+      await snapshot('manual:weekly-context-override');
+      withSqliteCoordinatedMutation(begin);
+      try{
+        withSqliteCoordinatedMutation(()=>run(`INSERT OR REPLACE INTO settings(key,value_json,updated_at) VALUES(?,?,?)`,[settingKey(epoch),JSON.stringify(record),now]));
+        withSqliteCoordinatedMutation(commit);
+        await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
+        acknowledged=true;
+        return Object.freeze(record);
+      }catch(error){
+        withSqliteCoordinatedMutation(rollback);
+        throw error;
+      }
+    });
+  }finally{
+    close({uncertainOutcome:!acknowledged});
+  }
 }
 
 export async function clearWeeklyManualOverride(weekStart){
