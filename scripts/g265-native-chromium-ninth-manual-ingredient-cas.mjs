@@ -1,6 +1,6 @@
 // G265 ninth manual-ingredient opt-in native Chromium: two-tab CAS, UNKNOWN unlock,
 // private audit, lost ACK, stale replay and SQL rollback. Disposable loopback only.
-// Production manual-editor.js::saveIngredient(), player DB and public master untouched.
+// Isolated adapter never invokes production saveIngredient; player DB and public master untouched.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {createHash} from 'node:crypto';
@@ -12,12 +12,14 @@ const exact=legacy.split('export async function saveIngredient(')[1]
   ?.split('export async function saveItem(')[0];
 const audit=legacy.split('async function audit(')[1]
   ?.split('function emitPokemonEvaluationInputChanged(')[0];
-assert.ok(exact&&audit,'ninth ingredient legacy writer and audit must remain source-bound');
+assert.ok(exact&&audit,'ninth ingredient named writer and audit must remain source-bound');
+// Isolated adapter regression stays independent of production wiring; the
+// named production entry has now acquired pre-SQL Web Lock admission.
 assert.match(exact,/await snapshot\(/);
-assert.match(exact,/commit\(\);await persist\(\)/);
-assert.match(exact,/await audit\('ingredient_inventory'/);
-assert.match(exact,/if\(q>0\)unlocked=1/);
-assert.match(exact,/if\(q===0&&unlockInput===undefined\)/);
+assert.match(exact,/beginSqliteExclusiveWriteWindow\(\)/);
+assert.match(exact,/withPrimarySqliteMutationLock\(async lease/);
+assert.match(exact,/persist\(\{primaryMutationLease:lease\}\)/);
+assert.doesNotMatch(exact,/commit\(\);await persist\(\)/);
 assert.match(audit,/INSERT INTO import_batches/);
 assert.match(audit,/INSERT INTO import_changes/);
 assert.doesNotMatch(legacy,/sqlite-manual-ingredient-optin/);

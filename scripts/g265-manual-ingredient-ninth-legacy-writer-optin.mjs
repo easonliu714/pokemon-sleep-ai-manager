@@ -1,6 +1,6 @@
 // G265 ninth manual ingredient isolated opt-in: real SQL.js, fake IndexedDB,
 // cooperative Web Locks, durable generation/SHA CAS, UNKNOWN unlock and private audit.
-// Synthetic fixtures only. Original legacy source is asserted, never production-wired.
+// Synthetic fixtures only. Independent opt-in adapter remains unmounted; live named production writer is guarded.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {webcrypto} from 'node:crypto';
@@ -13,17 +13,18 @@ import {createManualIngredientOptIn} from '../assets/js/sqlite-manual-ingredient
 const legacy=fs.readFileSync(new URL('../assets/js/manual-editor.js',import.meta.url),'utf8');
 const source=legacy.split('export async function saveIngredient(')[1]?.split('export async function saveItem(')[0];
 const audit=legacy.split('async function audit(')[1]?.split('function emitPokemonEvaluationInputChanged(')[0];
-assert.ok(source&&audit,'exact ninth manual ingredient legacy source must remain identifiable');
+assert.ok(source&&audit,'exact ninth manual ingredient production source must remain identifiable');
+// Isolated adapter regression stays independent of production wiring; the
+// named production entry has now acquired pre-SQL Web Lock admission.
 assert.match(source,/await snapshot\(/);
-assert.match(source,/commit\(\);await persist\(\)/);
-assert.match(source,/q>0&&unlocked===0/);
-assert.match(source,/if\(q>0\)unlocked=1/);
-assert.match(source,/if\(q===0&&unlockInput===undefined\)/);
-assert.match(source,/await audit\('ingredient_inventory'/);
+assert.match(source,/beginSqliteExclusiveWriteWindow\(\)/);
+assert.match(source,/withPrimarySqliteMutationLock\(async lease/);
+assert.match(source,/persist\(\{primaryMutationLease:lease\}\)/);
+assert.doesNotMatch(source,/commit\(\);await persist\(\)/);
 assert.match(audit,/INSERT INTO import_batches/);
 assert.match(audit,/INSERT INTO import_changes/);
 assert.doesNotMatch(legacy,/sqlite-manual-ingredient-optin/);
-console.log('PASS G265_NINTH_MANUAL_INGREDIENT_EXACT_LEGACY_SOURCE_BOUND_NOT_PRODUCTION_WIRED');
+console.log('PASS G265_NINTH_MANUAL_INGREDIENT_GUARDED_SOURCE_AND_ISOLATED_ADAPTER_NOT_WIRED');
 
 const SQL=await initSqlJs();
 const seedSql=new SQL.Database();
