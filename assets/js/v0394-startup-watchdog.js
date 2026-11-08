@@ -109,6 +109,21 @@ function showHeartbeatWarning({blockedFor,stageAge}){
 }
 // Lifecycle resets cancel an unverified stall episode; only stable RAF frames
 // prove recovery. Keep these diagnostics distinct without touching player state.
+// G295: a responsive 2s timer must relinquish a stale DOM marker when an
+// external storage-integrity warning takes over during a RAF-throttled stall.
+// #838 covered takeover only when another long timer gap invoked showWarning.
+// Do not clear the foreign text, end the incident, or fabricate RAF recovery.
+function revokeResponsiveForeignWarningOwnership(){
+  if(!warningActive)return false;
+  const warning=document.getElementById('storageWarning');
+  if(!warning||warning.dataset.startupWatchdogWarning!==WATCHDOG_MARKER
+    ||warning.classList.contains('hidden')||warning.textContent===lastWarningText)return false;
+  delete warning.dataset.startupWatchdogWarning;
+  debugTrace.record('startup','main_thread_watchdog_external_warning_preserved',{status:'warning',
+    details:{last_checkpoint:stallSnapshot?.checkpoint||lastStage||'unknown',
+      display_owned:false,late_takeover:true,observed_during:'responsive-timer',authority}});
+  return true;
+}
 function clearRecoveredHeartbeatWarning({interruptedBy=null}={}){
   if(!warningActive)return false;
   const snapshot=stallSnapshot;warningActive=false;recoveryStableFrames=0;stallSnapshot=null;
@@ -189,6 +204,7 @@ function startHeartbeat(){
       resetHeartbeatForVisibility('timer-observed-foreground');
       return;
     }
+    revokeResponsiveForeignWarningOwnership();
     if(now<visibilityGraceUntil){pendingRafFirstGapMs=0;heartbeatAt=now;return;}
     const blockedFor=Math.round(Math.max(now-heartbeatAt,pendingRafFirstGapMs)),stageAge=Math.round(now-lastStageAt);
     pendingRafFirstGapMs=0;

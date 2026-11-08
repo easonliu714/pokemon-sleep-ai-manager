@@ -220,6 +220,36 @@ try{
     lateForeign=await state();
     assert.equal(lateForeign.warningText,'EXTERNAL_LATE_STORAGE_INTEGRITY_HOLD','late foreign warning must survive stable RAF recovery');
     assert.equal(lateForeign.visibleWarning,true);
+    // G295 negative-first: foreign storage integrity may take over while the
+    // watchdog's 2s timer remains responsive and RAF is throttled. A new 6s
+    // stall is NOT required to release stale DOM ownership. Existing #838
+    // covered only a second delayed 6s callback after the takeover.
+    await act(()=>{const w=document.getElementById('storageWarning');
+      w.classList.add('hidden');w.textContent='';delete w.dataset.startupWatchdogWarning;});
+    await act(()=>window.__g295.frames(40));
+    await act(()=>window.__g295.tick(6000));
+    const beforeResponsiveTakeover=await state();
+    assert.equal(beforeResponsiveTakeover.watchdogMarker,'startup-heartbeat-watchdog',
+      'precondition: watchdog owns visible warning before foreign takeover');
+    await act(()=>{const w=document.getElementById('storageWarning');
+      w.textContent='EXTERNAL_RESPONSIVE_TIMER_STORAGE_HOLD';
+      window.__g295.tick(2000);}); // no new long scheduling gap, no RAF
+    const responsiveTakeover=await state();
+    assert.equal(responsiveTakeover.detected,beforeResponsiveTakeover.detected,
+      'responsive timer must not invent a second stall');
+    assert.equal(responsiveTakeover.warningText,'EXTERNAL_RESPONSIVE_TIMER_STORAGE_HOLD');
+    assert.equal(responsiveTakeover.watchdogMarker,null,
+      'responsive timer must revoke stale watchdog marker without a new stall');
+    assert.equal(responsiveTakeover.preserved,beforeResponsiveTakeover.preserved+1,
+      'foreign takeover must be traced once without a second delayed callback');
+    await act(()=>window.__g295.tick(2000));
+    assert.equal((await state()).preserved,responsiveTakeover.preserved,
+      'repeated responsive ticks must not duplicate takeover evidence');
+    await act(()=>window.__g295.frames(31));
+    assert.equal((await state()).warningText,'EXTERNAL_RESPONSIVE_TIMER_STORAGE_HOLD',
+      'foreign warning must survive subsequent watchdog recovery');
+    console.log('PASS G295_CHROMIUM_RESPONSIVE_TIMER_FOREIGN_WARNING_OWNERSHIP_REVOKED');
+
     console.log('PASS G295_CHROMIUM_LATE_FOREIGN_WARNING_OWNERSHIP_REVOKED');
 
     console.log('PASS G295_CHROMIUM_RAF_FIRST_DELAYED_TIMER_AND_RESPONSIVE_CONTROL');
