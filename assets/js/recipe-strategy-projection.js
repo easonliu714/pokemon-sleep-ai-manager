@@ -58,7 +58,7 @@ function normalizeInventory(input){
 // A present SQLite player unlock flag must be canonical 0/1. Numeric coercion
 // of malformed legacy values must not authorize actionable recipe advice.
 function normalizeStates(input){
-  return new Map((input||[]).map(row=>{
+  const states=new Map((input||[]).map(row=>{
     const flag=row.unlocked;
     const unlockedVerified=flag===0||flag===1||flag==='0'||flag==='1';
     return [String(row.recipe_id||''),{
@@ -66,8 +66,23 @@ function normalizeStates(input){
       unlocked_verified:unlockedVerified,
       player_record_exists:Number(row.player_record_exists||0)===1,
       player_recipe_id:row.player_recipe_id||null,
+      player_identity_verified:true,
     }];
   }));
+  // The public recipe catalog view ranks matches per public recipe, not per
+  // player-owned row. Exact/name/legacy alias paths can reuse one player
+  // recipe ID for different public dishes. Never treat both as unlocked.
+  const playerOwners=new Map();
+  for(const [recipeId,state] of states){
+    if(!state.player_record_exists||!state.player_recipe_id)continue;
+    const playerId=String(state.player_recipe_id);
+    const prior=playerOwners.get(playerId);
+    if(prior&&prior!==recipeId){
+      states.get(prior).player_identity_verified=false;
+      state.player_identity_verified=false;
+    }else playerOwners.set(playerId,recipeId);
+  }
+  return states;
 }
 function normalizeProvenance(input){return new Map((input||[]).map(row=>[String(row.recipe_id||''),row]));}
 // Immutable public formula parity is required before local SQLite can yield
@@ -290,7 +305,7 @@ export function projectRecipeStrategy({
     const potRequired=Math.max(0,integer(expectedTotal,observedTotal));
     const potFit=normalizedPot===null?null:normalizedPot>=potRequired;
     const provenanceVerified=VERIFIED_FORMULA_EVIDENCE.has(evidence.formula_evidence);
-    const status=candidateStatus({ingredientStatus,potFit,provenanceVerified,requireVerifiedMaster:Boolean(requireVerifiedMaster),requirementsVerified,inventoryVerified,reserveVerified,stateVerified:state.unlocked_verified});
+    const status=candidateStatus({ingredientStatus,potFit,provenanceVerified,requireVerifiedMaster:Boolean(requireVerifiedMaster),requirementsVerified,inventoryVerified,reserveVerified,stateVerified:state.unlocked_verified&&state.player_identity_verified});
     const failedConstraints=[];
     const missingInputs=[];
     if(normalizedPot===null)missingInputs.push('pot_size');
@@ -299,6 +314,7 @@ export function projectRecipeStrategy({
     if(!inventoryVerified)missingInputs.push('ingredient_inventory');
     if(!reserveVerified)missingInputs.push('ingredient_safe_reserve');
     if(!state.unlocked_verified)missingInputs.push('recipe_unlock_state');
+    if(!state.player_identity_verified)missingInputs.push('recipe_player_identity');
     if(requireVerifiedMaster&&!provenanceVerified)failedConstraints.push('require_verified_master');
     if(potFit===false)failedConstraints.push('pot_capacity_limit');
     if(totalRawShortage>0)failedConstraints.push('ingredient_availability');
@@ -349,7 +365,7 @@ export function projectRecipeStrategy({
     near_missing_kinds_max:Math.max(0,integer(nearMissingKindsMax,2)),
     safe_reserve:stableEntries(Object.fromEntries(reserveMap)),
     inventory:[...inventoryMap.entries()].sort(([a],[b])=>a.localeCompare(b,'zh-Hant')),
-    states:[...stateMap.entries()].map(([id,state])=>[id,state.unlocked,state.unlocked_verified,state.player_record_exists,state.player_recipe_id]).sort(([a],[b])=>a.localeCompare(b)),
+    states:[...stateMap.entries()].map(([id,state])=>[id,state.unlocked,state.unlocked_verified,state.player_record_exists,state.player_recipe_id,state.player_identity_verified]).sort(([a],[b])=>a.localeCompare(b)),
     active_recipe_ids:candidates.map(row=>row.recipe_id).sort(),
     // G6.2: a stale/corrupt local recipe formula or provenance row can change
     // the actionable candidate while declared master versions remain unchanged.
