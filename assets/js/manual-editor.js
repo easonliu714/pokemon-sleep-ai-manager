@@ -51,7 +51,42 @@ export async function saveIngredient(name,quantity,unlockInput=undefined){
     close({uncertainOutcome:!acknowledged});
   }
 }
-export async function saveItem(name,quantity,reserve,recommendation){const before=rows('SELECT * FROM item_inventory WHERE item_name=?',[name])[0]||null;const q=Number(quantity),r=Number(reserve);if(!rows('SELECT 1 FROM item_master WHERE item_name=?',[name]).length)throw new Error('找不到公版道具名稱');if(!Number.isInteger(q)||q<0||!Number.isInteger(r)||r<0)throw new Error('庫存與保留量必須是 0 以上整數');await snapshot(`manual:item:${name}`);begin();try{run(`INSERT INTO item_inventory(item_name,quantity,safe_reserve,recommendation,updated_at,source_update_id) VALUES(?,?,?,?,?,?) ON CONFLICT(item_name) DO UPDATE SET quantity=excluded.quantity,safe_reserve=excluded.safe_reserve,recommendation=excluded.recommendation,updated_at=excluded.updated_at,source_update_id=excluded.source_update_id`,[name,q,r,String(recommendation||''),now(),'MANUAL-EDIT']);const after=rows('SELECT * FROM item_inventory WHERE item_name=?',[name])[0];await audit('item_inventory',{item_name:name},before,after,'前端手動修改道具資料');commit();await persist();return after;}catch(e){rollback();throw e}}
+// G265 named item writer: native primary admission must precede every player
+// read, snapshot and BEGIN. A failed or uncertain ACK requires explicit reload;
+// the held revision lease is reused through the durable save interval.
+export async function saveItem(name,quantity,reserve,recommendation){
+  const q=Number(quantity),r=Number(reserve);
+  if(!Number.isInteger(q)||q<0||!Number.isInteger(r)||r<0)
+    throw new Error('庫存與保留量必須是 0 以上整數');
+  const close=beginSqliteExclusiveWriteWindow();
+  let acknowledged=false;
+  try{
+    return await withPrimarySqliteMutationLock(async lease=>{
+      const before=rows('SELECT * FROM item_inventory WHERE item_name=?',[name])[0]||null;
+      if(!rows('SELECT 1 FROM item_master WHERE item_name=?',[name]).length)
+        throw new Error('找不到公版道具名稱');
+      await snapshot(`manual:item:${name}`);
+      withSqliteCoordinatedMutation(begin);
+      try{
+        const after=withSqliteCoordinatedMutation(()=>{
+          run(`INSERT INTO item_inventory(item_name,quantity,safe_reserve,recommendation,updated_at,source_update_id) VALUES(?,?,?,?,?,?) ON CONFLICT(item_name) DO UPDATE SET quantity=excluded.quantity,safe_reserve=excluded.safe_reserve,recommendation=excluded.recommendation,updated_at=excluded.updated_at,source_update_id=excluded.source_update_id`,
+            [name,q,r,String(recommendation||''),now(),'MANUAL-EDIT']);
+          return rows('SELECT * FROM item_inventory WHERE item_name=?',[name])[0];
+        });
+        await withSqliteCoordinatedMutation(()=>audit('item_inventory',{item_name:name},before,after,'前端手動修改道具資料'));
+        withSqliteCoordinatedMutation(commit);
+        await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
+        acknowledged=true;
+        return after;
+      }catch(error){
+        withSqliteCoordinatedMutation(rollback);
+        throw error;
+      }
+    });
+  }finally{
+    close({uncertainOutcome:!acknowledged});
+  }
+}
 // G265: one named production writer, not global legacy admission. Reserve the
 // same-page SQL window BEFORE waiting for the native cross-tab Web Lock.
 // Read the original, snapshot, BEGIN, mutate, audit, COMMIT and durable ACK
