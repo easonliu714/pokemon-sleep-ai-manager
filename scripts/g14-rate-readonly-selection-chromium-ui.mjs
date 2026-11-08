@@ -69,5 +69,25 @@ try{
   await page.locator('[data-rate4-review]').click();
   assert.equal(await page.locator('[data-rate4-stale]').count(),1,
     'nonfinite source change must revoke nonpersistent selection before review');
+  // RATE.5 isolated read-only guard in genuine Chromium; no production Apply.
+  const rate5=await page.evaluate(async()=>{
+    const {capturePokemonRatingRefreshAuthority:capture,
+      reviewPokemonRatingRefreshAuthority:review}=await import('/assets/js/pokemon-rating-refresh-authority.js');
+    const {POKEMON_PROVISIONAL_RATING_RULE_VERSION:rule}=await import('/assets/js/pokemon-provisional-rating.js');
+    const baseline={rule_version:rule,sqlite_generation:1,sqlite_sha256:'a'.repeat(64),
+      import_revision:'i1',restore_revision:'r1',observation_revision:'o1',
+      pokemon:[{pokemon_id:'A',pokemon_instance_id:'instance-A',level:20}],
+      ingredients:[],subskills:[]};
+    const captured=capture(baseline);
+    const row={...baseline.pokemon[0]};
+    Object.defineProperty(row,'level',{enumerable:true,get(){return 20;}});
+    const altered={...baseline,pokemon:[row]};
+    return {baseline:captured.status,noncanonical:capture(altered).status,
+      review:review({captured,latest:altered}).status};
+  });
+  assert.equal(rate5.baseline,'CAPTURED_READ_ONLY');
+  assert.equal(rate5.noncanonical,'HOLD_SOURCE_UNVERIFIED',
+    'Chromium getter-backed fact must not certify the same source token');
+  assert.equal(rate5.review,'HOLD_SOURCE_UNVERIFIED');
   console.log('PASS G14_RATE_CHROMIUM_KEEP_ADOPT_REVIEW_15_LEVEL_STALE_CLEAR_ZERO_WRITE');
 }finally{await context.close();await browser.close();await new Promise(resolve=>server.close(resolve));}
