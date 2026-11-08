@@ -13,6 +13,11 @@ const seed=Array.from(sqlite.export());
 sqlite.run("INSERT INTO g265_lock_probe VALUES ('legacy-during-lock')");
 const legacy=Array.from(sqlite.export());
 sqlite.close();
+const ownerSql=new SQL.Database(Uint8Array.from(seed));
+ownerSql.run("INSERT INTO g265_lock_probe VALUES ('optin-owner-inside-lock')");
+const owner=Array.from(ownerSql.export());
+ownerSql.run("INSERT INTO g265_lock_probe VALUES ('legacy-after-fresh-reload')");
+const merged=Array.from(ownerSql.export());ownerSql.close();
 const hash=bytes=>createHash('sha256').update(Uint8Array.from(bytes)).digest('hex');
 assert.notEqual(hash(seed),hash(legacy));
 const lockName='pokemon-sleep-ai-manager:sqlite-primary-exclusive-write';
@@ -47,7 +52,7 @@ try{
     });}finally{db.close();}
   },hash(seed));
   // G265: bind this independent legacy tab to its loaded source image.
-  // Atomic revision CAS protects stale bytes but DOES NOT acquire Web Locks.
+  // Atomic revision CAS now also shares native Web Locks at the save boundary.
   const baseline=await b.evaluate(async()=>{
     const bytes=await window.__g265.storage.loadDatabaseBytes();
     return Array.from(new Uint8Array(bytes));
@@ -71,40 +76,89 @@ try{
     name,{mode:'exclusive',ifAvailable:true},lock=>lock===null),lockName);
   assert.equal(lockDenied,true,'native Web Locks must exclude a cooperating writer');
   console.log('PASS G265_NATIVE_WEB_LOCKS_EXCLUSIVE_COOPERATING_WRITER_DENIED');
-  // The actual unchanged production legacy save does NOT request that lock.
-  await b.evaluate(bytes=>window.__g265.storage.saveDatabaseBytes(Uint8Array.from(bytes)),legacy);
-  const observed=await b.evaluate(async()=>{
-    const state=window.__g265;
-    const bytes=await state.storage.loadDatabaseBytes();
-    const db=await state.open();
+  // The actual production save now queues on the same native Web Lock.
+  // Retain the original negative witness: while owner A holds that lock, B
+  // cannot commit even if B's durable revision was fresh when its SQL work began.
+  await b.evaluate(bytes=>{
+    window.__g265.pendingStatus='QUEUED';
+    window.__g265.pendingSave=window.__g265.storage.saveDatabaseBytes(Uint8Array.from(bytes))
+      .then(()=>{window.__g265.pendingStatus='UNEXPECTED_COMMIT';return 'UNEXPECTED_COMMIT';},
+        error=>{window.__g265.pendingStatus=error.code;return error.code;});
+  },legacy);
+  await b.waitForFunction(async name=>{
+    const state=await navigator.locks.query();
+    return state.pending.some(lock=>lock.name===name);
+  },lockName,{timeout:5000});
+  assert.equal(await b.evaluate(()=>window.__g265.pendingStatus),'QUEUED');
+  console.log('PASS G265_SHARED_PRIMARY_NATIVE_SAVE_QUEUED_BEHIND_HELD_OPTIN_WEB_LOCK');
+
+  // Test-only synthetic opt-in owner commits the newer authoritative image
+  // WHILE holding its Web Lock, then releases the lock. No direct production
+  // player DB write is involved. The queued older legacy export must fail CAS.
+  await a.evaluate(async data=>{
+    const db=await window.__g265.open();
+    try{await new Promise((resolve,reject)=>{
+      const tx=db.transaction(['database','metadata'],'readwrite');
+      const bytes=Uint8Array.from(data.bytes);
+      tx.objectStore('database').put(bytes.buffer,'primary');
+      const store=tx.objectStore('metadata');
+      store.put({generation:1,sha256:data.sha256},'revision:primary');
+      store.put({byte_length:bytes.byteLength,updated_at:'2026-11-08T00:00:00.000Z',
+        format:'sqlite-arraybuffer',safe_boot_version:2,
+        revision_scheme:'g265-atomic-primary-cas-v1'},'primary');
+      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+    });}finally{db.close();}
+  },{bytes:owner,sha256:hash(owner)});
+  assert.equal(await b.evaluate(()=>window.__g265.pendingStatus),'QUEUED');
+  await a.evaluate(async()=>{
+    window.__g265.release();
+    await window.__g265.lockDone;
+  });
+  const stale=await b.evaluate(()=>window.__g265.pendingSave);
+  assert.equal(stale,'SQLITE_PRIMARY_STALE_REVISION_RELOAD_REQUIRED');
+  const afterOwner=await a.evaluate(async()=>{
+    const db=await window.__g265.open();
     try{
-      const revision=await new Promise((resolve,reject)=>{
+      const gate=window.__g265.createSqliteVersionNeutralAtomicPairGate({db});
+      const record=await gate.readVerified();
+      return {generation:record.generation,sha256:record.sha256,bytes:Array.from(record.bytes)};
+    }finally{db.close();}
+  });
+  assert.equal(afterOwner.generation,1);
+  assert.equal(afterOwner.sha256,hash(owner));
+  assert.equal(hash(afterOwner.bytes),hash(owner));
+  console.log('PASS G265_SHARED_PRIMARY_HELD_LOCK_OWNER_COMMIT_STALE_LEGACY_REJECT_NO_DATA_LOSS');
+
+  // Only an explicit fresh reload permits a new user action based on the
+  // verified owner image. Never silently retry a pre-lock legacy export.
+  const fresh=await b.evaluate(async()=>{
+    const bytes=await window.__g265.storage.loadDatabaseBytes();
+    return Array.from(new Uint8Array(bytes));
+  });
+  assert.equal(hash(fresh),hash(owner));
+  await b.evaluate(bytes=>window.__g265.storage.saveDatabaseBytes(Uint8Array.from(bytes)),merged);
+  const verified=await b.evaluate(async()=>{
+    const bytes=await window.__g265.storage.loadDatabaseBytes();
+    const db=await window.__g265.open();
+    try{
+      const record=await new Promise((resolve,reject)=>{
         const tx=db.transaction('metadata','readonly');
-        const req=tx.objectStore('metadata').get('revision:primary');
-        tx.oncomplete=()=>resolve(req.result);
+        const request=tx.objectStore('metadata').get('revision:primary');
+        tx.oncomplete=()=>resolve(request.result);
         tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
       });
-      return {bytes:Array.from(new Uint8Array(bytes)),revision};
+      return {bytes:Array.from(new Uint8Array(bytes)),revision:record};
     }finally{db.close();}
   });
-  assert.equal(hash(observed.bytes),hash(legacy));
-  assert.equal(observed.revision.generation,1);
-  assert.equal(observed.revision.sha256,hash(legacy),
-    'shared writer keeps bytes and revision atomic even without a Web Lock');
-  console.log('REPRODUCED_HOLD G265_LEGACY_SAVE_STILL_BYPASSES_HELD_WEB_LOCK_WITH_VALID_REVISION');
-  const mismatch=await a.evaluate(async()=>{
-    const state=window.__g265,db=await state.open();
-    try{
-      const gate=state.createSqliteVersionNeutralAtomicPairGate({db});
-      let code;
-      try{await gate.readVerified();}catch(error){code=error.code;}
-      return {code,status:gate.status().status};
-    }finally{db.close();}
-  });
-  assert.equal(mismatch.code,undefined,'legacy storage CAS no longer leaves a corrupt revision peer');
-  assert.equal(mismatch.status,'READY');
-  console.log('PASS G265_LEGACY_SAVE_REMAINS_REVISION_COHERENT_WHILE_LOCK_ADMISSION_UNPROVEN');
-  console.log('HOLD G265_ALL_LEGACY_WRITERS_LOCK_ADMISSION_PRODUCTION_CROSS_TAB_ANDROID_UAT');
+  assert.equal(verified.revision.generation,2);
+  assert.equal(verified.revision.sha256,hash(merged));
+  assert.equal(hash(verified.bytes),hash(merged));
+  const persisted=new SQL.Database(Uint8Array.from(verified.bytes));
+  assert.deepEqual(persisted.exec('SELECT id FROM g265_lock_probe ORDER BY id')[0].values.map(x=>x[0]),
+    ['legacy-after-fresh-reload','optin-owner-inside-lock','seed']);
+  persisted.close();
+  console.log('PASS G265_SHARED_PRIMARY_FRESH_RELOAD_MANUAL_REBASE_PRESERVES_BOTH_SQL_ROWS');
+  console.log('HOLD G265_LEGACY_PRE_PERSIST_SQL_MUTATION_INTERVALS_AND_ANDROID_OWNER_UAT');
 }finally{
   if(a&&!a.isClosed())try{await a.evaluate(async()=>{
     window.__g265?.release?.();
