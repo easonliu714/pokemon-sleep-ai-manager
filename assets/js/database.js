@@ -74,26 +74,16 @@ export function scalar(sql,params=[]){if(rescueReadonly)return 0;const r=rows(sq
 export function run(sql,params=[]){if(!db)throw new Error('database_not_ready');if(rescueReadonly)throw new Error('readonly_rescue_mode');assertSqliteDirectWriteAllowed();db.run(sql,params);}
 // G265: serialize database.persist() byte saves; capture only after prior IDB save.
 // Failed/timeout save remains uncertain until full reload and durable readback.
-// The lease is set only by one named pre-SQL admitted writer and is cleared
-// before its native Web Lock releases. No other legacy writer receives it.
-let activePrimaryMutationLease=null;
 const sqlitePersistCoordinator=createSqlitePersistCoordinator({
   capture:()=>{if(!db)throw new Error('database_not_ready');if(rescueReadonly)throw new Error('readonly_rescue_mode');return db.export();},
-  save:bytes=>saveDatabaseBytes(bytes,activePrimaryMutationLease?{primaryMutationLease:activePrimaryMutationLease}:{}),
+  save:(bytes,options)=>{
+    const {primaryMutationLease}=options||{};
+    return saveDatabaseBytes(bytes,{primaryMutationLease});
+  },
   timeoutMs:30000
 });
 export function getSqlitePersistStatus(){return sqlitePersistCoordinator.status();}
 export async function persist({primaryMutationLease}={}){
-  if(primaryMutationLease!==undefined){
-    if(activePrimaryMutationLease!==null)
-      throw Object.assign(new Error('SQLITE_PRIMARY_MUTATION_SESSION_ALREADY_ACTIVE'),
-        {code:'SQLITE_PRIMARY_MUTATION_SESSION_ALREADY_ACTIVE'});
-    activePrimaryMutationLease=primaryMutationLease;
-  }
-  try{return await persistPrimaryBytes();
-  }finally{if(primaryMutationLease!==undefined)activePrimaryMutationLease=null;}
-}
-async function persistPrimaryBytes(){
   if(!db)throw new Error('database_not_ready');
   if(rescueReadonly)throw new Error('readonly_rescue_mode');
   if(sqlitePersistCoordinator.status().status!=='READY')
@@ -103,7 +93,7 @@ async function persistPrimaryBytes(){
   const endBarePersistWindow=beginSqliteBarePersistWindow();
   emit('SQLITE_PERSIST_RUNNING','正在儲存 SQLite');
   try{
-    const outcome=await sqlitePersistCoordinator.persist();
+    const outcome=await sqlitePersistCoordinator.persist({primaryMutationLease});
     emit('SQLITE_PERSIST_COMPLETED','SQLite 儲存完成','completed',{byte_length:outcome.byte_length});
   }catch(error){
     // A legacy bare persist has no session window to propagate its uncertain IDB outcome.
