@@ -15,8 +15,8 @@ const source=legacy.split('export async function saveItem(')[1]?.split('export a
 const audit=legacy.split('async function audit(')[1]?.split('function emitPokemonEvaluationInputChanged(')[0];
 assert.ok(source&&audit,'exact eighth manual item legacy source must remain identifiable');
 assert.match(source,/await snapshot\(/);
-assert.match(source,/await persist\(\)/);
-assert.match(source,/await audit\('item_inventory'/);
+assert.match(source,/persist\(\{primaryMutationLease:lease\}\)/);
+assert.match(source,/withSqliteCoordinatedMutation\(\(\)=>audit\('item_inventory'/);
 assert.match(audit,/INSERT INTO import_batches/);
 assert.match(audit,/INSERT INTO import_changes/);
 assert.doesNotMatch(legacy,/sqlite-manual-item-optin/);
