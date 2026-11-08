@@ -72,7 +72,7 @@ async function newTab(){
       'localIso','withPrimarySqliteMutationLock','beginSqliteExclusiveWriteWindow',
       'withSqliteCoordinatedMutation',code)(
       rows,run,persist,snapshot,
-      ()=>v.db.run('BEGIN'),()=>v.db.run('COMMIT'),()=>v.db.run('ROLLBACK'),
+      ()=>v.db.run('BEGIN'),()=>v.db.run('COMMIT'),()=>{try{v.db.run('ROLLBACK');}catch{}},
       ()=>new Date().toISOString(),storage.withPrimarySqliteMutationLock,
       guard.beginSqliteExclusiveWriteWindow,guard.withSqliteCoordinatedMutation);
     window.__ingredient=v;
