@@ -95,8 +95,14 @@ function showHeartbeatWarning({blockedFor,stageAge}){
       warning.textContent=lastWarningText;
       warning.dataset.startupWatchdogWarning=WATCHDOG_MARKER;
       warning.classList.remove('hidden');
-    }else if(firstDetection){
-      debugTrace.record('startup','main_thread_watchdog_external_warning_preserved',{status:'warning',details:{last_checkpoint:snapshot.checkpoint,display_owned:false,authority}});
+    }else{
+      // A foreign storage warning may replace the text DURING an active stall.
+      // Revoke our stale DOM marker immediately; otherwise the badge falsely
+      // advertises watchdog ownership until 30 stable RAF recovery frames.
+      const foreignTookOverWatchdogBadge=warning.dataset.startupWatchdogWarning===WATCHDOG_MARKER;
+      if(foreignTookOverWatchdogBadge)delete warning.dataset.startupWatchdogWarning;
+      if(firstDetection||foreignTookOverWatchdogBadge)
+        debugTrace.record('startup','main_thread_watchdog_external_warning_preserved',{status:'warning',details:{last_checkpoint:snapshot.checkpoint,display_owned:false,late_takeover:foreignTookOverWatchdogBadge,authority}});
     }
   }
   if(firstDetection)debugTrace.record('startup','main_thread_block_detected',{status:'warning',details:{last_checkpoint:snapshot.checkpoint,checkpoint_is_causal:false,blocked_ms:blockedFor,stage_age_ms:stageAge,authority,authority_switch:false,automatic_retry_restarted:false}});
