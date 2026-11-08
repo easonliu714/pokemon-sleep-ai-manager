@@ -91,6 +91,42 @@ const canonicalNormal=projectRecipeStrategy(canonicalInput);
 assert(canonicalNormal.candidates[0].candidate_status==='UNLOCK_CANDIDATE_READY',
   'strategy_canonical_formula_positive_control');
 
+// G6.2 independent cross-recipe player identity: the recipe_catalog_state
+// ranked view chooses a match per public recipe, not a globally unique player
+// recipe owner. A single player row can therefore be matched to two public
+// recipes through distinct exact/name/legacy-alias paths. Never claim both
+// dishes are already unlocked from one player-owned record.
+const secondCanonical=CURRENT_PUBLIC_RECIPE_MASTER.find(row=>
+  row.recipe_id!==canonicalApple.recipe_id&&row.total_ingredients<=100
+  &&PUBLIC_RECIPE_PROVENANCE.some(p=>p.recipe_id===row.recipe_id&&p.lifecycle==='ACTIVE'));
+assert(secondCanonical,'strategy_cross_recipe_player_identity_fixture_required');
+const pairedCanonical=[canonicalApple,secondCanonical];
+const pairedInput={
+  ...canonicalInput,
+  recipes:pairedCanonical,
+  recipeIngredients:relations(pairedCanonical),
+  recipeStates:states(pairedCanonical,true),
+  inventory:[...new Set(pairedCanonical.flatMap(row=>row.ingredients.map(item=>item.ingredient_name)))]
+    .map(ingredient_name=>({ingredient_name,quantity:999})),
+  potSize:1000,
+};
+const distinctPlayerOwners=projectRecipeStrategy(pairedInput);
+assert(distinctPlayerOwners.candidates.every(row=>row.candidate_status==='COOK_NOW_UNLOCKED'),
+  'strategy_distinct_player_identity_positive_control');
+const aliasedPlayerOwners=projectRecipeStrategy({
+  ...pairedInput,
+  recipeStates:states(pairedCanonical,true).map(row=>({
+    ...row,player_recipe_id:'player:shared-legacy-row',
+  })),
+});
+assert(aliasedPlayerOwners.candidates.every(row=>row.candidate_status==='REVIEW_MISSING_INPUT'),
+  'strategy_cross_recipe_player_identity_must_hold');
+assert(aliasedPlayerOwners.candidates.every(row=>
+  row.hard_constraint_status==='REVIEW'&&row.missing_inputs.includes('recipe_player_identity')),
+  'strategy_cross_recipe_player_identity_reason_required');
+assert(aliasedPlayerOwners.input_fingerprint!==distinctPlayerOwners.input_fingerprint,
+  'strategy_cross_recipe_player_identity_fingerprint_must_change');
+
 // G6.2 negative-first: a stale local recipe display name can point the player
 // to the wrong dish even while recipe ID, formula, energy and static provenance
 // remain verified. Name identity is part of immutable canonical recipe evidence.
