@@ -19,13 +19,13 @@ const save=exactBetween('export async function saveIngredient(', 'export async f
 // base-main source, while the live named entry must now be admitted BEFORE SQL.
 // Never label the historical witness a current production vulnerability.
 const historicalSave="export async function saveIngredient(name,quantity,unlockInput=undefined){\n  const before=rows('SELECT * FROM ingredient_inventory WHERE ingredient_name=?',[name])[0]||null;\n  const q=Number(quantity);let unlocked=normalizeIngredientUnlockInput(unlockInput);\n  if(!rows('SELECT 1 FROM ingredient_master WHERE ingredient_name=?',[name]).length)throw new Error('找不到公版食材名稱');\n  if(!Number.isInteger(q)||q<0)throw new Error('庫存必須是 0 以上整數');\n  if(q>0&&unlocked===0)throw new Error('庫存大於 0 代表食材已解鎖，不可標記為尚未解鎖');\n  if(q>0)unlocked=1;\n  if(q===0&&unlockInput===undefined)unlocked=before?.unlocked??null;\n  await snapshot(`manual:ingredient:${name}`);begin();\n  try{\n    run(`INSERT INTO ingredient_inventory(ingredient_name,quantity,unlocked,updated_at,source_update_id) VALUES(?,?,?,?,?) ON CONFLICT(ingredient_name) DO UPDATE SET quantity=excluded.quantity,unlocked=excluded.unlocked,updated_at=excluded.updated_at,source_update_id=excluded.source_update_id`,[name,q,unlocked,now(),'MANUAL-EDIT']);\n    const after=rows('SELECT * FROM ingredient_inventory WHERE ingredient_name=?',[name])[0];\n    await audit('ingredient_inventory',{ingredient_name:name},before,after,'前端手動修改食材庫存與解鎖狀態');commit();await persist();return after;\n  }catch(e){rollback();throw e}\n}\n";
-assert.match(source,/const now=\\(\\)=>localIso\\(\\);/);
-assert.match(save,/beginSqliteExclusiveWriteWindow\\(\\)/);
-assert.match(save,/withPrimarySqliteMutationLock\\(async lease/);
-assert.match(save,/withSqliteCoordinatedMutation\\(begin\\)/);
-assert.match(save,/persist\\(\\{primaryMutationLease:lease\\}\\)/);
-assert.doesNotMatch(save,/commit\\(\\);await persist\\(\\)/);
-assert.match(historicalSave,/commit\\(\\);await persist\\(\\)/);
+assert.match(source,/const now=\(\)=>localIso\(\);/);
+assert.match(save,/beginSqliteExclusiveWriteWindow\(\)/);
+assert.match(save,/withPrimarySqliteMutationLock\(async lease/);
+assert.match(save,/withSqliteCoordinatedMutation\(begin\)/);
+assert.match(save,/persist\(\{primaryMutationLease:lease\}\)/);
+assert.doesNotMatch(save,/commit\(\);await persist\(\)/);
+assert.match(historicalSave,/commit\(\);await persist\(\)/);
 console.log('PASS G265_NINTH_MANUAL_INGREDIENT_LIVE_PRE_SQL_ADMISSION_AND_HISTORICAL_WITNESS_FROZEN');
 
 const clone=x=>JSON.parse(JSON.stringify(x));
