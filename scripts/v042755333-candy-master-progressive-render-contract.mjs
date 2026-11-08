@@ -16,7 +16,7 @@ const appVersion=authority.match(/app_version:\s*'([^']+)'/)?.[1]||'';
 // G265 .34 inherits .33 and the frozen Candy progressive 24/20 contract.
 
 // G9-R .37 read-side Halloween camp alias successor; frozen .36 exact checks retained.
-if(appVersion==='v0.4.27.55.3.3.37'){
+if(appVersion==='v0.4.27.55.3.3.38'||appVersion==='v0.4.27.55.3.3.37'){
   // Exact .36 successor inherits ALL frozen .35 assertions below.
   assert.ok(authority.includes("// app_version: 'v0.4.27.55.3.3.36'"),'missing .35 predecessor bridge');
 
