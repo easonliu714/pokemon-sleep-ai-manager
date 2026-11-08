@@ -27,14 +27,14 @@ function headingStructureProbe(body,markers){
   // Scheduled raw-HTML H1=0 is not an invitation to trust metadata as H1.
   // Probe ONLY the unique <head>, emit bounded counts (no raw titles/HTML),
   // and keep every metadata observation diagnostic-only.
-  const heads=[...visible.matchAll(/<head\\b[^>]*>([\\s\\S]*?)<\\/head>/gi)];
+  const heads=[...visible.matchAll(/<head\b[^>]*>([\s\S]*?)<\/head>/gi)];
   const head=heads.length===1?heads[0][1]:'';
-  const documentTitles=[...head.matchAll(/<title\\b[^>]*>([\\s\\S]*?)<\\/title>/gi)]
+  const documentTitles=[...head.matchAll(/<title\b[^>]*>([\s\S]*?)<\/title>/gi)]
     .map(match=>compact(match[1]));
-  const ogTitles=[...head.matchAll(/<meta\\b[^>]*>/gi)].flatMap(match=>{
-    const property=match[0].match(/(?:^|\\s)property\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))/i);
+  const ogTitles=[...head.matchAll(/<meta\b[^>]*>/gi)].flatMap(match=>{
+    const property=match[0].match(/(?:^|\s)property\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
     if((property?.[1]??property?.[2]??property?.[3])!=='og:title')return [];
-    const content=match[0].match(/(?:^|\\s)content\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))/i);
+    const content=match[0].match(/(?:^|\s)content\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
     return content?[compact(content[1]??content[2]??content[3])]:[];
   });
   const matchesTitle=value=>Boolean(title)&&value.includes(title);
