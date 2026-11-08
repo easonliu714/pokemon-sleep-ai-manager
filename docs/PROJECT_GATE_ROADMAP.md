@@ -1,3 +1,10 @@
+## 2026-11-08 G14.RATE nonpersistent individual selection | material Draft PR #829 CANDIDATE
+- Live main 129b9312cddb9ec36b29ef46e4b93b0361d94284, no Open PR before sole Draft #829; Ruleset #25813226 ACTIVE, new-main .39 12/12 CI and Pages SUCCESS.
+- Missing independent read-only UI: per-individual keep/adopt, complete 15-band filter/sort and volatile stale reset. Legacy manual-editor.js::savePokemonDetail still lacks cross-tab pre-persist SQL admission; #827 CAS/#828 save Web Lock do not close this. RATE_PERSISTED_APPLY remains HOLD_PRODUCTION_APPLY.
+- Negative-first test-only HEAD 76f11709f51995380be2592edd124affde355443 failed War Room run 42444645748 on missing selection export. Source/test plus native disposable Chromium UI in same PR; exact-head CI, protected merge and new-main CI/Pages still pending, CANDIDATE not VERIFIED_SOURCE.
+- Default KEEP, per-instance nonpersistent adopt, all/none/review old/new, 15-band suggested-grade filter/sort, duplicate/missing identity HOLD and source-token stale discard. No player SQLite/IDB write, no rating UPDATE, Public Master/STOP/Migration change.
+- #796 OPEN: RATE_READ_ONLY source/Android read-only UAT pending; RATE_PERSISTED_APPLY HOLD until global 23 legacy writer admission, snapshot, durable ACK, rollback and Owner Android. No Android request until cache identity/deployment proven. BALANCE_GATE receives independent #796 source/test; #19 source identity HOLD, #295/#479 OPEN.
+
 ## 2026-11-08 P0 G265 Stage 2 production SQLite Web Lock admission | Draft PR #828 CANDIDATE
 - **Stage 2 release/cache identity:** Exact successor `v0.4.27.55.3.3.39` / `20261108-v0427553339-g265-shared-primary-web-lock` / `pokemon-sleep-ai-v0.4.27.55.3.3.39-v0427553339-g265-shared-primary-web-lock` is included in Draft #828 so the installed PWA does not reuse `.38` cached `storage.js`. Frozen `.38` predecessor tuple, Mobile Snapshot, historical Release, Browser, G14 and Candy contracts remain explicit and checked. No claim that `.39` is deployed before protected Merge + Pages and Android Owner UAT.
 
