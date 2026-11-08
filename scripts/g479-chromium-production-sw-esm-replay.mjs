@@ -339,6 +339,57 @@ try{
     }finally{await context.close();}
   }
 
+
+  // G479 independent negative-first real Chromium: a static history-export
+  // feature module 503 leaves its URL failed in this document's ESM module map.
+  // The existing user-facing error must explain that a manual fresh document
+  // is required, not suggest repeated same-document clicks can recover.
+  {
+    const bootstrap=readFileSync(new URL('../assets/js/bootstrap.js',import.meta.url),'utf8');
+    const extract=(startMarker,endMarker)=>{
+      const start=bootstrap.indexOf(startMarker),end=bootstrap.indexOf(endMarker,start);
+      assert.ok(start>=0&&end>start,'exact production history export extraction '+startMarker);
+      return bootstrap.slice(start,end+2);
+    };
+    const importSource=extract('function importFeatureModule(file){','\n}\nasync function loadPageModules');
+    const historySource=extract('function bindStaticHistoryExport(){','\n}\nfunction bindPageAwareFeatureLoading');
+    const context=await browser.newContext({serviceWorkers:'block'});
+    try{
+      const page=await context.newPage();
+      const messages=[];
+      let networkRequests=0;
+      page.on('dialog',dialog=>{messages.push(dialog.message());void dialog.accept();});
+      await page.route('**/assets/js/review-reference-history-ux-v042745.js',route=>{
+        networkRequests++;
+        return route.fulfill({status:503,contentType:'text/javascript',body:'export const downloadImportHistoryJson=()=>{};'});
+      });
+      await page.goto(origin+'/assets/js/fixture.html',{waitUntil:'load'});
+      await page.evaluate(()=>{
+        document.body.innerHTML='<button id="exportImportHistoryJsonBtnV042745">匯出</button>';
+        localStorage.setItem('g479-history-sentinel','preserved');
+      });
+      await page.addScriptTag({content:[
+        'const moduleLoads=new Map(),failedFeatureModuleUrls=new Set(),g479HistoryTrace=[];',
+        "const debugTrace={record:(...args)=>g479HistoryTrace.push(args)};",
+        importSource,historySource,
+        'bindStaticHistoryExport();',
+        'globalThis.g479HistoryState={failed:()=>g479HistoryTrace.filter(e=>e[1]==="static_history_export_failed").length};',
+      ].join('\n')});
+      await page.locator('#exportImportHistoryJsonBtnV042745').click();
+      await page.waitForFunction(()=>g479HistoryState.failed()===1);
+      assert.equal(networkRequests,1,'first history-export ESM failure must be real HTTP 503');
+      assert.match(messages[0]||'',/手動重新載入頁面/,'first static export error must give bounded fresh-document recovery guidance');
+      const beforeSecond=indexRequests;
+      await page.locator('#exportImportHistoryJsonBtnV042745').click();
+      await page.waitForFunction(()=>g479HistoryState.failed()===2);
+      assert.equal(networkRequests,1,'failed ESM module URL must not be blindly re-fetched in the same document');
+      assert.match(messages[1]||'',/手動重新載入頁面/,'repeat click must explain sticky failed module map');
+      assert.equal(indexRequests,beforeSecond,'history export failure must never auto-reload');
+      assert.equal(await page.evaluate(()=>localStorage.getItem('g479-history-sentinel')),'preserved','no player or local storage deletion');
+      console.log('PASS G479_CHROMIUM_STATIC_HISTORY_ESM_FAILURE_MANUAL_RELOAD_GUIDANCE');
+    }finally{await context.close();}
+  }
+
 }finally{
   if(browser)await browser.close();
   server.closeAllConnections();
