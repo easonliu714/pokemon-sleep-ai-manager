@@ -32,6 +32,7 @@ function fixture({stale=false,noLocks=false,sqlFailure=false,ackLoss=false}={}){
     canonicalIngredientNames(){requireLock();calls.push('ingredients');return new Set(['apple']);},
     buildRecipeAttemptFeedbackRecord(x){return {...x,outcome:'DID_NOT_UNLOCK',actual_ingredients:x.actual_ingredients};},
     eventId:()=> 'fixture-attempt',nowIso:()=> '2026-11-08T15:00:00.000Z',
+    clean:value=>String(value??'').normalize('NFKC').trim(),
     armPersistenceMarker(m){requireLock();calls.push('marker');marker.value=m;},
     clearPersistenceMarker(){calls.push('clear');marker.value=null;},
     async snapshot(reason){requireLock();assert.equal(reason,'recipe-feedback:record-attempt');calls.push('snapshot');},
