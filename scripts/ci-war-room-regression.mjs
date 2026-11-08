@@ -12,6 +12,7 @@ const contracts=Object.freeze([
   'scripts/v042-pokemon-provisional-rating-contract.mjs',
   'scripts/g14-rate2-screenshot-review-contract.mjs',
   'scripts/g14-rate3-roster-diff-ui-contract.mjs',
+  'scripts/g14-rate-readonly-choice-contract.mjs',
   'scripts/g14-rate4-preapply-consent-stale-contract.mjs',
   'scripts/g14-rate5-full-source-refresh-contract.mjs',
   'scripts/g265-restore-postwrite-failclosed-contract.mjs',
