@@ -3,7 +3,6 @@
 // the durable revision, and retain a Web Lock through SQL mutation + ACK.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {webcrypto} from 'node:crypto';
 import {indexedDB} from 'fake-indexeddb';
 import initSqlJs from 'sql.js';
 
@@ -22,7 +21,6 @@ assert.match(database,/saveDatabaseBytes\(bytes,\{primaryMutationLease\}\)/);
 assert.match(guard,/export function beginSqliteExclusiveWriteWindow\(/);
 console.log('PASS G265_MANUAL_POKEMON_PRODUCTION_NAMED_ENTRY_SOURCE_BOUND_PRE_SQL_ADMISSION');
 
-globalThis.crypto=webcrypto;
 globalThis.indexedDB=indexedDB;
 let tail=Promise.resolve(),held=0,waiting=0;
 const locks={request(name,options,callback){
