@@ -1,3 +1,12 @@
+## 2026-11-09 G9R #19 PR #845 — raw HTML zero-H1 head metadata diagnostic | material Source/Test candidate
+
+
+- **Prior #844 VERIFIED_SOURCE:** [PR #844](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/844) final exact head `4040bfe1c71d5f6106b467571d6c014d8985764c`, 7/7 PR workflows SUCCESS, protected merge main `d97277b33bbc89ef19dae1a666b5eaf25315a5e1`, 8/8 new-main Push CI including [Pages #42528186115](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/42528186115) SUCCESS. Earlier #844 Candidate entry below is historical, not an unmerged PR; RATE_PERSISTED_APPLY remains HOLD.
+- **Architecture boundary:** scheduled public official-source watch -> `summarizeOfficialLiveResponse::headingStructureProbe` -> bounded `head_metadata` counts -> `HOLD_SOURCE_REVIEW`. Metadata from a unique HTML `<head>` is DIAGNOSTIC ONLY, never an alternative to strict visible article H1 identity; HTTP 200/rendered page title do not authorize Public Master.
+- **Fresh main:** `d97277b33bbc89ef19dae1a666b5eaf25315a5e1`, Ruleset #25813226 ACTIVE, sole Draft [#845](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/845). Scheduled [Data Boundary #42519601367](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/42519601367) observed raw `article_h1_count=0`.
+- **Source-bound negative:** test-only `d1a3c6a942eb6aaa349a1cd9da1f491b1b0713d1` [Data Boundary #42532438345](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/42532438345) FAILED at provenance step. Minimal source `6d7876bb9dbb3c91cd427faacacac3c9bad0af07` adds unique-head/title/og:title bounded counts and title-fragment matches; duplicate OG and body-only meta remain diagnostic and H1=0 stays HOLD. No raw HTML, title strings, private data, or extra workflows emitted.
+- **Pending:** exact-head CI, protected merge, new-main CI/Pages; #19 OPEN, #796 `RATE_PERSISTED_APPLY=HOLD_PRODUCTION_APPLY`, #482 `OWNER_ACTION=NONE_NOW`. No change to official event Master, player SQLite, IDB, Android app or source authority.
+
 ## 2026-11-09 G14.RATE.5 #844 — reject noncanonical refresh source descriptors | material Source/Test candidate
 
 - **Fresh authority:** protected main `bc5a3cf5a2d085072823a23bc490e8f288ed4307`, no Open PR before the sole Draft [#844](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/844), Ruleset #25813226 ACTIVE (merge-only, required `regression-gate`). This is a distinct isolated RATE.5 source-freshness path, NOT the production RATE.3 preview token already fixed by #840.
