@@ -140,19 +140,23 @@ const pageModuleGroups=Object.freeze({
 });
 const pageLoads=new Map();
 const moduleLoads=new Map();
+// Chromium keeps failed ESM URLs in the current document module map.
+// Do not claim same-document navigation can recover a failed import.
+const failedFeatureModuleUrls=new Set();
 const yieldToBrowser=()=>new Promise(resolve=>{
   if(typeof requestIdleCallback==='function')requestIdleCallback(()=>resolve(),{timeout:120});
   else if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>setTimeout(resolve,0));
   else setTimeout(resolve,0);
 });
 function importFeatureModule(file){
+  if(failedFeatureModuleUrls.has(file))throw new Error('G479_DEFERRED_ESM_FAILED_MODULE_MAP_RELOAD_REQUIRED');
   if(moduleLoads.has(file))return moduleLoads.get(file);
   const started=performance.now();
   // Canonical ESM identity: page-aware modules are imported without query-string aliases.
   const promise=import(`./${file}`).then(value=>{
     debugTrace.record('bootstrap','page_feature_module_loaded',{status:'completed',details:{file,elapsed_ms:Math.round(performance.now()-started),canonical_esm_identity:true}});
     return value;
-  }).catch(error=>{moduleLoads.delete(file);throw error;});
+  }).catch(error=>{failedFeatureModuleUrls.add(file);moduleLoads.delete(file);throw error;});
   moduleLoads.set(file,promise);
   return promise;
 }
@@ -182,10 +186,15 @@ async function loadPageModules(page){
     return {page,module_count:files.length,known_page:true,hydration_owned:Boolean(hydration?.owned)};
   })().catch(error=>{
     pageLoads.delete(page);
-    // A deferred ESM failure must settle the visible page-hydration badge.
-    // The next explicit navigation may retry; no automatic reload or player write.
-    pageProgress(page,'failed',`${page==='updates'?'更新中心':page}：功能模組載入失敗；請保留本機資料，稍後重新進入此頁重試。`,{phase:'modules',retryable_on_next_navigation:true,player_write:false});
-    debugTrace.record('bootstrap','page_feature_load_failed',{status:'failed',details:{page,retryable_on_next_navigation:true,player_write:false},error});
+    // A failed ESM URL is sticky in this document's module map. Other
+    // hydration errors may still be retried on explicit page navigation.
+    const manualReloadRequired=files.some(file=>failedFeatureModuleUrls.has(file));
+    const retryableOnNextNavigation=!manualReloadRequired;
+    const guidance=manualReloadRequired
+      ? '請保留本機資料，手動重新載入頁面後重試。'
+      : '請保留本機資料，稍後重新進入此頁重試。';
+    pageProgress(page,'failed',`${page==='updates'?'更新中心':page}：功能模組載入失敗；${guidance}`,{phase:'modules',retryable_on_next_navigation:retryableOnNextNavigation,manual_reload_required:manualReloadRequired,player_write:false});
+    debugTrace.record('bootstrap','page_feature_load_failed',{status:'failed',details:{page,retryable_on_next_navigation:retryableOnNextNavigation,manual_reload_required:manualReloadRequired,player_write:false},error});
     throw error;
   });
   pageLoads.set(page,promise);return promise;
