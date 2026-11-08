@@ -14,20 +14,42 @@ function normalizeIngredientUnlockInput(value){
 
 // Quantity and player progression are independent semantics. Positive quantity
 // deterministically proves unlock; quantity=0 never auto-means NOT_UNLOCKED.
+// G265 named ingredient writer: reserve the same-page SQL window before the
+// native Web Lock, then validate player-owned state and mutate only under the
+// loaded-primary revision lease. A failed/ambiguous ACK requires reload.
 export async function saveIngredient(name,quantity,unlockInput=undefined){
-  const before=rows('SELECT * FROM ingredient_inventory WHERE ingredient_name=?',[name])[0]||null;
-  const q=Number(quantity);let unlocked=normalizeIngredientUnlockInput(unlockInput);
-  if(!rows('SELECT 1 FROM ingredient_master WHERE ingredient_name=?',[name]).length)throw new Error('找不到公版食材名稱');
+  const q=Number(quantity),requestedUnlock=normalizeIngredientUnlockInput(unlockInput);
   if(!Number.isInteger(q)||q<0)throw new Error('庫存必須是 0 以上整數');
-  if(q>0&&unlocked===0)throw new Error('庫存大於 0 代表食材已解鎖，不可標記為尚未解鎖');
-  if(q>0)unlocked=1;
-  if(q===0&&unlockInput===undefined)unlocked=before?.unlocked??null;
-  await snapshot(`manual:ingredient:${name}`);begin();
+  if(q>0&&requestedUnlock===0)throw new Error('庫存大於 0 代表食材已解鎖，不可標記為尚未解鎖');
+  const close=beginSqliteExclusiveWriteWindow();
+  let acknowledged=false;
   try{
-    run(`INSERT INTO ingredient_inventory(ingredient_name,quantity,unlocked,updated_at,source_update_id) VALUES(?,?,?,?,?) ON CONFLICT(ingredient_name) DO UPDATE SET quantity=excluded.quantity,unlocked=excluded.unlocked,updated_at=excluded.updated_at,source_update_id=excluded.source_update_id`,[name,q,unlocked,now(),'MANUAL-EDIT']);
-    const after=rows('SELECT * FROM ingredient_inventory WHERE ingredient_name=?',[name])[0];
-    await audit('ingredient_inventory',{ingredient_name:name},before,after,'前端手動修改食材庫存與解鎖狀態');commit();await persist();return after;
-  }catch(e){rollback();throw e}
+    return await withPrimarySqliteMutationLock(async lease=>{
+      const before=rows('SELECT * FROM ingredient_inventory WHERE ingredient_name=?',[name])[0]||null;
+      if(!rows('SELECT 1 FROM ingredient_master WHERE ingredient_name=?',[name]).length)
+        throw new Error('找不到公版食材名稱');
+      let unlocked=q>0?1:requestedUnlock;
+      if(q===0&&unlockInput===undefined)unlocked=before?.unlocked??null;
+      await snapshot(`manual:ingredient:${name}`);
+      withSqliteCoordinatedMutation(begin);
+      try{
+        const after=withSqliteCoordinatedMutation(()=>{
+          run(`INSERT INTO ingredient_inventory(ingredient_name,quantity,unlocked,updated_at,source_update_id) VALUES(?,?,?,?,?) ON CONFLICT(ingredient_name) DO UPDATE SET quantity=excluded.quantity,unlocked=excluded.unlocked,updated_at=excluded.updated_at,source_update_id=excluded.source_update_id`,[name,q,unlocked,now(),'MANUAL-EDIT']);
+          return rows('SELECT * FROM ingredient_inventory WHERE ingredient_name=?',[name])[0];
+        });
+        await withSqliteCoordinatedMutation(()=>audit('ingredient_inventory',{ingredient_name:name},before,after,'前端手動修改食材庫存與解鎖狀態'));
+        withSqliteCoordinatedMutation(commit);
+        await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
+        acknowledged=true;
+        return after;
+      }catch(error){
+        withSqliteCoordinatedMutation(rollback);
+        throw error;
+      }
+    });
+  }finally{
+    close({uncertainOutcome:!acknowledged});
+  }
 }
 export async function saveItem(name,quantity,reserve,recommendation){const before=rows('SELECT * FROM item_inventory WHERE item_name=?',[name])[0]||null;const q=Number(quantity),r=Number(reserve);if(!rows('SELECT 1 FROM item_master WHERE item_name=?',[name]).length)throw new Error('找不到公版道具名稱');if(!Number.isInteger(q)||q<0||!Number.isInteger(r)||r<0)throw new Error('庫存與保留量必須是 0 以上整數');await snapshot(`manual:item:${name}`);begin();try{run(`INSERT INTO item_inventory(item_name,quantity,safe_reserve,recommendation,updated_at,source_update_id) VALUES(?,?,?,?,?,?) ON CONFLICT(item_name) DO UPDATE SET quantity=excluded.quantity,safe_reserve=excluded.safe_reserve,recommendation=excluded.recommendation,updated_at=excluded.updated_at,source_update_id=excluded.source_update_id`,[name,q,r,String(recommendation||''),now(),'MANUAL-EDIT']);const after=rows('SELECT * FROM item_inventory WHERE item_name=?',[name])[0];await audit('item_inventory',{item_name:name},before,after,'前端手動修改道具資料');commit();await persist();return after;}catch(e){rollback();throw e}}
 // G265: one named production writer, not global legacy admission. Reserve the
