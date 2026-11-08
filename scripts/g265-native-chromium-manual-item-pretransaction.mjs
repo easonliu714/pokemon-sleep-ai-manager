@@ -168,7 +168,7 @@ try{
   assert.deepEqual(await c.evaluate(()=>window.__item.snapshotBytes),before.bytes);
   assert.equal((await attempt(c,'ITEM_B',1,1,'retry')).ok,false);
   console.log('PASS G265_NATIVE_ITEM_SQL_TRIGGER_ROLLBACK_NO_DURABLE_DELTA');
-  console.log('HOLD G265_REMAINITEM_LEGACY_WRITERS_AND_ANDROID_OWNER_UAT');
+  console.log('HOLD G265_REMAINING_LEGACY_WRITERS_AND_ANDROID_OWNER_UAT');
 }finally{
   for(const page of tabs)if(!page.isClosed())try{
     await page.evaluate(()=>window.__item?.storage?.closeStorageConnection?.());
