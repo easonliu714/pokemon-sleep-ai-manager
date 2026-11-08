@@ -510,6 +510,9 @@ jobs:
       - name: G265 Fifth Legacy Analysis Revision Cross-Tab Acknowledged Lost-Update Negative
         run: node scripts/g265-analysis-revision-fifth-legacy-cross-tab-negative.mjs
 
+      - name: G265 named production analysis revision pre-SQL admission
+        run: node scripts/g265-analysis-revision-production-pretransaction-source.mjs
+
       - name: G265 Fifth Legacy Analysis Revision Isolated Durable CAS Gate
         run: node scripts/g265-analysis-revision-fifth-legacy-writer-optin.mjs
 
