@@ -59,6 +59,22 @@ expectHold({freshView:changed('fixture-A',{current_evidence:[]})},'SELECTED_RECO
 expectHold({freshView:changed('fixture-A',{status:'REVIEW_REQUIRED'})},'SELECTED_RECORD_NOT_ELIGIBLE');
 expectHold({freshView:changed('fixture-A',{missing_inputs:['verified_nature']})},'SELECTED_RECORD_NOT_ELIGIBLE');
 expectHold({freshView:changed('fixture-A',{pokemon_instance_id:null})},'SELECTED_RECORD_NOT_ELIGIBLE');
+// RATE.4 negative-first: equal getter values are not authenticated facts.
+// JSON.stringify silently executes accessors and can equate noncanonical
+// selected evidence with a previously confirmed read-only preview.
+const accessorView=changed('fixture-A',{});
+const accessorRow=accessorView.rows.find(row=>row.pokemon_id==='fixture-A');
+const originalLevel=accessorRow.level;
+Object.defineProperty(accessorRow,'level',{enumerable:true,configurable:true,get:()=>originalLevel});
+expectHold({freshView:accessorView},'SELECTED_RECORD_NOT_ELIGIBLE');
+const nestedAccessorView=changed('fixture-A',{});
+const nestedRow=nestedAccessorView.rows.find(row=>row.pokemon_id==='fixture-A');
+const nestedEvidence=nestedRow.current_evidence[0];
+if(nestedEvidence){
+  const evidenceName=nestedEvidence.name;
+  Object.defineProperty(nestedEvidence,'name',{enumerable:true,configurable:true,get:()=>evidenceName});
+  expectHold({freshView:nestedAccessorView},'SELECTED_RECORD_NOT_ELIGIBLE');
+}
 const held=view();
 held.rows[0].status='REVIEW_REQUIRED';
 expectHold({preview:held},'SELECTED_RECORD_NOT_ELIGIBLE');
