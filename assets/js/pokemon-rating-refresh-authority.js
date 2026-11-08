@@ -10,18 +10,51 @@ const result=(status,reason)=>Object.freeze({
 });
 const validText=x=>typeof x==='string'&&x.length>0&&x===x.trim();
 const validSha=x=>typeof x==='string'&&/^[0-9a-f]{64}$/.test(x);
-function canonical(value){
+// RATE.5: read descriptors, not getter values. JSON.stringify/Object.keys
+// silently ignore symbols, array metadata and holes, and invoke accessors.
+// Such source facts must HOLD before an immutable read-only token is captured.
+function canonical(value,seen=new WeakSet()){
   if(value===null||typeof value==='string'||typeof value==='boolean')return JSON.stringify(value);
   if(typeof value==='number'&&Number.isFinite(value))return JSON.stringify(value);
-  if(Array.isArray(value))return '['+value.map(canonical).join(',')+']';
-  if(value&&Object.getPrototypeOf(value)===Object.prototype){
-    const keys=Object.keys(value).sort();
-    if(keys.some(k=>value[k]===undefined))throw new TypeError('UNKNOWN_SOURCE_FIELD');
-    return '{'+keys.map(k=>JSON.stringify(k)+':'+canonical(value[k])).join(',')+'}';
+  if(!value||typeof value!=='object'||seen.has(value))
+    throw new TypeError('NON_JSON_SOURCE_FIELD');
+  seen.add(value);
+  if(Array.isArray(value)){
+    if(Reflect.ownKeys(value).length!==value.length+1)
+      throw new TypeError('NON_CANONICAL_ARRAY_KEYS');
+    const cells=[];
+    for(let i=0;i<value.length;i++){
+      const descriptor=Object.getOwnPropertyDescriptor(value,String(i));
+      if(!descriptor?.enumerable||!Object.hasOwn(descriptor,'value'))
+        throw new TypeError('NON_CANONICAL_ARRAY_ELEMENT');
+      cells.push(canonical(descriptor.value,seen));
+    }
+    return '['+cells.join(',')+']';
   }
-  throw new TypeError('NON_JSON_SOURCE_FIELD');
+  if(Object.getPrototypeOf(value)!==Object.prototype)
+    throw new TypeError('NON_JSON_SOURCE_FIELD');
+  const keys=Reflect.ownKeys(value);
+  if(keys.some(key=>typeof key!=='string'))
+    throw new TypeError('NON_CANONICAL_OBJECT_KEYS');
+  return '{'+keys.sort().map(key=>{
+    const descriptor=Object.getOwnPropertyDescriptor(value,key);
+    if(!descriptor?.enumerable||!Object.hasOwn(descriptor,'value'))
+      throw new TypeError('NON_CANONICAL_OBJECT_FIELD');
+    return JSON.stringify(key)+':'+canonical(descriptor.value,seen);
+  }).join(',')+'}';
 }
-const orderedRows=rows=>'['+rows.map(canonical).sort().join(',')+']';
+const orderedRows=rows=>{
+  if(!Array.isArray(rows)||Reflect.ownKeys(rows).length!==rows.length+1)
+    throw new TypeError('NON_CANONICAL_SOURCE_ROWS');
+  const values=[];
+  for(let i=0;i<rows.length;i++){
+    const descriptor=Object.getOwnPropertyDescriptor(rows,String(i));
+    if(!descriptor?.enumerable||!Object.hasOwn(descriptor,'value'))
+      throw new TypeError('NON_CANONICAL_SOURCE_ROW');
+    values.push(canonical(descriptor.value));
+  }
+  return '['+values.sort().join(',')+']';
+};
 /**
  * Capture an independent, immutable source comparison token. Full row facts
  * are compared, not merely a displayed grade or an unlocked-slot projection.
@@ -35,6 +68,13 @@ export function capturePokemonRatingRefreshAuthority(input={}){
       observation_revision].every(validText)
     ||![pokemon,ingredients,subskills].every(Array.isArray))
     return result('HOLD_SOURCE_UNVERIFIED','MISSING_OR_UNTRUSTED_AUTHORITY');
+  // Validate full row descriptors before identity reads. Accessor-backed
+  // identity/level fields must not be executed or certified as source facts.
+  let canonicalRows;
+  try{
+    canonicalRows={pokemon:orderedRows(pokemon),
+      ingredients:orderedRows(ingredients),subskills:orderedRows(subskills)};
+  }catch{return result('HOLD_SOURCE_UNVERIFIED','NON_CANONICAL_SOURCE_FACTS');}
   const ids=new Set(),instances=new Set();
   for(const row of pokemon){
     if(!validText(row?.pokemon_id)||!validText(row?.pokemon_instance_id)
@@ -50,8 +90,8 @@ export function capturePokemonRatingRefreshAuthority(input={}){
     const token=Object.freeze({
       rule_version,sqlite_generation,sqlite_sha256,import_revision,
       restore_revision,observation_revision,
-      pokemon:orderedRows(pokemon),ingredients:orderedRows(ingredients),
-      subskills:orderedRows(subskills),
+      pokemon:canonicalRows.pokemon,ingredients:canonicalRows.ingredients,
+      subskills:canonicalRows.subskills,
     });
     return Object.freeze({...result('CAPTURED_READ_ONLY'),token});
   }catch{return result('HOLD_SOURCE_UNVERIFIED','NON_CANONICAL_SOURCE_FACTS');}

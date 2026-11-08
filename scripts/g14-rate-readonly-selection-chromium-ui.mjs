@@ -82,12 +82,20 @@ try{
     const row={...baseline.pokemon[0]};
     Object.defineProperty(row,'level',{enumerable:true,get(){return 20;}});
     const altered={...baseline,pokemon:[row]};
+    const symbolRow={...baseline.pokemon[0]};
+    symbolRow[Symbol('untracked')]='changed';
+    const extraIngredients=[...baseline.ingredients];
+    extraIngredients.unverified_revision='changed';
     return {baseline:captured.status,noncanonical:capture(altered).status,
-      review:review({captured,latest:altered}).status};
+      review:review({captured,latest:altered}).status,
+      symbol:capture({...baseline,pokemon:[symbolRow]}).status,
+      arrayMetadata:capture({...baseline,ingredients:extraIngredients}).status};
   });
   assert.equal(rate5.baseline,'CAPTURED_READ_ONLY');
   assert.equal(rate5.noncanonical,'HOLD_SOURCE_UNVERIFIED',
     'Chromium getter-backed fact must not certify the same source token');
   assert.equal(rate5.review,'HOLD_SOURCE_UNVERIFIED');
+  assert.equal(rate5.symbol,'HOLD_SOURCE_UNVERIFIED');
+  assert.equal(rate5.arrayMetadata,'HOLD_SOURCE_UNVERIFIED');
   console.log('PASS G14_RATE_CHROMIUM_KEEP_ADOPT_REVIEW_15_LEVEL_STALE_CLEAR_ZERO_WRITE');
 }finally{await context.close();await browser.close();await new Promise(resolve=>server.close(resolve));}
