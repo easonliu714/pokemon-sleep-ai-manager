@@ -1,3 +1,9 @@
+## 2026-11-08 P0 G265 shared SQLite primary atomic CAS | Draft PR #827 CANDIDATE
+
+- Owner has elevated unresolved SQLite Writer consistency above the next Roadmap work. Base main `85a3a2c13065a1a38a30a11e2fa6a2f568b9d75e`; sole Draft [#827](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/827) patches production raw-byte persistence with no-schema-change, version-neutral IDB transaction revision/SHA and paired normal/Worker loads; disposable fake-IDB/SQL.js and native browser regressions.
+- **DoD:** exact-head PR CI, stale/ABA/legacy/worker/rollback and all downstream syntax/frontend/browser/DB consistency checks; protected merge commit and new main CI/Pages. #827 is only `CANDIDATE` until these are independently read back. This materially reduces durable stale overwrite, but does **not** claim 23 SQL transaction windows or Android Owner Gate complete.
+- **Follow-on priority:** G265 all legacy-writer admission, mixed-version PWA/crash restore and protected Android no-data-loss UAT; then #796 RATE.4/5/6 and Owner-approved Phase 1→3 Roadmap in the two authority documents. Do not turn the remaining DoD into indefinite monitoring; advance independent Source/Test Gate while Owner action remains none.
+
 ## 2026-11-08 G6.2 cross-recipe player-owned identity alias | material Source/Test PR #826 CANDIDATE
 
 - **Fresh authority:** protected main `5787f16575ce35524b80a007c60de93bb6c6fd14` after [#825](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/825) protected MERGED, exact new-main 10/10 Push CI including Pages SUCCESS; Open PR 0 before sole Draft [#826](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/826), Ruleset #25813226 ACTIVE. Previously verified #806–#825 Source/Test not rerun as new work.
