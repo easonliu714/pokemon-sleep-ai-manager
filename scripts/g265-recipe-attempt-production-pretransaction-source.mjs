@@ -47,7 +47,7 @@ function fixture({stale=false,noLocks=false,sqlFailure=false,ackLoss=false}={}){
     pendingPersistenceHold:null,recordInFlight:false,playerWriteInFlight:false,
     dispatchEvent(){},
   };
-  const fn=vm.runInNewContext(new Function('return '+executable)(),ctx);
+  const fn=vm.runInNewContext('(function(){'+executable+'})()',ctx);
   return {fn,calls,marker,durable};
 }
 const input={recipe_id:'r',actual_ingredients:[{ingredient_name:'apple',quantity:2}]};
