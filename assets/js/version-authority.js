@@ -1,8 +1,8 @@
 (function installVersionAuthority(scope) {
   const authority = Object.freeze({
-    app_version: 'v0.4.27.55.3.3.44',
-    app_build: '20261108-v0427553344-g265-weekly-clear-pre-sql',
-    cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.44-v0427553344-g265-weekly-clear-pre-sql',
+    app_version: 'v0.4.27.55.3.3.45',
+    app_build: '20261108-v0427553345-g265-recipe-pause-pre-sql',
+    cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.45-v0427553345-g265-recipe-pause-pre-sql',
     schema: 'pokemon-sleep-version-authority/1.0',
   });
   Object.defineProperty(scope, 'PokemonSleepVersionAuthority', {
@@ -14,6 +14,9 @@
 })(globalThis);
 
 // Legacy CI parser bridge only; not executed and not a release authority.
+// app_version: 'v0.4.27.55.3.3.44'
+// app_build: '20261108-v0427553344-g265-weekly-clear-pre-sql'
+// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.44-v0427553344-g265-weekly-clear-pre-sql'
 // app_version: 'v0.4.27.55.3.3.43'
 // app_build: '20261108-v0427553343-g265-weekly-override-pre-sql'
 // cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.43-v0427553343-g265-weekly-override-pre-sql'

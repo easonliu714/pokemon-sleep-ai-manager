@@ -1,4 +1,6 @@
-import {rows,run,persist,begin,commit,rollback,isDatabaseReady,isRescueReadonly} from './database.js';
+import {rows,run,persist,snapshot,begin,commit,rollback,isDatabaseReady,isRescueReadonly} from './database.js';
+import {withPrimarySqliteMutationLock} from './storage.js';
+import {beginSqliteExclusiveWriteWindow,withSqliteCoordinatedMutation} from './sqlite-direct-write-window-guard.js';
 import {PUBLIC_RECIPE_PROVENANCE} from './public-recipe-provenance.js';
 import {
   buildRecipeAttemptFeedbackRecord,
@@ -282,42 +284,57 @@ export async function recordRecipeAttemptFailure({
 }
 
 // G6.2: share the attempt-write single-flight guard and fail closed after an ambiguous toggle.
+// G265: admit the named production G6.2 pause writer before any player row
+// read, recovery marker, snapshot, SQL mutation or durable primary ACK.
+// An uncertain post-COMMIT save is never rolled back or blindly retried.
 export async function setRecipeRecommendationPaused(recipeId,paused){
   requireWritableDatabase();
-  const recipe=canonicalRecipe(recipeId);
-  if(!recipe)throw new Error('recipe_feedback_canonical_recipe_required');
-  const updatedAt=nowIso();
-  const marker={operation:'PAUSE_TOGGLE',recipe_id:recipe.recipe_id,target_paused:paused?1:0};
+  const close=beginSqliteExclusiveWriteWindow();
+  let acknowledged=false;
   playerWriteInFlight=true;
   try{
-    // The pause toggle is also a player write; require recovery intent first.
-    armPersistenceMarker(marker);
-    run(`INSERT INTO recipe_feedback_state(recipe_id,recommendation_paused,reference_maybe_wrong,last_attempt_id,updated_at)
+    return await withPrimarySqliteMutationLock(async lease=>{
+      const recipe=canonicalRecipe(recipeId);
+      if(!recipe)throw new Error('recipe_feedback_canonical_recipe_required');
+      const updatedAt=nowIso();
+      const marker={operation:'PAUSE_TOGGLE',recipe_id:recipe.recipe_id,target_paused:paused?1:0};
+      // Recovery intent and immutable snapshot precede SQL under the same lock.
+      armPersistenceMarker(marker);
+      await snapshot('recipe-feedback:pause-toggle');
+      withSqliteCoordinatedMutation(begin);
+      try{
+        withSqliteCoordinatedMutation(()=>run(`INSERT INTO recipe_feedback_state(recipe_id,recommendation_paused,reference_maybe_wrong,last_attempt_id,updated_at)
     VALUES(?,?,0,NULL,?)
     ON CONFLICT(recipe_id) DO UPDATE SET recommendation_paused=excluded.recommendation_paused,updated_at=excluded.updated_at`,[
-      recipe.recipe_id,paused?1:0,updatedAt,
-    ]);
-    try{
-      await persist();
-    }catch(error){
-      pendingPersistenceHold=marker;
-      // Retain the verified pre-COMMIT marker until reload confirms durability.
-      try{globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:recipe-attempt-persistence-uncertain',{detail:{
-        code:'PERSISTENCE_UNCERTAIN',operation:'PAUSE_TOGGLE',recipe_id:recipe.recipe_id,
-        recovery:'RELOAD_AND_READBACK',shared_master_write:false,
-      }}));}catch{}
-      throw persistenceUncertainError(marker,error);
-    }
-    clearPersistenceMarker();
-    // Post-durability observer failures must never invite a blind retry.
-    try{
-      globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:recipe-attempt-feedback-changed',{detail:{
-        recipe_id:recipe.recipe_id,recommendation_paused:Boolean(paused),version:RECIPE_ATTEMPT_FEEDBACK_VERSION,
-      }}));
-      globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:data-changed',{detail:{entity:'recipe_feedback_state',recipe_id:recipe.recipe_id}}));
-    }catch{}
-    return Object.freeze({recipe_id:recipe.recipe_id,recipe_name:recipe.recipe_name,recommendation_paused:Boolean(paused),updated_at:updatedAt,shared_master_write:false});
+          recipe.recipe_id,paused?1:0,updatedAt,
+        ]));
+        withSqliteCoordinatedMutation(commit);
+      }catch(error){
+        withSqliteCoordinatedMutation(rollback);
+        throw error;
+      }
+      try{
+        await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
+      }catch(error){
+        pendingPersistenceHold=marker;
+        try{globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:recipe-attempt-persistence-uncertain',{detail:{
+          code:'PERSISTENCE_UNCERTAIN',operation:'PAUSE_TOGGLE',recipe_id:recipe.recipe_id,
+          recovery:'RELOAD_AND_READBACK',shared_master_write:false,
+        }}));}catch{}
+        throw persistenceUncertainError(marker,error);
+      }
+      acknowledged=true;
+      clearPersistenceMarker();
+      try{
+        globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:recipe-attempt-feedback-changed',{detail:{
+          recipe_id:recipe.recipe_id,recommendation_paused:Boolean(paused),version:RECIPE_ATTEMPT_FEEDBACK_VERSION,
+        }}));
+        globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:data-changed',{detail:{entity:'recipe_feedback_state',recipe_id:recipe.recipe_id}}));
+      }catch{}
+      return Object.freeze({recipe_id:recipe.recipe_id,recipe_name:recipe.recipe_name,recommendation_paused:Boolean(paused),updated_at:updatedAt,shared_master_write:false});
+    });
   }finally{
+    close({uncertainOutcome:!acknowledged});
     playerWriteInFlight=false;
   }
 }

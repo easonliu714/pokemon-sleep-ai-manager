@@ -19,6 +19,7 @@ const successorAuthorities=Object.freeze({
   // G479 .28 must await canonical App Ready then real Update Center navigation; never fake panel.
   // G6.2 .29 exact release inherits .28 App Ready and Update Center browser contract.
   // G265 .33 exact successor: preserve canonical App Ready -> Update Center hydration.
+  'v0.4.27.55.3.3.45':Object.freeze({app_build:'20261108-v0427553345-g265-recipe-pause-pre-sql',cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.45-v0427553345-g265-recipe-pause-pre-sql'}),
   'v0.4.27.55.3.3.44':Object.freeze({app_build:'20261108-v0427553344-g265-weekly-clear-pre-sql',cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.44-v0427553344-g265-weekly-clear-pre-sql'}),
   'v0.4.27.55.3.3.43':Object.freeze({app_build:'20261108-v0427553343-g265-weekly-override-pre-sql',cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.43-v0427553343-g265-weekly-override-pre-sql'}),
   'v0.4.27.55.3.3.42':Object.freeze({app_build:'20261108-v0427553342-g265-manual-item-pre-sql',cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.42-v0427553342-g265-manual-item-pre-sql'}),

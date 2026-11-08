@@ -21,6 +21,10 @@ function boot(durablePaused=null){
     },
     run:(sql,params)=>writes.push({sql,params}),
     begin:()=>{},commit:()=>{commits++;},rollback:()=>{},
+    snapshot:async()=>({disposable:true}),
+    beginSqliteExclusiveWriteWindow:()=>()=>{},
+    withPrimarySqliteMutationLock:async fn=>fn(Object.freeze({synthetic:true})),
+    withSqliteCoordinatedMutation:fn=>fn(),
     isDatabaseReady:()=>true,isRescueReadonly:()=>false,
     persist:()=>{
       active++;maxActive=Math.max(maxActive,active);
@@ -48,6 +52,8 @@ assert.equal(pending.length,1);
 assert.equal(writes.filter(x=>x.sql.includes('INSERT INTO recipe_feedback_state')).length,1);
 pending.shift()();await recording;
 const toggling=ctx.__toggle('r1',false);
+// Named G265 admission now has asynchronous lock/snapshot preflight before persist.
+await new Promise(resolve=>setImmediate(resolve));
 assert.equal(pending.length,1);
 await assert.rejects(ctx.__record(input),e=>e.code==='RECIPE_ATTEMPT_WRITE_IN_FLIGHT');
 pending.shift()();await toggling;
