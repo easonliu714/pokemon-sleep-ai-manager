@@ -243,7 +243,7 @@ export function projectRecipeStrategy({
     if(evidence.lifecycle!=='ACTIVE'){excluded.non_active_provenance.push(id);continue;}
     if(normalizedDish&&normalizeCategory(recipe.category)!==normalizedDish){excluded.category.push(id);continue;}
 
-    const state=stateMap.get(id)||{unlocked:false,unlocked_verified:true,player_record_exists:false,player_recipe_id:null};
+    const state=stateMap.get(id)||{unlocked:false,unlocked_verified:true,player_record_exists:false,player_recipe_id:null,player_identity_verified:true};
     const requirements=(ingredientsByRecipe.get(id)||[]).map(item=>{
       const required=item.quantity;
       const quantityVerified=item.quantity_verified===true;
