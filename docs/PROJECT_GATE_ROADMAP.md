@@ -1,4 +1,10 @@
-## 2026-11-08 P0 G265 shared SQLite primary atomic CAS | Draft PR #827 CANDIDATE
+## 2026-11-08 P0 G265 Stage 2 production SQLite Web Lock admission | Draft PR #828 CANDIDATE
+
+- **Stage 1 verified closure:** #827 Source Gate merged to protected `main=e3667817862ec5b38b79824bb7f0d6bc5e7b96e4`, PR HEAD `557f2ea7bd43cc876d87d35db2fbc2fb65384656`, exact PR CI 12/12, new-main CI 12/12 and Pages success (run `42440780025`). SQLite Writer **entire G265** is not yet CLOSED.
+- **Stage 2 next single writer:** [Draft #828](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/828), base above, adds native exclusive Web Lock before shared primary IDB-CAS commit and native two-tab queue/stale-reject/preserved-rows regression; test source on disposable loopback fixture only. **CANDIDATE** until exact-head complete success; then Ready/protected merge/new main/Pages.
+- **Persistent DoD:** No Schema/Migration 15/16 or authority modifications, no destructive player writes, 23 legacy module SQL mutation intervals and mixed-version Android tests remain separately actionable; do not confuse lock on persist with SQL begin/commit admission. Continue next per-module G265 Source Gate followed by RATE.4 #796 and phased Roadmap independent tasks.
+
+## 2026-11-08 P0 G265 shared SQLite primary atomic CAS | PR #827 MERGED VERIFIED_SOURCE
 - **Release/cache verification (2026-11-08):** This PR explicitly promotes the PWA release authority from frozen `v0.4.27.55.3.3.37` to `v0.4.27.55.3.3.38` / `20261108-v0427553338-g265-primary-atomic-cas` / `pokemon-sleep-ai-v0.4.27.55.3.3.38-v0427553338-g265-primary-atomic-cas`; old `.37` exact tuple and predecessor assertions remain recorded. Service Worker consumes central cache-name authority without a separate hardcoded cache mutation. Actual newly deployed version and Android persistence remain **NOT_VERIFIED** before protected merge + Pages + Owner acceptance.
 - **Residual negative evidence:** Browser test `g265-native-chromium-lock-held-legacy-bypass-negative.mjs` is deliberately retained: an up-to-date legacy saver can still commit while another tab holds a named Web Lock, even while byte/revision pairing stays atomic. G265 global SQL transaction admission across 23 writer modules is **HOLD**, not waived by this CAS improvement.
 
