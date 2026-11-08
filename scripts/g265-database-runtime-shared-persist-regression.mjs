@@ -7,7 +7,7 @@ const coordSource=fs.readFileSync('assets/js/sqlite-persist-coordinator.js','utf
 // Production persist now propagates ACK uncertainty to the same-page direct-write guard.
 const guardSource=fs.readFileSync('assets/js/sqlite-direct-write-window-guard.js','utf8');
 assert.match(dbSource,/import \{createSqlitePersistCoordinator\} from '\.\/sqlite-persist-coordinator\.js'/);
-assert.match(dbSource,/sqlitePersistCoordinator\.persist\(\)/);
+assert.match(dbSource,/sqlitePersistCoordinator\.persist\(\{primaryMutationLease\}\)/);
 assert.doesNotMatch(dbSource,/const exported=db\.export\(\);await timeout\(saveDatabaseBytes\(exported\)/);
 const bypass=fs.readdirSync('assets/js').filter(n=>n.endsWith('.js')&&!['database.js','storage.js'].includes(n))
   .filter(n=>/\bsaveDatabaseBytes\b/.test(fs.readFileSync('assets/js/'+n,'utf8')));

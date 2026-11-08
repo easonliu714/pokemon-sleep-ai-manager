@@ -19,6 +19,7 @@ const successorAuthorities=Object.freeze({
   // G479 .28 must await canonical App Ready then real Update Center navigation; never fake panel.
   // G6.2 .29 exact release inherits .28 App Ready and Update Center browser contract.
   // G265 .33 exact successor: preserve canonical App Ready -> Update Center hydration.
+  'v0.4.27.55.3.3.40':Object.freeze({app_build:'20261108-v0427553340-g265-manual-pokemon-pre-sql',cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.40-v0427553340-g265-manual-pokemon-pre-sql'}),
   'v0.4.27.55.3.3.39':Object.freeze({app_build:'20261108-v0427553339-g265-shared-primary-web-lock',cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.39-v0427553339-g265-shared-primary-web-lock'}),
   'v0.4.27.55.3.3.38':Object.freeze({app_build:'20261108-v0427553338-g265-primary-atomic-cas',cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.38-v0427553338-g265-primary-atomic-cas'}),
   'v0.4.27.55.3.3.37':Object.freeze({app_build:'20261026-v0427553337-g9-halloween-camp-alias',cache_name:'pokemon-sleep-ai-v0.4.27.55.3.3.37-v0427553337-g9-halloween-camp-alias'}),

@@ -9,7 +9,7 @@ const contract=fs.readFileSync('assets/js/war-room-named-team-draft-contract.js'
 const database=fs.readFileSync('assets/js/database.js','utf8');
 assert.match(store,/await persist\(\)/);
 assert.match(database,/createSqlitePersistCoordinator/);
-assert.match(database,/sqlitePersistCoordinator\.persist\(\)/);
+assert.match(database,/sqlitePersistCoordinator\.persist\(\{primaryMutationLease\}\)/);
 assert.doesNotMatch(database,/const exported=db\.export\(\);await timeout\(saveDatabaseBytes\(exported\)/);
 const values=new Map();
 let persisted='[]',persistCalls=0,releaseFirstPersist=null;

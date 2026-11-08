@@ -13,7 +13,7 @@ const draft=read('assets/js/war-room-named-team-draft-store.js');
 const goal=read('assets/js/strategy-goal-store.js');
 const feedback=read('assets/js/recipe-attempt-feedback-local.js');
 const importer=read('assets/js/importer.js');
-assert.match(database,/sqlitePersistCoordinator\.persist\(\)/);
+assert.match(database,/sqlitePersistCoordinator\.persist\(\{primaryMutationLease\}\)/);
 assert.match(database,/export function run\(sql,params=\[\]\)\{[^\n]*db\.run\(sql,params\)/);
 assert.match(database,/export function begin\(\)\{run\('BEGIN IMMEDIATE'\);\}/);
 assert.match(database,/export function commit\(\)\{run\('COMMIT'\);\}/);

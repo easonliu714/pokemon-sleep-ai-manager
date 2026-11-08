@@ -15,6 +15,11 @@ const PRIMARY_WRITE_LOCK_WAIT_MS = 30000;
 // database/primary ArrayBuffer remains unchanged; revision is a metadata peer.
 // Never silently adopt a newer durable image into an already-open SQL.js DB.
 let primaryBinding = null;
+// A production named writer may hold this same lock from pre-SQL admission
+// through the primary IDB ACK. The opaque lease cannot be forged by another
+// module and is never a substitute for the loaded primary revision binding.
+let activePrimaryMutationLease = null;
+let primaryMutationSticky = false;
 const primaryError = (code,cause)=>Object.assign(new Error(code),{code,cause});
 const validPrimaryRevision = r=>r&&Number.isSafeInteger(r.generation)
   &&r.generation>=0&&typeof r.sha256==='string'&&/^[a-f0-9]{64}$/.test(r.sha256);
@@ -194,7 +199,69 @@ function asArrayBuffer(bytes){if(!(bytes instanceof Uint8Array))return bytes;if(
 // including legacy modules. It retains the old raw ArrayBuffer primary format,
 // requiring no IndexedDB upgrade or SQLite migration. A stale page cannot save
 // its older in-memory SQL.js image over a newer revision (including ABA).
-export async function saveDatabaseBytes(bytes){
+// G265 one named production writer admission: acquire the SAME native Web Lock
+// BEFORE SQL BEGIN. Compare raw bytes, metadata and monotonic revision to the
+// exact image this page loaded; never adopt a competing tab's newer image.
+// A failure is sticky for this page. Only a full page reload may re-admit SQL.
+export async function withPrimarySqliteMutationLock(callback){
+  if(typeof callback!=='function')throw primaryError('SQLITE_PRIMARY_MUTATION_INVALID_CALLBACK');
+  if(primaryMutationSticky)throw primaryError('SQLITE_PRIMARY_MUTATION_UNVERIFIED_RELOAD_REQUIRED');
+  if(activePrimaryMutationLease)throw primaryError('SQLITE_PRIMARY_MUTATION_SESSION_ALREADY_ACTIVE');
+  if(!primaryBinding)throw primaryError('SQLITE_PRIMARY_NOT_LOADED_RELOAD_REQUIRED');
+  const expected=primaryBinding; // immutable loaded-image identity before lock wait
+  const locks=globalThis.navigator?.locks;
+  if(typeof locks?.request!=='function'||typeof globalThis.AbortController!=='function'){
+    primaryMutationSticky=true;
+    throw primaryError('SQLITE_PRIMARY_MUTATION_WEB_LOCKS_REQUIRED');
+  }
+  const controller=new globalThis.AbortController();
+  let acquired=false,timer=setTimeout(()=>controller.abort(),PRIMARY_WRITE_LOCK_WAIT_MS);
+  try{
+    return await locks.request(PRIMARY_WRITE_LOCK_NAME,
+      {mode:'exclusive',signal:controller.signal},async lock=>{
+        clearTimeout(timer);timer=null;
+        if(!lock||primaryMutationSticky)throw primaryError('SQLITE_PRIMARY_MUTATION_LOCK_NOT_GRANTED');
+        acquired=true;
+        const db=await openIdb();
+        const latest=await new Promise((resolve,reject)=>{
+          const tx=db.transaction([DB_STORE,META_STORE],'readonly');
+          const raw=tx.objectStore(DB_STORE).get(DB_KEY);
+          const meta=tx.objectStore(META_STORE).get(META_KEY);
+          const rev=tx.objectStore(META_STORE).get(PRIMARY_REVISION_KEY);
+          tx.oncomplete=()=>resolve({bytes:raw.result??null,metadata:meta.result??null,revision:rev.result??null});
+          tx.onerror=()=>reject(tx.error||primaryError('SQLITE_PRIMARY_MUTATION_READ_FAILED'));
+          tx.onabort=()=>reject(tx.error||primaryError('SQLITE_PRIMARY_MUTATION_READ_ABORTED'));
+        });
+        if(primaryBinding!==expected||Boolean(latest.bytes)!==expected.exists
+          ||primaryMetadataToken(latest.metadata)!==expected.metadataToken
+          ||!primaryRevisionMatches(latest.revision,expected.revision))
+          throw primaryError('SQLITE_PRIMARY_STALE_REVISION_RELOAD_REQUIRED');
+        if(expected.exists){
+          if(!(latest.bytes instanceof ArrayBuffer))
+            throw primaryError('SQLITE_PRIMARY_LEGACY_BYTES_FORMAT_UNEXPECTED');
+          if(expected.revision&&await digestPrimaryBytes(latest.bytes)!==expected.revision.sha256)
+            throw primaryError('SQLITE_PRIMARY_REVISION_BYTES_MISMATCH_RELOAD_REQUIRED');
+        }
+        if(primaryMutationSticky)throw primaryError('SQLITE_PRIMARY_MUTATION_UNVERIFIED_RELOAD_REQUIRED');
+        const lease=Object.freeze({});
+        activePrimaryMutationLease=lease;
+        try{return await callback(lease);}
+        finally{activePrimaryMutationLease=null;}
+      });
+  }catch(error){
+    primaryMutationSticky=true;
+    if(controller.signal.aborted&&!acquired)
+      throw primaryError('SQLITE_PRIMARY_MUTATION_LOCK_WAIT_TIMEOUT_RELOAD_REQUIRED',error);
+    throw error;
+  }finally{if(timer!==null)clearTimeout(timer);}
+}
+
+export async function saveDatabaseBytes(bytes,{primaryMutationLease}={}){
+  if(primaryMutationSticky)throw primaryError('SQLITE_PRIMARY_MUTATION_UNVERIFIED_RELOAD_REQUIRED');
+  if(primaryMutationLease!==undefined&&primaryMutationLease!==activePrimaryMutationLease)
+    throw primaryError('SQLITE_PRIMARY_MUTATION_LEASE_INVALID');
+  if(activePrimaryMutationLease&&primaryMutationLease!==activePrimaryMutationLease)
+    throw primaryError('SQLITE_PRIMARY_MUTATION_SESSION_ACTIVE');
   const buffer=asArrayBuffer(bytes);
   if(!(buffer instanceof ArrayBuffer))throw primaryError('SQLITE_PRIMARY_INVALID_RAW_BYTES');
   if(!primaryBinding)await inspectDatabaseRecord();
@@ -247,6 +314,10 @@ export async function saveDatabaseBytes(bytes){
     primaryBinding={exists:true,revision,metadataToken:primaryMetadataToken(metadata)};
     return metadata;
   };
+  // Reentrant ONLY for the opaque lease passed by the held native lock callback.
+  // Every ordinary legacy save still requests the lock and performs the CAS.
+  if(primaryMutationLease!==undefined&&primaryMutationLease===activePrimaryMutationLease)
+    return commitAtomic();
   const locks=globalThis.navigator?.locks;
   if(typeof locks?.request!=='function'){
     // Version-neutral browser fallback: no unsafe blind write. The mandatory

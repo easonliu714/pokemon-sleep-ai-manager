@@ -42,6 +42,7 @@ const releases = Object.freeze([
   Object.freeze({version:'v0.4.27.55.3.3.32',build:'20261024-v0427553332-g479-exact-resource-provenance',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.32-v0427553332-g479-exact-resource-provenance'}),
   // G265: exact successor tuple; no prefix or fuzzy release admission.
   // G265 .35 exact successor; retain all historical release tuples.
+  Object.freeze({version:'v0.4.27.55.3.3.40',build:'20261108-v0427553340-g265-manual-pokemon-pre-sql',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.40-v0427553340-g265-manual-pokemon-pre-sql'}),
   Object.freeze({version:'v0.4.27.55.3.3.39',build:'20261108-v0427553339-g265-shared-primary-web-lock',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.39-v0427553339-g265-shared-primary-web-lock'}),
   Object.freeze({version:'v0.4.27.55.3.3.38',build:'20261108-v0427553338-g265-primary-atomic-cas',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.38-v0427553338-g265-primary-atomic-cas'}),
   Object.freeze({version:'v0.4.27.55.3.3.37',build:'20261026-v0427553337-g9-halloween-camp-alias',cache:'pokemon-sleep-ai-v0.4.27.55.3.3.37-v0427553337-g9-halloween-camp-alias'}),
