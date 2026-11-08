@@ -6,7 +6,7 @@ export function createSqlitePersistCoordinator({capture,save,timeoutMs=30000}={}
   if(typeof capture!=='function'||typeof save!=='function'||!Number.isFinite(timeoutMs)||timeoutMs<=0)
     throw new TypeError('INVALID_SQLITE_PERSIST_COORDINATOR');
   let tail=Promise.resolve(),uncertain=false,sequence=0;
-  const persist=()=>{
+  const persist=(saveOptions)=>{
     const ticket=++sequence;
     const operation=tail.then(async()=>{
       if(uncertain)throw uncertainError();
@@ -15,7 +15,7 @@ export function createSqlitePersistCoordinator({capture,save,timeoutMs=30000}={}
       let timer;
       try{
         await Promise.race([
-          Promise.resolve().then(()=>save(bytes)),
+          Promise.resolve().then(()=>save(bytes,saveOptions)),
           new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('SQLITE_PERSIST_TIMEOUT')),timeoutMs);timer?.unref?.();})
         ]);
       }catch(cause){
