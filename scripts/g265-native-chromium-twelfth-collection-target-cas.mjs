@@ -84,6 +84,24 @@ const inspect=page=>page.evaluate(async()=>{
     master:sql.exec('SELECT event_id,payload FROM public_event_master')?.[0]?.values||[]};
   }finally{sql.close();}
 });
+// Deliberately bypass the hardened production API ONLY to inject torn data
+// into this throwaway localhost fixture; never run these against player data.
+const rawFixture=page=>page.evaluate(async()=>{
+  const db=await window.__g265.open();
+  try{return await new Promise((resolve,reject)=>{
+    const tx=db.transaction('database','readonly'),req=tx.objectStore('database').get('primary');
+    tx.oncomplete=()=>resolve(Array.from(new Uint8Array(req.result)));
+    tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+  });}finally{db.close();}
+});
+const replaceRawFixture=(page,bytes)=>page.evaluate(async raw=>{
+  const db=await window.__g265.open();
+  try{await new Promise((resolve,reject)=>{
+    const tx=db.transaction('database','readwrite');
+    tx.objectStore('database').put(Uint8Array.from(raw).buffer,'primary');
+    tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+  });}finally{db.close();}
+},bytes);
 const has=(state,id)=>state.rows.find(row=>row[0]===id);
 try{
   await context.route('**/g265-target-native-blank',route=>route.fulfill({
@@ -222,8 +240,11 @@ try{
   assert.deepEqual(torn,{ok:false,code:'G265_PAIR_DIGEST_MISMATCH'});
   assert.equal(await d.evaluate(()=>window.__g265.opened),openedBeforeTorn);
   assert.equal(await d.evaluate(()=>window.__g265.writer.status().status),'UNVERIFIED_RELOAD_REQUIRED');
-  assert.deepEqual(await d.evaluate(async()=>
-    Array.from(new Uint8Array(await window.__g265.storage.loadDatabaseBytes()))),beforeTorn.bytes);
+  assert.deepEqual(await rawFixture(d),beforeTorn.bytes);
+  assert.equal(await d.evaluate(async()=>{
+    try{await window.__g265.storage.loadDatabaseBytes();return 'UNEXPECTED_LOAD';}
+    catch(error){return error.code;}
+  }),'SQLITE_PRIMARY_REVISION_BYTES_MISMATCH_RELOAD_REQUIRED');
   const e=await newTab();
   await e.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
   const secondTorn=await run(e,input('target_torn_other','SYNTHETIC_OTHER',beforeTorn.generation,beforeTorn.sha256));
@@ -262,9 +283,11 @@ try{
   assert.equal(await g.evaluate(()=>window.__g265.opened),0);
   assert.equal(await g.evaluate(()=>window.__g265.writer.status().status),
     'UNVERIFIED_RELOAD_REQUIRED');
-  assert.deepEqual(await g.evaluate(async()=>
-    Array.from(new Uint8Array(await window.__g265.storage.loadDatabaseBytes()))),
-    beforeMissing.bytes);
+  assert.deepEqual(await rawFixture(g),beforeMissing.bytes);
+  assert.equal(await g.evaluate(async()=>{
+    try{await window.__g265.storage.loadDatabaseBytes();return 'UNEXPECTED_LOAD';}
+    catch(error){return error.code;}
+  }),'SQLITE_PRIMARY_MISSING_REVISION_RELOAD_REQUIRED');
   const h=await newTab();
   await h.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
   const missingAgain=await run(h,input('target_missing_revision_other','SYNTHETIC_OTHER',
@@ -294,8 +317,7 @@ try{
   const alteredBytes=beforeBytesTorn.bytes.slice();
   alteredBytes[alteredBytes.length-1]^=1;
   assert.notEqual(digest(alteredBytes),beforeBytesTorn.sha256);
-  await i.evaluate(async bytes=>
-    window.__g265.storage.saveDatabaseBytes(Uint8Array.from(bytes)),alteredBytes);
+  await replaceRawFixture(i,alteredBytes);
   const j=await newTab();
   await j.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
   const bytesTorn=await run(j,input('target_bytes_torn','SYNTHETIC_BYTES_TORN',
@@ -310,12 +332,13 @@ try{
     beforeBytesTorn.generation,beforeBytesTorn.sha256));
   assert.deepEqual(secondBytesTorn,{ok:false,code:'G265_PAIR_DIGEST_MISMATCH'});
   assert.equal(await k.evaluate(()=>window.__g265.opened),0);
-  assert.deepEqual(await k.evaluate(async()=>
-    Array.from(new Uint8Array(await window.__g265.storage.loadDatabaseBytes()))),
-    alteredBytes);
+  assert.deepEqual(await rawFixture(k),alteredBytes);
+  assert.equal(await k.evaluate(async()=>{
+    try{await window.__g265.storage.loadDatabaseBytes();return 'UNEXPECTED_LOAD';}
+    catch(error){return error.code;}
+  }),'SQLITE_PRIMARY_REVISION_BYTES_MISMATCH_RELOAD_REQUIRED');
   // Fixture-only explicit repair: no automatic metadata or durable repair.
-  await i.evaluate(async bytes=>
-    window.__g265.storage.saveDatabaseBytes(Uint8Array.from(bytes)),beforeBytesTorn.bytes);
+  await replaceRawFixture(i,beforeBytesTorn.bytes);
   const l=await newTab();
   await l.evaluate(async()=>{window.__g265.db=await window.__g265.open();window.__g265.reset();});
   assert.deepEqual(await inspect(l),beforeBytesTorn);
