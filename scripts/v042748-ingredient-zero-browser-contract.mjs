@@ -19,6 +19,23 @@ try{
     // create a separate ES-module singleton with db=null and produce a false failure.
     const database=await import('./assets/js/database.js');
     if(!database.isDatabaseReady())await database.initializeDatabase();
+    // The visible DB-ready label can precede the final bootstrap IDB ACK.
+    // Wait for BOTH coordinator and same-page bare-persist window to settle.
+    // Never retry a direct SQL mutation after an uncertain/failed ACK.
+    const guard=await import('./assets/js/sqlite-direct-write-window-guard.js');
+    for(let attempt=0;attempt<100;attempt++){
+      const persistState=database.getSqlitePersistStatus().status;
+      const directState=guard.getSqliteDirectWriteGuardStatus().status;
+      if(persistState==='READY'&&directState==='READY')break;
+      if(persistState!=='READY'&&persistState!=='IN_FLIGHT'&&persistState!=='PERSISTING')
+        throw new Error('V042748_BOOT_PERSIST_NOT_VERIFIED:'+persistState);
+      if(directState==='UNVERIFIED_RELOAD_REQUIRED')
+        throw new Error('V042748_DIRECT_SQL_UNVERIFIED_RELOAD_REQUIRED');
+      await new Promise(resolve=>setTimeout(resolve,50));
+    }
+    if(database.getSqlitePersistStatus().status!=='READY'||
+       guard.getSqliteDirectWriteGuardStatus().status!=='READY')
+      throw new Error('V042748_BOOT_PERSIST_QUIESCENCE_TIMEOUT');
 
     const snapshot=recognition.buildPublicMasterCatalogSnapshot('ingredients');
     const ingredientName='特選蛋';

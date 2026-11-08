@@ -9,16 +9,18 @@ import {createWeeklyManualOverrideOptIn} from '../assets/js/sqlite-weekly-manual
 
 // Source-bound exact second legacy writer; all bytes and rows are synthetic.
 const legacy=fs.readFileSync(new URL('../assets/js/weekly-context-manual-override.js',import.meta.url),'utf8');
-const original=legacy.split('export async function saveWeeklyManualOverride(')[1];
+const original=legacy.split('export async function saveWeeklyManualOverride(')[1]?.split('export async function clearWeeklyManualOverride(')[0];
 assert.ok(original,'weekly override legacy writer must remain present');
 assert.match(original,/await snapshot\('manual:weekly-context-override'\)/);
 assert.match(original,/INSERT OR REPLACE INTO settings\(key,value_json,updated_at\) VALUES\(\?,\?,\?\)/);
-assert.match(original,/await persist\(\)/);
+assert.match(original,/withPrimarySqliteMutationLock\(async lease/);
+assert.match(original,/beginSqliteExclusiveWriteWindow\(\)/);
+assert.match(original,/persist\(\{primaryMutationLease:lease\}\)/);
 assert.match(legacy,/weekly_context_manual_override:/);
 assert.match(legacy,/weekly-context-manual-override\/1\.0/);
 assert.match(legacy,/weekly-manual-override-2026-08-11-b-data-preservation/);
 assert.doesNotMatch(legacy,/sqlite-weekly-manual-override-optin/);
-console.log('PASS G265_WEEKLY_OVERRIDE_SECOND_EXACT_LEGACY_WRITER_SOURCE_BOUND_NOT_WIRED');
+console.log('PASS G265_WEEKLY_OVERRIDE_SECOND_ISOLATED_ADAPTER_RETAINED_PRODUCTION_GUARDED');
 
 globalThis.indexedDB=indexedDB;
 const {saveDatabaseBytes,loadDatabaseBytes,closeStorageConnection}=await import('../assets/js/storage.js');
