@@ -107,8 +107,13 @@ export function renderPokemonRosterRatingViewHtml(view,model=createPokemonRating
   visible.sort((a,b)=>{
     if(sortMode==='grade-high'||sortMode==='grade-low'){
       const ra=rank(a.proposed_rating),rb=rank(b.proposed_rating);
-      const delta=(ra<0?99:ra)-(rb<0?99:rb);
-      if(delta)return sortMode==='grade-high'?delta:-delta;
+      // RATE.3/4: HOLD, missing and identity-conflicted rows have no trusted
+      // 15-band ordering. Keep them after eligible rows in BOTH directions;
+      // reversing an unknown sentinel previously put HOLD first in grade-low.
+      const aEligible=a.status==='PROVISIONAL_HEURISTIC'&&eligible.has(clean(a.pokemon_instance_id))&&ra>=0;
+      const bEligible=b.status==='PROVISIONAL_HEURISTIC'&&eligible.has(clean(b.pokemon_instance_id))&&rb>=0;
+      if(aEligible!==bEligible)return aEligible?-1:1;
+      if(aEligible&&bEligible&&ra!==rb)return sortMode==='grade-high'?ra-rb:rb-ra;
     }
     return clean(a.pokemon_id).localeCompare(clean(b.pokemon_id));
   });

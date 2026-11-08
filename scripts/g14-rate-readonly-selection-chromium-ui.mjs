@@ -44,6 +44,16 @@ try{
   await page.locator('[data-rate4-filter]').selectOption('S+');
   assert.equal(await page.locator('[data-rate4-state="ELIGIBLE"]').count(),1);
   await page.locator('[data-rate4-sort]').selectOption('grade-low');
+  // Negative-first: unknown/HOLD is not a 15-band grade and must sort AFTER
+  // eligible recommendations in either direction, never ahead of S+ in ascending order.
+  await page.locator('[data-rate4-filter]').selectOption('');
+  assert.equal(await page.locator('[data-rate4-state]').first().getAttribute('data-rate4-state'),'ELIGIBLE',
+    'ascending grade order must not elevate an unknown HOLD ahead of a known rating');
+  assert.equal(await page.locator('[data-rate4-state]').last().getAttribute('data-rate4-state'),'HOLD');
+  await page.locator('[data-rate4-sort]').selectOption('grade-high');
+  assert.equal(await page.locator('[data-rate4-state]').first().getAttribute('data-rate4-state'),'ELIGIBLE',
+    'descending grade order must also keep unknown HOLD after rated Pokémon');
+  assert.equal(await page.locator('[data-rate4-state]').last().getAttribute('data-rate4-state'),'HOLD');
   await page.evaluate(()=>{window.__rateSource.pokemon[0].level=21;});
   await page.locator('[data-rate4-review]').click();
   assert.equal(await page.locator('[data-rate4-stale]').count(),1);
