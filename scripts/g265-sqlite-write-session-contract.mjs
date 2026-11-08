@@ -9,7 +9,7 @@ const database=fs.readFileSync('assets/js/database.js','utf8');
 assert.match(database,/export function begin\(\)/);
 assert.match(database,/export function commit\(\)/);
 assert.match(database,/export async function snapshot\(reason\)/);
-assert.match(database,/export async function persist\(\)/);
+assert.match(database,/export async function persist\(\{primaryMutationLease\}=\{\}\)/);
 assert.doesNotMatch(database,/sqlite-write-session-coordinator\.js/,'candidate must remain unbound');
 const ctx=vm.createContext({Promise,Error,TypeError,Object,Number,setTimeout,clearTimeout});
 vm.runInContext(source.replace(/^export /gm,''),ctx,{timeout:3000});
