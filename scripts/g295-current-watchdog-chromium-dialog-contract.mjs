@@ -199,6 +199,29 @@ try{
     const beforeResponsive=(await state()).detected;
     await act(()=>{for(let i=0;i<4;i++)window.__g295.tick(2000);window.__g295.frames(1);window.__g295.tick(2000);});
     assert.equal((await state()).detected,beforeResponsive,'responsive timers with delayed RAF must not false-positive');
+    // Negative-first: a storage-integrity warning can take over an active
+    // watchdog-owned DOM badge before RAF recovery. Ownership must be revoked
+    // immediately on the next watchdog observation, not left stale until RAF.
+    await act(()=>{const w=document.getElementById('storageWarning');w.classList.add('hidden');w.textContent='';delete w.dataset.startupWatchdogWarning;});
+    await act(()=>window.__g295.frames(40));
+    const beforeLateForeign=await state();
+    await act(()=>window.__g295.tick(6000));
+    let lateForeign=await state();
+    assert.equal(lateForeign.detected,beforeLateForeign.detected+1,'new watchdog stall must be independently detected');
+    assert.equal(lateForeign.watchdogMarker,'startup-heartbeat-watchdog','precondition: watchdog owns active warning');
+    const preservedBeforeTakeover=lateForeign.preserved;
+    await act(()=>{const w=document.getElementById('storageWarning');w.textContent='EXTERNAL_LATE_STORAGE_INTEGRITY_HOLD';window.__g295.tick(6000);});
+    lateForeign=await state();
+    assert.equal(lateForeign.warningText,'EXTERNAL_LATE_STORAGE_INTEGRITY_HOLD','foreign warning must retain exact text');
+    assert.equal(lateForeign.visibleWarning,true,'foreign warning must remain visible');
+    assert.equal(lateForeign.watchdogMarker,null,'stale watchdog marker must be revoked when a foreign writer takes over');
+    assert.equal(lateForeign.preserved,preservedBeforeTakeover+1,'late foreign takeover must be independently traced exactly once');
+    await act(()=>window.__g295.frames(31));
+    lateForeign=await state();
+    assert.equal(lateForeign.warningText,'EXTERNAL_LATE_STORAGE_INTEGRITY_HOLD','late foreign warning must survive stable RAF recovery');
+    assert.equal(lateForeign.visibleWarning,true);
+    console.log('PASS G295_CHROMIUM_LATE_FOREIGN_WARNING_OWNERSHIP_REVOKED');
+
     console.log('PASS G295_CHROMIUM_RAF_FIRST_DELAYED_TIMER_AND_RESPONSIVE_CONTROL');
     console.log('PASS G295_CHROMIUM_PAGEHIDE_ACTIVE_STALL_INTERRUPTED_AND_REARM');
     console.log('PASS G295_CHROMIUM_TIMER_OBSERVED_MISSED_VISIBILITY_EVENTS');
