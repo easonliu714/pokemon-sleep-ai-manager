@@ -124,7 +124,9 @@ jobs:
           npx playwright install chromium
 
       - name: Verify G14.RATE native Chromium read-only individual intent
-        run: node scripts/g14-rate-readonly-selection-chromium-ui.mjs
+        run: |
+          node scripts/g14-rate5-full-source-refresh-contract.mjs
+          node scripts/g14-rate-readonly-selection-chromium-ui.mjs
 
       - name: Verify G14.RATE.4 disposable durable snapshot and rating audit contract
         run: node scripts/g14-rate4-isolated-durable-writer-contract.mjs

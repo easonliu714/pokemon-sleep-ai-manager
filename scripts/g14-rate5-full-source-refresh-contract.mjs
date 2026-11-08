@@ -57,6 +57,25 @@ for(const bad of [
   assert.equal(capture(bad).status,'HOLD_SOURCE_UNVERIFIED');
   assert.equal(review({captured,latest:bad}).status,'HOLD_SOURCE_UNVERIFIED');
 }
+// RATE.5 negative-first: non-JSON source descriptors/keys must never alias
+// a previously captured token. These are synthetic facts, never player data.
+const accessor={...original.pokemon[0]};
+Object.defineProperty(accessor,'level',{enumerable:true,get(){return 20;}});
+const symbolFact={...original.pokemon[0]};
+symbolFact[Symbol('untracked_evidence')]='changed';
+const sparseFact={...original.pokemon[0],evidence_slots:Array(2)};
+const arrayMetadata=[...original.ingredients];
+arrayMetadata.source_revision='unverified';
+for(const bad of [
+  {...original,pokemon:[accessor,original.pokemon[1]]},
+  {...original,pokemon:[symbolFact,original.pokemon[1]]},
+  {...original,pokemon:[sparseFact,original.pokemon[1]]},
+  {...original,ingredients:arrayMetadata}
+]){
+  assert.equal(capture(bad).status,'HOLD_SOURCE_UNVERIFIED',
+    'noncanonical source facts cannot be certified as an immutable review token');
+  assert.equal(review({captured,latest:bad}).status,'HOLD_SOURCE_UNVERIFIED');
+}
 assert.equal(review({captured:null,latest:original}).status,'HOLD_SOURCE_UNVERIFIED');
 assert.equal(JSON.stringify(original),baseline,'capture or review mutated source facts');
 assert.equal(original.pokemon[0].rating,'S','old grade must be untouched');
