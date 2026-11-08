@@ -13,13 +13,14 @@ const legacy=fs.readFileSync(new URL('../assets/js/analysis-revision-store.js',i
 const exact=legacy.split('export async function saveAnalysisRevision(')[1]?.split('\nexport {TABLE_SQL}')[0];
 assert.ok(exact,'fifth legacy source must remain identifiable');
 assert.match(exact,/await snapshot\(/);
-assert.match(exact,/await persist\(\)/);
+assert.match(exact,/withPrimarySqliteMutationLock\(async lease/);
+assert.match(exact,/persist\(\{primaryMutationLease:lease\}\)/);
 assert.match(exact,/INSERT INTO image_analysis_revision/);
 assert.doesNotMatch(legacy,/sqlite-analysis-revision-optin/);
 const tick=String.fromCharCode(96);
 const schema=legacy.split('const TABLE_SQL='+tick)[1]?.split(tick+';')[0];
 assert.ok(schema&&schema.includes('image_analysis_revision'));
-console.log('PASS G265_FIFTH_ANALYSIS_EXACT_LEGACY_SOURCE_BOUND_NOT_PRODUCTION_WIRED');
+console.log('PASS G265_FIFTH_ISOLATED_OPTIN_SEPARATE_FROM_NAMED_PRODUCTION_ADMISSION');
 
 const SQL=await initSqlJs();
 const seedDb=new SQL.Database();

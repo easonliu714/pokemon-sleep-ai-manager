@@ -13,6 +13,6 @@ if(executor.includes('buildExistingBaselinePrompt')){
   assert.ok(executor.includes('const effectivePrompt=promptContext.prompt'),'baseline successor must build effective prompt');
   assert.ok(executor.includes('prompt:effectivePrompt,imageBase64'),'baseline successor must send effective prompt with real image bytes');
 }
-for(const token of ['CREATE TABLE IF NOT EXISTS image_analysis_revision','before_analysis_revision_','supersedes_analysis_id','await persist()'])assert.ok(store.includes(token),`store_missing:${token}`);
+for(const token of ['CREATE TABLE IF NOT EXISTS image_analysis_revision','before_analysis_revision_','supersedes_analysis_id','withPrimarySqliteMutationLock(async lease','persist({primaryMutationLease:lease})'])assert.ok(store.includes(token),`store_missing:${token}`);
 assert.ok(!diagnostic.includes('只在本機建立預覽與 AI Queue，絕不自動送出'),'obsolete_queue_only_text');
 console.log(JSON.stringify({ok:true,gate:'G13.3A duplicate-selectable real OCR and AI execution',version:'v0.3.72',baseline_prompt_successor_compatible:true}));
