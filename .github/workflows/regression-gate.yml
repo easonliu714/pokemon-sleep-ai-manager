@@ -516,6 +516,11 @@ jobs:
       - name: G265 Fifth Legacy Analysis Revision Isolated Durable CAS Gate
         run: node scripts/g265-analysis-revision-fifth-legacy-writer-optin.mjs
 
+      - name: G265 native Chromium named production analysis revision pretransaction
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-native-chromium-analysis-revision-production-pretransaction.mjs
+
       - name: G265 Fifth Legacy Analysis Revision Native Chromium Two-Tab CAS and Recovery Gate
         env:
           BASE_URL: http://127.0.0.1:4173/
