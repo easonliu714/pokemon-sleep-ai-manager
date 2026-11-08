@@ -264,7 +264,7 @@ gate('release and offline wiring retain v0.4.27.47 exact predecessor',()=>{
 // G265 .33 exact successor: preserve frozen P0-B2 public species and offline boundaries.
 
 // G9-R .37 exact camp alias successor; frozen predecessor remains.
-else if(currentAppVersion==='v0.4.27.55.3.3.39'||currentAppVersion==='v0.4.27.55.3.3.38'||currentAppVersion==='v0.4.27.55.3.3.37'){
+else if(currentAppVersion==='v0.4.27.55.3.3.40'||'v0.4.27.55.3.3.39'||currentAppVersion==='v0.4.27.55.3.3.38'||currentAppVersion==='v0.4.27.55.3.3.37'){
   // Exact .36 successor inherits ALL frozen .35 assertions below.
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.36'"),'missing .35 predecessor bridge');
 

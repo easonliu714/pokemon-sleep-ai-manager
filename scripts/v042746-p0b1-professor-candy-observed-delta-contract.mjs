@@ -170,7 +170,7 @@ else if(currentVersion==='v0.4.27.55.3.3.15'){
 // G265 .33 exact successor: retain observed-delta-only Candy semantics and .32 lineage.
 
 // G9-R .37 read-side Halloween camp alias successor; frozen .36 exact checks retained.
-else if(currentVersion==='v0.4.27.55.3.3.39'||currentVersion==='v0.4.27.55.3.3.38'||currentVersion==='v0.4.27.55.3.3.37'){
+else if(currentVersion==='v0.4.27.55.3.3.40'||'v0.4.27.55.3.3.39'||currentVersion==='v0.4.27.55.3.3.38'||currentVersion==='v0.4.27.55.3.3.37'){
   // Exact .36 successor inherits ALL frozen .35 assertions below.
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.36'"),'missing .35 predecessor bridge');
 
