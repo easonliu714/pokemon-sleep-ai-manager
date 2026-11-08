@@ -1,0 +1,41 @@
+// FROZEN historical source witness from protected main 66c875be86b83e28e63f5a3efa9dec7a97ab9fe2.
+// This is text-only historical evidence, NOT executable or production-wired.
+export async function setRecipeRecommendationPaused(recipeId,paused){
+  requireWritableDatabase();
+  const recipe=canonicalRecipe(recipeId);
+  if(!recipe)throw new Error('recipe_feedback_canonical_recipe_required');
+  const updatedAt=nowIso();
+  const marker={operation:'PAUSE_TOGGLE',recipe_id:recipe.recipe_id,target_paused:paused?1:0};
+  playerWriteInFlight=true;
+  try{
+    // The pause toggle is also a player write; require recovery intent first.
+    armPersistenceMarker(marker);
+    run(`INSERT INTO recipe_feedback_state(recipe_id,recommendation_paused,reference_maybe_wrong,last_attempt_id,updated_at)
+    VALUES(?,?,0,NULL,?)
+    ON CONFLICT(recipe_id) DO UPDATE SET recommendation_paused=excluded.recommendation_paused,updated_at=excluded.updated_at`,[
+      recipe.recipe_id,paused?1:0,updatedAt,
+    ]);
+    try{
+      await persist();
+    }catch(error){
+      pendingPersistenceHold=marker;
+      // Retain the verified pre-COMMIT marker until reload confirms durability.
+      try{globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:recipe-attempt-persistence-uncertain',{detail:{
+        code:'PERSISTENCE_UNCERTAIN',operation:'PAUSE_TOGGLE',recipe_id:recipe.recipe_id,
+        recovery:'RELOAD_AND_READBACK',shared_master_write:false,
+      }}));}catch{}
+      throw persistenceUncertainError(marker,error);
+    }
+    clearPersistenceMarker();
+    // Post-durability observer failures must never invite a blind retry.
+    try{
+      globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:recipe-attempt-feedback-changed',{detail:{
+        recipe_id:recipe.recipe_id,recommendation_paused:Boolean(paused),version:RECIPE_ATTEMPT_FEEDBACK_VERSION,
+      }}));
+      globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:data-changed',{detail:{entity:'recipe_feedback_state',recipe_id:recipe.recipe_id}}));
+    }catch{}
+    return Object.freeze({recipe_id:recipe.recipe_id,recipe_name:recipe.recipe_name,recommendation_paused:Boolean(paused),updated_at:updatedAt,shared_master_write:false});
+  }finally{
+    playerWriteInFlight=false;
+  }
+}
