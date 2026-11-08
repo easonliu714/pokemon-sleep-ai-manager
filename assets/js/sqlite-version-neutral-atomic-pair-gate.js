@@ -69,7 +69,8 @@ export function createSqliteVersionNeutralAtomicPairGate({
         const meta=tx.objectStore('metadata');
         meta.put({generation:revision.generation+1,sha256:nextHash},'revision:primary');
         meta.put({byte_length:next.byteLength,updated_at:new Date().toISOString(),
-          format:'sqlite-arraybuffer',safe_boot_version:2},'primary');
+          format:'sqlite-arraybuffer',safe_boot_version:2,
+          revision_scheme:'g265-atomic-primary-cas-v1'},'primary');
       }catch(error){abort(error.code||'G265_PAIR_TRANSACTION_STAGE_FAILED');}
     };
     try{
