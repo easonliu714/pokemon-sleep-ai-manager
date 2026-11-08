@@ -1,4 +1,6 @@
 ## 2026-11-08 P0 G265 Stage 2 production SQLite Web Lock admission | Draft PR #828 CANDIDATE
+- **Stage 2 release/cache identity:** Exact successor `v0.4.27.55.3.3.39` / `20261108-v0427553339-g265-shared-primary-web-lock` / `pokemon-sleep-ai-v0.4.27.55.3.3.39-v0427553339-g265-shared-primary-web-lock` is included in Draft #828 so the installed PWA does not reuse `.38` cached `storage.js`. Frozen `.38` predecessor tuple, Mobile Snapshot, historical Release, Browser, G14 and Candy contracts remain explicit and checked. No claim that `.39` is deployed before protected Merge + Pages and Android Owner UAT.
+
 
 - **Stage 1 verified closure:** #827 Source Gate merged to protected `main=e3667817862ec5b38b79824bb7f0d6bc5e7b96e4`, PR HEAD `557f2ea7bd43cc876d87d35db2fbc2fb65384656`, exact PR CI 12/12, new-main CI 12/12 and Pages success (run `42440780025`). SQLite Writer **entire G265** is not yet CLOSED.
 - **Stage 2 next single writer:** [Draft #828](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/828), base above, adds native exclusive Web Lock before shared primary IDB-CAS commit and native two-tab queue/stale-reject/preserved-rows regression; test source on disposable loopback fixture only. **CANDIDATE** until exact-head complete success; then Ready/protected merge/new main/Pages.
