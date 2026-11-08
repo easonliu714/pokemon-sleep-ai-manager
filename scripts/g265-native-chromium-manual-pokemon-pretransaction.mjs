@@ -75,6 +75,24 @@ try{
     async()=>{window.__g265.sqlCalls++;}).then(()=>null,e=>e.code)),
     'SQLITE_PRIMARY_MUTATION_UNVERIFIED_RELOAD_REQUIRED');
   assert.equal(await b.evaluate(()=>window.__g265.sqlCalls),0);
+  // ABA: the bytes return to the same image but the monotonic revision moved.
+  // A third tab loaded the original image and must not enter SQL on that stale
+  // generation even when its SHA matches the current durable bytes.
+  const d=await context.newPage();
+  try{
+    await d.goto(new URL('g265-manual-pokemon-disposable',base).href);
+    await d.evaluate(async()=>{window.storage=await import('/assets/js/storage.js');
+      await window.storage.loadDatabaseBytes();window.sqlCalls=0;});
+    await a.evaluate(bytes=>window.__g265.storage.saveDatabaseBytes(Uint8Array.from(bytes)),seed);
+    await a.evaluate(bytes=>window.__g265.storage.saveDatabaseBytes(Uint8Array.from(bytes)),aBytes);
+    const aba=await d.evaluate(()=>window.storage.withPrimarySqliteMutationLock(async()=>{
+      window.sqlCalls++;}).then(()=>null,e=>e.code));
+    assert.equal(aba,'SQLITE_PRIMARY_STALE_REVISION_RELOAD_REQUIRED');
+    assert.equal(await d.evaluate(()=>window.sqlCalls),0);
+    assert.deepEqual(await a.evaluate(async()=>Array.from(new Uint8Array(
+      await window.__g265.storage.loadDatabaseBytes()))),durable);
+    console.log('PASS G265_NATIVE_MANUAL_POKEMON_ABA_REVISION_CACHE_STALE_PRE_SQL_HOLD');
+  }finally{await d.close();}
   const ack=await a.evaluate(async()=>{
     try{
       await window.__g265.storage.withPrimarySqliteMutationLock(async lease=>{
