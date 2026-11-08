@@ -118,21 +118,28 @@ try{
     catch(e){return {code:e.code};}
   },{generation:1,expectedHash:hash(winner),expectedBytes:winner,nextBytes:loser,nextHash:hash(loser)});
   assert.equal(abort.code,'G265_NATIVE_PAIR_INJECTED_ABORT');
+  // Check the second tab's stale binding BEFORE it refreshes via loadDatabaseBytes().
+  // A post-reload tab is fresh and legitimately may save; that is not the negative.
+  // The formerly unsafe production save must now reject the stale second
+  // tab; no raw bytes or atomic revision metadata may change on rejection.
+  const stale=await tabB.evaluate(async bytes=>{
+    try{await window.__g265.storage.saveDatabaseBytes(Uint8Array.from(bytes));return 'UNEXPECTED_WRITE';}
+    catch(e){return e.code;}
+  },loser);
+  assert.equal(stale,'SQLITE_PRIMARY_STALE_REVISION_RELOAD_REQUIRED');
+  record=await tabA.evaluate(()=>window.__g265.get());
+  assert.equal(hash(record.rawBytes),hash(winner));
+  assert.equal(record.revision.generation,1);
+  assert.equal(record.rawIsBuffer,true);
+  assert.equal(record.revision.sha256,hash(winner));
+  console.log('PASS G265_NATIVE_CHROMIUM_PRODUCTION_STALE_SAVE_FAIL_CLOSED_AND_ATOMICITY');
+
   record=await tabB.evaluate(()=>window.__g265.get());
   assert.equal(record.revision.generation,1);
   assert.equal(record.rawIsBuffer,true);
   assert.equal(hash(record.rawBytes),hash(winner));
   console.log('PASS G265_NATIVE_CHROMIUM_ATOMIC_PAIR_ABORT_ROLLBACK_BOTH_STORES');
 
-  // Existing production legacy writer does not update revision metadata.
-  await tabB.evaluate(bytes=>window.__g265.storage.saveDatabaseBytes(Uint8Array.from(bytes)),loser);
-  record=await tabA.evaluate(()=>window.__g265.get());
-  assert.equal(hash(record.rawBytes),hash(loser));
-  assert.equal(record.revision.generation,1);
-  assert.equal(record.rawIsBuffer,true);
-  assert.equal(record.revision.sha256,hash(winner));
-  assert.notEqual(record.revision.sha256,hash(record.rawBytes));
-  console.log('REPRODUCED_HOLD G265_NATIVE_CHROMIUM_LEGACY_SAVE_BYPASSES_REVISION_ATOMICITY');
-  console.log('HOLD G265_PRODUCTION_WRITER_CONTAINMENT_CROSS_TAB_RELOAD_ANDROID_UAT');
+  console.log('HOLD G265_LEGACY_SQL_TRANSACTION_WINDOWS_AND_ANDROID_UAT');
   for(const tab of [tabA,tabB])await tab.evaluate(()=>window.__g265.storage.closeStorageConnection());
 }finally{await context.close();await browser.close();}

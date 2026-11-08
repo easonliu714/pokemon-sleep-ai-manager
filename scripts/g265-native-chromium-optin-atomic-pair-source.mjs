@@ -101,18 +101,24 @@ try{
   assert.equal(timeout.code,'G265_PAIR_LOCK_WAIT_TIMEOUT_UNCERTAIN');
   assert.equal(timeout.status,'UNVERIFIED_RELOAD_REQUIRED');
   console.log('PASS G265_OPTIN_SOURCE_MISSING_LOCK_TIMEOUT_STICKY_HOLD');
-  // The unchanged legacy production writer bypasses this opt-in revision pair.
-  await b.evaluate(bytes=>window.__g265.storage.saveDatabaseBytes(Uint8Array.from(bytes)),loser);
-  const bypass=await a.evaluate(async()=>{
+  // The formerly unsafe shared primary writer must reject this stale tab
+  // before it can corrupt the test-only opt-in revision pair.
+  const stale=await b.evaluate(async bytes=>{
+    try{await window.__g265.storage.saveDatabaseBytes(Uint8Array.from(bytes));return 'UNEXPECTED_WRITE';}
+    catch(error){return error.code;}
+  },loser);
+  assert.equal(stale,'SQLITE_PRIMARY_STALE_REVISION_RELOAD_REQUIRED');
+  const after=await a.evaluate(async()=>{
     const state=window.__g265;
     const gate=state.createSqliteVersionNeutralAtomicPairGate({db:state.db});
-    let code;try{await gate.readVerified();}catch(error){code=error.code;}
-    return {code,status:gate.status().status};
+    const verified=await gate.readVerified();
+    return {generation:verified.generation,sha256:verified.sha256,status:gate.status().status};
   });
-  assert.equal(bypass.code,'G265_PAIR_DIGEST_MISMATCH');
-  assert.equal(bypass.status,'UNVERIFIED_RELOAD_REQUIRED');
-  console.log('REPRODUCED_HOLD G265_OPTIN_SOURCE_LEGACY_WRITER_BYPASSES_ATOMIC_PAIR');
-  console.log('HOLD G265_PRODUCTION_ALL_WRITER_CONTAINMENT_ANDROID_OWNER_UAT');
+  assert.equal(after.generation,1);
+  assert.equal(after.sha256,hash(winner));
+  assert.equal(after.status,'READY');
+  console.log('PASS G265_OPTIN_SOURCE_PRODUCTION_STALE_WRITER_REJECTS_WITHOUT_REVISION_CORRUPTION');
+  console.log('HOLD G265_REMAINING_SQL_MUTATION_WINDOWS_ANDROID_OWNER_UAT');
   for(const page of [a,b])await page.evaluate(()=>{
     window.__g265.db.close();window.__g265.storage.closeStorageConnection();
   });

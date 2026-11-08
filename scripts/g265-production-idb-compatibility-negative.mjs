@@ -18,8 +18,9 @@ assert.match(storage,/const IDB_NAME = "pokemon_sleep_ai_manager"/);
 assert.match(storage,/const DB_STORE = "database"/);
 assert.match(storage,/const META_STORE = "metadata"/);
 assert.match(storage,/const DB_KEY = "primary"/);
-assert.match(storage,/store=>store\.get\(DB_KEY\)/);
-assert.match(storage,/tx\.objectStore\(DB_STORE\)\.put\(buffer,DB_KEY\)/);
+assert.match(storage,/tx\.objectStore\(DB_STORE\)\.get\(DB_KEY\)/);
+assert.match(storage,/rawStore\.put\(buffer,DB_KEY\)/);
+assert.match(storage,/metaStore\.put\(revision,PRIMARY_REVISION_KEY\)/);
 assert.match(revision,/store\.put\(\{generation:/);
 assert.doesNotMatch(production,/sqlite-durable-revision-gate/);
 
@@ -74,30 +75,31 @@ console.log('REPRODUCED_HOLD G265_PRODUCTION_RAW_ARRAYBUFFER_NOT_ATOMIC_REVISION
 // reader. This write occurs only in disposable fake IndexedDB.
 await transaction(db,['database'],tx=>tx.objectStore('database').put(
   {generation:0,sha256:originalHash,bytes:original},'primary'));
-const incompatible=await loadDatabaseBytes();
-assert.equal(incompatible instanceof ArrayBuffer,false);
-assert.equal(incompatible?.generation,0);
-assert.equal(new Uint8Array(incompatible).byteLength,0);
-await saveDatabaseBytes(original);
+await assert.rejects(loadDatabaseBytes(),
+  error=>error.code==='SQLITE_PRIMARY_LEGACY_BYTES_FORMAT_UNEXPECTED');
+await assert.rejects(saveDatabaseBytes(original),
+  error=>error.code==='SQLITE_PRIMARY_LEGACY_BYTES_FORMAT_UNEXPECTED');
+console.log('PASS G265_CORRUPT_PRIMARY_TYPE_REJECTED_WITHOUT_DESTRUCTIVE_OVERWRITE');
+// Restore the disposable fixture to the valid legacy raw ArrayBuffer shape.
+await transaction(db,['database'],tx=>tx.objectStore('database').put(original.slice().buffer,'primary'));
 assert.ok((await loadDatabaseBytes()) instanceof ArrayBuffer);
-console.log('REPRODUCED_HOLD G265_REVISION_RECORD_BREAKS_LEGACY_BOOT_LOADER');
+await saveDatabaseBytes(original);
+console.log('PASS G265_REVISION_PEER_PRESERVES_LEGACY_BOOT_LOADER_RAW_ARRAYBUFFER');
 
-// A separate revision metadata key cannot be considered atomically coupled
-// to legacy saveDatabaseBytes(), which overwrites only database/primary and
-// metadata/primary. Prove divergence with two real SQL.js images.
-await transaction(db,['metadata'],tx=>tx.objectStore('metadata').put(
-  {generation:0,sha256:originalHash},'revision:primary'));
+// New shared production writer updates all three records in the SAME IDB
+// transaction; the old negative fixture must now assert healthy pairing.
+const beforeRevision=await get(db,'metadata','revision:primary');
+assert.equal(beforeRevision.sha256,originalHash);
 await saveDatabaseBytes(second);
 const persisted=await loadDatabaseBytes();
 const metadata=await get(db,'metadata','revision:primary');
-assert.equal(metadata.generation,0);
-assert.equal(metadata.sha256,originalHash);
-assert.notEqual(await digest(new Uint8Array(persisted)),metadata.sha256);
+assert.equal(metadata.generation,beforeRevision.generation+1);
+assert.equal(metadata.sha256,await digest(new Uint8Array(persisted)));
 const restored=new SQL.Database(new Uint8Array(persisted));
 assert.equal(restored.exec('SELECT COUNT(*) FROM compatibility_fixture')[0].values[0][0],2);
 restored.close();
-console.log('REPRODUCED_HOLD G265_SEPARATE_REVISION_METADATA_NOT_UPDATED_BY_LEGACY_SAVE');
-console.log('PASS G265_PRODUCTION_IDB_SOURCE_BOUND_STORAGE_COMPATIBILITY_NEGATIVE');
-console.log('HOLD G265_NO_SCHEMA_UPGRADE_SAFE_ATOMIC_MIGRATION_ALL_WRITERS_ANDROID_UAT');
+console.log('PASS G265_SHARED_PRIMARY_REVISION_ATOMIC_PAIR_ACTUAL_PRODUCTION_WRITE');
+console.log('PASS G265_PRODUCTION_IDB_SOURCE_BOUND_STORAGE_COMPATIBILITY');
+console.log('HOLD G265_LEGACY_TRANSACTION_WINDOWS_AND_ANDROID_UAT');
 db.close();
 closeStorageConnection();

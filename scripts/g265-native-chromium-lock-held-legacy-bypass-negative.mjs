@@ -46,6 +46,13 @@ try{
       tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
     });}finally{db.close();}
   },hash(seed));
+  // G265: bind this independent legacy tab to its loaded source image.
+  // Atomic revision CAS protects stale bytes but DOES NOT acquire Web Locks.
+  const baseline=await b.evaluate(async()=>{
+    const bytes=await window.__g265.storage.loadDatabaseBytes();
+    return Array.from(new Uint8Array(bytes));
+  });
+  assert.equal(hash(baseline),hash(seed));
   // Hold the exact lock used by the opt-in atomic writer in tab A.
   await a.evaluate(name=>{
     let notify;
@@ -81,9 +88,10 @@ try{
     }finally{db.close();}
   });
   assert.equal(hash(observed.bytes),hash(legacy));
-  assert.equal(observed.revision.generation,0);
-  assert.equal(observed.revision.sha256,hash(seed));
-  console.log('REPRODUCED_HOLD G265_LEGACY_SAVE_COMMITS_WHILE_NATIVE_EXCLUSIVE_LOCK_HELD');
+  assert.equal(observed.revision.generation,1);
+  assert.equal(observed.revision.sha256,hash(legacy),
+    'shared writer keeps bytes and revision atomic even without a Web Lock');
+  console.log('REPRODUCED_HOLD G265_LEGACY_SAVE_STILL_BYPASSES_HELD_WEB_LOCK_WITH_VALID_REVISION');
   const mismatch=await a.evaluate(async()=>{
     const state=window.__g265,db=await state.open();
     try{
@@ -93,9 +101,9 @@ try{
       return {code,status:gate.status().status};
     }finally{db.close();}
   });
-  assert.equal(mismatch.code,'G265_PAIR_DIGEST_MISMATCH');
-  assert.equal(mismatch.status,'UNVERIFIED_RELOAD_REQUIRED');
-  console.log('PASS G265_ATOMIC_PAIR_DETECTS_LEGACY_BYPASS_FAIL_CLOSED_AFTER_FACT');
+  assert.equal(mismatch.code,undefined,'legacy storage CAS no longer leaves a corrupt revision peer');
+  assert.equal(mismatch.status,'READY');
+  console.log('PASS G265_LEGACY_SAVE_REMAINS_REVISION_COHERENT_WHILE_LOCK_ADMISSION_UNPROVEN');
   console.log('HOLD G265_ALL_LEGACY_WRITERS_LOCK_ADMISSION_PRODUCTION_CROSS_TAB_ANDROID_UAT');
 }finally{
   if(a&&!a.isClosed())try{await a.evaluate(async()=>{

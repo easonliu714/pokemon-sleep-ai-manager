@@ -98,12 +98,13 @@ assert.equal(await digest(new Uint8Array(raw)),hashSecond);
 assert.deepEqual(rev,{generation:1,sha256:hashSecond});
 console.log('PASS G265_ATOMIC_PAIR_STALE_CAS_AND_ABORT_ROLLBACK_BOTH_STORES');
 
-// Production saveDatabaseBytes() bypasses revision metadata: permanent HOLD.
+// Production saveDatabaseBytes() now participates in the revision pair.
+// Verify a real SQL.js third image, monotonic generation, and raw-reader parity.
 await saveDatabaseBytes(third);
 raw=await loadDatabaseBytes();rev=await read(db,'metadata','revision:primary');
 assert.equal(await digest(new Uint8Array(raw)),hashThird);
-assert.equal(rev.sha256,hashSecond);
-assert.notEqual(rev.sha256,await digest(new Uint8Array(raw)));
-console.log('REPRODUCED_HOLD G265_LEGACY_SAVE_BYPASSES_ATOMIC_PAIR_REVISION');
-console.log('HOLD G265_ALL_WRITER_CONTAINMENT_NATIVE_CHROMIUM_AND_ANDROID_UAT');
+assert.equal(rev.generation,2);
+assert.equal(rev.sha256,hashThird);
+console.log('PASS G265_LEGACY_COMPATIBLE_ATOMIC_PAIR_SHARED_PRODUCTION_SAVE');
+console.log('HOLD G265_LEGACY_TRANSACTION_WINDOWS_AND_ANDROID_UAT');
 db.close();closeStorageConnection();

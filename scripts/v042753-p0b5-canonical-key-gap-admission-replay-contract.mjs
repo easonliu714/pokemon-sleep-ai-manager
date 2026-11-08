@@ -179,12 +179,12 @@ const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
 // G265 .34 inherits frozen Candy/Raw/visible-confirmation predecessors from .33.
 
 // G9-R .37 exact camp alias successor; frozen predecessor remains.
-if(appVersion==='v0.4.27.55.3.3.37'){
+if(appVersion==='v0.4.27.55.3.3.38'||appVersion==='v0.4.27.55.3.3.37'){
   // G265 .36 must inherit frozen .35 Candy and Raw assertions.
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.36'"),'missing .35 predecessor bridge');
 
-  assert.equal(appBuild,'20261026-v0427553337-g9-halloween-camp-alias');
-  assert.equal(cacheName,'pokemon-sleep-ai-v0.4.27.55.3.3.37-v0427553337-g9-halloween-camp-alias');
+  assert.equal(appBuild,appVersion==='v0.4.27.55.3.3.38'?'20261108-v0427553338-g265-primary-atomic-cas':'20261026-v0427553337-g9-halloween-camp-alias');
+  assert.equal(cacheName,appVersion==='v0.4.27.55.3.3.38'?'pokemon-sleep-ai-v0.4.27.55.3.3.38-v0427553338-g265-primary-atomic-cas':'pokemon-sleep-ai-v0.4.27.55.3.3.37-v0427553337-g9-halloween-camp-alias');
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.32'"));
   assert.ok(version.includes("// app_build: '20261024-v0427553332-g479-exact-resource-provenance'"));
   assert.ok(version.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.32-v0427553332-g479-exact-resource-provenance'"));
