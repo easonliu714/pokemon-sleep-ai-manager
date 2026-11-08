@@ -91,6 +91,12 @@ const canonicalNormal=projectRecipeStrategy(canonicalInput);
 assert(canonicalNormal.candidates[0].candidate_status==='UNLOCK_CANDIDATE_READY',
   'strategy_canonical_formula_positive_control');
 
+// An absent player recipe row is an ordinary locked public recipe, not a
+// conflicting player identity. Preserve this existing read-side fallback.
+const noPlayerState=projectRecipeStrategy({...canonicalInput,recipeStates:[]});
+assert(noPlayerState.candidates[0].candidate_status==='UNLOCK_CANDIDATE_READY',
+  'strategy_missing_player_state_locked_fallback_remains_ready');
+
 // G6.2 independent cross-recipe player identity: the recipe_catalog_state
 // ranked view chooses a match per public recipe, not a globally unique player
 // recipe owner. A single player row can therefore be matched to two public
