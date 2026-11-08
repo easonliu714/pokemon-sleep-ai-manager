@@ -225,14 +225,14 @@ try{
       const page=await context.newPage();
       await page.goto(origin+'/index.html',{waitUntil:'load'});
       await page.addScriptTag({content:[
-        'const pageLoads=new Map();',
+        'const pageLoads=new Map(),failedFeatureModuleUrls=new Set();',
         "const pageModuleGroups={updates:['synthetic-feature']};",
         'const events=[];',
         'let failImport=true,attempts=0;',
         "const debugTrace={record:(...args)=>events.push({kind:'trace',name:args[1],payload:args[2]})};",
         "const pageProgress=(page,state,message,details={})=>events.push({kind:'progress',page,state,message,details});",
         'const yieldToBrowser=()=>Promise.resolve();',
-        "const importFeatureModule=async()=>{attempts++;if(failImport)throw new TypeError('synthetic deferred ESM 503');return {};};",
+        "const importFeatureModule=async(file)=>{if(failedFeatureModuleUrls.has(file))throw new TypeError('cached deferred ESM failure');attempts++;if(failImport){failedFeatureModuleUrls.add(file);throw new TypeError('synthetic deferred ESM 503');}return {};};",
         'const hydrateUpdateCenterShells=async()=>{};',
         'const startOcrOverlayForUpdates=async()=>{};',
         'const hydrateBackupSnapshotPanel=async()=>{};',
@@ -245,9 +245,10 @@ try{
         try{await fixture.loadPageModules('updates');}catch(error){firstError=String(error.message||error);}
         const afterFailure=fixture.events.filter(e=>e.kind==='progress').map(e=>e.state);
         fixture.recover();
-        await fixture.loadPageModules('updates');
+        let secondError='';
+        try{await fixture.loadPageModules('updates');}catch(error){secondError=String(error.message||error);}
         return {
-          firstError,afterFailure,
+          firstError,secondError,afterFailure,
           states:fixture.events.filter(e=>e.kind==='progress').map(e=>e.state),
           failed:fixture.events.find(e=>e.kind==='progress'&&e.state==='failed'),
           traces:fixture.events.filter(e=>e.kind==='trace').map(e=>e.name),
@@ -257,14 +258,16 @@ try{
       assert.match(observed.firstError,/synthetic deferred ESM 503/);
       assert.deepEqual(observed.afterFailure,['loading','failed'],
         'first rejected ESM must settle the visible hydration badge');
-      assert.deepEqual(observed.states,['loading','failed','loading','ready'],
-        'explicit re-navigation must recover without automatic retry');
+      assert.match(observed.secondError,/cached deferred ESM failure/,'same-document navigation cannot clear failed module map');
+      assert.deepEqual(observed.states,['loading','failed','loading','failed'],
+        'same-document re-navigation must remain fail-closed');
       assert.equal(observed.failed.details.player_write,false);
-      assert.equal(observed.failed.details.retryable_on_next_navigation,true);
+      assert.equal(observed.failed.details.retryable_on_next_navigation,false);
+      assert.equal(observed.failed.details.manual_reload_required,true);
       assert.match(observed.failed.message,/保留本機資料/);
       assert.ok(observed.traces.includes('page_feature_load_failed'));
-      assert.equal(observed.attempts,2,'only one import attempt per explicit navigation');
-      console.log('PASS G479_CHROMIUM_DEFERRED_PAGE_ESM_FAILURE_TERMINAL_AND_MANUAL_RENAVIGATION');
+      assert.equal(observed.attempts,1,'failed module URL cannot be blindly re-imported in this document');
+      console.log('PASS G479_CHROMIUM_DEFERRED_PAGE_ESM_FAILURE_STICKY_MANUAL_RELOAD_REQUIRED');
     }finally{
       await context.close();
     }
