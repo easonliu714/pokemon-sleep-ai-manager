@@ -1,6 +1,6 @@
 // G265 ninth manual-ingredient opt-in native Chromium: two-tab CAS, UNKNOWN unlock,
 // private audit, lost ACK, stale replay and SQL rollback. Disposable loopback only.
-// Production manual-editor.js::saveIngredient(), player DB and public master untouched.
+// Isolated adapter never invokes production saveIngredient; player DB and public master untouched.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {createHash} from 'node:crypto';
