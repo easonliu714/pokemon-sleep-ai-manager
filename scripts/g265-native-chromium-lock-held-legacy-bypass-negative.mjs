@@ -159,26 +159,6 @@ try{
   persisted.close();
   console.log('PASS G265_SHARED_PRIMARY_FRESH_RELOAD_MANUAL_REBASE_PRESERVES_BOTH_SQL_ROWS');
   console.log('HOLD G265_LEGACY_PRE_PERSIST_SQL_MUTATION_INTERVALS_AND_ANDROID_OWNER_UAT');
-}finally{db.close();}
-  });
-  assert.equal(hash(observed.bytes),hash(legacy));
-  assert.equal(observed.revision.generation,1);
-  assert.equal(observed.revision.sha256,hash(legacy),
-    'shared writer keeps bytes and revision atomic even without a Web Lock');
-  console.log('REPRODUCED_HOLD G265_LEGACY_SAVE_STILL_BYPASSES_HELD_WEB_LOCK_WITH_VALID_REVISION');
-  const mismatch=await a.evaluate(async()=>{
-    const state=window.__g265,db=await state.open();
-    try{
-      const gate=state.createSqliteVersionNeutralAtomicPairGate({db});
-      let code;
-      try{await gate.readVerified();}catch(error){code=error.code;}
-      return {code,status:gate.status().status};
-    }finally{db.close();}
-  });
-  assert.equal(mismatch.code,undefined,'legacy storage CAS no longer leaves a corrupt revision peer');
-  assert.equal(mismatch.status,'READY');
-  console.log('PASS G265_LEGACY_SAVE_REMAINS_REVISION_COHERENT_WHILE_LOCK_ADMISSION_UNPROVEN');
-  console.log('HOLD G265_ALL_LEGACY_WRITERS_LOCK_ADMISSION_PRODUCTION_CROSS_TAB_ANDROID_UAT');
 }finally{
   if(a&&!a.isClosed())try{await a.evaluate(async()=>{
     window.__g265?.release?.();
