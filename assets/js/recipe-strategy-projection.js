@@ -76,6 +76,10 @@ function matchesCanonicalFormula(recipe,observed,canonical){
   if(!canonical||!Array.isArray(canonical.ingredients)||
     recipe.total_ingredients!==canonical.total_ingredients||
     normalizeCategory(recipe.category)!==normalizeCategory(canonical.category)||
+    // A stale local display name can identify the wrong dish despite matching
+    // recipe ID, ingredient quantities, total and energy. Keep read-side HOLD.
+    String(recipe.recipe_name??'').normalize('NFKC').trim()!==
+      String(canonical.recipe_name??'').normalize('NFKC').trim()||
     // Base energy breaks otherwise equal recommendation ties. A stale local
     // energy value cannot inherit immutable public recipe authority.
     recipe.base_energy!==canonical.base_energy)return false;
@@ -360,7 +364,7 @@ export function projectRecipeStrategy({
     // SQLite rows and the declared public master version remain unchanged.
     canonical_recipe_authority:authoritativeMap===null?null:candidates.map(row=>{
       const canonical=authoritativeMap.get(row.recipe_id);
-      return [row.recipe_id,canonical?.category??null,canonical?.total_ingredients??null,
+      return [row.recipe_id,canonical?.recipe_name??null,canonical?.category??null,canonical?.total_ingredients??null,
         // #824: the immutable energy is an actionable tie-breaker and #823
         // rejects local/canonical drift. Bind the canonical value too so a
         // source-only change cannot reuse READY evidence for a REVIEW result.
