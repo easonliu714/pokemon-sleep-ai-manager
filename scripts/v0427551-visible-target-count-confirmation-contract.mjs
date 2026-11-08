@@ -113,7 +113,7 @@ const cacheName=version.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
 // G265 .34 inherits frozen Candy/Raw/visible-confirmation predecessors from .33.
 
 // G9-R .37 read-side Halloween camp alias successor; frozen .36 exact checks retained.
-if(appVersion==='v0.4.27.55.3.3.40'||'v0.4.27.55.3.3.39'||appVersion==='v0.4.27.55.3.3.38'||appVersion==='v0.4.27.55.3.3.37'){
+if(appVersion==='v0.4.27.55.3.3.40'||appVersion==='v0.4.27.55.3.3.39'||appVersion==='v0.4.27.55.3.3.38'||appVersion==='v0.4.27.55.3.3.37'){
   // Exact .36 successor inherits ALL frozen .35 assertions below.
   assert.ok(version.includes("// app_version: 'v0.4.27.55.3.3.36'"),'missing .35 predecessor bridge');
 

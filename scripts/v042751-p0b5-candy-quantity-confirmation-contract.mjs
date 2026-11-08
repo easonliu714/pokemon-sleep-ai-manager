@@ -188,7 +188,7 @@ if(pagePrewarmSuccessor){
 // G265 .33 exact successor: Candy screenshot remains lazy and confirmation-only.
 
 // G9-R .37 read-side Halloween camp alias successor; frozen .36 exact checks retained.
-else if(appVersion==='v0.4.27.55.3.3.40'||'v0.4.27.55.3.3.39'||appVersion==='v0.4.27.55.3.3.38'||appVersion==='v0.4.27.55.3.3.37'){
+else if(appVersion==='v0.4.27.55.3.3.40'||appVersion==='v0.4.27.55.3.3.39'||appVersion==='v0.4.27.55.3.3.38'||appVersion==='v0.4.27.55.3.3.37'){
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.36'"),'.36 retains .35 predecessor');
 
   // G265 .34 inherits lazy screenshot loading and explicit Candy confirmation.
