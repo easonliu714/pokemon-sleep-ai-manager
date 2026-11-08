@@ -82,7 +82,7 @@ async function newTab(){
 }
 async function attempt(page,name,quantity,reserve=1,recommendation='synthetic'){
   return page.evaluate(async({name,quantity,reserve,recommendation})=>{
-    try{return {ok:true,result:await window.__item.save(name,quantity,unlock)};}
+    try{return {ok:true,result:await window.__item.save(name,quantity,reserve,recommendation)};}
     catch(e){return {ok:false,code:e.code||e.message};}
   },{name,quantity,reserve,recommendation});
 }
