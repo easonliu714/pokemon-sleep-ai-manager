@@ -14,8 +14,8 @@ const audit=legacy.split('async function audit(')[1]
   ?.split('function emitPokemonEvaluationInputChanged(')[0];
 assert.ok(exact&&audit,'eighth legacy writer and audit must remain source-bound');
 assert.match(exact,/await snapshot\(/);
-assert.match(exact,/await persist\(\)/);
-assert.match(exact,/await audit\('item_inventory'/);
+assert.match(exact,/persist\(\{primaryMutationLease:lease\}\)/);
+assert.match(exact,/withSqliteCoordinatedMutation\(\(\)=>audit\('item_inventory'/);
 assert.match(audit,/INSERT INTO import_batches/);
 assert.match(audit,/INSERT INTO import_changes/);
 assert.doesNotMatch(legacy,/sqlite-manual-item-optin/);

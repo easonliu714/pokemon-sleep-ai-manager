@@ -1,6 +1,6 @@
 // G265 eighth manual item isolated opt-in: real SQL.js, fake IndexedDB, cooperative
 // Web Locks, atomic durable revision CAS and private audit consistency. Synthetic only.
-// The exact unchanged production legacy source is asserted, not wired to this adapter.
+// The newly guarded production source is asserted, but this isolated adapter is not wired to it.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {webcrypto} from 'node:crypto';
@@ -15,12 +15,12 @@ const source=legacy.split('export async function saveItem(')[1]?.split('export a
 const audit=legacy.split('async function audit(')[1]?.split('function emitPokemonEvaluationInputChanged(')[0];
 assert.ok(source&&audit,'exact eighth manual item legacy source must remain identifiable');
 assert.match(source,/await snapshot\(/);
-assert.match(source,/await persist\(\)/);
-assert.match(source,/await audit\('item_inventory'/);
+assert.match(source,/persist\(\{primaryMutationLease:lease\}\)/);
+assert.match(source,/withSqliteCoordinatedMutation\(\(\)=>audit\('item_inventory'/);
 assert.match(audit,/INSERT INTO import_batches/);
 assert.match(audit,/INSERT INTO import_changes/);
 assert.doesNotMatch(legacy,/sqlite-manual-item-optin/);
-console.log('PASS G265_EIGHTH_MANUAL_ITEM_EXACT_LEGACY_SOURCE_BOUND_NOT_PRODUCTION_WIRED');
+console.log('PASS G265_EIGHTH_MANUAL_ITEM_ISOLATED_ADAPTER_NOT_PRODUCTION_WIRED');
 
 const SQL=await initSqlJs();
 const seedSql=new SQL.Database();

@@ -1,10 +1,11 @@
 // G265 eighth legacy operation: manual item-inventory two-ACK lost-update NEGATIVE.
-// Executes unchanged manual-editor.js::saveItem() and its audit helper in two
-// disposable VM contexts with synthetic items. No player DB, production import,
+// Executes the frozen pre-admission manual-editor.js::saveItem() witness and
+// current audit helper in two disposable VM contexts with synthetic items. No player DB, production import,
 // Public Master mutation, native Chromium, or crash-recovery claim.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import {FROZEN_MANUAL_ITEM_LEGACY_SOURCE} from './fixtures/g265-manual-item-pre-admission-source.mjs';
 
 const source=fs.readFileSync(new URL('../assets/js/manual-editor.js',import.meta.url),'utf8');
 function exactBetween(start,end){
@@ -14,14 +15,17 @@ function exactBetween(start,end){
   return start+tail.split(end)[0];
 }
 const audit=exactBetween('async function audit(', 'function emitPokemonEvaluationInputChanged(');
-const save=exactBetween('export async function saveItem(', 'export async function savePokemonDetail(');
+const save=FROZEN_MANUAL_ITEM_LEGACY_SOURCE;
+const current=exactBetween('export async function saveItem(', '// G265: one named production writer');
+assert.match(current,/withPrimarySqliteMutationLock\(async lease/);
+assert.match(current,/persist\(\{primaryMutationLease:lease\}\)/);
 assert.match(source,/const now=\(\)=>localIso\(\);/);
 assert.match(save,/await snapshot\(`manual:item:/);
 assert.match(save,/begin\(\);try\{run\(`INSERT INTO item_inventory/);
 assert.match(save,/await audit\('item_inventory'/);
 assert.match(save,/commit\(\);await persist\(\)/);
 assert.doesNotMatch(save,/navigator\.locks|runSqliteWriteSession|createSqliteFreshDurableTransactionAdapter/);
-console.log('PASS G265_EIGHTH_MANUAL_ITEM_EXACT_LEGACY_SOURCE_BOUND_DIRECT_PERSIST');
+console.log('PASS G265_EIGHTH_MANUAL_ITEM_FROZEN_PRE_ADMISSION_TWO_ACK_WITNESS');
 
 const clone=x=>JSON.parse(JSON.stringify(x));
 const itemA='SYNTHETIC_ITEM_A',itemB='SYNTHETIC_ITEM_B';
