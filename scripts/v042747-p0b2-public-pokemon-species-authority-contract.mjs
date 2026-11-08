@@ -269,8 +269,8 @@ else if(currentAppVersion==='v0.4.27.55.3.3.39'||currentAppVersion==='v0.4.27.55
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.36'"),'missing .35 predecessor bridge');
 
   // G265 SQLite persistence successor retains the frozen P0-B2 species boundary.
-  assert.equal(currentAppBuild,currentAppVersion==='v0.4.27.55.3.3.39'?'20261108-v0427553339-g265-shared-primary-web-lock':currentAppVersion==='v0.4.27.55.3.3.38'?'20261108-v0427553338-g265-primary-atomic-cas':'20261026-v0427553337-g9-halloween-camp-alias');
-  assert.equal(currentCacheName,currentAppVersion==='v0.4.27.55.3.3.39'?'pokemon-sleep-ai-v0.4.27.55.3.3.39-v0427553339-g265-shared-primary-web-lock':currentAppVersion==='v0.4.27.55.3.3.38'?'pokemon-sleep-ai-v0.4.27.55.3.3.38-v0427553338-g265-primary-atomic-cas':'pokemon-sleep-ai-v0.4.27.55.3.3.37-v0427553337-g9-halloween-camp-alias');
+  assert.equal(currentAppBuild,currentAppVersion==='v0.4.27.55.3.3.40'?'20261108-v0427553340-g265-manual-pokemon-pre-sql':currentAppVersion==='v0.4.27.55.3.3.39'?'20261108-v0427553339-g265-shared-primary-web-lock':currentAppVersion==='v0.4.27.55.3.3.38'?'20261108-v0427553338-g265-primary-atomic-cas':'20261026-v0427553337-g9-halloween-camp-alias');
+  assert.equal(currentCacheName,currentAppVersion==='v0.4.27.55.3.3.40'?'pokemon-sleep-ai-v0.4.27.55.3.3.40-v0427553340-g265-manual-pokemon-pre-sql':currentAppVersion==='v0.4.27.55.3.3.39'?'pokemon-sleep-ai-v0.4.27.55.3.3.39-v0427553339-g265-shared-primary-web-lock':currentAppVersion==='v0.4.27.55.3.3.38'?'pokemon-sleep-ai-v0.4.27.55.3.3.38-v0427553338-g265-primary-atomic-cas':'pokemon-sleep-ai-v0.4.27.55.3.3.37-v0427553337-g9-halloween-camp-alias');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.33'"));
   assert.ok(versionSource.includes("// app_build: '20261025-v0427553333-g265-concise-warroom-decisions'"));
   assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.33-v0427553333-g265-concise-warroom-decisions'"));
