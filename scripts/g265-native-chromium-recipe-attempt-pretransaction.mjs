@@ -69,7 +69,7 @@ async function newTab(){
       snapshot,persist,
       canonicalRecipe:id=>rows('SELECT recipe_id,recipe_name FROM recipe_master WHERE recipe_id=?',[id])[0]||null,
       provenanceFor:()=>({formula_source_type:'PUBLIC_RECIPE_PROVENANCE'}),
-      recipeAttemptDefaultSource:()=>({source_type:'PUBLIC_RECIPE_PROVENANCE',source_name:'Synthetic'}),
+      recipeAttemptDefaultSource:()=>({source_type:'PUBLIC_RECIPE_PROVENANCE',source_name:'Synthetic',source_ref:null}),
       buildRecipeAttemptFeedbackRecord:x=>({...x,outcome:'DID_NOT_UNLOCK'}),
       eventId:()=> 'fixture-attempt-'+(++v.seq)+'-'+window.name,
       clean:value=>String(value??'').normalize('NFKC').trim(),
@@ -92,7 +92,7 @@ async function newTab(){
 const input={recipe_id:'r',attempted_at:'2026-11-08T12:00:00.000Z',actual_ingredients:[{ingredient_name:'apple',quantity:2}],recommendation_paused:true};
 const attempt=page=>page.evaluate(async input=>{
   try{return {ok:true,result:await window.__recipeAttempt.record(input)};}
-  catch(e){return {ok:false,code:e.code||e.message};}
+  catch(e){return {ok:false,code:e?.code||e?.message||String(e)};}
 },input);
 async function durable(page){
   const bytes=await page.evaluate(async()=>Array.from(new Uint8Array(await window.__recipeAttempt.storage.loadDatabaseBytes())));
