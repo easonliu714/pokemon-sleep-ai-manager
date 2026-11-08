@@ -206,11 +206,15 @@ export async function saveDatabaseBytes(bytes){
     try{
       tx=db.transaction([DB_STORE,META_STORE],'readwrite');
       const rawStore=tx.objectStore(DB_STORE),metaStore=tx.objectStore(META_STORE);
-      const keyReq=rawStore.getKey(DB_KEY),metaReq=metaStore.get(META_KEY),revReq=metaStore.get(PRIMARY_REVISION_KEY);
+      const keyReq=rawStore.get(DB_KEY),metaReq=metaStore.get(META_KEY),revReq=metaStore.get(PRIMARY_REVISION_KEY);
       const abort=code=>{failCode=code;try{tx.abort();}catch{}};
       const stage=()=>{
         if(++have!==3)return;
         const exists=keyReq.result!==undefined;
+        // A foreign or corrupt payload is never accepted as the SQLite image.
+        if(exists&&!(keyReq.result instanceof ArrayBuffer)){
+          abort('SQLITE_PRIMARY_LEGACY_BYTES_FORMAT_UNEXPECTED');return;
+        }
         if(exists!==expected.exists
           ||primaryMetadataToken(metaReq.result)!==expected.metadataToken
           ||!primaryRevisionMatches(revReq.result,expected.revision)){
