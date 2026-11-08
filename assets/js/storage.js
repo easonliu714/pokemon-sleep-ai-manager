@@ -208,6 +208,7 @@ export async function withPrimarySqliteMutationLock(callback){
   if(primaryMutationSticky)throw primaryError('SQLITE_PRIMARY_MUTATION_UNVERIFIED_RELOAD_REQUIRED');
   if(activePrimaryMutationLease)throw primaryError('SQLITE_PRIMARY_MUTATION_SESSION_ALREADY_ACTIVE');
   if(!primaryBinding)throw primaryError('SQLITE_PRIMARY_NOT_LOADED_RELOAD_REQUIRED');
+  const expected=primaryBinding; // immutable loaded-image identity before lock wait
   const locks=globalThis.navigator?.locks;
   if(typeof locks?.request!=='function'||typeof globalThis.AbortController!=='function'){
     primaryMutationSticky=true;
@@ -231,8 +232,7 @@ export async function withPrimarySqliteMutationLock(callback){
           tx.onerror=()=>reject(tx.error||primaryError('SQLITE_PRIMARY_MUTATION_READ_FAILED'));
           tx.onabort=()=>reject(tx.error||primaryError('SQLITE_PRIMARY_MUTATION_READ_ABORTED'));
         });
-        const expected=primaryBinding;
-        if(!expected||Boolean(latest.bytes)!==expected.exists
+        if(primaryBinding!==expected||Boolean(latest.bytes)!==expected.exists
           ||primaryMetadataToken(latest.metadata)!==expected.metadataToken
           ||!primaryRevisionMatches(latest.revision,expected.revision))
           throw primaryError('SQLITE_PRIMARY_STALE_REVISION_RELOAD_REQUIRED');
