@@ -59,12 +59,12 @@ const cacheName=versionSource.match(/cache_name:\s*'([^']+)'/)?.[1]||'';
 // G265 .35 exact runtime two-writer successor; preserve .34 and frozen G14.1 lineage.
 
 // G9-R .37 read-side Halloween camp alias successor; frozen .36 exact checks retained.
-if(appVersion==='v0.4.27.55.3.3.38'||appVersion==='v0.4.27.55.3.3.37'){
+if(appVersion==='v0.4.27.55.3.3.39'||appVersion==='v0.4.27.55.3.3.38'||appVersion==='v0.4.27.55.3.3.37'){
   // Exact .36 successor inherits ALL frozen .35 assertions below.
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.36'"),'missing .35 predecessor bridge');
 
-  assert.equal(appBuild,appVersion==='v0.4.27.55.3.3.38'?'20261108-v0427553338-g265-primary-atomic-cas':'20261026-v0427553337-g9-halloween-camp-alias');
-  assert.equal(cacheName,appVersion==='v0.4.27.55.3.3.38'?'pokemon-sleep-ai-v0.4.27.55.3.3.38-v0427553338-g265-primary-atomic-cas':'pokemon-sleep-ai-v0.4.27.55.3.3.37-v0427553337-g9-halloween-camp-alias');
+  assert.equal(appBuild,appVersion==='v0.4.27.55.3.3.39'?'20261108-v0427553339-g265-shared-primary-web-lock':appVersion==='v0.4.27.55.3.3.38'?'20261108-v0427553338-g265-primary-atomic-cas':'20261026-v0427553337-g9-halloween-camp-alias');
+  assert.equal(cacheName,appVersion==='v0.4.27.55.3.3.39'?'pokemon-sleep-ai-v0.4.27.55.3.3.39-v0427553339-g265-shared-primary-web-lock':appVersion==='v0.4.27.55.3.3.38'?'pokemon-sleep-ai-v0.4.27.55.3.3.38-v0427553338-g265-primary-atomic-cas':'pokemon-sleep-ai-v0.4.27.55.3.3.37-v0427553337-g9-halloween-camp-alias');
   assert.ok(versionSource.includes("// app_version: 'v0.4.27.55.3.3.34'"));
   assert.ok(versionSource.includes("// app_build: '20261025-v0427553334-g265-shared-sqlite-runtime'"));
   assert.ok(versionSource.includes("// cache_name: 'pokemon-sleep-ai-v0.4.27.55.3.3.34-v0427553334-g265-shared-sqlite-runtime'"));
