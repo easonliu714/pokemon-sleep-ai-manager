@@ -31,6 +31,7 @@ const tabs=[],url=new URL('g265-recipe-attempt-disposable',base).href;
 async function newTab(){
   const page=await context.newPage();tabs.push(page);
   await page.goto(url);
+  await page.evaluate(()=>{window.name='synthetic-tab-'+crypto.randomUUID();});
   await page.addScriptTag({url:new URL('g265-recipe-attempt-sql.js',base).href});
   await page.evaluate(async code=>{
     const storage=await import('/assets/js/storage.js');
