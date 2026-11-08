@@ -9,7 +9,7 @@ import initSqlJs from 'sql.js';
 
 const legacy=fs.readFileSync(new URL('../assets/js/analysis-revision-store.js',import.meta.url),'utf8');
 const exact=legacy.split('export async function saveAnalysisRevision(')[1]?.split('\nexport {TABLE_SQL}')[0];
-assert.ok(exact&&/await snapshot\(/.test(exact)&&/await persist\(\)/.test(exact)
+assert.ok(exact&&/await snapshot\(/.test(exact)&&/persist\(\{primaryMutationLease:lease\}\)/.test(exact)
   &&/INSERT INTO image_analysis_revision/.test(exact));
 assert.doesNotMatch(legacy,/sqlite-analysis-revision-optin/);
 const tick=String.fromCharCode(96);

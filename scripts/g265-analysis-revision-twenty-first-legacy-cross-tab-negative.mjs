@@ -1,13 +1,20 @@
 // G265 twenty-first distinct Legacy Direct Writer: analysis-revision-store.js::saveAnalysisRevision().
-// Execute unchanged production source in disposable SQL.js VM tabs with synthetic image hashes.
+// Execute frozen exact historical production source in disposable SQL.js VM tabs with synthetic image hashes.
 // Two successful legacy ACKs can erase an independently acknowledged analysis revision.
 // PASS denotes expected UNSAFE negative reproduction, not production CAS admission or Android UAT.
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import initSqlJs from 'sql.js';
 
-const source=fs.readFileSync(new URL('../assets/js/analysis-revision-store.js',import.meta.url),'utf8');
+// Keep the original two-ACK lost-update counterexample immutable after production repair.
+// This historical exact Git blob is negative evidence, never current production authority.
+const production=fs.readFileSync(new URL('../assets/js/analysis-revision-store.js',import.meta.url),'utf8');
+assert.match(production,/withPrimarySqliteMutationLock\(async lease/);
+const source=fs.readFileSync(new URL('./fixtures/g265-analysis-revision-legacy-source.js',import.meta.url),'utf8');
+const gitBlobHash=createHash('sha1').update('blob '+Buffer.byteLength(source)+'\0'+source).digest('hex');
+assert.equal(gitBlobHash,'8dd8c627034e545e323d421fbf2e2d981bfa485e','historical unsafe source bytes must not drift');
 assert.match(source,/export async function saveAnalysisRevision\(/);
 assert.match(source,/await snapshot\(/);
 assert.match(source,/run\('INSERT INTO image_analysis_revision /);

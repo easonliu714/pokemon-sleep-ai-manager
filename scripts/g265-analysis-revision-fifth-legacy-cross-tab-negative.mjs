@@ -2,10 +2,17 @@
 // Two independent disposable VM tabs execute the actual source. NEGATIVE proof only;
 // never import the production app, read player SQLite, or modify IndexedDB.
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const source=fs.readFileSync(new URL('../assets/js/analysis-revision-store.js',import.meta.url),'utf8');
+// Keep the original two-ACK lost-update counterexample immutable after production repair.
+// This historical exact Git blob is negative evidence, never current production authority.
+const production=fs.readFileSync(new URL('../assets/js/analysis-revision-store.js',import.meta.url),'utf8');
+assert.match(production,/withPrimarySqliteMutationLock\(async lease/);
+const source=fs.readFileSync(new URL('./fixtures/g265-analysis-revision-legacy-source.js',import.meta.url),'utf8');
+const gitBlobHash=createHash('sha1').update('blob '+Buffer.byteLength(source)+'\0'+source).digest('hex');
+assert.equal(gitBlobHash,'8dd8c627034e545e323d421fbf2e2d981bfa485e','historical unsafe source bytes must not drift');
 const operation=source.split('export async function saveAnalysisRevision(')[1]?.split('\nexport {TABLE_SQL}')[0];
 assert.ok(operation,'exact fifth legacy operation must remain source identifiable');
 assert.match(operation,/await snapshot\(/);

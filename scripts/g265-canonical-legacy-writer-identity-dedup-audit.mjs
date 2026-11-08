@@ -52,7 +52,8 @@ for(const file of [fifthNegative,fifthIsolated,fifthChromium,twentyFirstNegative
 const production=read(dir+'analysis-revision-store.js');
 assert.match(production,/export async function saveAnalysisRevision\(/);
 assert.match(production,/await snapshot\(/);
-assert.match(production,/await persist\(\)/);
+assert.match(production,/withPrimarySqliteMutationLock\(async lease/);
+assert.match(production,/persist\(\{primaryMutationLease:lease\}\)/);
 assert.doesNotMatch(production,/runSqliteWriteSession|createSqliteCrossTabWriteAdmission|navigator\.locks/);
 const priorIsolated=read(scriptsDir+fifthIsolated);
 const priorNative=read(scriptsDir+fifthChromium);
@@ -62,6 +63,8 @@ assert.match(priorIsolated,/MISSING_WEB_LOCKS_FAIL_CLOSED/);
 assert.match(priorNative,/TAB_CLOSE_ACK_LOSS_RELOAD_STALE_REPLAY_ZERO_SQLJS/);
 assert.match(priorNative,/SQL_ROLLBACK_RELOAD_ZERO_DURABLE_DELTA/);
 assert.match(read(scriptsDir+twentyFirstNegative),/TWO_ACK_STALE_INDEPENDENT_REVISION_LOST_NEGATIVE/);
+assert.match(read(scriptsDir+twentyFirstNegative),/fixtures\/g265-analysis-revision-legacy-source/);
+assert.match(read(scriptsDir+fifthNegative),/fixtures\/g265-analysis-revision-legacy-source/);
 console.log('PASS G265_FIFTH_AND_TWENTY_FIRST_SAME_EXACT_ANALYSIS_REVISION_PRODUCTION_WRITER');
 console.log('PASS G265_FIFTH_EXISTING_NEGATIVE_CAS_CHROMIUM_ROLLBACK_ACK_LOSS_ALREADY_SOURCE_BOUND');
 
