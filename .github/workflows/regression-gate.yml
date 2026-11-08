@@ -439,6 +439,10 @@ jobs:
         run: node scripts/g265-native-chromium-lock-held-legacy-bypass-negative.mjs
       - name: G265 manual ingredient production pre-SQL admission
         run: node scripts/g265-manual-ingredient-pretransaction-source.mjs
+      - name: G265 native Chromium named manual ingredient pretransaction
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-native-chromium-manual-ingredient-pretransaction.mjs
       - name: G265 manual Pokémon pretransaction native-lock admission
         run: node scripts/g265-manual-pokemon-pretransaction-admission.mjs
       - name: G265 native Chromium manual Pokémon pretransaction
