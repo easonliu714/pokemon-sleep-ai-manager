@@ -208,6 +208,12 @@ for(const mode of ['DENIED_SET','SILENT_DROP_SET']){
     commit:()=>{sqlMutations++;},
     rollback:()=>{},
     persist:async()=>{persistCalls++;},
+    // The denied-marker test deliberately stops before SQL; G265 admission is
+    // modeled only to reach the existing recovery-marker safety boundary.
+    beginSqliteExclusiveWriteWindow:()=>()=>{},
+    withPrimarySqliteMutationLock:async fn=>fn(Object.freeze({synthetic:true})),
+    withSqliteCoordinatedMutation:fn=>fn(),
+    snapshot:async()=>({disposable:true}),
     isDatabaseReady:()=>true,isRescueReadonly:()=>false,
     PUBLIC_RECIPE_PROVENANCE:[{recipe_id:'r1',lifecycle:'ACTIVE',formula_source_type:'PUBLIC_RECIPE_PROVENANCE'}],
     buildRecipeAttemptFeedbackRecord,RECIPE_ATTEMPT_FEEDBACK_VERSION,
