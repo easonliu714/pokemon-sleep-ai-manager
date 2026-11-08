@@ -228,7 +228,14 @@ async function startOcrOverlayForUpdates(){
 }
 function bindStaticHistoryExport(){
   const button=document.getElementById('exportImportHistoryJsonBtnV042745');if(!button||button.dataset.staticExportBound==='true')return;button.dataset.staticExportBound='true';
-  button.addEventListener('click',async event=>{event.preventDefault();event.stopPropagation();const started=performance.now();try{const module=await importFeatureModule('review-reference-history-ux-v042745.js');module.downloadImportHistoryJson({doc:document});debugTrace.record('bootstrap','static_history_export_completed',{status:'completed',details:{elapsed_ms:Math.round(performance.now()-started)}});}catch(error){alert(`匯出失敗：${error?.message||error}`);debugTrace.record('bootstrap','static_history_export_failed',{status:'failed',error});}});
+  button.addEventListener('click',async event=>{event.preventDefault();event.stopPropagation();const started=performance.now();try{const module=await importFeatureModule('review-reference-history-ux-v042745.js');module.downloadImportHistoryJson({doc:document});debugTrace.record('bootstrap','static_history_export_completed',{status:'completed',details:{elapsed_ms:Math.round(performance.now()-started)}});}catch(error){
+      // G479: a failed dynamic-import URL is sticky in this document's module map.
+      // Preserve the actual error and require an explicit fresh document; never auto-reload or clear player data.
+      const manualReloadRequired=failedFeatureModuleUrls.has('review-reference-history-ux-v042745.js');
+      const guidance=manualReloadRequired?'；此模組在目前頁面無法重試，請手動重新載入頁面（保留資料）後再匯出。':'';
+      alert(`匯出失敗：${error?.message||error}${guidance}`);
+      debugTrace.record('bootstrap','static_history_export_failed',{status:'failed',details:{manual_reload_required:manualReloadRequired,player_write:false,automatic_reload:false},error});
+    }});
 }
 function bindPageAwareFeatureLoading(){
   document.querySelectorAll('nav button[data-view]').forEach(button=>{if(button.dataset.pageAwareBound==='true')return;button.dataset.pageAwareBound='true';button.addEventListener('click',()=>{void loadPageModules(button.dataset.view).catch(()=>{});},{capture:false});});
