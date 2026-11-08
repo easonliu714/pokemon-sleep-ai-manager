@@ -44,6 +44,9 @@ function boot(durablePaused=null){
 }
 const ctx=boot(),input={recipe_id:'r1',attempted_at:'2026-10-24T08:00:00Z',actual_ingredients:[{ingredient_name:'特選蘋果',quantity:2}],recommendation_paused:true};
 const recording=ctx.__record(input);
+// Named G265 primary admission is asynchronous before BEGIN; wait only for
+// synthetic lock acquisition, not for the deliberately unresolved IDB ACK.
+await new Promise(resolve=>setImmediate(resolve));
 assert.equal(commits,1);
 assert.equal(pending.length,1);
 assert.equal(ctx.__status().status,'IN_FLIGHT');

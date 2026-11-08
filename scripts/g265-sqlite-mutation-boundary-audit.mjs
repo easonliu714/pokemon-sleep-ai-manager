@@ -22,7 +22,7 @@ assert.match(draft,/await snapshot\('war-room:named-team-draft:'/);
 assert.match(draft,/begin\(\);[\s\S]*?commit\(\);[\s\S]*?await persist\(\)/);
 assert.match(goal,/runSqliteWriteSession\(/,'goal writer migrated to opt-in session');
 assert.match(goal,/runSqliteWriteSession\(/,'goal write-session now owns persist boundary');
-assert.match(feedback,/begin\(\);[\s\S]*?commit\(\);[\s\S]*?await persist\(\)/);
+assert.match(feedback,/withPrimarySqliteMutationLock\(async lease[\s\S]*?withSqliteCoordinatedMutation\(begin\)[\s\S]*?withSqliteCoordinatedMutation\(commit\)[\s\S]*?persist\(\{primaryMutationLease:lease\}\)/);
 assert.match(importer,/await snapshot\(/);
 assert.match(importer,/begin\(\);[\s\S]*?commit\(\);[\s\S]*?await persist\(\)/);
 const directImport=/from\s*['"]\.\/database\.js['"]/;

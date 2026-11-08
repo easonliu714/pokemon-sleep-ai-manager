@@ -14,12 +14,12 @@ import {createRecipeAttemptFailureOptIn} from '../assets/js/sqlite-recipe-attemp
 const legacy=fs.readFileSync(new URL('../assets/js/recipe-attempt-feedback-local.js',import.meta.url),'utf8');
 const target=legacy.split('export async function recordRecipeAttemptFailure(')[1]
   ?.split('// G6.2: share the attempt-write')[0];
-assert.ok(target,'source-bound legacy writer must still exist');
+assert.ok(target,'source-bound named production writer must still exist');
 assert.match(target,/INSERT INTO recipe_attempt_feedback/);
 assert.match(target,/INSERT INTO recipe_feedback_state/);
-assert.match(target,/await persist\(\)/);
+assert.match(target,/persist\(\{primaryMutationLease:lease\}\)/);
 assert.doesNotMatch(legacy,/sqlite-recipe-attempt-failure-optin/);
-console.log('PASS G265_FOURTH_LEGACY_RECORD_ATTEMPT_SOURCE_BOUND_OPTIN_NOT_PRODUCTION_WIRED');
+console.log('PASS G265_FOURTH_NAMED_PRODUCTION_ATTEMPT_ISOLATED_OPTIN_NOT_PRODUCTION_WIRED');
 
 const provenance=PUBLIC_RECIPE_PROVENANCE.find(row=>row.lifecycle==='ACTIVE'&&row.formula_source_ref);
 assert.ok(provenance,'real canonical provenance required');

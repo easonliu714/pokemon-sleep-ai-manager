@@ -13,7 +13,7 @@ const source=fs.readFileSync(new URL('../assets/js/recipe-attempt-feedback-local
 const legacy=source.split('export async function recordRecipeAttemptFailure(')[1]
   ?.split('// G6.2: share the attempt-write')[0];
 assert.ok(legacy&&/INSERT INTO recipe_attempt_feedback/.test(legacy)
-  &&/INSERT INTO recipe_feedback_state/.test(legacy)&&/await persist\(\)/.test(legacy));
+  &&/INSERT INTO recipe_feedback_state/.test(legacy)&&/persist\(\{primaryMutationLease:lease\}\)/.test(legacy));
 assert.doesNotMatch(source,/sqlite-recipe-attempt-failure-optin/);
 const base=new URL(process.env.BASE_URL||'http://127.0.0.1:4173/');
 assert.equal(base.hostname,'127.0.0.1');
