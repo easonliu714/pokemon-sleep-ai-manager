@@ -7,6 +7,7 @@ const DB_KEY = "primary";
 const META_KEY = "primary";
 const SNAPSHOT_META_PREFIX = "snapshot:";
 const PRIMARY_REVISION_KEY = "revision:primary";
+const PRIMARY_REVISION_SCHEME = "g265-atomic-primary-cas-v1";
 
 // G265: bind each page to the primary SQLite image actually loaded. The raw
 // database/primary ArrayBuffer remains unchanged; revision is a metadata peer.
@@ -17,7 +18,8 @@ const validPrimaryRevision = r=>r&&Number.isSafeInteger(r.generation)
   &&r.generation>=0&&typeof r.sha256==='string'&&/^[a-f0-9]{64}$/.test(r.sha256);
 const primaryMetadataToken = meta=>JSON.stringify({
   byte_length:meta?.byte_length??null,updated_at:meta?.updated_at??null,
-  format:meta?.format??null,safe_boot_version:meta?.safe_boot_version??null
+  format:meta?.format??null,safe_boot_version:meta?.safe_boot_version??null,
+  revision_scheme:meta?.revision_scheme??null
 });
 const primaryRevisionMatches = (current,expected)=>expected===null
   ?current==null
@@ -41,6 +43,8 @@ async function bindPrimaryImage({bytes,metadata,revision}){
   }
   if(!(bytes instanceof ArrayBuffer))
     throw primaryError('SQLITE_PRIMARY_LEGACY_BYTES_FORMAT_UNEXPECTED');
+  if(revision==null&&metadata?.revision_scheme===PRIMARY_REVISION_SCHEME)
+    throw primaryError('SQLITE_PRIMARY_MISSING_REVISION_RELOAD_REQUIRED');
   if(revision!=null){
     if(!validPrimaryRevision(revision))
       throw primaryError('SQLITE_PRIMARY_INVALID_REVISION_RELOAD_REQUIRED');
@@ -198,7 +202,8 @@ export async function saveDatabaseBytes(bytes){
   const generation=expected.revision?expected.revision.generation+1:0;
   if(!Number.isSafeInteger(generation))throw primaryError('SQLITE_PRIMARY_REVISION_EXHAUSTED');
   const revision={generation,sha256:hash};
-  const metadata={byte_length:buffer.byteLength,updated_at:new Date().toISOString(),format:'sqlite-arraybuffer',safe_boot_version:2};
+  const metadata={byte_length:buffer.byteLength,updated_at:new Date().toISOString(),
+    format:'sqlite-arraybuffer',safe_boot_version:2,revision_scheme:PRIMARY_REVISION_SCHEME};
   const db=await openIdb();
   await new Promise((resolve,reject)=>{
     let tx,failCode=null,settled=false,have=0;
