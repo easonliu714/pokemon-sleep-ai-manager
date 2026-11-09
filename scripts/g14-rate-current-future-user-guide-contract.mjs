@@ -133,6 +133,15 @@ assert.match(manualSource,/snapshot\('rate4:confirmed:/);
 assert.match(manualSource,/withPrimarySqliteMutationLock\(async lease=>/);
 assert.match(manualSource,/primaryMutationLease:lease/);
 assert.match(manualSource,/confirmed!==true/);
+// RATE.4 production Apply is not Owner-authorized. The proposed production
+// button and writer must remain OFF by default even if this Draft is merged
+// accidentally; isolated synthetic Chromium tests opt in explicitly.
+assert.match(manualSource,/export const RATE4_PRODUCTION_APPLY_ENABLED=false;/,
+  'production rating Apply must be disabled by default');
+assert.match(manualSource,/if\(RATE4_PRODUCTION_APPLY_ENABLED!==true\)/,
+  'production rating writer must reject without explicit feature admission');
+assert.match(detailSource,/if\(advice\.can_propose_save&&RATE4_PRODUCTION_APPLY_ENABLED\)/,
+  'production detail UI must not expose the rating Apply control while HOLD');
 assert.equal(pokemon.rating,'D-');
 console.log(JSON.stringify({gate:'G14_RATE_CURRENT_FUTURE_GUIDE_SOURCE',status:'PASS',
   current:'S-',future:'S+',dual_grade:true,guide_bottom:true,
