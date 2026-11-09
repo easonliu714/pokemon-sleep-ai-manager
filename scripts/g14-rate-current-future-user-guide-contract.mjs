@@ -236,6 +236,33 @@ assert.equal(scorePokemonProvisionalRating({pokemon:{...pokemon,field_conflicts:
 assert.equal(scorePokemonProvisionalRating({pokemon:{...pokemon,field_conflicts:{nature:{status:'CONFLICT'}}},
   subskills}).status,'REVIEW_REQUIRED',
   'canonical nonempty conflict map must continue to HOLD');
+// RATE.1 negative-first: array-backed labels are not verified primitive
+// evidence even when String([label]) would equal a canonical name. Do not
+// silently promote imported/OCR list carriers into source authority.
+for(const [label,changedPokemon,changedSlots] of [
+  ['specialty',{...pokemon,specialty:['樹果']},subskills],
+  ['nature',{...pokemon,nature:['固執']},subskills],
+  ['subskill',pokemon,subskills.map((row,i)=>i===0
+    ?{...row,subskill_name:['樹果數量S']}:row)],
+]){
+  const result=scorePokemonProvisionalRating({
+    pokemon:changedPokemon,subskills:changedSlots,
+  });
+  assert.equal(result.status,'REVIEW_REQUIRED',
+    'array-backed '+label+' must HOLD rather than receive a confident grade');
+  assert.equal(result.proposed_rating,null);
+}
+const arrayIngredient=scorePokemonProvisionalRating({
+  pokemon:{...pokemon,specialty:'食材'},subskills,
+  ingredients:[{unlock_level:1,ingredient_name:['特選蘋果']}],
+});
+assert.equal(arrayIngredient.status,'REVIEW_REQUIRED',
+  'array-backed ingredient identity must HOLD');
+const arrayMainSkill=scorePokemonProvisionalRating({
+  pokemon:{...pokemon,specialty:'技能',main_skill:['能量填充S']},subskills,
+});
+assert.equal(arrayMainSkill.status,'REVIEW_REQUIRED',
+  'array-backed main skill identity must HOLD');
 assert.equal(pokemon.rating,'D-');
 console.log(JSON.stringify({gate:'G14_RATE_CURRENT_FUTURE_GUIDE_SOURCE',status:'PASS',
   current:'S-',future:'S+',dual_grade:true,guide_bottom:true,
