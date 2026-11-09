@@ -89,9 +89,14 @@ function showHeartbeatWarning({blockedFor,stageAge}){
   if(warning){
     // G295: a foreground stall must not erase an already-visible storage/data
     // warning owned by another subsystem. Keep diagnostic evidence regardless.
-    const watchdogOwnsVisible=warning.dataset.startupWatchdogWarning===WATCHDOG_MARKER&&warning.textContent===previousWatchdogText;
-    const foreignVisible=!warning.classList.contains('hidden')&&!watchdogOwnsVisible;
-    if(!foreignVisible){
+    const watchdogOwnsBadge=warning.dataset.startupWatchdogWarning===WATCHDOG_MARKER&&warning.textContent===previousWatchdogText;
+    // G295: a hidden badge with foreign storage text is still foreign-owned.
+    // A new real stall must be diagnosed without revealing or overwriting it.
+    // Only an empty hidden badge (or our unchanged own badge) is available.
+    const foreignWarning=!watchdogOwnsBadge&&(
+      !warning.classList.contains('hidden')||warning.textContent.trim()!==''
+    );
+    if(!foreignWarning){
       warning.textContent=lastWarningText;
       warning.dataset.startupWatchdogWarning=WATCHDOG_MARKER;
       warning.classList.remove('hidden');

@@ -277,6 +277,27 @@ try{
     await act(()=>window.__g295.frames(31));
     assert.equal((await state()).warningText,'EXTERNAL_HIDDEN_STORAGE_HOLD',
       'stable RAF recovery must not erase hidden foreign text');
+    // Independent negative: after RAF recovery, a later genuine foreground
+    // stall must not overwrite a foreign subsystem's *hidden* warning text.
+    // #852 only exercised responsive timer takeover without a new stall.
+    const beforeHiddenForeignStall=await state();
+    await act(()=>window.__g295.tick(6000));
+    const hiddenForeignStall=await state();
+    assert.equal(hiddenForeignStall.detected,beforeHiddenForeignStall.detected+1,
+      'real foreground stall must still be diagnosed with hidden foreign text');
+    assert.equal(hiddenForeignStall.visibleWarning,false,
+      'watchdog must not reveal a hidden foreign storage warning');
+    assert.equal(hiddenForeignStall.warningText,'EXTERNAL_HIDDEN_STORAGE_HOLD',
+      'new watchdog stall must not overwrite hidden foreign warning');
+    assert.equal(hiddenForeignStall.watchdogMarker,null,
+      'new stall must not seize foreign DOM ownership');
+    assert.equal(hiddenForeignStall.preserved,beforeHiddenForeignStall.preserved+1,
+      'hidden foreign warning preservation must be independently traceable');
+    await act(()=>window.__g295.frames(31));
+    assert.equal((await state()).warningText,'EXTERNAL_HIDDEN_STORAGE_HOLD',
+      'hidden foreign warning must survive subsequent RAF recovery');
+    console.log('PASS G295_CHROMIUM_HIDDEN_FOREIGN_WARNING_SURVIVES_NEW_STALL');
+
     console.log('PASS G295_CHROMIUM_HIDDEN_FOREIGN_WARNING_OWNERSHIP_REVOKED');
 
     console.log('PASS G295_CHROMIUM_RESPONSIVE_TIMER_FOREIGN_WARNING_OWNERSHIP_REVOKED');
