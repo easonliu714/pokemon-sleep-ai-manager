@@ -6,6 +6,9 @@ const clean=value=>String(value??'').normalize('NFKC').trim();
 const present=value=>value!==null&&value!==undefined&&clean(value)!=='';
 const esc=value=>clean(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const REQUIRED=['species','specialty','level','nature','subskills'];
+// RATE.2: an OCR source numeric fact must be primitive and canonical, not
+// a string/boolean that can be coerced to match a separately edited draft.
+const canonicalLevel=value=>typeof value==='number'&&Number.isSafeInteger(value)&&value>=1;
 const confidence=(map,key)=>{
   const entry=map?.['profile.'+key]??map?.[key];
   const value=typeof entry==='object'&&entry!==null?entry.confidence:entry;
@@ -30,11 +33,18 @@ export function buildPokemonScreenshotRatingPreview({draft={},revision=null}={})
   const observation=Array.isArray(raw?.observations)?raw.observations[0]||null:null;
   const evidence=observation?.evidence||{};
   const profile=observation?.profile||{};
+  // A reviewed numeric draft cannot certify a noncanonical Observation v2
+  // source level or slot. Fail closed before proposing a 15-band grade.
+  const sourceLevelCanonical=canonicalLevel(profile.level);
+  const sourceSubskillLevelsCanonical=Array.isArray(observation?.subskills)&&
+    observation.subskills.every(row=>canonicalLevel(row?.unlock_level??row?.level));
   const required=[...REQUIRED];
   if(clean(draft.specialty)==='食材')required.push('ingredients');
   if(clean(draft.specialty)==='技能')required.push('main_skill');
   const reasons=[],missing=[],confidenceRows=[];
   if(revision?.analysis_type!=='ai'||!observation)reasons.push('OBSERVATION_V2_REQUIRED');
+  if(observation&&!sourceLevelCanonical)reasons.push('SOURCE_NONCANONICAL_LEVEL');
+  if(observation&&!sourceSubskillLevelsCanonical)reasons.push('SOURCE_NONCANONICAL_SUBSKILL_LEVEL');
   const refs=unique((Array.isArray(evidence.source_image_refs)?evidence.source_image_refs:[]).filter(present).map(clean));
   if(!refs.length)reasons.push('OBSERVATION_IMAGE_PROVENANCE_MISSING');
   // RATE.2: evidence belonging to image-A cannot certify an AI revision

@@ -53,6 +53,21 @@ for(const untrusted of ['0.99',true]){
     'coercible nonnumeric OCR confidence must HOLD');
   assert.ok(held.missing_inputs.includes('field_confidence_nature'));
 }
+// RATE.2 negative-first: a source image's OCR level/slot is not canonical
+// numeric evidence merely because String()/Number() matches a reviewed draft.
+// The draft can contain a verified number while the observation says "20" or
+// true; an apparent match must never authorize a heuristic rating.
+for(const untrusted of ['20',true]){
+  const held=check(draft,{...revision,result:{analysis:{observations:[{...observation,
+    profile:{...profile,level:untrusted}}]}}},'coercible source level must HOLD');
+  assert.ok(held.reason_codes.includes('SOURCE_NONCANONICAL_LEVEL'));
+}
+for(const untrusted of ['10',true]){
+  const held=check(draft,{...revision,result:{analysis:{observations:[{...observation,
+    subskills:[{...slots[0],unlock_level:untrusted},...slots.slice(1)]}]}}},
+    'coercible source subskill slot must HOLD');
+  assert.ok(held.reason_codes.includes('SOURCE_NONCANONICAL_SUBSKILL_LEVEL'));
+}
 assert.ok(check(draft,{...revision,result:{analysis:{observations:[{...observation,
   evidence:{...observation.evidence,field_confidence:{...conf,nature:0.3}}}]}}},'low confidence').reason_codes.includes('LOW_CONFIDENCE_nature'));
 assert.ok(check(draft,{...revision,result:{analysis:{observations:[{...observation,
