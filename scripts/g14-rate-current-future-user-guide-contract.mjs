@@ -122,6 +122,12 @@ assert.equal(skillUpgrade.main_skill_level_contribution,6);
 assert.equal(skillUpgrade.main_skill_level_scored,true);
 assert.match(doc,/技能專長 \+2 分/);
 assert.match(doc,/樹果與食材專長 \+1 分/);
+// Release-authority regression: do not instruct Owner to use an Apply button
+// intentionally hidden by the production default-off gate.
+assert.match(doc,/RATE\.4 評級套用尚未獲正式授權/);
+assert.match(doc,/不顯示「確認儲存選定評級」按鈕/);
+assert.doesNotMatch(doc,/再選擇 CURRENT／FUTURE 和「確認儲存選定評級」/);
+assert.match(renderPokemonRatingChangeAdvice(growth),/RATE\.4 評級套用尚未獲正式授權/);
 const detailSource=fs.readFileSync('assets/js/pokemon-detail.js','utf8');
 const manualSource=fs.readFileSync('assets/js/manual-editor.js','utf8');
 assert.match(detailSource,/bindDraftRatingAdvice\(/);
