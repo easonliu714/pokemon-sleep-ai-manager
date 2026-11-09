@@ -49,9 +49,9 @@ function renderPokemonRosterRatingBaseHtml(view){
     const held=item.status!=='PROVISIONAL_HEURISTIC';
     const evidence=part=>part.map(x=>`${label(x.name)} (Lv${label(x.unlock_level)})`).join('、')||'—';
     const reasons=[...(item.missing_inputs||[]),...(item.reason_codes||[])].join('、');
-    return `<tr data-rate3-state="${held?'HOLD':'PROVISIONAL'}"><td>${esc(item.species)}<small>${esc(item.nickname)}</small></td><td>${esc(label(item.pokemon_id))}<small>${esc(label(item.pokemon_instance_id))}</small></td><td>${esc(label(item.previous_rating))}</td><td>${held?'HOLD':esc(label(item.proposed_rating))}</td><td>${held?'不得覆蓋':item.changed?'建議不同':'相同'}</td><td>${esc(evidence(item.current_evidence))}</td><td>${esc(evidence(item.future_evidence))}</td><td>${esc(reasons)}</td></tr>`;
+    return `<tr data-rate3-state="${held?'HOLD':'PROVISIONAL'}"><td>${esc(item.species)}<small>${esc(item.nickname)}</small></td><td>${esc(label(item.pokemon_id))}<small>${esc(label(item.pokemon_instance_id))}</small></td><td>${esc(label(item.previous_rating))}</td><td>${held?'HOLD':esc(label(item.current_rating))}</td><td>${held?'HOLD':esc(label(item.future_rating))}</td><td>${held?'不得覆蓋':item.changed?'建議不同':'相同'}</td><td>${esc(evidence(item.current_evidence))}</td><td>${esc(evidence(item.future_evidence))}</td><td>${esc(reasons)}</td></tr>`;
   }).join('');
-  return `<div class="notice" data-rate3-readonly="true"><strong>全盒評等差異預覽（唯讀，未覆寫）</strong> · 規則 ${esc(rule_version)} · 共 ${summary.total} 隻／可初評 ${summary.eligible}／建議不同 ${summary.changed}／HOLD ${summary.held}。本平台啟發式非官方戰力；不是 durable snapshot，資料變更後必須重新產生。舊評級保留，尚無批次套用權限。</div><div class="table-wrap"><table><thead><tr><th>寶可夢</th><th>個體識別</th><th>舊評</th><th>建議新評</th><th>差異</th><th>CURRENT 證據</th><th>FUTURE 證據</th><th>缺值／理由</th></tr></thead><tbody>${body||'<tr><td colspan="8">目前沒有可比對個體</td></tr>'}</tbody></table></div>`;
+  return `<div class="notice" data-rate3-readonly="true"><strong>全盒評等差異預覽（唯讀，未覆寫）</strong> · 規則 ${esc(rule_version)} · 共 ${summary.total} 隻／可初評 ${summary.eligible}／建議不同 ${summary.changed}／HOLD ${summary.held}。本平台啟發式非官方戰力；不是 durable snapshot，資料變更後必須重新產生。現在評級只計入目前等級已解鎖的已知副技能，未來評級則計入五格已知副技能；兩者都是非官方適性指標，不代表即時產能或保證培養效益。舊評級保留，尚無批次套用權限。</div><div class="table-wrap"><table><thead><tr><th>寶可夢</th><th>個體識別</th><th>舊評（已儲存）</th><th>現在評級 CURRENT</th><th>未來評級 FUTURE</th><th>差異</th><th>CURRENT 證據</th><th>FUTURE 證據</th><th>缺值／理由</th></tr></thead><tbody>${body||'<tr><td colspan="9">目前沒有可比對個體</td></tr>'}</tbody></table></div>`;
 }
 
 
@@ -122,6 +122,7 @@ export function changePokemonRatingSelection(model,instanceId,adopt){
 export function reviewPokemonRatingSelection(model){
   const map=x=>({pokemon_id:x.pokemon_id,pokemon_instance_id:x.pokemon_instance_id,
     old_rating:x.previous_rating??null,new_rating:x.proposed_rating??null,
+    current_rating:x.current_rating??null,future_rating:x.future_rating??null,
     rule_version:x.rule_version||model.rule_version});
   return {status:model?.status==='NON_PERSISTENT_INTENT'?'NON_PERSISTENT_REVIEW_ONLY':'HOLD_SOURCE_UNAVAILABLE',
     adopt:(model?.eligible||[]).filter(x=>model.selected.has(clean(x.pokemon_instance_id))).map(map),
@@ -157,29 +158,30 @@ export function renderPokemonRosterRatingViewHtml(view,model=createPokemonRating
     const reason=model.held.find(y=>clean(y.pokemon_id)===clean(x.pokemon_id)&&clean(y.pokemon_instance_id)===id);
     return '<tr data-rate4-state="'+(blocked?'HOLD':'ELIGIBLE')+'"><td>'+esc(x.species)
       +'</td><td>'+esc(label(x.pokemon_id))+' / '+esc(label(id))+'</td><td>'+esc(label(x.previous_rating))
-      +'</td><td>'+(blocked?'HOLD':esc(label(x.proposed_rating)))+'</td><td>'
+      +'</td><td>'+(blocked?'HOLD':esc(label(x.current_rating)))+'</td><td>'
+      +(blocked?'HOLD':esc(label(x.future_rating)))+'</td><td>'
       +(blocked?'<input type="checkbox" disabled> HOLD '+esc((reason?.selection_hold_reasons||[]).join('、'))
         :'<label><input type="checkbox" data-rate4-choice="'+esc(id)+'"'+(selected?' checked':'')+'> 擬採用</label>')
       +'</td></tr>';
   }).join('');
   const grades=POKEMON_PROVISIONAL_RATING_LABELS.map(x=>'<option value="'+x+'"'+(gradeFilter===x?' selected':'')+'>'+x+'</option>').join('');
-  const sorts=[['id','個體識別'],['grade-high','新評高→低'],['grade-low','新評低→高']]
+  const sorts=[['id','個體識別'],['grade-high','未來高→低'],['grade-low','未來低→高']]
     .map(([id,name])=>'<option value="'+id+'"'+(sortMode===id?' selected':'')+'>'+name+'</option>').join('');
   const review=reviewPokemonRatingSelection(model);
   const count='擬採用 '+review.adopt.length+'／保留 '+review.keep.length+'／HOLD '+review.held.length;
   const detail=reviewOpen?'<div class="notice" data-rate4-review-panel="true">僅供檢視的選擇意向（未保存）：'
     +esc(count)+'。正式持久套用須另行確認、快照、跨分頁准入與 durable ACK。<ul>'
     +review.adopt.map(x=>'<li>'+esc(x.pokemon_id)+' / '+esc(x.pokemon_instance_id)+'：'
-      +esc(label(x.old_rating))+' → '+esc(label(x.new_rating))+'</li>').join('')+'</ul></div>':'';
+      +esc(label(x.old_rating))+' → 現在 '+esc(label(x.current_rating))+'／未來 '+esc(label(x.future_rating))+'（儲存仍待獨立核准）</li>').join('')+'</ul></div>':'';
   return base+'<div class="notice" data-rate4-readonly="true">逐隻選擇預設保留原評；擬採用僅存在本頁記憶體，沒有修改 pokemon.rating。</div>'
     +'<div class="filter-bar" data-rate4-controls="true"><button type="button" data-rate4-select-all="true">全選擬採用</button>'
     +'<button type="button" data-rate4-keep-all="true">全部保留</button>'
     +'<button type="button" data-rate4-review="true">檢視選擇意向（不儲存）</button>'
-    +'<label>建議評級 <select data-rate4-filter="true"><option value="">全部15級</option>'+grades+'</select></label>'
+    +'<label>未來評級篩選 <select data-rate4-filter="true"><option value="">全部15級</option>'+grades+'</select></label>'
     +'<label>排序 <select data-rate4-sort="true">'+sorts+'</select></label>'
     +'<span data-rate4-count="true">'+esc(count)+'</span></div>'+detail
-    +'<div class="table-wrap"><table><thead><tr><th>寶可夢</th><th>個體</th><th>舊評</th><th>建議新評</th><th>逐隻意向</th></tr></thead><tbody>'
-    +(body||'<tr><td colspan="5">目前沒有可比對個體</td></tr>')+'</tbody></table></div>';
+    +'<div class="table-wrap"><table><thead><tr><th>寶可夢</th><th>個體</th><th>舊評（已儲存）</th><th>現在評級 CURRENT</th><th>未來評級 FUTURE</th><th>逐隻意向</th></tr></thead><tbody>'
+    +(body||'<tr><td colspan="6">目前沒有可比對個體</td></tr>')+'</tbody></table></div>';
 }
 
 let panel=null,model=null,view=null,token=null;
