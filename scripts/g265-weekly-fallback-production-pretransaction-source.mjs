@@ -48,6 +48,7 @@ function fixture({stale=false,noLock=false,failPot=false,ackLoss=false,imported=
     currentWeeklyContext(){requireHeld();calls.push('read');return {
       week_start:'2026-11-09',authority_revision:imported?'import-rev-2':''};},
     hasImportedAuthority(c){return Boolean(c.authority_revision);},
+    validateManualForm(){requireHeld();calls.push('validate');},
     localWeekStart:()=> '2026-11-09',
     q:(f,key)=>({value:f.values[key]??''}),
     formBerryObservation:()=>['SYNTHETIC_BERRY_A','SYNTHETIC_BERRY_B','SYNTHETIC_BERRY_C'],
@@ -83,6 +84,7 @@ function fixture({stale=false,noLock=false,failPot=false,ackLoss=false,imported=
 const ok=fixture(),result=await ok.save();
 assert.equal(result.authority,'MANUAL_FALLBACK');
 assert.deepEqual(ok.calls.slice(0,3),['window','lock','read']);
+assert.ok(ok.calls.indexOf('validate')<ok.calls.indexOf('snapshot'));
 assert.ok(ok.calls.indexOf('snapshot')<ok.calls.indexOf('begin'));
 assert.ok(ok.calls.indexOf('begin')<ok.calls.indexOf('sql'));
 assert.ok(ok.calls.indexOf('pot')<ok.calls.indexOf('commit'));
