@@ -669,7 +669,7 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-native-chromium-seventeenth-identity-cas.mjs
 
-      - name: G265 Eighteenth Professor Transfer Legacy Two-ACK Stale History Negative
+      - name: G265 production professor transfer pre-SQL admission source-bound\n        run: node scripts/g265-professor-transfer-production-pretransaction-source.mjs\n\n      - name: G265 Eighteenth Professor Transfer Legacy Two-ACK Stale History Negative
         run: node scripts/g265-professor-transfer-eighteenth-legacy-cross-tab-negative.mjs
 
       - name: G265 Eighteenth Professor Transfer Isolated Opt-in CAS Rollback and ACK-loss
