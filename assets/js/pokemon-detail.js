@@ -1,5 +1,5 @@
 import {rows} from './database.js';
-import {savePokemonDetail,saveConfirmedPokemonSuggestedRating} from './manual-editor.js';
+import {savePokemonDetail,saveConfirmedPokemonSuggestedRating,RATE4_PRODUCTION_APPLY_ENABLED} from './manual-editor.js';
 import {sourceTokenForPokemonRating} from './pokemon-roster-rating-preview.js';
 import {projectPokemonRatingChange,renderPokemonRatingChangeAdvice} from './pokemon-rating-reactive-advice.js';
 import {SPECIALTIES,TYPES,BERRY_BY_TYPE,BERRIES,INGREDIENTS,NATURES,NATURE_EFFECTS,MAIN_SKILLS,SUBSKILLS,RATINGS,STATUSES,mergedOptions} from './pokemon-master-options.js';
@@ -98,7 +98,7 @@ function mountSavedRatingAdvice(source){
   const panel=document.createElement('div');
   panel.className='detail-section';panel.id='pokemonRatingSavedAdvice';
   panel.innerHTML='<h3>現在／未來評級建議</h3>'+renderPokemonRatingChangeAdvice(advice);
-  if(advice.can_propose_save){
+  if(advice.can_propose_save&&RATE4_PRODUCTION_APPLY_ENABLED){
     const controls=document.createElement('div');
     controls.className='filter-bar';controls.dataset.ratingExplicitSave='true';
     const label=document.createElement('label');

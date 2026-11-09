@@ -93,11 +93,15 @@ async function install(page){
     emitPokemonEvaluationInputChanged(){v.events++;},
     scorePokemonProvisionalRating:score.scorePokemonProvisionalRating,
     POKEMON_PROVISIONAL_RATING_RULE_VERSION:score.POKEMON_PROVISIONAL_RATING_RULE_VERSION,
+    // Synthetic disposable-origin tests explicitly opt in; production defaults OFF.
+    RATE4_PRODUCTION_APPLY_ENABLED:true,
     sourceTokenForPokemonRating:readOnly.sourceTokenForPokemonRating,
     Error,Object,String,
   };
   v.current=current;
   v.action=new Function('env','with(env){'+operation+';return saveConfirmedPokemonSuggestedRating;}')(env);
+  v.disabledAction=new Function('env','with(env){'+operation+';return saveConfirmedPokemonSuggestedRating;}')(
+    {...env,RATE4_PRODUCTION_APPLY_ENABLED:false});
   v.save=async(scope,opts={})=>{
     const source=current(),result=score.scorePokemonProvisionalRating({
       pokemon:source.pokemon,ingredients:source.ingredients,subskills:source.subskills});
@@ -135,6 +139,13 @@ try{
  await install(seedPage);
  const second=await tab();await install(second);
  assert.equal(await seedPage.evaluate(()=>typeof navigator.locks?.request),'function');
+ const blocked=await seedPage.evaluate(async()=>{
+  try{await window.__rate.disabledAction('fixture',{confirmed:true});return 'UNEXPECTED_AUTHORIZED';}
+  catch(error){return error.message;}
+ });
+ assert.equal(blocked,'RATE4_PRODUCTION_APPLY_NOT_AUTHORIZED');
+ assert.equal(await seedPage.evaluate(()=>window.__rate.sqlWrites),0);
+ console.log('PASS G14_RATE_PRODUCTION_DEFAULT_OFF_NO_SQL_NO_SNAPSHOT');
  const first=await seedPage.evaluate(()=>window.__rate.save('CURRENT'));
  assert.equal(first.ok,true);
  assert.equal(first.out.grade,'S-');

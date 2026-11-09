@@ -154,9 +154,14 @@ export async function savePokemonDetail(id,data,ingredients,subskills){
 // because it rewrites all ingredient/subskill rows and could promote other
 // uncertain player fields. Read/snapshot/BEGIN/audit/COMMIT/ACK all share the
 // same pre-SQL primary mutation lease. Any failed ACK requires reload.
+// RATE.4 remains source/test-only. Owner has NOT authorized production Apply.
+// A separate, reviewed release change must explicitly enable this switch.
+export const RATE4_PRODUCTION_APPLY_ENABLED=false;
 export async function saveConfirmedPokemonSuggestedRating(id,{
   instanceId,expectedSourceToken,scope,expectedGrade,confirmed=false,
 }={}){
+  if(RATE4_PRODUCTION_APPLY_ENABLED!==true)
+    throw new Error('RATE4_PRODUCTION_APPLY_NOT_AUTHORIZED');
   if(confirmed!==true)throw new Error('RATE4_EXPLICIT_CONFIRMATION_REQUIRED');
   if(!['CURRENT','FUTURE'].includes(scope))throw new Error('RATE4_GRADE_SCOPE_REQUIRED');
   if(typeof id!=='string'||!id.trim()||typeof instanceId!=='string'||!instanceId.trim()
