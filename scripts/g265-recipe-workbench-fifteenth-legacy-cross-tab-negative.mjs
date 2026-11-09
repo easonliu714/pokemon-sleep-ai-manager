@@ -3,11 +3,16 @@
 // Two successful legacy acknowledgments can lose a newer recipe edit and its audit batch.
 // This fixture is not production admission, player-data access, or Android Owner UAT.
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import initSqlJs from 'sql.js';
 
-const source=fs.readFileSync(new URL('../assets/js/recipe-unified-player-workbench.js',import.meta.url),'utf8');
+const production=fs.readFileSync(new URL('../assets/js/recipe-unified-player-workbench.js',import.meta.url),'utf8');
+assert.match(production,/withPrimarySqliteMutationLock\(async lease/,'production must be independently admitted');
+const source=fs.readFileSync(new URL('./fixtures/g265-recipe-workbench-legacy-source.js',import.meta.url),'utf8');
+const historicalBlob=createHash('sha1').update('blob '+Buffer.byteLength(source)+'\0'+source).digest('hex');
+assert.equal(historicalBlob,'a9bcf281892d19af9f608fe1d83755576c93bcc7','frozen legacy two-ACK counterexample must not drift');
 const start='async function saveRecipeState(row,{unlocked,level,energy}){';
 const end='\nfunction bindTable(';
 assert.equal(source.split(start).length,2,'saveRecipeState original source must occur exactly once');
