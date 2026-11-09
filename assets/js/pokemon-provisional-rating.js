@@ -111,9 +111,13 @@ export function scorePokemonProvisionalRating({pokemon={},ingredients=[],subskil
   else if(evidenceConflicts.length)reasons.push('observation_field_conflict');
   const fieldConflicts=pokemon.field_conflicts;
   if(fieldConflicts!==undefined&&fieldConflicts!==null){
-    if(typeof fieldConflicts!=='object'||Array.isArray(fieldConflicts))
+    // Only plain JSON object maps can prove an empty conflict set. Exotic
+    // objects (Date/Map/null-prototype) may have zero enumerable keys while
+    // concealing provenance; never certify a confident rating from them.
+    if(typeof fieldConflicts!=='object'||Array.isArray(fieldConflicts)
+      ||Object.getPrototypeOf(fieldConflicts)!==Object.prototype)
       reasons.push('noncanonical_observation_field_conflicts');
-    else if(Object.keys(fieldConflicts).length)reasons.push('observation_field_conflict');
+    else if(Reflect.ownKeys(fieldConflicts).length)reasons.push('observation_field_conflict');
   }
 
   const {slots,invalid}=slotRows(subskills);
