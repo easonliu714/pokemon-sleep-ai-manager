@@ -39,6 +39,12 @@ const check=(d,r,reason)=>{
 assert.ok(check(draft,{...revision,analysis_type:'ocr'},'OCR only').reason_codes.includes('OBSERVATION_V2_REQUIRED'));
 assert.ok(check(draft,{...revision,result:{analysis:{observations:[{...observation,
   evidence:{...observation.evidence,source_image_refs:[]}}]}}},'no source').reason_codes.includes('OBSERVATION_IMAGE_PROVENANCE_MISSING'));
+// RATE.2 negative-first: evidence for image-A must not authenticate a revision
+// whose canonical source_image_ref points to a different or missing image.
+assert.ok(check(draft,{...revision,source_image_ref:'different-private-image-ref'},
+  'revision image mismatch').reason_codes.includes('REVISION_IMAGE_PROVENANCE_MISMATCH'));
+assert.ok(check(draft,{...revision,source_image_ref:null},
+  'revision image identity missing').reason_codes.includes('REVISION_IMAGE_PROVENANCE_MISMATCH'));
 assert.ok(check(draft,{...revision,result:{analysis:{observations:[{...observation,
   evidence:{...observation.evidence,field_confidence:{...conf,nature:0.3}}}]}}},'low confidence').reason_codes.includes('LOW_CONFIDENCE_nature'));
 assert.ok(check(draft,{...revision,result:{analysis:{observations:[{...observation,

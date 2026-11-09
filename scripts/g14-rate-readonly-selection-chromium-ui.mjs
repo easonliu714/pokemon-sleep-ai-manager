@@ -69,6 +69,31 @@ try{
   await page.locator('[data-rate4-review]').click();
   assert.equal(await page.locator('[data-rate4-stale]').count(),1,
     'nonfinite source change must revoke nonpersistent selection before review');
+  // RATE.2 real Chromium negative: a revision from image-B must not reuse
+  // verified observation fields from image-A to display a trusted grade.
+  const rate2=await page.evaluate(async()=>{
+    const {buildPokemonScreenshotRatingPreview:preview}=await import('/assets/js/pokemon-provisional-review-preview.js');
+    const levels=[10,25,50,70,80];
+    const names=['樹果數量S','幫手獎勵','幫忙速度M','幫忙速度S','睡眠EXP獎勵'];
+    const subskills=levels.map((unlock_level,i)=>({unlock_level,subskill_name:names[i]}));
+    const draft={species:'同物種',specialty:'樹果',nature:'固執',level:20,
+      subskills,ingredients:[],identity_guard_warnings:[]};
+    const observation={profile:{species:'同物種',specialty:'樹果',nature:'固執',level:20},
+      subskills,evidence:{source_image_refs:['image-A'],field_confidence:{
+        species:0.99,specialty:0.99,nature:0.99,level:0.99,subskills:0.99},
+        field_conflicts:{},unreadable_fields:[]}};
+    const revision={analysis_type:'ai',source_image_ref:'image-A',
+      result:{analysis:{observations:[observation]}}};
+    const valid=preview({draft,revision});
+    const mismatch=preview({draft,revision:{...revision,source_image_ref:'image-B'}});
+    return {valid:valid.status,mismatch:mismatch.status,
+      reason_codes:mismatch.reason_codes,proposed_rating:mismatch.proposed_rating};
+  });
+  assert.equal(rate2.valid,'PROVISIONAL_HEURISTIC');
+  assert.equal(rate2.mismatch,'REVIEW_REQUIRED',
+    'Chromium must not promote another image revision to a provisional grade');
+  assert.equal(rate2.proposed_rating,null);
+  assert.ok(rate2.reason_codes.includes('REVISION_IMAGE_PROVENANCE_MISMATCH'));
   // RATE.5 isolated read-only guard in genuine Chromium; no production Apply.
   const rate5=await page.evaluate(async()=>{
     const {capturePokemonRatingRefreshAuthority:capture,

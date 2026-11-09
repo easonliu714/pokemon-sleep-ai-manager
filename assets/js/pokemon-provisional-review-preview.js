@@ -35,6 +35,13 @@ export function buildPokemonScreenshotRatingPreview({draft={},revision=null}={})
   if(revision?.analysis_type!=='ai'||!observation)reasons.push('OBSERVATION_V2_REQUIRED');
   const refs=unique((Array.isArray(evidence.source_image_refs)?evidence.source_image_refs:[]).filter(present).map(clean));
   if(!refs.length)reasons.push('OBSERVATION_IMAGE_PROVENANCE_MISSING');
+  // RATE.2: evidence belonging to image-A cannot certify an AI revision
+  // whose canonical source_image_ref identifies image-B (or is absent).
+  // This is read-only source provenance, not a grant of Apply authority.
+  const revisionImageRef=typeof revision?.source_image_ref==='string'
+    ?clean(revision.source_image_ref):'';
+  if(!revisionImageRef||!refs.includes(revisionImageRef))
+    reasons.push('REVISION_IMAGE_PROVENANCE_MISMATCH');
   if(Object.keys(evidence.field_conflicts||{}).length||(
     Array.isArray(draft.conflicts)&&draft.conflicts.length
   ))reasons.push('OBSERVATION_FIELD_CONFLICT');
