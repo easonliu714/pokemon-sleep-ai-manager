@@ -164,6 +164,15 @@ const explicitIdentityReview=scorePokemonProvisionalRating({
 });
 assert.equal(explicitIdentityReview.status,'REVIEW_REQUIRED');
 assert.ok(explicitIdentityReview.reason_codes.includes('identity_review_required'));
+const explicitLegacyReview=scorePokemonProvisionalRating({
+  pokemon:{...pokemon,identity_review_required:'1'},subskills,
+});
+assert.equal(explicitLegacyReview.status,'REVIEW_REQUIRED');
+assert.ok(explicitLegacyReview.reason_codes.includes('identity_review_required'));
+const explicitLegacyClear=scorePokemonProvisionalRating({
+  pokemon:{...pokemon,identity_review_required:'0'},subskills,
+});
+assert.equal(explicitLegacyClear.status,'PROVISIONAL_HEURISTIC');
 const explicitIdentityClear=scorePokemonProvisionalRating({
   pokemon:{...pokemon,identity_review_required:0},subskills,
 });
