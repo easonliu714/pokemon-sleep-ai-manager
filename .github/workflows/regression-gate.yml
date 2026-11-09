@@ -223,6 +223,9 @@ jobs:
       - name: G265 Remaining Writer Containment and Cross-Tab Negative Gate
         run: node scripts/g265-remaining-writer-containment-cross-tab-policy.mjs
 
+      - name: G265 production importer pre-SQL admission source-bound negative
+        run: node scripts/g265-importer-production-pretransaction-source.mjs
+
       - name: G265 Fourteenth Importer Exact Legacy Two-ACK Negative
         run: node scripts/g265-importer-fourteenth-legacy-cross-tab-negative.mjs
 
