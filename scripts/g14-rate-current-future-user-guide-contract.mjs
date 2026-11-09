@@ -137,6 +137,17 @@ const fakeMainSkill=scorePokemonProvisionalRating({
 assert.equal(fakeMainSkill.status,'REVIEW_REQUIRED',
   'unverified main skill name must HOLD, not produce a 15-band grade');
 assert.ok(fakeMainSkill.missing_inputs.includes('main_skill'));
+// RATE.1 negative-first: two different slots with the SAME verified subskill
+// cannot be independently counted twice as two trustworthy observations.
+// Such a contradictory five-slot source must HOLD rather than inflate CURRENT
+// or FUTURE. This test is intentionally introduced before the Source repair.
+const duplicateSubskillName=scorePokemonProvisionalRating({
+  pokemon,subskills:subskills.map((row,i)=>i===1
+    ?{...row,subskill_name:subskills[0].subskill_name}:row),
+});
+assert.equal(duplicateSubskillName.status,'REVIEW_REQUIRED',
+  'duplicate subskill names across levels must HOLD rather than double-score');
+assert.ok(duplicateSubskillName.missing_inputs.includes('duplicate_subskill_name'));
 // Canonical public identities remain eligible; do not regress valid facts.
 const canonicalIngredient=scorePokemonProvisionalRating({
   pokemon:{...pokemon,specialty:'食材'},subskills,
