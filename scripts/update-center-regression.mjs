@@ -6,6 +6,26 @@ import {indexedDB, IDBKeyRange} from 'fake-indexeddb';
 globalThis.indexedDB=indexedDB;
 globalThis.IDBKeyRange=IDBKeyRange;
 globalThis.initSqlJs=async()=>initSqlJs();
+// G265: this existing Node-only Update Center regression uses fake IndexedDB.
+// Supply a disposable FIFO lock facade so the production importer can exercise
+// the same admission contract; it is NOT a native Chromium or Android PASS.
+let syntheticPrimaryTail=Promise.resolve();
+const syntheticLocks={
+  request(name,options,callback){
+    assert.equal(name,'pokemon-sleep-ai-manager:sqlite-primary-exclusive-write');
+    assert.equal(options.mode,'exclusive');
+    assert.ok(options.signal);
+    const operation=syntheticPrimaryTail.then(()=>{
+      if(options.signal.aborted)throw Error('SYNTHETIC_LOCK_ABORTED');
+      return callback({name,mode:'exclusive'});
+    });
+    syntheticPrimaryTail=operation.then(()=>{},()=>{});
+    return operation;
+  }
+};
+Object.defineProperty(globalThis,'navigator',{
+  configurable:true,value:{locks:syntheticLocks}
+});
 
 const database=await import('../assets/js/database.js');
 const importer=await import('../assets/js/importer.js');

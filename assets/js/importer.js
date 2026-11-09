@@ -8,6 +8,8 @@ import {
   persist,
   snapshot,
 } from './database.js';
+import {withPrimarySqliteMutationLock} from './storage.js';
+import {beginSqliteExclusiveWriteWindow,withSqliteCoordinatedMutation} from './sqlite-direct-write-window-guard.js';
 import { localIso } from './time-utils.js';
 import {buildSparseObservedPatch,isObservedWriteValue} from './data-preservation-policy.js';
 import {rebaseWeeklyManualOverrideForImport} from './weekly-context-manual-override.js';
@@ -419,13 +421,21 @@ function write(entity, key, data, mode) {
   run(`UPDATE ${quote(entity)} SET ${updates.map(column=>`${quote(column)}=?`).join(',')} WHERE ${keys.map(column=>`${quote(column)}=?`).join(' AND ')}`,[...updates.map(column=>record[column]),...keys.map(column=>key[column])]);
 }
 
+// G265: production importer pre-SQL admission. Same-page exclusive window
+// then native primary Web Lock BEFORE dryRun, snapshot, BEGIN or audit writes.
+// Only an acknowledged same-lease atomic IDB CAS releases the window safely.
 export async function applyPayload(payload) {
-  const preview = dryRun(payload);
-  if (preview.conflict_count) throw new Error('更新包仍有衝突');
-  await snapshot(`before:${payload.update_id}`);
-  begin();
+  const close=beginSqliteExclusiveWriteWindow();
+  let acknowledged=false;
   try {
-    let weeklyManualOverrideRebase=null;
+    return await withPrimarySqliteMutationLock(async lease=>{
+      const preview=dryRun(payload);
+      if(preview.conflict_count)throw new Error('更新包仍有衝突');
+      await snapshot(`before:${payload.update_id}`);
+      withSqliteCoordinatedMutation(begin);
+      let weeklyManualOverrideRebase=null;
+      try {
+        withSqliteCoordinatedMutation(()=>{
     if(payload.scenario==='weekly_context_update'){
       const weeklyIndex=payload.operations.findIndex(operation=>operation?.entity==='weekly_context');
       if(weeklyIndex>=0){
@@ -481,7 +491,19 @@ export async function applyPayload(payload) {
     };
     run('INSERT INTO import_batches(update_id,schema_version,generated_at,imported_at,source,operation_count,result_json) VALUES(?,?,?,?,?,?,?)',[payload.update_id,String(payload.schema_version),payload.generated_at,localIso(),payload.source||'',payload.operations.length,JSON.stringify(resultJson)]);
     commit();
-    await persist();
-    return {operation_count:payload.operations.length,scenario:payload.scenario||'general',audit_summary:preview.audit_summary,visual_preflight:preview.visual_preflight,weekly_manual_override_rebase:weeklyManualOverrideRebase};
-  } catch(error){rollback();throw error;}
+        });
+      }catch(error){
+        withSqliteCoordinatedMutation(rollback);
+        throw error;
+      }
+      // A lost post-COMMIT ACK is uncertain; never roll back or blindly retry.
+      await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
+      acknowledged=true;
+      return {operation_count:payload.operations.length,scenario:payload.scenario||'general',
+        audit_summary:preview.audit_summary,visual_preflight:preview.visual_preflight,
+        weekly_manual_override_rebase:weeklyManualOverrideRebase};
+    });
+  }finally{
+    close({uncertainOutcome:!acknowledged});
+  }
 }

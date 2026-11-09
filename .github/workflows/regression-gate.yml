@@ -223,6 +223,9 @@ jobs:
       - name: G265 Remaining Writer Containment and Cross-Tab Negative Gate
         run: node scripts/g265-remaining-writer-containment-cross-tab-policy.mjs
 
+      - name: G265 production importer pre-SQL admission source-bound negative
+        run: node scripts/g265-importer-production-pretransaction-source.mjs
+
       - name: G265 Fourteenth Importer Exact Legacy Two-ACK Negative
         run: node scripts/g265-importer-fourteenth-legacy-cross-tab-negative.mjs
 
@@ -520,6 +523,11 @@ jobs:
 
       - name: G265 Fifth Legacy Analysis Revision Isolated Durable CAS Gate
         run: node scripts/g265-analysis-revision-fifth-legacy-writer-optin.mjs
+
+      - name: G265 native Chromium named production importer pretransaction
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-native-chromium-importer-production-pretransaction.mjs
 
       - name: G265 native Chromium named production recipe workbench pre-SQL admission
         env:
