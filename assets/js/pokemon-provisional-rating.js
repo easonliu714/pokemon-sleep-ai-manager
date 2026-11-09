@@ -25,6 +25,8 @@ const LEVELS=Object.freeze([10,25,50,70,80]);
 const GRADE_LOWER_BOUNDS=Object.freeze([93,86,79,72,65,58,51,44,37,30,23,16,9,3,0]);
 // RATE.4 documentation: expose the exact existing scoring constants so the
 // user guide cannot silently drift from the actual provisional evaluator.
+export const MAIN_SKILL_LEVEL_ROLE_POINTS=Object.freeze({'樹果':1,'食材':1,'技能':2});
+const MAX_REVIEWED_MAIN_SKILL_LEVEL=8;
 export const POKEMON_PROVISIONAL_RATING_GUIDE=Object.freeze({
   base_points:40,lower_bounds:GRADE_LOWER_BOUNDS,levels:LEVELS,
   subskill_weights:SUBSKILL_WEIGHTS,nature_weights:NATURE_WEIGHTS,
@@ -36,8 +38,7 @@ export const POKEMON_CURRENT_FUTURE_RATING_VIEW_VERSION='pokemon-role-fit-curren
 // Product heuristic only: additional verified main-skill levels have small,
 // explicitly bounded role-dependent points; not an official trigger/damage formula.
 // No main-skill-level observation means NO bonus is evaluated (not level 1).
-export const MAIN_SKILL_LEVEL_ROLE_POINTS=Object.freeze({'樹果':1,'食材':1,'技能':2});
-const MAX_REVIEWED_MAIN_SKILL_LEVEL=8;
+
 
 const text=value=>String(value??'').normalize('NFKC').trim();
 const nonempty=value=>value!==null&&value!==undefined&&text(value)!=='';
