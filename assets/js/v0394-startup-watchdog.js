@@ -112,12 +112,14 @@ function showHeartbeatWarning({blockedFor,stageAge}){
 // G295: a responsive 2s timer must relinquish a stale DOM marker when an
 // external storage-integrity warning takes over during a RAF-throttled stall.
 // #838 covered takeover only when another long timer gap invoked showWarning.
-// Do not clear the foreign text, end the incident, or fabricate RAF recovery.
+// Hidden foreign content is also a takeover: visibility does not confer DOM
+// ownership. Preserve the foreign hidden state/text and the stall incident;
+// do not fabricate RAF recovery or erase another subsystem's warning.
 function revokeResponsiveForeignWarningOwnership(){
   if(!warningActive)return false;
   const warning=document.getElementById('storageWarning');
   if(!warning||warning.dataset.startupWatchdogWarning!==WATCHDOG_MARKER
-    ||warning.classList.contains('hidden')||warning.textContent===lastWarningText)return false;
+    ||warning.textContent===lastWarningText)return false;
   delete warning.dataset.startupWatchdogWarning;
   debugTrace.record('startup','main_thread_watchdog_external_warning_preserved',{status:'warning',
     details:{last_checkpoint:stallSnapshot?.checkpoint||lastStage||'unknown',
