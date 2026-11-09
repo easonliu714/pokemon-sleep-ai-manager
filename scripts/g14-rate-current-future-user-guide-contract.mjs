@@ -122,6 +122,21 @@ assert.equal(skillUpgrade.main_skill_level_contribution,6);
 assert.equal(skillUpgrade.main_skill_level_scored,true);
 assert.match(doc,/技能專長 \+2 分/);
 assert.match(doc,/樹果與食材專長 \+1 分/);
+// RATE.1 negative-first: nonempty but unverified specialty evidence must not
+// be promoted into a reproducible grade merely because it has a name.
+const fakeIngredient=scorePokemonProvisionalRating({
+  pokemon:{...pokemon,specialty:'食材'},subskills,
+  ingredients:[{unlock_level:1,ingredient_name:'__NOT_A_PUBLIC_INGREDIENT__'}],
+});
+assert.equal(fakeIngredient.status,'REVIEW_REQUIRED',
+  'unverified Lv1 ingredient name must HOLD, not produce a 15-band grade');
+assert.ok(fakeIngredient.missing_inputs.includes('level_1_ingredient'));
+const fakeMainSkill=scorePokemonProvisionalRating({
+  pokemon:{...pokemon,specialty:'技能',main_skill:'__NOT_A_PUBLIC_MAIN_SKILL__'},subskills,
+});
+assert.equal(fakeMainSkill.status,'REVIEW_REQUIRED',
+  'unverified main skill name must HOLD, not produce a 15-band grade');
+assert.ok(fakeMainSkill.missing_inputs.includes('main_skill'));
 // Release-authority regression: do not instruct Owner to use an Apply button
 // intentionally hidden by the production default-off gate.
 assert.match(doc,/RATE\.4 評級套用尚未獲正式授權/);
