@@ -41,13 +41,16 @@ export const POKEMON_CURRENT_FUTURE_RATING_VIEW_VERSION='pokemon-role-fit-curren
 
 
 const text=value=>String(value??'').normalize('NFKC').trim();
+// Imported/OCR evidence labels must be primitive strings. Array-backed names
+// can stringify to a canonical label and falsely certify a source fact.
+const verifiedLabel=value=>typeof value==='string'?text(value):'';
 const nonempty=value=>value!==null&&value!==undefined&&text(value)!=='';
 // RATE.1: an OCR/AI or imported coercible value is not verified numeric evidence.
 // Do not turn true, "10" or boxed numbers into a Pokémon level or slot.
 const number=value=>{
   return typeof value==='number'&&Number.isSafeInteger(value)&&value>=1?value:null;
 };
-const normalizedEffect=value=>text(value)==='食材發現率'?'食材機率':text(value);
+const normalizedEffect=value=>verifiedLabel(value)==='食材發現率'?'食材機率':verifiedLabel(value);
 const ratingFromScore=score=>POKEMON_PROVISIONAL_RATING_LABELS[GRADE_LOWER_BOUNDS.findIndex(min=>score>=min)];
 
 function hold(required,reason){
@@ -67,7 +70,7 @@ function slotRows(subskills){
   const slots=new Map(),seenNames=new Set(),invalid=[];
   for(const row of Array.isArray(subskills)?subskills:[]){
     const level=number(row?.unlock_level??row?.level);
-    const name=text(row?.subskill_name??row?.name);
+    const name=verifiedLabel(row?.subskill_name??row?.name);
     if(!LEVELS.includes(level)||!name||!SUBSKILLS.includes(name)){
       invalid.push('invalid_or_unverified_subskill');continue;
     }
@@ -87,8 +90,8 @@ function slotRows(subskills){
  * A future Lv.50 skill contributes to future potential but never CURRENT.
  */
 export function scorePokemonProvisionalRating({pokemon={},ingredients=[],subskills=[],evidenceConflicts=[]}={}){
-  const missing=[],reasons=[],specialty=text(pokemon.specialty),species=text(pokemon.current_species||pokemon.species||pokemon.original_label);
-  const nature=text(pokemon.nature),knownNature=NATURES[nature],level=number(pokemon.level);
+  const missing=[],reasons=[],specialty=verifiedLabel(pokemon.specialty),species=verifiedLabel(pokemon.current_species||pokemon.species||pokemon.original_label);
+  const nature=verifiedLabel(pokemon.nature),knownNature=NATURES[nature],level=number(pokemon.level);
   if(!species)missing.push('species');
   if(!SUBSKILL_WEIGHTS[specialty])missing.push('verified_specialty');
   if(!knownNature)missing.push('verified_nature');
@@ -123,10 +126,10 @@ export function scorePokemonProvisionalRating({pokemon={},ingredients=[],subskil
   if(specialty==='食材'){
     const ingredientRows=Array.isArray(ingredients)?ingredients:[];
     // Nonempty text is not source verification: only canonical public identity is eligible.
-    if(!ingredientRows.some(row=>number(row?.unlock_level??row?.level)===1&&INGREDIENTS.includes(text(row?.ingredient_name??row?.name))))missing.push('level_1_ingredient');
+    if(!ingredientRows.some(row=>number(row?.unlock_level??row?.level)===1&&INGREDIENTS.includes(verifiedLabel(row?.ingredient_name??row?.name))))missing.push('level_1_ingredient');
   }
   // An unknown main-skill label must not silently receive a confident grade.
-  if(specialty==='技能'&&!MAIN_SKILLS.includes(text(pokemon.main_skill)))missing.push('main_skill');
+  if(specialty==='技能'&&!MAIN_SKILLS.includes(verifiedLabel(pokemon.main_skill)))missing.push('main_skill');
   if(knownNature){
     if(nonempty(pokemon.nature_bonus)&&normalizedEffect(pokemon.nature_bonus)!==normalizedEffect(knownNature[0]))reasons.push('nature_bonus_evidence_conflict');
     if(nonempty(pokemon.nature_penalty)&&normalizedEffect(pokemon.nature_penalty)!==normalizedEffect(knownNature[1]))reasons.push('nature_penalty_evidence_conflict');
