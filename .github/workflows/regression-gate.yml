@@ -683,6 +683,11 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-native-chromium-eighteenth-professor-cas.mjs
 
+      - name: G265 production professor transfer native Chromium two-tab admission
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-native-chromium-professor-production-pretransaction.mjs
+
       - name: G265 Nineteenth Identity Convergence Legacy Two-ACK Stale Evidence Negative
         run: node scripts/g265-identity-convergence-nineteenth-legacy-cross-tab-negative.mjs
 
