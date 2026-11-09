@@ -23,8 +23,13 @@ assert.match(draft,/begin\(\);[\s\S]*?commit\(\);[\s\S]*?await persist\(\)/);
 assert.match(goal,/runSqliteWriteSession\(/,'goal writer migrated to opt-in session');
 assert.match(goal,/runSqliteWriteSession\(/,'goal write-session now owns persist boundary');
 assert.match(feedback,/withPrimarySqliteMutationLock\(async lease[\s\S]*?withSqliteCoordinatedMutation\(begin\)[\s\S]*?withSqliteCoordinatedMutation\(commit\)[\s\S]*?persist\(\{primaryMutationLease:lease\}\)/);
-assert.match(importer,/await snapshot\(/);
-assert.match(importer,/begin\(\);[\s\S]*?commit\(\);[\s\S]*?await persist\(\)/);
+// Preserve the historical importer negative separately from the newly admitted
+// production writer. Never treat the pinned two-ACK legacy function as live.
+const legacyImporter=read('scripts/fixtures/g265-importer-legacy-source.js');
+assert.match(legacyImporter,/begin\(\);[\s\S]*?commit\(\);[\s\S]*?await persist\(\)/);
+assert.match(importer,/withPrimarySqliteMutationLock\(async lease/);
+assert.match(importer,/withSqliteCoordinatedMutation\(begin\)/);
+assert.match(importer,/persist\(\{primaryMutationLease:lease\}\)/);
 const directImport=/from\s*['"]\.\/database\.js['"]/;
 const callsite=/\b(?:run|begin|commit|persist|snapshot)\s*\(/;
 const writerModules=fs.readdirSync('assets/js').filter(n=>n.endsWith('.js'))
