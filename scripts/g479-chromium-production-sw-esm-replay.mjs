@@ -390,6 +390,89 @@ try{
     }finally{await context.close();}
   }
 
+
+  // G479 independent backup-route negative: production backup hydration imports
+  // storage.js/time-utils.js outside the deferred module-map failure tracker.
+  // A real Chromium HTTP 503 must not be labelled safe for same-document retry.
+  // Only an explicit fresh document may recover; never touch player SQLite.
+  {
+    const bootstrap=readFileSync(new URL('../assets/js/bootstrap.js',import.meta.url),'utf8');
+    const watchdog=readFileSync(new URL('../assets/js/v0394-startup-watchdog.js',import.meta.url),'utf8');
+    const extract=(raw,startMarker,endMarker)=>{
+      const start=raw.indexOf(startMarker),end=raw.indexOf(endMarker,start);
+      assert.ok(start>=0&&end>start,'exact production backup module extraction: '+startMarker);
+      return raw.slice(start,end+2);
+    };
+    const importSource=extract(bootstrap,'function importFeatureModule(file){','\n}\nasync function loadPageModules');
+    const loadSource=extract(bootstrap,'async function loadPageModules(page){','\n}\nasync function hydrateBackupSnapshotPanel');
+    const backupSource=extract(bootstrap,'async function hydrateBackupSnapshotPanel(){','\n}\nasync function hydrateUpdateCenterShells');
+    const render=extract(watchdog,'function renderPageHydrationProgress(detail={}){','\n}\n\nfunction recordStage');
+    const context=await browser.newContext({serviceWorkers:'block'});
+    try{
+      const page=await context.newPage();
+      let storageRequests=0;
+      await page.route('**/assets/js/storage.js',route=>{
+        storageRequests++;
+        return route.fulfill({status:storageRequests===1?503:200,contentType:'text/javascript',body:'export const listSnapshots=async()=>[];'});
+      });
+      await page.route('**/assets/js/time-utils.js',route=>route.fulfill({status:200,contentType:'text/javascript',body:'export const formatLocal=value=>String(value);'}));
+      await page.goto(origin+'/assets/js/fixture.html',{waitUntil:'load'});
+      await page.evaluate(()=>{
+        document.body.innerHTML='<div id="pageLoadStatus" class="hidden"></div><div id="snapshotList"></div>';
+        localStorage.setItem('g479-backup-sentinel','preserved');
+      });
+      await page.addScriptTag({content:[
+        'const pageLoads=new Map(),moduleLoads=new Map(),failedFeatureModuleUrls=new Set();',
+        "const pageModuleGroups={backup:[]};",
+        "const PAGE_LABELS={backup:'備份還原'},activeView=()=> 'backup';",
+        'let pageHydrationHideTimer=null;',
+        'const events=[];',
+        "const debugTrace={record:(...args)=>events.push({kind:'trace',name:args[1],payload:args[2]})};",
+        'const recordStage=()=>{};',
+        'const yieldToBrowser=()=>Promise.resolve();',
+        "globalThis.PokemonSleepPageHydrationAuthorityV042755331={hydrateView:async()=>({owned:true})};",
+        'const hydrateUpdateCenterShells=async()=>{};',
+        'const startOcrOverlayForUpdates=async()=>{};',
+        render,
+        "const pageProgress=(page,state,message,details={})=>{events.push({kind:'progress',page,state,message,details});renderPageHydrationProgress({page,state,message,...details});};",
+        importSource,loadSource,backupSource,
+        'globalThis.g479BackupFixture={loadPageModules,events};',
+      ].join('\n')});
+      const first=await page.evaluate(async()=>{
+        let error=null;
+        try{await g479BackupFixture.loadPageModules('backup');}catch(e){error=String(e?.message||e);}
+        return {error,failed:g479BackupFixture.events.find(e=>e.kind==='progress'&&e.state==='failed')};
+      });
+      assert.match(first.error||'',/Failed to fetch dynamically imported module|HTTP|Importing a module script failed/i);
+      assert.equal(storageRequests,1,'backup storage module must actually return HTTP 503');
+      assert.equal(first.failed?.details?.player_write,false,'backup ESM failure cannot write player data');
+      assert.equal(first.failed?.details?.manual_reload_required,true,'sticky backup ESM 503 requires manual fresh document');
+      assert.equal(first.failed?.details?.retryable_on_next_navigation,false,'same-document backup navigation cannot recover failed module map');
+      assert.equal(await page.locator('[data-g479-deferred-manual-reload]').count(),1,'visible backup manual reload control required');
+      const second=await page.evaluate(async()=>{
+        let error=null;
+        try{await g479BackupFixture.loadPageModules('backup');}catch(e){error=String(e?.message||e);}
+        return error;
+      });
+      assert.match(second||'',/G479_DEFERRED_ESM_FAILED_MODULE_MAP_RELOAD_REQUIRED/,'repeat backup navigation must fail closed');
+      assert.equal(storageRequests,1,'same-document retry must not refetch failed backup module');
+      const beforeReload=indexRequests;
+      await page.waitForTimeout(150);
+      assert.equal(indexRequests,beforeReload,'no automatic backup reload');
+      await Promise.all([
+        page.waitForNavigation({waitUntil:'load'}),
+        page.locator('[data-g479-deferred-manual-reload]').first().click(),
+      ]);
+      assert.equal(indexRequests,beforeReload+1,'only explicit backup action reloads');
+      assert.equal(await page.evaluate(()=>localStorage.getItem('g479-backup-sentinel')),'preserved','backup retry preserves storage');
+      const snapshots=await page.evaluate(async()=>{const m=await import('./storage.js');return m.listSnapshots();});
+      assert.deepEqual(snapshots,[],'fresh document can load recovered backup module');
+      assert.equal(storageRequests,2,'fresh document retries failed backup URL exactly once');
+      console.log('PASS G479_CHROMIUM_BACKUP_ESM_STICKY_FAILURE_MANUAL_FRESH_DOCUMENT');
+    }finally{await context.close();}
+  }
+
+
 }finally{
   if(browser)await browser.close();
   server.closeAllConnections();
