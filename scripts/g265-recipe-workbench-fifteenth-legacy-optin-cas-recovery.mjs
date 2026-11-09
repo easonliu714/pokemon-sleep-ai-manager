@@ -2,13 +2,18 @@
 // Execute the unchanged saveRecipeState() only inside a disposable SQL.js VM
 // under the existing cross-tab write admission. NOT production wiring or Android UAT.
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import {webcrypto} from 'node:crypto';
 import initSqlJs from 'sql.js';
 import {createSqliteCrossTabWriteAdmission,sha256SqliteBytes} from '../assets/js/sqlite-cross-tab-write-admission.js';
 
-const source=fs.readFileSync(new URL('../assets/js/recipe-unified-player-workbench.js',import.meta.url),'utf8');
+const production=fs.readFileSync(new URL('../assets/js/recipe-unified-player-workbench.js',import.meta.url),'utf8');
+assert.match(production,/withPrimarySqliteMutationLock\(async lease/,'production must be independently admitted');
+const source=fs.readFileSync(new URL('./fixtures/g265-recipe-workbench-legacy-source.js',import.meta.url),'utf8');
+const historicalBlob=createHash('sha1').update('blob '+Buffer.byteLength(source)+'\0'+source).digest('hex');
+assert.equal(historicalBlob,'a9bcf281892d19af9f608fe1d83755576c93bcc7','frozen legacy two-ACK counterexample must not drift');
 const start='async function saveRecipeState(row,{unlocked,level,energy}){';
 const end='\nfunction bindTable(';
 assert.equal(source.split(start).length,2);

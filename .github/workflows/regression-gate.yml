@@ -231,6 +231,9 @@ jobs:
       - name: G265 fifteenth recipe workbench isolated opt-in CAS recovery
         run: node scripts/g265-recipe-workbench-fifteenth-legacy-optin-cas-recovery.mjs
 
+      - name: G265 named production recipe workbench pre-SQL admission
+        run: node scripts/g265-recipe-workbench-production-pretransaction-source.mjs
+
       - name: G265 Independent Cross-Tab Stale SQLite Overwrite Negative Gate
         run: node scripts/g265-cross-tab-stale-sqlite-overwrite-negative.mjs
 
@@ -517,6 +520,11 @@ jobs:
 
       - name: G265 Fifth Legacy Analysis Revision Isolated Durable CAS Gate
         run: node scripts/g265-analysis-revision-fifth-legacy-writer-optin.mjs
+
+      - name: G265 native Chromium named production recipe workbench pre-SQL admission
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-native-chromium-recipe-workbench-production-pretransaction.mjs
 
       - name: G265 native Chromium named production analysis revision pretransaction
         env:

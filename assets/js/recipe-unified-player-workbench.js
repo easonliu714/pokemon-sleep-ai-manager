@@ -1,4 +1,6 @@
 import {rows,run,persist,snapshot,begin,commit,rollback,isRescueReadonly} from './database.js';
+import {withPrimarySqliteMutationLock} from './storage.js';
+import {beginSqliteExclusiveWriteWindow,withSqliteCoordinatedMutation} from './sqlite-direct-write-window-guard.js';
 import {PUBLIC_RECIPE_MASTER,PUBLIC_RECIPE_MASTER_VERSION} from './public-recipe-current-authority.js';
 import {PUBLIC_INGREDIENT_CANONICAL_NAMES} from './public-ingredient-identity.js';
 import {analyzeIngredientGaps,sortGapResults} from './ingredient-gap-engine.js';
@@ -226,25 +228,51 @@ function captureDraft(event){
   draftById.set(id,draft);
 }
 
+// G265: named production Recipe Workbench only. Reserve the same-page
+// exclusive SQL window and acquire the native primary lease BEFORE dbReady(),
+// player-row read, snapshot, BEGIN and audit mutation. An uncertain durable
+// ACK must never be rolled back or blindly retried in this document.
 async function saveRecipeState(row,{unlocked,level,energy}){
-  if(!dbReady())throw new Error('目前為唯讀／尚未完成資料庫初始化，無法修改玩家料理狀態');
-  const playerRecipeId=String(row.recipe_id),before=rows('SELECT * FROM recipes WHERE recipe_id=?',[playerRecipeId])[0]||null;
+  const playerRecipeId=String(row.recipe_id);
   const parsedLevel=level===''?null:Number(level),parsedEnergy=energy===''?null:Number(energy);
   if(parsedLevel!==null&&(!Number.isInteger(parsedLevel)||parsedLevel<1))throw new Error('料理等級必須為 1 以上整數');
   if(parsedEnergy!==null&&(!Number.isInteger(parsedEnergy)||parsedEnergy<0))throw new Error('目前能量必須為 0 以上整數');
-  await snapshot(`manual:recipe:${playerRecipeId}`);begin();
+  const close=beginSqliteExclusiveWriteWindow();
+  let acknowledged=false;
   try{
-    run(`INSERT INTO recipes(recipe_id,category,recipe_name,unlocked,total_ingredients,source,recipe_level,current_energy,updated_at,notes)
-      VALUES(?,?,?,?,?,?,?,?,?,?)
-      ON CONFLICT(recipe_id) DO UPDATE SET unlocked=excluded.unlocked,recipe_level=excluded.recipe_level,current_energy=excluded.current_energy,updated_at=excluded.updated_at`,
-      [playerRecipeId,row.category,row.recipe_name,unlocked?1:0,row.total_ingredients,'public_catalog_manual',parsedLevel,parsedEnergy,localIso(),'']);
-    const after=rows('SELECT * FROM recipes WHERE recipe_id=?',[playerRecipeId])[0],updateId=`MANUAL-RECIPE-${Date.now()}-${Math.random().toString(16).slice(2,6)}`;
-    run('INSERT INTO import_batches(update_id,schema_version,generated_at,imported_at,source,operation_count,result_json) VALUES(?,?,?,?,?,?,?)',[updateId,'manual-1.0',localIso(),localIso(),'manual_frontend_edit',1,JSON.stringify({status:'applied'})]);
-    run('INSERT INTO import_changes(update_id,operation_index,entity,action,key_json,before_json,after_json,status,message) VALUES(?,?,?,?,?,?,?,?,?)',[updateId,0,'recipes','manual_update',JSON.stringify({recipe_id:playerRecipeId}),JSON.stringify(before),JSON.stringify(after),'applied','Unified Recipe Workbench 玩家料理狀態修改']);
-    commit();await persist();return after;
-  }catch(error){rollback();throw error;}
+    return await withPrimarySqliteMutationLock(async lease=>{
+      if(!dbReady())throw new Error('目前為唯讀／尚未完成資料庫初始化，無法修改玩家料理狀態');
+      const before=rows('SELECT * FROM recipes WHERE recipe_id=?',[playerRecipeId])[0]||null;
+      await snapshot(`manual:recipe:${playerRecipeId}`);
+      withSqliteCoordinatedMutation(begin);
+      let after;
+      try{
+        after=withSqliteCoordinatedMutation(()=>{
+          run(`INSERT INTO recipes(recipe_id,category,recipe_name,unlocked,total_ingredients,source,recipe_level,current_energy,updated_at,notes)
+            VALUES(?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(recipe_id) DO UPDATE SET unlocked=excluded.unlocked,recipe_level=excluded.recipe_level,current_energy=excluded.current_energy,updated_at=excluded.updated_at`,
+            [playerRecipeId,row.category,row.recipe_name,unlocked?1:0,row.total_ingredients,'public_catalog_manual',parsedLevel,parsedEnergy,localIso(),'']);
+          return rows('SELECT * FROM recipes WHERE recipe_id=?',[playerRecipeId])[0];
+        });
+        const updateId=`MANUAL-RECIPE-${Date.now()}-${Math.random().toString(16).slice(2,6)}`;
+        withSqliteCoordinatedMutation(()=>{
+          run('INSERT INTO import_batches(update_id,schema_version,generated_at,imported_at,source,operation_count,result_json) VALUES(?,?,?,?,?,?,?)',[updateId,'manual-1.0',localIso(),localIso(),'manual_frontend_edit',1,JSON.stringify({status:'applied'})]);
+          run('INSERT INTO import_changes(update_id,operation_index,entity,action,key_json,before_json,after_json,status,message) VALUES(?,?,?,?,?,?,?,?,?)',[updateId,0,'recipes','manual_update',JSON.stringify({recipe_id:playerRecipeId}),JSON.stringify(before),JSON.stringify(after),'applied','Unified Recipe Workbench 玩家料理狀態修改']);
+        });
+        withSqliteCoordinatedMutation(commit);
+      }catch(error){
+        withSqliteCoordinatedMutation(rollback);
+        throw error;
+      }
+      // Same primary lease through atomic IDB CAS/durable ACK; no post-COMMIT rollback.
+      await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
+      acknowledged=true;
+      return after;
+    });
+  }finally{
+    close({uncertainOutcome:!acknowledged});
+  }
 }
-
 function bindTable(table,projection){
   table.oninput=captureDraft;table.onchange=captureDraft;
   table.querySelectorAll('.canonical-save-recipe').forEach(button=>button.addEventListener('click',async()=>{
