@@ -93,7 +93,15 @@ export function scorePokemonProvisionalRating({pokemon={},ingredients=[],subskil
   if(!SUBSKILL_WEIGHTS[specialty])missing.push('verified_specialty');
   if(!knownNature)missing.push('verified_nature');
   if(level===null)missing.push('valid_level');
-  if(Number(pokemon.identity_review_required||0)===1||pokemon.identity_review_required===true)reasons.push('identity_review_required');
+  // Imported identity-review flags are provenance gates, not generic JS
+  // truthiness. A coercible/unknown flag must HOLD, never silently certify
+  // a 15-band grade. Preserve legacy SQLite 0/1 and exact string 0/1.
+  const reviewFlag=pokemon.identity_review_required;
+  const reviewed=reviewFlag===true||reviewFlag===1||reviewFlag==='1';
+  const clear=reviewFlag===undefined||reviewFlag===null||reviewFlag===false
+    ||reviewFlag===0||reviewFlag==='0';
+  if(reviewed)reasons.push('identity_review_required');
+  else if(!clear)reasons.push('noncanonical_identity_review_flag');
   if((Array.isArray(evidenceConflicts)&&evidenceConflicts.length)||(
     pokemon.field_conflicts&&typeof pokemon.field_conflicts==='object'&&Object.keys(pokemon.field_conflicts).length
   ))reasons.push('observation_field_conflict');
