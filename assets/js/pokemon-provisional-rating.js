@@ -3,7 +3,7 @@
 // Never infer unknown inputs as zero or overwrite a player's existing rating.
 import {NATURES, SUBSKILLS} from './pokemon-master-options.js';
 
-export const POKEMON_PROVISIONAL_RATING_RULE_VERSION='pokemon-role-fit-15-band-2026-11-06-a';
+export const POKEMON_PROVISIONAL_RATING_RULE_VERSION='pokemon-role-fit-15-band-2026-11-09-b';
 export const POKEMON_PROVISIONAL_RATING_LABELS=Object.freeze([
   'S+','S','S-','A+','A','A-','B+','B','B-','C+','C','C-','D+','D','D-',
 ]);
@@ -28,10 +28,16 @@ const GRADE_LOWER_BOUNDS=Object.freeze([93,86,79,72,65,58,51,44,37,30,23,16,9,3,
 export const POKEMON_PROVISIONAL_RATING_GUIDE=Object.freeze({
   base_points:40,lower_bounds:GRADE_LOWER_BOUNDS,levels:LEVELS,
   subskill_weights:SUBSKILL_WEIGHTS,nature_weights:NATURE_WEIGHTS,
+  main_skill_level_role_points:MAIN_SKILL_LEVEL_ROLE_POINTS,
 });
 // The existing rule's long-term grade is unchanged. This projection version
 // adds two explicit interpretations of the SAME verified evidence and weights.
-export const POKEMON_CURRENT_FUTURE_RATING_VIEW_VERSION='pokemon-role-fit-current-future-2026-11-09-a';
+export const POKEMON_CURRENT_FUTURE_RATING_VIEW_VERSION='pokemon-role-fit-current-future-2026-11-09-b';
+// Product heuristic only: additional verified main-skill levels have small,
+// explicitly bounded role-dependent points; not an official trigger/damage formula.
+// No main-skill-level observation means NO bonus is evaluated (not level 1).
+export const MAIN_SKILL_LEVEL_ROLE_POINTS=Object.freeze({'樹果':1,'食材':1,'技能':2});
+const MAX_REVIEWED_MAIN_SKILL_LEVEL=8;
 
 const text=value=>String(value??'').normalize('NFKC').trim();
 const nonempty=value=>value!==null&&value!==undefined&&text(value)!=='';
@@ -88,6 +94,11 @@ export function scorePokemonProvisionalRating({pokemon={},ingredients=[],subskil
 
   const {slots,invalid}=slotRows(subskills);
   missing.push(...invalid);
+  const rawSkillLevel=pokemon.main_skill_level;
+  const knownSkillLevel=number(rawSkillLevel);
+  if(rawSkillLevel!==null&&rawSkillLevel!==undefined&&rawSkillLevel!==''&&
+    (knownSkillLevel===null||knownSkillLevel>MAX_REVIEWED_MAIN_SKILL_LEVEL))
+    missing.push('invalid_main_skill_level');
   if(specialty==='食材'){
     const ingredientRows=Array.isArray(ingredients)?ingredients:[];
     if(!ingredientRows.some(row=>number(row?.unlock_level??row?.level)===1&&nonempty(row?.ingredient_name??row?.name)))missing.push('level_1_ingredient');
@@ -100,7 +111,14 @@ export function scorePokemonProvisionalRating({pokemon={},ingredients=[],subskil
   if(missing.length||reasons.length)return hold(missing,reasons.length?reasons:['missing_verified_inputs']);
 
   let score=40,current=0,future=0,naturePoints=0;
+  const skillLevelPoints=knownSkillLevel===null?null:
+    (knownSkillLevel-1)*(MAIN_SKILL_LEVEL_ROLE_POINTS[specialty]||0);
+  if(skillLevelPoints!==null)score+=skillLevelPoints;
   const breakdown=[{source:'heuristic_base',delta:40,scope:'LONG_TERM',reason:'fixed_product_baseline'}];
+  if(skillLevelPoints!==null&&skillLevelPoints!==0)breakdown.push({
+    source:'main_skill_level',name:pokemon.main_skill||'主技能',level:knownSkillLevel,
+    delta:skillLevelPoints,scope:'CURRENT',reason:'verified_main_skill_level_role_heuristic',
+  });
   const natureWeights=NATURE_WEIGHTS[specialty],subskillWeights=SUBSKILL_WEIGHTS[specialty];
   const [positive,negative]=knownNature;
   for(const [direction,effect,sign] of [['UP',positive,1],['DOWN',negative,-1]]){
@@ -121,7 +139,7 @@ export function scorePokemonProvisionalRating({pokemon={},ingredients=[],subskil
   // CURRENT is a role-fit *heuristic* at the observed level, not energy or
   // current production. Known future subskill values never enter CURRENT.
   // FUTURE is the original full-profile long-term rule, NOT a guaranteed ROI.
-  const currentScore=Math.max(0,Math.min(100,40+naturePoints+current));
+  const currentScore=Math.max(0,Math.min(100,40+naturePoints+current+(skillLevelPoints??0)));
   return {
     schema:'pokemon-role-fit-provisional/1.0',rule_version:POKEMON_PROVISIONAL_RATING_RULE_VERSION,
     projection_version:POKEMON_CURRENT_FUTURE_RATING_VIEW_VERSION,
@@ -129,6 +147,8 @@ export function scorePokemonProvisionalRating({pokemon={},ingredients=[],subskil
     current_rating:ratingFromScore(currentScore),future_rating:ratingFromScore(bounded),
     current_heuristic_score:currentScore,future_heuristic_score:bounded,
     current_contribution:current,future_contribution:future,
+    main_skill_level_contribution:skillLevelPoints,
+    main_skill_level_scored:skillLevelPoints!==null,
     missing_inputs:[],reason_codes:['PRODUCT_HEURISTIC_NOT_OFFICIAL','NOT_A_PRODUCTION_OR_ROI_ESTIMATE','FUTURE_SLOTS_EXCLUDED_FROM_CURRENT'],
     score_breakdown:breakdown,player_data_write:false,overwrite_allowed:false,
   };
