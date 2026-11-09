@@ -102,9 +102,16 @@ export function scorePokemonProvisionalRating({pokemon={},ingredients=[],subskil
     ||reviewFlag===0||reviewFlag==='0';
   if(reviewed)reasons.push('identity_review_required');
   else if(!clear)reasons.push('noncanonical_identity_review_flag');
-  if((Array.isArray(evidenceConflicts)&&evidenceConflicts.length)||(
-    pokemon.field_conflicts&&typeof pokemon.field_conflicts==='object'&&Object.keys(pokemon.field_conflicts).length
-  ))reasons.push('observation_field_conflict');
+  // G14.RATE.1: conflict carriers are provenance, never coercible evidence.
+  // An unexpected scalar/array cannot silently mean "no conflict".
+  if(!Array.isArray(evidenceConflicts))reasons.push('noncanonical_evidence_conflicts');
+  else if(evidenceConflicts.length)reasons.push('observation_field_conflict');
+  const fieldConflicts=pokemon.field_conflicts;
+  if(fieldConflicts!==undefined&&fieldConflicts!==null){
+    if(typeof fieldConflicts!=='object'||Array.isArray(fieldConflicts))
+      reasons.push('noncanonical_observation_field_conflicts');
+    else if(Object.keys(fieldConflicts).length)reasons.push('observation_field_conflict');
+  }
 
   const {slots,invalid}=slotRows(subskills);
   missing.push(...invalid);
