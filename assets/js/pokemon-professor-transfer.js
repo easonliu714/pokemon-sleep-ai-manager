@@ -1,4 +1,6 @@
 import {rows,run,persist,snapshot,begin,commit,rollback} from './database.js';
+import {withPrimarySqliteMutationLock} from './storage.js';
+import {beginSqliteExclusiveWriteWindow,withSqliteCoordinatedMutation} from './sqlite-direct-write-window-guard.js';
 import {localIso} from './time-utils.js';
 import {speciesCandyName} from './public-candy-master.js';
 import {CANDY_CONVERSION_RULE_STATUS} from './resource-context.js';
@@ -45,6 +47,10 @@ function canonicalCandyStorageForSpecies(species){
 }
 
 export async function transferPokemonToProfessor(pokemonId,{observedCandyQuantity=null}={}){
+  const close=beginSqliteExclusiveWriteWindow();
+  let acknowledged=false;
+  try{
+    return await withPrimarySqliteMutationLock(async lease=>{
   const before=rows('SELECT * FROM pokemon WHERE pokemon_id=?',[pokemonId])[0]||null;
   if(!before)throw new Error('找不到寶可夢資料');
   if(before.status!=='active')throw new Error('只有 active 寶可夢可以送給博士');
@@ -59,8 +65,11 @@ export async function transferPokemonToProfessor(pokemonId,{observedCandyQuantit
   const at=now();
   const sourceUpdateId=`professor-transfer:${transferId}`;
   await snapshot(`professor_transfer:${pokemonId}`);
-  begin();
+  withSqliteCoordinatedMutation(begin);
+  let committed=false;
+  let outcome;
   try{
+    outcome=withSqliteCoordinatedMutation(()=>{
     run(`UPDATE pokemon SET status='sent_to_professor',last_updated_at=?,source_update_id=? WHERE pokemon_id=?`,[at,sourceUpdateId,pokemonId]);
     let candyInventoryApplied=false;
     let candyInventoryBefore=null;
@@ -134,13 +143,28 @@ export async function transferPokemonToProfessor(pokemonId,{observedCandyQuantit
         ?`寶可夢送給博士；資料保留，並依使用者實際觀測增加 ${candyName||'對應糖果'} ×${candyQuantity}，寫入 canonical Candy family storage。`
         :'寶可夢送給博士；資料保留、active roster 隱藏；未自行推算糖果。',
     ]);
-    commit();await persist();
+    commit();
+    committed=true;
+    return {pokemon:after,transfer:transferEvidence,candy_inventory:candyInventoryAfter};
+    });
+  }catch(error){
+    if(!committed)withSqliteCoordinatedMutation(rollback);
+    throw error;
+  }
+  // Same native primary lease through durable IDB CAS/ACK; no post-COMMIT rollback.
+  await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
+  acknowledged=true;
+  const {pokemon:after,transfer:transferEvidence,candy_inventory:candyInventoryAfter}=outcome;
+  const {candy_conversion_status:candyConversionStatus,candy_inventory_applied:candyInventoryApplied}=transferEvidence;
     trace('pokemon_sent_to_professor',{candy_conversion_status:candyConversionStatus,candy_inventory_applied:candyInventoryApplied,observed_candy_quantity:candyQuantity,quantity_authority:transferEvidence.quantity_authority,inventory_mutation:transferEvidence.inventory_mutation,candy_family_id:transferEvidence.candy_family_id,canonical_candy_id:transferEvidence.canonical_candy_id,candy_family_storage_authority:CANDY_FAMILY_STORAGE_AUTHORITY_VERSION,deterministic_conversion_rule_status:PROFESSOR_TRANSFER_CANDY_RULE_STATUS});
     globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:data-changed',{detail:{reason:'pokemon_sent_to_professor',candy_inventory_changed:candyInventoryApplied}}));
     globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:pokemon-evaluation-input-changed',{detail:{pokemon_ids:[String(pokemonId)],reason:'pokemon_sent_to_professor'}}));
     globalThis.dispatchEvent?.(new CustomEvent('pokemon-sleep:analysis-confirmed-applied',{detail:{pokemon_id:pokemonId,mode:'sent_to_professor',reason:'pokemon_sent_to_professor',compatibility_refresh_only:true}}));
-    return {pokemon:after,transfer:transferEvidence,candy_inventory:candyInventoryAfter};
-  }catch(error){rollback();throw error;}
+    return outcome;
+    });
+  }finally{
+    close({uncertainOutcome:!acknowledged});
+  }
 }
 
 export function professorTransferCandyGuidance(){

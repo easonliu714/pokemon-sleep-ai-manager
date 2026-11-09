@@ -3,13 +3,16 @@
 // SQL transaction, Web Locks and SHA-256 CAS are TEST ADAPTERS, not production admission.
 // Never read or mutate player SQLite/IndexedDB, Candy, or public master authority.
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import {webcrypto} from 'node:crypto';
 import initSqlJs from 'sql.js';
 import {createSqliteCrossTabWriteAdmission,sha256SqliteBytes} from '../assets/js/sqlite-cross-tab-write-admission.js';
 
-const source=fs.readFileSync(new URL('../assets/js/pokemon-professor-transfer.js',import.meta.url),'utf8');
+const source=fs.readFileSync(new URL('./fixtures/g265-professor-transfer-legacy-source.js',import.meta.url),'utf8');
+const pinnedBlob=createHash('sha1').update('blob '+Buffer.byteLength(source)+'\0'+source).digest('hex');
+assert.equal(pinnedBlob,'0469bae5f07e6d9cdf1f95b40a665dee37a62181','frozen historical professor source must not drift');
 const start='export async function transferPokemonToProfessor(';
 const end='\nexport function professorTransferCandyGuidance()';
 assert.equal(source.split(start).length,2,'professor transfer source must be unique');

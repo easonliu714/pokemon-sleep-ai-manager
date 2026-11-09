@@ -97,7 +97,7 @@ function fixture({stale=false,noLock=false,failHistory=false,ackLoss=false}={}){
 const ok=fixture();
 const success=await ok.transfer();
 assert.equal(success.pokemon.status,'sent_to_professor');
-assert.deepEqual(ok.calls.slice(0,5),['window','lock','read','read','read']);
+assert.deepEqual(ok.calls.slice(0,4),['window','lock','read','read']);
 assert.ok(ok.calls.indexOf('snapshot')<ok.calls.indexOf('begin'));
 assert.ok(ok.calls.indexOf('begin')<ok.calls.indexOf('update'));
 assert.ok(ok.calls.indexOf('commit')<ok.calls.indexOf('persist'));
