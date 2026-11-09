@@ -25,10 +25,10 @@ const LEVELS=Object.freeze([10,25,50,70,80]);
 const GRADE_LOWER_BOUNDS=Object.freeze([93,86,79,72,65,58,51,44,37,30,23,16,9,3,0]);
 const text=value=>String(value??'').normalize('NFKC').trim();
 const nonempty=value=>value!==null&&value!==undefined&&text(value)!=='';
+// RATE.1: an OCR/AI or imported coercible value is not verified numeric evidence.
+// Do not turn true, "10" or boxed numbers into a Pokémon level or slot.
 const number=value=>{
-  if(value===null||value===undefined||value==='')return null;
-  const n=Number(value);
-  return Number.isSafeInteger(n)&&n>=1?n:null;
+  return typeof value==='number'&&Number.isSafeInteger(value)&&value>=1?value:null;
 };
 const normalizedEffect=value=>text(value)==='食材發現率'?'食材機率':text(value);
 const ratingFromScore=score=>POKEMON_PROVISIONAL_RATING_LABELS[GRADE_LOWER_BOUNDS.findIndex(min=>score>=min)];
