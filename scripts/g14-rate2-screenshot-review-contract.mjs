@@ -45,6 +45,14 @@ assert.ok(check(draft,{...revision,source_image_ref:'different-private-image-ref
   'revision image mismatch').reason_codes.includes('REVISION_IMAGE_PROVENANCE_MISMATCH'));
 assert.ok(check(draft,{...revision,source_image_ref:null},
   'revision image identity missing').reason_codes.includes('REVISION_IMAGE_PROVENANCE_MISMATCH'));
+// RATE.2 negative-first: OCR/AI confidence must be an actual finite numeric
+// observation, not a coercible string or boolean that Number() turns into 0.99/1.
+for(const untrusted of ['0.99',true]){
+  const held=check(draft,{...revision,result:{analysis:{observations:[{...observation,
+    evidence:{...observation.evidence,field_confidence:{...conf,nature:untrusted}}}]}}},
+    'coercible nonnumeric OCR confidence must HOLD');
+  assert.ok(held.missing_inputs.includes('field_confidence_nature'));
+}
 assert.ok(check(draft,{...revision,result:{analysis:{observations:[{...observation,
   evidence:{...observation.evidence,field_confidence:{...conf,nature:0.3}}}]}}},'low confidence').reason_codes.includes('LOW_CONFIDENCE_nature'));
 assert.ok(check(draft,{...revision,result:{analysis:{observations:[{...observation,
