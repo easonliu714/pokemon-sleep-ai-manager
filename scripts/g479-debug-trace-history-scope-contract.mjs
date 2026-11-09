@@ -159,7 +159,9 @@ console.log('NOTE G479_ANDROID_ESM_ROOT_CAUSE_STILL_UNVERIFIED');
     'canonical page loader and backup hydration functions required');
   const loader=bootstrapSource.slice(loaderStart,backupStart);
   const backup=bootstrapSource.slice(backupStart,backupEnd);
-  const actualImport="Promise.all([import('./storage.js'),import('./time-utils.js')])";
+  // Production backup now tracks sticky ESM failures via the shared importer.
+  // Preserve the independent metadata-read failure/retry contract below.
+  const actualImport="Promise.all([importFeatureModule('storage.js'),importFeatureModule('time-utils.js')])";
   assert.ok(backup.includes(actualImport),'actual backup module imports must be source-bound');
   const isolatedBackup=backup.replace(actualImport,'Promise.all([syntheticStorage(),syntheticTime()])');
   const events=[],progress=[],host={dataset:{},innerHTML:''};
@@ -167,6 +169,7 @@ console.log('NOTE G479_ANDROID_ESM_ROOT_CAUSE_STILL_UNVERIFIED');
   const context={
     pageModuleGroups:Object.freeze({backup:Object.freeze([])}),
     pageLoads:new Map(),
+    failedFeatureModuleUrls:new Set(),
     debugTrace:{record:(category,event,detail)=>events.push({category,event,detail})},
     pageProgress:(page,state,message,details)=>progress.push({page,state,message,details}),
     document:{getElementById:id=>id==='snapshotList'?host:null},
