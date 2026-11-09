@@ -6,6 +6,46 @@ import {POKEMON_PROVISIONAL_RATING_LABELS,POKEMON_PROVISIONAL_RATING_RULE_VERSIO
 const validId=value=>typeof value==='string'&&value.length>0&&value===value.trim();
 const validRating=value=>value===null||POKEMON_PROVISIONAL_RATING_LABELS.includes(value);
 const stable=value=>JSON.stringify(value);
+// RATE.4: compare scored facts by own DATA descriptors, never by a getter or
+// JSON.stringify's lossy undefined/NaN/hole normalization. This is only a
+// read-only consent preflight, NOT durable Writer admission.
+function canonicalFact(value,seen=new WeakSet()){
+  if(value===null||typeof value==='string'||typeof value==='boolean')return JSON.stringify(value);
+  if(typeof value==='number'&&Number.isFinite(value))return JSON.stringify(value);
+  if(!value||typeof value!=='object'||seen.has(value))
+    throw new TypeError('RATE4_NONCANONICAL_FACT');
+  seen.add(value);
+  if(Array.isArray(value)){
+    if(Reflect.ownKeys(value).length!==value.length+1)
+      throw new TypeError('RATE4_NONCANONICAL_ARRAY');
+    const items=[];
+    for(let i=0;i<value.length;i++){
+      const d=Object.getOwnPropertyDescriptor(value,String(i));
+      if(!d?.enumerable||!Object.hasOwn(d,'value'))
+        throw new TypeError('RATE4_NONCANONICAL_ARRAY_ELEMENT');
+      items.push(canonicalFact(d.value,seen));
+    }
+    return '['+items.join(',')+']';
+  }
+  if(Object.getPrototypeOf(value)!==Object.prototype)
+    throw new TypeError('RATE4_NONCANONICAL_OBJECT');
+  const keys=Reflect.ownKeys(value);
+  if(keys.some(key=>typeof key!=='string'))
+    throw new TypeError('RATE4_NONCANONICAL_KEYS');
+  return '{'+keys.sort().map(key=>{
+    const d=Object.getOwnPropertyDescriptor(value,key);
+    if(!d?.enumerable||!Object.hasOwn(d,'value'))
+      throw new TypeError('RATE4_NONCANONICAL_FIELD');
+    return JSON.stringify(key)+':'+canonicalFact(d.value,seen);
+  }).join(',')+'}';
+}
+function canonicalField(row,key){
+  const d=Object.getOwnPropertyDescriptor(row,key);
+  if(!d)return '#ABSENT';
+  if(!d.enumerable||!Object.hasOwn(d,'value'))
+    throw new TypeError('RATE4_NONCANONICAL_SELECTED_FIELD');
+  return canonicalFact(d.value);
+}
 const hold=(code)=>Object.freeze({
   schema:'pokemon-rating-apply-preflight/1.0',status:'HOLD',reason_codes:[code],
   reviewed_diffs:[],player_data_write:false,overwrite_allowed:false,
@@ -42,8 +82,11 @@ export function reviewPokemonRatingApplyIntent({preview,freshView,selectedPokemo
   const index=rows=>{
     const result=new Map();
     for(const row of rows){
-      if(!validId(row?.pokemon_id)||result.has(row.pokemon_id))return null;
-      result.set(row.pokemon_id,row);
+      if(!row||typeof row!=='object')return null;
+      const d=Object.getOwnPropertyDescriptor(row,'pokemon_id');
+      if(!d?.enumerable||!Object.hasOwn(d,'value')
+        ||!validId(d.value)||result.has(d.value))return null;
+      result.set(d.value,row);
     }
     return result;
   };
@@ -54,7 +97,19 @@ export function reviewPokemonRatingApplyIntent({preview,freshView,selectedPokemo
   const reviewed=[];
   for(const pokemonId of selectedPokemonIds){
     const old=before.get(pokemonId),now=latest.get(pokemonId);
-    if(!old||!now||old.status!=='PROVISIONAL_HEURISTIC'
+    if(!old||!now)return hold('SELECTED_RECORD_NOT_ELIGIBLE');
+    // Fail closed before accessing eligibility fields: an accessor that returns
+    // the same visible grade is not the immutable evidence the user confirmed.
+    const fields=['pokemon_id','pokemon_instance_id','status','changed',
+      'previous_rating','proposed_rating','rule_version','species','nickname',
+      'level','current_evidence','future_evidence','score_breakdown',
+      'reason_codes','missing_inputs'];
+    let beforeFacts,nowFacts;
+    try{
+      beforeFacts=fields.map(field=>canonicalField(old,field));
+      nowFacts=fields.map(field=>canonicalField(now,field));
+    }catch{return hold('SELECTED_RECORD_NOT_ELIGIBLE');}
+    if(old.status!=='PROVISIONAL_HEURISTIC'
       ||now.status!=='PROVISIONAL_HEURISTIC'
       ||old.changed!==true||now.changed!==true
       ||!validId(old.pokemon_instance_id)||!validId(now.pokemon_instance_id)
@@ -64,12 +119,7 @@ export function reviewPokemonRatingApplyIntent({preview,freshView,selectedPokemo
       ||!POKEMON_PROVISIONAL_RATING_LABELS.includes(now.proposed_rating)
       ||(old.missing_inputs||[]).length||(now.missing_inputs||[]).length)
       return hold('SELECTED_RECORD_NOT_ELIGIBLE');
-    // Compare all scored evidence, not just the displayed letter. A changed
-    // level or subskill can retain the same grade but invalidate consent.
-    const fields=['pokemon_instance_id','previous_rating','proposed_rating','rule_version',
-      'species','nickname','level','current_evidence','future_evidence',
-      'score_breakdown','reason_codes','missing_inputs'];
-    if(fields.some(field=>stable(old[field])!==stable(now[field])))
+    if(beforeFacts.some((fact,i)=>fact!==nowFacts[i]))
       return hold('SELECTED_RECORD_STALE');
     reviewed.push(Object.freeze({
       pokemon_id:pokemonId,pokemon_instance_id:old.pokemon_instance_id,
