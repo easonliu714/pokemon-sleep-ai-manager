@@ -69,6 +69,23 @@ try{
   await page.locator('[data-rate4-review]').click();
   assert.equal(await page.locator('[data-rate4-stale]').count(),1,
     'nonfinite source change must revoke nonpersistent selection before review');
+  // G14.RATE read-only source identity negative: an array-index accessor can
+  // return the identical row while hiding a noncanonical source mutation.
+  // The user's pending adopt choice must be revoked without invoking it.
+  await page.evaluate(()=>{
+    delete window.__rateSource.pokemon[0].freshness_probe;
+  });
+  await page.locator('[data-rate3-preview-button]').click();
+  await page.locator('[data-rate4-choice]').check();
+  await page.evaluate(()=>{
+    const rows=window.__rateSource.pokemon,first=rows[0];
+    Object.defineProperty(rows,'0',{configurable:true,enumerable:true,
+      get(){return first;}});
+  });
+  await page.locator('[data-rate4-review]').click();
+  assert.equal(await page.locator('[data-rate4-stale]').count(),1,
+    'array-index getter must revoke a selected rating even when returning the same row');
+  // Never treat this synthetic read-only fixture as player-data Apply.
   // RATE.2 real Chromium negative: a revision from image-B must not reuse
   // verified observation fields from image-A to display a trusted grade.
   const rate2=await page.evaluate(async()=>{
