@@ -68,8 +68,13 @@ function ratingSourceIsCanonicalJson(value,seen){
     // Exactly the indexed elements and the built-in length: no holes, symbols
     // or extra properties that JSON would silently ignore.
     if(Reflect.ownKeys(value).length!==value.length+1)return false;
-    for(let i=0;i<value.length;i++)
-      if(!Object.hasOwn(value,i)||!ratingSourceIsCanonicalJson(value[i],seen))return false;
+    // Array indices can be accessors even when Object.hasOwn is true.
+    // Do not invoke a getter or certify its returned row as a fresh source.
+    for(let i=0;i<value.length;i++){
+      const descriptor=Object.getOwnPropertyDescriptor(value,String(i));
+      if(!descriptor?.enumerable||!Object.hasOwn(descriptor,'value')
+        ||!ratingSourceIsCanonicalJson(descriptor.value,seen))return false;
+    }
     return true;
   }
   if(Object.getPrototypeOf(value)!==Object.prototype)return false;

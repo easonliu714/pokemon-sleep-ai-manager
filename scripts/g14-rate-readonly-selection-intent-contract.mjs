@@ -54,6 +54,21 @@ assert.ok(sourceTokenForPokemonRating(withNull),'explicit SQL null is canonical 
 assert.equal(sourceTokenForPokemonRating(withNaN),null,'NaN must not alias explicit SQL null');
 assert.equal(sourceTokenForPokemonRating({...withMissing,pokemon:[{pokemon_id:'p1',level:Infinity}]}),null);
 assert.equal(sourceTokenForPokemonRating({...withMissing,pokemon:[{pokemon_id:'p1',level:20,opaque:()=>0}]}),null);
+// An accessor-backed array slot can return the same row yet is not a
+// canonical source fact. A freshness token must HOLD without executing it.
+const accessorRows=[{pokemon_id:'p1',level:20}];
+let accessorReads=0;
+const firstRow=accessorRows[0];
+Object.defineProperty(accessorRows,'0',{configurable:true,enumerable:true,
+  get(){accessorReads++;return firstRow;}});
+assert.equal(sourceTokenForPokemonRating({pokemon:accessorRows,ingredients:[],subskills:[]}),null,
+  'array-index getter must not alias a trusted read-only source');
+assert.equal(accessorReads,0,'source tokenization must not invoke array-index getter');
+const extraArray=[firstRow];
+extraArray.opaque_revision='hidden';
+assert.equal(sourceTokenForPokemonRating({pokemon:extraArray,ingredients:[],subskills:[]}),null);
+const sparseArray=new Array(1);
+assert.equal(sourceTokenForPokemonRating({pokemon:sparseArray,ingredients:[],subskills:[]}),null);
 assert.deepEqual(POKEMON_PROVISIONAL_RATING_LABELS,['S+','S','S-','A+','A','A-','B+','B','B-','C+','C','C-','D+','D','D-']);
 const index=fs.readFileSync('index.html','utf8');
 const select=index.match(/<select id="ratingFilter">([\s\S]*?)<\/select>/)?.[1]||'';
