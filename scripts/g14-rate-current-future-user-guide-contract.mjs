@@ -213,6 +213,29 @@ assert.match(manualSource,/if\(RATE4_PRODUCTION_APPLY_ENABLED!==true\)/,
   'production rating writer must reject without explicit feature admission');
 assert.match(detailSource,/if\(advice\.can_propose_save&&RATE4_PRODUCTION_APPLY_ENABLED\)/,
   'production detail UI must not expose the rating Apply control while HOLD');
+// RATE.1 negative-first: malformed observation conflict carriers must not
+// certify an otherwise complete profile. The canonical field_conflicts is an
+// object map, and evidenceConflicts is an array of unresolved field names.
+for(const malformed of ['nature',1,[]]){
+  const result=scorePokemonProvisionalRating({
+    pokemon:{...pokemon,field_conflicts:malformed},subskills,
+  });
+  assert.equal(result.status,'REVIEW_REQUIRED',
+    'malformed field_conflicts must HOLD: '+JSON.stringify(malformed));
+  assert.ok(result.reason_codes.includes('noncanonical_observation_field_conflicts'));
+}
+for(const malformed of ['nature',1,null]){
+  const result=scorePokemonProvisionalRating({pokemon,subskills,evidenceConflicts:malformed});
+  assert.equal(result.status,'REVIEW_REQUIRED',
+    'malformed evidenceConflicts must HOLD: '+JSON.stringify(malformed));
+  assert.ok(result.reason_codes.includes('noncanonical_evidence_conflicts'));
+}
+assert.equal(scorePokemonProvisionalRating({pokemon:{...pokemon,field_conflicts:{}},subskills,
+  evidenceConflicts:[]}).status,'PROVISIONAL_HEURISTIC',
+  'canonical empty conflict carriers must preserve eligible source facts');
+assert.equal(scorePokemonProvisionalRating({pokemon:{...pokemon,field_conflicts:{nature:{status:'CONFLICT'}}},
+  subskills}).status,'REVIEW_REQUIRED',
+  'canonical nonempty conflict map must continue to HOLD');
 assert.equal(pokemon.rating,'D-');
 console.log(JSON.stringify({gate:'G14_RATE_CURRENT_FUTURE_GUIDE_SOURCE',status:'PASS',
   current:'S-',future:'S+',dual_grade:true,guide_bottom:true,
