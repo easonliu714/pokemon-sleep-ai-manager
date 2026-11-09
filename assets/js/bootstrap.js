@@ -188,7 +188,10 @@ async function loadPageModules(page){
     pageLoads.delete(page);
     // A failed ESM URL is sticky in this document's module map. Other
     // hydration errors may still be retried on explicit page navigation.
-    const manualReloadRequired=files.some(file=>failedFeatureModuleUrls.has(file));
+    // G479: backup snapshot imports are deferred ESM too; a failed URL remains sticky
+    // even though backup has no eager pageModuleGroups entries.
+    const manualReloadRequired=files.some(file=>failedFeatureModuleUrls.has(file))
+      ||(page==='backup'&&['storage.js','time-utils.js'].some(file=>failedFeatureModuleUrls.has(file)));
     const retryableOnNextNavigation=!manualReloadRequired;
     const guidance=manualReloadRequired
       ? '請保留本機資料，手動重新載入頁面後重試。'
@@ -202,7 +205,8 @@ async function loadPageModules(page){
 async function hydrateBackupSnapshotPanel(){
   const host=document.getElementById('snapshotList');if(!host)return;const started=performance.now();host.dataset.pageHydration='loading';
   try{
-    const [{listSnapshots},{formatLocal}]=await Promise.all([import('./storage.js'),import('./time-utils.js')]);
+    // G479: share canonical ESM module-map failure tracking with page-aware imports.
+    const [{listSnapshots},{formatLocal}]=await Promise.all([importFeatureModule('storage.js'),importFeatureModule('time-utils.js')]);
     const snapshots=await listSnapshots({force:true});
     const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     host.innerHTML=snapshots.length?snapshots.map(item=>`<div class="snapshot"><b>${esc(item.reason)}</b><br><small>${esc(formatLocal(item.created_at))}</small></div>`).join(''):'尚無自動快照';host.dataset.pageHydration='ready';
