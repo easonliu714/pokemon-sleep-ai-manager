@@ -11,6 +11,7 @@ import {
   createPokemonRatingSelection,changePokemonRatingSelection,reviewPokemonRatingSelection,
 } from '../assets/js/pokemon-roster-rating-preview.js';
 import {renderPokemonRatingGuideHtml} from '../assets/js/pokemon-rating-guide.js';
+import {projectPokemonRatingChange,renderPokemonRatingChangeAdvice} from '../assets/js/pokemon-rating-reactive-advice.js';
 
 // Disposable synthetic facts only: no SQLite, Web Locks, network or player DB.
 const skills=['樹果數量S','幫手獎勵','幫忙速度M','幫忙速度S','睡眠EXP獎勵'];
@@ -78,6 +79,61 @@ const app=fs.readFileSync('assets/js/app.js','utf8');
 assert.match(app,/setupPokemonRatingGuide\(\)/);
 assert.equal(JSON.stringify(source),before,'read-only preview mutated player source');
 assert.equal(pokemon.rating,'D-','old rating must remain untouched');
+// Verified main-skill-level upgrades must re-evaluate the small, explicit
+// versioned product weight. A missing level is *not* silently treated as 1.
+const previous={
+  pokemon:{...pokemon,main_skill_level:1},ingredients:[],subskills,
+};
+const future={
+  pokemon:{...pokemon,level:25,main_skill_level:3},ingredients:[],subskills,
+};
+const growth=projectPokemonRatingChange({previous,current:future,committed:false});
+assert.equal(growth.current.current_heuristic_score,96);
+assert.equal(growth.previous.current_heuristic_score,80);
+assert.equal(growth.current.current_rating,'S+');
+assert.equal(growth.current.future_rating,'S+');
+assert.equal(growth.player_data_write,false);
+assert.ok(growth.changes.some(x=>x.kind==='主技能等級'));
+assert.ok(growth.changes.some(x=>x.kind==='寶可夢等級'));
+assert.match(renderPokemonRatingChangeAdvice(growth),/尚未儲存的個體修改情境預覽/);
+assert.match(renderPokemonRatingChangeAdvice(growth),/變動原因/);
+assert.equal(JSON.stringify(previous.pokemon),JSON.stringify({...pokemon,main_skill_level:1}));
+const natureScenario=projectPokemonRatingChange({previous,current:{
+  ...future,pokemon:{...future.pokemon,nature:'內斂',nature_bonus:'食材機率',
+    nature_penalty:'幫忙速度'},
+},committed:false});
+assert.ok(natureScenario.changes.some(x=>x.kind==='性格'));
+assert.notEqual(natureScenario.current.current_heuristic_score,growth.current.current_heuristic_score);
+const noSkillLevel=scorePokemonProvisionalRating({
+  pokemon:{...pokemon,main_skill_level:null},subskills,
+});
+assert.equal(noSkillLevel.main_skill_level_scored,false);
+assert.equal(noSkillLevel.main_skill_level_contribution,null);
+const invalidSkillLevel=scorePokemonProvisionalRating({
+  pokemon:{...pokemon,main_skill_level:'3'},subskills,
+});
+assert.equal(invalidSkillLevel.status,'REVIEW_REQUIRED');
+assert.ok(invalidSkillLevel.missing_inputs.includes('invalid_main_skill_level'));
+const skillUpgrade=scorePokemonProvisionalRating({
+  pokemon:{...pokemon,specialty:'技能',main_skill:'能量填充S',main_skill_level:4},
+  subskills,
+});
+assert.equal(skillUpgrade.main_skill_level_contribution,6);
+assert.equal(skillUpgrade.main_skill_level_scored,true);
+assert.match(doc,/技能專長 \+2 分/);
+assert.match(doc,/樹果與食材專長 \+1 分/);
+const detailSource=fs.readFileSync('assets/js/pokemon-detail.js','utf8');
+const manualSource=fs.readFileSync('assets/js/manual-editor.js','utf8');
+assert.match(detailSource,/bindDraftRatingAdvice\(/);
+assert.match(detailSource,/mountSavedRatingAdvice\(/);
+assert.match(detailSource,/saveConfirmedPokemonSuggestedRating\(/);
+assert.match(manualSource,/saveConfirmedPokemonSuggestedRating/);
+assert.match(manualSource,/RATE4_STALE_SOURCE_RELOAD_REQUIRED/);
+assert.match(manualSource,/snapshot\('rate4:confirmed:/);
+assert.match(manualSource,/withPrimarySqliteMutationLock\(async lease=>/);
+assert.match(manualSource,/primaryMutationLease:lease/);
+assert.match(manualSource,/confirmed!==true/);
+assert.equal(pokemon.rating,'D-');
 console.log(JSON.stringify({gate:'G14_RATE_CURRENT_FUTURE_GUIDE_SOURCE',status:'PASS',
   current:'S-',future:'S+',dual_grade:true,guide_bottom:true,
   thresholds_exact:true,source_unchanged:true,no_rating_write:true}));
