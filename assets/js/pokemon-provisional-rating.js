@@ -29,6 +29,9 @@ export const POKEMON_PROVISIONAL_RATING_GUIDE=Object.freeze({
   base_points:40,lower_bounds:GRADE_LOWER_BOUNDS,levels:LEVELS,
   subskill_weights:SUBSKILL_WEIGHTS,nature_weights:NATURE_WEIGHTS,
 });
+// The existing rule's long-term grade is unchanged. This projection version
+// adds two explicit interpretations of the SAME verified evidence and weights.
+export const POKEMON_CURRENT_FUTURE_RATING_VIEW_VERSION='pokemon-role-fit-current-future-2026-11-09-a';
 
 const text=value=>String(value??'').normalize('NFKC').trim();
 const nonempty=value=>value!==null&&value!==undefined&&text(value)!=='';
@@ -44,6 +47,7 @@ function hold(required,reason){
   return {
     schema:'pokemon-role-fit-provisional/1.0',rule_version:POKEMON_PROVISIONAL_RATING_RULE_VERSION,
     status:'REVIEW_REQUIRED',proposed_rating:null,heuristic_score:null,
+    current_rating:null,future_rating:null,current_heuristic_score:null,future_heuristic_score:null,
     current_contribution:null,future_contribution:null,
     missing_inputs:[...new Set(required)].sort(),reason_codes:[...new Set(reason)].sort(),
     score_breakdown:[],player_data_write:false,overwrite_allowed:false,
@@ -95,14 +99,14 @@ export function scorePokemonProvisionalRating({pokemon={},ingredients=[],subskil
   }
   if(missing.length||reasons.length)return hold(missing,reasons.length?reasons:['missing_verified_inputs']);
 
-  let score=40,current=0,future=0;
+  let score=40,current=0,future=0,naturePoints=0;
   const breakdown=[{source:'heuristic_base',delta:40,scope:'LONG_TERM',reason:'fixed_product_baseline'}];
   const natureWeights=NATURE_WEIGHTS[specialty],subskillWeights=SUBSKILL_WEIGHTS[specialty];
   const [positive,negative]=knownNature;
   for(const [direction,effect,sign] of [['UP',positive,1],['DOWN',negative,-1]]){
     const weight=natureWeights[normalizedEffect(effect)]||0;
     if(weight){
-      const delta=weight*sign;score+=delta;
+      const delta=weight*sign;score+=delta;naturePoints+=delta;
       breakdown.push({source:'nature',name:effect,direction,delta,scope:'LONG_TERM',reason:'role_nature_fit_heuristic'});
     }
   }
@@ -114,9 +118,16 @@ export function scorePokemonProvisionalRating({pokemon={},ingredients=[],subskil
     breakdown.push({source:'subskill',name,unlock_level:unlockLevel,delta,scope:unlockLevel<=level?'CURRENT':'FUTURE',reason:'role_subskill_fit_heuristic'});
   }
   const bounded=Math.max(0,Math.min(100,score));
+  // CURRENT is a role-fit *heuristic* at the observed level, not energy or
+  // current production. Known future subskill values never enter CURRENT.
+  // FUTURE is the original full-profile long-term rule, NOT a guaranteed ROI.
+  const currentScore=Math.max(0,Math.min(100,40+naturePoints+current));
   return {
     schema:'pokemon-role-fit-provisional/1.0',rule_version:POKEMON_PROVISIONAL_RATING_RULE_VERSION,
+    projection_version:POKEMON_CURRENT_FUTURE_RATING_VIEW_VERSION,
     status:'PROVISIONAL_HEURISTIC',proposed_rating:ratingFromScore(bounded),heuristic_score:bounded,
+    current_rating:ratingFromScore(currentScore),future_rating:ratingFromScore(bounded),
+    current_heuristic_score:currentScore,future_heuristic_score:bounded,
     current_contribution:current,future_contribution:future,
     missing_inputs:[],reason_codes:['PRODUCT_HEURISTIC_NOT_OFFICIAL','NOT_A_PRODUCTION_OR_ROI_ESTIMATE','FUTURE_SLOTS_EXCLUDED_FROM_CURRENT'],
     score_breakdown:breakdown,player_data_write:false,overwrite_allowed:false,
@@ -142,6 +153,9 @@ export function planPokemonRosterProvisionalRegrade({pokemon=[],details=[]}={}){
     });
     const item={pokemon_id:id,pokemon_instance_id:row.pokemon_instance_id||null,
       previous_rating:row.rating??null,proposed_rating:result.proposed_rating,
+      current_rating:result.current_rating,future_rating:result.future_rating,
+      current_heuristic_score:result.current_heuristic_score,
+      future_heuristic_score:result.future_heuristic_score,
       status:result.status,rule_version:result.rule_version,missing_inputs:result.missing_inputs,
       reason_codes:result.reason_codes,score_breakdown:result.score_breakdown,
       changed:result.proposed_rating!==null&&result.proposed_rating!==row.rating};
