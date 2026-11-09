@@ -61,6 +61,6 @@ export function renderPokemonRatingChangeAdvice(advice){
     +'<p>'+esc(mainLevelStatus)+'</p>'
     +'<p>性格變更或技能升級只在遊戲內已確認並更新個體資料後才算正式現況；道具未使用前只能模擬。'
     +'推薦等級與實際技能效果或回本率不同；HOLD 不得自動填入。</p>'
-    +'<p>建議評級只供檢視，除非另行按下明確儲存並完成快照與耐久讀回，'
-    +'不會覆寫既有 <code>pokemon.rating</code>。</p></div>';
+    +'<p>RATE.4 評級套用尚未獲正式授權，目前只提供唯讀建議；'
+    +'不會自動覆寫既有 <code>pokemon.rating</code>。</p></div>';
 }
