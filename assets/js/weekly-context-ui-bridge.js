@@ -1,4 +1,6 @@
-import {run,persist,snapshot,isDatabaseReady,isRescueReadonly} from './database.js';
+import {run,persist,snapshot,begin,commit,rollback,isDatabaseReady,isRescueReadonly} from './database.js';
+import {withPrimarySqliteMutationLock} from './storage.js';
+import {beginSqliteExclusiveWriteWindow,withSqliteCoordinatedMutation} from './sqlite-direct-write-window-guard.js';
 import {currentWeeklyContext} from './weekly-context-store.js';
 import {campBerryAuthority,resolveCampFavoriteBerries} from './public-camp-berry-master.js';
 import {saveWeeklyManualOverride,clearWeeklyManualOverride} from './weekly-context-manual-override.js';
@@ -218,20 +220,50 @@ async function saveAccountPotCapacity(edit){
   return value;
 }
 async function saveFallback(form,current,potEdit){
-  const weekStart=current.week_start||localWeekStart();
-  const camp=String(q(form,'camp')?.value??'').trim()||null;
-  const observed=formBerryObservation(form);
-  const resolved=camp?resolveCampFavoriteBerries(camp,observed):{berries:observed};
-  const manualEffects=String(q(form,'event_effects')?.value??'').trim()||null;
-  const manualId=`weekly_context_${weekStart}_manual`;
-  await snapshot('manual:weekly-context-fallback');
-  run('INSERT OR REPLACE INTO weekly_context(context_id,week_start,camp,dish_category,favorite_berry_1,favorite_berry_2,favorite_berry_3,event_name,event_effects,pot_size,base_notes,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',[
-    manualId,weekStart,camp,typedValue('dish_category',q(form,'dish_category')?.value??''),resolved.berries?.[0]||null,resolved.berries?.[1]||null,resolved.berries?.[2]||null,
-    typedValue('event_name',q(form,'event_name')?.value??''),manualEffects,null,typedValue('base_notes',q(form,'base_notes')?.value??''),localIso(),
-  ]);
-  if(potEdit.needsAccountWrite)writeAccountPotCapacity(potEdit.value,potEdit.source);
-  await persist();
-  return {context_id:manualId,week_start:weekStart,authority:'MANUAL_FALLBACK',pot_capacity_updated:potEdit.needsAccountWrite,pot_capacity:potEdit.value};
+  // G265: reserve this page before waiting for the native primary lease.
+  // Re-read weekly authority under the lease; a JSON import must never be
+  // silently replaced by a stale manual fallback.
+  const close=beginSqliteExclusiveWriteWindow();
+  let acknowledged=false;
+  try{
+    return await withPrimarySqliteMutationLock(async lease=>{
+      const admittedCurrent=currentWeeklyContext();
+      if(hasImportedAuthority(admittedCurrent))
+        throw new Error('WEEKLY_FALLBACK_IMPORTED_AUTHORITY_RELOAD_REQUIRED');
+      const weekStart=admittedCurrent.week_start||localWeekStart();
+      if(current.week_start&&current.week_start!==weekStart)
+        throw new Error('WEEKLY_FALLBACK_WEEK_CHANGED_RELOAD_REQUIRED');
+      validateManualForm(form,admittedCurrent);
+      const camp=String(q(form,'camp')?.value??'').trim()||null;
+      const observed=formBerryObservation(form);
+      const resolved=camp?resolveCampFavoriteBerries(camp,observed):{berries:observed};
+      const manualEffects=String(q(form,'event_effects')?.value??'').trim()||null;
+      const manualId=`weekly_context_${weekStart}_manual`;
+      await snapshot('manual:weekly-context-fallback');
+      let begun=false,committed=false;
+      try{
+        withSqliteCoordinatedMutation(()=>{
+          begin();begun=true;
+          run('INSERT OR REPLACE INTO weekly_context(context_id,week_start,camp,dish_category,favorite_berry_1,favorite_berry_2,favorite_berry_3,event_name,event_effects,pot_size,base_notes,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',[
+            manualId,weekStart,camp,typedValue('dish_category',q(form,'dish_category')?.value??''),resolved.berries?.[0]||null,resolved.berries?.[1]||null,resolved.berries?.[2]||null,
+            typedValue('event_name',q(form,'event_name')?.value??''),manualEffects,null,typedValue('base_notes',q(form,'base_notes')?.value??''),localIso(),
+          ]);
+          if(potEdit.needsAccountWrite)writeAccountPotCapacity(potEdit.value,potEdit.source);
+          commit();committed=true;
+        });
+      }catch(error){
+        if(begun&&!committed)withSqliteCoordinatedMutation(rollback);
+        throw error;
+      }
+      // COMMIT is not a durable ACK. Keep the same native lease through
+      // primary bytes/metadata/revision CAS; ACK loss is sticky, no retry.
+      await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
+      acknowledged=true;
+      return {context_id:manualId,week_start:weekStart,authority:'MANUAL_FALLBACK',pot_capacity_updated:potEdit.needsAccountWrite,pot_capacity:potEdit.value};
+    });
+  }finally{
+    close({uncertainOutcome:!acknowledged});
+  }
 }
 function emitEntityChanged(entity,detail={}){
   document.dispatchEvent(new CustomEvent('pokemon-sleep-data-refreshed',{detail:{entity,...detail}}));
