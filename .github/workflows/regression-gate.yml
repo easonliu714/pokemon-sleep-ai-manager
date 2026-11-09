@@ -445,7 +445,10 @@ jobs:
         env:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-native-chromium-lock-held-legacy-bypass-negative.mjs
-      - name: G265 weekly fallback production pre-SQL admission source-bound\n        run: node scripts/g265-weekly-fallback-production-pretransaction-source.mjs\n\n      - name: G265 weekly clear production pre-SQL admission
+      - name: G265 weekly fallback production pre-SQL admission source-bound
+        run: node scripts/g265-weekly-fallback-production-pretransaction-source.mjs
+
+      - name: G265 weekly clear production pre-SQL admission
         run: node scripts/g265-weekly-clear-production-pretransaction-source.mjs
       - name: G265 native Chromium weekly clear pretransaction
         env:
