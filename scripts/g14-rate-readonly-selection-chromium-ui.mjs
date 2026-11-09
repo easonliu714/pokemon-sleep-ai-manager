@@ -103,14 +103,29 @@ try{
       result:{analysis:{observations:[observation]}}};
     const valid=preview({draft,revision});
     const mismatch=preview({draft,revision:{...revision,source_image_ref:'image-B'}});
+    const confidenceCases=['0.99',true].map(untrusted=>{
+      const altered={...observation,evidence:{...observation.evidence,
+        field_confidence:{...observation.evidence.field_confidence,nature:untrusted}}};
+      const result=preview({draft,revision:{...revision,
+        result:{analysis:{observations:[altered]}}}});
+      return {status:result.status,grade:result.proposed_rating,
+        missing:result.missing_inputs.includes('field_confidence_nature')};
+    });
     return {valid:valid.status,mismatch:mismatch.status,
-      reason_codes:mismatch.reason_codes,proposed_rating:mismatch.proposed_rating};
+      reason_codes:mismatch.reason_codes,proposed_rating:mismatch.proposed_rating,
+      confidenceCases};
   });
   assert.equal(rate2.valid,'PROVISIONAL_HEURISTIC');
   assert.equal(rate2.mismatch,'REVIEW_REQUIRED',
     'Chromium must not promote another image revision to a provisional grade');
   assert.equal(rate2.proposed_rating,null);
   assert.ok(rate2.reason_codes.includes('REVISION_IMAGE_PROVENANCE_MISMATCH'));
+  for(const held of rate2.confidenceCases){
+    assert.equal(held.status,'REVIEW_REQUIRED',
+      'Chromium must reject coercible nonnumeric OCR confidence before showing a grade');
+    assert.equal(held.grade,null);
+    assert.equal(held.missing,true);
+  }
   // RATE.5 isolated read-only guard in genuine Chromium; no production Apply.
   const rate5=await page.evaluate(async()=>{
     const {capturePokemonRatingRefreshAuthority:capture,

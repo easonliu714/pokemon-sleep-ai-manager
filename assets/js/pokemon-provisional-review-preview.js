@@ -10,8 +10,10 @@ const confidence=(map,key)=>{
   const entry=map?.['profile.'+key]??map?.[key];
   const value=typeof entry==='object'&&entry!==null?entry.confidence:entry;
   if(value===null||value===undefined||value==='')return null;
-  const n=Number(value);
-  return Number.isFinite(n)&&n>=0&&n<=1?n:null;
+  // OCR/AI confidence is an observed numeric fact, not a coercible label.
+  // Number('0.99') and Number(true) would falsely authorize a grade.
+  if(typeof value!=='number')return null;
+  return Number.isFinite(value)&&value>=0&&value<=1?value:null;
 };
 const slotKey=rows=>(Array.isArray(rows)?rows:[]).map(row=>
   [Number(row?.unlock_level??row?.level),clean(row?.subskill_name??row?.ingredient_name??row?.name)])
