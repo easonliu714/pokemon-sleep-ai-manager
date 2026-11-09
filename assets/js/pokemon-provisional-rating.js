@@ -23,6 +23,13 @@ const NATURE_WEIGHTS=Object.freeze({
 });
 const LEVELS=Object.freeze([10,25,50,70,80]);
 const GRADE_LOWER_BOUNDS=Object.freeze([93,86,79,72,65,58,51,44,37,30,23,16,9,3,0]);
+// RATE.4 documentation: expose the exact existing scoring constants so the
+// user guide cannot silently drift from the actual provisional evaluator.
+export const POKEMON_PROVISIONAL_RATING_GUIDE=Object.freeze({
+  base_points:40,lower_bounds:GRADE_LOWER_BOUNDS,levels:LEVELS,
+  subskill_weights:SUBSKILL_WEIGHTS,nature_weights:NATURE_WEIGHTS,
+});
+
 const text=value=>String(value??'').normalize('NFKC').trim();
 const nonempty=value=>value!==null&&value!==undefined&&text(value)!=='';
 // RATE.1: an OCR/AI or imported coercible value is not verified numeric evidence.
