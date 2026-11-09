@@ -111,9 +111,26 @@ try{
       return {status:result.status,grade:result.proposed_rating,
         missing:result.missing_inputs.includes('field_confidence_nature')};
     });
+    // RATE.2 genuine Chromium: source OCR numeric facts must be canonical.
+    // A numeric reviewed draft cannot launder a string/boolean source level.
+    const sourceLevelCases=['20',true].map(level=>{
+      const altered={...observation,profile:{...observation.profile,level}};
+      const result=preview({draft,revision:{...revision,
+        result:{analysis:{observations:[altered]}}}});
+      return {status:result.status,grade:result.proposed_rating,
+        reason:result.reason_codes.includes('SOURCE_NONCANONICAL_LEVEL')};
+    });
+    const sourceSlotCases=['10',true].map(unlock_level=>{
+      const altered={...observation,
+        subskills:[{...subskills[0],unlock_level},...subskills.slice(1)]};
+      const result=preview({draft,revision:{...revision,
+        result:{analysis:{observations:[altered]}}}});
+      return {status:result.status,grade:result.proposed_rating,
+        reason:result.reason_codes.includes('SOURCE_NONCANONICAL_SUBSKILL_LEVEL')};
+    });
     return {valid:valid.status,mismatch:mismatch.status,
       reason_codes:mismatch.reason_codes,proposed_rating:mismatch.proposed_rating,
-      confidenceCases};
+      confidenceCases,sourceLevelCases,sourceSlotCases};
   });
   assert.equal(rate2.valid,'PROVISIONAL_HEURISTIC');
   assert.equal(rate2.mismatch,'REVIEW_REQUIRED',
@@ -125,6 +142,12 @@ try{
       'Chromium must reject coercible nonnumeric OCR confidence before showing a grade');
     assert.equal(held.grade,null);
     assert.equal(held.missing,true);
+  }
+  for(const held of [...rate2.sourceLevelCases,...rate2.sourceSlotCases]){
+    assert.equal(held.status,'REVIEW_REQUIRED',
+      'Chromium must not promote coercible OCR numeric source facts');
+    assert.equal(held.grade,null);
+    assert.equal(held.reason,true);
   }
   // RATE.5 isolated read-only guard in genuine Chromium; no production Apply.
   const rate5=await page.evaluate(async()=>{
