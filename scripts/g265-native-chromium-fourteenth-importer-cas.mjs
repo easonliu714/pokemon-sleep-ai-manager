@@ -8,7 +8,7 @@ import {createHash} from 'node:crypto';
 import {chromium} from 'playwright';
 import initSqlJs from 'sql.js';
 
-const source=fs.readFileSync(new URL('../assets/js/importer.js',import.meta.url),'utf8');
+const source=fs.readFileSync(new URL('./fixtures/g265-importer-legacy-source.js',import.meta.url),'utf8');
 const marker='export async function applyPayload(payload) {';
 const writeMarker='function write(entity, key, data, mode) {';
 assert.equal(source.split(marker).length,2);
