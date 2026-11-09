@@ -230,6 +230,17 @@ for(const malformed of ['nature',1,null]){
     'malformed evidenceConflicts must HOLD: '+JSON.stringify(malformed));
   assert.ok(result.reason_codes.includes('noncanonical_evidence_conflicts'));
 }
+// RATE.1 negative-first: exotic conflict maps can have zero enumerable keys
+// while hiding provenance. Date/Map/null-prototype are not JSON object maps;
+// they must never certify an otherwise complete player profile.
+for(const malformed of [new Date('2026-11-10T00:00:00Z'),new Map(),Object.create(null)]){
+  const result=scorePokemonProvisionalRating({
+    pokemon:{...pokemon,field_conflicts:malformed},subskills,
+  });
+  assert.equal(result.status,'REVIEW_REQUIRED',
+    'non-plain field_conflicts must HOLD instead of silently appearing empty');
+  assert.ok(result.reason_codes.includes('noncanonical_observation_field_conflicts'));
+}
 assert.equal(scorePokemonProvisionalRating({pokemon:{...pokemon,field_conflicts:{}},subskills,
   evidenceConflicts:[]}).status,'PROVISIONAL_HEURISTIC',
   'canonical empty conflict carriers must preserve eligible source facts');
