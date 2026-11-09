@@ -137,6 +137,16 @@ const fakeMainSkill=scorePokemonProvisionalRating({
 assert.equal(fakeMainSkill.status,'REVIEW_REQUIRED',
   'unverified main skill name must HOLD, not produce a 15-band grade');
 assert.ok(fakeMainSkill.missing_inputs.includes('main_skill'));
+// Canonical public identities remain eligible; do not regress valid facts.
+const canonicalIngredient=scorePokemonProvisionalRating({
+  pokemon:{...pokemon,specialty:'食材'},subskills,
+  ingredients:[{unlock_level:1,ingredient_name:'特選蘋果'}],
+});
+assert.equal(canonicalIngredient.status,'PROVISIONAL_HEURISTIC');
+const canonicalMainSkill=scorePokemonProvisionalRating({
+  pokemon:{...pokemon,specialty:'技能',main_skill:'能量填充S'},subskills,
+});
+assert.equal(canonicalMainSkill.status,'PROVISIONAL_HEURISTIC');
 // Release-authority regression: do not instruct Owner to use an Apply button
 // intentionally hidden by the production default-off gate.
 assert.match(doc,/RATE\.4 評級套用尚未獲正式授權/);

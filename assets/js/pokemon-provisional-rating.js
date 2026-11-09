@@ -1,7 +1,7 @@
 // Owner-approved preliminary role-fit advice. This is an app heuristic, NOT an
 // official Pokémon Sleep stat, production forecast, or admitted SQLite writer.
 // Never infer unknown inputs as zero or overwrite a player's existing rating.
-import {NATURES, SUBSKILLS} from './pokemon-master-options.js';
+import {NATURES, SUBSKILLS, INGREDIENTS, MAIN_SKILLS} from './pokemon-master-options.js';
 
 export const POKEMON_PROVISIONAL_RATING_RULE_VERSION='pokemon-role-fit-15-band-2026-11-09-b';
 export const POKEMON_PROVISIONAL_RATING_LABELS=Object.freeze([
@@ -102,9 +102,11 @@ export function scorePokemonProvisionalRating({pokemon={},ingredients=[],subskil
     missing.push('invalid_main_skill_level');
   if(specialty==='食材'){
     const ingredientRows=Array.isArray(ingredients)?ingredients:[];
-    if(!ingredientRows.some(row=>number(row?.unlock_level??row?.level)===1&&nonempty(row?.ingredient_name??row?.name)))missing.push('level_1_ingredient');
+    // Nonempty text is not source verification: only canonical public identity is eligible.
+    if(!ingredientRows.some(row=>number(row?.unlock_level??row?.level)===1&&INGREDIENTS.includes(text(row?.ingredient_name??row?.name))))missing.push('level_1_ingredient');
   }
-  if(specialty==='技能'&&!nonempty(pokemon.main_skill))missing.push('main_skill');
+  // An unknown main-skill label must not silently receive a confident grade.
+  if(specialty==='技能'&&!MAIN_SKILLS.includes(text(pokemon.main_skill)))missing.push('main_skill');
   if(knownNature){
     if(nonempty(pokemon.nature_bonus)&&normalizedEffect(pokemon.nature_bonus)!==normalizedEffect(knownNature[0]))reasons.push('nature_bonus_evidence_conflict');
     if(nonempty(pokemon.nature_penalty)&&normalizedEffect(pokemon.nature_penalty)!==normalizedEffect(knownNature[1]))reasons.push('nature_penalty_evidence_conflict');
