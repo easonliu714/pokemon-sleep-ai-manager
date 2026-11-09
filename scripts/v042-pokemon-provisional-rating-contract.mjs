@@ -70,6 +70,18 @@ assert.ok(identity.reason_codes.includes('identity_review_required'));
 const missingLevel=scorePokemonProvisionalRating({pokemon:{...pokemon,level:null},subskills:slots});
 assert.equal(missingLevel.proposed_rating,null);
 assert.ok(missingLevel.missing_inputs.includes('valid_level'));
+// RATE1_NONPRIMITIVE_LEVEL: untrusted/coercible numeric facts are not verified
+// level evidence. The existing heuristic must HOLD, never coerce true or "10".
+const booleanLevel=scorePokemonProvisionalRating({pokemon:{...pokemon,level:true},subskills:slots});
+assert.equal(booleanLevel.status,'REVIEW_REQUIRED','boolean true is not a verified Pokémon level');
+assert.equal(booleanLevel.proposed_rating,null);
+assert.ok(booleanLevel.missing_inputs.includes('valid_level'));
+const stringSlot=scorePokemonProvisionalRating({pokemon,
+  subskills:slots.map((row,index)=>index===0?{...row,unlock_level:'10'}:row)});
+assert.equal(stringSlot.status,'REVIEW_REQUIRED','coercible subskill slot is not verified numeric evidence');
+assert.equal(stringSlot.proposed_rating,null);
+assert.ok(stringSlot.missing_inputs.includes('invalid_or_unverified_subskill'));
+
 const skill=scorePokemonProvisionalRating({pokemon:{...pokemon,specialty:'技能',nature:'溫和',
   nature_bonus:'主技能發動機率',nature_penalty:'幫忙速度',main_skill:null},
   subskills:slots});
