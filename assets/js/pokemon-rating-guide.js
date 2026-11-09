@@ -39,7 +39,7 @@ export function renderPokemonRatingGuideHtml(){
     +'<p><strong>這套評級是什麼？</strong>以寶可夢專長、性格與已知副技能計算「培養適性」，不是官方戰力或實際產能。'
     +'兩個分數都採用相同 15 階門檻，且不代表投入糖果後的回報率。</p>'
     +'<div class="table-wrap"><table><caption>先理解兩個評級</caption><thead><tr><th>欄位</th><th>評估範圍</th><th>用途</th></tr></thead><tbody>'
-    +'<tr><th scope="row">現在 CURRENT</th><td>基礎分＋性格加減分＋目前等級已解鎖的已知副技能</td><td>查看目前配置的適性；非即時產能</td></tr>'
+    +'<tr><th scope="row">現在 CURRENT</th><td>基礎分＋性格加減分＋目前等級已解鎖的已知副技能</td><td>查看目前配置的適性；不代表即時產能</td></tr>'
     +'<tr><th scope="row">未來 FUTURE</th><td>基礎分＋性格加減分＋Lv10／25／50／70／80 全部已知副技能</td><td>查看完整配置長期潛力；非保證回本</td></tr>'
     +'</tbody></table></div>'
     +'<p><strong>簡單算式：</strong><code>現在分 = clamp(40 + 性格分 + 已解鎖副技能分 + 主技能等級加分, 0, 100)</code>；'
