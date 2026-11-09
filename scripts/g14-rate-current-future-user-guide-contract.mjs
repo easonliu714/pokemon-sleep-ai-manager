@@ -148,6 +148,26 @@ const duplicateSubskillName=scorePokemonProvisionalRating({
 assert.equal(duplicateSubskillName.status,'REVIEW_REQUIRED',
   'duplicate subskill names across levels must HOLD rather than double-score');
 assert.ok(duplicateSubskillName.missing_inputs.includes('duplicate_subskill_name'));
+// RATE.1 source-bound negative-first: identity-review authority is a tri-state
+// safety signal, not an arbitrary truthy/falsy scalar. Noncanonical imported
+// flags must not silently certify a 15-band recommendation.
+for(const unverifiedFlag of ['true','false',2,[],{}]){
+  const ambiguousIdentity=scorePokemonProvisionalRating({
+    pokemon:{...pokemon,identity_review_required:unverifiedFlag},subskills,
+  });
+  assert.equal(ambiguousIdentity.status,'REVIEW_REQUIRED',
+    'noncanonical identity-review flag must HOLD: '+JSON.stringify(unverifiedFlag));
+  assert.ok(ambiguousIdentity.reason_codes.includes('noncanonical_identity_review_flag'));
+}
+const explicitIdentityReview=scorePokemonProvisionalRating({
+  pokemon:{...pokemon,identity_review_required:1},subskills,
+});
+assert.equal(explicitIdentityReview.status,'REVIEW_REQUIRED');
+assert.ok(explicitIdentityReview.reason_codes.includes('identity_review_required'));
+const explicitIdentityClear=scorePokemonProvisionalRating({
+  pokemon:{...pokemon,identity_review_required:0},subskills,
+});
+assert.equal(explicitIdentityClear.status,'PROVISIONAL_HEURISTIC');
 // Canonical public identities remain eligible; do not regress valid facts.
 const canonicalIngredient=scorePokemonProvisionalRating({
   pokemon:{...pokemon,specialty:'食材'},subskills,
