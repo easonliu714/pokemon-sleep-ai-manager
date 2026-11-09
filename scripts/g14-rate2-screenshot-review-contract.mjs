@@ -74,5 +74,5 @@ assert.match(ui,/renderPokemonScreenshotRatingPreviewHtml/);
 assert.match(ui,/function readRatingPreviewDraft/);
 assert.match(ui,/refreshRatingPreview\(root\)/);
 console.log(JSON.stringify({gate:'G14_RATE2_SCREENSHOT_REVIEW_READ_ONLY',
-  status:'PASS',valid_grade:'S+',negative_cases:9,
+  status:'PASS',valid_grade:'S+',negative_cases:11,
   identity_and_source_fail_closed:true,no_player_write:true}));
