@@ -2,11 +2,14 @@
 // Two acknowledged stale full-image persists lose a confirmed transfer and its private audit.
 // PASS is an UNSAFE negative, not production admission or Android UAT.
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import initSqlJs from 'sql.js';
 
-const source=fs.readFileSync(new URL('../assets/js/pokemon-professor-transfer.js',import.meta.url),'utf8');
+const source=fs.readFileSync(new URL('./fixtures/g265-professor-transfer-legacy-source.js',import.meta.url),'utf8');
+const pinnedBlob=createHash('sha1').update('blob '+Buffer.byteLength(source)+'\0'+source).digest('hex');
+assert.equal(pinnedBlob,'0469bae5f07e6d9cdf1f95b40a665dee37a62181','frozen historical professor source must not drift');
 const start='export async function transferPokemonToProfessor(';
 const end='\nexport function professorTransferCandyGuidance()';
 assert.equal(source.split(start).length,2,'professor transfer source must be unique');
