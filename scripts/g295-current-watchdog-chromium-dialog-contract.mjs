@@ -248,6 +248,37 @@ try{
     await act(()=>window.__g295.frames(31));
     assert.equal((await state()).warningText,'EXTERNAL_RESPONSIVE_TIMER_STORAGE_HOLD',
       'foreign warning must survive subsequent watchdog recovery');
+    // Negative-first: another storage subsystem may hide the watchdog badge
+    // and replace its content before a responsive timer observes the takeover.
+    // A hidden DOM node is not proof of continued watchdog ownership.
+    await act(()=>{const w=document.getElementById('storageWarning');
+      w.classList.add('hidden');w.textContent='';delete w.dataset.startupWatchdogWarning;});
+    await act(()=>window.__g295.frames(40));
+    await act(()=>window.__g295.tick(6000));
+    const beforeHiddenTakeover=await state();
+    assert.equal(beforeHiddenTakeover.watchdogMarker,'startup-heartbeat-watchdog',
+      'precondition: watchdog owns badge before hidden foreign takeover');
+    await act(()=>{const w=document.getElementById('storageWarning');
+      w.classList.add('hidden');w.textContent='EXTERNAL_HIDDEN_STORAGE_HOLD';
+      window.__g295.tick(2000);});
+    const hiddenTakeover=await state();
+    assert.equal(hiddenTakeover.detected,beforeHiddenTakeover.detected,
+      'responsive timer must not invent another foreground stall');
+    assert.equal(hiddenTakeover.visibleWarning,false,'foreign hidden state must remain hidden');
+    assert.equal(hiddenTakeover.warningText,'EXTERNAL_HIDDEN_STORAGE_HOLD',
+      'foreign hidden text must remain untouched');
+    assert.equal(hiddenTakeover.watchdogMarker,null,
+      'hidden foreign takeover must revoke stale watchdog ownership');
+    assert.equal(hiddenTakeover.preserved,beforeHiddenTakeover.preserved+1,
+      'hidden foreign takeover must be independently traced once');
+    await act(()=>window.__g295.tick(2000));
+    assert.equal((await state()).preserved,hiddenTakeover.preserved,
+      'responsive repeated timer must not duplicate hidden takeover trace');
+    await act(()=>window.__g295.frames(31));
+    assert.equal((await state()).warningText,'EXTERNAL_HIDDEN_STORAGE_HOLD',
+      'stable RAF recovery must not erase hidden foreign text');
+    console.log('PASS G295_CHROMIUM_HIDDEN_FOREIGN_WARNING_OWNERSHIP_REVOKED');
+
     console.log('PASS G295_CHROMIUM_RESPONSIVE_TIMER_FOREIGN_WARNING_OWNERSHIP_REVOKED');
 
     console.log('PASS G295_CHROMIUM_LATE_FOREIGN_WARNING_OWNERSHIP_REVOKED');
