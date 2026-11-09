@@ -60,14 +60,19 @@ function hold(required,reason){
     score_breakdown:[],player_data_write:false,overwrite_allowed:false,
   };
 }
+// The same named subskill cannot occupy two distinct verified slots on one
+// Pokémon. An imported duplicate would otherwise earn its role weight twice.
+// Keep the source intact and HOLD for review; never repair player observations.
 function slotRows(subskills){
-  const slots=new Map(),invalid=[];
+  const slots=new Map(),seenNames=new Set(),invalid=[];
   for(const row of Array.isArray(subskills)?subskills:[]){
     const level=number(row?.unlock_level??row?.level);
     const name=text(row?.subskill_name??row?.name);
     if(!LEVELS.includes(level)||!name||!SUBSKILLS.includes(name)){
       invalid.push('invalid_or_unverified_subskill');continue;
     }
+    if(seenNames.has(name))invalid.push('duplicate_subskill_name');
+    else seenNames.add(name);
     if(slots.has(level))invalid.push('duplicate_subskill_level');
     else slots.set(level,name);
   }
