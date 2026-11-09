@@ -18,7 +18,7 @@ assert.ok(operation.indexOf('withPrimarySqliteMutationLock(async lease')<
   operation.indexOf('currentWeeklyContext()'),'fresh current context must be read under lease');
 assert.ok(operation.indexOf('withPrimarySqliteMutationLock(async lease')<
   operation.indexOf('await snapshot('),'snapshot must follow native admission');
-assert.match(operation,/withSqliteCoordinatedMutation\(begin\)/);
+assert.match(operation,/withSqliteCoordinatedMutation\(\(\)=>\{\s*begin\(\)/);
 assert.match(operation,/withSqliteCoordinatedMutation\(rollback\)/);
 assert.match(operation,/persist\(\{primaryMutationLease:lease\}\)/);
 assert.match(operation,/close\(\{uncertainOutcome:!acknowledged\}\)/);
