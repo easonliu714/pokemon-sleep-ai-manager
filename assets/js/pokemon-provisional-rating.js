@@ -99,9 +99,11 @@ function slotRows(subskills){
  */
 export function scorePokemonProvisionalRating({pokemon={},ingredients=[],subskills=[],evidenceConflicts=[]}={}){
   const missing=[],reasons=[],specialty=verifiedLabel(pokemon.specialty),species=verifiedLabel(pokemon.current_species||pokemon.species||pokemon.original_label);
-  const nature=verifiedLabel(pokemon.nature),knownNature=NATURES[nature],level=number(pokemon.level);
+  // RATE.1: ordinary object-prototype names are not canonical player facts.
+  // Inherited constructor/toString must HOLD instead of certifying a grade.
+  const nature=verifiedLabel(pokemon.nature),knownNature=Object.hasOwn(NATURES,nature)?NATURES[nature]:null,level=number(pokemon.level);
   if(!species)missing.push('species');
-  if(!SUBSKILL_WEIGHTS[specialty])missing.push('verified_specialty');
+  if(!Object.hasOwn(SUBSKILL_WEIGHTS,specialty))missing.push('verified_specialty');
   if(!knownNature)missing.push('verified_nature');
   if(level===null)missing.push('valid_level');
   // Imported identity-review flags are provenance gates, not generic JS
