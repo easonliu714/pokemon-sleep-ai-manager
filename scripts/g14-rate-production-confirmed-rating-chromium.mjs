@@ -21,6 +21,10 @@ db.run("CREATE TABLE pokemon(pokemon_id TEXT PRIMARY KEY,pokemon_instance_id TEX
 db.run("CREATE TABLE pokemon_subskills(pokemon_id TEXT,unlock_level INTEGER,subskill_name TEXT,is_unlocked INTEGER)");
 db.run("CREATE TABLE pokemon_ingredients(pokemon_id TEXT,unlock_level INTEGER,ingredient_name TEXT)");
 db.run("CREATE TABLE rating_audit(pokemon_id TEXT,old_rating TEXT,new_rating TEXT,scope TEXT)");
+// Negative-first: the candidate Chromium fixture must exercise the REAL
+// import_batches/import_changes audit, not only a synthetic rating_audit stand-in.
+db.run("CREATE TABLE import_batches(update_id TEXT PRIMARY KEY,schema_version TEXT,generated_at TEXT,imported_at TEXT,source TEXT,operation_count INTEGER,result_json TEXT)");
+db.run("CREATE TABLE import_changes(update_id TEXT,operation_index INTEGER,entity TEXT,action TEXT,key_json TEXT,before_json TEXT,after_json TEXT,status TEXT,message TEXT)");
 db.run("CREATE TABLE public_master(marker TEXT PRIMARY KEY)");
 db.run("INSERT INTO public_master VALUES('UNCHANGED')");
 db.run("INSERT INTO pokemon(pokemon_id,pokemon_instance_id,species,level,specialty,nature,nature_bonus,nature_penalty,main_skill,main_skill_level,rating,status,source_update_id) VALUES('fixture','instance-X','synthetic',20,'樹果','固執','幫忙速度','食材機率','能量填充S',1,'D-','active','ORIGINAL-SOURCE')");
@@ -126,6 +130,7 @@ const inspect=bytes=>{
   const table=sql=>d.exec(sql)?.[0]?.values||[];
   return {rating:table("SELECT rating FROM pokemon WHERE pokemon_id='fixture'")[0]?.[0],
     audit:table('SELECT old_rating,new_rating,scope FROM rating_audit ORDER BY rowid'),
+    realAuditCount:table('SELECT COUNT(*) FROM import_changes')[0]?.[0]||0,
     level:table("SELECT level FROM pokemon WHERE pokemon_id='fixture'")[0]?.[0],
     nature:table("SELECT nature FROM pokemon WHERE pokemon_id='fixture'")[0]?.[0],
      sourceUpdateId:table("SELECT source_update_id FROM pokemon WHERE pokemon_id='fixture'")[0]?.[0],
@@ -153,6 +158,8 @@ try{
  assert.equal(first.ok,true,first.code);
  assert.equal(first.out.grade,'S-');
  assert.equal(inspect(await persisted(seedPage)).rating,'S-');
+ assert.equal(inspect(await persisted(seedPage)).realAuditCount,1,
+   'production import_changes audit must be durable; a synthetic audit table cannot certify RATE.4');
  const stale=await second.evaluate(()=>window.__rate.save('FUTURE'));
  assert.equal(stale.ok,false);
  assert.match(stale.code,/STALE_REVISION_RELOAD_REQUIRED/);
