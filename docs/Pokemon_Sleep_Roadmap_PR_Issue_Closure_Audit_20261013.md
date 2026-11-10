@@ -1,3 +1,10 @@
+## 2026-11-10 G14.RATE.1 #859 — conflicting Lv1 ingredient provenance | material Source/Test candidate
+
+- **Authority:** protected main `fe145368f77ea361cd0366fdadebeed9545b84e1`; sole Draft [#859](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/859). `RATE4_PRODUCTION_APPLY_ENABLED=false`; `HOLD_PRODUCTION_APPLY`; no Ready/Merge/deploy or Owner player-data writes.
+- **Actual negative-first CI:** test-only exact HEAD `9ea284934b64748ca53ff3dbc27f440635a29e49`, [Frontend Regression #42731461558](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/42731461558) **FAILED** at named G14 source-bound step, line 196: contradictory canonical Lv1 ingredient rows yielded actual `PROVISIONAL_HEURISTIC` instead of `REVIEW_REQUIRED`. Genuine job log inspected; synthetic data only.
+- **Minimal repair:** `pokemon-provisional-rating.js::scorePokemonProvisionalRating` requires no more than one Lv1 ingredient row for ingredient-specialist verified facts. Duplicate or contradictory Lv1 rows HOLD with `conflicting_level_1_ingredient`; a valid Lv1 plus Lv30 remains eligible. Preserve all original observations, rule weights, 15-band CURRENT/FUTURE, UNKNOWN, player.rating and read-only preview. One Source + one Test + these three canonical docs in same material Git commit; existing CI workflow only.
+- **Status:** `SOURCE_TEST_CANDIDATE` awaiting exact-head PR CI and independent verification. No new-main CI/Pages because Draft cannot be merged under Owner's STOP. #19 latest scheduled [#42691935090](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/42691935090) raw official article H1=0, `HOLD_SOURCE_REVIEW`; #482 `OWNER_ACTION=NONE_NOW`; RATE.3 `OWNER_PASS_BOUNDED`, RATE.4 Android persisted readback `NOT_VERIFIED`.
+
 ## 2026-11-10 G14.RATE.1 #859 — exotic empty conflict-map provenance | material Source/Test candidate
 
 - **Fresh authority:** protected main `fe145368f77ea361cd0366fdadebeed9545b84e1`; sole Draft [#859](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/859), `RATE4_PRODUCTION_APPLY_ENABLED=false`, `HOLD_PRODUCTION_APPLY`. No Ready/Merge/Pages or Owner SQLite Apply.

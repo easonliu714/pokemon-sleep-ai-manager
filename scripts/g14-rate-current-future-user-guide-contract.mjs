@@ -197,6 +197,26 @@ assert.equal(contradictoryLevelOneIngredients.status,'REVIEW_REQUIRED',
   'contradictory Lv1 ingredient identities must HOLD instead of grading');
 assert.ok(contradictoryLevelOneIngredients.missing_inputs.includes('conflicting_level_1_ingredient'),
   'conflicting Lv1 ingredient evidence must have a named reason');
+// Duplicate same-name Lv1 records are also unverified; do not double-count.
+const duplicateLevelOne=scorePokemonProvisionalRating({
+  pokemon:{...pokemon,specialty:'食材'},subskills,
+  ingredients:[
+    {unlock_level:1,ingredient_name:'特選蘋果'},
+    {unlock_level:1,ingredient_name:'特選蘋果'},
+  ],
+});
+assert.equal(duplicateLevelOne.status,'REVIEW_REQUIRED');
+assert.ok(duplicateLevelOne.missing_inputs.includes('conflicting_level_1_ingredient'));
+// A distinct canonical future ingredient is legitimate and must not be
+// mistaken for a second Lv1 source fact.
+const validFutureIngredient=scorePokemonProvisionalRating({
+  pokemon:{...pokemon,specialty:'食材'},subskills,
+  ingredients:[
+    {unlock_level:1,ingredient_name:'特選蘋果'},
+    {unlock_level:30,ingredient_name:'豆製肉'},
+  ],
+});
+assert.equal(validFutureIngredient.status,'PROVISIONAL_HEURISTIC');
 const canonicalMainSkill=scorePokemonProvisionalRating({
   pokemon:{...pokemon,specialty:'技能',main_skill:'能量填充S'},subskills,
 });

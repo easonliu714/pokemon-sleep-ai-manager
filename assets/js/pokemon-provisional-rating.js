@@ -129,8 +129,12 @@ export function scorePokemonProvisionalRating({pokemon={},ingredients=[],subskil
     missing.push('invalid_main_skill_level');
   if(specialty==='食材'){
     const ingredientRows=Array.isArray(ingredients)?ingredients:[];
-    // Nonempty text is not source verification: only canonical public identity is eligible.
-    if(!ingredientRows.some(row=>number(row?.unlock_level??row?.level)===1&&INGREDIENTS.includes(verifiedLabel(row?.ingredient_name??row?.name))))missing.push('level_1_ingredient');
+    // Exactly one Lv1 identity is valid for a single Pokémon. A canonical
+    // Lv1 row cannot certify an imported contradictory second Lv1 row.
+    const levelOneRows=ingredientRows.filter(row=>number(row?.unlock_level??row?.level)===1);
+    if(!levelOneRows.some(row=>INGREDIENTS.includes(verifiedLabel(row?.ingredient_name??row?.name))))
+      missing.push('level_1_ingredient');
+    if(levelOneRows.length>1)missing.push('conflicting_level_1_ingredient');
   }
   // An unknown main-skill label must not silently receive a confident grade.
   if(specialty==='技能'&&!MAIN_SKILLS.includes(verifiedLabel(pokemon.main_skill)))missing.push('main_skill');
