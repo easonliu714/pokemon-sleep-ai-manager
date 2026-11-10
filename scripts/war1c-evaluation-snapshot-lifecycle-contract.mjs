@@ -91,7 +91,14 @@ assert.ok(bootstrap.includes('refreshEvaluationLifecycle'),'bootstrap must route
 assert.ok(recipeLocal.includes("import('./evaluation-lifecycle-bootstrap.js')"));
 assert.ok(recipeLocal.includes("import('./war-room-evaluation-lifecycle-bootstrap.js')"));
 
-assert.equal((manual.match(/emitPokemonEvaluationInputChanged\(/g)||[]).length,2,'targeted Pokémon lifecycle signal must have one helper and one call');
+// Phase A isolates dual-grade read-only advice. Only the historical manual
+// Pokémon detail save may emit this scoped writer-lifecycle signal.
+assert.equal((manual.match(/function emitPokemonEvaluationInputChanged\(/g)||[]).length,1,
+  'targeted evaluation notifier must have exactly one helper');
+assert.equal((manual.match(/emitPokemonEvaluationInputChanged\(/g)||[]).length,2,
+  'single helper plus existing manual Pokémon save notification');
+assert.doesNotMatch(manual,/saveConfirmedPokemonSuggestedRating/,
+  'RATE.4 candidate writer must not ship with read-only rating release');
 assert.ok(manual.indexOf("emitPokemonEvaluationInputChanged(id,'manual_pokemon_edit')")>manual.indexOf('export async function savePokemonDetail'),'Pokémon signal must occur only after Pokémon save path');
 assert.equal(manual.slice(manual.indexOf('export async function saveIngredient'),manual.indexOf('export async function savePokemonDetail')).includes('emitPokemonEvaluationInputChanged('),false,'ingredient/item edits must not trigger Pokémon evaluation refresh');
 

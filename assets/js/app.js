@@ -12,6 +12,7 @@ import { dryRun, applyPayload } from './importer.js';
 import { listSnapshots, clearAllStorage } from './storage.js';
 import { setupPokemonDetail, openPokemonDetail } from './pokemon-detail.js';
 import {setupPokemonRosterRatingPreview,invalidatePokemonRosterRatingPreview} from './pokemon-roster-rating-preview.js';
+import {setupPokemonRatingGuide} from './pokemon-rating-guide.js';
 import { validateWorkflow, approveReviewed } from './ai-workflow.js';
 import { saveIngredient, saveItem } from './manual-editor.js';
 import { PROMPT_CATALOG, buildScenarioTemplate } from './prompt-catalog.js';
@@ -473,6 +474,7 @@ async function start() {
   const startAt=perfNow();
   try {
     setupPrompts();
+    setupPokemonRatingGuide();
     setupPokemonDetail(refresh);
     // RATE.3 reads only verified local SELECT results on explicit user request.
     setupPokemonRosterRatingPreview({

@@ -93,8 +93,15 @@ assert.equal(food.proposed_rating,null);
 assert.ok(food.missing_inputs.includes('level_1_ingredient'));
 const foodValid=scorePokemonProvisionalRating({pokemon:{...pokemon,specialty:'食材',nature:'內斂',
   nature_bonus:'食材機率',nature_penalty:'幫忙速度'},subskills:slots,
-  ingredients:[{unlock_level:1,ingredient_name:'豆豆肉'}]});
+  ingredients:[{unlock_level:1,ingredient_name:'豆製肉'}]});
 assert.equal(foodValid.status,'PROVISIONAL_HEURISTIC');
+// The historical '豆豆肉' spelling is not the current canonical public name.
+// Do not silently upgrade an unverified legacy observation into a rating.
+const foodLegacy=scorePokemonProvisionalRating({pokemon:{...pokemon,specialty:'食材',nature:'內斂',
+  nature_bonus:'食材機率',nature_penalty:'幫忙速度'},subskills:slots,
+  ingredients:[{unlock_level:1,ingredient_name:'豆豆肉'}]});
+assert.equal(foodLegacy.status,'REVIEW_REQUIRED');
+assert.ok(foodLegacy.missing_inputs.includes('level_1_ingredient'));
 
 const held=planPokemonRosterProvisionalRegrade({
   pokemon:[pokemon,{...pokemon,pokemon_id:'fixture-2',nature:null}],

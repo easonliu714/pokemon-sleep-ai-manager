@@ -36,7 +36,7 @@ try{
   await page.locator('[data-rate4-choice]').check();
   assert.match(await page.locator('[data-rate4-count]').innerText(),/擬採用 1/);
   await page.locator('[data-rate4-review]').click();
-  assert.match(await page.locator('[data-rate4-review-panel]').innerText(),/D- → S\+/);
+  assert.match(await page.locator('[data-rate4-review-panel]').innerText(),/D- → 現在 S-／未來 S\+/);
   await page.locator('[data-rate4-keep-all]').click();
   assert.match(await page.locator('[data-rate4-count]').innerText(),/擬採用 0/);
   await page.locator('[data-rate4-select-all]').click();

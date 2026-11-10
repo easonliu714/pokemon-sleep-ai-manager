@@ -147,3 +147,8 @@ export async function savePokemonDetail(id,data,ingredients,subskills){
     close({uncertainOutcome:!acknowledged});
   }
 }
+
+// G14.RATE Phase A ships only read-only derived grades.
+// Deliberately no production rating-only SQLite writer here: the historical
+// isolated RATE.4 candidate is retained by exact pre-split PR commit, and
+// requires its own admission/Owner UAT gate before any player DB Apply.
