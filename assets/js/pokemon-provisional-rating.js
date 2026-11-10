@@ -69,8 +69,16 @@ function hold(required,reason){
 function slotRows(subskills){
   const slots=new Map(),seenNames=new Set(),invalid=[];
   for(const row of Array.isArray(subskills)?subskills:[]){
-    const level=number(row?.unlock_level??row?.level);
-    const name=verifiedLabel(row?.subskill_name??row?.name);
+    // Two populated aliases must agree before either can become verified
+    // source evidence. Nullish precedence alone hides imported conflicts.
+    const rawLevel=row?.unlock_level,aliasLevel=row?.level;
+    if(rawLevel!=null&&aliasLevel!=null&&number(rawLevel)!==number(aliasLevel))
+      invalid.push('conflicting_subskill_level_alias');
+    const rawName=row?.subskill_name,aliasName=row?.name;
+    if(rawName!=null&&aliasName!=null&&verifiedLabel(rawName)!==verifiedLabel(aliasName))
+      invalid.push('conflicting_subskill_name_alias');
+    const level=number(rawLevel??aliasLevel);
+    const name=verifiedLabel(rawName??aliasName);
     if(!LEVELS.includes(level)||!name||!SUBSKILLS.includes(name)){
       invalid.push('invalid_or_unverified_subskill');continue;
     }
