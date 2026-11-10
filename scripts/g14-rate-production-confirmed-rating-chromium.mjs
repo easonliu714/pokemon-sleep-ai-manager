@@ -11,6 +11,14 @@ const manual=fs.readFileSync('assets/js/manual-editor.js','utf8');
 const anchor='export async function saveConfirmedPokemonSuggestedRating(';
 assert.equal(manual.split(anchor).length,2,'production function must be unique');
 const operation=manual.slice(manual.indexOf(anchor)).replace(/^export /,'');
+// Use the actual production audit function, not a fixture-only stand-in.
+const auditStart=manual.indexOf('async function audit(');
+const auditEnd=manual.indexOf('\nfunction emitPokemonEvaluationInputChanged(',auditStart);
+assert.ok(auditStart>=0&&auditEnd>auditStart,'production audit source missing');
+const auditSource=manual.slice(auditStart,auditEnd);
+assert.ok(auditSource.includes('INSERT INTO import_batches')
+  &&auditSource.includes('INSERT INTO import_changes'),'production audit SQL changed');
+const productionFunctions=auditSource+'\n'+operation;
 for(const fragment of ['beginSqliteExclusiveWriteWindow','withPrimarySqliteMutationLock',
  'snapshot(\'rate4:confirmed:',"rating IS ?",'audit(\'pokemon\'',
  'persist({primaryMutationLease:lease})','if(!committed)withSqliteCoordinatedMutation(rollback)'])
@@ -20,7 +28,6 @@ const db=new SQL.Database();
 db.run("CREATE TABLE pokemon(pokemon_id TEXT PRIMARY KEY,pokemon_instance_id TEXT NOT NULL,species TEXT,level INTEGER,specialty TEXT,nature TEXT,nature_bonus TEXT,nature_penalty TEXT,main_skill TEXT,main_skill_level INTEGER,rating TEXT,status TEXT,last_updated_at TEXT,source_update_id TEXT)");
 db.run("CREATE TABLE pokemon_subskills(pokemon_id TEXT,unlock_level INTEGER,subskill_name TEXT,is_unlocked INTEGER)");
 db.run("CREATE TABLE pokemon_ingredients(pokemon_id TEXT,unlock_level INTEGER,ingredient_name TEXT)");
-db.run("CREATE TABLE rating_audit(pokemon_id TEXT,old_rating TEXT,new_rating TEXT,scope TEXT)");
 // Negative-first: the candidate Chromium fixture must exercise the REAL
 // import_batches/import_changes audit, not only a synthetic rating_audit stand-in.
 db.run("CREATE TABLE import_batches(update_id TEXT PRIMARY KEY,schema_version TEXT,generated_at TEXT,imported_at TEXT,source TEXT,operation_count INTEGER,result_json TEXT)");
@@ -63,7 +70,14 @@ async function install(page){
     try{statement.bind(params);const out=[];while(statement.step())out.push(statement.getAsObject());return out;}
     finally{statement.free();}
   };
-  const execute=(sql,params=[])=>{v.sqlWrites++;db.run(sql,params);};
+  const execute=(sql,params=[])=>{
+    v.sqlWrites++;
+    // Fail the second production audit insert to prove that both the first
+    // audit row and the Pokémon rating UPDATE roll back atomically.
+    if(v.auditFail&&sql.startsWith('INSERT INTO import_changes'))
+      throw Error('SYNTHETIC_RATING_AUDIT_ABORT');
+    db.run(sql,params);
+  };
   const current=()=>{
     const pokemon=query("SELECT * FROM pokemon WHERE pokemon_id='fixture'")[0];
     const ingredients=query("SELECT * FROM pokemon_ingredients WHERE pokemon_id='fixture' ORDER BY unlock_level");
@@ -84,13 +98,6 @@ async function install(page){
       v.snapshots++;
       v.preImage=Array.from(new Uint8Array(await storage.loadDatabaseBytes()));
     },
-    async audit(_type,_identity,before,after){
-      if(v.auditFail)throw Error('SYNTHETIC_RATING_AUDIT_ABORT');
-      if(before.source_update_id!=='ORIGINAL-SOURCE'||after.source_update_id!=='ORIGINAL-SOURCE')
-        throw Error('RATE4_SYNTHETIC_PROVENANCE_AUDIT_MISMATCH');
-      execute('INSERT INTO rating_audit VALUES(?,?,?,?)',
-        ['fixture',before.rating,after.rating,after.scope]);
-    },
     async persist({primaryMutationLease}={}){
       v.persists++;
       await storage.saveDatabaseBytes(db.export(),{primaryMutationLease});
@@ -105,8 +112,8 @@ async function install(page){
     Error,Object,String,
   };
   v.current=current;
-  v.action=new Function('env','with(env){'+operation+';return saveConfirmedPokemonSuggestedRating;}')(env);
-  v.disabledAction=new Function('env','with(env){'+operation+';return saveConfirmedPokemonSuggestedRating;}')(
+  v.action=new Function('env','with(env){'+productionFunctions+';return saveConfirmedPokemonSuggestedRating;}')(env);
+  v.disabledAction=new Function('env','with(env){'+productionFunctions+';return saveConfirmedPokemonSuggestedRating;}')(
     {...env,RATE4_PRODUCTION_APPLY_ENABLED:false});
   v.save=async(scope,opts={})=>{
     const source=current(),result=score.scorePokemonProvisionalRating({
@@ -129,8 +136,10 @@ const inspect=bytes=>{
  try{
   const table=sql=>d.exec(sql)?.[0]?.values||[];
   return {rating:table("SELECT rating FROM pokemon WHERE pokemon_id='fixture'")[0]?.[0],
-    audit:table('SELECT old_rating,new_rating,scope FROM rating_audit ORDER BY rowid'),
+    audit:table("SELECT json_extract(before_json,'$.rating'),json_extract(after_json,'$.rating'),json_extract(after_json,'$.scope') FROM import_changes ORDER BY rowid"),
     realAuditCount:table('SELECT COUNT(*) FROM import_changes')[0]?.[0]||0,
+    realBatchCount:table('SELECT COUNT(*) FROM import_batches')[0]?.[0]||0,
+    auditLineage:table("SELECT json_extract(before_json,'$.source_update_id'),json_extract(after_json,'$.source_update_id') FROM import_changes ORDER BY rowid"),
     level:table("SELECT level FROM pokemon WHERE pokemon_id='fixture'")[0]?.[0],
     nature:table("SELECT nature FROM pokemon WHERE pokemon_id='fixture'")[0]?.[0],
      sourceUpdateId:table("SELECT source_update_id FROM pokemon WHERE pokemon_id='fixture'")[0]?.[0],
@@ -160,6 +169,8 @@ try{
  assert.equal(inspect(await persisted(seedPage)).rating,'S-');
  assert.equal(inspect(await persisted(seedPage)).realAuditCount,1,
    'production import_changes audit must be durable; a synthetic audit table cannot certify RATE.4');
+ assert.equal(inspect(await persisted(seedPage)).realBatchCount,1);
+ assert.deepEqual(inspect(await persisted(seedPage)).auditLineage,[['ORIGINAL-SOURCE','ORIGINAL-SOURCE']]);
  const stale=await second.evaluate(()=>window.__rate.save('FUTURE'));
  assert.equal(stale.ok,false);
  assert.match(stale.code,/STALE_REVISION_RELOAD_REQUIRED/);
@@ -185,6 +196,10 @@ try{
  assert.equal(state.level,20);assert.equal(state.nature,'固執');
   assert.equal(state.sourceUpdateId,'ORIGINAL-SOURCE','rating-only writer must preserve source lineage');
  assert.equal(state.master,'UNCHANGED');
+ assert.equal(state.realAuditCount,2);
+ assert.equal(state.realBatchCount,2);
+ assert.deepEqual(state.auditLineage,[
+   ['ORIGINAL-SOURCE','ORIGINAL-SOURCE'],['ORIGINAL-SOURCE','ORIGINAL-SOURCE']]);
  console.log('PASS G14_RATE_PRODUCTION_EXPLICIT_FUTURE_AUDIT_AND_ALL_OTHER_FIELDS_PRESERVED');
 
  const failedTab=await tab();await install(failedTab);
