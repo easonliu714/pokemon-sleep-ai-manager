@@ -215,11 +215,16 @@ export function scorePokemonProvisionalRating({pokemon={},ingredients=[],subskil
 export function planPokemonRosterProvisionalRegrade({pokemon=[],details=[]}={}){
   // RATE.3: the direct planner is also a public read-only entry point.
   // Never join a coercible detail foreign key onto a canonical roster ID.
-  const byId=new Map();
+  // RATE.3: duplicate canonical detail owner IDs are ambiguous evidence.
+  // Never let Map.set(last-write-wins) select one complete profile over a
+  // conflicting earlier record; preserve source rows and fail closed.
+  const byId=new Map(),duplicateDetailIds=new Set();
   for(const row of Array.isArray(details)?details:[]){
     if(typeof row?.pokemon_id!=='string')continue;
     const detailId=text(row.pokemon_id);
-    if(detailId)byId.set(detailId,row);
+    if(!detailId)continue;
+    if(byId.has(detailId))duplicateDetailIds.add(detailId);
+    else byId.set(detailId,row);
   }
   const seen=new Set(),proposals=[],held=[];
   for(const row of Array.isArray(pokemon)?pokemon:[]){
@@ -230,10 +235,12 @@ export function planPokemonRosterProvisionalRegrade({pokemon=[],details=[]}={}){
       held.push({pokemon_id:id||null,reason_codes:['missing_or_duplicate_pokemon_id']});continue;
     }
     seen.add(id);
-    const detail=byId.get(id)||{},result=scorePokemonProvisionalRating({
-      pokemon:row,ingredients:detail.ingredients||[],subskills:detail.subskills||[],
-      evidenceConflicts:detail.evidenceConflicts||[],
-    });
+    const detail=byId.get(id)||{},result=duplicateDetailIds.has(id)
+      ?hold(['duplicate_detail_pokemon_id'],['ambiguous_detail_identity'])
+      :scorePokemonProvisionalRating({
+        pokemon:row,ingredients:detail.ingredients||[],subskills:detail.subskills||[],
+        evidenceConflicts:detail.evidenceConflicts||[],
+      });
     const item={pokemon_id:id,pokemon_instance_id:row.pokemon_instance_id||null,
       previous_rating:row.rating??null,proposed_rating:result.proposed_rating,
       current_rating:result.current_rating,future_rating:result.future_rating,
