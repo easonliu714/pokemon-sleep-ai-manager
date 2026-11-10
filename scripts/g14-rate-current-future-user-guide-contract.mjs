@@ -148,6 +148,30 @@ const duplicateSubskillName=scorePokemonProvisionalRating({
 assert.equal(duplicateSubskillName.status,'REVIEW_REQUIRED',
   'duplicate subskill names across levels must HOLD rather than double-score');
 assert.ok(duplicateSubskillName.missing_inputs.includes('duplicate_subskill_name'));
+// RATE.1 source-bound negative-first: contradictory aliases on the SAME
+// imported subskill row must not certify a five-slot verified profile.
+// The existing nullish-precedence reader silently trusts one alias.
+const conflictingSubskillNameAlias=scorePokemonProvisionalRating({
+  pokemon,subskills:subskills.map((row,i)=>i===0
+    ?{...row,name:'技能機率提升M'}:row),
+});
+assert.equal(conflictingSubskillNameAlias.status,'REVIEW_REQUIRED',
+  'contradictory subskill name aliases must HOLD instead of grading');
+assert.ok(conflictingSubskillNameAlias.missing_inputs.includes('conflicting_subskill_name_alias'));
+const conflictingSubskillLevelAlias=scorePokemonProvisionalRating({
+  pokemon,subskills:subskills.map((row,i)=>i===0
+    ?{...row,level:25}:row),
+});
+assert.equal(conflictingSubskillLevelAlias.status,'REVIEW_REQUIRED',
+  'contradictory subskill unlock-level aliases must HOLD instead of grading');
+assert.ok(conflictingSubskillLevelAlias.missing_inputs.includes('conflicting_subskill_level_alias'));
+const matchingSubskillAliases=scorePokemonProvisionalRating({
+  pokemon,subskills:subskills.map(row=>({...row,
+    name:row.subskill_name,level:row.unlock_level})),
+});
+assert.equal(matchingSubskillAliases.status,'PROVISIONAL_HEURISTIC',
+  'agreeing canonical aliases must preserve legitimate source evidence');
+
 // RATE.1 source-bound negative-first: identity-review authority is a tri-state
 // safety signal, not an arbitrary truthy/falsy scalar. Noncanonical imported
 // flags must not silently certify a 15-band recommendation.
