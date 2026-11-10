@@ -358,6 +358,23 @@ const arrayMainSkill=scorePokemonProvisionalRating({
 assert.equal(arrayMainSkill.status,'REVIEW_REQUIRED',
   'array-backed main skill identity must HOLD');
 assert.equal(pokemon.rating,'D-');
+// RATE.1 negative-first: ordinary JS object prototypes are NOT verified
+// player evidence. 'constructor'/'toString' are inherited names, not canonical
+// specialty or nature identities. Fail closed rather than grade or throw.
+for(const inheritedName of ['constructor','toString']){
+  const inheritedSpecialty=scorePokemonProvisionalRating({
+    pokemon:{...pokemon,specialty:inheritedName},subskills,
+  });
+  assert.equal(inheritedSpecialty.status,'REVIEW_REQUIRED',
+    'prototype-inherited specialty must HOLD: '+inheritedName);
+  assert.ok(inheritedSpecialty.missing_inputs.includes('verified_specialty'));
+  const inheritedNature=scorePokemonProvisionalRating({
+    pokemon:{...pokemon,nature:inheritedName},subskills,
+  });
+  assert.equal(inheritedNature.status,'REVIEW_REQUIRED',
+    'prototype-inherited nature must HOLD: '+inheritedName);
+  assert.ok(inheritedNature.missing_inputs.includes('verified_nature'));
+}
 console.log(JSON.stringify({gate:'G14_RATE_CURRENT_FUTURE_GUIDE_SOURCE',status:'PASS',
   current:'S-',future:'S+',dual_grade:true,guide_bottom:true,
   thresholds_exact:true,source_unchanged:true,no_rating_write:true}));
