@@ -392,6 +392,33 @@ for(const [kind,mutated] of [
     'unverified identity must remain a bounded HOLD: '+kind);
   assert.equal(noncanonicalSelection.selected.size,0);
 }
+// RATE.3 negative-first: a detail row's Pokémon foreign key is source
+// identity evidence. Array-backed IDs stringify to a valid roster ID, but
+// must NEVER join verified subskills or Lv1 ingredient facts into that owner.
+// This is synthetic read-only evidence; no player SQLite is accessed.
+const arrayBackedSubskillOwner=buildPokemonRosterRatingView({
+  pokemon:[pokemon],ingredients:[],
+  subskills:subskills.map(row=>({...row,pokemon_id:['testA']})),
+});
+assert.equal(arrayBackedSubskillOwner.plan.summary.eligible,0,
+  'coercible foreign subskill IDs must not certify another Pokémon rating');
+assert.equal(arrayBackedSubskillOwner.plan.summary.held,1);
+const arrayBackedIngredientOwner=buildPokemonRosterRatingView({
+  pokemon:[{...pokemon,specialty:'食材'}],
+  ingredients:[{pokemon_id:['testA'],unlock_level:1,ingredient_name:'特選蘋果'}],
+  subskills,
+});
+assert.equal(arrayBackedIngredientOwner.plan.summary.eligible,0,
+  'coercible foreign ingredient IDs must not certify Lv1 identity');
+assert.equal(arrayBackedIngredientOwner.plan.summary.held,1);
+const arrayBackedDirectDetail=planPokemonRosterProvisionalRegrade({
+  pokemon:[pokemon],details:[{pokemon_id:['testA'],subskills}],
+});
+assert.equal(arrayBackedDirectDetail.summary.eligible,0,
+  'direct planner detail joins must reject non-primitive foreign IDs');
+assert.equal(arrayBackedDirectDetail.summary.held,1);
+// Primitive canonical keys continue to admit exactly the same fixture.
+assert.equal(buildPokemonRosterRatingView(source).plan.summary.eligible,1);
 console.log(JSON.stringify({gate:'G14_RATE_CURRENT_FUTURE_GUIDE_SOURCE',status:'PASS',
   current:'S-',future:'S+',dual_grade:true,guide_bottom:true,
   thresholds_exact:true,source_unchanged:true,no_rating_write:true}));
