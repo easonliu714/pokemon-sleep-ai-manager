@@ -139,6 +139,16 @@ export function scorePokemonProvisionalRating({pokemon={},ingredients=[],subskil
     const ingredientRows=Array.isArray(ingredients)?ingredients:[];
     // Exactly one Lv1 identity is valid for a single Pokémon. A canonical
     // Lv1 row cannot certify an imported contradictory second Lv1 row.
+    // Two populated ingredient aliases must agree before a verified Lv1
+    // identity is admitted. Never silently prefer one contradictory source.
+    for(const row of ingredientRows){
+      const rawLevel=row?.unlock_level,aliasLevel=row?.level;
+      if(rawLevel!=null&&aliasLevel!=null&&number(rawLevel)!==number(aliasLevel))
+        missing.push('conflicting_ingredient_level_alias');
+      const rawName=row?.ingredient_name,aliasName=row?.name;
+      if(rawName!=null&&aliasName!=null&&verifiedLabel(rawName)!==verifiedLabel(aliasName))
+        missing.push('conflicting_ingredient_name_alias');
+    }
     const levelOneRows=ingredientRows.filter(row=>number(row?.unlock_level??row?.level)===1);
     if(!levelOneRows.some(row=>INGREDIENTS.includes(verifiedLabel(row?.ingredient_name??row?.name))))
       missing.push('level_1_ingredient');
