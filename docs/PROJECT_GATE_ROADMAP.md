@@ -1,3 +1,9 @@
+## 2026-11-10 15:5x +08 #859 — legacy duplicate-ID HOLD contract repaired after first final-head CI failure
+
+- **Actual first failing job:** repaired candidate `477b2e96d6cf0550ddc68f49939e23032ed4cb71` [War Room #42779055685](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/42779055685), job `129704399271`, failed `scripts/g14-rate3-roster-diff-ui-contract.mjs:48`: historical consumer expected `missing_or_duplicate_pokemon_id` in HOLD reason_codes. The new duplicate-roster identity check was correct to HOLD both rows but inadvertently dropped that existing reason.
+- **Minimal compatibility repair:** preserve `ambiguous_roster_identity` and `duplicate_roster_pokemon_id` while also retaining legacy `missing_or_duplicate_pokemon_id`; extend new synthetic test to require both. No rating weights, schema, workflow, SW/version, player DB or production Apply changes. Exact-head CI pending; no Ready/Merge while HOLD.
+- **Release authority:** sole Draft #859, main `fe145368f77ea361cd0366fdadebeed9545b84e1`, `RATE4_PRODUCTION_APPLY_ENABLED=false`; Owner RATE.3 `OWNER_PASS_BOUNDED`, RATE.4 persisted Apply `NOT_VERIFIED`. #19 raw official article H1=0 `HOLD_SOURCE_REVIEW`; #482 no Owner action.
+
 ## 2026-11-10 15:5x +08 G14.RATE.3 #859 — duplicate roster owner must HOLD both rows | Source/Test candidate
 
 - **Fresh authority:** protected main `fe145368f77ea361cd0366fdadebeed9545b84e1` (protected #858, 9/9 historical main Push + Pages PASS); sole [Draft #859](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/859), Ruleset #25813226 ACTIVE. Prior candidate `0f447f4879b4ea5a178bb892a39c5dc5f45aa586` had 12/12 PR CI SUCCESS, including [Frontend #42772080276](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/42772080276).

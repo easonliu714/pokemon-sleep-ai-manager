@@ -242,7 +242,7 @@ export function planPokemonRosterProvisionalRegrade({pokemon=[],details=[]}={}){
       held.push({pokemon_id:null,reason_codes:['missing_or_duplicate_pokemon_id']});continue;
     }
     const detail=byId.get(id)||{},result=rosterIdCounts.get(id)>1
-      ?hold(['duplicate_roster_pokemon_id'],['ambiguous_roster_identity'])
+      ?hold(['duplicate_roster_pokemon_id'],['ambiguous_roster_identity','missing_or_duplicate_pokemon_id'])
       :duplicateDetailIds.has(id)
         ?hold(['duplicate_detail_pokemon_id'],['ambiguous_detail_identity'])
         :scorePokemonProvisionalRating({

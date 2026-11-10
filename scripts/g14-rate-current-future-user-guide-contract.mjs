@@ -448,6 +448,8 @@ assert.equal(duplicateRosterOwner.summary.held,2,
   'both duplicate roster rows must remain HOLD');
 assert.ok(duplicateRosterOwner.held.every(x=>x.reason_codes.includes('ambiguous_roster_identity')),
   'both duplicate owner records must expose a named identity reason');
+assert.ok(duplicateRosterOwner.held.every(x=>x.reason_codes.includes('missing_or_duplicate_pokemon_id')),
+  'preserve legacy War Room duplicate-ID HOLD reason compatibility');
 // Primitive canonical keys continue to admit exactly the same fixture.
 assert.equal(buildPokemonRosterRatingView(source).plan.summary.eligible,1);
 console.log(JSON.stringify({gate:'G14_RATE_CURRENT_FUTURE_GUIDE_SOURCE',status:'PASS',
