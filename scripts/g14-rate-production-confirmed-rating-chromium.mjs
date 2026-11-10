@@ -54,7 +54,7 @@ async function tab(){
  return page;
 }
 async function install(page){
- await page.evaluate(async operation=>{
+ await page.evaluate(async productionFunctions=>{
   const storage=await import('/assets/js/storage.js');
   const guard=await import('/assets/js/sqlite-direct-write-window-guard.js');
   const score=await import('/assets/js/pokemon-provisional-rating.js');
@@ -127,7 +127,7 @@ async function install(page){
     }catch(e){return {ok:false,code:e.code||e.message};}
   };
   window.__rate=v;
- },operation);
+ },productionFunctions);
 }
 const persisted=page=>page.evaluate(async()=>Array.from(new Uint8Array(
  await window.__rate.storage.loadDatabaseBytes())));
