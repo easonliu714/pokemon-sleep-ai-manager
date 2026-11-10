@@ -1,5 +1,6 @@
 import {rows} from './database.js';
-import {savePokemonDetail} from './manual-editor.js';
+import {savePokemonDetail,saveConfirmedPokemonSuggestedRating,RATE4_PRODUCTION_APPLY_ENABLED} from './manual-editor.js';
+import {sourceTokenForPokemonRating} from './pokemon-roster-rating-preview.js';
 import {projectPokemonRatingChange,renderPokemonRatingChangeAdvice} from './pokemon-rating-reactive-advice.js';
 import {SPECIALTIES,TYPES,BERRY_BY_TYPE,BERRIES,INGREDIENTS,NATURES,NATURE_EFFECTS,MAIN_SKILLS,SUBSKILLS,RATINGS,STATUSES,mergedOptions} from './pokemon-master-options.js';
 import {resolvePublicMainSkillName} from './public-pokemon-knowledge-coverage.js';
@@ -97,8 +98,49 @@ function mountSavedRatingAdvice(source){
   const panel=document.createElement('div');
   panel.className='detail-section';panel.id='pokemonRatingSavedAdvice';
   panel.innerHTML='<h3>現在／未來評級建議</h3>'+renderPokemonRatingChangeAdvice(advice);
-  // Phase A: the CURRENT/FUTURE projection is read-only; no Apply control
-  // or direct rating-only writer may be exposed before RATE.4 admission.
+  if(advice.can_propose_save&&RATE4_PRODUCTION_APPLY_ENABLED){
+    const controls=document.createElement('div');
+    controls.className='filter-bar';controls.dataset.ratingExplicitSave='true';
+    const label=document.createElement('label');
+    label.textContent='選擇要寫入舊評欄位的建議：';
+    const selectScope=document.createElement('select');
+    selectScope.setAttribute('aria-label','選擇評級套用範圍');
+    for(const [value,text] of [['CURRENT','現在 CURRENT'],['FUTURE','未來 FUTURE']]){
+      const option=document.createElement('option');
+      option.value=value;option.textContent=text;selectScope.appendChild(option);
+    }
+    label.appendChild(selectScope);controls.appendChild(label);
+    const save=document.createElement('button');
+    save.type='button';save.textContent='確認儲存選定評級';
+    controls.appendChild(save);
+    const result=document.createElement('div');
+    result.setAttribute('role','status');controls.appendChild(result);
+    const token=sourceTokenForPokemonRating({pokemon:[source.p],
+      ingredients:source.ingredients,subskills:source.subskills});
+    const identity=source.p.pokemon_instance_id;
+    save.disabled=!token||!identity;
+    save.addEventListener('click',async()=>{
+      const scope=selectScope.value;
+      const grade=scope==='CURRENT'?advice.current.current_rating:advice.current.future_rating;
+      const before=source.p.rating??'未評級';
+      if(!globalThis.confirm?.('確定儲存這隻寶可夢的'+(scope==='CURRENT'?'現在':'未來')
+        +'建議評級？\\n原評：'+before+' → '+grade
+        +'\\n不會改變性格、技能或消耗任何遊戲道具。'))return;
+      save.disabled=true;result.textContent='正在執行快照與受控 SQLite 儲存…';
+      try{
+        const saved=await saveConfirmedPokemonSuggestedRating(source.p.pokemon_id,{
+          instanceId:identity,expectedSourceToken:token,scope,expectedGrade:grade,confirmed:true,
+        });
+        result.textContent=saved.status==='SAVED'?'已儲存並收到 SQLite ACK':'評級沒有變更';
+        onSaved?.();
+        if(currentId===source.p.pokemon_id)openPokemonDetail(currentId);
+      }catch(error){
+        result.textContent='拒絕保存：'+String(error?.message||error)
+          +'。若資料已改變或 ACK 不確定，請重新載入與檢查；不會自動重試。';
+      }
+    });
+    panel.appendChild(controls);
+  }
   root.prepend(panel);
 }
 const num=v=>v===''?null:Number(v);

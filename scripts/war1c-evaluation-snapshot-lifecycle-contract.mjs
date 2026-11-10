@@ -91,14 +91,16 @@ assert.ok(bootstrap.includes('refreshEvaluationLifecycle'),'bootstrap must route
 assert.ok(recipeLocal.includes("import('./evaluation-lifecycle-bootstrap.js')"));
 assert.ok(recipeLocal.includes("import('./war-room-evaluation-lifecycle-bootstrap.js')"));
 
-// Phase A isolates dual-grade read-only advice. Only the historical manual
-// Pokémon detail save may emit this scoped writer-lifecycle signal.
+// G14.RATE.4 adds a second, confirmed rating-only player-write path.
+// Both legitimate Pokémon data changes must notify scoped evaluation refresh,
+// while the single helper remains unique and unrelated item/ingredient writers
+// remain silent. Do not weaken the original lifecycle boundary.
 assert.equal((manual.match(/function emitPokemonEvaluationInputChanged\(/g)||[]).length,1,
   'targeted evaluation notifier must have exactly one helper');
-assert.equal((manual.match(/emitPokemonEvaluationInputChanged\(/g)||[]).length,2,
-  'single helper plus existing manual Pokémon save notification');
-assert.doesNotMatch(manual,/saveConfirmedPokemonSuggestedRating/,
-  'RATE.4 candidate writer must not ship with read-only rating release');
+assert.equal((manual.match(/emitPokemonEvaluationInputChanged\(/g)||[]).length,3,
+  'single helper plus exactly two Pokémon write-path notifications');
+assert.match(manual,/emitPokemonEvaluationInputChanged\(id,'rating_user_confirmed_'\+scope\.toLowerCase\(\)\)/,
+  'confirmed rating-only writes must trigger scoped evaluation invalidation');
 assert.ok(manual.indexOf("emitPokemonEvaluationInputChanged(id,'manual_pokemon_edit')")>manual.indexOf('export async function savePokemonDetail'),'Pokémon signal must occur only after Pokémon save path');
 assert.equal(manual.slice(manual.indexOf('export async function saveIngredient'),manual.indexOf('export async function savePokemonDetail')).includes('emitPokemonEvaluationInputChanged('),false,'ingredient/item edits must not trigger Pokémon evaluation refresh');
 

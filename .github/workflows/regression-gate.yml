@@ -409,6 +409,11 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/v0427553325-weekly-pot-capacity-browser-gate.mjs
 
+      - name: Verify G14.RATE production confirmed per-Pokémon native Chromium writer and ACK loss
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g14-rate-production-confirmed-rating-chromium.mjs
+
       - name: Verify G14.RATE.4 native Chromium two-tab batch atomicity and snapshot
         env:
           BASE_URL: http://127.0.0.1:4173/
