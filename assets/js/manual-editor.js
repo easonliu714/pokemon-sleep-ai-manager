@@ -155,6 +155,8 @@ export async function savePokemonDetail(id,data,ingredients,subskills){
 // uncertain player fields. Read/snapshot/BEGIN/audit/COMMIT/ACK all share the
 // same pre-SQL primary mutation lease. Any failed ACK requires reload.
 // RATE.4 remains source/test-only. Owner has NOT authorized production Apply.
+// Rating-only changes must not replace the row's original source_update_id;
+// the separate import_changes audit records the explicit user rating decision.
 // A separate, reviewed release change must explicitly enable this switch.
 export const RATE4_PRODUCTION_APPLY_ENABLED=false;
 export async function saveConfirmedPokemonSuggestedRating(id,{
@@ -192,15 +194,16 @@ export async function saveConfirmedPokemonSuggestedRating(id,{
       withSqliteCoordinatedMutation(begin);
       try{
         withSqliteCoordinatedMutation(()=>{
-          run("UPDATE pokemon SET rating=?,last_updated_at=?,source_update_id=? WHERE pokemon_id=? AND pokemon_instance_id=? AND status='active' AND rating IS ?",
-            [grade,at,'RATE4-USER-CONFIRMED',id,instanceId,row.rating]);
+          run("UPDATE pokemon SET rating=?,last_updated_at=? WHERE pokemon_id=? AND pokemon_instance_id=? AND status='active' AND rating IS ?",
+            [grade,at,id,instanceId,row.rating]);
           if(rows('SELECT changes() AS affected')[0]?.affected!==1)
             throw new Error('RATE4_STALE_RATING_CAS_CONFLICT');
         });
         const after=rows('SELECT * FROM pokemon WHERE pokemon_id=?',[id])[0];
         if(after?.rating!==grade)throw new Error('RATE4_TRANSACTION_READBACK_MISMATCH');
         await withSqliteCoordinatedMutation(()=>audit('pokemon',{pokemon_id:id,pokemon_instance_id:instanceId},
-          {rating:beforeRating},{rating:grade,scope,rule_version:result.rule_version,
+          {rating:beforeRating,source_update_id:row.source_update_id??null},
+          {rating:grade,source_update_id:row.source_update_id??null,scope,rule_version:result.rule_version,
             current_rating:result.current_rating,future_rating:result.future_rating},
           'Owner confirmed a single provisional '+scope+' rating; previous value retained in audit.'));
         withSqliteCoordinatedMutation(commit);committed=true;

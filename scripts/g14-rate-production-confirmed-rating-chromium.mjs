@@ -23,7 +23,7 @@ db.run("CREATE TABLE pokemon_ingredients(pokemon_id TEXT,unlock_level INTEGER,in
 db.run("CREATE TABLE rating_audit(pokemon_id TEXT,old_rating TEXT,new_rating TEXT,scope TEXT)");
 db.run("CREATE TABLE public_master(marker TEXT PRIMARY KEY)");
 db.run("INSERT INTO public_master VALUES('UNCHANGED')");
-db.run("INSERT INTO pokemon(pokemon_id,pokemon_instance_id,species,level,specialty,nature,nature_bonus,nature_penalty,main_skill,main_skill_level,rating,status) VALUES('fixture','instance-X','synthetic',20,'樹果','固執','幫忙速度','食材機率','能量填充S',1,'D-','active')");
+db.run("INSERT INTO pokemon(pokemon_id,pokemon_instance_id,species,level,specialty,nature,nature_bonus,nature_penalty,main_skill,main_skill_level,rating,status,source_update_id) VALUES('fixture','instance-X','synthetic',20,'樹果','固執','幫忙速度','食材機率','能量填充S',1,'D-','active','ORIGINAL-SOURCE')");
 const names=['樹果數量S','幫手獎勵','幫忙速度M','幫忙速度S','睡眠EXP獎勵'];
 for(let i=0;i<5;i++)db.run('INSERT INTO pokemon_subskills VALUES(?,?,?,0)',
  ['fixture',[10,25,50,70,80][i],names[i]]);
@@ -82,6 +82,8 @@ async function install(page){
     },
     async audit(_type,_identity,before,after){
       if(v.auditFail)throw Error('SYNTHETIC_RATING_AUDIT_ABORT');
+      assert.equal(before.source_update_id,'ORIGINAL-SOURCE','prior provenance must be in audit');
+      assert.equal(after.source_update_id,'ORIGINAL-SOURCE','rating-only audit must retain provenance');
       execute('INSERT INTO rating_audit VALUES(?,?,?,?)',
         ['fixture',before.rating,after.rating,after.scope]);
     },
@@ -126,6 +128,7 @@ const inspect=bytes=>{
     audit:table('SELECT old_rating,new_rating,scope FROM rating_audit ORDER BY rowid'),
     level:table("SELECT level FROM pokemon WHERE pokemon_id='fixture'")[0]?.[0],
     nature:table("SELECT nature FROM pokemon WHERE pokemon_id='fixture'")[0]?.[0],
+     sourceUpdateId:table("SELECT source_update_id FROM pokemon WHERE pokemon_id='fixture'")[0]?.[0],
     master:table('SELECT marker FROM public_master')[0]?.[0]};
  }finally{d.close();}
 };
@@ -173,6 +176,7 @@ try{
  assert.equal(state.rating,'S+');assert.deepEqual(state.audit,
   [['D-','S-','CURRENT'],['S-','S+','FUTURE']]);
  assert.equal(state.level,20);assert.equal(state.nature,'固執');
+  assert.equal(state.sourceUpdateId,'ORIGINAL-SOURCE','rating-only writer must preserve source lineage');
  assert.equal(state.master,'UNCHANGED');
  console.log('PASS G14_RATE_PRODUCTION_EXPLICIT_FUTURE_AUDIT_AND_ALL_OTHER_FIELDS_PRESERVED');
 
