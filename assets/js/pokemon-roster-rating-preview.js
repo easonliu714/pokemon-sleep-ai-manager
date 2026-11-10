@@ -8,7 +8,13 @@ const label=value=>value===null||value===undefined||value===''?'—':clean(value
 const groupById=rows=>{
   const result=new Map();
   for(const row of rows){
-    const id=clean(row?.pokemon_id);
+    // RATE.3: foreign-key source evidence must be a primitive string.
+    // Array/object IDs can stringify to a real Pokémon ID and falsely
+    // certify its five subskills or Lv1 ingredient. Ignore those carriers;
+    // missing verified slots then HOLD instead of borrowing another owner.
+    if(typeof row?.pokemon_id!=='string')continue;
+    const id=clean(row.pokemon_id);
+    if(!id)continue;
     if(!result.has(id))result.set(id,[]);
     result.get(id).push({...row});
   }

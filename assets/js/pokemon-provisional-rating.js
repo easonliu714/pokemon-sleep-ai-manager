@@ -213,7 +213,14 @@ export function scorePokemonProvisionalRating({pokemon={},ingredients=[],subskil
  * a separate snapshot+diff+explicit-consent+admitted-writer Gate is required.
  */
 export function planPokemonRosterProvisionalRegrade({pokemon=[],details=[]}={}){
-  const byId=new Map((Array.isArray(details)?details:[]).map(row=>[text(row.pokemon_id),row]));
+  // RATE.3: the direct planner is also a public read-only entry point.
+  // Never join a coercible detail foreign key onto a canonical roster ID.
+  const byId=new Map();
+  for(const row of Array.isArray(details)?details:[]){
+    if(typeof row?.pokemon_id!=='string')continue;
+    const detailId=text(row.pokemon_id);
+    if(detailId)byId.set(detailId,row);
+  }
   const seen=new Set(),proposals=[],held=[];
   for(const row of Array.isArray(pokemon)?pokemon:[]){
     // An array-backed imported ID can stringify to a legitimate ID. Only a
