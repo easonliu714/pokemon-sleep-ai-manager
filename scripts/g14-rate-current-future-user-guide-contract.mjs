@@ -241,6 +241,31 @@ const validFutureIngredient=scorePokemonProvisionalRating({
   ],
 });
 assert.equal(validFutureIngredient.status,'PROVISIONAL_HEURISTIC');
+
+// RATE.1 source-bound negative-first: two populated aliases on one imported
+// ingredient observation must agree before that Lv1 identity is certified.
+// Preserve the original conflicting facts; never guess which alias is right.
+const conflictingIngredientNameAlias=scorePokemonProvisionalRating({
+  pokemon:{...pokemon,specialty:'食材'},subskills,
+  ingredients:[{unlock_level:1,ingredient_name:'特選蘋果',name:'豆製肉'}],
+});
+assert.equal(conflictingIngredientNameAlias.status,'REVIEW_REQUIRED',
+  'contradictory Lv1 ingredient name aliases must HOLD instead of grading');
+assert.ok(conflictingIngredientNameAlias.missing_inputs.includes('conflicting_ingredient_name_alias'));
+const conflictingIngredientLevelAlias=scorePokemonProvisionalRating({
+  pokemon:{...pokemon,specialty:'食材'},subskills,
+  ingredients:[{unlock_level:1,level:30,ingredient_name:'特選蘋果'}],
+});
+assert.equal(conflictingIngredientLevelAlias.status,'REVIEW_REQUIRED',
+  'contradictory ingredient unlock-level aliases must HOLD instead of grading');
+assert.ok(conflictingIngredientLevelAlias.missing_inputs.includes('conflicting_ingredient_level_alias'));
+const matchingIngredientAliases=scorePokemonProvisionalRating({
+  pokemon:{...pokemon,specialty:'食材'},subskills,
+  ingredients:[{unlock_level:1,level:1,ingredient_name:'特選蘋果',name:'特選蘋果'}],
+});
+assert.equal(matchingIngredientAliases.status,'PROVISIONAL_HEURISTIC',
+  'agreeing canonical Lv1 ingredient aliases must remain eligible');
+
 const canonicalMainSkill=scorePokemonProvisionalRating({
   pokemon:{...pokemon,specialty:'技能',main_skill:'能量填充S'},subskills,
 });
