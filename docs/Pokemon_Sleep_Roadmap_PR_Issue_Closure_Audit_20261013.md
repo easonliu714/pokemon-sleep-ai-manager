@@ -1,3 +1,11 @@
+## 2026-11-10 G14.RATE.3 #859 — primitive roster and instance identity admission | Source/Test candidate
+
+- **Authority:** protected main `fe145368f77ea361cd0366fdadebeed9545b84e1`; sole [Draft #859](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/859). Ruleset #25813226 remains ACTIVE. No production rating Apply authority.
+- **Real negative-first CI:** test-only HEAD `9531e2dcd300330b648c99973c72291f75c58dfb`, [Frontend #42758746716](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/42758746716) required `regression-gate` **FAILED** at `scripts/g14-rate-current-future-user-guide-contract.mjs:389`: array-backed `pokemon_id=['testA']` produced eligible count **1**, expected **0**. The separate array-backed `pokemon_instance_id` fixture is also retained. Other 11 PR workflows succeeded. This is synthetic read-only identity provenance, not a player-data incident.
+- **Minimal Source/Test correction:** `planPokemonRosterProvisionalRegrade` refuses coercible non-primitive Pokémon IDs; `createPokemonRatingSelection` refuses non-primitive Pokémon and instance IDs. Canonical string IDs, 15 grades, CURRENT/FUTURE, missing-source HOLD and read-only intent remain unchanged. No schema, SW/version, workflow, scoring weights, player SQLite or automatic `pokemon.rating` write.
+- **Release STOP:** `RATE4_PRODUCTION_APPLY_ENABLED=false`, `RATE_READ_ONLY_UI=OWNER_PASS_BOUNDED`, `RATE_PERSISTED_APPLY=HOLD_PRODUCTION_APPLY`; no Ready/Merge/Pages/Android Apply without separate Owner authority and complete writer/readback Gate. #19 raw official HTML article H1 still `HOLD_SOURCE_REVIEW`; #482 `OWNER_ACTION=NONE_NOW`.
+- **Status:** `SOURCE_TEST_CANDIDATE` pending final exact-head PR workflows and independent review. No docs-only heartbeat or parallel PR.
+
 ## 2026-11-10 G14.RATE.1 #859 — inherited prototype names cannot certify rating evidence | material Source/Test candidate
 
 - **Fresh authority:** protected main `fe145368f77ea361cd0366fdadebeed9545b84e1`; sole [Draft #859](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/859), Ruleset #25813226 ACTIVE. Historical #858 already protected MERGED with 9/9 independent main Push + Pages SUCCESS. No new-main acceptance for #859.

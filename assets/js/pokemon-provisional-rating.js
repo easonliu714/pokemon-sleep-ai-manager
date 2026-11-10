@@ -216,7 +216,9 @@ export function planPokemonRosterProvisionalRegrade({pokemon=[],details=[]}={}){
   const byId=new Map((Array.isArray(details)?details:[]).map(row=>[text(row.pokemon_id),row]));
   const seen=new Set(),proposals=[],held=[];
   for(const row of Array.isArray(pokemon)?pokemon:[]){
-    const id=text(row?.pokemon_id);
+    // An array-backed imported ID can stringify to a legitimate ID. Only a
+    // primitive string is an admissible roster identity; preserve source and HOLD.
+    const id=typeof row?.pokemon_id==='string'?text(row.pokemon_id):'';
     if(!id||seen.has(id)){
       held.push({pokemon_id:id||null,reason_codes:['missing_or_duplicate_pokemon_id']});continue;
     }

@@ -102,6 +102,10 @@ export function createPokemonRatingSelection(view){
   }
   for(const x of rows){
     const id=clean(x.pokemon_id),instance=clean(x.pokemon_instance_id),reasons=[];
+    // The display normalizer must never certify a coerced array/object ID as
+    // verified per-instance adoption intent. The source is not rewritten.
+    if(typeof x.pokemon_id!=='string')reasons.push('noncanonical_pokemon_id');
+    if(typeof x.pokemon_instance_id!=='string')reasons.push('noncanonical_instance_id');
     if(!id||ids.get(id)!==1)reasons.push('missing_or_duplicate_pokemon_id');
     if(!instance||instances.get(instance)!==1)reasons.push('missing_or_duplicate_instance_id');
     if(x.status!=='PROVISIONAL_HEURISTIC'||!POKEMON_PROVISIONAL_RATING_LABELS.includes(x.proposed_rating))
