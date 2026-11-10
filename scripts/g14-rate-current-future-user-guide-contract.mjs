@@ -183,6 +183,20 @@ const canonicalIngredient=scorePokemonProvisionalRating({
   ingredients:[{unlock_level:1,ingredient_name:'特選蘋果'}],
 });
 assert.equal(canonicalIngredient.status,'PROVISIONAL_HEURISTIC');
+// RATE.1 negative-first: a single Pokémon has exactly one Lv1 ingredient
+// identity. A valid Lv1 row must not mask a contradictory second Lv1 row.
+// The existing .some(valid) implementation currently returns a grade.
+const contradictoryLevelOneIngredients=scorePokemonProvisionalRating({
+  pokemon:{...pokemon,specialty:'食材'},subskills,
+  ingredients:[
+    {unlock_level:1,ingredient_name:'特選蘋果'},
+    {unlock_level:1,ingredient_name:'豆製肉'},
+  ],
+});
+assert.equal(contradictoryLevelOneIngredients.status,'REVIEW_REQUIRED',
+  'contradictory Lv1 ingredient identities must HOLD instead of grading');
+assert.ok(contradictoryLevelOneIngredients.missing_inputs.includes('conflicting_level_1_ingredient'),
+  'conflicting Lv1 ingredient evidence must have a named reason');
 const canonicalMainSkill=scorePokemonProvisionalRating({
   pokemon:{...pokemon,specialty:'技能',main_skill:'能量填充S'},subskills,
 });
