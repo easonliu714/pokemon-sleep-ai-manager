@@ -82,8 +82,8 @@ async function install(page){
     },
     async audit(_type,_identity,before,after){
       if(v.auditFail)throw Error('SYNTHETIC_RATING_AUDIT_ABORT');
-      assert.equal(before.source_update_id,'ORIGINAL-SOURCE','prior provenance must be in audit');
-      assert.equal(after.source_update_id,'ORIGINAL-SOURCE','rating-only audit must retain provenance');
+      if(before.source_update_id!=='ORIGINAL-SOURCE'||after.source_update_id!=='ORIGINAL-SOURCE')
+        throw Error('RATE4_SYNTHETIC_PROVENANCE_AUDIT_MISMATCH');
       execute('INSERT INTO rating_audit VALUES(?,?,?,?)',
         ['fixture',before.rating,after.rating,after.scope]);
     },
@@ -150,7 +150,7 @@ try{
  assert.equal(await seedPage.evaluate(()=>window.__rate.sqlWrites),0);
  console.log('PASS G14_RATE_PRODUCTION_DEFAULT_OFF_NO_SQL_NO_SNAPSHOT');
  const first=await seedPage.evaluate(()=>window.__rate.save('CURRENT'));
- assert.equal(first.ok,true);
+ assert.equal(first.ok,true,first.code);
  assert.equal(first.out.grade,'S-');
  assert.equal(inspect(await persisted(seedPage)).rating,'S-');
  const stale=await second.evaluate(()=>window.__rate.save('FUTURE'));
