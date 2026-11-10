@@ -375,6 +375,23 @@ for(const inheritedName of ['constructor','toString']){
     'prototype-inherited nature must HOLD: '+inheritedName);
   assert.ok(inheritedNature.missing_inputs.includes('verified_nature'));
 }
+// RATE.3 negative-first: JSON arrays can stringify to an otherwise valid
+// Pokemon/instance ID. Identity evidence must remain a primitive string,
+// even for a read-only adoption-intent preview. No SQLite writes here.
+for(const [kind,mutated] of [
+  ['pokemon_id',{...pokemon,pokemon_id:['testA']}],
+  ['pokemon_instance_id',{...pokemon,pokemon_instance_id:['fixture-A']}],
+]){
+  const noncanonicalView=buildPokemonRosterRatingView({
+    pokemon:[mutated],ingredients:[],subskills,
+  });
+  const noncanonicalSelection=createPokemonRatingSelection(noncanonicalView);
+  assert.equal(noncanonicalSelection.eligible.length,0,
+    'noncanonical roster identity arrays must not become eligible: '+kind);
+  assert.equal(noncanonicalSelection.held.length,1,
+    'unverified identity must remain a bounded HOLD: '+kind);
+  assert.equal(noncanonicalSelection.selected.size,0);
+}
 console.log(JSON.stringify({gate:'G14_RATE_CURRENT_FUTURE_GUIDE_SOURCE',status:'PASS',
   current:'S-',future:'S+',dual_grade:true,guide_bottom:true,
   thresholds_exact:true,source_unchanged:true,no_rating_write:true}));
