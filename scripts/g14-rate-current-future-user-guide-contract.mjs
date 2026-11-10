@@ -280,22 +280,14 @@ const detailSource=fs.readFileSync('assets/js/pokemon-detail.js','utf8');
 const manualSource=fs.readFileSync('assets/js/manual-editor.js','utf8');
 assert.match(detailSource,/bindDraftRatingAdvice\(/);
 assert.match(detailSource,/mountSavedRatingAdvice\(/);
-assert.match(detailSource,/saveConfirmedPokemonSuggestedRating\(/);
-assert.match(manualSource,/saveConfirmedPokemonSuggestedRating/);
-assert.match(manualSource,/RATE4_STALE_SOURCE_RELOAD_REQUIRED/);
-assert.match(manualSource,/snapshot\('rate4:confirmed:/);
-assert.match(manualSource,/withPrimarySqliteMutationLock\(async lease=>/);
-assert.match(manualSource,/primaryMutationLease:lease/);
-assert.match(manualSource,/confirmed!==true/);
-// RATE.4 production Apply is not Owner-authorized. The proposed production
-// button and writer must remain OFF by default even if this Draft is merged
-// accidentally; isolated synthetic Chromium tests opt in explicitly.
-assert.match(manualSource,/export const RATE4_PRODUCTION_APPLY_ENABLED=false;/,
-  'production rating Apply must be disabled by default');
-assert.match(manualSource,/if\(RATE4_PRODUCTION_APPLY_ENABLED!==true\)/,
-  'production rating writer must reject without explicit feature admission');
-assert.match(detailSource,/if\(advice\.can_propose_save&&RATE4_PRODUCTION_APPLY_ENABLED\)/,
-  'production detail UI must not expose the rating Apply control while HOLD');
+// Owner-approved split: production has no RATE.4 writer entrypoint in Phase A.
+// The prior isolated writer tests remain traceable at pre-split HEAD 3c9b71d56e9a675436288768c21a833cdd857ae1.
+assert.doesNotMatch(detailSource,/saveConfirmedPokemonSuggestedRating|ratingExplicitSave|RATE4_PRODUCTION_APPLY_ENABLED/,
+  'read-only detail must not contain any rating Apply control');
+assert.doesNotMatch(manualSource,/saveConfirmedPokemonSuggestedRating|RATE4_PRODUCTION_APPLY_ENABLED/,
+  'read-only release must not bundle the candidate production rating writer');
+assert.match(detailSource,/renderPokemonRatingChangeAdvice\(advice\)/,
+  'CURRENT\/FUTURE read-only panel must remain rendered');
 // RATE.1 negative-first: malformed observation conflict carriers must not
 // certify an otherwise complete profile. The canonical field_conflicts is an
 // object map, and evidenceConflicts is an array of unresolved field names.

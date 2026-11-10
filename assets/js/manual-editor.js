@@ -2,8 +2,6 @@ import {run,rows,persist,snapshot,begin,commit,rollback} from './database.js';
 import {localIso} from './time-utils.js';
 import {withPrimarySqliteMutationLock} from './storage.js';
 import {beginSqliteExclusiveWriteWindow,withSqliteCoordinatedMutation} from './sqlite-direct-write-window-guard.js';
-import {scorePokemonProvisionalRating,POKEMON_PROVISIONAL_RATING_RULE_VERSION} from './pokemon-provisional-rating.js';
-import {sourceTokenForPokemonRating} from './pokemon-roster-rating-preview.js';
 const now=()=>localIso();
 async function audit(entity,key,before,after,reason){const id=`MANUAL-${Date.now()}-${Math.random().toString(16).slice(2,6)}`;run('INSERT INTO import_batches(update_id,schema_version,generated_at,imported_at,source,operation_count,result_json) VALUES(?,?,?,?,?,?,?)',[id,'manual-1.0',now(),now(),'manual_frontend_edit',1,JSON.stringify({status:'applied',reason})]);run('INSERT INTO import_changes(update_id,operation_index,entity,action,key_json,before_json,after_json,status,message) VALUES(?,?,?,?,?,?,?,?,?)',[id,0,entity,'manual_update',JSON.stringify(key),JSON.stringify(before||null),JSON.stringify(after||null),'applied',reason]);}
 function emitPokemonEvaluationInputChanged(pokemonId,reason){window.dispatchEvent?.(new CustomEvent('pokemon-sleep:pokemon-evaluation-input-changed',{detail:{pokemon_ids:[String(pokemonId)],reason}}));}
@@ -150,76 +148,7 @@ export async function savePokemonDetail(id,data,ingredients,subskills){
   }
 }
 
-// G14.RATE.4: explicit rating-only write. Never reuse savePokemonDetail()
-// because it rewrites all ingredient/subskill rows and could promote other
-// uncertain player fields. Read/snapshot/BEGIN/audit/COMMIT/ACK all share the
-// same pre-SQL primary mutation lease. Any failed ACK requires reload.
-// RATE.4 remains source/test-only. Owner has NOT authorized production Apply.
-// A separate, reviewed release change must explicitly enable this switch.
-export const RATE4_PRODUCTION_APPLY_ENABLED=false;
-export async function saveConfirmedPokemonSuggestedRating(id,{
-  instanceId,expectedSourceToken,scope,expectedGrade,confirmed=false,
-}={}){
-  if(RATE4_PRODUCTION_APPLY_ENABLED!==true)
-    throw new Error('RATE4_PRODUCTION_APPLY_NOT_AUTHORIZED');
-  if(confirmed!==true)throw new Error('RATE4_EXPLICIT_CONFIRMATION_REQUIRED');
-  if(!['CURRENT','FUTURE'].includes(scope))throw new Error('RATE4_GRADE_SCOPE_REQUIRED');
-  if(typeof id!=='string'||!id.trim()||typeof instanceId!=='string'||!instanceId.trim()
-    ||typeof expectedSourceToken!=='string'||!expectedSourceToken)
-    throw new Error('RATE4_SOURCE_IDENTITY_REQUIRED');
-  const close=beginSqliteExclusiveWriteWindow();
-  let acknowledged=false,committed=false;
-  try{
-    return await withPrimarySqliteMutationLock(async lease=>{
-      const row=rows('SELECT * FROM pokemon WHERE pokemon_id=?',[id])[0];
-      const ingredients=rows('SELECT * FROM pokemon_ingredients WHERE pokemon_id=? ORDER BY unlock_level',[id]);
-      const subskills=rows('SELECT * FROM pokemon_subskills WHERE pokemon_id=? ORDER BY unlock_level',[id]);
-      const token=sourceTokenForPokemonRating({pokemon:row?[row]:[],ingredients,subskills});
-      if(!row||row.pokemon_instance_id!==instanceId||token!==expectedSourceToken)
-        throw new Error('RATE4_STALE_SOURCE_RELOAD_REQUIRED');
-      if(row.status!=='active')throw new Error('RATE4_INACTIVE_POKEMON_HOLD');
-      const result=scorePokemonProvisionalRating({pokemon:row,ingredients,subskills});
-      const grade=scope==='CURRENT'?result.current_rating:result.future_rating;
-      if(result.status!=='PROVISIONAL_HEURISTIC'||!grade||grade!==expectedGrade
-        ||result.rule_version!==POKEMON_PROVISIONAL_RATING_RULE_VERSION)
-        throw new Error('RATE4_UNVERIFIED_GRADE_OR_RULE_HOLD');
-      if(row.rating===grade){
-        acknowledged=true;
-        return Object.freeze({status:'NO_CHANGE',grade,scope,old_rating:row.rating,write:false});
-      }
-      await snapshot('rate4:confirmed:'+id);
-      const beforeRating=row.rating??null,at=now();
-      withSqliteCoordinatedMutation(begin);
-      try{
-        withSqliteCoordinatedMutation(()=>{
-          run("UPDATE pokemon SET rating=?,last_updated_at=?,source_update_id=? WHERE pokemon_id=? AND pokemon_instance_id=? AND status='active' AND rating IS ?",
-            [grade,at,'RATE4-USER-CONFIRMED',id,instanceId,row.rating]);
-          if(rows('SELECT changes() AS affected')[0]?.affected!==1)
-            throw new Error('RATE4_STALE_RATING_CAS_CONFLICT');
-        });
-        const after=rows('SELECT * FROM pokemon WHERE pokemon_id=?',[id])[0];
-        if(after?.rating!==grade)throw new Error('RATE4_TRANSACTION_READBACK_MISMATCH');
-        await withSqliteCoordinatedMutation(()=>audit('pokemon',{pokemon_id:id,pokemon_instance_id:instanceId},
-          {rating:beforeRating},{rating:grade,scope,rule_version:result.rule_version,
-            current_rating:result.current_rating,future_rating:result.future_rating},
-          'Owner confirmed a single provisional '+scope+' rating; previous value retained in audit.'));
-        withSqliteCoordinatedMutation(commit);committed=true;
-        await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
-        // This is post-ACK in-memory proof. The new-main CI browser test also
-        // requires a fresh IndexedDB SQL.js reload to claim durable source PASS.
-        if(rows("SELECT rating FROM pokemon WHERE pokemon_id=? AND pokemon_instance_id=? AND status='active'",
-          [id,instanceId])[0]?.rating!==grade)
-          throw new Error('RATE4_POST_ACK_READBACK_MISMATCH');
-        acknowledged=true;
-        emitPokemonEvaluationInputChanged(id,'rating_user_confirmed_'+scope.toLowerCase());
-        return Object.freeze({status:'SAVED',grade,scope,old_rating:beforeRating,
-          rule_version:result.rule_version,write:true});
-      }catch(error){
-        if(!committed)withSqliteCoordinatedMutation(rollback);
-        throw error;
-      }
-    });
-  }finally{
-    close({uncertainOutcome:!acknowledged});
-  }
-}
+// G14.RATE Phase A ships only read-only derived grades.
+// Deliberately no production rating-only SQLite writer here: the historical
+// isolated RATE.4 candidate is retained by exact pre-split PR commit, and
+// requires its own admission/Owner UAT gate before any player DB Apply.
