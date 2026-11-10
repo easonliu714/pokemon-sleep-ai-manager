@@ -226,18 +226,26 @@ export function planPokemonRosterProvisionalRegrade({pokemon=[],details=[]}={}){
     if(byId.has(detailId))duplicateDetailIds.add(detailId);
     else byId.set(detailId,row);
   }
-  const seen=new Set(),proposals=[],held=[];
+  // RATE.3: an ambiguous roster owner cannot certify even the FIRST row.
+  // Count canonical IDs before scoring so every duplicate remains HOLD; do
+  // not let encounter order determine which record receives a 15-band grade.
+  const rosterIdCounts=new Map(),proposals=[],held=[];
+  for(const row of Array.isArray(pokemon)?pokemon:[]){
+    const id=typeof row?.pokemon_id==='string'?text(row.pokemon_id):'';
+    if(id)rosterIdCounts.set(id,(rosterIdCounts.get(id)||0)+1);
+  }
   for(const row of Array.isArray(pokemon)?pokemon:[]){
     // An array-backed imported ID can stringify to a legitimate ID. Only a
     // primitive string is an admissible roster identity; preserve source and HOLD.
     const id=typeof row?.pokemon_id==='string'?text(row.pokemon_id):'';
-    if(!id||seen.has(id)){
-      held.push({pokemon_id:id||null,reason_codes:['missing_or_duplicate_pokemon_id']});continue;
+    if(!id){
+      held.push({pokemon_id:null,reason_codes:['missing_or_duplicate_pokemon_id']});continue;
     }
-    seen.add(id);
-    const detail=byId.get(id)||{},result=duplicateDetailIds.has(id)
-      ?hold(['duplicate_detail_pokemon_id'],['ambiguous_detail_identity'])
-      :scorePokemonProvisionalRating({
+    const detail=byId.get(id)||{},result=rosterIdCounts.get(id)>1
+      ?hold(['duplicate_roster_pokemon_id'],['ambiguous_roster_identity'])
+      :duplicateDetailIds.has(id)
+        ?hold(['duplicate_detail_pokemon_id'],['ambiguous_detail_identity'])
+        :scorePokemonProvisionalRating({
         pokemon:row,ingredients:detail.ingredients||[],subskills:detail.subskills||[],
         evidenceConflicts:detail.evidenceConflicts||[],
       });
