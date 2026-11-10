@@ -417,6 +417,24 @@ const arrayBackedDirectDetail=planPokemonRosterProvisionalRegrade({
 assert.equal(arrayBackedDirectDetail.summary.eligible,0,
   'direct planner detail joins must reject non-primitive foreign IDs');
 assert.equal(arrayBackedDirectDetail.summary.held,1);
+// RATE.3 source-bound negative-first: two independently supplied detail
+// records for the SAME canonical Pokémon ID are ambiguous provenance.
+// Last-write-wins Map.set must not silently select a complete five-slot
+// profile over an earlier contradictory/missing source record.
+const duplicateDetailOwner=planPokemonRosterProvisionalRegrade({
+  pokemon:[pokemon],
+  details:[
+    {pokemon_id:'testA',subskills:[]},
+    {pokemon_id:'testA',subskills},
+  ],
+});
+assert.equal(duplicateDetailOwner.summary.eligible,0,
+  'duplicate detail owner identities must HOLD rather than select last evidence');
+assert.equal(duplicateDetailOwner.summary.held,1);
+assert.ok(duplicateDetailOwner.held[0].missing_inputs.includes('duplicate_detail_pokemon_id'));
+assert.equal(planPokemonRosterProvisionalRegrade({
+  pokemon:[pokemon],details:[{pokemon_id:'testA',subskills}],
+}).summary.eligible,1,'one canonical detail owner must remain eligible');
 // Primitive canonical keys continue to admit exactly the same fixture.
 assert.equal(buildPokemonRosterRatingView(source).plan.summary.eligible,1);
 console.log(JSON.stringify({gate:'G14_RATE_CURRENT_FUTURE_GUIDE_SOURCE',status:'PASS',
