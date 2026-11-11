@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {assertOfficialArticleHeading,decodeOfficialVisibleEntities} from './g9r-official-article-heading-guard.mjs';
+import {visibleOfficialHtml} from './g9r-official-event-source-refresh.mjs';
 
 const OFFICIAL=/^https:\/\/www\.pokemonsleep\.net\/zh\/news\/[0-9]+\/$/;
 
@@ -12,9 +13,9 @@ const OFFICIAL=/^https:\/\/www\.pokemonsleep\.net\/zh\/news\/[0-9]+\/$/;
 // of the event facts. Emit bounded counts/hashes, never raw headings or HTML.
 // This must NEVER be used to bypass the strict article-heading authority guard.
 function headingStructureProbe(body,markers){
-  const visible=body.replace(/<!--[\s\S]*?-->/g,' ')
-    .replace(/<(?:noscript|textarea|template)\b[^>]*>[\s\S]*?<\/(?:noscript|textarea|template)>/gi,' ')
-    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi,' ');
+  // Reuse the strict parser's hidden-ancestor visibility filter for diagnostic
+  // H1 counts. This remains observation-only and NEVER certifies source identity.
+  const visible=visibleOfficialHtml(body);
   const compact=value=>decodeOfficialVisibleEntities(
     String(value).replace(/<[^>]+>/g,' '))
     .normalize('NFKC').replace(/\s+/g,'');
@@ -112,6 +113,25 @@ export function offlineProvenanceRegression(){
   // Distinguish missing, relocated and duplicated visible article headings
   // without exposing official raw HTML, arbitrary headers or player content.
   const title='〖活動〗第19次「新月日」';
+  // G9R negative-first: the raw response can contain a stale official H1
+  // inside a hidden ancestor. A diagnostic named "visible" must not count it
+  // as published article identity; a separate visible sibling must still count.
+  for(const attrs of ['hidden','inert','aria-hidden="true"',
+    'style="display:none"','style="visibility:hidden"']){
+    const hiddenAncestor='<div '+attrs+'><h1>'+title+'</h1></div>';
+    const invisible=summarizeOfficialLiveResponse({key:'new_moon',expectedUrl,
+      response,html:'<html><body>'+hiddenAncestor+'<h1>Pokémon Sleep</h1></body></html>',
+      markers:{title}});
+    assert.equal(invisible.heading_structure.article_h1_count,0,
+      'hidden ancestor cannot count as a visible official article H1: '+attrs);
+    assert.equal(invisible.heading_structure.title_fragment_h1_count,0);
+    const visibleSibling=summarizeOfficialLiveResponse({key:'new_moon',expectedUrl,
+      response,html:'<html><body>'+hiddenAncestor+'<h1>'+title+'</h1></body></html>',
+      markers:{title}});
+    assert.equal(visibleSibling.heading_structure.article_h1_count,1,
+      'hidden duplicate must not mask a real visible official H1: '+attrs);
+  }
+  console.log('PASS G9R_RAW_H1_HIDDEN_ANCESTOR_DIAGNOSTIC_NEGATIVE_FIRST');
   const structural='<html><body><noscript><h1>'+title+'</h1></noscript>'
     +'<textarea><h1>'+title+'</h1></textarea>'
     +'<h1>〖活動〗另一活動</h1><h2>'+title+'</h2></body></html>';
