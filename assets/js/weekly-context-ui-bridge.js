@@ -213,11 +213,49 @@ function writeAccountPotCapacity(capacity,source='MANUAL_WEEKLY_CONTEXT_UI'){
       source=excluded.source`,[value,localIso(),source]);
   return value;
 }
-async function saveAccountPotCapacity(edit){
-  await snapshot(edit.changed?'manual:account-pot-capacity':'migration:weekly-pot-to-account-capacity');
-  const value=writeAccountPotCapacity(edit.value,edit.source);
-  await persist();
-  return value;
+// G265 #861: imported-authority account pot writes must reserve the same-page
+// SQL window, then admit the loaded native primary revision BEFORE any snapshot,
+// SQL BEGIN or UPSERT. Keep the exact lease through durable persistence; an
+// uncertain ACK quarantines this page until fresh reload. No weekly override,
+// Public Master, other capacity rows, or UNKNOWN value may be rewritten.
+async function saveAccountPotCapacity(edit,current){
+  const close=beginSqliteExclusiveWriteWindow();
+  let acknowledged=false;
+  try{
+    return await withPrimarySqliteMutationLock(async lease=>{
+      const admitted=currentWeeklyContext();
+      if(!hasImportedAuthority(current)||!hasImportedAuthority(admitted)
+        ||String(admitted.week_start??'')!==String(current.week_start??'')
+        ||String(admitted.authority_revision??'')!==String(current.authority_revision??'')
+        ||String(admitted.authority_context_id??'')!==String(current.authority_context_id??'')
+        ||admitted.pot_size!==current.pot_size
+        ||String(admitted.field_sources?.pot_size??'')!==String(current.field_sources?.pot_size??''))
+        throw new Error('ACCOUNT_POT_IMPORTED_AUTHORITY_RELOAD_REQUIRED');
+      if(edit?.needsAccountWrite!==true
+        ||(edit.changed===true&&edit.source!=='MANUAL_WEEKLY_CONTEXT_UI')
+        ||(edit.changed!==true&&edit.source!=='WEEKLY_CONTEXT_LEGACY_PROMOTION'))
+        throw new Error('ACCOUNT_POT_EDIT_SOURCE_RELOAD_REQUIRED');
+      const value=typedValue('pot_size',edit.value);
+      if(value===null)throw new Error('鍋子基礎容量不可為空');
+      await snapshot(edit.changed?'manual:account-pot-capacity':'migration:weekly-pot-to-account-capacity');
+      let begun=false,committed=false;
+      try{
+        withSqliteCoordinatedMutation(begin);begun=true;
+        withSqliteCoordinatedMutation(()=>writeAccountPotCapacity(value,edit.source));
+        withSqliteCoordinatedMutation(commit);committed=true;
+      }catch(error){
+        if(begun&&!committed)withSqliteCoordinatedMutation(rollback);
+        throw error;
+      }
+      // COMMIT is not an IDB ACK. The same native lease guards durable bytes
+      // and revision CAS. Never retry when ACK may have been lost.
+      await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
+      acknowledged=true;
+      return value;
+    });
+  }finally{
+    close({uncertainOutcome:!acknowledged});
+  }
 }
 async function saveFallback(form,current,potEdit){
   // G265: reserve this page before waiting for the native primary lease.
@@ -292,7 +330,7 @@ function installSubmit(form){
           emitWeeklyChanged({context_id:current.authority_context_id,week_start:weekStart,authority:'MANUAL_OVERRIDE'});
         }
         if(potEdit.needsAccountWrite){
-          const value=await saveAccountPotCapacity(potEdit);
+          const value=await saveAccountPotCapacity(potEdit,current);
           emitPotChanged(value,potEdit.source);
         }
         syncForm();

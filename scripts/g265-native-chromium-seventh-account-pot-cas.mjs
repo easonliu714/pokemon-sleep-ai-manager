@@ -8,13 +8,14 @@ import {chromium} from 'playwright';
 import initSqlJs from 'sql.js';
 
 const legacy=fs.readFileSync(new URL('../assets/js/weekly-context-ui-bridge.js',import.meta.url),'utf8');
-const exact=legacy.split('async function saveAccountPotCapacity(edit){')[1]
+const exact=legacy.split('async function saveAccountPotCapacity(edit,current){')[1]
   ?.split('async function saveFallback(')[0];
 const helper=legacy.split('function writeAccountPotCapacity(capacity,source=')[1]
   ?.split('async function saveAccountPotCapacity(')[0];
 assert.ok(exact&&helper,'seventh exact legacy writer must remain source-bound');
 assert.match(exact,/await snapshot\(/);
-assert.match(exact,/await persist\(\)/);
+assert.match(exact,/withPrimarySqliteMutationLock/);
+assert.match(exact,/persist\(\{primaryMutationLease:lease\}\)/);
 assert.match(helper,/INSERT INTO account_capacity/);
 assert.doesNotMatch(legacy,/sqlite-account-pot-capacity-optin/);
 

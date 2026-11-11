@@ -14,7 +14,18 @@ function exactBetween(start,end){
 }
 const typed=exactBetween('function typedValue(field,raw){','function resolvedValue(');
 const write=exactBetween('function writeAccountPotCapacity(capacity,source=', 'async function saveAccountPotCapacity(');
-const save=exactBetween('async function saveAccountPotCapacity(edit){','async function saveFallback(');
+// Frozen pre-#861 production behavior remains a historical negative replay.
+// The current production source MUST now acquire native pre-SQL admission.
+const production=exactBetween('async function saveAccountPotCapacity(edit,current){','async function saveFallback(');
+assert.match(production,/beginSqliteExclusiveWriteWindow/);
+assert.match(production,/withPrimarySqliteMutationLock/);
+assert.match(production,/primaryMutationLease:lease/);
+const save=`async function saveAccountPotCapacity(edit){
+  await snapshot(edit.changed?'manual:account-pot-capacity':'migration:weekly-pot-to-account-capacity');
+  const value=writeAccountPotCapacity(edit.value,edit.source);
+  await persist();
+  return value;
+}`;
 assert.match(write,/INSERT INTO account_capacity/);
 assert.match(save,/await snapshot\(/);
 assert.match(save,/writeAccountPotCapacity\(edit\.value,edit\.source\)/);
