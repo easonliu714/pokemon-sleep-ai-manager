@@ -576,6 +576,11 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-native-chromium-seventh-account-pot-cas.mjs
 
+      - name: G265 #861 Actual Production Account Pot Native Pre-SQL Writer Gate
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-account-pot-production-presql-chromium.mjs
+
       - name: G265 Eighth Legacy Manual Item Two-ACK Stale Overwrite Negative
         run: node scripts/g265-manual-item-eighth-legacy-cross-tab-negative.mjs
 
