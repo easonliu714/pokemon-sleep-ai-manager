@@ -163,6 +163,9 @@ function handleDatabaseReady(event){
   // G479: reset before each database-ready evaluation; failure remains terminal HOLD.
   runtime.publicAuthorityReady=false;
   runtime.prewarmed.clear();
+  // G479: database-ready can replace the SQLite image without changing the
+  // Public Master fingerprint. Never reuse player-local DOM render cache.
+  runtime.renderedKeys.clear();
   const authority=evaluatePublicCatalogVersionAuthority(event?.detail?.public_master||{});
   const sentinel=lightweightIntegritySentinel();
   const persisted=readPersistedPublicCatalogFingerprint();
@@ -176,6 +179,10 @@ function handleDatabaseReady(event){
     // Never emit it before a failed first-install hydration has been ruled out.
     emitLazyReady(authority,decision);
     progress('VERSION_MATCH_BYPASS','公版版次與本機持久化 fingerprint 一致；略過全量公版 hydration／reconciliation／startup render','completed',{fingerprint:authority.fingerprint,integrity_sentinel:sentinel,player_sqlite_bypassed:false,local_authority_bypassed:false,migration_bypassed:false,player_state_refresh_bypassed:false});
+    // An exact Public Master fingerprint does not certify that the player-local
+    // projection belongs to this newly ready SQLite image. Refresh only the
+    // currently visible public view; keep offscreen hydration lazy.
+    if(isPublicView(activeView()))requestRender(activeView(),'database-ready-exact-authority');
     return;
   }
   progress('HYDRATE_STARTED','公版 fingerprint 缺失／變更；確認資料庫階段 reconciliation 結果','running',{fingerprint:authority.fingerprint,reason:decision.reason,updated_authorities:authority.updated_authorities,integrity_sentinel:sentinel});

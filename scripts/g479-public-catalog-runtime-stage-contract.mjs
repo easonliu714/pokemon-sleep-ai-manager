@@ -122,6 +122,30 @@ assert.equal(runtime.publicExactMatch,true);
 assert.equal(runtime.publicAuthorityReady,true,'persisted exact bypass admits verified rendering');
 assert.equal(renderCount,0,'fixture never renders or mutates player data');
 
+// G479 negative-first: a second database-ready event can replace the SQLite
+// image while retaining the exact same public fingerprint. Previous DOM render
+// keys are then stale even though Public Master authority remains verified.
+// Exercise the actual VERSION_MATCH_BYPASS handler, not a mocked decision.
+const exactFingerprint=evaluatePublicCatalogVersionAuthority({
+  expected,applied:{...expected},updated:false,
+}).fingerprint;
+runtime.renderedKeys.set('recipes',exactFingerprint+'|0');
+runtime.prewarmed.set('ingredients',[{from:'prior-sqlite-image'}]);
+let renderRequestCount=0;
+context.isPublicView=view=>view==='recipes';
+context.activeView=()=> 'recipes';
+context.requestRender=()=>{renderRequestCount++;};
+stages=fire({expected,applied:{...expected},updated:false});
+assert.ok(stages.includes('VERSION_MATCH_BYPASS'));
+assert.equal(runtime.publicAuthorityReady,true);
+assert.equal(runtime.renderedKeys.size,0,
+  'a new database-ready exact bypass must invalidate prior SQLite-image DOM render keys');
+assert.equal(runtime.prewarmed.size,0,
+  'a new database-ready exact bypass must invalidate prior SQLite-image prewarm');
+assert.equal(renderRequestCount,1,
+  'active public view must request fresh projection after exact authority revalidation');
+console.log('PASS G479_DATABASE_READY_EXACT_BYPASS_INVALIDATES_STALE_PLAYER_PROJECTION');
+
 console.log('PASS G479_ACTUAL_PUBLIC_CATALOG_FAILED_HYDRATION_NEVER_CLAIMS_LAZY_READY');
 console.log('PASS G479_INTEGRITY_AND_METADATA_PERSIST_FAILURE_FAIL_CLOSED');
 console.log('PASS G479_POST_RECONCILIATION_READY_AND_EXACT_RELOAD_BYPASS');
