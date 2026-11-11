@@ -98,19 +98,40 @@ function showFailure(label,error){
   debugTrace.record('bootstrap','module_probe_failed',{status:'failed',details:{label},error});
   if(status){status.textContent='載入失敗';status.className='badge error';}
   if(!warning)return;
-  warning.textContent=`前端模組載入失敗：${label}：${error?.message||error}。請至診斷中心匯出 JSON。`;
-  warning.classList.remove('hidden');
-  if(label!=='entry_modules')return;
-  const retry=document.createElement('button');
-  retry.type='button';
-  retry.dataset.g479ManualReload='true';
-  retry.textContent='重新載入頁面（保留資料）';
-  retry.addEventListener('click',()=>{
-    retry.disabled=true;
-    debugTrace.record('bootstrap','module_reload_requested',{status:'started',details:{manual:true,entry_module:true,clears_storage:false}});
-    globalThis.location.reload();
-  },{once:true});
-  warning.append(document.createTextNode(' '),retry);
+  // G479: storage-integrity/watchdog HOLD owns its DOM warning; never erase it.
+  const ownsStorageBadge=warning.dataset.g479ModuleFailure==='true'
+    &&warning.textContent===showFailure.lastOwnedText;
+  const foreignWarning=!ownsStorageBadge&&(
+    !warning.classList.contains('hidden')
+    ||warning.textContent.trim()!==''
+    ||Boolean(warning.dataset.startupWatchdogWarning)
+  );
+  let target=warning;
+  if(foreignWarning){
+    target=document.getElementById('moduleBootstrapWarning');
+    if(!target){
+      target=document.createElement('div');
+      target.id='moduleBootstrapWarning';
+      target.className='notice error';
+      warning.insertAdjacentElement('afterend',target);
+    }
+  }
+  target.textContent=`前端模組載入失敗：${label}：${error?.message||error}。請至診斷中心匯出 JSON。`;
+  target.classList.remove('hidden');
+  if(target===warning)target.dataset.g479ModuleFailure='true';
+  if(label==='entry_modules'){
+    const retry=document.createElement('button');
+    retry.type='button';
+    retry.dataset.g479ManualReload='true';
+    retry.textContent='重新載入頁面（保留資料）';
+    retry.addEventListener('click',()=>{
+      retry.disabled=true;
+      debugTrace.record('bootstrap','module_reload_requested',{status:'started',details:{manual:true,entry_module:true,clears_storage:false}});
+      globalThis.location.reload();
+    },{once:true});
+    target.append(document.createTextNode(' '),retry);
+  }
+  if(target===warning)showFailure.lastOwnedText=target.textContent;
 }
 
 // v0.4.27.55.3.3 keeps startup critical-path small but introduces a single
