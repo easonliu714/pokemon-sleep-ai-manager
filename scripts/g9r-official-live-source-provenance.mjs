@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {assertOfficialArticleHeading,decodeOfficialVisibleEntities} from './g9r-official-article-heading-guard.mjs';
+import {visibleOfficialHtml} from './g9r-official-event-source-refresh.mjs';
 
 const OFFICIAL=/^https:\/\/www\.pokemonsleep\.net\/zh\/news\/[0-9]+\/$/;
 
@@ -12,9 +13,9 @@ const OFFICIAL=/^https:\/\/www\.pokemonsleep\.net\/zh\/news\/[0-9]+\/$/;
 // of the event facts. Emit bounded counts/hashes, never raw headings or HTML.
 // This must NEVER be used to bypass the strict article-heading authority guard.
 function headingStructureProbe(body,markers){
-  const visible=body.replace(/<!--[\s\S]*?-->/g,' ')
-    .replace(/<(?:noscript|textarea|template)\b[^>]*>[\s\S]*?<\/(?:noscript|textarea|template)>/gi,' ')
-    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi,' ');
+  // Reuse the strict parser's hidden-ancestor visibility filter for diagnostic
+  // H1 counts. This remains observation-only and NEVER certifies source identity.
+  const visible=visibleOfficialHtml(body);
   const compact=value=>decodeOfficialVisibleEntities(
     String(value).replace(/<[^>]+>/g,' '))
     .normalize('NFKC').replace(/\s+/g,'');
