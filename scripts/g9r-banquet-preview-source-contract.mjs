@@ -161,6 +161,19 @@ export function offlinePreviewRegression(){
   assert.throws(()=>auditBanquetPreview(fixture.replace('<h1>'+title+'</h1>',
     '<h1>'+encodedTitle+'</h1><h1>'+title+'</h1>')),
     /G9R_OFFICIAL_ARTICLE_H1_REVIEW_REQUIRED/);
+  // G9R negative-first: a hidden ancestor must not authorize a stale preview H1.
+  // The visible site H1 is unrelated, so the legacy direct H1 regex otherwise
+  // admits the hidden title and its stale body text as an official preview.
+  const hiddenParent='<div hidden><h1>'+title+'</h1></div>';
+  const hiddenOldTitle=fixture.replace('<h1>'+title+'</h1>',
+    hiddenParent+'<h1>Pokémon Sleep</h1>');
+  assert.throws(()=>auditBanquetPreview(hiddenOldTitle),
+    /G9R_OFFICIAL_ARTICLE_H1_REVIEW_REQUIRED/,
+    'hidden ancestor must not certify preview identity');
+  // A hidden duplicate also must not falsely reject one real visible H1.
+  assert.equal(auditBanquetPreview(fixture.replace('<h1>'+title+'</h1>',
+    hiddenParent+'<h1>'+title+'</h1>')).source_status,'PREVIEW_ONLY',
+    'hidden duplicate must not cause a false source HOLD');
   // Non-rendered H1 spoof: the old shared heading regex saw <noscript>/<textarea>
   // and the preview text stripper also admitted the hidden title as a real line.
   for(const tag of ['noscript','textarea']){
