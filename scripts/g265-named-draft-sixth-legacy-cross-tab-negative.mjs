@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const source=fs.readFileSync(new URL('../assets/js/war-room-named-team-draft-store.js',import.meta.url),'utf8');
+const source=fs.readFileSync(new URL('fixtures/g265-named-draft-pre-native-admission-legacy-source.txt',import.meta.url),'utf8');
 const marker='export async function saveNamedTeamDraftLocal(';
 assert.equal(source.split(marker).length,2,'exact sixth legacy writer source must be unique');
 const operation=source.split(marker)[1];

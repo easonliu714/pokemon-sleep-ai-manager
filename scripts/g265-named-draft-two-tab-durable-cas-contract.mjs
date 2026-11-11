@@ -12,7 +12,7 @@ const storeSource=readFileSync('assets/js/war-room-named-team-draft-store.js','u
 const contractSource=readFileSync('assets/js/war-room-named-team-draft-contract.js','utf8');
 const admissionSource=readFileSync('assets/js/sqlite-cross-tab-write-admission.js','utf8');
 for(const pattern of [/export async function saveNamedTeamDraftLocal\(/,
-  /await snapshot\(/,/begin\(\)/,/INSERT INTO settings\(/,/commit\(\)/,/await persist\(\)/,
+  /await snapshot\(/,/begin\(\)/,/INSERT INTO settings\(/,/commit\(\)/,/persist\(\{primaryMutationLease:lease\}\)/,
   /POST_PERSIST_READBACK_MISMATCH/,/PERSISTENCE_UNCERTAIN/])
   assert.match(storeSource,pattern,'unchanged production Named Draft writer required');
 assert.match(admissionSource,/observed!==expectedFingerprint/);
@@ -95,7 +95,10 @@ function loadWriter(bytes,options={}){
       durable=new Uint8Array(db.export());
       if(options.loseAck)throw Error('SYNTHETIC_ACK_LOST_AFTER_DURABLE_WRITE');
     },
-    isDatabaseReady:()=>true,isRescueReadonly:()=>false};
+    isDatabaseReady:()=>true,isRescueReadonly:()=>false,
+    withPrimarySqliteMutationLock:async fn=>fn(Object.freeze({})),
+    beginSqliteExclusiveWriteWindow:()=>()=>{},
+    withSqliteCoordinatedMutation:fn=>fn(),};
   context.globalThis=context;
   vm.runInNewContext(contractSource.replace(/^export /gm,''),context,{timeout:3000});
   vm.runInNewContext(storeSource.replace(/^import .*;\s*$/gm,'').replace(/^export /gm,''),context,{timeout:3000});

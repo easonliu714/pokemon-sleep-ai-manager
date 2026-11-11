@@ -40,7 +40,10 @@ const persist=async()=>{
 };
 const ctx=()=>({console,Date,sessionStorage,rows,run,
   begin:()=>db.run('BEGIN IMMEDIATE'),commit:()=>db.run('COMMIT'),rollback:()=>{try{db.run('ROLLBACK');}catch{}},
-  snapshot,persist,isDatabaseReady:()=>true,isRescueReadonly:()=>false});
+  snapshot,persist,isDatabaseReady:()=>true,isRescueReadonly:()=>false,
+  withPrimarySqliteMutationLock:async fn=>fn(Object.freeze({})),
+    beginSqliteExclusiveWriteWindow:()=>()=>{},
+    withSqliteCoordinatedMutation:fn=>fn(),});
 function load(){
   const c=ctx();c.globalThis=c;
   vm.runInNewContext(contract.replace(/^export /gm,''),c,{timeout:3000});

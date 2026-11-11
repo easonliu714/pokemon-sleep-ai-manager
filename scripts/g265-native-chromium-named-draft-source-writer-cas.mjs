@@ -12,7 +12,7 @@ const contractSource=fs.readFileSync('assets/js/war-room-named-team-draft-contra
 const admissionSource=fs.readFileSync('assets/js/sqlite-cross-tab-write-admission.js','utf8');
 for(const marker of [/export async function saveNamedTeamDraftLocal\(/,
   /await snapshot\(/,/begin\(\)/,/INSERT INTO settings\(/,
-  /commit\(\)/,/await persist\(\)/,/PERSISTENCE_UNCERTAIN/])
+  /commit\(\)/,/persist\(\{primaryMutationLease:lease\}\)/,/PERSISTENCE_UNCERTAIN/])
   assert.match(storeSource,marker,'exact unchanged Named Draft source is required');
 assert.match(admissionSource,/SQLITE_CROSS_TAB_STALE_DURABLE_RELOAD_REQUIRED/);
 assert.doesNotMatch(storeSource,/sqlite-cross-tab-write-admission/,
@@ -88,6 +88,7 @@ async function tab(){
     const fingerprint=bytes=>sha256SqliteBytes(bytes,crypto);
     const factory=new Function('rows','run','begin','commit','rollback',
       'snapshot','persist','isDatabaseReady','isRescueReadonly',
+      'withPrimarySqliteMutationLock','beginSqliteExclusiveWriteWindow','withSqliteCoordinatedMutation',
       sources.contract.replace(/^export /gm,'')+'\n'+
       sources.store.replace(/^import .*;\s*$/gm,'').replace(/^export /gm,'')+
       '\nreturn {saveNamedTeamDraftLocal,readNamedTeamDraft,getNamedTeamDraftPersistenceStatus};');
@@ -164,7 +165,10 @@ async function tab(){
                 v.durableWrites++;
                 if(options.loseAck)throw Error('NATIVE_ACK_LOST_AFTER_DURABLE');
               },
-              isDatabaseReady:()=>true,isRescueReadonly:()=>false
+              isDatabaseReady:()=>true,isRescueReadonly:()=>false,
+              withPrimarySqliteMutationLock:async fn=>fn(Object.freeze({})),
+    beginSqliteExclusiveWriteWindow:()=>()=>{},
+    withSqliteCoordinatedMutation:fn=>fn(),
             };
             try{
               const writer=factory(...Object.keys(env).map(k=>env[k]));

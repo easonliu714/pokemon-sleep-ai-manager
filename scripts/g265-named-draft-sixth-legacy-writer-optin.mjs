@@ -9,7 +9,7 @@ import {sha256SqliteBytes} from '../assets/js/sqlite-cross-tab-write-admission.j
 import {createSqliteVersionNeutralAtomicPairGate} from '../assets/js/sqlite-version-neutral-atomic-pair-gate.js';
 import {createNamedTeamDraftOptIn} from '../assets/js/sqlite-named-team-draft-optin.js';
 
-const source=fs.readFileSync(new URL('../assets/js/war-room-named-team-draft-store.js',import.meta.url),'utf8');
+const source=fs.readFileSync(new URL('fixtures/g265-named-draft-pre-native-admission-legacy-source.txt',import.meta.url),'utf8');
 const exact=source.split('export async function saveNamedTeamDraftLocal(')[1];
 assert.ok(exact,'sixth exact legacy writer must remain identifiable');
 assert.match(exact,/await snapshot\('war-room:named-team-draft:'/);

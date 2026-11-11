@@ -2,6 +2,8 @@
 // Not imported by runtime UI until a separate explicit-user-action Gate is accepted.
 import {rows,run,begin,commit,rollback,persist,snapshot,isDatabaseReady,isRescueReadonly} from './database.js';
 import {classifyNamedTeamDraftEligibility} from './war-room-named-team-draft-contract.js';
+import {withPrimarySqliteMutationLock} from './storage.js';
+import {beginSqliteExclusiveWriteWindow,withSqliteCoordinatedMutation} from './sqlite-direct-write-window-guard.js';
 
 const PREFIX='war-room:named-team-draft:v1:';
 const UNCERTAIN_KEY='pokemon-sleep-g265-named-draft-uncertain-v1';
@@ -15,6 +17,18 @@ function markerRead(){
     const value=JSON.parse(globalThis.sessionStorage?.getItem(UNCERTAIN_KEY)||'null');
     return DRAFT_ID.test(value?.draft_id||'')?{draft_id:value.draft_id}:null;
   }catch{return null;}
+}
+// Verify the tab-local recovery marker BEFORE any player SQL mutation.
+function markerArm(value){
+  const serialized=JSON.stringify(value);
+  try{
+    const storage=globalThis.sessionStorage;
+    if(!storage||typeof storage.setItem!=='function'||typeof storage.getItem!=='function')
+      throw error('PERSISTENCE_MARKER_STORAGE_UNAVAILABLE');
+    storage.setItem(UNCERTAIN_KEY,serialized);
+    if(storage.getItem(UNCERTAIN_KEY)!==serialized)
+      throw error('PERSISTENCE_MARKER_READBACK_FAILED');
+  }catch(cause){throw Object.assign(error('PERSISTENCE_MARKER_STORAGE_UNAVAILABLE'),{cause});}
 }
 function markerWrite(value){
   pendingUncertain=value;
@@ -69,35 +83,61 @@ export async function saveNamedTeamDraftLocal({draftId,name,projection,team,goal
   if(!DRAFT_ID.test(String(draftId||'')))throw error('INVALID_DRAFT_ID');
   const eligibility=classifyNamedTeamDraftEligibility({name,projection,team,goalDraftState,capturedAt});
   if(!eligibility.eligible)throw error('ELIGIBILITY_'+eligibility.reason);
-  const active=rows('SELECT goal_profile_id FROM strategy_goal_profile WHERE is_active=1 ORDER BY updated_at DESC LIMIT 1')[0];
-  if(active?.goal_profile_id!==eligibility.payload.goal_profile_id)throw error('ACTIVE_GOAL_PROFILE_CHANGED');
-  const previous=readRecord(draftId);
-  if(previous){
-    if(signature(previous.payload)!==signature(eligibility.payload))throw error('DRAFT_ID_COLLISION');
-    return Object.freeze({status:'ALREADY_PERSISTED',draft_id:draftId,game_applied:false,local_only:true});
-  }
-  const at=new Date().toISOString();
-  const record={schema:'pokemon-sleep-named-team-draft-local-record/1.0',
-    draft_id:draftId,payload:eligibility.payload,saved_at:at,game_applied:false,local_only:true};
   inFlight=true;
+  let close=null,committed=false,acknowledged=false;
   try{
-    // Snapshot must succeed before any player SQLite mutation.
-    await snapshot('war-room:named-team-draft:'+draftId);
-    begin();
-    try{
-      run('INSERT INTO settings(key,value_json,updated_at) VALUES(?,?,?)',
-        [key(draftId),JSON.stringify(record),at]);
-      commit();
-    }catch(e){rollback();throw e;}
-    // SQLite COMMIT is not proof that IndexedDB received the exported database.
-    try{
-      await persist();
-      const readback=readRecord(draftId);
-      if(!readback||signature(readback.payload)!==signature(record.payload))throw error('POST_PERSIST_READBACK_MISMATCH');
-    }catch(e){
-      markerWrite({draft_id:draftId});
-      throw Object.assign(error('PERSISTENCE_UNCERTAIN'),{cause:e,recovery:'RELOAD_AND_READBACK'});
-    }
-    return Object.freeze({status:'PERSISTED',draft_id:draftId,game_applied:false,local_only:true});
-  }finally{inFlight=false;}
+    // Same-page exclusivity begins before waiting for the native cross-tab lock.
+    close=beginSqliteExclusiveWriteWindow();
+    return await withPrimarySqliteMutationLock(async lease=>{
+      requireReady();
+      if(getNamedTeamDraftPersistenceStatus().status==='UNVERIFIED')throw error('PERSISTENCE_UNCERTAIN');
+      const active=rows('SELECT goal_profile_id FROM strategy_goal_profile WHERE is_active=1 ORDER BY updated_at DESC LIMIT 1')[0];
+      if(active?.goal_profile_id!==eligibility.payload.goal_profile_id)throw error('ACTIVE_GOAL_PROFILE_CHANGED');
+      const previous=readRecord(draftId);
+      if(previous){
+        if(signature(previous.payload)!==signature(eligibility.payload))throw error('DRAFT_ID_COLLISION');
+        acknowledged=true;
+        return Object.freeze({status:'ALREADY_PERSISTED',draft_id:draftId,game_applied:false,local_only:true});
+      }
+      const at=new Date().toISOString();
+      const record={schema:'pokemon-sleep-named-team-draft-local-record/1.0',
+        draft_id:draftId,payload:eligibility.payload,saved_at:at,game_applied:false,local_only:true};
+      markerArm({draft_id:draftId});
+      let begun=false;
+      try{
+        await snapshot('war-room:named-team-draft:'+draftId);
+        withSqliteCoordinatedMutation(()=>{
+          begin();begun=true;
+          run('INSERT INTO settings(key,value_json,updated_at) VALUES(?,?,?)',
+            [key(draftId),JSON.stringify(record),at]);
+          commit();committed=true;
+        });
+      }catch(cause){
+        if(begun&&!committed){
+          try{withSqliteCoordinatedMutation(rollback);}catch(rollbackError){
+            markerWrite({draft_id:draftId});
+            throw Object.assign(error('PERSISTENCE_UNCERTAIN'),{cause:rollbackError,recovery:'RELOAD_AND_READBACK'});
+          }
+        }
+        if(!committed)markerClear();
+        throw cause;
+      }
+      try{
+        // COMMIT is not durable: carry the opaque lease through IDB CAS/ACK.
+        await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
+        const readback=readRecord(draftId);
+        if(!readback||signature(readback.payload)!==signature(record.payload))
+          throw error('POST_PERSIST_READBACK_MISMATCH');
+      }catch(cause){
+        markerWrite({draft_id:draftId});
+        throw Object.assign(error('PERSISTENCE_UNCERTAIN'),{cause,recovery:'RELOAD_AND_READBACK'});
+      }
+      markerClear();
+      acknowledged=true;
+      return Object.freeze({status:'PERSISTED',draft_id:draftId,game_applied:false,local_only:true});
+    });
+  }finally{
+    close?.({uncertainOutcome:committed&&!acknowledged});
+    inFlight=false;
+  }
 }
