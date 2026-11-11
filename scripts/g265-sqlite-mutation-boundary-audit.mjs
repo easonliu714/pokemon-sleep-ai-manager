@@ -19,7 +19,15 @@ assert.match(database,/export function begin\(\)\{run\('BEGIN IMMEDIATE'\);\}/);
 assert.match(database,/export function commit\(\)\{run\('COMMIT'\);\}/);
 assert.match(database,/export async function snapshot\(reason\)/);
 assert.match(draft,/await snapshot\('war-room:named-team-draft:'/);
-assert.match(draft,/begin\(\);[\s\S]*?commit\(\);[\s\S]*?await persist\(\)/);
+// Production named draft now requires native admission before its first SQL write.
+assert.match(draft,/beginSqliteExclusiveWriteWindow\(\)/);
+assert.match(draft,/withPrimarySqliteMutationLock\(async lease/);
+assert.match(draft,/markerArm\(\{draft_id:draftId\}\)/);
+assert.match(draft,/persist\(\{primaryMutationLease:lease\}\)/);
+// Keep the historical unadmitted two-ACK pattern pinned as a NEGATIVE fixture,
+// never mistake it for the current production writer.
+const legacyDraft=read('scripts/fixtures/g265-named-draft-pre-native-admission-legacy-source.txt');
+assert.match(legacyDraft,/begin\(\);[\s\S]*?commit\(\);[\s\S]*?await persist\(\)/);
 assert.match(goal,/runSqliteWriteSession\(/,'goal writer migrated to opt-in session');
 assert.match(goal,/runSqliteWriteSession\(/,'goal write-session now owns persist boundary');
 assert.match(feedback,/withPrimarySqliteMutationLock\(async lease[\s\S]*?withSqliteCoordinatedMutation\(begin\)[\s\S]*?withSqliteCoordinatedMutation\(commit\)[\s\S]*?persist\(\{primaryMutationLease:lease\}\)/);
