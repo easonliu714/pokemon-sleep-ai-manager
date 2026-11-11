@@ -10,11 +10,13 @@ import {createSqliteVersionNeutralAtomicPairGate} from '../assets/js/sqlite-vers
 import {createAccountPotCapacityOptIn} from '../assets/js/sqlite-account-pot-capacity-optin.js';
 
 const legacy=fs.readFileSync(new URL('../assets/js/weekly-context-ui-bridge.js',import.meta.url),'utf8');
-const writer=legacy.split('async function saveAccountPotCapacity(edit){')[1]?.split('async function saveFallback(')[0];
+const writer=legacy.split('async function saveAccountPotCapacity(edit,current){')[1]?.split('async function saveFallback(')[0];
 const sqlWriter=legacy.split('function writeAccountPotCapacity(capacity,source=')[1]?.split('async function saveAccountPotCapacity(')[0];
 assert.ok(writer&&sqlWriter,'exact seventh legacy source must remain identifiable');
 assert.match(writer,/await snapshot\(/);
-assert.match(writer,/await persist\(\)/);
+assert.match(writer,/beginSqliteExclusiveWriteWindow/);
+assert.match(writer,/withPrimarySqliteMutationLock/);
+assert.match(writer,/persist\(\{primaryMutationLease:lease\}\)/);
 assert.match(sqlWriter,/INSERT INTO account_capacity/);
 assert.doesNotMatch(legacy,/sqlite-account-pot-capacity-optin/);
 console.log('PASS G265_SEVENTH_ACCOUNT_POT_EXACT_LEGACY_SOURCE_BOUND_NOT_WIRED');
