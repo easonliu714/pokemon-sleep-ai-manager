@@ -97,10 +97,25 @@ function normalizeFeedbackRow(row={}){
 }
 
 export function applyRecipeAttemptFeedback(candidates=[],feedbackRows=[]){
-  const feedbackMap=new Map((feedbackRows||[]).map(row=>{
+  const feedbackMap=new Map();
+  for(const row of feedbackRows||[]){
     const normalized=normalizeFeedbackRow(row);
-    return [normalized.recipe_id,normalized];
-  }).filter(([id])=>id));
+    if(!normalized.recipe_id)continue;
+    if(feedbackMap.has(normalized.recipe_id)){
+      // G6.2: duplicate player feedback identity is ambiguous even when both
+      // rows claim "unpaused". Never let Map's last-row-wins semantics clear
+      // an earlier HOLD or promote an unverified recipe recommendation.
+      const prior=feedbackMap.get(normalized.recipe_id);
+      feedbackMap.set(normalized.recipe_id,Object.freeze({
+        ...prior,
+        recommendation_paused:true,
+        reference_maybe_wrong:true,
+        feedback_identity_ambiguous:true,
+      }));
+    }else{
+      feedbackMap.set(normalized.recipe_id,normalized);
+    }
+  }
   return (candidates||[]).map(candidate=>{
     const feedback=feedbackMap.get(clean(candidate?.recipe_id))||normalizeFeedbackRow({recipe_id:candidate?.recipe_id});
     return Object.freeze({
