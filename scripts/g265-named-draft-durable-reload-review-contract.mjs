@@ -47,7 +47,10 @@ const context=()=>{
       persisted=db.export();
       if(persistMode==='fail-after')throw Error('synthetic_ack_lost');
     },
-    isDatabaseReady:()=>true,isRescueReadonly:()=>false};
+    isDatabaseReady:()=>true,isRescueReadonly:()=>false,
+    withPrimarySqliteMutationLock:async fn=>fn(Object.freeze({})),
+    beginSqliteExclusiveWriteWindow:()=>()=>{},
+    withSqliteCoordinatedMutation:fn=>fn(),};
   c.globalThis=c;
   vm.runInNewContext(eligibilitySource.replace(/^export /gm,''),c,{timeout:3000});
   vm.runInNewContext(storeSource.replace(/^import .*;\s*$/gm,'').replace(/^export /gm,''),c,{timeout:3000});

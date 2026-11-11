@@ -40,7 +40,10 @@ const persist=async()=>{
 };
 const ctx=()=>({console,Date,sessionStorage,rows,run,
   begin:()=>db.run('BEGIN IMMEDIATE'),commit:()=>db.run('COMMIT'),rollback:()=>{try{db.run('ROLLBACK');}catch{}},
-  snapshot,persist,isDatabaseReady:()=>true,isRescueReadonly:()=>false});
+  snapshot,persist,isDatabaseReady:()=>true,isRescueReadonly:()=>false,
+  withPrimarySqliteMutationLock:async fn=>fn(Object.freeze({})),
+    beginSqliteExclusiveWriteWindow:()=>()=>{},
+    withSqliteCoordinatedMutation:fn=>fn(),});
 function load(){
   const c=ctx();c.globalThis=c;
   vm.runInNewContext(contract.replace(/^export /gm,''),c,{timeout:3000});
@@ -92,3 +95,49 @@ await import('./g265-named-draft-durable-reload-review-contract.mjs');
 
 // Isolated cross-tab durable CAS/ACK-loss source gate; production admission remains HOLD.
 await import('./g265-named-draft-two-tab-durable-cas-contract.mjs');
+
+
+// G265 #861 native admission negative-first on the REAL local Named Draft writer.
+// Disposable SQL.js only: an unavailable native Web Lock must refuse BEFORE
+// snapshot, BEGIN, INSERT or persistence. The legacy writer currently ignores
+// this denial; this assertion is intentionally RED until production is repaired.
+{
+  const isolated=dbInit();
+  let snapshotsBeforeLock=0,sqlBeforeLock=0,persistsBeforeLock=0;
+  const denied={
+    console,Date,sessionStorage:new Map(),
+    rows(sql,params=[]){
+      const stmt=isolated.prepare(sql);
+      try{stmt.bind(params);const out=[];while(stmt.step())out.push(stmt.getAsObject());return out;}
+      finally{stmt.free();}
+    },
+    run(sql,params=[]){sqlBeforeLock++;isolated.run(sql,params);},
+    begin(){sqlBeforeLock++;isolated.run('BEGIN IMMEDIATE');},
+    commit(){isolated.run('COMMIT');},
+    rollback(){try{isolated.run('ROLLBACK');}catch{}},
+    async snapshot(){snapshotsBeforeLock++;},
+    async persist(){persistsBeforeLock++;},
+    isDatabaseReady:()=>true,isRescueReadonly:()=>false,
+    beginSqliteExclusiveWriteWindow:()=>()=>{},
+    withSqliteCoordinatedMutation:fn=>fn(),
+    async withPrimarySqliteMutationLock(){
+      throw Object.assign(new Error('SYNTHETIC_NATIVE_LEASE_DENIED'),{code:'SYNTHETIC_NATIVE_LEASE_DENIED'});
+    },
+  };
+  denied.globalThis={sessionStorage:{
+    getItem:()=>null,setItem:()=>{},removeItem:()=>{},
+  }};
+  vm.runInNewContext(contract.replace(/^export /gm,''),denied,{timeout:3000});
+  vm.runInNewContext(source.replace(/^import .*;\s*$/gm,'').replace(/^export /gm,''),denied,{timeout:3000});
+  try{
+    await assert.rejects(
+      denied.saveNamedTeamDraftLocal({...args,draftId:'draft_nativelease00001'}),
+      e=>e?.code==='SYNTHETIC_NATIVE_LEASE_DENIED',
+      'production Named Draft must obtain native primary lease before snapshot/SQL'
+    );
+    assert.equal(snapshotsBeforeLock,0,'native lock denial must have zero snapshots');
+    assert.equal(sqlBeforeLock,0,'native lock denial must have zero SQL');
+    assert.equal(persistsBeforeLock,0,'native lock denial must have zero persist');
+    console.log('PASS G265_NAMED_DRAFT_PRODUCTION_PRE_SQL_NATIVE_LEASE_DENIAL_ZERO_EFFECT');
+  }finally{isolated.close();}
+}

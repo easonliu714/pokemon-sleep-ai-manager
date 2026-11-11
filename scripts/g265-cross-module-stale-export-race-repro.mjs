@@ -4,7 +4,7 @@ import vm from 'node:vm';
 
 // G265 HISTORICAL negative fixture deliberately simulates old uncoordinated
 // export-before-save, not the fixed production database.persist().
-const store=fs.readFileSync('assets/js/war-room-named-team-draft-store.js','utf8');
+const store=fs.readFileSync('scripts/fixtures/g265-named-draft-pre-native-admission-legacy-source.txt','utf8');
 const contract=fs.readFileSync('assets/js/war-room-named-team-draft-contract.js','utf8');
 const database=fs.readFileSync('assets/js/database.js','utf8');
 assert.match(store,/await persist\(\)/);

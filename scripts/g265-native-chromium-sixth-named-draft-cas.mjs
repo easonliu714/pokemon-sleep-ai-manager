@@ -7,7 +7,7 @@ import {createHash} from 'node:crypto';
 import {chromium} from 'playwright';
 import initSqlJs from 'sql.js';
 
-const source=fs.readFileSync(new URL('../assets/js/war-room-named-team-draft-store.js',import.meta.url),'utf8');
+const source=fs.readFileSync(new URL('fixtures/g265-named-draft-pre-native-admission-legacy-source.txt',import.meta.url),'utf8');
 const marker='export async function saveNamedTeamDraftLocal(';
 assert.equal(source.split(marker).length,2,'sixth exact legacy writer must remain unique');
 const legacy=source.split(marker)[1];
