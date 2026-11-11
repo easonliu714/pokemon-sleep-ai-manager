@@ -72,18 +72,27 @@ async function install(page){
         while(statement.step())result.push(statement.getAsObject());return result;
       }finally{statement.free();}
     }
+    // Derive the initial admitted pot value from this tab's loaded SQL image,
+    // never synthesize UNKNOWN=0. The captured UI baseline stays stale on a
+    // competing tab until that document explicitly reloads.
+    v.current.pot_size=rows("SELECT total_capacity FROM account_capacity WHERE capacity_key='pot'")[0]?.total_capacity??null;
     function run(sql,params=[]){v.sqlWrites++;db.run(sql,params);}
     const env={
       Number,String,Error,Date,Object,
       localIso:()=> '2026-11-11T00:00:00.000+08:00',
-      currentWeeklyContext:()=>v.current,
+      currentWeeklyContext:()=>({...v.current,
+        pot_size:rows("SELECT total_capacity FROM account_capacity WHERE capacity_key='pot'")[0]?.total_capacity??null}),
       beginSqliteExclusiveWriteWindow:guard.beginSqliteExclusiveWriteWindow,
       withSqliteCoordinatedMutation:guard.withSqliteCoordinatedMutation,
-      withPrimarySqliteMutationLock:s.withPrimarySqliteMutationLock,
+      withPrimarySqliteMutationLock:async callback=>{
+        if(v.denyLock)throw Error('SYNTHETIC_NATIVE_LOCK_DENIED');
+        return s.withPrimarySqliteMutationLock(callback);
+      },
       rows,run,begin:()=>run('BEGIN IMMEDIATE'),commit:()=>run('COMMIT'),
       rollback:()=>run('ROLLBACK'),
       async snapshot(reason){
         v.snapshots++;
+        if(v.pauseSnapshot)await new Promise(resolve=>{v.releaseSnapshot=resolve;});
         return s.createSnapshot(db.export(),reason);
       },
       async persist({primaryMutationLease}={}){
@@ -160,6 +169,32 @@ try{
   assert.match(abort.code,/SYNTHETIC_POT_SQL_ABORT/);
   assert.deepEqual(await persisted(fresh),before);
   console.log('PASS G265_861_PRODUCTION_SQL_ABORT_ROLLBACK_ZERO_DURABLE_DELTA');
+
+  // The same-page exclusive window must refuse a competing reentrant
+  // submit before it can produce even a snapshot or SQL statement.
+  const denied=await tab();await install(denied);
+  await denied.evaluate(()=>{window.__pot.denyLock=true;});
+  const lockDenied=await save(denied,75);
+  assert.equal(lockDenied.ok,false);
+  assert.equal(lockDenied.code,'SYNTHETIC_NATIVE_LOCK_DENIED');
+  assert.equal(await denied.evaluate(()=>window.__pot.snapshots),0);
+  assert.equal(await denied.evaluate(()=>window.__pot.sqlWrites),0);
+  assert.deepEqual(await persisted(fresh),before);
+  console.log('PASS G265_861_PRODUCTION_LOCK_DENIAL_PRE_SNAPSHOT_ZERO_SQL');
+
+  const samePage=await tab();await install(samePage);
+  await samePage.evaluate(()=>{window.__pot.pauseSnapshot=true;});
+  const firstInFlight=samePage.evaluate(()=>window.__pot.save(75));
+  await samePage.waitForFunction(()=>typeof window.__pot?.releaseSnapshot==='function');
+  const overlapped=await save(samePage,90);
+  assert.equal(overlapped.ok,false);
+  assert.match(overlapped.code,/SQLITE_PRIMARY_MUTATION_SESSION_ACTIVE/);
+  assert.equal(await samePage.evaluate(()=>window.__pot.sqlWrites),0);
+  await samePage.evaluate(()=>{window.__pot.pauseSnapshot=false;window.__pot.releaseSnapshot();});
+  const finished=await firstInFlight;
+  assert.deepEqual(finished,{ok:true,value:75});
+  assert.equal(inspect(await persisted(samePage)).pot[1],75);
+  console.log('PASS G265_861_PRODUCTION_SAME_PAGE_INFLIGHT_NO_SECOND_SQL');
 
   const lost=await tab();await install(lost);
   await lost.evaluate(()=>{window.__pot.ackLoss=true;});
