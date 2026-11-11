@@ -184,6 +184,31 @@ try{
         ${handler}
         globalThis.g479Fixture={showFailure,trace};
       `});
+      // G479 negative-first: the real bootstrap ESM failure must not erase
+      // an independently owned storage-integrity HOLD or attach its retry
+      // control to the foreign warning. Only an isolated synthetic document.
+      await page.evaluate(()=>{
+        const foreign=document.getElementById('storageWarning');
+        foreign.textContent='EXTERNAL_STORAGE_INTEGRITY_HOLD';
+        foreign.classList.remove('hidden');
+        foreign.dataset.storageAuthority='foreign-integrity';
+      });
+      await page.evaluate(()=>g479Fixture.showFailure('entry_modules',new TypeError('synthetic ESM failure with foreign HOLD')));
+      assert.equal(await page.locator('#storageWarning').textContent(),'EXTERNAL_STORAGE_INTEGRITY_HOLD',
+        'G479 bootstrap must preserve the exact foreign storage warning');
+      assert.equal(await page.locator('#storageWarning').getAttribute('data-storage-authority'),'foreign-integrity',
+        'G479 must not steal storage-integrity ownership');
+      assert.equal(await page.locator('#moduleBootstrapWarning [data-g479-manual-reload]').count(),1,
+        'G479 module failure must offer its own manual reload control');
+      assert.match(await page.locator('#moduleBootstrapWarning').textContent(),/前端模組載入失敗/,
+        'module failure must remain visible independently of storage HOLD');
+      await page.evaluate(()=>{
+        const foreign=document.getElementById('storageWarning');
+        foreign.textContent='';foreign.classList.add('hidden');
+        delete foreign.dataset.storageAuthority;
+        document.getElementById('moduleBootstrapWarning')?.remove();
+      });
+      console.log('PASS G479_CHROMIUM_BOOTSTRAP_FOREIGN_STORAGE_HOLD_NOT_OVERWRITTEN');
       await page.evaluate(()=>g479Fixture.showFailure('other_module',new Error('synthetic non-entry failure')));
       assert.equal(await page.locator('[data-g479-manual-reload]').count(),0,'non-entry failure cannot add retry');
       await page.evaluate(()=>g479Fixture.showFailure('entry_modules',new TypeError('synthetic ESM fetch failed')));
