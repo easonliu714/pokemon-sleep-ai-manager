@@ -111,6 +111,34 @@ assert.equal(validZero.find(row=>row.recipe_id==='paused').recommendation_paused
 assert.equal(validZero.find(row=>row.recipe_id==='paused').reference_maybe_wrong,false);
 assert.equal(applyRecipeAttemptFeedback(baseCandidates,[])[0].recommendation_paused,false,
   'missing feedback is not a malformed persisted flag');
+// G6.2 negative-first: duplicate recipe feedback identities must not let a
+// later unpause/clear row erase a prior HOLD. SQLite normally enforces one
+// state row per recipe; ambiguous upstream read projections still fail closed.
+for(const duplicated of [
+  [
+    {recipe_id:'paused',recommendation_paused:1,reference_maybe_wrong:1},
+    {recipe_id:'paused',recommendation_paused:0,reference_maybe_wrong:0},
+  ],
+  [
+    {recipe_id:'paused',recommendation_paused:0,reference_maybe_wrong:0},
+    {recipe_id:'paused',recommendation_paused:1,reference_maybe_wrong:1},
+  ],
+  [
+    {recipe_id:'paused',recommendation_paused:0,reference_maybe_wrong:0},
+    {recipe_id:'paused',recommendation_paused:0,reference_maybe_wrong:0},
+  ],
+]){
+  const projected=applyRecipeAttemptFeedback(baseCandidates,duplicated);
+  const ambiguous=projected.find(row=>row.recipe_id==='paused');
+  assert.equal(ambiguous.recommendation_paused,true,
+    'duplicate feedback identity cannot authorize recipe recommendation');
+  assert.equal(ambiguous.reference_maybe_wrong,true,
+    'duplicate feedback identity must retain review authority');
+  assert.equal(sortRecipeStrategyCandidates(projected,'unlock_recipes')[0].recipe_id,'active',
+    'ambiguous feedback must not outrank verified unflagged alternative');
+}
+console.log('PASS G62_DUPLICATE_FEEDBACK_IDENTITY_FAIL_CLOSED');
+
 const fingerprint=recipeAttemptFeedbackFingerprintRows([{
   recipe_id:'paused',recommendation_paused:2,reference_maybe_wrong:'CORRUPT',
 }]);
