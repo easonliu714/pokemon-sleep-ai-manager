@@ -296,6 +296,78 @@ try{
     await act(()=>window.__g295.frames(31));
     assert.equal((await state()).warningText,'EXTERNAL_HIDDEN_STORAGE_HOLD',
       'hidden foreign warning must survive subsequent RAF recovery');
+    // G295 negative-first: a foreign subsystem may hide an active watchdog
+    // badge without replacing its text or removing the stale watchdog marker.
+    // DOM visibility is ownership evidence even when text remains identical.
+    // A responsive timer must relinquish ownership; stable RAF must not
+    // erase the hidden content or claim to have cleared the foreign badge.
+    await act(()=>{const w=document.getElementById('storageWarning');
+      w.classList.add('hidden');w.textContent='';delete w.dataset.startupWatchdogWarning;});
+    await act(()=>window.__g295.frames(40));
+    await act(()=>window.__g295.tick(6000));
+    const beforeSameTextHide=await state();
+    assert.equal(beforeSameTextHide.watchdogMarker,'startup-heartbeat-watchdog',
+      'precondition: watchdog owns visible warning before same-text hide');
+    assert.equal(beforeSameTextHide.visibleWarning,true);
+    await act(()=>{const w=document.getElementById('storageWarning');
+      w.classList.add('hidden');window.__g295.tick(2000);});
+    const afterSameTextHide=await state();
+    assert.equal(afterSameTextHide.detected,beforeSameTextHide.detected,
+      'responsive timer must not invent another foreground stall');
+    assert.equal(afterSameTextHide.visibleWarning,false,
+      'foreign hide must remain hidden even with unchanged text');
+    assert.equal(afterSameTextHide.warningText,beforeSameTextHide.warningText,
+      'same-text hide must preserve original diagnostic text');
+    assert.equal(afterSameTextHide.watchdogMarker,null,
+      'foreign hide must revoke stale watchdog marker even with unchanged text');
+    assert.equal(afterSameTextHide.preserved,beforeSameTextHide.preserved+1,
+      'visibility-only takeover must be traced once');
+    await act(()=>window.__g295.tick(2000));
+    assert.equal((await state()).preserved,afterSameTextHide.preserved,
+      'responsive ticks must not duplicate visibility-only takeover');
+    await act(()=>window.__g295.frames(31));
+    const afterSameTextRecovery=await state();
+    assert.equal(afterSameTextRecovery.warningText,beforeSameTextHide.warningText,
+      'stable RAF must not erase hidden foreign-controlled text');
+    assert.equal(afterSameTextRecovery.visibleWarning,false);
+    await act(()=>window.__g295.tick(6000));
+    const laterSameTextStall=await state();
+    assert.equal(laterSameTextStall.detected,afterSameTextRecovery.detected+1,
+      'real foreground stall must remain detectable after foreign hide');
+    assert.equal(laterSameTextStall.visibleWarning,false,
+      'new stall must not re-show foreign-hidden text');
+    assert.equal(laterSameTextStall.warningText,beforeSameTextHide.warningText);
+    assert.equal(laterSameTextStall.watchdogMarker,null);
+    // Second callback ordering: the foreign hide may occur immediately before
+    // 31 stable RAF frames, with no responsive interval to revoke the marker.
+    // Recovery must not erase the hidden text or claim foreign DOM ownership.
+    await act(()=>window.__g295.frames(40));
+    await act(()=>{const w=document.getElementById('storageWarning');
+      w.classList.add('hidden');w.textContent='';delete w.dataset.startupWatchdogWarning;});
+    await act(()=>window.__g295.tick(6000));
+    const beforeRafOnlyHide=await state();
+    assert.equal(beforeRafOnlyHide.watchdogMarker,'startup-heartbeat-watchdog');
+    await act(()=>{const w=document.getElementById('storageWarning');
+      w.classList.add('hidden');window.__g295.frames(31);});
+    const afterRafOnlyHide=await state();
+    assert.equal(afterRafOnlyHide.recovered,beforeRafOnlyHide.recovered+1,
+      'stable RAF still proves foreground recovery');
+    assert.equal(afterRafOnlyHide.warningText,beforeRafOnlyHide.warningText,
+      'RAF-first recovery must preserve foreign-hidden same-text badge');
+    assert.equal(afterRafOnlyHide.visibleWarning,false);
+    assert.equal(afterRafOnlyHide.watchdogMarker,null,
+      'RAF-first recovery must release stale watchdog marker');
+    await act(()=>window.__g295.tick(6000));
+    const afterRafOnlyNewStall=await state();
+    assert.equal(afterRafOnlyNewStall.detected,afterRafOnlyHide.detected+1,
+      'later true foreground stall must remain detectable');
+    assert.equal(afterRafOnlyNewStall.warningText,beforeRafOnlyHide.warningText,
+      'new stall cannot seize foreign-hidden same-text badge');
+    assert.equal(afterRafOnlyNewStall.visibleWarning,false);
+    assert.equal(afterRafOnlyNewStall.watchdogMarker,null);
+    console.log('PASS G295_CHROMIUM_RAF_FIRST_SAME_TEXT_FOREIGN_HIDE_PRESERVED');
+    console.log('PASS G295_CHROMIUM_SAME_TEXT_HIDDEN_FOREIGN_TAKEOVER_FAIL_CLOSED');
+
     console.log('PASS G295_CHROMIUM_HIDDEN_FOREIGN_WARNING_SURVIVES_NEW_STALL');
 
     console.log('PASS G295_CHROMIUM_HIDDEN_FOREIGN_WARNING_OWNERSHIP_REVOKED');
