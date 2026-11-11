@@ -338,6 +338,34 @@ try{
       'new stall must not re-show foreign-hidden text');
     assert.equal(laterSameTextStall.warningText,beforeSameTextHide.warningText);
     assert.equal(laterSameTextStall.watchdogMarker,null);
+    // Second callback ordering: the foreign hide may occur immediately before
+    // 31 stable RAF frames, with no responsive interval to revoke the marker.
+    // Recovery must not erase the hidden text or claim foreign DOM ownership.
+    await act(()=>window.__g295.frames(40));
+    await act(()=>{const w=document.getElementById('storageWarning');
+      w.classList.add('hidden');w.textContent='';delete w.dataset.startupWatchdogWarning;});
+    await act(()=>window.__g295.tick(6000));
+    const beforeRafOnlyHide=await state();
+    assert.equal(beforeRafOnlyHide.watchdogMarker,'startup-heartbeat-watchdog');
+    await act(()=>{const w=document.getElementById('storageWarning');
+      w.classList.add('hidden');window.__g295.frames(31);});
+    const afterRafOnlyHide=await state();
+    assert.equal(afterRafOnlyHide.recovered,beforeRafOnlyHide.recovered+1,
+      'stable RAF still proves foreground recovery');
+    assert.equal(afterRafOnlyHide.warningText,beforeRafOnlyHide.warningText,
+      'RAF-first recovery must preserve foreign-hidden same-text badge');
+    assert.equal(afterRafOnlyHide.visibleWarning,false);
+    assert.equal(afterRafOnlyHide.watchdogMarker,null,
+      'RAF-first recovery must release stale watchdog marker');
+    await act(()=>window.__g295.tick(6000));
+    const afterRafOnlyNewStall=await state();
+    assert.equal(afterRafOnlyNewStall.detected,afterRafOnlyHide.detected+1,
+      'later true foreground stall must remain detectable');
+    assert.equal(afterRafOnlyNewStall.warningText,beforeRafOnlyHide.warningText,
+      'new stall cannot seize foreign-hidden same-text badge');
+    assert.equal(afterRafOnlyNewStall.visibleWarning,false);
+    assert.equal(afterRafOnlyNewStall.watchdogMarker,null);
+    console.log('PASS G295_CHROMIUM_RAF_FIRST_SAME_TEXT_FOREIGN_HIDE_PRESERVED');
     console.log('PASS G295_CHROMIUM_SAME_TEXT_HIDDEN_FOREIGN_TAKEOVER_FAIL_CLOSED');
 
     console.log('PASS G295_CHROMIUM_HIDDEN_FOREIGN_WARNING_SURVIVES_NEW_STALL');
