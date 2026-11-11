@@ -128,7 +128,7 @@ await import('./g265-named-draft-two-tab-durable-cas-contract.mjs');
   vm.runInNewContext(source.replace(/^import .*;\s*$/gm,'').replace(/^export /gm,''),denied,{timeout:3000});
   try{
     await assert.rejects(
-      denied.saveNamedTeamDraftLocal({...args,draftId:'draft_nativelease0001'}),
+      denied.saveNamedTeamDraftLocal({...args,draftId:'draft_nativelease00001'}),
       e=>e?.code==='SYNTHETIC_NATIVE_LEASE_DENIED',
       'production Named Draft must obtain native primary lease before snapshot/SQL'
     );
