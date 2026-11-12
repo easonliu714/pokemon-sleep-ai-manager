@@ -7,7 +7,8 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import initSqlJs from 'sql.js';
 
-const source=fs.readFileSync(new URL('../assets/js/identity-review.js',import.meta.url),'utf8');
+// Historical race is pinned to the pre-admission legacy source, not current production.
+const source=fs.readFileSync(new URL('fixtures/g265-identity-review-seventeenth-pre-native-source.txt',import.meta.url),'utf8');
 const start='async function confirmIndependent(pokemonId) {';
 const end='\nasync function markEvolution(';
 assert.equal(source.split(start).length,2,'exact independent-confirmation writer must be unique');
@@ -80,3 +81,6 @@ assert.equal(count(reloaded,"SELECT COUNT(*) FROM synthetic_public_master WHERE 
 reloaded.close();first.close();second.close();
 console.log('PASS G265_SEVENTEENTH_IDENTITY_REVIEW_TWO_ACK_STALE_CONFIRM_AND_EVIDENCE_LOST_NEGATIVE');
 console.log('HOLD G265_IDENTITY_REVIEW_LEGACY_UNADMITTED_CROSS_TAB_ANDROID_OWNER_DOD');
+
+// Production admission is a separate test; historic legacy race remains pinned above.
+await import('./g265-identity-review-production-pretransaction-contract.mjs');

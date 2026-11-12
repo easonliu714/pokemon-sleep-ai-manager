@@ -1,4 +1,6 @@
-import { rows, run, persist, snapshot } from './database.js';
+import { rows, run, persist, snapshot, begin, commit, rollback } from './database.js';
+import {withPrimarySqliteMutationLock} from './storage.js';
+import {beginSqliteExclusiveWriteWindow,withSqliteCoordinatedMutation} from './sqlite-direct-write-window-guard.js';
 import { localIso } from './time-utils.js';
 
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -48,15 +50,55 @@ function evidenceCount(instanceId) {
   return rows('SELECT COUNT(*) AS count FROM pokemon_identity_evidence WHERE pokemon_instance_id=?', [instanceId])[0]?.count || 0;
 }
 
+// G265 #861: reserve same-page exclusive window, native primary lease before
+// ANY SQL/snapshot, atomic identity+evidence and durable ACK before release.
 async function confirmIndependent(pokemonId) {
-  await snapshot(`identity-confirm:${pokemonId}`);
-  const now = localIso();
-  run(`UPDATE pokemon SET identity_review_required=0,identity_confidence=1,last_updated_at=? WHERE pokemon_id=?`, [now, pokemonId]);
-  run(`INSERT OR REPLACE INTO pokemon_identity_evidence(evidence_id,pokemon_instance_id,evidence_type,evidence_value,confidence,observed_at,source_update_id)
-       SELECT ?,pokemon_instance_id,'manual_independent_confirmation',?,1,?,'MANUAL-IDENTITY-REVIEW' FROM pokemon WHERE pokemon_id=?`,
-      [`manual-independent-${pokemonId}-${Date.now()}`, JSON.stringify({ pokemon_id: pokemonId }), now, pokemonId]);
-  await persist();
-  renderIdentityReview();
+  const close=beginSqliteExclusiveWriteWindow();
+  let acknowledged=false;
+  try{
+    const changed=await withPrimarySqliteMutationLock(async lease=>{
+      const target=rows('SELECT pokemon_id,pokemon_instance_id,status,identity_review_required FROM pokemon WHERE pokemon_id=?',[pokemonId])[0]||null;
+      if(!target||target.status!=='active'||!String(target.pokemon_instance_id??'').trim()){
+        acknowledged=true; // No mutation; safe reject.
+        throw new Error('IDENTITY_CONFIRM_TARGET_NOT_ACTIVE');
+      }
+      if(Number(target.identity_review_required)===0){
+        acknowledged=true;return false; // Idempotent no-write.
+      }
+      if(Number(target.identity_review_required)!==1){
+        acknowledged=true;throw new Error('IDENTITY_CONFIRM_REVIEW_STATE_UNVERIFIED');
+      }
+      await snapshot(`identity-confirm:${pokemonId}`);
+      const at=localIso();
+      let begun=false,committed=false;
+      try{
+        withSqliteCoordinatedMutation(()=>{
+          begin();begun=true;
+          run(`UPDATE pokemon SET identity_review_required=0,identity_confidence=1,last_updated_at=?
+            WHERE pokemon_id=? AND status='active' AND identity_review_required=1`,[at,pokemonId]);
+          run(`INSERT OR REPLACE INTO pokemon_identity_evidence(evidence_id,pokemon_instance_id,evidence_type,evidence_value,confidence,observed_at,source_update_id)
+            SELECT ?,pokemon_instance_id,'manual_independent_confirmation',?,1,?,'MANUAL-IDENTITY-REVIEW'
+            FROM pokemon WHERE pokemon_id=?`,[
+            `manual-independent-${pokemonId}-${Date.now()}`,JSON.stringify({pokemon_id:pokemonId}),at,pokemonId,
+          ]);
+          commit();committed=true;
+        });
+      }catch(error){
+        if(begun&&!committed)withSqliteCoordinatedMutation(rollback);
+        throw error;
+      }
+      // COMMIT is not IDB ACK; never retry an ambiguous postcommit write.
+      await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
+      acknowledged=true;
+      return true;
+    });
+    if(changed){
+      // UI rendering failure cannot turn durable success into duplicate write.
+      try{renderIdentityReview();}catch(error){console.error('[IDENTITY_CONFIRM_RENDER]',error);}
+    }
+  }finally{
+    close({uncertainOutcome:!acknowledged});
+  }
 }
 
 async function markEvolution(pokemonId) {
