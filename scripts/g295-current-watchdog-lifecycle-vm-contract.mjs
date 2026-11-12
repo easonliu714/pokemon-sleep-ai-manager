@@ -48,6 +48,24 @@ now+=100;interval();assert.equal(detected(),0,'first resumed heartbeat must not 
 assert.ok(resetReason('foreground-resume'));
 now+=6000;interval();assert.equal(detected(),1,'real visible stall must be detected after grace');
 assert.equal(trace.find(x=>x.event==='main_thread_block_detected').detail.details.checkpoint_is_causal,false);
+// G295 negative-first: a foreign ESM subsystem may claim a visible badge with
+// unchanged text and its own explicit marker while an old watchdog marker lingers.
+// Marker authority outranks same-text equality; a responsive timer must revoke
+// stale watchdog ownership without suppressing stall diagnostics or erasing DOM.
+assert.equal(warning.dataset.startupWatchdogWarning,'startup-heartbeat-watchdog','precondition: watchdog owns its visible warning');
+const foreignMarkerText=warning.textContent;
+const beforeForeignMarker=detected();
+warning.dataset.g479ModuleFailure='true';
+now+=2000;interval();
+assert.equal(detected(),beforeForeignMarker,'responsive interval must not invent another stall');
+assert.equal(warning.dataset.startupWatchdogWarning,undefined,'explicit ESM ownership must revoke stale watchdog marker even with identical text');
+assert.equal(warning.dataset.g479ModuleFailure,'true','foreign marker must be preserved');
+assert.equal(warning.textContent,foreignMarkerText,'foreign-owned same-text warning must not be overwritten');
+for(let i=0;i<31;i++){now+=16;assert.ok(raf.length);raf.shift()();}
+assert.equal(warning.textContent,foreignMarkerText,'RAF recovery must not erase same-text foreign-owned warning');
+assert.equal(classes.has('hidden'),false,'RAF recovery must not hide foreign-owned warning');
+delete warning.dataset.g479ModuleFailure;
+warning.textContent='';classes.add('hidden');
 for(let i=0;i<31;i++){now+=16;assert.ok(raf.length);raf.shift()();}
 assert.ok(trace.some(x=>x.event==='main_thread_block_recovered'),'stable frames must clear watchdog-owned warning');
 emit(events,'pagehide');assert.equal(intervals.size,0,'pagehide must stop timer');
