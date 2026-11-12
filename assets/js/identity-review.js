@@ -101,23 +101,61 @@ async function confirmIndependent(pokemonId) {
   }
 }
 
-async function markEvolution(pokemonId) {
-  const record = rows('SELECT * FROM pokemon WHERE pokemon_id=?', [pokemonId])[0];
-  if (!record) return;
-  const fromSpecies = prompt('進化前物種', record.original_species || record.species || '');
-  if (fromSpecies == null) return;
-  const toSpecies = prompt('目前／進化後物種', record.current_species || record.species || '');
-  if (!toSpecies) return;
-  const evolvedAt = prompt('進化時間（可留空，格式 YYYY-MM-DDTHH:mm:ss+08:00）', '') || null;
-  await snapshot(`identity-evolution:${pokemonId}`);
-  const now = localIso();
-  run(`UPDATE pokemon SET original_species=?,current_species=?,species=?,identity_review_required=0,last_updated_at=? WHERE pokemon_id=?`,
-      [fromSpecies, toSpecies, toSpecies, now, pokemonId]);
-  run(`INSERT INTO pokemon_evolution_history(evolution_id,pokemon_instance_id,from_species,to_species,evolved_at,confidence,source_update_id)
-       VALUES(?,?,?,?,?,1,'MANUAL-IDENTITY-REVIEW')`,
-      [`evo-${pokemonId}-${Date.now()}`, record.pokemon_instance_id || pokemonId, fromSpecies, toSpecies, evolvedAt]);
-  await persist();
-  renderIdentityReview();
+// G265 #861: prompts use the already-rendered review hint, without SQL.
+// Native lease then revalidates current identity before snapshot/SQL; the
+// Pokémon update and evolution history commit atomically and persist once.
+async function markEvolution(pokemonId,hint={}) {
+  if(hint.status!=='active'||Number(hint.identity_review_required)!==1||
+      !String(hint.pokemon_instance_id??'').trim())
+    throw new Error('EVOLUTION_REVIEW_HINT_UNVERIFIED');
+  const fromSpecies=prompt('進化前物種',hint.original_species||hint.species||'');
+  if(fromSpecies==null)return;
+  const toSpecies=prompt('目前／進化後物種',hint.current_species||hint.species||'');
+  if(!String(toSpecies??'').trim())return;
+  const evolvedAt=prompt('進化時間（可留空，格式 YYYY-MM-DDTHH:mm:ss+08:00）','')||null;
+  const close=beginSqliteExclusiveWriteWindow();
+  let acknowledged=false;
+  try{
+    const changed=await withPrimarySqliteMutationLock(async lease=>{
+      const record=rows('SELECT pokemon_id,pokemon_instance_id,status,identity_review_required,original_species,current_species,species FROM pokemon WHERE pokemon_id=?',[pokemonId])[0]||null;
+      if(!record||record.status!=='active'||Number(record.identity_review_required)!==1||
+          !String(record.pokemon_instance_id??'').trim()){
+        acknowledged=true;throw new Error('EVOLUTION_STALE_TARGET_RELOAD_REQUIRED');
+      }
+      const currentSpecies=String(record.current_species||record.species||'').trim();
+      const hintedSpecies=String(hint.current_species||hint.species||'').trim();
+      const originalSpecies=String(record.original_species||record.species||'').trim();
+      const hintedOriginal=String(hint.original_species||hint.species||'').trim();
+      if(String(record.pokemon_instance_id)!==String(hint.pokemon_instance_id)||
+          currentSpecies!==hintedSpecies||originalSpecies!==hintedOriginal){
+        acknowledged=true;throw new Error('EVOLUTION_STALE_SOURCE_RELOAD_REQUIRED');
+      }
+      await snapshot('identity-evolution:'+pokemonId);
+      const at=localIso();
+      let begun=false,committed=false;
+      try{
+        withSqliteCoordinatedMutation(()=>{
+          begin();begun=true;
+          run('UPDATE pokemon SET original_species=?,current_species=?,species=?,identity_review_required=0,last_updated_at=? WHERE pokemon_id=? AND pokemon_instance_id=? AND status=\'active\' AND identity_review_required=1',
+            [fromSpecies,toSpecies,toSpecies,at,pokemonId,record.pokemon_instance_id]);
+          run('INSERT INTO pokemon_evolution_history(evolution_id,pokemon_instance_id,from_species,to_species,evolved_at,confidence,source_update_id) VALUES(?,?,?,?,?,1,\'MANUAL-IDENTITY-REVIEW\')',
+            ['evo-'+pokemonId+'-'+Date.now(),record.pokemon_instance_id,fromSpecies,toSpecies,evolvedAt]);
+          commit();committed=true;
+        });
+      }catch(error){
+        if(begun&&!committed)withSqliteCoordinatedMutation(rollback);
+        throw error;
+      }
+      await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
+      acknowledged=true;
+      return true;
+    });
+    if(changed){
+      try{renderIdentityReview();}catch(error){console.error('[IDENTITY_EVOLUTION_RENDER]',error);}
+    }
+  }finally{
+    close({uncertainOutcome:!acknowledged});
+  }
 }
 
 async function mergeIntoExisting(sourceId) {
@@ -186,7 +224,7 @@ export function renderIdentityReview() {
     button.addEventListener('click', async () => {
       const id = button.closest('[data-pokemon-id]').dataset.pokemonId;
       if (button.dataset.action === 'independent') await confirmIndependent(id);
-      if (button.dataset.action === 'evolution') await markEvolution(id);
+      if (button.dataset.action === 'evolution') await markEvolution(id,pending.find(p=>String(p.pokemon_id)===String(id))||{});
       if (button.dataset.action === 'merge') await mergeIntoExisting(id);
     });
   });
