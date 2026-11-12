@@ -9,7 +9,8 @@ import {createHash} from 'node:crypto';
 import {chromium} from 'playwright';
 import initSqlJs from 'sql.js';
 
-const source=fs.readFileSync(new URL('../assets/js/identity-review.js',import.meta.url),'utf8');
+// Historical race is pinned to the pre-admission legacy source, not current production.
+const source=fs.readFileSync(new URL('fixtures/g265-identity-review-seventeenth-pre-native-source.txt',import.meta.url),'utf8');
 const start='async function confirmIndependent(pokemonId) {';
 const end='\nasync function markEvolution(';
 assert.equal(source.split(start).length,2,'source module header changed');
