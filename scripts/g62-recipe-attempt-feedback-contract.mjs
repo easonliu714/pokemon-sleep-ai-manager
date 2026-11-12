@@ -145,7 +145,7 @@ console.log('PASS G62_DUPLICATE_FEEDBACK_IDENTITY_FAIL_CLOSED');
 for(const partial of [
   {recipe_id:'paused',recommendation_paused:0},
   {recipe_id:'paused',reference_maybe_wrong:0},
-  {recipe_id:'paused',recommendation_paused:undefined,reference_maybe_wrong:0},
+  {recipe_id:'paused',reference_maybe_wrong:'0'},
 ]){
   const projected=applyRecipeAttemptFeedback(baseCandidates,[partial]);
   const suspect=projected.find(row=>row.recipe_id==='paused');
