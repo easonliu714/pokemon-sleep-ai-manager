@@ -48,6 +48,24 @@ now+=100;interval();assert.equal(detected(),0,'first resumed heartbeat must not 
 assert.ok(resetReason('foreground-resume'));
 now+=6000;interval();assert.equal(detected(),1,'real visible stall must be detected after grace');
 assert.equal(trace.find(x=>x.event==='main_thread_block_detected').detail.details.checkpoint_is_causal,false);
+// G295 negative-first: a foreign ESM subsystem may claim a visible badge with
+// unchanged text and its own explicit marker while an old watchdog marker lingers.
+// Marker authority outranks same-text equality; a responsive timer must revoke
+// stale watchdog ownership without suppressing stall diagnostics or erasing DOM.
+assert.equal(warning.dataset.startupWatchdogWarning,'startup-heartbeat-watchdog','precondition: watchdog owns its visible warning');
+const foreignMarkerText=warning.textContent;
+const beforeForeignMarker=detected();
+warning.dataset.g479ModuleFailure='true';
+now+=2000;interval();
+assert.equal(detected(),beforeForeignMarker,'responsive interval must not invent another stall');
+assert.equal(warning.dataset.startupWatchdogWarning,undefined,'explicit ESM ownership must revoke stale watchdog marker even with identical text');
+assert.equal(warning.dataset.g479ModuleFailure,'true','foreign marker must be preserved');
+assert.equal(warning.textContent,foreignMarkerText,'foreign-owned same-text warning must not be overwritten');
+for(let i=0;i<31;i++){now+=16;assert.ok(raf.length);raf.shift()();}
+assert.equal(warning.textContent,foreignMarkerText,'RAF recovery must not erase same-text foreign-owned warning');
+assert.equal(classes.has('hidden'),false,'RAF recovery must not hide foreign-owned warning');
+delete warning.dataset.g479ModuleFailure;
+warning.textContent='';classes.add('hidden');
 for(let i=0;i<31;i++){now+=16;assert.ok(raf.length);raf.shift()();}
 assert.ok(trace.some(x=>x.event==='main_thread_block_recovered'),'stable frames must clear watchdog-owned warning');
 emit(events,'pagehide');assert.equal(intervals.size,0,'pagehide must stop timer');
@@ -220,6 +238,35 @@ for(let i=0;i<4;i++){now+=2000;interval();}
 now+=16;assert.ok(raf.length);raf.shift()();
 now+=2000;interval();
 assert.equal(detected(),beforeResponsive,'regular timer + delayed RAF alone must not trigger false stall');
+// G295 positive/negative boundary controls for explicit foreign ownership.
+// A genuinely watchdog-owned visible badge must still be cleared after stable RAF.
+// Reset the earlier intentionally foreign-owned storage warning fixture first;
+// otherwise this positive control is not a watchdog-owned DOM precondition.
+delete warning.dataset.g479ModuleFailure;
+delete warning.dataset.startupWatchdogWarning;
+warning.textContent='';classes.add('hidden');
+const beforeOwnMarker=detected();
+now+=6000;interval();
+assert.equal(detected(),beforeOwnMarker+1,'new real foreground stall still detected');
+assert.equal(warning.dataset.startupWatchdogWarning,'startup-heartbeat-watchdog','own visible badge must be claimed');
+for(let i=0;i<31;i++){now+=16;assert.ok(raf.length);raf.shift()();}
+assert.equal(classes.has('hidden'),true,'watchdog-owned warning clears after stable RAF');
+assert.equal(warning.textContent,'','own warning text cleared after verified recovery');
+// A hidden foreign ESM warning with an explicit marker must never be shown,
+// overwritten or cleared, even when the badge has no visible text authority.
+warning.textContent='EXTERNAL_HIDDEN_ESM_HOLD';classes.add('hidden');
+warning.dataset.g479ModuleFailure='true';
+const beforeHiddenMarker=detected();
+now+=6000;interval();
+assert.equal(detected(),beforeHiddenMarker+1,'hidden foreign marker cannot suppress real stall diagnostics');
+assert.equal(warning.textContent,'EXTERNAL_HIDDEN_ESM_HOLD');
+assert.equal(classes.has('hidden'),true,'hidden foreign marker must remain hidden');
+assert.equal(warning.dataset.startupWatchdogWarning,undefined,'hidden ESM marker cannot be stolen by watchdog');
+for(let i=0;i<31;i++){now+=16;assert.ok(raf.length);raf.shift()();}
+assert.equal(warning.textContent,'EXTERNAL_HIDDEN_ESM_HOLD','recovery preserves hidden foreign text');
+assert.equal(classes.has('hidden'),true,'recovery preserves hidden foreign state');
+delete warning.dataset.g479ModuleFailure;warning.textContent='';classes.add('hidden');
+console.log('PASS G295_EXPLICIT_ESM_OWNER_MARKER_SAME_TEXT_VISIBLE_HIDDEN_AND_OWN_RECOVERY');
 // B/G479 independent startup guard: a privacy-restricted browser may allow SW
 // registration but deny sessionStorage. This must not reject the bootstrap's
 // await enforceLiveVersionHandoff() as a misleading entry-module failure.
