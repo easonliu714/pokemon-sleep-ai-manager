@@ -81,13 +81,19 @@ function feedbackFlagFailClosed(row,key){
   if(value===true||value===1||value==='1')return true;
   return true; // invalid persisted value => conservative pause/review, no write
 }
-function normalizeFeedbackRow(row={}){
+function normalizeFeedbackRow(row={}, {persisted=true}={}){
+  // G6.2: a sparse persisted projection is not the same as NO feedback row.
+  // Missing either canonical 0/1 column invalidates read authority for both
+  // advisory flags. This is read-only; never repair or rewrite player SQLite.
+  const missingPersistedFlag=persisted&&(
+    !hasOwn(row,'recommendation_paused')||!hasOwn(row,'reference_maybe_wrong')
+  );
   return Object.freeze({
     recipe_id:clean(row.recipe_id),
     attempt_count:nonNegativeInteger(row.attempt_count)?Number(row.attempt_count):0,
     last_failure_at:clean(row.last_failure_at)||null,
-    recommendation_paused:feedbackFlagFailClosed(row,'recommendation_paused'),
-    reference_maybe_wrong:feedbackFlagFailClosed(row,'reference_maybe_wrong'),
+    recommendation_paused:missingPersistedFlag||feedbackFlagFailClosed(row,'recommendation_paused'),
+    reference_maybe_wrong:missingPersistedFlag||feedbackFlagFailClosed(row,'reference_maybe_wrong'),
     last_attempt_id:clean(row.last_attempt_id)||null,
     source_type:clean(row.source_type)||null,
     source_name:clean(row.source_name)||null,
@@ -117,7 +123,7 @@ export function applyRecipeAttemptFeedback(candidates=[],feedbackRows=[]){
     }
   }
   return (candidates||[]).map(candidate=>{
-    const feedback=feedbackMap.get(clean(candidate?.recipe_id))||normalizeFeedbackRow({recipe_id:candidate?.recipe_id});
+    const feedback=feedbackMap.get(clean(candidate?.recipe_id))||normalizeFeedbackRow({recipe_id:candidate?.recipe_id},{persisted:false});
     return Object.freeze({
       ...candidate,
       recommendation_paused:feedback.recommendation_paused,
@@ -134,7 +140,7 @@ export function applyRecipeAttemptFeedback(candidates=[],feedbackRows=[]){
 }
 
 export function recipeAttemptFeedbackFingerprintRows(feedbackRows=[]){
-  return (feedbackRows||[]).map(normalizeFeedbackRow)
+  return (feedbackRows||[]).map(row=>normalizeFeedbackRow(row))
     .filter(row=>row.recipe_id)
     .sort((a,b)=>a.recipe_id.localeCompare(b.recipe_id))
     .map(row=>[

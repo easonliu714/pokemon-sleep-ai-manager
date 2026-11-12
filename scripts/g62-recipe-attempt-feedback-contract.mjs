@@ -139,6 +139,30 @@ for(const duplicated of [
 }
 console.log('PASS G62_DUPLICATE_FEEDBACK_IDENTITY_FAIL_CLOSED');
 
+// G6.2 negative-first: a projected persisted feedback row with one missing
+// 0/1 authority column is NOT the same as no player feedback. A sparse
+// upstream read must not silently turn a prior pause/review into zero.
+for(const partial of [
+  {recipe_id:'paused',recommendation_paused:0},
+  {recipe_id:'paused',reference_maybe_wrong:0},
+  {recipe_id:'paused',reference_maybe_wrong:'0'},
+]){
+  const projected=applyRecipeAttemptFeedback(baseCandidates,[partial]);
+  const suspect=projected.find(row=>row.recipe_id==='paused');
+  assert.equal(suspect.recommendation_paused,true,
+    'partial persisted feedback must not authorize recommendation');
+  assert.equal(suspect.reference_maybe_wrong,true,
+    'partial persisted feedback must remain source-review HOLD');
+  assert.equal(sortRecipeStrategyCandidates(projected,'unlock_recipes')[0].recipe_id,'active');
+  const fingerprints=recipeAttemptFeedbackFingerprintRows([partial]);
+  assert.deepEqual(fingerprints[0].slice(3,5),[true,true],
+    'fingerprint must retain conservative missing-column HOLD');
+}
+const noPersistedFeedback=applyRecipeAttemptFeedback(baseCandidates,[]);
+assert.equal(noPersistedFeedback[0].recommendation_paused,false,
+  'no feedback row is distinct from a partial persisted row');
+console.log('PASS G62_PARTIAL_PERSISTED_FEEDBACK_FLAGS_FAIL_CLOSED');
+
 const fingerprint=recipeAttemptFeedbackFingerprintRows([{
   recipe_id:'paused',recommendation_paused:2,reference_maybe_wrong:'CORRUPT',
 }]);
