@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {pathToFileURL} from 'node:url';
 import {summarizeOfficialLiveResponse} from './g9r-official-live-source-provenance.mjs';
 import {assertOfficialArticleHeading,decodeOfficialVisibleEntities} from './g9r-official-article-heading-guard.mjs';
+import {visibleOfficialHtml} from './g9r-official-event-source-refresh.mjs';
 export const BANQUET_PREVIEW_URL='https://www.pokemonsleep.net/zh/news/343535303736323034303630333434333236/';
 const hold=reason=>{throw new Error('G9R_BANQUET_PREVIEW_REVIEW_REQUIRED:'+reason);};
 const compact=s=>String(s).normalize('NFKC').replace(/\s+/g,'');
@@ -27,9 +28,13 @@ const RECIPE_GROUPS=Object.freeze([
 ]);
 export function auditBanquetPreview(html,url=BANQUET_PREVIEW_URL){
   if(url!==BANQUET_PREVIEW_URL)hold('UNSUPPORTED_OFFICIAL_URL');
-  // The preview article title must be the official visible H1, not a body quote.
-  assertOfficialArticleHeading(html,'〖預告〗新食材、新食譜、睡姿圖鑑目標和新企畫確定登場！');
-  const lines=visibleText(html), all=lines.map(x=>compact(x.replace(/^[・•]\s*/,'')));
+  // G9R #19: the article identity and all scoped facts must use the SAME
+  // attribute-visible document. A hidden ancestor can otherwise certify a
+  // stale H1 or inject a stale Week Two mechanic into published-source proof.
+  // This is conservative structural filtering, not a CSS visibility engine.
+  const visibleHtml=visibleOfficialHtml(html);
+  assertOfficialArticleHeading(visibleHtml,'〖預告〗新食材、新食譜、睡姿圖鑑目標和新企畫確定登場！');
+  const lines=visibleText(visibleHtml), all=lines.map(x=>compact(x.replace(/^[・•]\s*/,'')));
   function uniqueLine(value,label){
     const key=compact(value),matches=all.flatMap((line,i)=>line===key?[i]:[]);
     if(matches.length!==1)hold(label+'_MISSING_OR_DUPLICATED');
@@ -161,6 +166,19 @@ export function offlinePreviewRegression(){
   assert.throws(()=>auditBanquetPreview(fixture.replace('<h1>'+title+'</h1>',
     '<h1>'+encodedTitle+'</h1><h1>'+title+'</h1>')),
     /G9R_OFFICIAL_ARTICLE_H1_REVIEW_REQUIRED/);
+  // G9R negative-first: a hidden ancestor must not authorize a stale preview H1.
+  // The visible site H1 is unrelated, so the legacy direct H1 regex otherwise
+  // admits the hidden title and its stale body text as an official preview.
+  const hiddenParent='<div hidden><h1>'+title+'</h1></div>';
+  const hiddenOldTitle=fixture.replace('<h1>'+title+'</h1>',
+    hiddenParent+'<h1>Pokémon Sleep</h1>');
+  assert.throws(()=>auditBanquetPreview(hiddenOldTitle),
+    /G9R_OFFICIAL_ARTICLE_H1_REVIEW_REQUIRED/,
+    'hidden ancestor must not certify preview identity');
+  // A hidden duplicate also must not falsely reject one real visible H1.
+  assert.equal(auditBanquetPreview(fixture.replace('<h1>'+title+'</h1>',
+    hiddenParent+'<h1>'+title+'</h1>')).source_status,'PREVIEW_ONLY',
+    'hidden duplicate must not cause a false source HOLD');
   // Non-rendered H1 spoof: the old shared heading regex saw <noscript>/<textarea>
   // and the preview text stripper also admitted the hidden title as a real line.
   for(const tag of ['noscript','textarea']){
@@ -173,6 +191,32 @@ export function offlinePreviewRegression(){
       '<h1>'+title+'</h1>'+hidden)).source_status,'PREVIEW_ONLY',
       'hidden '+tag+' duplicate must not cause a false source HOLD');
   }
+  // Cross the same visibility boundary with explicit hidden/inert/ARIA/inline
+  // styles. The hidden H1 must not be accepted and a hidden duplicate must
+  // not produce a false HOLD when the real article H1 is visible.
+  for(const [open,close,label] of [
+    ['<div hidden>','</div>','hidden-ancestor'],
+    ['<section inert>','</section>','inert-ancestor'],
+    ['<div aria-hidden="true">','</div>','aria-hidden-ancestor'],
+    ['<span style="display: none">','</span>','display-none-ancestor'],
+    ['<div style="visibility:hidden">','</div>','visibility-hidden-ancestor'],
+  ]){
+    const hiddenTitle=open+'<h1>'+title+'</h1>'+close;
+    assert.throws(()=>auditBanquetPreview(fixture.replace('<h1>'+title+'</h1>',
+      hiddenTitle+'<h1>Pokémon Sleep</h1>')),
+      /G9R_OFFICIAL_ARTICLE_H1_REVIEW_REQUIRED/,label+': hidden-only title cannot certify source');
+    assert.equal(auditBanquetPreview(fixture.replace('<h1>'+title+'</h1>',
+      hiddenTitle+'<h1>'+title+'</h1>')).source_status,'PREVIEW_ONLY',
+      label+': hidden duplicate cannot cause false HOLD');
+    // A stale mechanic hidden INSIDE the Week Two source section must not
+    // rescue an explicitly changed visible mechanic.
+    const maskedMechanic=fixture.replace('鍋子容量增加的獎勵也會生效',
+      '鍋子容量增加的獎勵已取消'+open+'鍋子容量增加的獎勵也會生效'+close);
+    assert.throws(()=>auditBanquetPreview(maskedMechanic),
+      /G9R_BANQUET_PREVIEW_REVIEW_REQUIRED:BANQUET_PREVIEW_MECHANIC_SCOPE_DRIFT:POT_CAPACITY_BONUS/,
+      label+': hidden stale source fact cannot override current visible text');
+  }
+  console.log('PASS G9R_BANQUET_HIDDEN_ANCESTOR_H1_AND_WEEK_TWO_FACTS_FAIL_CLOSED');
   console.log('PASS G9R_BANQUET_NONRENDERED_ARTICLE_H1_SPOOF_AND_FALSE_HOLD_REGRESSION');
   console.log('PASS G9R_BANQUET_VISIBLE_ARTICLE_H1_IDENTITY_BODY_SPOOF_FAIL_CLOSED');
   console.log('PASS G9R_BANQUET_PREVIEW_OFFICIAL_SOURCE_BOUND_3_RECIPES_39_121_91');
