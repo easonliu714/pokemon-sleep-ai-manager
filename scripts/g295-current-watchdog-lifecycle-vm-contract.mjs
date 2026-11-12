@@ -304,6 +304,27 @@ assert.ok(trace.some(x=>x.event==='version_handoff_reload_guard_unavailable'&&x.
 console.log('PASS G479_SW_RELOAD_SILENT_DROP_WRITE_READBACK_FAIL_CLOSED');
 console.log('PASS G479_SW_RELOAD_SESSIONSTORAGE_DENIAL_FAIL_CLOSED_AND_NORMAL_CONTROL');
 
+// G295 negative-first: a queued 2s interval callback can outlive pagehide.
+// Unlike the RAF callback, the interval callback currently has no generation
+// guard. A stale callback from a suspended BFCache page must not diagnose a
+// foreground stall or seize warning DOM before a new pageshow generation.
+const stalePagehideTimer=[...intervals.values()][0];
+const beforeStaleTimer=detected();
+emit(events,'pagehide');
+assert.equal(intervals.size,0,'pagehide must retire the old timer');
+now+=6000;stalePagehideTimer();
+assert.equal(detected(),beforeStaleTimer,
+  'STALE_INTERVAL_AFTER_PAGEHIDE_MUST_NOT_DIAGNOSE_FOREGROUND_STALL');
+assert.equal(ctx.getStartupWatchdogState().warning_active,false,
+  'retired interval must not reopen a suspended watchdog episode');
+emit(events,'pageshow');
+assert.equal(intervals.size,1,'pageshow must install one new timer generation');
+interval();assert.equal(detected(),beforeStaleTimer,'first new timer tick remains in grace');
+now+=6000;interval();
+assert.equal(detected(),beforeStaleTimer+1,
+  'current timer generation must still detect a genuine new foreground stall');
+console.log('PASS G295_STALE_PAGEHIDE_INTERVAL_CALLBACK_GENERATION_GUARD');
+
 console.log('PASS G295_RAF_FIRST_DELAYED_TIMER_INDEPENDENT_GAP_AND_RESPONSIVE_CONTROL');
 console.log('PASS G295_PAGEHIDE_ACTIVE_STALL_INTERRUPTED_NOT_RECOVERED_AND_REARM');
 console.log('PASS G295_RAF_OBSERVED_MISSED_VISIBILITY_HIDDEN_NOT_RECOVERED_AND_REARM');
