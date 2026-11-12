@@ -103,7 +103,10 @@ function showFailure(label,error){
   // foreign subsystem has hidden the badge. Preserve its visibility/content;
   // render a separate module warning and revoke only our stale marker.
   const hasModuleMarker=warning.dataset.g479ModuleFailure==='true';
+  // G479: an explicit watchdog marker wins even if visible text is unchanged.
+  // A stale ESM marker never authorizes replacing a foreign diagnostic badge.
   const ownsStorageBadge=hasModuleMarker
+    &&!Boolean(warning.dataset.startupWatchdogWarning)
     &&warning.textContent===showFailure.lastOwnedText
     &&!warning.classList.contains('hidden');
   const foreignWarning=!ownsStorageBadge&&(
