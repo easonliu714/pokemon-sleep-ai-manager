@@ -99,15 +99,23 @@ function showFailure(label,error){
   if(status){status.textContent='載入失敗';status.className='badge error';}
   if(!warning)return;
   // G479: storage-integrity/watchdog HOLD owns its DOM warning; never erase it.
-  const ownsStorageBadge=warning.dataset.g479ModuleFailure==='true'
-    &&warning.textContent===showFailure.lastOwnedText;
+  // G479: matching text plus a stale module marker is not ownership when a
+  // foreign subsystem has hidden the badge. Preserve its visibility/content;
+  // render a separate module warning and revoke only our stale marker.
+  const hasModuleMarker=warning.dataset.g479ModuleFailure==='true';
+  const ownsStorageBadge=hasModuleMarker
+    &&warning.textContent===showFailure.lastOwnedText
+    &&!warning.classList.contains('hidden');
   const foreignWarning=!ownsStorageBadge&&(
     !warning.classList.contains('hidden')
     ||warning.textContent.trim()!==''
     ||Boolean(warning.dataset.startupWatchdogWarning)
+    ||hasModuleMarker
   );
   let target=warning;
   if(foreignWarning){
+    // Foreign visibility takeover: the module no longer owns this badge.
+    if(hasModuleMarker)delete warning.dataset.g479ModuleFailure;
     target=document.getElementById('moduleBootstrapWarning');
     if(!target){
       target=document.createElement('div');
