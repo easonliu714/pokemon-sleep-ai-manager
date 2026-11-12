@@ -200,6 +200,10 @@ function startHeartbeat(){
   };
   requestAnimationFrame(beat);
   watchdogTimer=setInterval(()=>{
+    // G295: clearInterval does not revoke a callback already queued before
+    // pagehide/BFCache suspension. The same generation fence as RAF must
+    // reject that retired timer before reading clocks or changing warning DOM.
+    if(generation!==heartbeatGeneration)return;
     const now=performance.now();
     const timerGap=now-lastIntervalTickAt;
     lastIntervalTickAt=now;
