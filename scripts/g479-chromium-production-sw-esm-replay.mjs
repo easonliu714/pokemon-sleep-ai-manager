@@ -209,6 +209,38 @@ try{
         document.getElementById('moduleBootstrapWarning')?.remove();
       });
       console.log('PASS G479_CHROMIUM_MODULE_WARNING_SAME_TEXT_FOREIGN_HIDE_OWNERSHIP');
+      // G479 negative-first: a watchdog can claim the still-visible module
+      // badge by setting its own ownership marker WITHOUT changing text.
+      // Same text + visibility alone must never outrank explicit foreign
+      // ownership. Exercise the real bootstrap handler in inert Chromium.
+      await page.evaluate(()=>{
+        const badge=document.getElementById('storageWarning');
+        badge.textContent='';badge.classList.add('hidden');
+        delete badge.dataset.g479ModuleFailure;
+        delete badge.dataset.startupWatchdogWarning;
+        document.getElementById('moduleBootstrapWarning')?.remove();
+        g479Fixture.showFailure('entry_modules',new TypeError('module owned before watchdog takeover'));
+        badge.dataset.startupWatchdogWarning='startup-heartbeat-watchdog';
+      });
+      const watchdogOwnedBefore=await page.locator('#storageWarning').textContent();
+      await page.evaluate(()=>g479Fixture.showFailure('entry_modules',
+        new TypeError('later module failure must not steal watchdog marker')));
+      assert.equal(await page.locator('#storageWarning').textContent(),watchdogOwnedBefore,
+        'visible watchdog-owned badge with identical text must not be overwritten by ESM failure');
+      assert.equal(await page.locator('#storageWarning').getAttribute('data-startup-watchdog-warning'),
+        'startup-heartbeat-watchdog','explicit watchdog marker must remain foreign-owned');
+      assert.equal(await page.locator('#storageWarning').getAttribute('data-g479-module-failure'),null,
+        'module must revoke stale marker when watchdog claims same-text visible badge');
+      assert.equal(await page.locator('#moduleBootstrapWarning [data-g479-manual-reload]').count(),1,
+        'module failure must render separate manual reload without altering watchdog badge');
+      await page.evaluate(()=>{
+        const badge=document.getElementById('storageWarning');
+        badge.textContent='';badge.classList.add('hidden');
+        delete badge.dataset.g479ModuleFailure;
+        delete badge.dataset.startupWatchdogWarning;
+        document.getElementById('moduleBootstrapWarning')?.remove();
+      });
+      console.log('PASS G479_CHROMIUM_WATCHDOG_MARKER_SAME_TEXT_VISIBLE_TAKEOVER_FAIL_CLOSED');
       // G479 negative-first: the real bootstrap ESM failure must not erase
       // an independently owned storage-integrity HOLD or attach its retry
       // control to the foreign warning. Only an isolated synthetic document.
