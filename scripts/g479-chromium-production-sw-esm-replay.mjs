@@ -184,6 +184,31 @@ try{
         ${handler}
         globalThis.g479Fixture={showFailure,trace};
       `});
+      // G479 independent negative-first: a foreign subsystem may hide the
+      // existing module-owned warning without changing its text or clearing
+      // the stale module marker. A later ESM failure must not reveal or reuse
+      // the foreign-hidden DOM. Use the actual production handler in Chromium.
+      await page.evaluate(()=>{
+        const badge=document.getElementById('storageWarning');
+        badge.textContent='';badge.classList.add('hidden');
+        delete badge.dataset.g479ModuleFailure;
+        g479Fixture.showFailure('entry_modules',new TypeError('first synthetic ESM failure'));
+        badge.classList.add('hidden'); // foreign visibility takeover, same text
+        g479Fixture.showFailure('entry_modules',new TypeError('second synthetic ESM failure'));
+      });
+      assert.equal(await page.locator('#storageWarning').evaluate(el=>el.classList.contains('hidden')),true,
+        'foreign-hidden same-text badge must not be re-shown by repeated module failure');
+      assert.equal(await page.locator('#storageWarning').getAttribute('data-g479-module-failure'),null,
+        'stale module ownership marker must be revoked after foreign hide');
+      assert.equal(await page.locator('#moduleBootstrapWarning [data-g479-manual-reload]').count(),1,
+        'new ESM failure must render separate manual reload while foreign badge stays hidden');
+      await page.evaluate(()=>{
+        const badge=document.getElementById('storageWarning');
+        badge.textContent='';badge.classList.add('hidden');
+        delete badge.dataset.g479ModuleFailure;
+        document.getElementById('moduleBootstrapWarning')?.remove();
+      });
+      console.log('PASS G479_CHROMIUM_MODULE_WARNING_SAME_TEXT_FOREIGN_HIDE_OWNERSHIP');
       // G479 negative-first: the real bootstrap ESM failure must not erase
       // an independently owned storage-integrity HOLD or attach its retry
       // control to the foreign warning. Only an isolated synthetic document.
