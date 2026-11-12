@@ -240,6 +240,11 @@ now+=2000;interval();
 assert.equal(detected(),beforeResponsive,'regular timer + delayed RAF alone must not trigger false stall');
 // G295 positive/negative boundary controls for explicit foreign ownership.
 // A genuinely watchdog-owned visible badge must still be cleared after stable RAF.
+// Reset the earlier intentionally foreign-owned storage warning fixture first;
+// otherwise this positive control is not a watchdog-owned DOM precondition.
+delete warning.dataset.g479ModuleFailure;
+delete warning.dataset.startupWatchdogWarning;
+warning.textContent='';classes.add('hidden');
 const beforeOwnMarker=detected();
 now+=6000;interval();
 assert.equal(detected(),beforeOwnMarker+1,'new real foreground stall still detected');
