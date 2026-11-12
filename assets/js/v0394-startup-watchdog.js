@@ -89,13 +89,15 @@ function showHeartbeatWarning({blockedFor,stageAge}){
   if(warning){
     // G295: a foreground stall must not erase an already-visible storage/data
     // warning owned by another subsystem. Keep diagnostic evidence regardless.
-    const watchdogOwnsBadge=warning.dataset.startupWatchdogWarning===WATCHDOG_MARKER&&warning.textContent===previousWatchdogText&&!warning.classList.contains('hidden');
+    // G295: an explicit ESM owner marker outranks a stale same-text watchdog marker.
+    const foreignOwnerMarker=warning.dataset.g479ModuleFailure==='true';
+    const watchdogOwnsBadge=!foreignOwnerMarker&&warning.dataset.startupWatchdogWarning===WATCHDOG_MARKER&&warning.textContent===previousWatchdogText&&!warning.classList.contains('hidden');
     // G295: a hidden badge with foreign storage text is still foreign-owned.
     // A new real stall must be diagnosed without revealing or overwriting it.
     // Only an empty hidden badge (or our unchanged own badge) is available.
-    const foreignWarning=!watchdogOwnsBadge&&(
+    const foreignWarning=foreignOwnerMarker||(!watchdogOwnsBadge&&(
       !warning.classList.contains('hidden')||warning.textContent.trim()!==''
-    );
+    ));
     if(!foreignWarning){
       warning.textContent=lastWarningText;
       warning.dataset.startupWatchdogWarning=WATCHDOG_MARKER;
@@ -126,7 +128,7 @@ function revokeResponsiveForeignWarningOwnership(){
   // A foreign subsystem can hide the badge without changing its text or
   // clearing our stale marker. Hidden DOM is no longer watchdog-owned.
   if(!warning||warning.dataset.startupWatchdogWarning!==WATCHDOG_MARKER
-    ||(warning.textContent===lastWarningText&&!warning.classList.contains('hidden')))return false;
+    ||(warning.dataset.g479ModuleFailure!=='true'&&warning.textContent===lastWarningText&&!warning.classList.contains('hidden')))return false;
   delete warning.dataset.startupWatchdogWarning;
   debugTrace.record('startup','main_thread_watchdog_external_warning_preserved',{status:'warning',
     details:{last_checkpoint:stallSnapshot?.checkpoint||lastStage||'unknown',
@@ -141,7 +143,7 @@ function clearRecoveredHeartbeatWarning({interruptedBy=null}={}){
   if(warning?.dataset?.startupWatchdogWarning===WATCHDOG_MARKER){
     // Do not erase a badge hidden by another subsystem before the next timer.
     // A stable RAF proves recovery, not ownership of foreign DOM state.
-    if(warning.textContent===lastWarningText&&!warning.classList.contains('hidden')){
+    if(warning.dataset.g479ModuleFailure!=='true'&&warning.textContent===lastWarningText&&!warning.classList.contains('hidden')){
       warning.classList.add('hidden');warning.textContent='';warningCleared=true;
     }
     delete warning.dataset.startupWatchdogWarning;

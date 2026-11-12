@@ -238,6 +238,30 @@ for(let i=0;i<4;i++){now+=2000;interval();}
 now+=16;assert.ok(raf.length);raf.shift()();
 now+=2000;interval();
 assert.equal(detected(),beforeResponsive,'regular timer + delayed RAF alone must not trigger false stall');
+// G295 positive/negative boundary controls for explicit foreign ownership.
+// A genuinely watchdog-owned visible badge must still be cleared after stable RAF.
+const beforeOwnMarker=detected();
+now+=6000;interval();
+assert.equal(detected(),beforeOwnMarker+1,'new real foreground stall still detected');
+assert.equal(warning.dataset.startupWatchdogWarning,'startup-heartbeat-watchdog','own visible badge must be claimed');
+for(let i=0;i<31;i++){now+=16;assert.ok(raf.length);raf.shift()();}
+assert.equal(classes.has('hidden'),true,'watchdog-owned warning clears after stable RAF');
+assert.equal(warning.textContent,'','own warning text cleared after verified recovery');
+// A hidden foreign ESM warning with an explicit marker must never be shown,
+// overwritten or cleared, even when the badge has no visible text authority.
+warning.textContent='EXTERNAL_HIDDEN_ESM_HOLD';classes.add('hidden');
+warning.dataset.g479ModuleFailure='true';
+const beforeHiddenMarker=detected();
+now+=6000;interval();
+assert.equal(detected(),beforeHiddenMarker+1,'hidden foreign marker cannot suppress real stall diagnostics');
+assert.equal(warning.textContent,'EXTERNAL_HIDDEN_ESM_HOLD');
+assert.equal(classes.has('hidden'),true,'hidden foreign marker must remain hidden');
+assert.equal(warning.dataset.startupWatchdogWarning,undefined,'hidden ESM marker cannot be stolen by watchdog');
+for(let i=0;i<31;i++){now+=16;assert.ok(raf.length);raf.shift()();}
+assert.equal(warning.textContent,'EXTERNAL_HIDDEN_ESM_HOLD','recovery preserves hidden foreign text');
+assert.equal(classes.has('hidden'),true,'recovery preserves hidden foreign state');
+delete warning.dataset.g479ModuleFailure;warning.textContent='';classes.add('hidden');
+console.log('PASS G295_EXPLICIT_ESM_OWNER_MARKER_SAME_TEXT_VISIBLE_HIDDEN_AND_OWN_RECOVERY');
 // B/G479 independent startup guard: a privacy-restricted browser may allow SW
 // registration but deny sessionStorage. This must not reject the bootstrap's
 // await enforceLiveVersionHandoff() as a misleading entry-module failure.
