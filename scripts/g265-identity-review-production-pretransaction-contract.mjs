@@ -196,32 +196,86 @@ await assert.rejects(evolutionAckLoss.evolve(),/SYNTHETIC_EVOLUTION_UNVERIFIED_R
 console.log('PASS G265_EVOLUTION_POSTCOMMIT_ACK_LOSS_STICKY_HOLD');
 
 
-// G265 #861 independent negative-first: identity merge must not read either
-// source or target from a stale SQLite image before native writer admission.
-// Disposable VM only. No player database, no persistent browser storage.
+// G265 #861: source-bound merge lease/transaction/rollback/ACK contract.
+// All records are synthetic VM objects; no browser or player database access.
 const mergeStart=source.indexOf('\nasync function mergeIntoExisting(');
 const mergeEnd=source.indexOf('\nexport function renderIdentityReview(',mergeStart);
 assert.ok(mergeStart>=0&&mergeEnd>mergeStart,'unique merge writer boundary');
 const mergeOperation=source.slice(mergeStart,mergeEnd);
-{
-  const calls=[];let held=false;
+function mergeFixture({deny=false,stale=false,failEvidence=false,ackLoss=false,cancel=false}={}){
+  const calls=[];let held=false,tx=false,committed=false,uncertain=false,pending=null;
+  let state={archived:false,ingredients:false,subskills:false,evidence:false};
+  const lease=Object.freeze({synthetic:true});
+  const requireHeld=()=>assert.equal(held,true,'MERGE_SQL_BEFORE_NATIVE_PRIMARY_LEASE');
   const context=vm.createContext({
-    prompt:()=> 'synthetic_target',
+    prompt:()=>cancel?null:'synthetic_target',
     confirm:()=>true,
-    alert:()=>{throw Error('UNEXPECTED_ALERT');},
-    rows(sql){assert.equal(held,true,'MERGE_SQL_BEFORE_NATIVE_PRIMARY_LEASE');calls.push('read');return [{pokemon_id:'synthetic',pokemon_instance_id:'instance_synthetic',species:'synthetic'}];},
-    async snapshot(){assert.equal(held,true,'MERGE_SNAPSHOT_BEFORE_NATIVE_PRIMARY_LEASE');calls.push('snapshot');},
-    run(){assert.equal(held,true,'MERGE_WRITE_BEFORE_NATIVE_PRIMARY_LEASE');calls.push('run');},
-    async persist({primaryMutationLease}={}){assert.equal(held,true,'MERGE_PERSIST_WITHOUT_NATIVE_PRIMARY_LEASE');assert.ok(primaryMutationLease);},
-    beginSqliteExclusiveWriteWindow(){calls.push('window');return ()=>{};},
-    async withPrimarySqliteMutationLock(fn){held=true;calls.push('lock');try{return await fn({synthetic:true});}finally{held=false;}},
-    withSqliteCoordinatedMutation:fn=>fn(),
-    begin(){},commit(){},rollback(){},
+    rows(sql,params=[]){
+      requireHeld();calls.push('read');
+      const isSource=params[0]==='synthetic_source';
+      return [{pokemon_id:params[0],pokemon_instance_id:isSource?'instance_source':'instance_target',
+        status:stale&&isSource?'archived':'active',identity_review_required:isSource?1:0,species:'synthetic'}];
+    },
+    async snapshot(){requireHeld();calls.push('snapshot');},
+    run(sql){
+      requireHeld();assert.equal(tx,true,'MERGE_SQL_OUTSIDE_ATOMIC_TRANSACTION');
+      calls.push('run');
+      if(sql.includes('pokemon_ingredients'))pending.ingredients=true;
+      if(sql.includes('pokemon_subskills'))pending.subskills=true;
+      if(sql.includes('UPDATE pokemon_identity_evidence'))pending.evidence=true;
+      if(sql.includes("status='archived'"))pending.archived=true;
+      if(sql.includes('INSERT INTO pokemon_identity_evidence')&&failEvidence)throw Error('SYNTHETIC_MERGE_EVIDENCE_FAILED');
+    },
+    async persist({primaryMutationLease}={}){
+      requireHeld();assert.equal(primaryMutationLease,lease);
+      assert.equal(committed,true);calls.push('persist');
+      if(ackLoss)throw Error('SYNTHETIC_MERGE_ACK_LOSS');
+    },
+    beginSqliteExclusiveWriteWindow(){
+      if(uncertain)throw Error('SYNTHETIC_MERGE_UNVERIFIED_RELOAD_REQUIRED');
+      calls.push('window');return ({uncertainOutcome=false}={})=>{calls.push('close');if(uncertainOutcome)uncertain=true;};
+    },
+    async withPrimarySqliteMutationLock(fn){
+      calls.push('lock');if(deny)throw Error('SYNTHETIC_MERGE_LOCK_DENIED');
+      held=true;try{return await fn(lease);}finally{held=false;}
+    },
+    withSqliteCoordinatedMutation:fn=>{requireHeld();return fn();},
+    begin(){requireHeld();tx=true;pending={...state};calls.push('begin');},
+    commit(){requireHeld();assert.equal(tx,true);state=pending;pending=null;tx=false;committed=true;calls.push('commit');},
+    rollback(){requireHeld();pending=null;tx=false;calls.push('rollback');},
     localIso:()=> '2026-11-13T20:55:00+08:00',
-    renderIdentityReview(){},Date,JSON,console,Error,String,Number,
+    renderIdentityReview(){calls.push('render');},
+    Date,JSON,console,Error,String,Number,
   });
   vm.runInContext(mergeOperation+'\n;globalThis.__mergeIntoExisting=mergeIntoExisting;',context,{timeout:3000});
-  await context.__mergeIntoExisting('synthetic_source');
-  assert.ok(calls.indexOf('lock')>=0&&calls.indexOf('lock')<calls.indexOf('read'),'MERGE_NATIVE_LOCK_MUST_PRECEDE_FIRST_SQL');
-  console.log('PASS G265_IDENTITY_MERGE_NATIVE_PRE_SQL_ADMISSION');
+  return {merge:()=>context.__mergeIntoExisting('synthetic_source'),calls,view:()=>({state:{...state},tx,uncertain})};
 }
+const mergeGood=mergeFixture();
+await mergeGood.merge();
+assert.deepEqual(mergeGood.view().state,{archived:true,ingredients:true,subskills:true,evidence:true});
+assert.ok(mergeGood.calls.indexOf('lock')<mergeGood.calls.indexOf('read'));
+assert.ok(mergeGood.calls.indexOf('lock')<mergeGood.calls.indexOf('snapshot'));
+assert.ok(mergeGood.calls.indexOf('commit')<mergeGood.calls.indexOf('persist'));
+assert.ok(mergeGood.calls.indexOf('persist')<mergeGood.calls.indexOf('close'));
+console.log('PASS G265_IDENTITY_MERGE_NATIVE_PRE_SQL_ATOMIC_DURABLE_ACK');
+for(const options of [{deny:true},{cancel:true},{stale:true}]){
+  const f=mergeFixture(options);
+  if(options.deny)await assert.rejects(f.merge(),/SYNTHETIC_MERGE_LOCK_DENIED/);
+  else if(options.stale)await assert.rejects(f.merge(),/IDENTITY_MERGE_STALE_OR_UNVERIFIED/);
+  else await f.merge();
+  assert.equal(f.calls.includes('run'),false);
+  assert.equal(f.calls.includes('persist'),false);
+  if(options.deny||options.cancel)assert.equal(f.calls.includes('read'),false);
+}
+console.log('PASS G265_IDENTITY_MERGE_LOCK_DENIAL_CANCEL_STALE_ZERO_MUTATION');
+const mergeRollback=mergeFixture({failEvidence:true});
+await assert.rejects(mergeRollback.merge(),/SYNTHETIC_MERGE_EVIDENCE_FAILED/);
+assert.deepEqual(mergeRollback.view().state,{archived:false,ingredients:false,subskills:false,evidence:false});
+assert.equal(mergeRollback.view().tx,false);
+assert.equal(mergeRollback.calls.includes('persist'),false);
+console.log('PASS G265_IDENTITY_MERGE_PRECOMMIT_ROLLBACK_ZERO_DURABLE_DELTA');
+const mergeAck=mergeFixture({ackLoss:true});
+await assert.rejects(mergeAck.merge(),/SYNTHETIC_MERGE_ACK_LOSS/);
+assert.equal(mergeAck.view().uncertain,true);
+await assert.rejects(mergeAck.merge(),/SYNTHETIC_MERGE_UNVERIFIED_RELOAD_REQUIRED/);
+console.log('PASS G265_IDENTITY_MERGE_POSTCOMMIT_ACK_LOSS_STICKY_HOLD');
