@@ -41,6 +41,13 @@ const interval=()=>{assert.equal(intervals.size,1,'exactly one active watchdog t
 const detected=()=>trace.filter(x=>x.event==='main_thread_block_detected').length;
 const resetReason=reason=>trace.some(x=>x.event==='main_thread_watchdog_visibility_reset'&&x.detail?.details?.reason===reason);
 assert.equal(intervals.size,1);
+// G295 negative-first: initial document pageshow (not only BFCache restore)
+// must retire the previous interval before installing a fresh generation.
+// A fenced but uncleared interval still wakes every 2s indefinitely.
+const initialTimerId=[...intervals.keys()][0];
+emit(events,'pageshow');
+assert.equal(intervals.size,1,'INITIAL_PAGESHOW_MUST_NOT_RETAIN_DUPLICATE_WATCHDOG_INTERVAL');
+assert.equal(intervals.has(initialTimerId),false,'old interval must be retired before pageshow rearm');
 visibilityState='hidden';emit(docEvents,'visibilitychange');
 now+=20000;interval();assert.equal(detected(),0,'hidden 20s timer gap must be ignored');
 visibilityState='visible';emit(docEvents,'visibilitychange');
