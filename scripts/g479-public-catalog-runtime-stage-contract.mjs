@@ -179,3 +179,29 @@ assert.equal(context.renderView('recipes'),true,'verified reconciliation must al
 assert.equal(renderCount,priorRenders+1,'only verified recipe projection runs');
 console.log('PASS G479_FAILED_PUBLIC_AUTHORITY_BLOCKS_RENDER_AND_PREWARM_SOURCE_BOUND');
 console.log('PASS G479_VERIFIED_RECONCILIATION_READMITS_PUBLIC_READ_PROJECTION');
+
+
+
+// G479 negative-first: an identical fingerprint from a prior/missing authority
+// contract version must never bypass hydration. Synthetic metadata only.
+const currentAuthority=evaluatePublicCatalogVersionAuthority({
+  expected,applied:{...expected},updated:false,
+});
+const currentVersion=(await import('../assets/js/public-catalog-startup-authority.js')).PUBLIC_CATALOG_STARTUP_AUTHORITY_VERSION;
+for(const persisted of [
+  {fingerprint:currentAuthority.fingerprint,authority_version:'legacy-public-authority'},
+  {fingerprint:currentAuthority.fingerprint},
+  {fingerprint:currentAuthority.fingerprint,authority_version:null},
+  {fingerprint:currentAuthority.fingerprint,authority_version:''},
+  {fingerprint:currentAuthority.fingerprint,authority_version:currentVersion+'-stale'},
+]){
+  const decision=decidePublicCatalogStartup({authority:currentAuthority,integrity_ok:true,persisted});
+  assert.equal(decision.action,'HYDRATE_REQUIRED',
+    'G479_STALE_OR_MISSING_AUTHORITY_VERSION_MUST_NOT_BYPASS');
+  assert.equal(decision.reason,'PERSISTED_AUTHORITY_VERSION_MISMATCH',
+    'G479_VERSION_DRIFT_MUST_BE_DIAGNOSABLE_WITHOUT_READING_PLAYER_SQLITE');
+}
+assert.equal(decidePublicCatalogStartup({
+  authority:currentAuthority,integrity_ok:true,
+  persisted:{fingerprint:currentAuthority.fingerprint,authority_version:currentVersion}
+}).action,'VERSION_MATCH_BYPASS','current exact authority must retain fast path');

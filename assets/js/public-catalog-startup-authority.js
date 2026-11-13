@@ -49,10 +49,18 @@ export function decidePublicCatalogStartup({authority,integrity_ok=false,persist
   if(!authority?.expected_complete||!authority?.exact||!integrity_ok){
     return Object.freeze({action:'HYDRATE_REQUIRED',reason:!authority?.expected_complete?'EXPECTED_AUTHORITY_INCOMPLETE':!authority?.exact?'DATABASE_AUTHORITY_MISMATCH':'INTEGRITY_SENTINEL_FAILED',fingerprint:authority?.fingerprint||null});
   }
-  if(!authority.updated&&persisted?.fingerprint===authority.fingerprint){
+  // G479 #479: identical bytes alone cannot certify that persisted metadata
+  // was verified under the CURRENT authority contract. Missing or older
+  // authority_version is a fail-closed hydration requirement, not a bypass.
+  const fingerprintMatches=persisted?.fingerprint===authority.fingerprint;
+  const versionMatches=persisted?.authority_version===PUBLIC_CATALOG_STARTUP_AUTHORITY_VERSION;
+  if(!authority.updated&&fingerprintMatches&&versionMatches){
     return Object.freeze({action:'VERSION_MATCH_BYPASS',reason:'RELEASE_LOCAL_FINGERPRINT_EXACT',fingerprint:authority.fingerprint});
   }
-  return Object.freeze({action:'HYDRATE_REQUIRED',reason:authority.updated?'DATABASE_RECONCILED_THIS_BOOT':persisted?.fingerprint?'PERSISTED_FINGERPRINT_MISMATCH':'PERSISTED_FINGERPRINT_MISSING',fingerprint:authority.fingerprint});
+  return Object.freeze({action:'HYDRATE_REQUIRED',reason:authority.updated?'DATABASE_RECONCILED_THIS_BOOT'
+    :fingerprintMatches&&!versionMatches?'PERSISTED_AUTHORITY_VERSION_MISMATCH'
+      :persisted?.fingerprint?'PERSISTED_FINGERPRINT_MISMATCH':'PERSISTED_FINGERPRINT_MISSING',
+    fingerprint:authority.fingerprint});
 }
 
 export function publicCatalogProjectionViewForLocalEntity(entity){
