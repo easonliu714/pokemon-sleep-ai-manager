@@ -258,8 +258,16 @@ addEventListener('pagehide',()=>{
   watchdogTimer=null;
   heartbeatGeneration++;
 });
+// G295: initial document pageshow also fires after the first heartbeat was
+// armed. Retire its interval and RAF generation before rearming, exactly as
+// BFCache pagehide/pageshow does; do not alter storage or warning ownership.
 addEventListener('pageshow',()=>{
   resetHeartbeatForVisibility('pageshow-resume');
+  if(watchdogTimer!==null){
+    clearInterval(watchdogTimer);
+    watchdogTimer=null;
+    heartbeatGeneration++;
+  }
   startHeartbeat();
 });
 addEventListener('focus',()=>{
