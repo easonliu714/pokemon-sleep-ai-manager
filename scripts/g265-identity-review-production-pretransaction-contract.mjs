@@ -194,3 +194,34 @@ assert.deepEqual(evolutionAckLoss.view().state,{species:'bloom',history:1});
 assert.equal(evolutionAckLoss.view().uncertain,true);
 await assert.rejects(evolutionAckLoss.evolve(),/SYNTHETIC_EVOLUTION_UNVERIFIED_RELOAD_REQUIRED/);
 console.log('PASS G265_EVOLUTION_POSTCOMMIT_ACK_LOSS_STICKY_HOLD');
+
+
+// G265 #861 independent negative-first: identity merge must not read either
+// source or target from a stale SQLite image before native writer admission.
+// Disposable VM only. No player database, no persistent browser storage.
+const mergeStart=source.indexOf('\nasync function mergeIntoExisting(');
+const mergeEnd=source.indexOf('\nexport function renderIdentityReview(',mergeStart);
+assert.ok(mergeStart>=0&&mergeEnd>mergeStart,'unique merge writer boundary');
+const mergeOperation=source.slice(mergeStart,mergeEnd);
+{
+  const calls=[];let held=false;
+  const context=vm.createContext({
+    prompt:()=> 'synthetic_target',
+    confirm:()=>true,
+    alert:()=>{throw Error('UNEXPECTED_ALERT');},
+    rows(sql){assert.equal(held,true,'MERGE_SQL_BEFORE_NATIVE_PRIMARY_LEASE');calls.push('read');return [{pokemon_id:'synthetic',pokemon_instance_id:'instance_synthetic',species:'synthetic'}];},
+    async snapshot(){assert.equal(held,true,'MERGE_SNAPSHOT_BEFORE_NATIVE_PRIMARY_LEASE');calls.push('snapshot');},
+    run(){assert.equal(held,true,'MERGE_WRITE_BEFORE_NATIVE_PRIMARY_LEASE');calls.push('run');},
+    async persist({primaryMutationLease}={}){assert.equal(held,true,'MERGE_PERSIST_WITHOUT_NATIVE_PRIMARY_LEASE');assert.ok(primaryMutationLease);},
+    beginSqliteExclusiveWriteWindow(){calls.push('window');return ()=>{};},
+    async withPrimarySqliteMutationLock(fn){held=true;calls.push('lock');try{return await fn({synthetic:true});}finally{held=false;}},
+    withSqliteCoordinatedMutation:fn=>fn(),
+    begin(){},commit(){},rollback(){},
+    localIso:()=> '2026-11-13T20:55:00+08:00',
+    renderIdentityReview(){},Date,JSON,console,Error,String,Number,
+  });
+  vm.runInContext(mergeOperation+'\n;globalThis.__mergeIntoExisting=mergeIntoExisting;',context,{timeout:3000});
+  await context.__mergeIntoExisting('synthetic_source');
+  assert.ok(calls.indexOf('lock')>=0&&calls.indexOf('lock')<calls.indexOf('read'),'MERGE_NATIVE_LOCK_MUST_PRECEDE_FIRST_SQL');
+  console.log('PASS G265_IDENTITY_MERGE_NATIVE_PRE_SQL_ADMISSION');
+}
