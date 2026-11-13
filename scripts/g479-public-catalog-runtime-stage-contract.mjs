@@ -192,10 +192,14 @@ for(const persisted of [
   {fingerprint:currentAuthority.fingerprint,authority_version:'legacy-public-authority'},
   {fingerprint:currentAuthority.fingerprint},
   {fingerprint:currentAuthority.fingerprint,authority_version:null},
+  {fingerprint:currentAuthority.fingerprint,authority_version:''},
+  {fingerprint:currentAuthority.fingerprint,authority_version:currentVersion+'-stale'},
 ]){
   const decision=decidePublicCatalogStartup({authority:currentAuthority,integrity_ok:true,persisted});
   assert.equal(decision.action,'HYDRATE_REQUIRED',
     'G479_STALE_OR_MISSING_AUTHORITY_VERSION_MUST_NOT_BYPASS');
+  assert.equal(decision.reason,'PERSISTED_AUTHORITY_VERSION_MISMATCH',
+    'G479_VERSION_DRIFT_MUST_BE_DIAGNOSABLE_WITHOUT_READING_PLAYER_SQLITE');
 }
 assert.equal(decidePublicCatalogStartup({
   authority:currentAuthority,integrity_ok:true,
