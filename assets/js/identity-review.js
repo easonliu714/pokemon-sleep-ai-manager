@@ -158,28 +158,60 @@ async function markEvolution(pokemonId,hint={}) {
   }
 }
 
+// G265 #861: user confirmation is non-SQL; acquire the same-page window and
+// native primary lease BEFORE identity reads, snapshot, transaction or persist.
+// A post-COMMIT ACK failure quarantines the page rather than replaying writes.
 async function mergeIntoExisting(sourceId) {
   const targetId = prompt('輸入要合併至的既有 pokemon_id。此操作會保留目標資料，搬移食材／副技能／證據，並封存來源個體。');
-  if (!targetId || targetId === sourceId) return;
-  const source = rows('SELECT * FROM pokemon WHERE pokemon_id=?', [sourceId])[0];
-  const target = rows('SELECT * FROM pokemon WHERE pokemon_id=?', [targetId])[0];
-  if (!source || !target) return alert('來源或目標 pokemon_id 不存在。');
-  if (!confirm(`確定將 ${source.species} (${sourceId}) 合併至 ${target.species} (${targetId})？`)) return;
-
-  await snapshot(`identity-merge:${sourceId}->${targetId}`);
-  const now = localIso();
-  run(`INSERT OR REPLACE INTO pokemon_ingredients(pokemon_id,unlock_level,ingredient_name,quantity)
-       SELECT ?,unlock_level,ingredient_name,quantity FROM pokemon_ingredients WHERE pokemon_id=?`, [targetId, sourceId]);
-  run(`INSERT OR REPLACE INTO pokemon_subskills(pokemon_id,unlock_level,subskill_name,is_unlocked)
-       SELECT ?,unlock_level,subskill_name,is_unlocked FROM pokemon_subskills WHERE pokemon_id=?`, [targetId, sourceId]);
-  run(`UPDATE pokemon_identity_evidence SET pokemon_instance_id=? WHERE pokemon_instance_id=?`,
-      [target.pokemon_instance_id || targetId, source.pokemon_instance_id || sourceId]);
-  run(`UPDATE pokemon SET status='archived',identity_review_required=0,last_updated_at=? WHERE pokemon_id=?`, [now, sourceId]);
-  run(`INSERT INTO pokemon_identity_evidence(evidence_id,pokemon_instance_id,evidence_type,evidence_value,confidence,observed_at,source_update_id)
-       VALUES(?,?,?,?,1,?,'MANUAL-IDENTITY-REVIEW')`,
-      [`manual-merge-${sourceId}-${Date.now()}`, target.pokemon_instance_id || targetId, 'manual_merge', JSON.stringify({ source_id: sourceId, target_id: targetId }), now]);
-  await persist();
-  renderIdentityReview();
+  if (!targetId || String(targetId) === String(sourceId)) return;
+  if (!confirm(`確定將 pokemon_id ${sourceId} 合併至 ${targetId}？請確認兩個個體的永久身份。`)) return;
+  const close=beginSqliteExclusiveWriteWindow();
+  let acknowledged=false;
+  try{
+    const changed=await withPrimarySqliteMutationLock(async lease=>{
+      const source=rows('SELECT * FROM pokemon WHERE pokemon_id=?',[sourceId])[0]||null;
+      const target=rows('SELECT * FROM pokemon WHERE pokemon_id=?',[targetId])[0]||null;
+      const sourceInstance=String(source?.pokemon_instance_id??'').trim();
+      const targetInstance=String(target?.pokemon_instance_id??'').trim();
+      if(!source||!target||source.status!=='active'||target.status!=='active'||
+          Number(source.identity_review_required)!==1||
+          !sourceInstance||!targetInstance||sourceInstance===targetInstance||
+          String(source.pokemon_id)!==String(sourceId)||String(target.pokemon_id)!==String(targetId)){
+        acknowledged=true;
+        throw new Error('IDENTITY_MERGE_STALE_OR_UNVERIFIED_RELOAD_REQUIRED');
+      }
+      await snapshot(`identity-merge:${sourceId}->${targetId}`);
+      const now=localIso();
+      let begun=false,committed=false;
+      try{
+        withSqliteCoordinatedMutation(()=>{
+          begin();begun=true;
+          run(`INSERT OR REPLACE INTO pokemon_ingredients(pokemon_id,unlock_level,ingredient_name,quantity)
+               SELECT ?,unlock_level,ingredient_name,quantity FROM pokemon_ingredients WHERE pokemon_id=?`,[targetId,sourceId]);
+          run(`INSERT OR REPLACE INTO pokemon_subskills(pokemon_id,unlock_level,subskill_name,is_unlocked)
+               SELECT ?,unlock_level,subskill_name,is_unlocked FROM pokemon_subskills WHERE pokemon_id=?`,[targetId,sourceId]);
+          run('UPDATE pokemon_identity_evidence SET pokemon_instance_id=? WHERE pokemon_instance_id=?',[targetInstance,sourceInstance]);
+          run("UPDATE pokemon SET status='archived',identity_review_required=0,last_updated_at=? WHERE pokemon_id=? AND pokemon_instance_id=? AND status='active' AND identity_review_required=1",
+            [now,sourceId,sourceInstance]);
+          run(`INSERT INTO pokemon_identity_evidence(evidence_id,pokemon_instance_id,evidence_type,evidence_value,confidence,observed_at,source_update_id)
+               VALUES(?,?,?,?,1,?,'MANUAL-IDENTITY-REVIEW')`,
+            [`manual-merge-${sourceId}-${Date.now()}`,targetInstance,'manual_merge',JSON.stringify({source_id:sourceId,target_id:targetId}),now]);
+          commit();committed=true;
+        });
+      }catch(error){
+        if(begun&&!committed)withSqliteCoordinatedMutation(rollback);
+        throw error;
+      }
+      await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
+      acknowledged=true;
+      return true;
+    });
+    if(changed){
+      try{renderIdentityReview();}catch(error){console.error('[IDENTITY_MERGE_RENDER]',error);}
+    }
+  }finally{
+    close({uncertainOutcome:!acknowledged});
+  }
 }
 
 export function renderIdentityReview() {
