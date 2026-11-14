@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   regression-gate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Checkout repository
@@ -122,6 +122,10 @@ jobs:
         run: |
           npm install --no-save --no-package-lock sql.js@1.13.0 fake-indexeddb@6.2.4 playwright@1.54.1
           npx playwright install chromium
+
+      # RATE.5 negative-first is intentionally non-release; expected stale intent to fail until fixed.
+      - name: Verify RATE.5 stale confirmation negative-first
+        run: node scripts/g14-rate5-stale-intent-negative.mjs
 
       - name: Verify G14.RATE current/future 15-band projection and bottom-of-help guide
         run: node scripts/g14-rate-current-future-user-guide-contract.mjs
