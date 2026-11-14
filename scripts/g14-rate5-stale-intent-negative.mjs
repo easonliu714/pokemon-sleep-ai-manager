@@ -45,12 +45,14 @@ test('current intent retains NO_CHANGE without SQL',async()=>{
 test('stale rule intent must fail closed before NO_CHANGE or SQL',async()=>{
   const {run,metrics}=make({expectedRuleVersion:'rule-stale',expectedSourceGeneration:'generation-current'},{liveRule:'rule-current'});
   await assert.rejects(run(),/STALE|RULE|RELOAD|HOLD/);
-  assert.equal(metrics.snapshot,0);assert.equal(metrics.persist,0);
+  // A stale confirmation must not acquire a write window or native lease, even for NO_CHANGE.
+  assert.deepEqual(metrics,{snapshot:0,mutation:0,persist:0,window:0,lease:0});
 });
 test('stale restored generation must fail closed before NO_CHANGE or SQL',async()=>{
   const {run,metrics}=make({expectedRuleVersion:'rule-current',expectedSourceGeneration:'generation-before-restore'},{liveGeneration:'generation-current'});
   await assert.rejects(run(),/STALE|GENERATION|RELOAD|HOLD/);
-  assert.equal(metrics.snapshot,0);assert.equal(metrics.persist,0);
+  // Restore/import staleness is a pre-admission rejection, not merely a no-persist result.
+  assert.deepEqual(metrics,{snapshot:0,mutation:0,persist:0,window:0,lease:0});
 });
 
 
