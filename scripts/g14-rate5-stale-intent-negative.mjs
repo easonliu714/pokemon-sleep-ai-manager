@@ -30,7 +30,7 @@ const make=(intent)=>{
     persist:async()=>{metrics.persist++;},
     Error,Object
   };
-  const run=vm.runInNewContext(fn+'\\n;saveConfirmedPokemonSuggestedRating',ctx);
+  const run=vm.runInNewContext(fn+'\n;saveConfirmedPokemonSuggestedRating',ctx);
   return {run:()=>run('fixture',{instanceId:'instance-X',expectedSourceToken:'same-content-token',scope:'CURRENT',expectedGrade:'S-',confirmed:true,...intent}),metrics};
 };
 test('current intent retains NO_CHANGE without SQL',async()=>{
