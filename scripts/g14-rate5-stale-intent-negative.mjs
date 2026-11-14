@@ -14,17 +14,20 @@ catch {git('fetch','--no-tags','origin',parked);source=git('show',parked+':'+pat
 assert.ok(source.includes('async function saveConfirmedPokemonSuggestedRating('));
 const start=source.indexOf('async function saveConfirmedPokemonSuggestedRating(');
 const fn=source.slice(start);
-const make=(intent,{applyEnabled=true}={})=>{
+// Model a confirmation captured before a rule reload or a same-content restore/import.
+// These source-bound fixtures preserve the old intent while the live authority changes.
+const make=(intent,{applyEnabled=true,liveRule='rule-current',liveGeneration='generation-current'}={})=>{
   const metrics={snapshot:0,mutation:0,persist:0,window:0,lease:0};
   const row={pokemon_id:'fixture',pokemon_instance_id:'instance-X',rating:'S-',status:'active'};
   const ctx={
     RATE4_PRODUCTION_APPLY_ENABLED:applyEnabled,
-    POKEMON_PROVISIONAL_RATING_RULE_VERSION:'rule-current',
+    POKEMON_PROVISIONAL_RATING_RULE_VERSION:liveRule,
+    POKEMON_SOURCE_GENERATION:liveGeneration,
     beginSqliteExclusiveWriteWindow:()=>{metrics.window++;return ()=>{};},
     withPrimarySqliteMutationLock:async cb=>{metrics.lease++;return cb({});},
     rows:sql=>sql.includes('FROM pokemon WHERE')?[row]:[],
     sourceTokenForPokemonRating:()=> 'same-content-token',
-    scorePokemonProvisionalRating:()=>({status:'PROVISIONAL_HEURISTIC',current_rating:'S-',future_rating:'S-',rule_version:'rule-current'}),
+    scorePokemonProvisionalRating:()=>({status:'PROVISIONAL_HEURISTIC',current_rating:'S-',future_rating:'S-',rule_version:liveRule}),
     snapshot:async()=>{metrics.snapshot++;},
     withSqliteCoordinatedMutation:fn=>{metrics.mutation++;return fn();},
     persist:async()=>{metrics.persist++;},
@@ -40,12 +43,12 @@ test('current intent retains NO_CHANGE without SQL',async()=>{
   assert.equal(metrics.snapshot,0);assert.equal(metrics.persist,0);
 });
 test('stale rule intent must fail closed before NO_CHANGE or SQL',async()=>{
-  const {run,metrics}=make({expectedRuleVersion:'rule-stale',expectedSourceGeneration:'generation-current'});
+  const {run,metrics}=make({expectedRuleVersion:'rule-stale',expectedSourceGeneration:'generation-current'},{liveRule:'rule-current'});
   await assert.rejects(run(),/STALE|RULE|RELOAD|HOLD/);
   assert.equal(metrics.snapshot,0);assert.equal(metrics.persist,0);
 });
 test('stale restored generation must fail closed before NO_CHANGE or SQL',async()=>{
-  const {run,metrics}=make({expectedRuleVersion:'rule-current',expectedSourceGeneration:'generation-before-restore'});
+  const {run,metrics}=make({expectedRuleVersion:'rule-current',expectedSourceGeneration:'generation-before-restore'},{liveGeneration:'generation-current'});
   await assert.rejects(run(),/STALE|GENERATION|RELOAD|HOLD/);
   assert.equal(metrics.snapshot,0);assert.equal(metrics.persist,0);
 });
@@ -69,4 +72,12 @@ test('missing explicit confirmation rejects before lease or SQL',async()=>{
   const {run,metrics}=make({confirmed:false,expectedRuleVersion:'rule-current',expectedSourceGeneration:'generation-current'});
   await assert.rejects(run(),/RATE4_EXPLICIT_CONFIRMATION_REQUIRED/);
   assert.deepEqual(metrics,{snapshot:0,mutation:0,persist:0,window:0,lease:0});
+});
+
+// Positive authority-transition control: current confirmation after a rule change remains a no-op.
+test('current rule after reload remains NO_CHANGE when intent is refreshed',async()=>{
+  const {run,metrics}=make({expectedRuleVersion:'rule-next',expectedSourceGeneration:'generation-current'},{liveRule:'rule-next'});
+  const result=await run();
+  assert.equal(result.status,'NO_CHANGE');
+  assert.equal(metrics.snapshot,0);assert.equal(metrics.persist,0);
 });
