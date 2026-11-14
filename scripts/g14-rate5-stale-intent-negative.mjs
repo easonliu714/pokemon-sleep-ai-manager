@@ -14,11 +14,11 @@ catch {git('fetch','--no-tags','origin',parked);source=git('show',parked+':'+pat
 assert.ok(source.includes('async function saveConfirmedPokemonSuggestedRating('));
 const start=source.indexOf('async function saveConfirmedPokemonSuggestedRating(');
 const fn=source.slice(start);
-const make=(intent)=>{
+const make=(intent,{applyEnabled=true}={})=>{
   const metrics={snapshot:0,mutation:0,persist:0,window:0,lease:0};
   const row={pokemon_id:'fixture',pokemon_instance_id:'instance-X',rating:'S-',status:'active'};
   const ctx={
-    RATE4_PRODUCTION_APPLY_ENABLED:true,
+    RATE4_PRODUCTION_APPLY_ENABLED:applyEnabled,
     POKEMON_PROVISIONAL_RATING_RULE_VERSION:'rule-current',
     beginSqliteExclusiveWriteWindow:()=>{metrics.window++;return ()=>{};},
     withPrimarySqliteMutationLock:async cb=>{metrics.lease++;return cb({});},
@@ -50,3 +50,10 @@ test('stale restored generation must fail closed before NO_CHANGE or SQL',async(
   assert.equal(metrics.snapshot,0);assert.equal(metrics.persist,0);
 });
 
+
+// Guard regression: the parked function must never obtain a lease when production Apply is OFF.
+test('default-off production apply refuses even a current confirmation before lease or SQL',async()=>{
+  const {run,metrics}=make({expectedRuleVersion:'rule-current',expectedSourceGeneration:'generation-current'},{applyEnabled:false});
+  await assert.rejects(run(),/RATE4_PRODUCTION_APPLY_NOT_AUTHORIZED/);
+  assert.deepEqual(metrics,{snapshot:0,mutation:0,persist:0,window:0,lease:0});
+});
