@@ -57,3 +57,16 @@ test('default-off production apply refuses even a current confirmation before le
   await assert.rejects(run(),/RATE4_PRODUCTION_APPLY_NOT_AUTHORIZED/);
   assert.deepEqual(metrics,{snapshot:0,mutation:0,persist:0,window:0,lease:0});
 });
+
+// Baseline controls: the parked production function already rejects changed source facts.
+// These passing controls distinguish the new missing intent-generation fence from existing token/consent guards.
+test('changed source token rejects before snapshot or persistence',async()=>{
+  const {run,metrics}=make({expectedSourceToken:'stale-content-token',expectedRuleVersion:'rule-current',expectedSourceGeneration:'generation-current'});
+  await assert.rejects(run(),/RATE4_STALE_SOURCE_RELOAD_REQUIRED/);
+  assert.equal(metrics.snapshot,0);assert.equal(metrics.mutation,0);assert.equal(metrics.persist,0);
+});
+test('missing explicit confirmation rejects before lease or SQL',async()=>{
+  const {run,metrics}=make({confirmed:false,expectedRuleVersion:'rule-current',expectedSourceGeneration:'generation-current'});
+  await assert.rejects(run(),/RATE4_EXPLICIT_CONFIRMATION_REQUIRED/);
+  assert.deepEqual(metrics,{snapshot:0,mutation:0,persist:0,window:0,lease:0});
+});
