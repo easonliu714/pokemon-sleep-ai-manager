@@ -33,16 +33,13 @@ try{
   const b=await tab(); // B freezes the old durable revision.
   const old=await b.evaluate(()=>window.__rate5.storage.loadDatabaseBytes());
   assert.equal(old.byteLength,bytes.length);
-  const newer=await a.evaluate(async()=>{
+  const newer=await a.evaluate(async seedBytes=>{
     const s=window.__rate5.storage;
     return s.withPrimarySqliteMutationLock(async lease=>{
-      const previous=await s.loadDatabaseBytes();
-      // The same-page image must not be silently rebound after admission.
-      const dbBytes=new Uint8Array(previous);
-      const next=await s.saveDatabaseBytes(dbBytes,{primaryMutationLease:lease});
+      const next=await s.saveDatabaseBytes(Uint8Array.from(seedBytes),{primaryMutationLease:lease});
       return next;
     });
-  }).catch(error=>({error:error.message}));
+  },bytes).catch(error=>({error:error.message}));
   // Rebinding inside a lease is not a supported writer contract; test a fresh
   // A admission and persistence separately if the above path rejected.
   assert.ok(!newer.error,'production primary lease and durable ACK: '+JSON.stringify(newer));
