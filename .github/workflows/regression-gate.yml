@@ -787,7 +787,8 @@ jobs:
   # Independent source-bound execution: keep negative-first Step 28 failing.
   # Disposable Chromium/SQL.js must run even when regression-gate fails early.
   rate5-native-prerequisite:
-    runs-on: ubuntu-latest
+    # Pin supported image: ubuntu-latest resolved to 26.04, unsupported by Playwright 1.54.1 --with-deps.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: read
