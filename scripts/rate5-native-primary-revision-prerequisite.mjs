@@ -31,7 +31,12 @@ try{
   // Seed through the real production CAS API; the origin is disposable.
   await a.evaluate(value=>window.__rate5.storage.saveDatabaseBytes(Uint8Array.from(value)),bytes);
   const b=await tab(); // B freezes the old durable revision.
-  const old=await b.evaluate(()=>window.__rate5.storage.loadDatabaseBytes());
+  // Chromium page.evaluate serializes ArrayBuffer as an empty object; inspect the
+  // real production bytes INSIDE the browser realm before crossing Playwright.
+  const old=await b.evaluate(async()=>{
+    const raw=await window.__rate5.storage.loadDatabaseBytes();
+    return {byteLength:raw?.byteLength??null};
+  });
   assert.equal(old.byteLength,bytes.length);
   const newer=await a.evaluate(async seedBytes=>{
     const s=window.__rate5.storage;
