@@ -775,6 +775,11 @@ jobs:
       - name: Verify G265 canonical Analysis Confirmation native Chromium CAS rollback ACK-loss
         run: node scripts/g265-native-chromium-canonical-analysis-confirmation-cas.mjs
 
+      - name: RATE.5 real production primary revision native Chromium prerequisite
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/rate5-native-primary-revision-prerequisite.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
