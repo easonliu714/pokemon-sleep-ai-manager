@@ -783,3 +783,38 @@ jobs:
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
+
+  # Independent source-bound execution: keep negative-first Step 28 failing.
+  # Disposable Chromium/SQL.js must run even when regression-gate fails early.
+  rate5-native-prerequisite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install disposable Chromium and SQL.js dependencies
+        run: |
+          npm install --no-save --no-package-lock playwright@1.54.1 sql.js@1.13.0
+          npx playwright install --with-deps chromium
+      - name: Start isolated static fixture origin
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/rate5-static.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/assets/js/storage.js >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/rate5-static.log
+          exit 1
+      - name: Execute real production storage native Chromium prerequisite
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/rate5-native-primary-revision-prerequisite.mjs
+      - name: Print fixture server log on failure
+        if: failure()
+        run: cat /tmp/rate5-static.log || true
