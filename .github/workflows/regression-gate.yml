@@ -776,6 +776,12 @@ jobs:
       - name: Verify G265 canonical Analysis Confirmation native Chromium CAS rollback ACK-loss
         run: node scripts/g265-native-chromium-canonical-analysis-confirmation-cas.mjs
 
+      # G265 #861: actual database.replaceDatabase in disposable two-tab Chromium.
+      - name: Verify G265 production Replace native Chromium lease and durable readback
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-replace-database-native-chromium.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
