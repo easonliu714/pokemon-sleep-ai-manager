@@ -1,3 +1,8 @@
+## 2026-11-16 G265 #861 — named Restore Writer actual native Chromium verification
+
+- **Evidence:** [Draft #881](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/881) source repair + `scripts/g265-replace-database-native-chromium.mjs`; head `7e4cb40748b34525f3761a305f89b4b4fc9af184`, **11/11 PR CI SUCCESS**, required [Frontend #43821237688](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/43821237688), Native Step **209** PASS with actual two-tab `replaceDatabase`, stale refusal, original memory retention, invalid candidate, sticky guard and durable readback. VM-only ACK-loss remains separate.
+- **DoD:** named G265 source + native disposable `VERIFIED_SOURCE`; final exact-head after governance update, protected merge and new-main CI/Pages PENDING; #861 **OPEN** (global 23 writers/Android Owner PASS not complete). #880 CLOSED_UNMERGED SAFE_PARK, #796 OPEN, RATE4 Apply OFF; no Player/Raw mutation.
+
 ## 2026-11-16 G265 #861 — named Restore Writer pre-SQL Native Admission | Source/Test in PR #881
 
 - **Authority:** Owner approved RATE.5 #880 `CLOSED_UNMERGED_SAFE_PARK` (head `464aacb54b62500070661801a6604ab234e7f849`) and serial pivot to G265. Base main `38b56c8dd569c8a27844835ffcc21ecfccb83393`; sole Draft [#881](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/881).
