@@ -103,6 +103,24 @@ try{
   assert.equal(failClosed.status,'HOLD_SOURCE_UNVERIFIED');
   assert.equal(failClosed.production_apply,false);
   assert.equal(failClosed.player_data_write,false);
+  // RATE.5 genuine negative-first: do not mistake a caller's invented revision
+  // strings for independent Import/Restore/Observation durable authority.
+  // This is intentionally expected to fail until a trusted source-bound reader
+  // exists; it MUST NOT be fixed by synthetic generation strings or stub leases.
+  const spoofed=await c.evaluate(async()=>{
+    const rating=await import('/assets/js/pokemon-rating-refresh-authority.js');
+    const rules=await import('/assets/js/pokemon-provisional-rating.js');
+    return rating.capturePokemonRatingRefreshAuthority({
+      rule_version:rules.POKEMON_PROVISIONAL_RATING_RULE_VERSION,
+      sqlite_generation:0,sqlite_sha256:'0'.repeat(64),
+      import_revision:'CALLER_INVENTED_IMPORT',
+      restore_revision:'CALLER_INVENTED_RESTORE',
+      observation_revision:'CALLER_INVENTED_OBSERVATION',
+      pokemon:[],ingredients:[],subskills:[]
+    });
+  });
+  assert.equal(spoofed.status,'HOLD_SOURCE_UNVERIFIED',
+    'RATE5_CALLER_SUPPLIED_REVISIONS_MUST_NOT_BECOME_DURABLE_AUTHORITY');
   console.log('PASS_RATE5_NATIVE_UI_TO_DURABLE_AUTHORITY_MISSING_REVISIONS_HOLD');
   console.log('PASS_RATE5_REAL_STORAGE_NATIVE_CHROMIUM_STALE_DENY_STICKY_DURABLE_READBACK');
 }finally{
