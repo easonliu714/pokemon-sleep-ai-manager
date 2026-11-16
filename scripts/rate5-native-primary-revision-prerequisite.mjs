@@ -70,6 +70,32 @@ try{
   });
   assert.deepEqual(durable.bytes,bytes);
   assert.equal(durable.length,bytes.length);
+  // RATE.5 source-bound boundary: real durable Primary Revision is readable,
+  // but it MUST NOT be promoted to a rating confirmation token while the
+  // independent Import/Restore/Observation revisions remain untrusted.
+  const authorityBoundary=await c.evaluate(async()=>{
+    const db=await new Promise((resolve,reject)=>{
+      const request=indexedDB.open('pokemon-sleep-ai-manager');
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>reject(request.error);
+    });
+    const stores=Array.from(db.objectStoreNames);
+    db.close();
+    return {stores};
+  });
+  assert.ok(authorityBoundary.stores.length>0,'disposable native IndexedDB must exist');
+  const failClosed=await c.evaluate(async()=>{
+    const rating=await import('/assets/js/pokemon-rating-refresh-authority.js');
+    return rating.capturePokemonRatingRefreshAuthority({
+      // A real SQLite revision alone cannot attest the other three authorities.
+      rule_version:'UNTRUSTED_UI_RULE',sqlite_generation:0,
+      sqlite_sha256:'0'.repeat(64),pokemon:[],ingredients:[],subskills:[]
+    });
+  });
+  assert.equal(failClosed.status,'HOLD_SOURCE_UNVERIFIED');
+  assert.equal(failClosed.production_apply,false);
+  assert.equal(failClosed.player_data_write,false);
+  console.log('PASS_RATE5_NATIVE_UI_TO_DURABLE_AUTHORITY_MISSING_REVISIONS_HOLD');
   console.log('PASS_RATE5_REAL_STORAGE_NATIVE_CHROMIUM_STALE_DENY_STICKY_DURABLE_READBACK');
 }finally{
   await Promise.all(pages.map(page=>page.close().catch(()=>{})));
