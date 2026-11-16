@@ -1,3 +1,8 @@
+## 2026-11-16 G265 #861 — imported Weekly dual-ACK UI truth | PR #882
+
+- **New material:** sole [Draft PR #882](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/882) from main `a83d1e4041d3d9a081f4e770bd76a1bc12fdbce2`; negative-first test/workflow `b29a56e` / `567e2ed` → real Frontend [#43888431879](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/43888431879) Job `133372775643` Step 28 FAIL (first two controls PASS, second-pot-failure UI status assertion FAIL) → minimal Source `f0d7984` in `weekly-context-ui-bridge.js::installSubmit()` accurately distinguishes Weekly Override already ACKed vs Account Pot uncertain/ACKed, advises reload and no blind retry.
+- **Gate scope:** UI truthful partial-success notice, **not** global G265/2-writer atomic SQLite DoD or Owner Android PASS. Source-bound VM test, unchanged guarded SQL writers; no Player/Raw or RATE4 Apply. Repaired Step 28 PASS observed in Frontend #43888970811; final exact-head all-workflow CI, protected merge, new-main Push/Pages PENDING. #861 remains OPEN; #880 SAFE_PARK and #881 MERGED intact.
+
 ## 2026-11-16 G265 #861 — named Restore Writer actual native Chromium verification
 
 - **Evidence:** [Draft #881](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/881) source repair + `scripts/g265-replace-database-native-chromium.mjs`; head `7e4cb40748b34525f3761a305f89b4b4fc9af184`, **11/11 PR CI SUCCESS**, required [Frontend #43821237688](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/43821237688), Native Step **209** PASS with actual two-tab `replaceDatabase`, stale refusal, original memory retention, invalid candidate, sticky guard and durable readback. VM-only ACK-loss remains separate.
