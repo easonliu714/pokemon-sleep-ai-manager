@@ -12,7 +12,8 @@ permissions:
 
 jobs:
   regression-gate:
-    runs-on: ubuntu-latest
+    # Playwright 1.54.1 Chromium does not support ubuntu26.04 selected by latest.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Checkout repository
@@ -207,6 +208,10 @@ jobs:
 
       - name: G265 Database Runtime Shared SQLite Persist Regression
         run: node scripts/g265-database-runtime-shared-persist-regression.mjs
+
+      # G265 #861 actual database.replaceDatabase named pre-SQL admission negative-first.
+      - name: G265 Production Replace Native Pre-SQL Admission and Recovery
+        run: node scripts/g265-replace-database-native-admission-contract.mjs
 
       - name: G265 Bare Persist ACK-Loss Direct Writer Fail-Closed
         run: node scripts/g265-bare-persist-uncertain-direct-write-hold.mjs
@@ -770,6 +775,12 @@ jobs:
         run: node scripts/g265-analysis-confirmation-canonical-legacy-optin-cas-recovery.mjs
       - name: Verify G265 canonical Analysis Confirmation native Chromium CAS rollback ACK-loss
         run: node scripts/g265-native-chromium-canonical-analysis-confirmation-cas.mjs
+
+      # G265 #861: actual database.replaceDatabase in disposable two-tab Chromium.
+      - name: Verify G265 production Replace native Chromium lease and durable readback
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-replace-database-native-chromium.mjs
 
       - name: Print static server log on failure
         if: failure()

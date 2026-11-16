@@ -34,8 +34,11 @@ async function migrationStaticGate(){
   const initialization=functionBlock(database,'export async function initializeDatabase()','export function requestForcedDatabaseLoad');
   const replacement=functionBlock(database,'export async function replaceDatabase(bytes)','export function begin');
   assert.match(initialization,/applyAllMigrations\(db\)/u,'migrations missing from initializeDatabase');
-  assert.match(replacement,/applyAllMigrations\(db\)/u,'migrations missing from replaceDatabase');
-  assert.match(replacement,/await persist\(\)/u,'persist missing from replaceDatabase');
+  // G265 #861: replacement migrates a disposable candidate under native admission;
+  // require candidate migration and lease-bound durable ACK, not legacy live-db writes.
+  assert.match(replacement,/applyAllMigrations\(candidate\)/u,'candidate migrations missing from replaceDatabase');
+  assert.match(replacement,/withPrimarySqliteMutationLock\(async lease\s*=>/u,'native pre-SQL admission missing from replaceDatabase');
+  assert.match(replacement,/persist\(\{primaryMutationLease:lease\}\)/u,'lease-bound persist missing from replaceDatabase');
   assert.match(migrations,/SELECT pokemon_id,70[\s\S]*unlock_level=75/u,'75→70 migration missing');
   assert.match(migrations,/SELECT pokemon_id,80[\s\S]*unlock_level=100/u,'100→80 migration missing');
   assert.match(migrations,/pokemon_analysis_observation/u,'analysis observation migration missing');

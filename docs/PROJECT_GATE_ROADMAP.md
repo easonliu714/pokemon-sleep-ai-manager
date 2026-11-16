@@ -1,3 +1,15 @@
+## 2026-11-16 G265 #861 — named Restore Writer actual native Chromium verification
+
+- **Evidence:** [Draft #881](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/881) source repair + `scripts/g265-replace-database-native-chromium.mjs`; head `7e4cb40748b34525f3761a305f89b4b4fc9af184`, **11/11 PR CI SUCCESS**, required [Frontend #43821237688](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/43821237688), Native Step **209** PASS with actual two-tab `replaceDatabase`, stale refusal, original memory retention, invalid candidate, sticky guard and durable readback. VM-only ACK-loss remains separate.
+- **DoD:** named G265 source + native disposable `VERIFIED_SOURCE`; final exact-head after governance update, protected merge and new-main CI/Pages PENDING; #861 **OPEN** (global 23 writers/Android Owner PASS not complete). #880 CLOSED_UNMERGED SAFE_PARK, #796 OPEN, RATE4 Apply OFF; no Player/Raw mutation.
+
+## 2026-11-16 G265 #861 — named Restore Writer pre-SQL Native Admission | Source/Test in PR #881
+
+- **Authority:** Owner approved RATE.5 #880 `CLOSED_UNMERGED_SAFE_PARK` (head `464aacb54b62500070661801a6604ab234e7f849`) and serial pivot to G265. Base main `38b56c8dd569c8a27844835ffcc21ecfccb83393`; sole Draft [#881](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/881).
+- **Negative-first / fix:** Frontend `43819247437` Job `133138256380` Step 56 demonstrated `database.js::replaceDatabase` closing / candidate SQL before native lease. Commit `a1acf8ca76da478534ce1916905aa56c874b923a` adds exact-lease pre-SQL admission, isolated candidate and ACK-loss sticky HOLD; matching source-bound VM and regression contracts, no player DB writes.
+- **CI status:** repaired pre-governance head `7d0e2da92b6917bce8a0ac02a168fff2d04d5bd9` **11/11 PR CI SUCCESS**, required Frontend `43820176774` PASS. Final governance HEAD / protected merge / new-main CI + Pages must be freshly checked; do not reuse prior HEAD as final authority.
+- **Status:** named G265 `VERIFIED_SOURCE` (synthetic VM + actual CI), full real-native restore/Android/global Writer `HOLD`. #861 OPEN; #796 OPEN, RATE.4 Apply OFF; #482 Owner device HOLD. Next unique step: validate final exact-head CI, native Chromium two-tab disposable restore and postcommit readback before any protected merge.
+
 ## 2026-11-13 12:02 +08 G479 #479 — persisted authority-version fence | source/test repair PR #877
 
 - **Fresh GitHub Authority:** protected main `3558405355e7873fdfb92686a3ef930c17a458dc` (G295 [#876](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/876) protected MERGED; new-main 9/9 Push CI and Pages SUCCESS). Sole OPEN/DRAFT [PR #877](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/877), test-only initial exact HEAD `26db1488af610b20280c461afa7b9d02d389f8e6` from current main, Ruleset #25813226 ACTIVE required `regression-gate` merge-only.

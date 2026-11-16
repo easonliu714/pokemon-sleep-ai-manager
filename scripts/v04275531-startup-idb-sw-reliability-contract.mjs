@@ -150,7 +150,8 @@ assert.match(restoreSection,/await replaceDatabase\(/);
 assert.match(restoreSection,/alert\('還原完成'\)/);
 assert.ok(restoreSection.indexOf('await replaceDatabase(')<restoreSection.indexOf("alert('還原完成')"),
   'restore success modal must follow awaited replaceDatabase');
-assert.match(replaceSection,/await persist\(\)/,'restore must await persist before resolving');
+assert.match(replaceSection,/await withSqliteCoordinatedMutation\(\(\)=>persist\(\{primaryMutationLease:lease\}\)\)/,
+  'G265 restore must await the exact native-lease durable ACK before resolving');
 assert.match(databaseSource,/emit\('SQLITE_PERSIST_COMPLETED'/,'persist must retain completed stage evidence');
 assert.match(bootstrapSource,/showFailure\('entry_modules',error\)/,'entry module transient must retain visible error');
 assert.match(bootstrapSource,/debugTrace\.fail\(operationId,error,\{phase:'entry_modules'\}\)/,

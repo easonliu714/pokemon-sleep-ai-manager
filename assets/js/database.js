@@ -1,7 +1,7 @@
-import {inspectDatabaseRecord,loadDatabaseBytes,loadDatabaseBytesInWorker,cancelWorkerDatabaseLoad,resetStorageConnection,saveDatabaseBytes,createSnapshot} from './storage.js';
+import {inspectDatabaseRecord,loadDatabaseBytes,loadDatabaseBytesInWorker,cancelWorkerDatabaseLoad,resetStorageConnection,saveDatabaseBytes,createSnapshot,withPrimarySqliteMutationLock} from './storage.js';
 import {DDL,SEED_SQL} from './schema.js';
 import {createSqlitePersistCoordinator} from './sqlite-persist-coordinator.js';
-import {assertSqliteDirectWriteAllowed,beginSqliteBarePersistWindow,markSqliteDurabilityUncertain} from './sqlite-direct-write-window-guard.js';
+import {assertSqliteDirectWriteAllowed,beginSqliteBarePersistWindow,beginSqliteExclusiveWriteWindow,withSqliteCoordinatedMutation,markSqliteDurabilityUncertain} from './sqlite-direct-write-window-guard.js';
 import {applyAllMigrations,applyFreshDatabaseBootstrap} from './migrations.js';
 import {applyCandyFamilyStorageMigration} from './candy-family-storage-authority.js';
 let SQL=null,db=null;
@@ -108,7 +108,56 @@ export async function persist({primaryMutationLease}={}){
 }
 export async function snapshot(reason){if(!db)throw new Error('database_not_ready');if(rescueReadonly)throw new Error('readonly_rescue_mode');emit('SQLITE_SNAPSHOT_RUNNING',`正在建立快照：${reason}`);const exported=db.export();const result=await timeout(createSnapshot(exported,reason),30000,'SQLite 快照');emit('SQLITE_SNAPSHOT_COMPLETED',`快照已建立：${reason}`);return result;}
 export function exportBytes(){if(rescueReadonly)throw new Error('readonly_rescue_mode');if(!db)throw new Error('database_not_ready');return db.export();}
-export async function replaceDatabase(bytes){assertSqliteDirectWriteAllowed();emit('SQLITE_REPLACE_RUNNING','正在驗證並替換 SQLite 資料庫');if(db)db.close();db=new SQL.Database(bytes);rescueReadonly=false;const check=rows('PRAGMA integrity_check');if(!check.length||check[0].integrity_check!=='ok')throw new Error('SQLite integrity_check 未通過');db.run(DDL);let migrationResult=applyAllMigrations(db);migrationResult=applyCandyFamilyStorageLifecycle(db,migrationResult);await persist();dispatchReadyAsync({seeded:false,restored:true,replaced:true,public_master:migrationResult.public_master,candy_family_storage:migrationResult.candy_family_storage});}
+// G265 #861: a restore must never close the loaded image or run candidate SQL
+// until it has the same native Primary lease used for the durable SQLite ACK.
+// Validate/migrate a separate candidate, promote only through exact-lease CAS,
+// and quarantine this page on any unacknowledged outcome. No blind restore.
+export async function replaceDatabase(bytes){
+  if(!db)throw new Error('database_not_ready');
+  if(rescueReadonly)throw new Error('readonly_rescue_mode');
+  assertSqliteDirectWriteAllowed();
+  const close=beginSqliteExclusiveWriteWindow();
+  const original=db;
+  let candidate=null,acknowledged=false;
+  try{
+    return await withPrimarySqliteMutationLock(async lease=>{
+      emit('SQLITE_REPLACE_RUNNING','正在驗證並替換 SQLite 資料庫');
+      // The previous image stays open while an isolated candidate is checked.
+      // Even a failed migration must not destroy the readable loaded image.
+      candidate=new SQL.Database(bytes);
+      const checked=candidate.exec('PRAGMA integrity_check');
+      if(!checked?.length||checked[0]?.values?.length!==1||checked[0].values[0][0]!=='ok')
+        throw new Error('SQLite integrity_check 未通過');
+      candidate.run(DDL);
+      let migrationResult=applyAllMigrations(candidate);
+      migrationResult=applyCandyFamilyStorageLifecycle(candidate,migrationResult);
+      // The persist coordinator captures "db". Stage the validated candidate
+      // only after native admission, and roll back the pointer on ACK failure.
+      db=candidate;
+      try{
+        await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
+      }catch(error){
+        // The durable ACK may have been lost. Restore only the in-memory
+        // pointer; do NOT attempt a second SQLite/IDB replacement or retry.
+        db=original;
+        throw error;
+      }
+      acknowledged=true;
+      try{original.close();}catch{}
+      dispatchReadyAsync({seeded:false,restored:true,replaced:true,
+        public_master:migrationResult.public_master,
+        candy_family_storage:migrationResult.candy_family_storage});
+    });
+  }catch(error){
+    if(candidate&&candidate!==db){try{candidate.close();}catch{}}
+    emit('SQLITE_REPLACE_FAILED','SQLite 替換未確認；請重新載入並核對備份','failed',{},error);
+    throw error;
+  }finally{
+    // A denied/failed native session or lost ACK is a sticky same-page HOLD.
+    // Old data stays in memory for evidence; no further direct SQL is admitted.
+    close({uncertainOutcome:!acknowledged});
+  }
+}
 export function begin(){run('BEGIN IMMEDIATE');}
 export function commit(){run('COMMIT');}
 export function rollback(){try{run('ROLLBACK')}catch{}}
