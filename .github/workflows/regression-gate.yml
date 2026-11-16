@@ -124,6 +124,10 @@ jobs:
           npm install --no-save --no-package-lock sql.js@1.13.0 fake-indexeddb@6.2.4 playwright@1.54.1
           npx playwright install chromium
 
+      # G265: source-bound UI contract, intentionally negative-first until partial-ACK disclosure is fixed.
+      - name: Verify G265 Weekly two-ACK UI partial-success disclosure
+        run: node scripts/g265-weekly-dual-ack-ui-disclosure-contract.mjs
+
       - name: Verify G14.RATE current/future 15-band projection and bottom-of-help guide
         run: node scripts/g14-rate-current-future-user-guide-contract.mjs
 

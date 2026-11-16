@@ -320,6 +320,10 @@ function installSubmit(form){
     const current=currentWeeklyContext();
     try{validateManualForm(form,current);}catch(error){return alert(`本週環境無法儲存：${error.message}`);}
     const weekStart=current.week_start||localWeekStart();
+    // G265 #861: the Weekly Override and account-pot saves have independent
+    // durable ACKs. Preserve each confirmed result; uncertain pot ACKs require
+    // reload/readback instead of a blind retry of either write.
+    const ack={weekly:false,potStarted:false,pot:false};
     try{
       const potEdit=potCapacityEdit(form,current);
       if(hasImportedAuthority(current)){
@@ -327,10 +331,13 @@ function installSubmit(form){
         if(!changed&&!potEdit.needsAccountWrite)return alert('目前沒有新的人工修改；若要回到 JSON 原值，請使用「清除本週人工覆寫」。');
         if(changed){
           await saveWeeklyManualOverride({weekStart,basedOnImportRevision:current.authority_revision,fields});
+          ack.weekly=true;
           emitWeeklyChanged({context_id:current.authority_context_id,week_start:weekStart,authority:'MANUAL_OVERRIDE'});
         }
         if(potEdit.needsAccountWrite){
+          ack.potStarted=true;
           const value=await saveAccountPotCapacity(potEdit,current);
+          ack.pot=true;
           emitPotChanged(value,potEdit.source);
         }
         syncForm();
@@ -345,7 +352,17 @@ function installSubmit(form){
         syncForm();
         alert(potEdit.changed?`本週人工 fallback 已儲存；鍋子基礎容量已更新為 ${potEdit.value}。`:'本週人工 fallback 已儲存並同步至戰情室／食譜。');
       }
-    }catch(error){alert(`本週環境儲存失敗：${error.message}`);}
+    }catch(error){
+      if(ack.weekly){
+        const potState=ack.pot?'鍋子容量已確認儲存':
+          ack.potStarted?'鍋子容量更新結果未確認':'鍋子容量尚未更新';
+        alert(`本週人工覆寫已儲存；${potState}。後續流程未完成：${error.message}。請重新載入核對後再操作，勿直接重試。`);
+      }else if(ack.potStarted&&!ack.pot){
+        alert(`鍋子容量更新結果未確認：${error.message}。請重新載入核對後再操作，勿直接重試。`);
+      }else{
+        alert(`本週環境儲存失敗：${error.message}`);
+      }
+    }
   };
 }
 async function clearOverrideClick(event){
