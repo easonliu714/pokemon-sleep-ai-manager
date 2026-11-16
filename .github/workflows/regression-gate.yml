@@ -208,6 +208,10 @@ jobs:
       - name: G265 Database Runtime Shared SQLite Persist Regression
         run: node scripts/g265-database-runtime-shared-persist-regression.mjs
 
+      # G265 #861 actual database.replaceDatabase named pre-SQL admission negative-first.
+      - name: G265 Production Replace Native Pre-SQL Admission and Recovery
+        run: node scripts/g265-replace-database-native-admission-contract.mjs
+
       - name: G265 Bare Persist ACK-Loss Direct Writer Fail-Closed
         run: node scripts/g265-bare-persist-uncertain-direct-write-hold.mjs
 
