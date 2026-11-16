@@ -125,6 +125,10 @@ jobs:
           npx playwright install chromium
 
       # G265: source-bound UI contract, intentionally negative-first until partial-ACK disclosure is fixed.
+      # G265 source-bound real SQL.js post-COMMIT ACK-loss negative-first.
+      - name: Verify G265 Weekly postcommit ACK error provenance
+        run: node scripts/g265-weekly-postcommit-ack-error-contract.mjs
+
       - name: Verify G265 Weekly two-ACK UI partial-success disclosure
         run: node scripts/g265-weekly-dual-ack-ui-disclosure-contract.mjs
 
