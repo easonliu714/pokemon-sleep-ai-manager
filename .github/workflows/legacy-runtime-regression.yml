@@ -78,7 +78,8 @@ jobs:
 
   confirmation-browser:
     needs: core-runtime
-    runs-on: ubuntu-latest
+    # Playwright 1.54.1 Chromium is unsupported on ubuntu-26.04 (latest).
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
