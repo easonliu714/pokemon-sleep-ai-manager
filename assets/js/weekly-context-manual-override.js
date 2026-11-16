@@ -97,14 +97,22 @@ export async function saveWeeklyManualOverride({weekStart,basedOnImportRevision,
       const record={schema:WEEKLY_MANUAL_OVERRIDE_SCHEMA,version:WEEKLY_MANUAL_OVERRIDE_VERSION,week_start:epoch,based_on_import_revision:revision,fields:sanitized,updated_at:now};
       await snapshot('manual:weekly-context-override');
       withSqliteCoordinatedMutation(begin);
+      let committed=false;
       try{
         withSqliteCoordinatedMutation(()=>run(`INSERT OR REPLACE INTO settings(key,value_json,updated_at) VALUES(?,?,?)`,[settingKey(epoch),JSON.stringify(record),now]));
         withSqliteCoordinatedMutation(commit);
+        committed=true;
         await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
         acknowledged=true;
         return Object.freeze(record);
       }catch(error){
-        withSqliteCoordinatedMutation(rollback);
+        // G265: once COMMIT returned, a rejected durable ACK cannot be undone
+        // by SQLite ROLLBACK. Preserve the original persist/lease failure for
+        // sticky HOLD/readback rather than masking it with 'no transaction'.
+        if(!committed){
+          try{withSqliteCoordinatedMutation(rollback);}
+          catch{ /* Retain the initiating SQL error if rollback also fails. */ }
+        }
         throw error;
       }
     });
@@ -127,14 +135,22 @@ export async function clearWeeklyManualOverride(weekStart){
       }
       await snapshot('manual:weekly-context-override-clear');
       withSqliteCoordinatedMutation(begin);
+      let committed=false;
       try{
         withSqliteCoordinatedMutation(()=>run('DELETE FROM settings WHERE key=?',[settingKey(epoch)]));
         withSqliteCoordinatedMutation(commit);
+        committed=true;
         await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
         acknowledged=true;
         return true;
       }catch(error){
-        withSqliteCoordinatedMutation(rollback);
+        // G265: once COMMIT returned, a rejected durable ACK cannot be undone
+        // by SQLite ROLLBACK. Preserve the original persist/lease failure for
+        // sticky HOLD/readback rather than masking it with 'no transaction'.
+        if(!committed){
+          try{withSqliteCoordinatedMutation(rollback);}
+          catch{ /* Retain the initiating SQL error if rollback also fails. */ }
+        }
         throw error;
       }
     });
