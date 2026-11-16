@@ -75,15 +75,23 @@ try{
   // independent Import/Restore/Observation revisions remain untrusted.
   const authorityBoundary=await c.evaluate(async()=>{
     const db=await new Promise((resolve,reject)=>{
-      const request=indexedDB.open('pokemon-sleep-ai-manager');
+      const request=indexedDB.open('pokemon_sleep_ai_manager');
       request.onsuccess=()=>resolve(request.result);
       request.onerror=()=>reject(request.error);
     });
     const stores=Array.from(db.objectStoreNames);
+    const revision=await new Promise((resolve,reject)=>{
+      const tx=db.transaction('metadata','readonly');
+      const req=tx.objectStore('metadata').get('revision:primary');
+      req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error);
+    });
     db.close();
-    return {stores};
+    return {stores,revision};
   });
-  assert.ok(authorityBoundary.stores.length>0,'disposable native IndexedDB must exist');
+  assert.ok(authorityBoundary.stores.includes('metadata'),'real metadata store must exist');
+  assert.ok(Number.isSafeInteger(authorityBoundary.revision?.generation));
+  assert.match(authorityBoundary.revision.sha256,/^[a-f0-9]{64}$/);
   const failClosed=await c.evaluate(async()=>{
     const rating=await import('/assets/js/pokemon-rating-refresh-authority.js');
     return rating.capturePokemonRatingRefreshAuthority({
