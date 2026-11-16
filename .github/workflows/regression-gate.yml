@@ -12,7 +12,8 @@ permissions:
 
 jobs:
   regression-gate:
-    runs-on: ubuntu-latest
+    # Playwright 1.54.1 Chromium does not support ubuntu26.04 selected by latest.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Checkout repository
