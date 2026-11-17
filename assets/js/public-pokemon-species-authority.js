@@ -4,14 +4,32 @@ import {
   currentPublicSpeciesFormZhTwIdentityRows,
 } from './public-species-form-zh-tw-identity.js';
 
-export const PUBLIC_POKEMON_SPECIES_AUTHORITY_VERSION='public-pokemon-species-authority-2026-08-29-a';
+export const PUBLIC_POKEMON_SPECIES_AUTHORITY_VERSION='public-pokemon-species-authority-2026-11-17-official-cottonee-a';
 export const PUBLIC_POKEMON_SPECIES_AUTHORITY_STATUS='ACTIVE_GOVERNED_PUBLIC_SPECIES_AUTHORITY';
 
 const OFFICIAL_TINKATINK_NEWS='https://www.pokemonsleep.net/zh/news/333731343735353735333130363438343934/';
+// G9R Nov 2026: official identity only; no inferred abilities or Candy family.
+const OFFICIAL_COTTONEE_WHIMSICOTT_NEWS='https://www.pokemonsleep.net/zh/news/343537333535313639323832313239393330/';
 const displayText=value=>String(value??'').trim();
 const normalizeKey=value=>displayText(value).normalize('NFKC');
 
 export const PUBLIC_POKEMON_SPECIES_OFFICIAL_LIVE_ADDITIONS=Object.freeze([
+  // New officially announced November 16 arrivals: names and date only.
+  // These entries do not create player Pokémon or Candy Family/Quantity.
+  Object.freeze({
+    display_name_zh_tw:'木棉球',source_keys:Object.freeze(['COTTONEE']),
+    identity_kind:'BASE',verification_status:'OFFICIAL_ZH_TW_VERIFIED',
+    authority_class:'OFFICIAL_LIVE_RECENCY_ADDITION',
+    source_ref:OFFICIAL_COTTONEE_WHIMSICOTT_NEWS,announced_at:'2026-11-04',
+    appearing_from:'2026-11-16T15:00:00+08:00',
+  }),
+  Object.freeze({
+    display_name_zh_tw:'風妖精',source_keys:Object.freeze(['WHIMSICOTT']),
+    identity_kind:'BASE',verification_status:'OFFICIAL_ZH_TW_VERIFIED',
+    authority_class:'OFFICIAL_LIVE_RECENCY_ADDITION',
+    source_ref:OFFICIAL_COTTONEE_WHIMSICOTT_NEWS,announced_at:'2026-11-04',
+    appearing_from:'2026-11-16T15:00:00+08:00',
+  }),
   Object.freeze({
     display_name_zh_tw:'小鍛匠',
     source_keys:Object.freeze(['TINKATINK']),
