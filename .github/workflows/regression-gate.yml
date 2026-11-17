@@ -817,6 +817,10 @@ jobs:
       - name: Verify G9R November recipe non-ACTIVE evidence HOLD
         run: node scripts/g9r-november-recipe-evidence-hold-contract.mjs
 
+      # G9R: production recipe page must disclose pending formulas without activating them.
+      - name: Verify G9R November recipe production UI HOLD visibility
+        run: node scripts/g9r-november-recipe-production-ui-hold-contract.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
