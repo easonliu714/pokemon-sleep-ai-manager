@@ -97,9 +97,15 @@ export function verifyNovemberDataOnlyRelease({beforePayloadText,beforeManifestT
     // immutable official banquet prefix. Meal Prep ends at 04:00 exactly
     // when Banquet starts, so source scope must transition, not go empty.
     const banquetStart=at('2026-11-16T04:00:00+08:00');
-    need(banquetStart.active_event_count===1
-      &&banquetStart.active_events[0]?.event_id==='banquet_week_vol1_2026_11'
-      &&!Object.hasOwn(banquetStart.strategy_event_effects,'recipe_final_energy_multiplier'),
+    const banquetPublished=next.events.some(e=>e.event_id==='banquet_week_vol1_2026_11');
+    // Replay the exact immutable 2026-11-02 six-event release as well as the
+    // live seven-event successor. On Nov 16 Prep always ends; the successor
+    // starts its independently verified Banquet event at that same boundary.
+    need(banquetPublished
+      ?banquetStart.active_event_count===1
+        &&banquetStart.active_events[0]?.event_id==='banquet_week_vol1_2026_11'
+        &&!Object.hasOwn(banquetStart.strategy_event_effects,'recipe_final_energy_multiplier')
+      :banquetStart.active_event_count===0,
       'PREP_END_EXCLUSIVE_BANQUET_START_SCOPED');
   }
   return Object.freeze({status:'READY_FOR_CONTROLLED_DATA_ONLY_PR',
