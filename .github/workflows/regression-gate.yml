@@ -813,6 +813,10 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-warroom-production-native-durable.mjs
 
+      # G9R: candidate-only November recipes; never activate unverified formulas.
+      - name: Verify G9R November recipe non-ACTIVE evidence HOLD
+        run: node scripts/g9r-november-recipe-evidence-hold-contract.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
