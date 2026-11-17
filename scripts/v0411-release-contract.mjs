@@ -79,7 +79,10 @@ for(const key of ['ingredients','items','candies','recipes']){
 }
 
 const ingredientSchema=buildPublicMasterRecognitionJsonSchema('ingredients');
-assert.deepEqual(ingredientSchema.properties.schema.enum,[PUBLIC_MASTER_RECOGNITION_SCHEMA]);assert.deepEqual(ingredientSchema.properties.observations.items.properties.status.enum,['MATCHED','AMBIGUOUS','UNMATCHED']);assert.equal(ingredientSchema.properties.observations.items.properties.canonical_key.properties.ingredient_name.enum.length,19);assert.equal('ingredient_id' in ingredientSchema.properties.observations.items.properties.canonical_key.properties,false);
+assert.deepEqual(ingredientSchema.properties.schema.enum,[PUBLIC_MASTER_RECOGNITION_SCHEMA]);assert.deepEqual(ingredientSchema.properties.observations.items.properties.status.enum,['MATCHED','AMBIGUOUS','UNMATCHED']);// Historical baseline is retained; the current schema must expose the
+// newly official 20th ingredient without inventing a synthetic ingredient_id.
+assert.equal(ingredientSchema.properties.observations.items.properties.canonical_key.properties.ingredient_name.enum.length,20);
+assert.ok(ingredientSchema.properties.observations.items.properties.canonical_key.properties.ingredient_name.enum.includes('一口堅果'));assert.equal('ingredient_id' in ingredientSchema.properties.observations.items.properties.canonical_key.properties,false);
 const compactIngredientSchema=buildCompactPublicMasterProviderSchemaForInput('ingredients');
 assert.equal('enum' in compactIngredientSchema.properties.observations.items.properties.canonical_key.properties.ingredient_name,false,'provider canonical key must not expand catalog enum');
 assert.equal('enum' in compactIngredientSchema.properties.observations.items.properties.canonical_name,false,'provider canonical name must not expand catalog enum');
