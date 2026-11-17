@@ -1,9 +1,9 @@
 {
   "schema": "pokemon-sleep-public-event-master/1.0",
-  "master_version": "public-event-master-tw-2026-11-02-november-official-source-a",
+  "master_version": "public-event-master-tw-2026-11-17-banquet-official-a",
   "locale": "zh-TW",
   "region": "TW",
-  "generated_at": "2026-11-02T06:55:00.000Z",
+  "generated_at": "2026-11-17T15:30:00.000Z",
   "registry_version": "weekly-event-effect-registry-2026-08-17-b-public-event-master",
   "events": [
     {
@@ -443,6 +443,113 @@
           "conditional_research_rewards_not_global": true,
           "same_key_overlaps": "MAX_IF_SOURCE_PROVEN_ELSE_REVIEW",
           "verification_method": "EXACT_OFFICIAL_ZH_TW_NOVEMBER_2026_NOTICE_CONTRACT"
+        }
+      }
+    },
+    {
+      "event_id": "banquet_week_vol1_2026_11",
+      "title": "來什麼都吃光光！大餐週vol.1",
+      "locale": "zh-TW",
+      "region": "GLOBAL",
+      "start_at": "2026-11-16T04:00:00+08:00",
+      "end_at": "2026-11-23T04:00:00+08:00",
+      "camp_scope": [
+        "*"
+      ],
+      "effects": {
+        "cross_sleep_type_encounters": true,
+        "unknown_effects": [
+          {
+            "source_text": "一口堅果為食譜所需食材時，指定食材能量×1.5；僅額外添加的一口堅果能量×1.5，不是所有料理全域倍率"
+          },
+          {
+            "source_text": "食材專長幫忙食材+1並額外給1個一口堅果；持有上限+10，均非全部寶可夢全域獎勵"
+          },
+          {
+            "source_text": "鍋子容量+30，不能將活動獎勵永久寫入玩家 account_capacity；所有料理類別可製作"
+          },
+          {
+            "source_text": "木棉球與風妖精機率中幅提升；官方未公布可計算的精確機率"
+          }
+        ]
+      },
+      "phases": [],
+      "missions": [],
+      "rewards": [],
+      "limited_mechanics": [
+        "官方活動期間：11/16 04:00 至 11/23 03:59（Asia/Taipei），每日04:00切換，所有營地。",
+        "卡比獸本週想吃所有料理類別；不代表任何料理均有1.5倍獎勵。",
+        "食材專長幫忙食材+1，額外獲得一口堅果×1；樹果／食材持有上限+10（限食材專長）。",
+        "食譜內含一口堅果才使食譜指定食材能量×1.5；額外放的一口堅果能量×1.5，其他料理不自動全域加成。",
+        "鍋子容量臨時增加30；不得覆蓋玩家原有 account_capacity 或鍋子永久值。",
+        "新咖哩／濃湯：萌綠玉米、沉甸甸南瓜、一口堅果，食材總量39；個別用量未由本官方公告逐一列出。",
+        "新沙拉：暖暖薑、好眠番茄、嫩亮酪梨、一口堅果，食材總量121；個別用量未由本官方公告逐一列出。",
+        "新點心／飲料：特選蛋、美味尾巴、萌綠大豆、一口堅果，食材總量91；個別用量未由本官方公告逐一列出。",
+        "木棉球、風妖精出現機率中幅提升，營地為萌綠之島、天青沙灘、琥褐溪谷、萌綠之島EX、天青沙灘EX；未知精確機率。",
+        "活動／企畫獎勵以活動期間開始測量的睡眠資料為準；新手教學不適用；重疊相同獎勵僅採來源已確認的最大倍率。"
+      ],
+      "authority_status": "PARTIAL_VERIFIED",
+      "source": {
+        "source_type": "OFFICIAL_ANNOUNCEMENT",
+        "source_name": "Pokémon Sleep 官方繁體中文公告：來什麼都吃光光！大餐週vol.1",
+        "source_ref": "https://www.pokemonsleep.net/zh/news/343537333535313639333033313031343531/",
+        "verified_at": "2026-11-17T15:30:00.000Z",
+        "note": "Official published 2026-11-04, verified release identity/period/scoped bonuses. Recipe formula and base energy require separate governed screenshot evidence; no automatic deterministic promotion."
+      },
+      "field_provenance": {
+        "identity": {
+          "status": "VERIFIED",
+          "authority": "OFFICIAL_POKEMON_SLEEP",
+          "source_ref": "https://www.pokemonsleep.net/zh/news/343537333535313639333033313031343531/",
+          "official_published_on": "2026-11-04"
+        },
+        "period": {
+          "status": "VERIFIED",
+          "time_zone": "Asia/Taipei",
+          "end_exclusive": true,
+          "source_ref": "https://www.pokemonsleep.net/zh/news/343537333535313639333033313031343531/"
+        },
+        "camp_scope": {
+          "status": "VERIFIED",
+          "source_ref": "https://www.pokemonsleep.net/zh/news/343537333535313639333033313031343531/"
+        },
+        "event_effects": {
+          "status": "PARTIAL_VERIFIED",
+          "deterministic_authority": false,
+          "verified_keys": [
+            "cross_sleep_type_encounters"
+          ],
+          "unmodeled": [
+            "NUT_CONDITIONAL_RECIPE_1_5",
+            "EXTRA_NUT_1_5",
+            "INGREDIENT_SPECIALTY_HELP_PLUS_ONE",
+            "INGREDIENT_SPECIALTY_NUT_PLUS_ONE",
+            "INGREDIENT_SPECIALTY_INVENTORY_PLUS_TEN",
+            "TEMPORARY_POT_CAPACITY_PLUS_30",
+            "ALL_DISH_CATEGORIES",
+            "COTTONEE_WHIMSICOTT_PROBABILITY"
+          ],
+          "consumer_semantics": "FEATURE_ONLY_UNTIL_SCOPED_BONUS_IMPLEMENTED",
+          "source_ref": "https://www.pokemonsleep.net/zh/news/343537333535313639333033313031343531/"
+        },
+        "recipe_details": {
+          "status": "OFFICIAL_INGREDIENT_NAMES_AND_TOTAL_ONLY",
+          "source_ref": "https://www.pokemonsleep.net/zh/news/343537333535313639333033313031343531/",
+          "unknown_fields": [
+            "INDIVIDUAL_INGREDIENT_QUANTITIES",
+            "RECIPE_CANONICAL_ZH_TW_NAME",
+            "RECIPE_BASE_ENERGY"
+          ]
+        },
+        "pokemon_details": {
+          "status": "OFFICIAL_SPECIES_NAME_AND_ENCOUNTER_SCOPE_ONLY",
+          "source_ref": "https://www.pokemonsleep.net/zh/news/343537333535313639333033313031343531/",
+          "unknown_fields": [
+            "HELPER_BASE_SPEED",
+            "INGREDIENT_LEVEL_SLOTS",
+            "SKILL_TRIGGER_PROBABILITY",
+            "CANDY_RATE"
+          ]
         }
       }
     }

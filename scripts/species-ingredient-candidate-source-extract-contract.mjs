@@ -5,7 +5,10 @@ import {PUBLIC_INGREDIENT_CANONICAL_NAMES} from '../assets/js/public-ingredient-
 
 const source=fs.readFileSync('scripts/species-ingredient-candidate-source-extract.mjs','utf8');
 assert.equal(PUBLIC_SPECIES_FORM_ROSTER_ROWS.length,242);
-assert.equal(PUBLIC_INGREDIENT_CANONICAL_NAMES.length,19);
+// Historical pinned ingredient candidate source remains 19; the current Public Master
+// adds an independently verified Nov 16 ingredient without mutating the pinned blob.
+assert.equal(PUBLIC_INGREDIENT_CANONICAL_NAMES.length,20);
+assert.ok(PUBLIC_INGREDIENT_CANONICAL_NAMES.includes('一口堅果'));
 for(const token of [
   "PINNED_COMMIT='fc36317b195125c63bf56d3777fa3ed1a9548831'",
   "'common/src/types/pokemon/berry-pokemon.ts'",
@@ -43,7 +46,8 @@ console.log(JSON.stringify({
   status:'PASS',
   gate:'PUBLIC_SPECIES_INGREDIENT_CANDIDATE_SOURCE_BOUNDARY',
   governed_roster_rows:242,
-  current_canonical_ingredients:19,
+  current_canonical_ingredients:20,
+  pinned_historical_ingredient_count:19,
   pinned_source_files:4,
   invocation_mode:resilientInvocation?'PINNED_RESILIENT_PRELOAD':'LEGACY_DIRECT',
   combined_source_artifact_upload:true,

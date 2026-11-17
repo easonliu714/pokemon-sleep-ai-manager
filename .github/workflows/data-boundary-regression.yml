@@ -132,6 +132,9 @@ jobs:
         run: node scripts/g9r-november-data-only-admission-contract.mjs
       - name: Verify published November official event data-only SHA256 and immutable history
         run: node scripts/g9r-november-published-data-only-contract.mjs
+      # G9R: new officially live Nov 16 banquet data and source-only nut identity.
+      - name: Verify official November 16 banquet Public Master and new nut, negative-first
+        run: node scripts/g9r-banquet-live-official-master-contract.mjs
 
   g9r-source-watch:
     if: github.event_name == 'schedule'

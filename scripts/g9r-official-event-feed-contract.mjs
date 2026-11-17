@@ -52,6 +52,21 @@ for(const e of payload.events.slice(3)){
     assert.equal(validateNovemberPublishedEvent(e),true);
     continue;
   }
+  // Manually source-reviewed 2026/11/16 banquet is an append-only public event,
+  // NOT an event eligible for automatic Growth Week feed promotion.
+  if(e.event_id==='banquet_week_vol1_2026_11'){
+    const url='https://www.pokemonsleep.net/zh/news/343537333535313639333033313031343531/';
+    assert.equal(e.authority_status,'PARTIAL_VERIFIED');
+    assert.equal(e.source.source_type,'OFFICIAL_ANNOUNCEMENT');
+    assert.equal(e.source.source_ref,url);
+    assert.equal(e.start_at,'2026-11-16T04:00:00+08:00');
+    assert.equal(e.end_at,'2026-11-23T04:00:00+08:00');
+    assert.deepEqual(e.camp_scope,['*']);
+    assert.equal(e.field_provenance.event_effects.deterministic_authority,false);
+    assert.ok(!Object.hasOwn(e.effects,'recipe_final_energy_multiplier'));
+    assert.ok(!Object.hasOwn(e.effects,'ingredient_help_quantity_bonus'));
+    continue;
+  }
   assert.match(e.event_id,/^growth_week_vol[0-9]+_20[0-9]{2}_[0-9]{2}$/,'Only fully verified known-pattern future events may join the automatic feed');
   assert.equal(e.authority_status,'VERIFIED');
   assert.equal(e.field_provenance.event_effects.verification_method,'EXACT_SUPPORTED_OFFICIAL_TEXT_CONTRACT');

@@ -48,7 +48,14 @@ const INGREDIENT_CONSTANT_TO_ZH_TW=Object.freeze({
 });
 
 const canonicalIngredientSet=new Set(PUBLIC_INGREDIENT_CANONICAL_NAMES);
-assert.deepEqual(new Set(Object.values(INGREDIENT_CONSTANT_TO_ZH_TW)),canonicalIngredientSet,'ingredient constant map must exactly equal current canonical ingredient authority');
+// This 2026-08 pinned source predates the independently verified Nov 2026
+// Snackable Nuts. Keep its exact 19 constant mappings immutable; accept only
+// the explicitly sourced new live ingredient in the current Public authority.
+assert.ok(canonicalIngredientSet.has('一口堅果'),'Official Nov 2026 ingredient missing');
+assert.equal(canonicalIngredientSet.size,20,'Current Public Master must contain 19 pinned + 1 official');
+assert.deepEqual(new Set(Object.values(INGREDIENT_CONSTANT_TO_ZH_TW)),
+  new Set([...canonicalIngredientSet].filter(name=>name!=='一口堅果')),
+  'Pinned source ingredient constants must remain exact and unchanged');
 
 function gitBlobSha(text){
   const body=Buffer.from(text,'utf8');

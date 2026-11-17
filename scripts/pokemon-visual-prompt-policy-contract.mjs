@@ -50,7 +50,10 @@ for(const edge of [
 
 assert.equal(POKEMON_VISUAL_RECOGNITION_VOCABULARY.types.length,18);
 assert.equal(POKEMON_VISUAL_RECOGNITION_VOCABULARY.berries.length,18);
-assert.equal(POKEMON_VISUAL_RECOGNITION_VOCABULARY.ingredients.length,19);
+// The visual prompt remains a public read-only vocabulary, now including
+// one separately officially verified 2026-11 ingredient. No player write.
+assert.equal(POKEMON_VISUAL_RECOGNITION_VOCABULARY.ingredients.length,20);
+assert.ok(POKEMON_VISUAL_RECOGNITION_VOCABULARY.ingredients.includes('一口堅果'));
 assert.ok(POKEMON_VISUAL_RECOGNITION_VOCABULARY.ingredients.includes('嫩亮酪梨'));
 assert.equal(POKEMON_VISUAL_RECOGNITION_VOCABULARY.ingredients.includes('特選酪梨'),false);
 assert.ok(POKEMON_VISUAL_RECOGNITION_VOCABULARY.subskills.includes('技能機率提升M'));

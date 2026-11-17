@@ -1,13 +1,16 @@
-export const PUBLIC_INGREDIENT_IDENTITY_VERSION='public-ingredient-identity-2026-08-15-a';
+export const PUBLIC_INGREDIENT_IDENTITY_VERSION='public-ingredient-identity-2026-11-17-official-nuts-a';
 export const PUBLIC_INGREDIENT_CANONICAL_SOURCE_REFS=Object.freeze([
   'pokemon-sleep-official-amber-canyon-avocado-2025-10-23',
   'pokemon-sleep-official-valentines-2025-special-apple-2025-01-31',
+  'https://www.pokemonsleep.net/zh/news/343537333535313639333033313031343531/',
 ]);
 
 export const PUBLIC_INGREDIENT_CANONICAL_NAMES=Object.freeze([
   '沉甸甸南瓜','醒腦咖啡豆','萌綠玉米','萌綠大豆','放鬆可可','好眠番茄','暖暖薑','純粹油',
   '甜甜蜜','哞哞鮮奶','豆製肉','火辣香草','特選蘋果','窩心洋芋','特選蛋','粗枝大蔥',
   '品鮮蘑菇','美味尾巴','嫩亮酪梨',
+  // Officially live since Nov 16; keep all prior canonical names unchanged.
+  '一口堅果',
 ]);
 
 // Legacy aliases are recognition/migration evidence only. They are never current canonical output

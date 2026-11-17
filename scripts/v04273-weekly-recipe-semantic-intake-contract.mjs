@@ -84,7 +84,10 @@ assert.equal(canonicalStrength.status,'ACTIVE_VERIFIED');
 assert.equal(legacyStrength.status,'ACTIVE_VERIFIED');
 assert.equal(legacyStrength.berry_name,'萄葡果');
 assert.equal(legacyStrength.strength,canonicalStrength.strength);
-assert.equal(MASTER_DATA_VERSION,'shared-master-2026-08-17-canonical-grepa');
+// The historical semantic intake contracts remain fixed; the public-only
+// ingredient catalog can move to a separately source-verified successor.
+assert.ok(['shared-master-2026-08-17-canonical-grepa',
+  'shared-master-2026-11-17-official-nuts-a'].includes(MASTER_DATA_VERSION));
 
 console.log(JSON.stringify({
   status:'PASS',
