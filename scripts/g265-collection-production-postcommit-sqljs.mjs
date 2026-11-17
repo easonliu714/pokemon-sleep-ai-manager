@@ -30,6 +30,10 @@ async function scenario(mode){
   new Function('document','FormData','snapshot','run','persist','rows','now','ensureUi','weeklyForm','warroomForm','renderCollection','installStrategyRefreshListeners','alert','begin','commit','rollback','withSqliteCoordinatedMutation','beginSqliteExclusiveWriteWindow','withPrimarySqliteMutationLock',production+';return setupG3Pages;')(
     document,FormData,snapshot,run,persist,rows,now,ensureUi,weeklyForm,warroomForm,renderCollection,installStrategyRefreshListeners,alert,begin,commit,rollback,withSqliteCoordinatedMutation,beginSqliteExclusiveWriteWindow,withPrimarySqliteMutationLock
   )();
+  // G265: setupG3Pages renders once while registering the form.
+  // Reset only the instrumentation counter so ACK-loss asserts zero submit-time UI success.
+  assert.equal(calls.render,1,'initial render must occur during setup');
+  calls.render=0;
   let error='';
   try{await form.onsubmit({preventDefault(){},target:{reset(){calls.reset++}}})}catch(e){error=e.message}
   const count=db.exec('SELECT COUNT(*) FROM collection_targets')[0].values[0][0];
