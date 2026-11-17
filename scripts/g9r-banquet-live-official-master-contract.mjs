@@ -37,12 +37,12 @@ for(const phrase of ['一口堅果','鍋子容量','木棉球','風妖精','39',
     'G9R_MISSING_OFFICIAL_BANQUET_FACT:'+phrase);
 }
 const day=resolvePublicEventProjection(payload,{date:'2026-11-17T12:00:00+08:00',camp:'萌綠之島'});
-assert.ok(day.active_events.some(x=>x.event.event_id===current.event_id),
+assert.ok(day.active_events.some(x=>x.event_id===current.event_id),
   'G9R_TODAY_NOV17_MUST_DISPLAY_OFFICIAL_BANQUET');
-assert.equal(day.effects.recipe_final_energy_multiplier,undefined,
+assert.equal(day.event_effects.recipe_final_energy_multiplier,undefined,
   'G9R_NOV17_CONDITIONAL_RECIPE_EFFECT_MUST_NOT_BE_GLOBAL');
 const outside=resolvePublicEventProjection(payload,{date:'2026-11-23T04:00:00+08:00',camp:'萌綠之島'});
-assert.ok(!outside.active_events.some(x=>x.event.event_id===current.event_id),
+assert.ok(!outside.active_events.some(x=>x.event_id===current.event_id),
   'G9R_NEXT_MONDAY_4AM_EXCLUSIVE_BOUNDARY');
 assert.ok(PUBLIC_INGREDIENT_NAMES.includes('一口堅果'),'G9R_OFFICIAL_NUT_PUBLIC_NAME_MISSING');
 const nut=inspectIngredientIdentity('一口堅果');
