@@ -1,4 +1,10 @@
 
+## 2026-11-18 G9R #888 production Recipes UI evidence HOLD
+
+- Sole Draft [#888](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/888), base main `278851b8ea8f610a6c563b11a199f327a137f9df`. Negative-first executable test `da0e9c468347206552b7a30961c4d18de8e42d8f`; Frontend workflow `9e7188e8479f6af764c10567319ccfe7808d785d`. Real failing Frontend [Run 44153361145](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/44153361145), Job `134287384026`, Step 217, `ERR_ASSERTION: production recipe page must visibly identify pending recipes`, test line 9, on original production `index.html`.
+- Minimal production UI repair `4ba7ddc7b584376ebc6973d0f8a188f3dd0bb209`: visible read-only `novemberBanquetRecipeHold` in Recipes page with verified curry 39, salad 121, dessert 91 ingredient identities and source URL; labels explicitly 尚待核實／非正式食譜. No recipe_master/SQLite/Raw/Public Master writes; ACTIVE stays 78. Unknown per-ingredient quantities, audited names and Level 1 energy remain HOLD. This source-bound test proves static production UI presence, **not** Android UAT, runtime PWA cache freshness, or full in-game formula authority.
+- Final exact-head CI, protected merge and new-main Push/Pages must be verified separately; #19 source-watch H1 and #861 global writer/Android remain OPEN. RATE4 Apply OFF; no Migration15/16 changes.
+
 ## 2026-11-18 G9R November three-recipe non-ACTIVE evidence boundary | Draft #887
 
 - Base protected main `94607430f7ac98f0bf57c5c2efc96121d234378a` (#886 merged). Sole Draft [#887](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/887), initial source `026d49435188c3e4d1bc408fc74b84fd56f8a3e9`, test `7c1c65b0ee93625a5a6e1bdb6690072ec81493de`, workflow `8f54eb953474e731cd4a38972c9461a7f27ce49f`.
