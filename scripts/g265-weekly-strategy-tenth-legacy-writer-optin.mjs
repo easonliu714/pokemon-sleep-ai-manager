@@ -1,5 +1,5 @@
-// G265 tenth weekly strategy isolated opt-in, synthetic SQL.js/IDB only.
-// Bind the unchanged legacy form source; never touch production player storage.
+// G265 tenth weekly strategy isolated opt-in (synthetic SQL.js/IDB only).
+// Production War Room now uses native pre-SQL lease, independent of this opt-in gate.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {webcrypto} from 'node:crypto';
@@ -14,7 +14,11 @@ const operation=legacy.split('function warroomForm() {')[1]?.split('function ren
 assert.ok(operation,'tenth legacy writer must remain source-identifiable');
 assert.match(operation,/await snapshot\('manual:weekly-strategy'\)/);
 assert.match(operation,/INSERT OR REPLACE INTO weekly_strategy/);
-assert.match(operation,/await persist\(\)/);
+// Ensure historical isolated adapter stays disconnected while production is guarded.
+assert.match(operation,/beginSqliteExclusiveWriteWindow\(\)/);
+assert.match(operation,/withPrimarySqliteMutationLock\(async \(lease\)/);
+assert.match(operation,/persist\(\{primaryMutationLease:lease\}\)/);
+assert.doesNotMatch(operation,/await persist\(\)/);
 assert.doesNotMatch(legacy,/sqlite-weekly-strategy-optin/);
 console.log('PASS G265_TENTH_WEEKLY_STRATEGY_EXACT_LEGACY_SOURCE_BOUND_NOT_PRODUCTION_WIRED');
 
