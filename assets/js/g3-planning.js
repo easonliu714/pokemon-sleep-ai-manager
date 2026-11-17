@@ -192,17 +192,40 @@ function warroomForm() {
     event.preventDefault();
     const form = new FormData(event.target);
     const id = `strategy_${form.get('week_start') || 'current'}`;
-    await snapshot('manual:weekly-strategy');
-    run('INSERT OR REPLACE INTO weekly_strategy(strategy_id,week_start,team_summary,substitution_rules,time_schedule,meal_strategy,ingredient_estimate,berry_estimate,shard_estimate,snorlax_energy_estimate,assumptions,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)', [
-      id, form.get('week_start') || '', form.get('team_summary') || '', form.get('substitution_rules') || '',
-      form.get('time_schedule') || '', form.get('meal_strategy') || '', Number(form.get('ingredient_estimate')) || null,
-      Number(form.get('berry_estimate')) || null, Number(form.get('shard_estimate')) || null,
-      Number(form.get('snorlax_energy_estimate')) || null, form.get('assumptions') || '', now(),
-    ]);
-    await persist();
+    // G265 War Room: obtain same-page exclusivity and native primary revision admission
+    // before snapshot/SQL; uncertain post-COMMIT ACK must remain sticky HOLD.
+    const close = beginSqliteExclusiveWriteWindow();
+    let acknowledged = false;
+    try {
+      await withPrimarySqliteMutationLock(async (lease) => {
+        await snapshot('manual:weekly-strategy');
+        withSqliteCoordinatedMutation(begin);
+        let committed = false;
+        try {
+          withSqliteCoordinatedMutation(() => run('INSERT OR REPLACE INTO weekly_strategy(strategy_id,week_start,team_summary,substitution_rules,time_schedule,meal_strategy,ingredient_estimate,berry_estimate,shard_estimate,snorlax_energy_estimate,assumptions,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)', [
+            id, form.get('week_start') || '', form.get('team_summary') || '', form.get('substitution_rules') || '',
+            form.get('time_schedule') || '', form.get('meal_strategy') || '', Number(form.get('ingredient_estimate')) || null,
+            Number(form.get('berry_estimate')) || null, Number(form.get('shard_estimate')) || null,
+            Number(form.get('snorlax_energy_estimate')) || null, form.get('assumptions') || '', now(),
+          ]));
+          withSqliteCoordinatedMutation(commit);
+          committed = true;
+          await withSqliteCoordinatedMutation(() => persist({primaryMutationLease:lease}));
+          acknowledged = true;
+        } catch (error) {
+          // Preserve original post-COMMIT durable ACK error; rollback only before COMMIT.
+          if (!committed) {
+            try { withSqliteCoordinatedMutation(rollback); }
+            catch { /* Preserve the initiating SQL failure. */ }
+          }
+          throw error;
+        }
+      });
+    } finally {
+      close({uncertainOutcome:!acknowledged});
+    }
     alert('戰情室策略已儲存');
-  };
-}
+  };}
 
 function renderCollection() {
   const data = rows('SELECT * FROM collection_targets ORDER BY CASE priority WHEN "S+" THEN 0 WHEN "S" THEN 1 WHEN "A" THEN 2 WHEN "B" THEN 3 ELSE 9 END, species');
