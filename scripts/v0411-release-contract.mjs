@@ -64,7 +64,10 @@ assert.deepEqual(PUBLIC_MASTER_RECOGNITION_REGISTRY.recipes.canonical_key_fields
 
 const ingredientSnapshot=buildPublicMasterCatalogSnapshot('ingredients');
 const recipeSnapshot=buildPublicMasterCatalogSnapshot('recipes');
-assert.equal(ingredientSnapshot.row_count,19);assert.equal(PUBLIC_INGREDIENT_NAMES.length,19);
+// Historical 19 stay intact; current additive Public Master now recognizes
+// officially released Nov 2026 Snackable Nuts without player auto-admission.
+assert.equal(ingredientSnapshot.row_count,20);assert.equal(PUBLIC_INGREDIENT_NAMES.length,20);
+assert.ok(PUBLIC_INGREDIENT_NAMES.includes('一口堅果'));
 assert.equal(HISTORICAL_BASE_RECIPE_MASTER.length,76,'historical Public Master baseline must remain 76');
 assert.equal(recipeSnapshot.row_count,PUBLIC_RECIPE_MASTER.length);
 assert.ok([76,78].includes(PUBLIC_RECIPE_MASTER.length),'current canonical recipe authority is historical 76 or verified 78 successor');
