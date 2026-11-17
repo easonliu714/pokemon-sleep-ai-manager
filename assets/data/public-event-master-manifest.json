@@ -1,10 +1,10 @@
 {
   "schema": "pokemon-sleep-public-event-manifest/1.0",
-  "master_version": "public-event-master-tw-2026-11-02-november-official-source-a",
+  "master_version": "public-event-master-tw-2026-11-17-banquet-official-a",
   "payload_path": "./assets/data/public-event-master.json",
-  "payload_sha256": "4e96c3319158251c6ee8792b16a5961e765992f462d0efb46de53df03bcfca90",
+  "payload_sha256": "6930568005dd2f88577b23f9d36acfe3020aa4681c591ec6a24744dd89c1a2ce",
   "locale": "zh-TW",
   "region": "TW",
-  "generated_at": "2026-11-02T06:55:00.000Z",
+  "generated_at": "2026-11-17T15:30:00.000Z",
   "authority_version": "public-event-authority-2026-08-17-a"
 }
