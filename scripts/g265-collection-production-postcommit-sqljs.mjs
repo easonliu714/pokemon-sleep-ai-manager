@@ -17,7 +17,8 @@ async function scenario(mode){
   const form={onsubmit:null};
   const document={getElementById:id=>id==='collectionAddForm'?form:null};
   const FormData=class{get(k){return k==='species'?'SYNTHETIC_ACK_CASE':'';}};
-  const snapshot=async()=>{calls.snapshot++};
+  // G265: snapshot failure occurs before BEGIN/SQL and must fail closed without persist.
+  const snapshot=async()=>{calls.snapshot++;if(mode==='snapshot-fail')throw new Error('SYNTHETIC_SNAPSHOT_FAILURE')};
   const run=(query,params)=>{calls.sql++;if(mode==='sql-fail')throw new Error('SYNTHETIC_SQL_FAILURE');db.run(query,params)};
   const persist=async options=>{calls.persist++;assert.deepEqual(options,{primaryMutationLease:lease});if(mode==='ack-loss')throw new Error('SYNTHETIC_DURABLE_ACK_LOSS');acknowledgedBytes=db.export()};
   const rows=()=>[],now=()=>new Date().toISOString();
@@ -72,6 +73,16 @@ assert.equal(lost.acknowledgedReadback,null,'ACK-loss must not fabricate durable
 assert.deepEqual(lost.calls.close,[{uncertainOutcome:true}],'durable uncertainty must sticky HOLD');
 assert.equal(lost.calls.reset,0,'no success UI after uncertain durable ACK');
 assert.equal(lost.calls.render,0);
+const snapshotFailed=await scenario('snapshot-fail');
+assert.equal(snapshotFailed.error,'SYNTHETIC_SNAPSHOT_FAILURE');
+assert.equal(snapshotFailed.calls.snapshot,1,'snapshot must be attempted exactly once');
+assert.equal(snapshotFailed.calls.sql,0,'failed snapshot must not reach SQL');
+assert.equal(snapshotFailed.calls.persist,0,'failed snapshot must not persist');
+assert.equal(snapshotFailed.calls.rollback,0,'no transaction exists before snapshot completion');
+assert.equal(snapshotFailed.count,0,'failed snapshot must leave SQLite untouched');
+assert.equal(snapshotFailed.acknowledgedReadback,null);
+assert.deepEqual(snapshotFailed.calls.close,[{uncertainOutcome:true}],'snapshot failure must close fail-closed');
+assert.equal(snapshotFailed.calls.reset,0,'failed snapshot must not claim UI success');
 const failed=await scenario('sql-fail');
 assert.equal(failed.error,'SYNTHETIC_SQL_FAILURE');
 assert.equal(failed.calls.rollback,1,'rollback active transaction on SQL error');
@@ -87,4 +98,4 @@ assert.equal(fresh.calls.persist,1);
 assert.deepEqual(fresh.calls.close,[{uncertainOutcome:false}]);
 assert.equal(fresh.calls.reset,1);
 assert.equal(fresh.calls.render,1);
-console.log('PASS G265_COLLECTION_PRODUCTION_SQLJS_POSTCOMMIT_ACK_PROVENANCE_ROLLBACK_FRESH',JSON.stringify({ackLoss:lost,sqlFailure:failed,fresh}));
+console.log('PASS G265_COLLECTION_PRODUCTION_SQLJS_POSTCOMMIT_ACK_PROVENANCE_ROLLBACK_FRESH',JSON.stringify({ackLoss:lost,snapshotFailure:snapshotFailed,sqlFailure:failed,fresh}));
