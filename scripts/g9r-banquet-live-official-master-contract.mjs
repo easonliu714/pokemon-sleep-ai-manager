@@ -24,7 +24,8 @@ assert.ok(payload.events.slice(0,6).every(x=>x.event_id!=='banquet_week_vol1_202
   'G9R_HISTORIC_SIX_NEVER_OVERWRITTEN');
 const current=payload.events[6];
 assert.equal(current.event_id,'banquet_week_vol1_2026_11');
-assert.equal(current.title,'來什麼都吃光光！大餐週vol.1');
+// Public Event contract canonicalizes NFKC punctuation (！→ !).
+assert.equal(current.title,'來什麼都吃光光！大餐週vol.1'.normalize('NFKC'));
 assert.equal(current.start_at,'2026-11-16T04:00:00+08:00');
 assert.equal(current.end_at,'2026-11-23T04:00:00+08:00');
 assert.deepEqual([...current.camp_scope],['*']);
