@@ -438,6 +438,10 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-collection-production-handler-native-denial.mjs
 
+      # G265 #861 production source-bound SQL.js COMMIT/ACK-loss and rollback contract.
+      - name: G265 Collection Production SQLjs ACK Loss and Rollback
+        run: node scripts/g265-collection-production-postcommit-sqljs.mjs
+
       - name: G265 Native Chromium Two-Tab Atomic Durable Revision and ABA Gate
         env:
           BASE_URL: http://127.0.0.1:4173/
