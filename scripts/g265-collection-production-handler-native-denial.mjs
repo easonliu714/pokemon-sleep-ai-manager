@@ -39,9 +39,20 @@ try{
     const alert=()=>{};
     // Native lock is intentionally held by another Chromium tab. The
     // production handler must request admission before snapshot/SQL.
-    const nativeAdmission=async()=>{calls.lease++;return navigator.locks.request('pokemon-sleep-g265-collection-production-test',{ifAvailable:true},lock=>Boolean(lock));};
-    new Function('document','FormData','snapshot','run','persist','rows','now','ensureUi','weeklyForm','warroomForm','renderCollection','installStrategyRefreshListeners','alert','nativeAdmission',productionCode+';return setupG3Pages;')(
-      document,FormData,snapshot,run,persist,rows,now,ensureUi,weeklyForm,warroomForm,renderCollection,installStrategyRefreshListeners,alert,nativeAdmission
+    const begin=()=>db.run('BEGIN');
+    const commit=()=>db.run('COMMIT');
+    const rollback=()=>db.run('ROLLBACK');
+    const withSqliteCoordinatedMutation=fn=>fn();
+    const beginSqliteExclusiveWriteWindow=()=>()=>{};
+    const withPrimarySqliteMutationLock=async callback=>{
+      calls.lease++;
+      return navigator.locks.request('pokemon-sleep-g265-collection-production-test',{ifAvailable:true},async lock=>{
+        if(!lock)throw new Error('SQLITE_PRIMARY_NATIVE_LOCK_UNAVAILABLE');
+        return callback({testLease:true});
+      });
+    };
+    new Function('document','FormData','snapshot','run','persist','rows','now','ensureUi','weeklyForm','warroomForm','renderCollection','installStrategyRefreshListeners','alert','begin','commit','rollback','withSqliteCoordinatedMutation','beginSqliteExclusiveWriteWindow','withPrimarySqliteMutationLock',productionCode+';return setupG3Pages;')(
+      document,FormData,snapshot,run,persist,rows,now,ensureUi,weeklyForm,warroomForm,renderCollection,installStrategyRefreshListeners,alert,begin,commit,rollback,withSqliteCoordinatedMutation,beginSqliteExclusiveWriteWindow,withPrimarySqliteMutationLock
     )();
     try{await form.onsubmit({preventDefault(){},target:{reset(){}}});}
     catch(error){calls.error=String(error.message||error);}
