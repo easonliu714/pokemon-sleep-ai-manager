@@ -56,7 +56,11 @@ function expectedCandyProjectionWithGovernedOverlay(){
 }
 
 gate('authority version and policy are explicit',()=>{
-  assert.equal(PUBLIC_POKEMON_SPECIES_AUTHORITY_VERSION,'public-pokemon-species-authority-2026-08-29-a');
+  assert.ok([
+    'public-pokemon-species-authority-2026-08-29-a',
+    'public-pokemon-species-authority-2026-11-17-official-cottonee-a',
+  ].includes(PUBLIC_POKEMON_SPECIES_AUTHORITY_VERSION),
+    'P0-B2 accepts only audited official-live species authority successors');
   assert.equal(PUBLIC_POKEMON_SPECIES_AUTHORITY_POLICY.exact_display_name_only,true);
   assert.equal(PUBLIC_POKEMON_SPECIES_AUTHORITY_POLICY.fuzzy_auto_match,false);
   assert.equal(PUBLIC_POKEMON_SPECIES_AUTHORITY_POLICY.ai_species_guess,false);
@@ -65,11 +69,14 @@ gate('authority version and policy are explicit',()=>{
   assert.equal(PUBLIC_POKEMON_SPECIES_AUTHORITY_POLICY.candy_display_name_authority,false);
 });
 
-gate('authority preserves pinned identity rows and adds exactly three official-live species',()=>{
+gate('authority preserves pinned identity and exactly five official-live species after Nov 2026',()=>{
   const base=currentPublicSpeciesFormZhTwIdentityRows();
-  assert.equal(PUBLIC_POKEMON_SPECIES_OFFICIAL_LIVE_ADDITIONS.length,3);
-  assert.equal(PUBLIC_POKEMON_SPECIES_AUTHORITY_ROWS.length,base.length+3);
-  assert.equal(currentPublicPokemonSpeciesAuthorityRows().length,base.length+3);
+  assert.equal(PUBLIC_POKEMON_SPECIES_OFFICIAL_LIVE_ADDITIONS.length,5);
+  assert.deepEqual(PUBLIC_POKEMON_SPECIES_OFFICIAL_LIVE_ADDITIONS
+    .filter(row=>row.appearing_from==='2026-11-16T15:00:00+08:00')
+    .map(row=>row.display_name_zh_tw).sort(),['木棉球','風妖精'].sort());
+  assert.equal(PUBLIC_POKEMON_SPECIES_AUTHORITY_ROWS.length,base.length+5);
+  assert.equal(currentPublicPokemonSpeciesAuthorityRows().length,base.length+5);
   const keys=PUBLIC_POKEMON_SPECIES_AUTHORITY_ROWS.map(row=>normalize(row.display_name_zh_tw));
   assert.equal(new Set(keys).size,keys.length,'authority display names must be unique after NFKC comparison');
 });
@@ -121,12 +128,14 @@ gate('B2 legacy Candy projection remains byte-for-byte; successor overlay is exa
 });
 
 gate('B2 still does not fabricate Candy rows for newly live species',()=>{
-  const legacyForbidden=new Set(['小鍛匠','巧鍛匠','巨鍛匠']);
+  const legacyForbidden=new Set(['小鍛匠','巧鍛匠','巨鍛匠','木棉球','風妖精']);
   for(const name of legacyForbidden)assert.equal(publicPokemonNamesForLegacyCandyProjection().includes(name),false,`${name} must never be fabricated by the B2 legacy Candy projection`);
   const candyRows=buildPublicCandyMasterRows();
   // `.54` may admit 小鍛匠 only because it has explicit in-game screenshot evidence;
   // its evolutions remain forbidden until they independently gain Candy evidence.
-  for(const name of ['巧鍛匠','巨鍛匠'])assert.equal(candyRows.some(row=>row.target_species_name===name),false,`${name} still lacks Candy identity evidence`);
+  for(const name of ['巧鍛匠','巨鍛匠','木棉球','風妖精'])
+    assert.equal(candyRows.some(row=>row.target_species_name===name),false,
+      name+' still lacks independently verified Candy identity evidence');
   if(candyScreenshotPromotionSuccessor){
     const tinkatink=candyRows.find(row=>row.target_species_name==='小鍛匠');
     assert.ok(tinkatink,'v0.4.27.54 screenshot-evidenced Tinkatink Candy row missing');
