@@ -93,8 +93,15 @@ export async function replayNovemberOfficialHtml({
        at('2026-11-08T04:00:00+08:00').active_event_count!==1||
        at('2026-11-09T04:00:00+08:00').active_event_count!==2||
        at('2026-11-11T04:00:00+08:00').active_event_count!==1||
-       at('2026-11-16T04:00:00+08:00').active_event_count!==0)
+       // The previous Meal Prep event ends exactly when the new officially
+       // published Banquet Week begins; the active public feed must not be empty.
+       at('2026-11-16T04:00:00+08:00').active_event_count!==1||
+       at('2026-11-23T04:00:00+08:00').active_event_count!==0)
       fail('0400_HALF_OPEN_CAMP_INDEPENDENT:'+camp);
+    const banquetStart=at('2026-11-16T04:00:00+08:00');
+    if(banquetStart.active_events[0]?.event_id!=='banquet_week_vol1_2026_11'
+      ||Object.hasOwn(banquetStart.strategy_event_effects,'recipe_final_energy_multiplier'))
+      fail('BANQUET_OFFICIAL_SCOPED_EFFECTS_NOT_GLOBAL:'+camp);
     const overlap=at('2026-11-09T04:00:00+08:00');
     if(overlap.camp!==camp||overlap.strategy_event_effects.recipe_final_energy_multiplier!==1.25||
        Object.hasOwn(overlap.event_effects,'pokemon_candy_multiplier')||
