@@ -1,6 +1,6 @@
 // G265 twelfth collection target: disposable native Chromium two-tab CAS/recovery.
 // Real SQL.js/WASM, native Web Locks and IndexedDB on loopback; never a player DB.
-// The production legacy collectionAddForm remains unchanged and unsafe.
+// Production collectionAddForm uses native pre-SQL admission; opt-in CAS stays isolated.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {createHash} from 'node:crypto';
@@ -14,9 +14,15 @@ const operation=legacy.slice(legacy.indexOf(marker));
 assert.match(operation,/document\.getElementById\('collectionAddForm'\)\.onsubmit/);
 assert.match(operation,/await snapshot\('manual:collection-target'\)/);
 assert.match(operation,/INSERT OR REPLACE INTO collection_targets/);
-assert.match(operation,/await persist\(\)/);
+// G265 #861: production writer requires native pre-SQL admission and lease-bound durable ACK.
+// The isolated opt-in CAS fixture remains separate; never accept a bare persist regression.
+assert.match(operation,/beginSqliteExclusiveWriteWindow\(/);
+assert.match(operation,/withPrimarySqliteMutationLock\(async \(lease\)/);
+assert.match(operation,/persist\(\{primaryMutationLease:lease\}\)/);
+assert.ok(operation.indexOf('withPrimarySqliteMutationLock(async (lease)')<operation.indexOf("snapshot('manual:collection-target')"),'native admission must precede snapshot');
+assert.doesNotMatch(operation,/await persist\(\)/);
 assert.doesNotMatch(legacy,/sqlite-collection-target-optin/);
-console.log('PASS G265_TWELFTH_NATIVE_EXACT_LEGACY_SOURCE_BOUND_NOT_PRODUCTION_WIRED');
+console.log('PASS G265_TWELFTH_NATIVE_PRODUCTION_ADMITTED_OPTIN_ISOLATED');
 
 const base=new URL(process.env.BASE_URL||'http://127.0.0.1:4173/');
 assert.equal(base.hostname,'127.0.0.1');
