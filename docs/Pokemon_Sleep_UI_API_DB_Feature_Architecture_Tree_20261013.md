@@ -1,3 +1,11 @@
+
+## 2026-11-18 G9R November three-recipe non-ACTIVE evidence boundary | Draft #887
+
+- Base protected main `94607430f7ac98f0bf57c5c2efc96121d234378a` (#886 merged). Sole Draft [#887](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/887), initial source `026d49435188c3e4d1bc408fc74b84fd56f8a3e9`, test `7c1c65b0ee93625a5a6e1bdb6690072ec81493de`, workflow `8f54eb953474e731cd4a38972c9461a7f27ce49f`.
+- `assets/js/g9r-november-recipe-evidence-hold.js` is a **non-ACTIVE** evidence-only register for curry 39, salad 121, dessert 91. Unknown exact per-ingredient quantities, level-1 energy and audited names remain `null`; promotion assessor always HOLDs, including evidence-present until manual authority review. `scripts/g9r-november-recipe-evidence-hold-contract.mjs` checks immutable 3 candidates, all HOLD, existing ACTIVE recipe count 78, no authority mutation; Frontend regression workflow wired.
+- Evidence source: official Banquet notice `https://www.pokemonsleep.net/zh/news/343537333535313639333033313031343531/` supplies categories, ingredient names and totals, **not** complete auditable formulas. This does not claim Android Owner PASS, official formula confirmation or activation of 81 recipes. No Player SQLite/Raw, Public Master, Migration15/16 or RATE4 Apply changes. #19 source-watch H1 HOLD and #861 global 23-writer/Android OPEN.
+- At authoring exact-head PR CI, protected merge and new-main Push/Pages **NOT_VERIFIED**; check again after each HEAD mutation. Do not treat test existence as successful CI.
+
 ## 2026-11-16 G265 #861 — SQL COMMIT versus Durable ACK loss in Weekly Override Writers | Draft #883
 
 - **Named production call paths:** `weekly-context-manual-override.js::saveWeeklyManualOverride()` and `clearWeeklyManualOverride()` both reserve same-page exclusive SQL window, hold `storage.js::withPrimarySqliteMutationLock(async lease=>...)`, snapshot and mutate a `settings` row in SQL.js, execute COMMIT, then `await persist({primaryMutationLease:lease})`. COMMIT acknowledges only in-memory SQL.js transaction; it is **not** the IDB primary CAS/durable ACK.
