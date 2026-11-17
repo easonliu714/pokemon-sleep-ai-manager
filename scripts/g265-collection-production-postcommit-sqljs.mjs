@@ -47,12 +47,14 @@ async function scenario(mode){
   try{await form.onsubmit({preventDefault(){},target:{reset(){calls.reset++}}})}catch(e){error=e.message}
   const count=db.exec('SELECT COUNT(*) FROM collection_targets')[0].values[0][0];
   let retryError='';
-  if(mode==='ack-loss'){
+  // G265 #861: any uncertain failure (ACK, snapshot, or SQL) must fail closed
+  // on the next real production submit, before native admission and all SQL effects.
+  if(['ack-loss','snapshot-fail','sql-fail'].includes(mode)){
     const before={snapshot:calls.snapshot,sql:calls.sql,persist:calls.persist,lease:calls.lease,reset:calls.reset,render:calls.render};
     try{await form.onsubmit({preventDefault(){},target:{reset(){calls.reset++}}})}catch(e){retryError=e.message}
-    assert.equal(retryError,'SQLITE_WRITE_WINDOW_UNCERTAIN_OUTCOME_HOLD','ACK-loss must reject blind retry before native lease or SQL');
-    for(const key of Object.keys(before))assert.equal(calls[key],before[key],`sticky HOLD retry changed ${key}`);
-    assert.equal(db.exec('SELECT COUNT(*) FROM collection_targets')[0].values[0][0],count,'retry must not overwrite uncertain SQL image');
+    assert.equal(retryError,'SQLITE_WRITE_WINDOW_UNCERTAIN_OUTCOME_HOLD',`${mode} must reject blind retry before native lease or SQL`);
+    for(const key of Object.keys(before))assert.equal(calls[key],before[key],`${mode} sticky HOLD retry changed ${key}`);
+    assert.equal(db.exec('SELECT COUNT(*) FROM collection_targets')[0].values[0][0],count,`${mode} retry must not overwrite uncertain SQL image`);
   }
   // A fresh SQL.js instance is a separate durable-image readback fixture, not a
   // substitute for Chromium IndexedDB CAS. Never infer ACK from in-memory rows.
@@ -75,6 +77,7 @@ assert.equal(lost.calls.reset,0,'no success UI after uncertain durable ACK');
 assert.equal(lost.calls.render,0);
 const snapshotFailed=await scenario('snapshot-fail');
 assert.equal(snapshotFailed.error,'SYNTHETIC_SNAPSHOT_FAILURE');
+assert.equal(snapshotFailed.retryError,'SQLITE_WRITE_WINDOW_UNCERTAIN_OUTCOME_HOLD','snapshot failure must reject second production submit');
 assert.equal(snapshotFailed.calls.snapshot,1,'snapshot must be attempted exactly once');
 assert.equal(snapshotFailed.calls.sql,0,'failed snapshot must not reach SQL');
 assert.equal(snapshotFailed.calls.persist,0,'failed snapshot must not persist');
@@ -85,6 +88,7 @@ assert.deepEqual(snapshotFailed.calls.close,[{uncertainOutcome:true}],'snapshot 
 assert.equal(snapshotFailed.calls.reset,0,'failed snapshot must not claim UI success');
 const failed=await scenario('sql-fail');
 assert.equal(failed.error,'SYNTHETIC_SQL_FAILURE');
+assert.equal(failed.retryError,'SQLITE_WRITE_WINDOW_UNCERTAIN_OUTCOME_HOLD','SQL failure must reject second production submit');
 assert.equal(failed.calls.rollback,1,'rollback active transaction on SQL error');
 assert.equal(failed.calls.persist,0,'never persist failed SQL');
 assert.equal(failed.count,0,'rollback must restore disposable SQLite');
