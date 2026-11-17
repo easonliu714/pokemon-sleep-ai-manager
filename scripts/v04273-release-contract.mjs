@@ -38,7 +38,11 @@ for(const token of [
   "// cache_name: 'pokemon-sleep-ai-v0.4.27.2-v04272-ingredient-unlock-semantics-hotfix'",
 ])assert.ok(versionSource.includes(token),`missing predecessor lineage ${token}`);
 
-assert.equal(MASTER_DATA_VERSION,'shared-master-2026-08-17-canonical-grepa');
+// The August berry/ingredient lineage is preserved, while the active
+// Public Master now has an additive November official ingredient release.
+assert.ok(['shared-master-2026-08-17-canonical-grepa',
+  'shared-master-2026-11-17-official-nuts-a'].includes(MASTER_DATA_VERSION),
+  'predecessor must accept only audited additive public master successors');
 assert.equal(PUBLIC_CAMP_BERRY_VERSION,'public-camp-berry-2026-08-17-b-canonical-grape');
 assert.ok(['public-berry-strength-2026-08-17-b-canonical-grepa','public-berry-strength-2026-08-17-c-canonical-projection'].includes(PUBLIC_BERRY_STRENGTH_VERSION));
 assert.equal(PUBLIC_MASTER_RECOGNITION_VERSION,'public-master-recognition-2026-08-17-d-locked-placeholder');
