@@ -442,6 +442,13 @@ jobs:
       - name: G265 Collection Production SQLjs ACK Loss and Rollback
         run: node scripts/g265-collection-production-postcommit-sqljs.mjs
 
+      # G265 #861: real production storage.js + database.js + native two-tab CAS.
+      # Validate fresh durable ACK / stale pre-SQL refusal / revision+SHA readback.
+      - name: G265 Collection Production Native Two-Tab Durable CAS
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-collection-production-native-durable.mjs
+
       - name: G265 Native Chromium Two-Tab Atomic Durable Revision and ABA Gate
         env:
           BASE_URL: http://127.0.0.1:4173/
