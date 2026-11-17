@@ -8,6 +8,9 @@ import {
 } from '../assets/js/public-event-master-contract.js';
 import {PUBLIC_INGREDIENT_NAMES,MASTER_DATA_VERSION} from '../assets/js/shared-master-data.js';
 import {inspectIngredientIdentity} from '../assets/js/public-ingredient-identity.js';
+import {
+  resolvePublicPokemonSpeciesAuthority,publicPokemonNamesForLegacyCandyProjection
+} from '../assets/js/public-pokemon-species-authority.js';
 
 const officialEvent='https://www.pokemonsleep.net/zh/news/343537333535313639333033313031343531/';
 const officialIngredient='https://www.pokemonsleep.net/zh/news/343535303736323034303630333434333236/';
@@ -49,5 +52,15 @@ const nut=inspectIngredientIdentity('一口堅果');
 assert.equal(nut.status,'MATCH','G9R_NUT_CANONICAL_IDENTITY_MISSING');
 assert.equal(nut.canonical_name,'一口堅果');
 assert.ok(MASTER_DATA_VERSION.includes('2026-11'),'G9R_SHARED_PUBLIC_MASTER_VERSION_MUST_MOVE');
+for(const [name,key] of [['木棉球','COTTONEE'],['風妖精','WHIMSICOTT']]){
+  const resolved=resolvePublicPokemonSpeciesAuthority(name);
+  assert.equal(resolved.status,'MATCH','G9R_OFFICIAL_NOV2026_SPECIES_NOT_RECOGNIZED:'+name);
+  assert.equal(resolved.source_ref,'https://www.pokemonsleep.net/zh/news/343537333535313639323832313239393330/');
+  assert.deepEqual([...resolved.source_keys],[key]);
+  assert.equal(resolved.appearing_from,'2026-11-16T15:00:00+08:00');
+  assert.equal(resolved.player_species_generated,false,'G9R_OFFICIAL_SPECIES_NEVER_CREATE_PLAYER');
+  assert.ok(!publicPokemonNamesForLegacyCandyProjection().includes(name),
+    'G9R_OFFICIAL_SPECIES_MUST_NOT_CREATE_UNVERIFIED_CANDY_FAMILY:'+name);
+}
 assert.equal(officialIngredient,'https://www.pokemonsleep.net/zh/news/343535303736323034303630333434333236/');
 console.log('PASS G9R_NOV2026_OFFICIAL_BANQUET_ACTIVE_EVENT_NUT_IDENTITY_SHA_HISTORY_FAILCLOSED');
