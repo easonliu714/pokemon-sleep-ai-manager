@@ -17,7 +17,8 @@ import {
 
 const scenarios=['ingredients','items','candies','recipes'];
 assert.deepEqual(Object.keys(PUBLIC_MASTER_RECOGNITION_REGISTRY).sort(),[...scenarios].sort());
-assert.equal(PUBLIC_INGREDIENT_NAMES.length,19,'ingredient public authority count changed');
+assert.equal(PUBLIC_INGREDIENT_NAMES.length,20,'Nov 2026 official nut must be present alongside historic 19');
+assert.ok(PUBLIC_INGREDIENT_NAMES.includes('一口堅果'));
 assert.ok(PUBLIC_INGREDIENT_NAMES.includes('嫩亮酪梨'),'current avocado canonical missing');
 assert.equal(PUBLIC_INGREDIENT_NAMES.includes('特選酪梨'),false,'legacy avocado alias must not be current public authority');
 assert.equal(HISTORICAL_BASE_RECIPE_MASTER.length,76,'historical recipe baseline must remain 76');
@@ -29,7 +30,7 @@ assert.equal(currentIds.size,PUBLIC_RECIPE_MASTER.length,'current canonical reci
 if(PUBLIC_RECIPE_MASTER.length===78){assert.ok(currentIds.has('curry_greengrass_bun'));assert.ok(currentIds.has('curry_bounce_udon'));}
 
 const snapshots=Object.fromEntries(scenarios.map(key=>[key,buildPublicMasterCatalogSnapshot(key)]));
-assert.equal(snapshots.ingredients.row_count,19);
+assert.equal(snapshots.ingredients.row_count,20);
 assert.equal(snapshots.items.row_count,PUBLIC_ITEM_MASTER.length);
 assert.equal(snapshots.recipes.row_count,PUBLIC_RECIPE_MASTER.length,'Recognition recipe catalog must track current canonical ACTIVE authority');
 assert.ok(snapshots.candies.row_count>0);
@@ -47,7 +48,8 @@ const observationSchema=ingredientSchema.properties.observations.items;
 assert.deepEqual(ingredientSchema.properties.schema.enum,[PUBLIC_MASTER_RECOGNITION_SCHEMA]);
 assert.deepEqual(ingredientSchema.properties.recognition_version.enum,[PUBLIC_MASTER_RECOGNITION_VERSION]);
 assert.equal(observationSchema.properties.canonical_key.additionalProperties,false);
-assert.equal(observationSchema.properties.canonical_key.properties.ingredient_name.enum.length,19);
+assert.equal(observationSchema.properties.canonical_key.properties.ingredient_name.enum.length,20);
+assert.ok(observationSchema.properties.canonical_key.properties.ingredient_name.enum.includes('一口堅果'));
 assert.ok(observationSchema.properties.canonical_key.properties.ingredient_name.enum.includes('嫩亮酪梨'));
 assert.equal(observationSchema.properties.canonical_key.properties.ingredient_name.enum.includes('特選酪梨'),false);
 assert.equal('ingredient_id' in observationSchema.properties.canonical_key.properties,false,'AI must not receive invented ingredient_id authority');
