@@ -1,5 +1,5 @@
 // G265 twelfth collection target: disposable SQL.js + fake IndexedDB only.
-// Tests opt-in admission; unchanged legacy two-ACK overwrite remains reproduced separately.
+// Tests isolated opt-in CAS only; production admission is independently verified by the native handler gate.
 // No production app import, player SQLite/IndexedDB, migration, or public catalog mutation.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -17,9 +17,9 @@ const operation=legacy.slice(legacy.indexOf(marker));
 assert.match(operation,/document\.getElementById\('collectionAddForm'\)\.onsubmit/);
 assert.match(operation,/await snapshot\('manual:collection-target'\)/);
 assert.match(operation,/INSERT OR REPLACE INTO collection_targets/);
-assert.match(operation,/await persist\(\)/);
+// G265: production must use native pre-SQL admission and a lease-bound durable ACK.\n// This isolated opt-in fixture must not demand the retired bare-persist pattern.\nassert.match(operation,/beginSqliteExclusiveWriteWindow\(\)/);\nassert.match(operation,/withPrimarySqliteMutationLock\(async \(lease\)/);\nassert.match(operation,/persist\(\{primaryMutationLease:lease\}\)/);
 assert.doesNotMatch(legacy,/sqlite-collection-target-optin/);
-console.log('PASS G265_TWELFTH_COLLECTION_TARGET_EXACT_LEGACY_SOURCE_BOUND_NOT_PRODUCTION_WIRED');
+console.log('PASS G265_TWELFTH_COLLECTION_TARGET_PRODUCTION_LEASE_BOUND_OPTIN_ISOLATED');
 
 const SQL=await initSqlJs();
 const initial=new SQL.Database();

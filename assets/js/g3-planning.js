@@ -1,4 +1,6 @@
-import { rows, run, persist, snapshot } from './database.js';
+import { rows, run, persist, snapshot, begin, commit, rollback } from './database.js';
+import { withPrimarySqliteMutationLock } from './storage.js';
+import { beginSqliteExclusiveWriteWindow, withSqliteCoordinatedMutation } from './sqlite-direct-write-window-guard.js';
 import { localIso } from './time-utils.js';
 import { buildLocalRecipeStrategyProjection } from './recipe-strategy-local.js';
 
@@ -226,11 +228,36 @@ export function setupG3Pages() {
     const form = new FormData(event.target);
     const species = form.get('species');
     if (!species) return alert('請輸入寶可夢名稱');
-    await snapshot('manual:collection-target');
-    run('INSERT OR REPLACE INTO collection_targets(target_id,species,target_type,priority,camp,desired_traits,capture_strategy,status,notes,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)', [
-      `target_${Date.now()}`, species, form.get('target_type') || '', form.get('priority') || '', form.get('camp') || '',
-      form.get('desired_traits') || '', form.get('capture_strategy') || '', 'active', '', now(),
-    ]);
-    await persist(); event.target.reset(); renderCollection();
+    // G265 #861: admit the loaded primary revision before any snapshot/SQL.
+    // A rejected/uncertain durable ACK must leave the same-page writer sticky HOLD.
+    const close = beginSqliteExclusiveWriteWindow();
+    let acknowledged = false;
+    try {
+      await withPrimarySqliteMutationLock(async (lease) => {
+        await snapshot('manual:collection-target');
+        withSqliteCoordinatedMutation(begin);
+        let committed = false;
+        try {
+          withSqliteCoordinatedMutation(() => run('INSERT OR REPLACE INTO collection_targets(target_id,species,target_type,priority,camp,desired_traits,capture_strategy,status,notes,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)', [
+            `target_${Date.now()}`, species, form.get('target_type') || '', form.get('priority') || '', form.get('camp') || '',
+            form.get('desired_traits') || '', form.get('capture_strategy') || '', 'active', '', now(),
+          ]));
+          withSqliteCoordinatedMutation(commit);
+          committed = true;
+          await withSqliteCoordinatedMutation(() => persist({primaryMutationLease:lease}));
+          acknowledged = true;
+        } catch (error) {
+          // Never mask a post-COMMIT durable ACK failure with an invalid ROLLBACK.
+          if (!committed) {
+            try { withSqliteCoordinatedMutation(rollback); }
+            catch { /* Preserve the initiating SQL error. */ }
+          }
+          throw error;
+        }
+      });
+    } finally {
+      close({uncertainOutcome:!acknowledged});
+    }
+    event.target.reset(); renderCollection();
   };
 }

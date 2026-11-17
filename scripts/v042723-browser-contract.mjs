@@ -99,7 +99,31 @@ try{
       }
       throw new Error('V042723_FIXTURE_SQL_PERSIST_WINDOW_TIMEOUT');
     };
-    globalThis.PokemonSleepPlayerEvolutionOverrideV042721.ensureTable();
+    // The v042721 ensureTable() contract returns false (without exposing the
+    // guard error) if a concurrent app bare persist holds the SQL write window.
+    // Admit this disposable browser fixture only after that actual window ends;
+    // never insert into an absent table or retry uncertain persistence failures.
+    const directWriteGuard=await import('./assets/js/sqlite-direct-write-window-guard.js');
+    let evolutionFixtureTableReady=false;
+    for(let attempt=0;attempt<200;attempt++){
+      const guard=directWriteGuard.getSqliteDirectWriteGuardStatus();
+      const persistence=db.getSqlitePersistStatus();
+      if(guard.status==='UNVERIFIED_RELOAD_REQUIRED'
+        ||persistence.status==='UNVERIFIED_RELOAD_REQUIRED')
+        throw new Error('V042723_FIXTURE_SQL_DURABILITY_UNVERIFIED_RELOAD_REQUIRED');
+      if(guard.status==='IN_FLIGHT'){
+        await new Promise(resolve=>setTimeout(resolve,50));
+        continue;
+      }
+      if(!globalThis.PokemonSleepPlayerEvolutionOverrideV042721.ensureTable())
+        throw new Error('V042723_EVOLUTION_OVERRIDE_SCHEMA_CREATE_REJECTED_WITH_READY_GUARD');
+      const table=db.rows("SELECT name FROM sqlite_master WHERE type='table' AND name='pokemon_evolution_override'");
+      if(table.length!==1)throw new Error('V042723_EVOLUTION_OVERRIDE_SCHEMA_ACK_MISSING');
+      evolutionFixtureTableReady=true;
+      break;
+    }
+    if(!evolutionFixtureTableReady)
+      throw new Error('V042723_EVOLUTION_OVERRIDE_SCHEMA_WRITE_WINDOW_TIMEOUT');
     const pokemonId='v042723-detail-fixture';
     const now=new Date().toISOString();
     await runFixtureSqlWhenReady(`INSERT OR REPLACE INTO pokemon_evolution_override(
