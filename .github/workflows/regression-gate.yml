@@ -633,7 +633,7 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-native-chromium-ninth-manual-ingredient-cas.mjs
 
-      - name: G265 Tenth Legacy Weekly Strategy Two-ACK Stale Overwrite Negative
+      - name: G265 Tenth War Room Production Stale Pre-SQL Zero-Write Gate
         run: node scripts/g265-weekly-strategy-tenth-legacy-cross-tab-negative.mjs
 
       - name: G265 Tenth Weekly Strategy Isolated Opt-in Durable CAS Gate
@@ -806,6 +806,12 @@ jobs:
         env:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-replace-database-native-chromium.mjs
+
+      # G265 War Room: real production UI negative-first; do not substitute opt-in adapters.
+      - name: G265 War Room Production Native Chromium Two-Tab Durable CAS Gate
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-warroom-production-native-durable.mjs
 
       - name: Print static server log on failure
         if: failure()
