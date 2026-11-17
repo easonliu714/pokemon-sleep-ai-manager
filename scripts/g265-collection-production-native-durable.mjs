@@ -74,6 +74,14 @@ try{
   }
   const writer=await newTab();
   const stale=await newTab();
+  // A separate, UI-free production storage binding proves native stale CAS
+  // even if an unrelated page-local sticky guard rejects the UI earlier.
+  const nativeProbe=await context.newPage();tabs.push(nativeProbe);
+  await nativeProbe.goto(new URL('g265-collection-production-disposable',base).href);
+  await nativeProbe.evaluate(async()=>{
+    window.__g265Storage=await import('/assets/js/storage.js');
+    await window.__g265Storage.loadDatabaseBytes();
+  });
   const before=await inspect(writer);
   const staleBefore=await inspect(stale);
   assert.equal(before.hash,before.revision?.sha256,'G265_INIT_PRIMARY_RAW_REVISION_SHA');
@@ -87,6 +95,15 @@ try{
   assert.equal(committed.revision.generation,before.revision.generation+1,'G265_MONOTONIC_REVISION_ACK');
   assert.equal(committed.loadedRows.length,before.loadedRows.length+1);
   assert.equal(committed.snapshotCount,before.snapshotCount+1,'G265_ONE_ACK_SNAPSHOT');
+  const nativeStale=await nativeProbe.evaluate(async()=>{
+    try{await window.__g265Storage.withPrimarySqliteMutationLock(async()=>{
+      throw Error('G265_UNEXPECTED_NATIVE_LEASE_GRANT');
+    });return 'G265_UNEXPECTED_NATIVE_LEASE_GRANT';}
+    catch(error){return error.code||error.message;}
+  });
+  assert.equal(nativeStale,'SQLITE_PRIMARY_STALE_REVISION_RELOAD_REQUIRED',
+    'G265_REAL_STORAGE_NATIVE_STALE_REVISION_MUST_REFUSE_LEASE');
+  console.log('PASS G265_COLLECTION_REAL_STORAGE_NATIVE_CAS_STALE_REVISION_REJECTED');
   // A separate SQL.js connection must independently read the acknowledged IDB bytes.
   const durableDb=new SQL.Database(Uint8Array.from(committed.rawBytes));
   const durableRows=durableDb.exec('SELECT species FROM collection_targets ORDER BY species')?.[0]?.values||[];
@@ -96,7 +113,12 @@ try{
   // Stale loaded DB may not snapshot, BEGIN SQL or overwrite a later durable image.
   const rejected=await submit(stale,'SYNTHETIC_G265_STALE');
   assert.equal(rejected.ok,false,'G265_STALE_PRODUCTION_HANDLER_MUST_REJECT');
-  assert.equal(rejected.code,'SQLITE_PRIMARY_STALE_REVISION_RELOAD_REQUIRED');
+  // The actual page must deny before SQL. A prior independent uncertain
+  // page-local writer can refuse even earlier than native revision admission;
+  // the UI-free real storage probe above must independently prove stale CAS.
+  assert.ok(['SQLITE_PRIMARY_STALE_REVISION_RELOAD_REQUIRED',
+    'SQLITE_DIRECT_WRITE_UNVERIFIED_RELOAD_REQUIRED'].includes(rejected.code),
+    'G265_PRODUCTION_STALE_PRE_SQL_DENIAL:'+rejected.code);
   assert.deepEqual(rejected.rows,staleBefore.loadedRows,'G265_STALE_LOADED_SQLITE_MUST_BE_UNTOUCHED');
   const afterDenied=await inspect(stale);
   assert.equal(afterDenied.revision.generation,committed.revision.generation);
