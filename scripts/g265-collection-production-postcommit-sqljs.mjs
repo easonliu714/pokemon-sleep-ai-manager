@@ -24,7 +24,13 @@ async function scenario(mode){
   const begin=()=>db.run('BEGIN'),commit=()=>db.run('COMMIT');
   const rollback=()=>{calls.rollback++;db.run('ROLLBACK')};
   const withSqliteCoordinatedMutation=fn=>fn();
-  const beginSqliteExclusiveWriteWindow=()=>outcome=>{calls.close.push(outcome)};
+  // G265: disposable same-page write-window contract: uncertain durable ACK is sticky.
+  // The native Web Lock itself is exercised separately in the Chromium gate.
+  let stickyHold=false;
+  const beginSqliteExclusiveWriteWindow=()=>{
+    if(stickyHold)throw new Error('SQLITE_WRITE_WINDOW_UNCERTAIN_OUTCOME_HOLD');
+    return outcome=>{calls.close.push(outcome);if(outcome.uncertainOutcome)stickyHold=true};
+  };
   const lease={syntheticLease:true};
   const withPrimarySqliteMutationLock=async callback=>{calls.lease++;return callback(lease)};
   new Function('document','FormData','snapshot','run','persist','rows','now','ensureUi','weeklyForm','warroomForm','renderCollection','installStrategyRefreshListeners','alert','begin','commit','rollback','withSqliteCoordinatedMutation','beginSqliteExclusiveWriteWindow','withPrimarySqliteMutationLock',production+';return setupG3Pages;')(
@@ -37,9 +43,16 @@ async function scenario(mode){
   let error='';
   try{await form.onsubmit({preventDefault(){},target:{reset(){calls.reset++}}})}catch(e){error=e.message}
   const count=db.exec('SELECT COUNT(*) FROM collection_targets')[0].values[0][0];
-  const txn=db.exec('PRAGMA main.transaction_state'); // optional pragma, no assertion
+  let retryError='';
+  if(mode==='ack-loss'){
+    const before={snapshot:calls.snapshot,sql:calls.sql,persist:calls.persist,lease:calls.lease,reset:calls.reset,render:calls.render};
+    try{await form.onsubmit({preventDefault(){},target:{reset(){calls.reset++}}})}catch(e){retryError=e.message}
+    assert.equal(retryError,'SQLITE_WRITE_WINDOW_UNCERTAIN_OUTCOME_HOLD','ACK-loss must reject blind retry before native lease or SQL');
+    for(const key of Object.keys(before))assert.equal(calls[key],before[key],`sticky HOLD retry changed ${key}`);
+    assert.equal(db.exec('SELECT COUNT(*) FROM collection_targets')[0].values[0][0],count,'retry must not overwrite uncertain SQL image');
+  }
   db.close();
-  return {calls,error,count};
+  return {calls,error,count,retryError};
 }
 const lost=await scenario('ack-loss');
 assert.equal(lost.error,'SYNTHETIC_DURABLE_ACK_LOSS','postcommit error provenance must not be masked by rollback');
