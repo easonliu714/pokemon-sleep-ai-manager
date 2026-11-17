@@ -1,6 +1,7 @@
 // G265 tenth weekly strategy: isolated native Chromium two-tab durable CAS/recovery.
 // Uses disposable loopback IndexedDB, real SQL.js/WASM and native Web Locks only.
-// Production g3-planning.js::warroomForm(), player database and SW are unchanged.
+// Production War Room now has separate genuine handler/native CAS tests; this opt-in
+// native gate remains isolated and never touches the player database or SW.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {createHash} from 'node:crypto';
@@ -12,7 +13,11 @@ const exact=legacy.split('function warroomForm() {')[1]?.split('function renderC
 assert.ok(exact,'tenth legacy weekly strategy writer must remain source-bound');
 assert.match(exact,/await snapshot\('manual:weekly-strategy'\)/);
 assert.match(exact,/INSERT OR REPLACE INTO weekly_strategy/);
-assert.match(exact,/await persist\(\)/);
+// Preserve source linkage without falsely requiring the unsafe old bare persist.
+assert.match(exact,/beginSqliteExclusiveWriteWindow\(\)/);
+assert.match(exact,/withPrimarySqliteMutationLock\(async \(lease\)/);
+assert.match(exact,/persist\(\{primaryMutationLease:lease\}\)/);
+assert.doesNotMatch(exact,/await persist\(\)/);
 assert.doesNotMatch(legacy,/sqlite-weekly-strategy-optin/);
 console.log('PASS G265_TENTH_NATIVE_EXACT_LEGACY_SOURCE_BOUND_NOT_PRODUCTION_WIRED');
 
