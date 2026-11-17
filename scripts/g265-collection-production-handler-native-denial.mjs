@@ -19,7 +19,7 @@ try{
   }
   await holder.evaluate(()=>{window.__hold=new Promise(resolve=>{
     navigator.locks.request('pokemon-sleep-g265-collection-production-test',{mode:'exclusive'},async()=>{window.__release=resolve;await new Promise(r=>window.__unlock=r);});
-  });});
+  });return true;});
   await holder.waitForFunction(()=>typeof window.__unlock==='function');
   const observed=await writer.evaluate(async productionCode=>{
     const SQL=await window.initSqlJs({locateFile:()=>'/node_modules/sql.js/dist/sql-wasm.wasm'});
