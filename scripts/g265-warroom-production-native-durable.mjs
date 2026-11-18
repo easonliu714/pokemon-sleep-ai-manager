@@ -69,6 +69,14 @@ try {
       }
     },summary);
   }
+  // G265: first establish one disposable, durable SQL.js seed in isolation.
+  // A first-install bootstrap/one-time migration is not a competing writer.
+  // Subsequent tabs must still start on a common native revision and prove
+  // their real stale pre-SQL rejection; no CAS assertion is relaxed.
+  const seed=await tab();
+  const seeded=await inspect(seed);
+  assert.equal(seeded.hash,seeded.revision?.sha256,'G265_WARROOM_DISPOSABLE_SEED_DURABLE_SHA');
+  await seed.close();
   const writer=await tab();
   const stale=await tab();
   const before=await inspect(writer);
