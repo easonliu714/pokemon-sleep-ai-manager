@@ -11,6 +11,8 @@ const read=p=>readFileSync(p,'utf8');
 const original=read('assets/js/public-event-master-store.js');
 const dbImport="import {begin,commit,isDatabaseReady,isRescueReadonly,persist,rollback,rows,run} from './database.js';";
 const contractImport="import {nextPublicEventBoundary,PUBLIC_EVENT_MASTER_SCHEMA,resolvePublicEventProjection,validatePublicEventManifest,validatePublicEventPayload} from './public-event-master-contract.js';";
+const lockImport="import {withPrimarySqliteMutationLock} from './storage.js';";
+const guardImport="import {beginSqliteExclusiveWriteWindow,withSqliteCoordinatedMutation} from './sqlite-direct-write-window-guard.js';";
 assert.ok(original.includes(dbImport)&&original.includes(contractImport),'Actual .22 refresh entrypoints must remain wired');
 const previousCrypto=globalThis.crypto;
 if(!globalThis.crypto)globalThis.crypto=webcrypto;
@@ -59,9 +61,21 @@ const rollback=()=>{assert.ok(database.transaction);database.settings=database.t
 const persist=async()=>{assert.equal(database.transaction,null);persistCount++;};
 globalThis.__g9rRefreshContract=contract;
 globalThis.__g9rRefreshDb={begin,commit,isDatabaseReady:()=>true,isRescueReadonly:()=>false,persist,rollback,rows,run};
+// Isolated native-admission fixture: exercise the production refresh transaction
+// without importing browser-only Web Locks/IndexedDB into a Node data: URL.
+// These are explicit success-path doubles; real native denial/CAS needs Chromium.
+let nativeAdmissions=0,writeWindows=0;
+globalThis.__g9rRefreshNative={
+  withPrimarySqliteMutationLock:async callback=>{nativeAdmissions++;return callback(Object.freeze({fixture:'G9R_SYNTHETIC_LEASE'}));},
+  beginSqliteExclusiveWriteWindow:()=>{writeWindows++;return ()=>{};},
+  withSqliteCoordinatedMutation:callback=>callback(),
+};
 const transformed=original.replace(dbImport,'const {begin,commit,isDatabaseReady,isRescueReadonly,persist,rollback,rows,run}=globalThis.__g9rRefreshDb;')
-  .replace(contractImport,'const {nextPublicEventBoundary,PUBLIC_EVENT_MASTER_SCHEMA,resolvePublicEventProjection,validatePublicEventManifest,validatePublicEventPayload}=globalThis.__g9rRefreshContract;');
-assert.ok(!transformed.includes(dbImport)&&!transformed.includes(contractImport));
+  .replace(contractImport,'const {nextPublicEventBoundary,PUBLIC_EVENT_MASTER_SCHEMA,resolvePublicEventProjection,validatePublicEventManifest,validatePublicEventPayload}=globalThis.__g9rRefreshContract;')
+  .replace(lockImport,'const {withPrimarySqliteMutationLock}=globalThis.__g9rRefreshNative;')
+  .replace(guardImport,'const {beginSqliteExclusiveWriteWindow,withSqliteCoordinatedMutation}=globalThis.__g9rRefreshNative;');
+assert.ok(![dbImport,contractImport,lockImport,guardImport].some(entry=>transformed.includes(entry)));
+assert.ok(original.includes(lockImport)&&original.includes(guardImport),'Production native admission must remain wired');
 const store=await import('data:text/javascript;base64,'+Buffer.from(transformed).toString('base64'));
 
 const payloadBefore=read('assets/data/public-event-master.json');
@@ -205,6 +219,9 @@ assert.equal(commitCount,2);
 assert.equal(persistCount,2);
 assert.equal(JSON.stringify(database.privateRows),privateBefore);
 globalThis.__g9rRefreshContract=undefined;
+assert.equal(nativeAdmissions,3,'Only three changed-manifest attempts enter native admission');
+assert.equal(writeWindows,3,'Only three changed-manifest attempts open exclusive windows');
+globalThis.__g9rRefreshNative=undefined;
 globalThis.__g9rRefreshDb=undefined;
 if(previousCrypto===undefined)delete globalThis.crypto;
 console.log('PASS G9R_ACTUAL_REFRESH_NEW_SHA_AND_UNCHANGED_VERSION_SYNTHETIC');

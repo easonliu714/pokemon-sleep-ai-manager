@@ -25,7 +25,7 @@ try{
       if(typeof boot!=='function')throw new Error('G265_SQLJS_BROWSER_RUNTIME_MISSING');
       window.initSqlJs=()=>boot({locateFile:file=>'/node_modules/sql.js/dist/'+file});
       window.__g265Database=await import('/assets/js/database.js');
-      await window.__g265Database.initializeDatabase();
+      window.__g265Boot=await window.__g265Database.initializeDatabase();
       const module=await import('/assets/js/g3-planning.js');
       module.setupG3Pages();
       if(typeof document.getElementById('collectionAddForm')?.onsubmit!=='function')
@@ -55,7 +55,9 @@ try{
         const hash=Array.from(digest,b=>b.toString(16).padStart(2,'0')).join('');
         return {revision:result.revision,hash,snapshotCount:result.snapshotCount,
           rawBytes:Array.from(bytes),
-          loadedRows:window.__g265Database.rows('SELECT target_id,species FROM collection_targets ORDER BY target_id')};
+          // Native storage-only probe intentionally has no database.js binding.
+          // Its durable IDB revision/SHA is still independently observed.
+          loadedRows:window.__g265Database?.rows('SELECT target_id,species FROM collection_targets ORDER BY target_id')??null};
       }finally{idb.close();}
     });
   }
@@ -72,8 +74,30 @@ try{
       }
     },species);
   }
+  // G265: bootstrap the disposable SQL.js schema in an isolated seed tab
+  // before opening competing writer/stale tabs. A fresh first-install boot
+  // can persist its seed and a subsequent migration; those legitimate boot
+  // writes must not be mistaken for a cross-tab stale CAS overwrite.
+  // Do not change or relax the writer/stale native revision assertions below.
+  // A fresh schema may require a second, one-time public-master migration.
+  // Settle only before creating competing tabs; a repeated migration on a
+  // stable image is a real boot defect and must fail, not be normalized.
+  let stableBoot=false;
+  for(let bootIndex=0;bootIndex<3;bootIndex++){
+    const seed=await newTab();
+    const seeded=await inspect(seed);
+    const boot=await seed.evaluate(()=>window.__g265Boot);
+    assert.equal(seeded.hash,seeded.revision?.sha256,'G265_SEED_DURABLE_SHA');
+    await seed.close();
+    if(boot.boot_persist_skipped){stableBoot=true;break;}
+  }
+  assert.equal(stableBoot,true,'G265_BOOT_MIGRATION_DID_NOT_CONVERGE');
   const writer=await newTab();
   const stale=await newTab();
+  // Neither contender may silently migrate/persist before native CAS begins.
+  const contenderBoots=await Promise.all([writer,stale].map(p=>p.evaluate(()=>window.__g265Boot)));
+  assert.ok(contenderBoots.every(b=>b.boot_persist_skipped),
+    'G265_COMPETING_BOOT_UNEXPECTED_PERSIST:'+JSON.stringify(contenderBoots));
   // A separate, UI-free production storage binding proves native stale CAS
   // even if an unrelated page-local sticky guard rejects the UI earlier.
   const nativeProbe=await context.newPage();tabs.push(nativeProbe);
@@ -82,10 +106,23 @@ try{
     window.__g265Storage=await import('/assets/js/storage.js');
     await window.__g265Storage.loadDatabaseBytes();
   });
+  // Diagnose the exact durable revision after each tab's boot, without assuming
+  // that separate asynchronous initialization paths share one generation.
+  // This is an observation-only probe: no synthetic write or retry is allowed.
   const before=await inspect(writer);
   const staleBefore=await inspect(stale);
+  const nativeBefore=await inspect(nativeProbe);
+  const revisionEvidence={
+    writer:{generation:before.revision?.generation,revisionSha:before.revision?.sha256,bytesSha:before.hash,loadedRows:before.loadedRows.length},
+    stale:{generation:staleBefore.revision?.generation,revisionSha:staleBefore.revision?.sha256,bytesSha:staleBefore.hash,loadedRows:staleBefore.loadedRows.length},
+    probe:{generation:nativeBefore.revision?.generation,revisionSha:nativeBefore.revision?.sha256,bytesSha:nativeBefore.hash,loadedRows:nativeBefore.loadedRows?.length??null}
+  };
+  console.log('G265_INITIAL_DURABLE_ATOMIC_REVISION_EVIDENCE',JSON.stringify(revisionEvidence));
   assert.equal(before.hash,before.revision?.sha256,'G265_INIT_PRIMARY_RAW_REVISION_SHA');
-  assert.equal(staleBefore.revision?.generation,before.revision.generation);
+  assert.equal(staleBefore.hash,staleBefore.revision?.sha256,'G265_STALE_INIT_PRIMARY_RAW_REVISION_SHA');
+  assert.equal(nativeBefore.hash,nativeBefore.revision?.sha256,'G265_PROBE_INIT_PRIMARY_RAW_REVISION_SHA');
+  assert.equal(staleBefore.revision?.generation,before.revision.generation,
+    'G265_INITIAL_REVISION_MISMATCH:'+JSON.stringify(revisionEvidence));
   assert.equal(staleBefore.hash,before.hash);
   const accepted=await submit(writer,'SYNTHETIC_G265_ACK');
   assert.equal(accepted.ok,true,JSON.stringify(accepted));

@@ -825,6 +825,10 @@ jobs:
       - name: Verify G9R November recipe source-bound HOLD renderer
         run: node scripts/g9r-november-recipe-hold-source-bound-ui.mjs
 
+      # G265: negative-first production Public Event refresh pre-SQL native admission.
+      - name: Verify G265 public event refresh native admission source boundary
+        run: node scripts/g265-public-event-refresh-production-native-admission.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true

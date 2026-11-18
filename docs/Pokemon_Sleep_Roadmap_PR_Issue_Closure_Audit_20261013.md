@@ -1,3 +1,12 @@
+## 2026-11-19 G265 #890 production public-event native admission — exact-head CI verified, merge pending
+
+- Single Draft PR [#890](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/890), base main `b7dd8871d04db0026406c5e52bcbf620a4969bb4`, source/test HEAD `60d2878b92e633a32a741742743f336049646b11`. This is a controlled production Source+Test change, not a docs-only heartbeat.
+- Material changes: `assets/js/public-event-master-store.js` production public-event refresh native admission; disposable real Chromium/SQL.js/IndexedDB/Web Locks regression for Collection and War Room, with seeded public-master refresh before two competing loaded tabs, common initial durable revision/SHA, stale pre-SQL denial/zero SQL, durable ACK, rollback and fresh reload. No isolated opt-in adapter is wired to player DB.
+- Earlier first failures: Collection `G265_INITIAL_REVISION_MISMATCH` (Run 44290109898), then War Room (Run 44309072566), where independent atomic IDB reads saw Generation 0 then 1 with internally consistent hashes; no claim of player data overwrite. Subsequent fixture repair completed isolated first-install public-master refresh before two-tab CAS assertions, without relaxing those assertions.
+- **Exact source/test HEAD evidence:** all seven PR workflows completed SUCCESS on `60d2878b92e633a32a741742743f336049646b11`: Frontend [44352233691](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/44352233691), Screenshot 44352233675, G14 44352233731, Recipe 44352233682, JS Syntax 44352233626, Data Boundary 44352233714, TECH.2D 44352233716. Governance update creates a NEW HEAD; all required checks must pass again before Ready/protected expected-head merge, then new-main Push/Pages exact SHA.
+- Owner 2026-11-18 23:28–23:30 +08 limited visual PASS recorded in [#19 comment](https://github.com/easonliu714/pokemon-sleep-ai-manager/issues/19#issuecomment-6983255449): November Banquet public event identity and weekly projection visible, 78 ACTIVE recipes and 3 candidate HOLD visible, one-bite nut pending. This is not offline/fresh/retained asset SHA, all ingredient/species, formula, player SQLite, or device-type verification. Do not repeat already passed UI visibility work.
+- Safety/open scope: #19 and #861 OPEN; #796 15-band Owner DoD OPEN, RATE4 production Apply OFF; 78 ACTIVE + 3 HOLD, UNKNOWN distinct from zero; no player Raw/SQLite mutation. Global 23-writer admission and Android/device parity are not closed by this PR.
+
 
 ## 2026-11-18 G9R #888 production Recipes UI evidence HOLD
 

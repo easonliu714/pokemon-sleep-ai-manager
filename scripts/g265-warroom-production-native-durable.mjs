@@ -20,7 +20,7 @@ try {
       const boot=window.initSqlJs;
       window.initSqlJs=()=>boot({locateFile:f=>'/node_modules/sql.js/dist/'+f});
       window.__db=await import('/assets/js/database.js');
-      await window.__db.initializeDatabase();
+      window.__g265Boot=await window.__db.initializeDatabase();
       (await import('/assets/js/g3-planning.js')).setupG3Pages();
       assertWarroom();
       function assertWarroom(){
@@ -69,12 +69,53 @@ try {
       }
     },summary);
   }
+  // G265: first establish one disposable, durable SQL.js seed in isolation.
+  // A first-install bootstrap/one-time migration is not a competing writer.
+  // Subsequent tabs must still start on a common native revision and prove
+  // their real stale pre-SQL rejection; no CAS assertion is relaxed.
+  // A fresh schema may require a second, one-time public-master migration.
+  // Settle only before creating competing tabs; a repeated migration on a
+  // stable image is a real boot defect and must fail, not be normalized.
+  let stableBoot=false;
+  for(let bootIndex=0;bootIndex<3;bootIndex++){
+    const seed=await tab();
+    const boot=await seed.evaluate(()=>window.__g265Boot);
+    // The real public-event bootstrap schedules a network refresh AFTER
+    // initializeDatabase() returns. Complete that legitimate first-install
+    // public-master write in the isolated seed, before any contender loads.
+    // This does not suppress the production refresh or bypass native CAS.
+    const refresh=await seed.evaluate(async()=>{
+      const module=await import('/assets/js/public-event-master-bootstrap.js');
+      return module.refreshPublicEventMasterForCurrentWeek();
+    });
+    assert.ok(['UPDATED','UNCHANGED'].includes(refresh.status),
+      'G265_SEED_PUBLIC_MASTER_REFRESH_NOT_ACKNOWLEDGED:'+JSON.stringify(refresh));
+    const seeded=await inspect(seed);
+    assert.equal(seeded.hash,seeded.revision?.sha256,'G265_SEED_DURABLE_SHA');
+    await seed.close();
+    if(boot.boot_persist_skipped){stableBoot=true;break;}
+  }
+  assert.equal(stableBoot,true,'G265_BOOT_MIGRATION_DID_NOT_CONVERGE');
   const writer=await tab();
   const stale=await tab();
+  // Neither contender may silently migrate/persist before native CAS begins.
+  const contenderBoots=await Promise.all([writer,stale].map(p=>p.evaluate(()=>window.__g265Boot)));
+  assert.ok(contenderBoots.every(b=>b.boot_persist_skipped),
+    'G265_COMPETING_BOOT_UNEXPECTED_PERSIST:'+JSON.stringify(contenderBoots));
   const before=await inspect(writer);
   const staleBefore=await inspect(stale);
   assert.equal(before.hash,before.revision.sha256,'G265_WARROOM_INITIAL_SHA_PARITY');
-  assert.equal(staleBefore.revision.generation,before.revision.generation);
+  // G265: preserve the native pre-SQL CAS assertion while exposing a single
+  // IndexedDB-transaction revision/SHA snapshot from both browser roles.
+  // Never normalize, rebase, or retry a mismatched durable revision here.
+  const initialEvidence={
+    writer:{generation:before.revision?.generation,revisionSha:before.revision?.sha256,bytesSha:before.hash,rows:before.rows.length,snapshots:before.snapshots},
+    stale:{generation:staleBefore.revision?.generation,revisionSha:staleBefore.revision?.sha256,bytesSha:staleBefore.hash,rows:staleBefore.rows.length,snapshots:staleBefore.snapshots}
+  };
+  console.log('G265_WARROOM_INITIAL_ATOMIC_REVISION_EVIDENCE',JSON.stringify(initialEvidence));
+  assert.equal(staleBefore.hash,staleBefore.revision?.sha256,'G265_WARROOM_STALE_INITIAL_SHA_PARITY');
+  assert.equal(staleBefore.revision.generation,before.revision.generation,
+    'G265_WARROOM_INITIAL_REVISION_MISMATCH:'+JSON.stringify(initialEvidence));
   const ack=await submit(writer,'SYNTHETIC_WARROOM_NEWER');
   assert.equal(ack.ok,true,'G265_WARROOM_PRODUCTION_FRESH_ACK_REQUIRED:'+JSON.stringify(ack));
   const durable=await inspect(writer);
