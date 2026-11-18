@@ -61,16 +61,19 @@ export async function refreshPublicEventMaster({fetchImpl=globalThis.fetch?.bind
     let acknowledged=false;
     try{
       await withPrimarySqliteMutationLock(async lease=>{
-        await withSqliteCoordinatedMutation(async()=>{
+        // The guard is synchronous: start persist inside privileged scope, await
+        // its durable ACK outside, while the exclusive window remains held.
+        const durableAck=withSqliteCoordinatedMutation(()=>{
           let transactionOpen=false;
           try{
             begin();transactionOpen=true;
             replaceCachedPayload(payload,manifest);
             commit();transactionOpen=false;
           }catch(error){if(transactionOpen)rollback();throw error;}
-          await persist({primaryMutationLease:lease});
-          acknowledged=true;
+          return persist({primaryMutationLease:lease});
         });
+        await durableAck;
+        acknowledged=true;
       });
     }finally{
       close({uncertainOutcome:!acknowledged});
