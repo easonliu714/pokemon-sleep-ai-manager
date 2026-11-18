@@ -25,7 +25,7 @@ try{
       if(typeof boot!=='function')throw new Error('G265_SQLJS_BROWSER_RUNTIME_MISSING');
       window.initSqlJs=()=>boot({locateFile:file=>'/node_modules/sql.js/dist/'+file});
       window.__g265Database=await import('/assets/js/database.js');
-      await window.__g265Database.initializeDatabase();
+      window.__g265Boot=await window.__g265Database.initializeDatabase();
       const module=await import('/assets/js/g3-planning.js');
       module.setupG3Pages();
       if(typeof document.getElementById('collectionAddForm')?.onsubmit!=='function')
@@ -79,12 +79,25 @@ try{
   // can persist its seed and a subsequent migration; those legitimate boot
   // writes must not be mistaken for a cross-tab stale CAS overwrite.
   // Do not change or relax the writer/stale native revision assertions below.
-  const seed=await newTab();
-  const seeded=await inspect(seed);
-  assert.equal(seeded.hash,seeded.revision?.sha256,'G265_DISPOSABLE_SEED_DURABLE_SHA');
-  await seed.close();
+  // A fresh schema may require a second, one-time public-master migration.
+  // Settle only before creating competing tabs; a repeated migration on a
+  // stable image is a real boot defect and must fail, not be normalized.
+  let stableBoot=false;
+  for(let bootIndex=0;bootIndex<3;bootIndex++){
+    const seed=await newTab();
+    const seeded=await inspect(seed);
+    const boot=await seed.evaluate(()=>window.__g265Boot);
+    assert.equal(seeded.hash,seeded.revision?.sha256,'G265_SEED_DURABLE_SHA');
+    await seed.close();
+    if(boot.boot_persist_skipped){stableBoot=true;break;}
+  }
+  assert.equal(stableBoot,true,'G265_BOOT_MIGRATION_DID_NOT_CONVERGE');
   const writer=await newTab();
   const stale=await newTab();
+  // Neither contender may silently migrate/persist before native CAS begins.
+  const contenderBoots=await Promise.all([writer,stale].map(p=>p.evaluate(()=>window.__g265Boot)));
+  assert.ok(contenderBoots.every(b=>b.boot_persist_skipped),
+    'G265_COMPETING_BOOT_UNEXPECTED_PERSIST:'+JSON.stringify(contenderBoots));
   // A separate, UI-free production storage binding proves native stale CAS
   // even if an unrelated page-local sticky guard rejects the UI earlier.
   const nativeProbe=await context.newPage();tabs.push(nativeProbe);
