@@ -79,8 +79,18 @@ try {
   let stableBoot=false;
   for(let bootIndex=0;bootIndex<3;bootIndex++){
     const seed=await tab();
-    const seeded=await inspect(seed);
     const boot=await seed.evaluate(()=>window.__g265Boot);
+    // The real public-event bootstrap schedules a network refresh AFTER
+    // initializeDatabase() returns. Complete that legitimate first-install
+    // public-master write in the isolated seed, before any contender loads.
+    // This does not suppress the production refresh or bypass native CAS.
+    const refresh=await seed.evaluate(async()=>{
+      const module=await import('/assets/js/public-event-master-bootstrap.js');
+      return module.refreshPublicEventMasterForCurrentWeek();
+    });
+    assert.ok(['UPDATED','UNCHANGED'].includes(refresh.status),
+      'G265_SEED_PUBLIC_MASTER_REFRESH_NOT_ACKNOWLEDGED:'+JSON.stringify(refresh));
+    const seeded=await inspect(seed);
     assert.equal(seeded.hash,seeded.revision?.sha256,'G265_SEED_DURABLE_SHA');
     await seed.close();
     if(boot.boot_persist_skipped){stableBoot=true;break;}
