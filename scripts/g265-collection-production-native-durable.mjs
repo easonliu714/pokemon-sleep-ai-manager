@@ -82,10 +82,23 @@ try{
     window.__g265Storage=await import('/assets/js/storage.js');
     await window.__g265Storage.loadDatabaseBytes();
   });
+  // Diagnose the exact durable revision after each tab's boot, without assuming
+  // that separate asynchronous initialization paths share one generation.
+  // This is an observation-only probe: no synthetic write or retry is allowed.
   const before=await inspect(writer);
   const staleBefore=await inspect(stale);
+  const nativeBefore=await inspect(nativeProbe);
+  const revisionEvidence={
+    writer:{generation:before.revision?.generation,revisionSha:before.revision?.sha256,bytesSha:before.hash,loadedRows:before.loadedRows.length},
+    stale:{generation:staleBefore.revision?.generation,revisionSha:staleBefore.revision?.sha256,bytesSha:staleBefore.hash,loadedRows:staleBefore.loadedRows.length},
+    probe:{generation:nativeBefore.revision?.generation,revisionSha:nativeBefore.revision?.sha256,bytesSha:nativeBefore.hash,loadedRows:nativeBefore.loadedRows.length}
+  };
+  console.log('G265_INITIAL_DURABLE_ATOMIC_REVISION_EVIDENCE',JSON.stringify(revisionEvidence));
   assert.equal(before.hash,before.revision?.sha256,'G265_INIT_PRIMARY_RAW_REVISION_SHA');
-  assert.equal(staleBefore.revision?.generation,before.revision.generation);
+  assert.equal(staleBefore.hash,staleBefore.revision?.sha256,'G265_STALE_INIT_PRIMARY_RAW_REVISION_SHA');
+  assert.equal(nativeBefore.hash,nativeBefore.revision?.sha256,'G265_PROBE_INIT_PRIMARY_RAW_REVISION_SHA');
+  assert.equal(staleBefore.revision?.generation,before.revision.generation,
+    'G265_INITIAL_REVISION_MISMATCH:'+JSON.stringify(revisionEvidence));
   assert.equal(staleBefore.hash,before.hash);
   const accepted=await submit(writer,'SYNTHETIC_G265_ACK');
   assert.equal(accepted.ok,true,JSON.stringify(accepted));
