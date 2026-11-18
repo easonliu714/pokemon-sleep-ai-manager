@@ -55,7 +55,9 @@ try{
         const hash=Array.from(digest,b=>b.toString(16).padStart(2,'0')).join('');
         return {revision:result.revision,hash,snapshotCount:result.snapshotCount,
           rawBytes:Array.from(bytes),
-          loadedRows:window.__g265Database.rows('SELECT target_id,species FROM collection_targets ORDER BY target_id')};
+          // Native storage-only probe intentionally has no database.js binding.
+          // Its durable IDB revision/SHA is still independently observed.
+          loadedRows:window.__g265Database?.rows('SELECT target_id,species FROM collection_targets ORDER BY target_id')??null};
       }finally{idb.close();}
     });
   }
@@ -91,7 +93,7 @@ try{
   const revisionEvidence={
     writer:{generation:before.revision?.generation,revisionSha:before.revision?.sha256,bytesSha:before.hash,loadedRows:before.loadedRows.length},
     stale:{generation:staleBefore.revision?.generation,revisionSha:staleBefore.revision?.sha256,bytesSha:staleBefore.hash,loadedRows:staleBefore.loadedRows.length},
-    probe:{generation:nativeBefore.revision?.generation,revisionSha:nativeBefore.revision?.sha256,bytesSha:nativeBefore.hash,loadedRows:nativeBefore.loadedRows.length}
+    probe:{generation:nativeBefore.revision?.generation,revisionSha:nativeBefore.revision?.sha256,bytesSha:nativeBefore.hash,loadedRows:nativeBefore.loadedRows?.length??null}
   };
   console.log('G265_INITIAL_DURABLE_ATOMIC_REVISION_EVIDENCE',JSON.stringify(revisionEvidence));
   assert.equal(before.hash,before.revision?.sha256,'G265_INIT_PRIMARY_RAW_REVISION_SHA');
