@@ -821,6 +821,10 @@ jobs:
       - name: Verify G9R November recipe production UI HOLD visibility
         run: node scripts/g9r-november-recipe-production-ui-hold-contract.mjs
 
+      # G9R: prevent production HOLD UI from drifting from audited non-ACTIVE evidence.
+      - name: Verify G9R November recipe source-bound HOLD renderer
+        run: node scripts/g9r-november-recipe-hold-source-bound-ui.mjs
+
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
