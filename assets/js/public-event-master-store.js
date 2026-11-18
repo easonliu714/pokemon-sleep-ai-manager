@@ -1,4 +1,7 @@
 import {begin,commit,isDatabaseReady,isRescueReadonly,persist,rollback,rows,run} from './database.js';
+// G265: native pre-SQL admission is required before replacing the public cache.
+import {withPrimarySqliteMutationLock} from './storage.js';
+import {beginSqliteExclusiveWriteWindow,withSqliteCoordinatedMutation} from './sqlite-direct-write-window-guard.js';
 import {nextPublicEventBoundary,PUBLIC_EVENT_MASTER_SCHEMA,resolvePublicEventProjection,validatePublicEventManifest,validatePublicEventPayload} from './public-event-master-contract.js';
 
 export const PUBLIC_EVENT_MASTER_SETTINGS_KEY='public_event_master_version';
@@ -52,7 +55,26 @@ export async function refreshPublicEventMaster({fetchImpl=globalThis.fetch?.bind
     const requestToken=`${Date.now()}-${Math.random().toString(36).slice(2)}`;const manifestText=await fetchText(fetchImpl,networkFreshUrl(manifestUrl,requestToken));const manifest=validatePublicEventManifest(JSON.parse(manifestText));const beforeSha=clean(settingValue(PUBLIC_EVENT_MASTER_SHA_SETTINGS_KEY)).toLowerCase();
     if(beforeVersion===manifest.master_version&&beforeSha===manifest.payload_sha256){const projection=resolveCachedPublicEventProjection({date,camp}),boundary=schedulePublicEventBoundary({date,camp});return Object.freeze({status:'UNCHANGED',updated:false,cached_version:beforeVersion,manifest,projection,boundary});}
     const rawPayload=await fetchText(fetchImpl,networkFreshUrl(resolveUrl(manifest.payload_path,manifestUrl),`${requestToken}-${manifest.payload_sha256.slice(0,12)}`));const actualSha=await sha256Hex(rawPayload);if(actualSha!==manifest.payload_sha256)throw new Error(`PUBLIC_EVENT_SHA256_MISMATCH:expected=${manifest.payload_sha256}:actual=${actualSha}`);const payload=validatePublicEventPayload(JSON.parse(rawPayload),{expectedVersion:manifest.master_version});const dryRun=Object.freeze({from_version:beforeVersion||null,to_version:payload.master_version,event_count:payload.events.length,phase_count:payload.events.reduce((sum,event)=>sum+event.phases.length,0),player_rows_modified:false});
-    let transactionOpen=false;try{begin();transactionOpen=true;replaceCachedPayload(payload,manifest);commit();transactionOpen=false;}catch(error){if(transactionOpen)rollback();throw error;}
-    await persist();const integrity=integrityCheck(payload),projection=resolveCachedPublicEventProjection({date,camp}),boundary=schedulePublicEventBoundary({date,camp});const detail=Object.freeze({status:'UPDATED',updated:true,cached_version:payload.master_version,manifest,dry_run:dryRun,integrity,projection,boundary});dispatchMasterEvent('pokemon-sleep:public-event-master-updated',detail);dispatchMasterEvent('pokemon-sleep:data-changed',{entity:'public_event_master',reason:'manifest_refresh',master_version:payload.master_version});return detail;
+    // G265: keep the same-page window across native admission, SQL and durable ACK.
+    // A denied lease never reaches BEGIN; an uncertain ACK remains fail-closed.
+    const close=beginSqliteExclusiveWriteWindow();
+    let acknowledged=false;
+    try{
+      await withPrimarySqliteMutationLock(async lease=>{
+        await withSqliteCoordinatedMutation(async()=>{
+          let transactionOpen=false;
+          try{
+            begin();transactionOpen=true;
+            replaceCachedPayload(payload,manifest);
+            commit();transactionOpen=false;
+          }catch(error){if(transactionOpen)rollback();throw error;}
+          await persist({primaryMutationLease:lease});
+          acknowledged=true;
+        });
+      });
+    }finally{
+      close({uncertainOutcome:!acknowledged});
+    }
+    const integrity=integrityCheck(payload),projection=resolveCachedPublicEventProjection({date,camp}),boundary=schedulePublicEventBoundary({date,camp});const detail=Object.freeze({status:'UPDATED',updated:true,cached_version:payload.master_version,manifest,dry_run:dryRun,integrity,projection,boundary});dispatchMasterEvent('pokemon-sleep:public-event-master-updated',detail);dispatchMasterEvent('pokemon-sleep:data-changed',{entity:'public_event_master',reason:'manifest_refresh',master_version:payload.master_version});return detail;
   }catch(error){const cached=loadCachedPublicEventPayload(),projection=cached?resolvePublicEventProjection(cached,{date,camp}):null,boundary=cached?schedulePublicEventBoundary({date,camp}):null;const detail=Object.freeze({status:cached?'OFFLINE_CACHED':'NO_VERIFIED_CACHE',updated:false,cached_version:cached?.master_version||beforeVersion||null,error:error?.message||String(error),projection,boundary});dispatchMasterEvent('pokemon-sleep:public-event-master-refresh-failed',detail);return detail;}
 }
