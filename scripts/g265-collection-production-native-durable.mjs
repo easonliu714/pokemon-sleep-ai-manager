@@ -74,6 +74,15 @@ try{
       }
     },species);
   }
+  // G265: bootstrap the disposable SQL.js schema in an isolated seed tab
+  // before opening competing writer/stale tabs. A fresh first-install boot
+  // can persist its seed and a subsequent migration; those legitimate boot
+  // writes must not be mistaken for a cross-tab stale CAS overwrite.
+  // Do not change or relax the writer/stale native revision assertions below.
+  const seed=await newTab();
+  const seeded=await inspect(seed);
+  assert.equal(seeded.hash,seeded.revision?.sha256,'G265_DISPOSABLE_SEED_DURABLE_SHA');
+  await seed.close();
   const writer=await newTab();
   const stale=await newTab();
   // A separate, UI-free production storage binding proves native stale CAS
