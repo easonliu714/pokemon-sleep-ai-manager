@@ -74,7 +74,17 @@ try {
   const before=await inspect(writer);
   const staleBefore=await inspect(stale);
   assert.equal(before.hash,before.revision.sha256,'G265_WARROOM_INITIAL_SHA_PARITY');
-  assert.equal(staleBefore.revision.generation,before.revision.generation);
+  // G265: preserve the native pre-SQL CAS assertion while exposing a single
+  // IndexedDB-transaction revision/SHA snapshot from both browser roles.
+  // Never normalize, rebase, or retry a mismatched durable revision here.
+  const initialEvidence={
+    writer:{generation:before.revision?.generation,revisionSha:before.revision?.sha256,bytesSha:before.hash,rows:before.rows.length,snapshots:before.snapshots},
+    stale:{generation:staleBefore.revision?.generation,revisionSha:staleBefore.revision?.sha256,bytesSha:staleBefore.hash,rows:staleBefore.rows.length,snapshots:staleBefore.snapshots}
+  };
+  console.log('G265_WARROOM_INITIAL_ATOMIC_REVISION_EVIDENCE',JSON.stringify(initialEvidence));
+  assert.equal(staleBefore.hash,staleBefore.revision?.sha256,'G265_WARROOM_STALE_INITIAL_SHA_PARITY');
+  assert.equal(staleBefore.revision.generation,before.revision.generation,
+    'G265_WARROOM_INITIAL_REVISION_MISMATCH:'+JSON.stringify(initialEvidence));
   const ack=await submit(writer,'SYNTHETIC_WARROOM_NEWER');
   assert.equal(ack.ok,true,'G265_WARROOM_PRODUCTION_FRESH_ACK_REQUIRED:'+JSON.stringify(ack));
   const durable=await inspect(writer);
