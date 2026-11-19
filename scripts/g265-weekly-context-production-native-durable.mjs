@@ -32,7 +32,11 @@ try{
       window.__db=await import('/assets/js/database.js');
       window.__boot=await window.__db.initializeDatabase();
       (await import('/assets/js/g3-planning.js')).setupG3Pages();
-      if(typeof document.getElementById('weeklyContextForm')?.onsubmit!=='function')
+      // Preserve the actual G3 production weeklyForm submit callback. The
+      // Current Week Authority bridge may later replace the form onsumbit;
+      // that independent writer is not this named G265 admission Gate.
+      window.__g265G3WeeklySubmit=document.getElementById('weeklyContextForm')?.onsubmit;
+      if(typeof window.__g265G3WeeklySubmit!=='function')
         throw Error('G265_PRODUCTION_WEEKLY_FORM_NOT_INSTALLED');
     });
     return page;
@@ -81,7 +85,7 @@ try{
         throw Error('G265_WEEKLY_FORM_SUBMITTED_VALUES_UNEXPECTED:'+JSON.stringify({requested:{week,notes},submitted:{week:current.get('week_start'),notes:current.get('base_notes')},epochDisabled:weekField.disabled,epochAuthority:weekField.dataset.authoritySource,keys:[...current.keys()]}));
       const beforeAlerts=window.__g265WeeklyAlerts.length;
       try{
-        await form.onsubmit({preventDefault(){},target:form});
+        await window.__g265G3WeeklySubmit({preventDefault(){},target:form});
         const alerts=window.__g265WeeklyAlerts.slice(beforeAlerts);
         return {ok:alerts.includes('本週環境已儲存'),alerts,
           rows:window.__db.rows('SELECT context_id,week_start,base_notes FROM weekly_context ORDER BY context_id')};
