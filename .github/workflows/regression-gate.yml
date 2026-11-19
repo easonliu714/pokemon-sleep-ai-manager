@@ -644,6 +644,17 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-native-chromium-tenth-weekly-strategy-cas.mjs
 
+      - name: G265 Production Weekly Context Native Pre-SQL Admission Negative-First
+        run: node scripts/g265-weekly-context-production-presql-contract.mjs
+
+      - name: G265 Production Weekly Context SQLJS Postcommit ACK-Loss and Rollback
+        run: node scripts/g265-weekly-context-production-postcommit-sqljs.mjs
+
+      - name: G265 Production Weekly Context Native Chromium Two-Tab Durable CAS
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-weekly-context-production-native-durable.mjs
+
       - name: G265 Eleventh Legacy Weekly Context Two-ACK Stale Overwrite Negative
         run: node scripts/g265-weekly-context-eleventh-legacy-cross-tab-negative.mjs
 

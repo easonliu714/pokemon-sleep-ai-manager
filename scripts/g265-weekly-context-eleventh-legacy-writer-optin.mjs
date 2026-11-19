@@ -9,14 +9,17 @@ import {sha256SqliteBytes} from '../assets/js/sqlite-cross-tab-write-admission.j
 import {createSqliteVersionNeutralAtomicPairGate} from '../assets/js/sqlite-version-neutral-atomic-pair-gate.js';
 import {createWeeklyContextOptIn} from '../assets/js/sqlite-weekly-context-optin.js';
 
-const legacy=fs.readFileSync(new URL('../assets/js/g3-planning.js',import.meta.url),'utf8');
+const legacy=fs.readFileSync(new URL('./fixtures/g265-weekly-context-legacy-20261119.txt',import.meta.url),'utf8');
+const production=fs.readFileSync(new URL('../assets/js/g3-planning.js',import.meta.url),'utf8');
+// Historical legacy identity remains fixed; new production requires native admission.
+assert.match(production,/withPrimarySqliteMutationLock\s*\(/,'production native lease must stay wired');
 const operation=legacy.split('function weeklyForm() {')[1]?.split('function recipeShortageText(row) {')[0];
 assert.ok(operation,'eleventh legacy writer must remain source-identifiable');
 assert.match(operation,/await snapshot\('manual:weekly-context'\)/);
 assert.match(operation,/INSERT OR REPLACE INTO weekly_context/);
 assert.match(operation,/await persist\(\)/);
-assert.doesNotMatch(legacy,/sqlite-weekly-context-optin/);
-console.log('PASS G265_ELEVENTH_WEEKLY_CONTEXT_EXACT_LEGACY_SOURCE_BOUND_NOT_PRODUCTION_WIRED');
+assert.doesNotMatch(production,/sqlite-weekly-context-optin/);
+console.log('PASS G265_ELEVENTH_WEEKLY_CONTEXT_FROZEN_LEGACY_AND_PRODUCTION_NATIVE_ADMISSION');
 
 const SQL=await initSqlJs();
 const seedSql=new SQL.Database();

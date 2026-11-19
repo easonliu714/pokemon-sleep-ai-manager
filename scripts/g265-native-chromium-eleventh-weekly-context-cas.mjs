@@ -6,14 +6,17 @@ import {createHash} from 'node:crypto';
 import {chromium} from 'playwright';
 import initSqlJs from 'sql.js';
 
-const legacy=fs.readFileSync(new URL('../assets/js/g3-planning.js',import.meta.url),'utf8');
+const legacy=fs.readFileSync(new URL('./fixtures/g265-weekly-context-legacy-20261119.txt',import.meta.url),'utf8');
+const production=fs.readFileSync(new URL('../assets/js/g3-planning.js',import.meta.url),'utf8');
+// Historical legacy identity remains fixed; new production requires native admission.
+assert.match(production,/withPrimarySqliteMutationLock\s*\(/,'production native lease must stay wired');
 const exact=legacy.split('function weeklyForm() {')[1]?.split('function recipeShortageText(row) {')[0];
 assert.ok(exact,'eleventh weekly context writer must remain source-bound');
 assert.match(exact,/await snapshot\('manual:weekly-context'\)/);
 assert.match(exact,/INSERT OR REPLACE INTO weekly_context/);
 assert.match(exact,/await persist\(\)/);
-assert.doesNotMatch(legacy,/sqlite-weekly-context-optin/);
-console.log('PASS G265_ELEVENTH_NATIVE_EXACT_LEGACY_SOURCE_BOUND_NOT_PRODUCTION_WIRED');
+assert.doesNotMatch(production,/sqlite-weekly-context-optin/);
+console.log('PASS G265_ELEVENTH_NATIVE_FROZEN_LEGACY_AND_PRODUCTION_NATIVE_ADMISSION');
 
 const base=new URL(process.env.BASE_URL||'http://127.0.0.1:4173/');
 assert.equal(base.hostname,'127.0.0.1');

@@ -114,14 +114,40 @@ function weeklyForm() {
     const berries = ['favorite_berry_1', 'favorite_berry_2', 'favorite_berry_3'].map((key) => form.get(key)).filter(Boolean);
     if (new Set(berries).size !== berries.length) return alert('三個喜好樹果不可重複');
     const id = `week_${form.get('week_start') || 'current'}`;
-    await snapshot('manual:weekly-context');
-    run('INSERT OR REPLACE INTO weekly_context(context_id,week_start,camp,dish_category,favorite_berry_1,favorite_berry_2,favorite_berry_3,event_name,event_effects,pot_size,base_notes,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)', [
-      id, form.get('week_start') || '', form.get('camp') || '', form.get('dish_category') || '',
-      form.get('favorite_berry_1') || '', form.get('favorite_berry_2') || '', form.get('favorite_berry_3') || '',
-      form.get('event_name') || '', form.get('event_effects') || '', Number(form.get('pot_size')) || null,
-      form.get('base_notes') || '', now(),
-    ]);
-    await persist();
+    // G265: this production weekly-context writer must hold the same-page
+    // exclusive window and native primary revision lease BEFORE snapshot/SQL.
+    // COMMIT is only an in-memory transaction; only the exact-lease durable
+    // ACK permits UI success. A rejected or uncertain save stays sticky HOLD.
+    const close = beginSqliteExclusiveWriteWindow();
+    let acknowledged = false;
+    try {
+      await withPrimarySqliteMutationLock(async (lease) => {
+        await snapshot('manual:weekly-context');
+        withSqliteCoordinatedMutation(begin);
+        let committed = false;
+        try {
+          withSqliteCoordinatedMutation(() => run('INSERT OR REPLACE INTO weekly_context(context_id,week_start,camp,dish_category,favorite_berry_1,favorite_berry_2,favorite_berry_3,event_name,event_effects,pot_size,base_notes,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)', [
+            id, form.get('week_start') || '', form.get('camp') || '', form.get('dish_category') || '',
+            form.get('favorite_berry_1') || '', form.get('favorite_berry_2') || '', form.get('favorite_berry_3') || '',
+            form.get('event_name') || '', form.get('event_effects') || '', Number(form.get('pot_size')) || null,
+            form.get('base_notes') || '', now(),
+          ]));
+          withSqliteCoordinatedMutation(commit);
+          committed = true;
+          await withSqliteCoordinatedMutation(() => persist({primaryMutationLease:lease}));
+          acknowledged = true;
+        } catch (error) {
+          // Never mask a post-COMMIT durable ACK error with invalid ROLLBACK.
+          if (!committed) {
+            try { withSqliteCoordinatedMutation(rollback); }
+            catch { /* Preserve the initiating SQL error. */ }
+          }
+          throw error;
+        }
+      });
+    } finally {
+      close({uncertainOutcome:!acknowledged});
+    }
     document.dispatchEvent(new CustomEvent('pokemon-sleep-data-refreshed'));
     renderRecipeStrategyProjection();
     alert('本週環境已儲存');
