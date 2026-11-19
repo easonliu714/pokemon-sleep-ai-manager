@@ -54,11 +54,52 @@ export async function initializeDatabase(){
     emit('SQLJS_LOADING','正在載入 SQLite 引擎');if(typeof initSqlJs!=='function')throw new Error('sql.js 載入失敗，請確認網路後重新整理');SQL=await timeout(initSqlJs({locateFile:file=>`https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/${file}`}),20000,'SQL.js 初始化');if(generation!==bootGeneration)throw safeBootError('stale_boot_generation','較新的資料庫啟動流程已取代本次操作');emit('SQLJS_READY','SQLite 引擎載入完成');
     if(inspection.exists&&!forced)bytes=await timeout(loadDatabaseBytes(),30000,'本機 SQLite 讀取');if(generation!==bootGeneration)throw safeBootError('stale_boot_generation','資料讀取完成，但本次啟動已取消');
     const byteLength=bytes?.byteLength||0,restored=Boolean(bytes);emit('SQLITE_BYTES_READY',bytes?`本機資料庫讀取完成（${(byteLength/1048576).toFixed(1)} MB）`:'準備建立新資料庫','running',{byte_length:byteLength,restored,forced});await yieldToUi();emit('SQLITE_OPENING','正在開啟 SQLite 資料庫');db=bytes?new SQL.Database(new Uint8Array(bytes)):new SQL.Database();rescueReadonly=false;bytes=null;emit('SQLITE_SOURCE_BUFFER_RELEASED','原始 SQLite 傳輸緩衝區已釋放','completed',{byte_length:byteLength,restored});await yieldToUi();
-    emit('SCHEMA_CHECKING','正在檢查資料庫結構');db.run(DDL);const isNew=(scalar('SELECT COUNT(*) FROM schema_migrations')||0)===0;let migrationResult;
-    if(isNew){emit('FRESH_DATABASE_BOOTSTRAP','正在建立全新用戶資料庫並載入完整公版主檔','running',{fresh_database:true});db.run(SEED_SQL);migrationResult=applyFreshDatabaseBootstrap(db);migrationResult=applyCandyFamilyStorageLifecycle(db,migrationResult);emit('FRESH_DATABASE_READY','全新用戶資料庫與公版主檔已建立','completed',{fresh_database:true,public_master:migrationResult.public_master,candy_family_storage:migrationResult.candy_family_storage});}
-    else{emit('MIGRATION_RUNNING','正在執行資料庫 Migration 與公版版本稽核');migrationResult=applyAllMigrations(db);migrationResult=applyCandyFamilyStorageLifecycle(db,migrationResult);emit('MIGRATION_COMPLETED','資料庫 Migration／公版版本稽核完成','completed',{byte_length:byteLength,restored,public_master:migrationResult.public_master,candy_family_storage:migrationResult.candy_family_storage});}
-    await yieldToUi();const persistRequired=!restored||Boolean(migrationResult?.database_changed);
-    if(persistRequired){emit('BOOT_PERSIST_RUNNING',isNew?'正在儲存全新 SQLite 資料庫':'正在儲存必要的 Schema／公版主檔更新');await persist();emit('BOOT_PERSIST_COMPLETED','SQLite 必要更新已儲存','completed',{reason:isNew?'fresh_database':'schema_or_public_master_changed'});}else emit('BOOT_PERSIST_SKIPPED','Schema 與公版版本未變更；直接使用本機 SQLite','completed',{restored:true});
+    // G265 #861: first-install seed and existing-player migrations are SQLite
+    // mutations too. Reserve the same-page window and admit the exact loaded
+    // IDB primary under the native cross-tab Web Lock BEFORE the first DDL.
+    // This prevents a stale tab from ever reaching Seed/Migration SQL; a
+    // post-COMMIT lost durable ACK remains sticky until explicit reload.
+    const close=beginSqliteExclusiveWriteWindow();
+    let acknowledged=false;
+    let isNew=false,migrationResult=null,persistRequired=false;
+    try{
+      await withPrimarySqliteMutationLock(async lease=>{
+        if(generation!==bootGeneration)throw Object.assign(new Error('stale_boot_generation'),{code:'stale_boot_generation'});
+        emit('SCHEMA_CHECKING','正在檢查資料庫結構');
+        // Migration helpers are synchronous. Keep their entire SQL span
+        // privileged while this exact native primary lease remains active.
+        withSqliteCoordinatedMutation(()=>{
+          db.run(DDL);
+          isNew=(scalar('SELECT COUNT(*) FROM schema_migrations')||0)===0;
+          if(isNew){
+            emit('FRESH_DATABASE_BOOTSTRAP','正在建立全新用戶資料庫並載入完整公版主檔','running',{fresh_database:true});
+            db.run(SEED_SQL);
+            migrationResult=applyFreshDatabaseBootstrap(db);
+            migrationResult=applyCandyFamilyStorageLifecycle(db,migrationResult);
+            emit('FRESH_DATABASE_READY','全新用戶資料庫與公版主檔已建立','completed',{fresh_database:true,public_master:migrationResult.public_master,candy_family_storage:migrationResult.candy_family_storage});
+          }else{
+            emit('MIGRATION_RUNNING','正在執行資料庫 Migration 與公版版本稽核');
+            migrationResult=applyAllMigrations(db);
+            migrationResult=applyCandyFamilyStorageLifecycle(db,migrationResult);
+            emit('MIGRATION_COMPLETED','資料庫 Migration／公版版本稽核完成','completed',{byte_length:byteLength,restored,public_master:migrationResult.public_master,candy_family_storage:migrationResult.candy_family_storage});
+          }
+        });
+        await yieldToUi();
+        if(generation!==bootGeneration)throw Object.assign(new Error('stale_boot_generation'),{code:'stale_boot_generation'});
+        persistRequired=!restored||Boolean(migrationResult?.database_changed);
+        if(persistRequired){
+          emit('BOOT_PERSIST_RUNNING',isNew?'正在儲存全新 SQLite 資料庫':'正在儲存必要的 Schema／公版主檔更新');
+          // persist() begins its guarded byte-capture synchronously within
+          // the coordinated scope; await the exact-lease IDB ACK while the
+          // native lock and same-page exclusive window both remain held.
+          await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
+          emit('BOOT_PERSIST_COMPLETED','SQLite 必要更新已儲存','completed',{reason:isNew?'fresh_database':'schema_or_public_master_changed'});
+        }else emit('BOOT_PERSIST_SKIPPED','Schema 與公版版本未變更；直接使用本機 SQLite','completed',{restored:true});
+        acknowledged=true;
+      });
+    }finally{
+      close({uncertainOutcome:!acknowledged});
+    }
     const seeded=isNew,detail={seeded,restored,boot_persist_skipped:!persistRequired,byte_length:byteLength,forced,worker_isolated:Boolean(forced),fresh_database:isNew,public_master:migrationResult?.public_master||null,candy_family_storage:migrationResult?.candy_family_storage||null};emit('POST_MIGRATION_HANDOFF','資料庫階段完成；將控制權交還 App 首屏初始化','completed',detail);dispatchReadyAsync(detail);return {seeded,...detail};
   }catch(error){cancelWorkerDatabaseLoad();if(error?.safe_boot){emit('DATABASE_RESCUE_REQUIRED',error.message,'warning',{code:error.code,...error.details},error);return createReadonlyRescueDatabase(error);}emit('DATABASE_FAILED',`資料庫初始化失敗：${error?.message||error}`,'failed',{},error);throw error;}
 }
