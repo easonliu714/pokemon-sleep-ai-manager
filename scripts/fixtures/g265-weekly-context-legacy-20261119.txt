@@ -35,3 +35,6 @@ function weeklyForm() {
   };
 }
 
+
+// Historical extraction end marker, intentionally no executable function body.
+function recipeShortageText(row) {
