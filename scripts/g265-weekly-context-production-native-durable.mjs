@@ -25,6 +25,10 @@ try{
       const boot=window.initSqlJs;
       if(typeof boot!=='function')throw Error('G265_WEEKLY_SQLJS_MISSING');
       window.initSqlJs=()=>boot({locateFile:f=>'/node_modules/sql.js/dist/'+f});
+      // Capture the actual production alert branch: invalid form no-op must
+      // never be counted as an acknowledged native durable write.
+      window.__g265WeeklyAlerts=[];
+      window.alert=message=>window.__g265WeeklyAlerts.push(String(message));
       window.__db=await import('/assets/js/database.js');
       window.__boot=await window.__db.initializeDatabase();
       (await import('/assets/js/g3-planning.js')).setupG3Pages();
@@ -65,9 +69,15 @@ try{
       const form=document.getElementById('weeklyContextForm');
       form.elements.namedItem('week_start').value=week;
       form.elements.namedItem('base_notes').value=notes;
+      const current=new FormData(form);
+      if(current.get('week_start')!==week||current.get('base_notes')!==notes)
+        throw Error('G265_WEEKLY_FORM_INPUT_NOT_APPLIED');
+      const beforeAlerts=window.__g265WeeklyAlerts.length;
       try{
         await form.onsubmit({preventDefault(){},target:form});
-        return {ok:true,rows:window.__db.rows('SELECT context_id,week_start,base_notes FROM weekly_context ORDER BY context_id')};
+        const alerts=window.__g265WeeklyAlerts.slice(beforeAlerts);
+        return {ok:alerts.includes('本週環境已儲存'),alerts,
+          rows:window.__db.rows('SELECT context_id,week_start,base_notes FROM weekly_context ORDER BY context_id')};
       }catch(error){
         return {ok:false,code:error?.code||error?.message||String(error),
           rows:window.__db.rows('SELECT context_id,week_start,base_notes FROM weekly_context ORDER BY context_id')};
@@ -118,7 +128,7 @@ try{
   console.log('PASS G265_PRODUCTION_WEEKLY_CONTEXT_NATIVE_ACK_IDB_SHA_DURABLE_READBACK');
 
   const denied=await submit(stale,'2026-11-23','SYNTHETIC_G265_WEEKLY_STALE');
-  assert.equal(denied.ok,false,'G265_WEEKLY_STALE_MUST_DENY');
+  assert.equal(denied.ok,false,'G265_WEEKLY_STALE_MUST_DENY:'+JSON.stringify(denied));
   assert.ok(['SQLITE_PRIMARY_STALE_REVISION_RELOAD_REQUIRED',
     'SQLITE_DIRECT_WRITE_UNVERIFIED_RELOAD_REQUIRED'].includes(denied.code),
     'G265_WEEKLY_STALE_PRE_SQL_CODE:'+denied.code);
