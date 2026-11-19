@@ -71,7 +71,7 @@ try{
       form.elements.namedItem('base_notes').value=notes;
       const current=new FormData(form);
       if(current.get('week_start')!==week||current.get('base_notes')!==notes)
-        throw Error('G265_WEEKLY_FORM_INPUT_NOT_APPLIED:'+JSON.stringify({requested:{week,notes},actual:{week:current.get('week_start'),notes:current.get('base_notes')},elementWeek:form.elements.namedItem('week_start').value,elementNotes:form.elements.namedItem('base_notes').value}));
+        throw Error('G265_WEEKLY_FORM_INPUT_NOT_APPLIED:'+JSON.stringify({requested:{week,notes},actual:{week:current.get('week_start'),notes:current.get('base_notes')},elementWeek:form.elements.namedItem('week_start').value,elementNotes:form.elements.namedItem('base_notes').value,weekOuterHTML:form.elements.namedItem('week_start').outerHTML,weekDisabled:form.elements.namedItem('week_start').disabled,weekFormId:form.elements.namedItem('week_start').form?.id,formTag:form.tagName,formKeys:[...current.keys()]}));
       const beforeAlerts=window.__g265WeeklyAlerts.length;
       try{
         await form.onsubmit({preventDefault(){},target:form});
