@@ -644,6 +644,15 @@ jobs:
           BASE_URL: http://127.0.0.1:4173/
         run: node scripts/g265-native-chromium-tenth-weekly-strategy-cas.mjs
 
+      # G265 #861: real production DB boot must deny stale page before DDL/Seed/Migration.
+      # Source-bound negative-first plus disposable native two-tab first-install CAS.
+      - name: G265 Bootstrap Production Pre-SQL Native Admission Source Contract
+        run: node scripts/g265-bootstrap-production-presql-contract.mjs
+
+      - name: G265 Bootstrap Production Native Chromium First-Install Two-Tab Durable CAS
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-bootstrap-production-native-durable.mjs
       - name: G265 Production Weekly Context Native Pre-SQL Admission Negative-First
         run: node scripts/g265-weekly-context-production-presql-contract.mjs
 
