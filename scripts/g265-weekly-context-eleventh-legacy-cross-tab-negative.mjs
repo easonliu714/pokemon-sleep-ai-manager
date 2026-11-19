@@ -5,7 +5,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const source=fs.readFileSync(new URL('../assets/js/g3-planning.js',import.meta.url),'utf8');
+// Preserve the exact pre-repair production handler as an immutable negative replay.
+// The actual production handler is guarded by a separate executable contract.
+const source=fs.readFileSync(new URL('./fixtures/g265-weekly-context-legacy-20261119.txt',import.meta.url),'utf8');
+const production=fs.readFileSync(new URL('../assets/js/g3-planning.js',import.meta.url),'utf8');
+assert.match(production,/withPrimarySqliteMutationLock\s*\(/,'production native admission must remain wired');
 const start='function weeklyForm() {',end='function recipeShortageText(row) {';
 assert.equal(source.split(start).length,2,'exact weeklyForm source marker must be unique');
 const tail=source.split(start)[1];
@@ -16,7 +20,7 @@ assert.match(operation,/await snapshot\('manual:weekly-context'\)/);
 assert.match(operation,/INSERT OR REPLACE INTO weekly_context/);
 assert.match(operation,/await persist\(\)/);
 assert.doesNotMatch(operation,/navigator\.locks|runSqliteWriteSession|createSqliteFreshDurableTransactionAdapter/);
-console.log('PASS G265_ELEVENTH_WEEKLY_CONTEXT_EXACT_LEGACY_SOURCE_BOUND_DIRECT_PERSIST');
+console.log('PASS G265_ELEVENTH_WEEKLY_CONTEXT_FROZEN_HISTORICAL_LEGACY_DIRECT_PERSIST_NEGATIVE');
 
 const clone=value=>JSON.parse(JSON.stringify(value));
 const seed={context_id:'week_seed',week_start:'2026-10-26',camp:'SYNTHETIC_SEED'};
