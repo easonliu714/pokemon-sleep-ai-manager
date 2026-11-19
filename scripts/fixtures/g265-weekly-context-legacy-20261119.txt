@@ -1,0 +1,37 @@
+// FROZEN pre-native G265 weeklyForm source, historical negative replay only.
+function weeklyForm() {
+  const row = rows('SELECT * FROM weekly_context ORDER BY updated_at DESC LIMIT 1')[0] || {};
+  const panel = document.getElementById('weeklyContextPanel');
+  panel.innerHTML = `<form id="weeklyContextForm"><div class="edit-grid">
+    ${field('week_start', '週起始日', row.week_start, 'date')}
+    ${selectField('camp', '營地', row.camp, CAMP_OPTIONS, false)}
+    ${selectField('dish_category', '料理類型', row.dish_category, DISH_OPTIONS, false)}
+    ${field('pot_size', '鍋子容量', row.pot_size, 'number')}
+    ${berryField('favorite_berry_1', '喜好樹果 1', row.favorite_berry_1)}
+    ${berryField('favorite_berry_2', '喜好樹果 2', row.favorite_berry_2)}
+    ${berryField('favorite_berry_3', '喜好樹果 3', row.favorite_berry_3)}
+    ${selectField('event_name', '活動名稱', row.event_name, EVENT_OPTIONS)}
+    ${area('event_effects', '活動效果', row.event_effects)}
+    ${area('base_notes', '基礎環境與假設', row.base_notes)}
+  </div><button type="submit">儲存本週環境</button></form>`;
+
+  document.getElementById('weeklyContextForm').onsubmit = async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.target);
+    const berries = ['favorite_berry_1', 'favorite_berry_2', 'favorite_berry_3'].map((key) => form.get(key)).filter(Boolean);
+    if (new Set(berries).size !== berries.length) return alert('三個喜好樹果不可重複');
+    const id = `week_${form.get('week_start') || 'current'}`;
+    await snapshot('manual:weekly-context');
+    run('INSERT OR REPLACE INTO weekly_context(context_id,week_start,camp,dish_category,favorite_berry_1,favorite_berry_2,favorite_berry_3,event_name,event_effects,pot_size,base_notes,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)', [
+      id, form.get('week_start') || '', form.get('camp') || '', form.get('dish_category') || '',
+      form.get('favorite_berry_1') || '', form.get('favorite_berry_2') || '', form.get('favorite_berry_3') || '',
+      form.get('event_name') || '', form.get('event_effects') || '', Number(form.get('pot_size')) || null,
+      form.get('base_notes') || '', now(),
+    ]);
+    await persist();
+    document.dispatchEvent(new CustomEvent('pokemon-sleep-data-refreshed'));
+    renderRecipeStrategyProjection();
+    alert('本週環境已儲存');
+  };
+}
+
