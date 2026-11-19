@@ -85,8 +85,19 @@ try{
   let stableBoot=false;
   for(let bootIndex=0;bootIndex<3;bootIndex++){
     const seed=await newTab();
-    const seeded=await inspect(seed);
     const boot=await seed.evaluate(()=>window.__g265Boot);
+    // G265 #892 post-merge recovery: production Public Event Master refresh can
+    // commit asynchronously after SQLite initialization returns. Complete the
+    // real authorized refresh and its durable IDB ACK in the isolated seed
+    // BEFORE either competing loaded tab exists. Do not normalize revisions,
+    // remove the actual stale-CAS checks, or bypass native storage admission.
+    const refresh=await seed.evaluate(async()=>{
+      const module=await import('/assets/js/public-event-master-bootstrap.js');
+      return module.refreshPublicEventMasterForCurrentWeek();
+    });
+    assert.ok(['UPDATED','UNCHANGED'].includes(refresh.status),
+      'G265_COLLECTION_SEED_PUBLIC_MASTER_REFRESH_NOT_ACKNOWLEDGED:'+JSON.stringify(refresh));
+    const seeded=await inspect(seed);
     assert.equal(seeded.hash,seeded.revision?.sha256,'G265_SEED_DURABLE_SHA');
     await seed.close();
     if(boot.boot_persist_skipped){stableBoot=true;break;}
