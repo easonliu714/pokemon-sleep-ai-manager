@@ -11,7 +11,11 @@ try{
     return text.includes('App 已就緒')||text.includes('救援／唯讀模式')||text.includes('初始化失敗');
   },null,{timeout:30000});
   const startup=(await page.locator('#dbStatus').textContent())||'';
-  assert.equal(startup,'App 已就緒',`retirement browser gate requires normal App Ready; observed=${startup}`);
+  // G265: keep the strict App Ready assertion; report the production
+  // startup error text on failure so a Native-admission regression can be
+  // distinguished from a transient ESM/CDN/bootstrap failure in the first CI.
+  const startupError=(await page.locator('#storageWarning').textContent().catch(()=>''))||'';
+  assert.equal(startup,'App 已就緒',`retirement browser gate requires normal App Ready; observed=${startup}; startup_error=${startupError}`);
 
   await page.evaluate(()=>{
     const section=document.getElementById('recipes');
