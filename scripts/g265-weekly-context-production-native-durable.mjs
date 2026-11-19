@@ -67,11 +67,18 @@ try{
   async function submit(page,week,notes){
     return page.evaluate(async({week,notes})=>{
       const form=document.getElementById('weeklyContextForm');
-      form.elements.namedItem('week_start').value=week;
+      // The real weekly-context authority intentionally disables week_start.
+      // A disabled control is absent from FormData; never re-enable it or
+      // bypass CURRENT_WEEK_EPOCH just to satisfy this disposable CAS fixture.
+      const weekField=form.elements.namedItem('week_start');
+      if(weekField.disabled&&weekField.dataset.authoritySource!=='CURRENT_WEEK_EPOCH')
+        throw Error('G265_WEEKLY_UNEXPECTED_DISABLED_EPOCH_AUTHORITY');
+      if(!weekField.disabled)weekField.value=week;
       form.elements.namedItem('base_notes').value=notes;
       const current=new FormData(form);
-      if(current.get('week_start')!==week||current.get('base_notes')!==notes)
-        throw Error('G265_WEEKLY_FORM_INPUT_NOT_APPLIED:'+JSON.stringify({requested:{week,notes},actual:{week:current.get('week_start'),notes:current.get('base_notes')},elementWeek:form.elements.namedItem('week_start').value,elementNotes:form.elements.namedItem('base_notes').value,weekOuterHTML:form.elements.namedItem('week_start').outerHTML,weekDisabled:form.elements.namedItem('week_start').disabled,weekFormId:form.elements.namedItem('week_start').form?.id,formTag:form.tagName,formKeys:[...current.keys()]}));
+      const submittedWeek=weekField.disabled?null:week;
+      if(current.get('week_start')!==submittedWeek||current.get('base_notes')!==notes)
+        throw Error('G265_WEEKLY_FORM_SUBMITTED_VALUES_UNEXPECTED:'+JSON.stringify({requested:{week,notes},submitted:{week:current.get('week_start'),notes:current.get('base_notes')},epochDisabled:weekField.disabled,epochAuthority:weekField.dataset.authoritySource,keys:[...current.keys()]}));
       const beforeAlerts=window.__g265WeeklyAlerts.length;
       try{
         await form.onsubmit({preventDefault(){},target:form});
