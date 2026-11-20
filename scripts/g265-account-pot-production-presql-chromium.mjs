@@ -235,12 +235,16 @@ try{
   const finished=await firstInFlight;
   assert.deepEqual(finished,{ok:true,value:75});
   assert.equal(inspect(await persisted(samePage)).pot[1],75);
+  const lastKnownAck=await durableState(samePage);
+  checkRevision(lastKnownAck,'same-page-ack');
+  assert.equal(lastKnownAck.generation,secondDurable.generation+1,
+    'G265_POT_SAME_PAGE_ACK_EXACT_GENERATION');
   console.log('PASS G265_861_PRODUCTION_SAME_PAGE_INFLIGHT_NO_SECOND_SQL');
 
   const lost=await tab();await install(lost);
   const beforeLostAck=await durableState(lost);
   checkRevision(beforeLostAck,'pre-lost-ack');
-  assert.deepEqual(beforeLostAck,secondDurable,'G265_POT_ACK_LOSS_SEED_REVISION');
+  assert.deepEqual(beforeLostAck,lastKnownAck,'G265_POT_ACK_LOSS_SEED_REVISION');
   await lost.evaluate(()=>{window.__pot.ackLoss=true;});
   const failure=await save(lost,80);
   assert.equal(failure.ok,false);
