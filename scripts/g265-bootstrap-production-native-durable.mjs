@@ -423,6 +423,151 @@ try {
     'G265_ABORT_FRESH_RELOAD_EXACT_ONE_DURABLE_MIGRATION_ACK');
   console.log('PASS G265_BOOTSTRAP_NATIVE_EXISTING_MIGRATION_REAL_IDB_ABORT_ATOMIC_ROLLBACK_STICKY_HOLD_FRESH_RECOVERY');
 
+
+  // G265 #861: separate from native transaction.abort(). A REAL native IDB
+  // transaction commits all three stores, but its completion notification is
+  // deliberately dropped and translated into an uncertain caller outcome.
+  // The injection never fakes a commit, bytes, revision, or Web Lock.
+  const lostAckFixture=await reader.evaluate(async()=>{
+    const idb=await new Promise((resolve,reject)=>{
+      const request=indexedDB.open('pokemon_sleep_ai_manager');
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>reject(request.error);
+    });
+    try{
+      const baseline=await new Promise((resolve,reject)=>{
+        const tx=idb.transaction(['database','metadata'],'readonly');
+        const bytes=tx.objectStore('database').get('primary');
+        const meta=tx.objectStore('metadata').get('primary');
+        const revision=tx.objectStore('metadata').get('revision:primary');
+        tx.oncomplete=()=>resolve({bytes:bytes.result,meta:meta.result,revision:revision.result});
+        tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+      });
+      if(!(baseline.bytes instanceof ArrayBuffer)||!Number.isSafeInteger(baseline.revision?.generation))
+        throw Error('G265_ACK_DROP_FIXTURE_REQUIRES_ATOMIC_EXISTING_PRIMARY');
+      const SQL=await window.initSqlJs();
+      const sqlite=new SQL.Database(new Uint8Array(baseline.bytes));
+      let bytes;
+      try{
+        const intact=sqlite.exec('SELECT COUNT(*) FROM schema_migrations WHERE version=11')[0]?.values[0][0];
+        const sentinel=sqlite.exec("SELECT species FROM collection_targets WHERE target_id='g265-legacy-sentinel'")[0]?.values[0][0];
+        if(intact!==1||sentinel!=='G265_LEGACY_PLAYER_ROW')
+          throw Error('G265_ACK_DROP_FIXTURE_PREVIOUS_MIGRATION_NOT_STABLE');
+        sqlite.run('DELETE FROM schema_migrations WHERE version=11');
+        bytes=sqlite.export();
+      }finally{sqlite.close();}
+      const raw=bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength);
+      const digest=new Uint8Array(await crypto.subtle.digest('SHA-256',raw));
+      const sha=Array.from(digest,n=>n.toString(16).padStart(2,'0')).join('');
+      const nextRevision={generation:baseline.revision.generation+1,sha256:sha};
+      const nextMeta={...baseline.meta,byte_length:raw.byteLength,updated_at:new Date().toISOString()};
+      await new Promise((resolve,reject)=>{
+        const tx=idb.transaction(['database','metadata'],'readwrite');
+        tx.objectStore('database').put(raw,'primary');
+        tx.objectStore('metadata').put(nextMeta,'primary');
+        tx.objectStore('metadata').put(nextRevision,'revision:primary');
+        tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+      });
+      return {revision:nextRevision,bytesLength:raw.byteLength};
+    }finally{idb.close();}
+  });
+
+  assert.ok(lostAckFixture.bytesLength>0,'G265_ACK_DROP_FIXTURE_EMPTY_SQLITE');
+  const lostAckPage=await makeTab();
+  await lostAckPage.evaluate(async()=>{
+    window.__g265LostAckObserved=false;
+    const nativeTransaction=IDBDatabase.prototype.transaction;
+    IDBDatabase.prototype.transaction=function(...args){
+      const tx=nativeTransaction.apply(this,args);
+      if(args[1]==='readwrite'&&Array.from(args[0]).includes('database')&&!window.__g265LostAckObserved){
+        // Preserve the native completion event and durable commit. Replace only
+        // the application completion callback, then invoke its error callback
+        // to model an ACK channel reporting uncertainty AFTER native commit.
+        Object.defineProperty(tx,'oncomplete',{
+          configurable:true,
+          set(callback){
+            if(typeof callback!=='function')throw Error('G265_ACK_DROP_NO_CALLBACK');
+            tx.addEventListener('complete',()=>{
+              window.__g265LostAckObserved=true;
+              if(typeof tx.onerror==='function')tx.onerror();
+            },{once:true});
+          },get(){return null;}
+        });
+      }
+      return tx;
+    };
+    const api=await import('/assets/js/database.js');
+    window.__g265LostAckApi=api;
+    window.__g265LostAckBootstrap=api.initializeDatabase().then(
+      status=>({ok:true,status}),
+      error=>({ok:false,code:error?.code||error?.message||String(error)})
+    );
+  });
+  await lostAckPage.waitForFunction(()=>window.__bootstrapEngineWaiting===true);
+  await lostAckPage.evaluate(()=>window.__releaseBootstrapEngine());
+  const lostAckResult=await lostAckPage.evaluate(async()=>{
+    const outcome=await window.__g265LostAckBootstrap;
+    const sqlBefore=window.__bootstrapSqlRuns;
+    let deniedDirect=null,deniedReload=null;
+    try{window.__g265LostAckApi.run('CREATE TABLE g265_forbidden_ack_retry(id INTEGER)');}
+    catch(error){deniedDirect=error.code||error.message;}
+    try{await window.__g265LostAckApi.initializeDatabase();}
+    catch(error){deniedReload=error.code||error.message;}
+    return {outcome,observed:window.__g265LostAckObserved,sqlBefore,
+      sqlAfter:window.__bootstrapSqlRuns,deniedDirect,deniedReload};
+  });
+  assert.equal(lostAckResult.observed,true,'G265_ACK_DROP_REAL_NATIVE_COMMIT_NOT_REACHED');
+  assert.equal(lostAckResult.outcome.ok,false,'G265_ACK_DROP_MUST_NOT_REPORT_SUCCESS');
+  assert.equal(lostAckResult.outcome.code,'SQLITE_PERSIST_UNCERTAIN_RELOAD_REQUIRED',
+    'G265_ACK_DROP_MUST_FAIL_CLOSED:'+JSON.stringify(lostAckResult));
+  assert.equal(lostAckResult.deniedDirect,'SQLITE_DIRECT_WRITE_UNVERIFIED_RELOAD_REQUIRED');
+  assert.equal(lostAckResult.deniedReload,'SQLITE_DIRECT_WRITE_UNVERIFIED_RELOAD_REQUIRED');
+  assert.equal(lostAckResult.sqlAfter,lostAckResult.sqlBefore,'G265_ACK_DROP_NO_BLIND_SQL_RETRY');
+  const ackDropDurable=await reader.evaluate(async()=>{
+    const idb=await new Promise((resolve,reject)=>{
+      const request=indexedDB.open('pokemon_sleep_ai_manager');
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>reject(request.error);
+    });
+    try{
+      const image=await new Promise((resolve,reject)=>{
+        const tx=idb.transaction(['database','metadata','snapshots'],'readonly');
+        const bytes=tx.objectStore('database').get('primary');
+        const revision=tx.objectStore('metadata').get('revision:primary');
+        const snapshots=tx.objectStore('snapshots').count();
+        tx.oncomplete=()=>resolve({bytes:bytes.result,revision:revision.result,snapshots:snapshots.result});
+        tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+      });
+      const digest=new Uint8Array(await crypto.subtle.digest('SHA-256',image.bytes));
+      const sha=Array.from(digest,n=>n.toString(16).padStart(2,'0')).join('');
+      const SQL=await window.initSqlJs();
+      const db=new SQL.Database(new Uint8Array(image.bytes));
+      try{return {sha,revision:image.revision,snapshots:image.snapshots,
+        marker:db.exec('SELECT COUNT(*) FROM schema_migrations WHERE version=11')[0]?.values[0][0],
+        sentinel:db.exec("SELECT species FROM collection_targets WHERE target_id='g265-legacy-sentinel'")[0]?.values[0][0]};}
+      finally{db.close();}
+    }finally{idb.close();}
+  });
+
+  assert.equal(ackDropDurable.marker,1,'G265_ACK_DROP_COMMITTED_MIGRATION_MUST_SURVIVE');
+  assert.equal(ackDropDurable.sentinel,'G265_LEGACY_PLAYER_ROW');
+  assert.equal(ackDropDurable.snapshots,0,'G265_ACK_DROP_NO_SNAPSHOT');
+  assert.equal(ackDropDurable.revision?.generation,lostAckFixture.revision.generation+1,
+    'G265_ACK_DROP_ONE_REAL_COMMITTED_REVISION');
+  assert.equal(ackDropDurable.sha,ackDropDurable.revision?.sha256,
+    'G265_ACK_DROP_REAL_BYTES_MATCH_DURABLE_SHA');
+  const acknowledgedReload=await makeTab();
+  await acknowledgedReload.evaluate(async()=>{
+    const api=await import('/assets/js/database.js');
+    window.__g265AckReload=api.initializeDatabase();
+  });
+  await acknowledgedReload.waitForFunction(()=>window.__bootstrapEngineWaiting===true);
+  await acknowledgedReload.evaluate(()=>window.__releaseBootstrapEngine());
+  const reloadOutcome=await acknowledgedReload.evaluate(async()=>await window.__g265AckReload);
+  assert.equal(reloadOutcome.restored,true,'G265_ACK_DROP_RELOAD_EXISTING_IMAGE');
+  assert.equal(reloadOutcome.boot_persist_skipped,true,'G265_ACK_DROP_RELOAD_NO_SECOND_PERSIST');
+  console.log('PASS G265_BOOTSTRAP_NATIVE_POSTCOMMIT_LOST_ACK_STICKY_HOLD_DURABLE_READBACK');
+
   console.log('PASS G265_BOOTSTRAP_PRODUCTION_NATIVE_FIRST_INSTALL_TWO_TAB_STALE_ZERO_SQL_ATOMIC_ACK_FRESH_RELOAD');
 }finally{
   await Promise.all(pages.map(p=>p.close().catch(()=>{})));
