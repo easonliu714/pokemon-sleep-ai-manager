@@ -1,3 +1,8 @@
+## 2026-11-20 G265 #861 — Draft #895 native IndexedDB transaction abort / existing migration
+
+- Previous #894 protected MERGED main `bca52a60045047503a2d4b893e005683359ac384` (new-main CI/Pages verified); do not reimplement #892/#893/#894. Single new [Draft #895](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/895), Source/Test `41910c529bbab2ec11938dcc6b221adc05420cad`, expands existing true Chromium native bootstrap regression with actual IDB `readwrite` abort during legacy Migration 11 persistence, exact-lease native Web Lock and post-failure sticky HOLD. Isolated synthetic sentinel, raw bytes/revision SHA CAS, no snapshot, no blind retry, new-tab recovery; no real Player DB writes.
+- Initial Source HEAD [Frontend 44654924084](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/44654924084) Step171 SUCCESS; five other PR workflows SUCCESS, Frontend whole job IN_PROGRESS at this writing. Governance commit changes HEAD; obtain final-head full 6/6 CI, protected expected-head merge, new-main 7/7 Push/Pages before CI_PASS or release claim. **Abort-before-ACK test is NOT a post-COMMIT lost-ACK proof.** #861 global Writer/Android HOLD, #796 RATE4 Apply OFF, #482 Manifest parity HOLD, #19 Live H1 HOLD, 78 ACTIVE + 3 non-ACTIVE recipes HOLD.
+
 ## 2026-11-20 G265 #861 — real restored-legacy bootstrap Migration native admission test | PR #894
 
 - **Prior closures:** #892 protected merged Bootstrap production pre-SQL fix; #893 protected merged Collection real Public Event durable ACK seed repair. Latest base main `9fd0d0af6c967720b75bf5789a3cb864465f938f`; do not reopen previously closed slices.
