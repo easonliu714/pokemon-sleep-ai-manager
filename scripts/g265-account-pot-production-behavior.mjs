@@ -10,7 +10,7 @@ assert.ok(start>=0&&end>start,'ACCOUNT_POT_PRODUCTION_FUNCTION_BOUNDARY_MISSING'
 const actual=source.slice(start,end);
 const current={week_start:'2026-11-16',authority_revision:'r1',authority_context_id:'import-1',pot_size:57,field_sources:{pot_size:'IMPORTED'}};
 const edit={needsAccountWrite:true,changed:true,source:'MANUAL_WEEKLY_CONTEXT_UI',value:60};
-async function scenario({authorityChanged=false,ackLost=false,leaseDenied=false,sqlWriteFails=false}={}){
+async function scenario({authorityChanged=false,ackLost=false,leaseDenied=false,sqlWriteFails=false,commitFails=false,snapshotFails=false}={}){
   const events=[];
   const admitted=authorityChanged?{...current,authority_revision:'r2'}:{...current};
   const ctx={
@@ -19,10 +19,10 @@ async function scenario({authorityChanged=false,ackLost=false,leaseDenied=false,
     currentWeeklyContext:()=>admitted,
     hasImportedAuthority:x=>x?.field_sources?.pot_size==='IMPORTED',
     typedValue:(_k,v)=>v,
-    snapshot:async()=>{events.push('snapshot');},
+    snapshot:async()=>{events.push('snapshot');if(snapshotFails)throw Error('SNAPSHOT_FAILED');},
     withSqliteCoordinatedMutation:fn=>typeof fn==='function'?fn():fn,
     begin:()=>events.push('begin'),
-    commit:()=>events.push('commit'),
+    commit:()=>{events.push('commit');if(commitFails)throw Error('SQL_COMMIT_FAILED');},
     rollback:()=>events.push('rollback'),
     writeAccountPotCapacity:()=>{events.push('write');if(sqlWriteFails)throw Error('SQL_WRITE_FAILED');},
     persist:async x=>{assert.equal(x.primaryMutationLease,'LEASE');events.push('persist');if(ackLost)throw Error('ACK_LOST_AFTER_COMMIT');}
@@ -50,5 +50,14 @@ assert.deepEqual(denied.events,['window','lease','close:true'],'lease denial mus
 const rolledBack=await scenario({sqlWriteFails:true});
 assert.match(rolledBack.error?.message??'',/SQL_WRITE_FAILED/);
 assert.deepEqual(rolledBack.events,['window','lease','snapshot','begin','write','rollback','close:true'],'failed SQL must rollback without persist');
+// A snapshot failure must not start SQL; a COMMIT failure must roll back
+// and must never claim durable success or invoke the IDB persist boundary.
+const snapshotDenied=await scenario({snapshotFails:true});
+assert.match(snapshotDenied.error?.message??'',/SNAPSHOT_FAILED/);
+assert.deepEqual(snapshotDenied.events,['window','lease','snapshot','close:true'],'snapshot rejection must be pre-SQL');
+const commitDenied=await scenario({commitFails:true});
+assert.match(commitDenied.error?.message??'',/SQL_COMMIT_FAILED/);
+assert.deepEqual(commitDenied.events,['window','lease','snapshot','begin','write','commit','rollback','close:true'],
+  'failed COMMIT must rollback without durable persist');
 console.log('PASS_G265_ACCOUNT_POT_REAL_PRODUCTION_FUNCTION_BEHAVIOR_NODE');
 console.log('HOLD_G265_NATIVE_CHROMIUM_IDB_DURABLE_ACK_NOT_VERIFIED');
