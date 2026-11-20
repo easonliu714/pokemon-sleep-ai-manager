@@ -23,3 +23,27 @@ assert.match(coordinator,/persist\(\{primaryMutationLease/,
 assert.match(coordinator,/blocked=true;throw uncertain\(cause\)/,
   'Postcommit ACK uncertainty must remain sticky fail-closed');
 console.log('PASS_G265_WEEKLY_ACTIVITY_NATIVE_ADMISSION_SOURCE_CONTRACT');
+
+
+// Behavioral negative-first: exercise the real coordinator, not a source-string
+// approximation. A denied native admission must leave snapshot/SQL/persist at zero.
+// The legacy coordinator currently has no admission dependency and will fail this
+// assertion; do not count this as a passing native Chromium or Android test.
+import {createSqliteWriteSessionCoordinator} from '../assets/js/sqlite-write-session-coordinator.js';
+const events=[];
+const coordinator=createSqliteWriteSessionCoordinator({
+  snapshot:async()=>{events.push('snapshot');},
+  begin:()=>{events.push('begin');},
+  commit:()=>{events.push('commit');},
+  rollback:()=>{events.push('rollback');},
+  persist:async()=>{events.push('persist');},
+  timeoutMs:30000
+});
+const result=await coordinator.execute({
+  reason:'negative-first: native admission denied',
+  mutate:()=>{events.push('sql-mutate');}
+}).then(()=>({accepted:true}),error=>({accepted:false,code:error?.code}));
+assert.equal(result.accepted,false,
+  'FAIL_NATIVE_LEASE_DENIAL: a missing/denied native lease must reject before snapshot');
+assert.deepEqual(events,[],
+  'FAIL_ZERO_PRE_SQL: denied admission must never snapshot, BEGIN, mutate, COMMIT or persist');
