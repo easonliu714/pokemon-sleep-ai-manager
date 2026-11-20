@@ -13,25 +13,6 @@ const coordinator=read('assets/js/sqlite-write-session-coordinator.js');
 // The legacy coordinator currently has no admission dependency and will fail this
 // assertion; do not count this as a passing native Chromium or Android test.
 import {createSqliteWriteSessionCoordinator} from '../assets/js/sqlite-write-session-coordinator.js';
-const events=[];
-const coordinator=createSqliteWriteSessionCoordinator({
-  snapshot:async()=>{events.push('snapshot');},
-  begin:()=>{events.push('begin');},
-  commit:()=>{events.push('commit');},
-  rollback:()=>{events.push('rollback');},
-  persist:async()=>{events.push('persist');},
-  timeoutMs:30000
-});
-const result=await coordinator.execute({
-  reason:'negative-first: native admission denied',
-  mutate:()=>{events.push('sql-mutate');}
-}).then(()=>({accepted:true}),error=>({accepted:false,code:error?.code}));
-assert.equal(result.accepted,false,
-  'FAIL_NATIVE_LEASE_DENIAL: a missing/denied native lease must reject before snapshot');
-assert.deepEqual(events,[],
-  'FAIL_ZERO_PRE_SQL: denied admission must never snapshot, BEGIN, mutate, COMMIT or persist');
-
-
 // Independent production-coordinator durable ACK-loss regression: a COMMIT can
 // have happened before persist rejects. Do not re-enter SQL on the same page.
 const ackEvents=[];
@@ -59,6 +40,46 @@ assert.deepEqual(second,{accepted:false,code:'SQLITE_WRITE_SESSION_UNVERIFIED_RE
 assert.deepEqual(ackEvents,beforeRetry,
   'Sticky uncertainty must reject same-page retry before snapshot/SQL/persist');
 console.log('PASS_G265_WEEKLY_ACTIVITY_POSTCOMMIT_ACK_LOSS_STICKY_NO_RETRY');
+
+// Negative-first SQL mutation failure: rollback must occur and no durable persist.
+// This checks the production coordinator's existing rollback contract independently
+// of the intentionally red native lease-admission assertion below.
+const rollbackEvents=[];
+const rollbackCoordinator=createSqliteWriteSessionCoordinator({
+  snapshot:async()=>{rollbackEvents.push('snapshot');},
+  begin:()=>{rollbackEvents.push('begin');},
+  commit:()=>{rollbackEvents.push('commit');},
+  rollback:()=>{rollbackEvents.push('rollback');},
+  persist:async()=>{rollbackEvents.push('persist');}
+});
+const rollbackResult=await rollbackCoordinator.execute({
+  reason:'disposable SQL mutation failure',
+  mutate:()=>{rollbackEvents.push('mutate');throw Object.assign(new Error('SQL_MUTATION_FAILED'),{code:'SQL_MUTATION_FAILED'});}
+}).then(()=>({accepted:true}),error=>({accepted:false,code:error?.code}));
+assert.deepEqual(rollbackResult,{accepted:false,code:'SQL_MUTATION_FAILED'});
+assert.deepEqual(rollbackEvents,['snapshot','begin','mutate','rollback'],
+  'SQL mutation failure must rollback without COMMIT or durable persist');
+console.log('PASS_G265_WEEKLY_ACTIVITY_SQL_MUTATION_ROLLBACK_NO_PERSIST');
+
+// Deliberately red native admission regression remains the release blocker.
+const events=[];
+const coordinator=createSqliteWriteSessionCoordinator({
+  snapshot:async()=>{events.push('snapshot');},
+  begin:()=>{events.push('begin');},
+  commit:()=>{events.push('commit');},
+  rollback:()=>{events.push('rollback');},
+  persist:async()=>{events.push('persist');},
+  timeoutMs:30000
+});
+const result=await coordinator.execute({
+  reason:'negative-first: native admission denied',
+  mutate:()=>{events.push('sql-mutate');}
+}).then(()=>({accepted:true}),error=>({accepted:false,code:error?.code}));
+assert.equal(result.accepted,false,
+  'FAIL_NATIVE_LEASE_DENIAL: a missing/denied native lease must reject before snapshot');
+assert.deepEqual(events,[],
+  'FAIL_ZERO_PRE_SQL: denied admission must never snapshot, BEGIN, mutate, COMMIT or persist');
+
 
 // Source contract runs after the executable denied-admission regression.
 assert.match(writer,/export async function saveWeeklyManualActivityBonus\(/,
