@@ -10,9 +10,14 @@ assert.ok(start>=0&&end>start,'ACCOUNT_POT_PRODUCTION_FUNCTION_BOUNDARY_MISSING'
 const actual=source.slice(start,end);
 const current={week_start:'2026-11-16',authority_revision:'r1',authority_context_id:'import-1',pot_size:57,field_sources:{pot_size:'IMPORTED'}};
 const edit={needsAccountWrite:true,changed:true,source:'MANUAL_WEEKLY_CONTEXT_UI',value:60};
-async function scenario({authorityChanged=false,ackLost=false,leaseDenied=false,sqlWriteFails=false,commitFails=false,snapshotFails=false}={}){
+async function scenario({authorityChanged=false,authorityField=null,invalidEditSource=false,ackLost=false,leaseDenied=false,sqlWriteFails=false,commitFails=false,snapshotFails=false}={}){
   const events=[];
   const admitted=authorityChanged?{...current,authority_revision:'r2'}:{...current};
+  if(authorityField==='context')admitted.authority_context_id='import-2';
+  if(authorityField==='week')admitted.week_start='2026-11-23';
+  if(authorityField==='pot')admitted.pot_size=58;
+  if(authorityField==='source')admitted.field_sources={pot_size:'MANUAL'};
+  const candidate=invalidEditSource?{...edit,source:'IMPORTED'}:edit;
   const ctx={
     beginSqliteExclusiveWriteWindow:()=>{events.push('window');return x=>events.push('close:'+x.uncertainOutcome);},
     withPrimarySqliteMutationLock:async fn=>{events.push('lease');if(leaseDenied)throw Error('NATIVE_LEASE_DENIED');return fn('LEASE');},
@@ -29,12 +34,22 @@ async function scenario({authorityChanged=false,ackLost=false,leaseDenied=false,
   };
   vm.runInNewContext(actual+'\nthis.productionSave=saveAccountPotCapacity;',ctx);
   let error=null;
-  try{await ctx.productionSave(edit,current);}catch(e){error=e;}
+  try{await ctx.productionSave(candidate,current);}catch(e){error=e;}
   return {events,error};
 }
 const stale=await scenario({authorityChanged:true});
 assert.match(stale.error?.message??'',/ACCOUNT_POT_IMPORTED_AUTHORITY_RELOAD_REQUIRED/);
 assert.deepEqual(stale.events,['window','lease','close:true'],'stale imported authority must cause zero SQL');
+// Regression: every imported-authority identity dimension and edit-source provenance
+// must be revalidated under the native lease BEFORE snapshot or SQL, not just revision.
+for(const field of ['context','week','pot','source']){
+  const mismatch=await scenario({authorityField:field});
+  assert.match(mismatch.error?.message??'',/ACCOUNT_POT_IMPORTED_AUTHORITY_RELOAD_REQUIRED/,`authority ${field} must reject`);
+  assert.deepEqual(mismatch.events,['window','lease','close:true'],`authority ${field} must be zero SQL`);
+}
+const wrongSource=await scenario({invalidEditSource:true});
+assert.match(wrongSource.error?.message??'',/ACCOUNT_POT_EDIT_SOURCE_RELOAD_REQUIRED/);
+assert.deepEqual(wrongSource.events,['window','lease','close:true'],'wrong edit provenance must be zero SQL');
 const normal=await scenario();
 assert.equal(normal.error,null);
 assert.deepEqual(normal.events,['window','lease','snapshot','begin','write','commit','persist','close:false']);
