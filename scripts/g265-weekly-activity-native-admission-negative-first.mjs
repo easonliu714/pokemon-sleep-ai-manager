@@ -31,6 +31,35 @@ assert.equal(result.accepted,false,
 assert.deepEqual(events,[],
   'FAIL_ZERO_PRE_SQL: denied admission must never snapshot, BEGIN, mutate, COMMIT or persist');
 
+
+// Independent production-coordinator durable ACK-loss regression: a COMMIT can
+// have happened before persist rejects. Do not re-enter SQL on the same page.
+const ackEvents=[];
+const ackCoordinator=createSqliteWriteSessionCoordinator({
+  snapshot:async()=>{ackEvents.push('snapshot');},
+  begin:()=>{ackEvents.push('begin');},
+  commit:()=>{ackEvents.push('commit');},
+  rollback:()=>{ackEvents.push('rollback');},
+  persist:async()=>{ackEvents.push('persist');throw Object.assign(new Error('ACK_DROPPED'),{code:'ACK_DROPPED'});},
+  timeoutMs:30000
+});
+const first=await ackCoordinator.execute({
+  reason:'disposable postcommit ACK loss',
+  mutate:()=>{ackEvents.push('sql-mutate');}
+}).then(()=>({accepted:true}),error=>({accepted:false,code:error?.code}));
+assert.deepEqual(first,{accepted:false,code:'SQLITE_WRITE_SESSION_UNVERIFIED_RELOAD_REQUIRED'},
+  'COMMIT followed by missing durable ACK must be uncertain, not success');
+assert.equal(ackCoordinator.status().status,'UNVERIFIED_RELOAD_REQUIRED');
+const beforeRetry=ackEvents.slice();
+const second=await ackCoordinator.execute({
+  reason:'same-page retry must be denied',
+  mutate:()=>{ackEvents.push('forbidden-retry-sql');}
+}).then(()=>({accepted:true}),error=>({accepted:false,code:error?.code}));
+assert.deepEqual(second,{accepted:false,code:'SQLITE_WRITE_SESSION_UNVERIFIED_RELOAD_REQUIRED'});
+assert.deepEqual(ackEvents,beforeRetry,
+  'Sticky uncertainty must reject same-page retry before snapshot/SQL/persist');
+console.log('PASS_G265_WEEKLY_ACTIVITY_POSTCOMMIT_ACK_LOSS_STICKY_NO_RETRY');
+
 // Source contract runs after the executable denied-admission regression.
 assert.match(writer,/export async function saveWeeklyManualActivityBonus\(/,
   'The exact production named writer must remain the test target');
