@@ -80,6 +80,35 @@ assert.deepEqual(snapshotEvents,['snapshot'],
   'Snapshot failure must never enter SQL or durable persist');
 console.log('PASS_G265_WEEKLY_ACTIVITY_SNAPSHOT_FAILURE_ZERO_SQL');
 
+// G265 negative-first async mutation containment: a thenable SQL mutation can
+// continue after rollback. Production must stickily quarantine this page and
+// never allow a second snapshot, SQL transaction or durable persist.
+const thenableEvents=[];
+const thenableCoordinator=createSqliteWriteSessionCoordinator({
+  snapshot:async()=>{thenableEvents.push('snapshot');},
+  begin:()=>{thenableEvents.push('begin');},
+  commit:()=>{thenableEvents.push('commit');},
+  rollback:()=>{thenableEvents.push('rollback');},
+  persist:async()=>{thenableEvents.push('persist');}
+});
+const thenableFirst=await thenableCoordinator.execute({
+  reason:'disposable thenable mutation containment',
+  mutate:()=>{thenableEvents.push('mutate');return Promise.resolve('late');}
+}).then(()=>({accepted:true}),error=>({accepted:false,code:error?.code}));
+assert.deepEqual(thenableFirst,{accepted:false,code:'SQLITE_WRITE_SESSION_UNVERIFIED_RELOAD_REQUIRED'});
+assert.deepEqual(thenableEvents,['snapshot','begin','mutate','rollback'],
+  'Thenable mutation must rollback, never COMMIT or persist');
+assert.equal(thenableCoordinator.status().status,'UNVERIFIED_RELOAD_REQUIRED');
+const thenableBeforeRetry=thenableEvents.slice();
+const thenableSecond=await thenableCoordinator.execute({
+  reason:'forbidden second mutation after thenable',
+  mutate:()=>{thenableEvents.push('forbidden-mutate');}
+}).then(()=>({accepted:true}),error=>({accepted:false,code:error?.code}));
+assert.deepEqual(thenableSecond,{accepted:false,code:'SQLITE_WRITE_SESSION_UNVERIFIED_RELOAD_REQUIRED'});
+assert.deepEqual(thenableEvents,thenableBeforeRetry,
+  'Unsafe thenable must block all same-page retry work before snapshot');
+console.log('PASS_G265_WEEKLY_ACTIVITY_THENABLE_MUTATION_STICKY_ZERO_RETRY');
+
 // Deliberately red native admission regression remains the release blocker.
 const events=[];
 const coordinator=createSqliteWriteSessionCoordinator({
