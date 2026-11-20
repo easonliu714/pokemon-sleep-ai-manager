@@ -1,3 +1,8 @@
+## 2026-11-20 G265 #861 / PR #896 — native committed-but-ACK-lost migration
+
+- Unique [Draft PR #896](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/896) from main `29318da4056959102cf06a2a4409be5e6084e89b`; executable test HEAD `44c63e9de2eaec92318465b359072e565b735835`. Genuine Chromium/SQL.js/IDB native transaction COMMIT with application ACK dropped; independent SHA/revision/sentinel/migration-marker readback and fresh reload, same-page sticky no-blind-retry. Not #895 abort or #894 normal ACK.
+- [Frontend 44664367808](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/44664367808) Job `136049957052` Step171 SUCCESS; all 6/6 required PR runs successful on test HEAD. This governance change requires NEW exact final-head CI; protected merge/new-main CI/Pages NOT_VERIFIED. Global #861/Android UAT OPEN; RATE4 Apply OFF, #482/#479 and official Live H1 unresolved. No real player DB mutation.
+
 ## 2026-11-20 G265 #861 — Draft #895 native IndexedDB transaction abort / existing migration
 
 - Previous #894 protected MERGED main `bca52a60045047503a2d4b893e005683359ac384` (new-main CI/Pages verified); do not reimplement #892/#893/#894. Single new [Draft #895](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/895), Source/Test `41910c529bbab2ec11938dcc6b221adc05420cad`, expands existing true Chromium native bootstrap regression with actual IDB `readwrite` abort during legacy Migration 11 persistence, exact-lease native Web Lock and post-failure sticky HOLD. Isolated synthetic sentinel, raw bytes/revision SHA CAS, no snapshot, no blind retry, new-tab recovery; no real Player DB writes.
