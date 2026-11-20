@@ -115,6 +115,34 @@ async function install(page){
 const save=(page,value,opts={})=>page.evaluate(([n,o])=>window.__pot.save(n,o),[value,opts]);
 const persisted=page=>page.evaluate(async()=>Array.from(new Uint8Array(
   await window.__pot.storage.loadDatabaseBytes())));
+// G265 #861: independent native IDB readback (not a storage.js binding/cache).
+// Assert the atomic primary bytes+revision SHA and snapshot count at every
+// ACK/stale/unknown-ACK boundary; no fake ACK or player storage is involved.
+const durableState=page=>page.evaluate(async()=>{
+  const db=await new Promise((resolve,reject)=>{
+    const req=indexedDB.open('pokemon_sleep_ai_manager');
+    req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+  });
+  try{
+    const state=await new Promise((resolve,reject)=>{
+      const tx=db.transaction(['database','metadata','snapshots'],'readonly');
+      const raw=tx.objectStore('database').get('primary');
+      const revision=tx.objectStore('metadata').get('revision:primary');
+      const snapshots=tx.objectStore('snapshots').count();
+      tx.oncomplete=()=>resolve({bytes:raw.result,revision:revision.result,snapshots:snapshots.result});
+      tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+    });
+    if(!(state.bytes instanceof ArrayBuffer))throw Error('G265_POT_NATIVE_PRIMARY_BYTES_MISSING');
+    const digest=new Uint8Array(await crypto.subtle.digest('SHA-256',state.bytes));
+    const sha=Array.from(digest,b=>b.toString(16).padStart(2,'0')).join('');
+    return {sha,generation:state.revision?.generation,revisionSha:state.revision?.sha256,
+      snapshots:state.snapshots,byteLength:state.bytes.byteLength};
+  }finally{db.close();}
+});
+const checkRevision=(state,label)=>{
+  assert.equal(state.sha,state.revisionSha,'G265_POT_NATIVE_IDB_SHA_MISMATCH:'+label);
+  assert.ok(Number.isSafeInteger(state.generation),'G265_POT_NATIVE_GENERATION_MISSING:'+label);
+};
 function inspect(bytes){
   const sql=new SQL.Database(Uint8Array.from(bytes));
   try{
@@ -130,11 +158,17 @@ try{
     await s.saveDatabaseBytes(Uint8Array.from(data));
   },seed);
   await install(a);
+  const initialDurable=await durableState(a);
+  checkRevision(initialDurable,'seed');
   const b=await tab();await install(b);
   assert.equal(await a.evaluate(()=>typeof navigator.locks?.request),'function');
   const first=await save(a,55);
   assert.deepEqual(first,{ok:true,value:55});
   assert.equal(inspect(await persisted(a)).pot[1],55);
+  const firstDurable=await durableState(a);
+  checkRevision(firstDurable,'first-ack');
+  assert.equal(firstDurable.generation,initialDurable.generation+1,'G265_POT_FIRST_ACK_ONCE');
+  assert.equal(firstDurable.snapshots,initialDurable.snapshots+1,'G265_POT_FIRST_ACK_SNAPSHOT_ONCE');
   const stale=await save(b,70);
   assert.equal(stale.ok,false,JSON.stringify(stale));
   assert.match(stale.code,/STALE_REVISION_RELOAD_REQUIRED/);
@@ -143,7 +177,10 @@ try{
     persistCount:window.__pot.persistCount})),
     {snapshots:0,sqlWrites:0,persistCount:0});
   assert.equal(inspect(await persisted(a)).pot[1],55);
-  console.log('PASS G265_861_PRODUCTION_NATIVE_TWO_TAB_STALE_ZERO_SQL_ZERO_SNAPSHOT');
+  const staleDurable=await durableState(b);
+  checkRevision(staleDurable,'stale-denied');
+  assert.deepEqual(staleDurable,firstDurable,'G265_POT_STALE_MUST_NOT_ADVANCE_IDB_GENERATION_OR_SNAPSHOTS');
+  console.log('PASS G265_861_PRODUCTION_NATIVE_TWO_TAB_STALE_ZERO_SQL_ZERO_SNAPSHOT_SHA_REVISION');
 
   const changed=await tab();await install(changed);
   const wrongContext={authority_revision:'UNRELATED_REV',authority_context_id:'synthetic_import',
@@ -157,6 +194,10 @@ try{
   const fresh=await tab();await install(fresh);
   const second=await save(fresh,70);
   assert.deepEqual(second,{ok:true,value:70});
+  const secondDurable=await durableState(fresh);
+  checkRevision(secondDurable,'second-ack');
+  assert.equal(secondDurable.generation,firstDurable.generation+1,'G265_POT_SECOND_ACK_EXACT_GENERATION');
+  assert.equal(secondDurable.snapshots,firstDurable.snapshots+1,'G265_POT_SECOND_ACK_SNAPSHOT_ONCE');
   const durable=inspect(await persisted(fresh));
   assert.deepEqual(durable.pot,['pot',70,7,'MANUAL_WEEKLY_CONTEXT_UI']);
   assert.deepEqual(durable.unrelated,['unrelated',123,2,'UNRELATED']);
@@ -194,21 +235,47 @@ try{
   const finished=await firstInFlight;
   assert.deepEqual(finished,{ok:true,value:75});
   assert.equal(inspect(await persisted(samePage)).pot[1],75);
+  const lastKnownAck=await durableState(samePage);
+  checkRevision(lastKnownAck,'same-page-ack');
+  assert.equal(lastKnownAck.generation,secondDurable.generation+1,
+    'G265_POT_SAME_PAGE_ACK_EXACT_GENERATION');
   console.log('PASS G265_861_PRODUCTION_SAME_PAGE_INFLIGHT_NO_SECOND_SQL');
 
   const lost=await tab();await install(lost);
+  const beforeLostAck=await durableState(lost);
+  checkRevision(beforeLostAck,'pre-lost-ack');
+  assert.deepEqual(beforeLostAck,lastKnownAck,'G265_POT_ACK_LOSS_SEED_REVISION');
   await lost.evaluate(()=>{window.__pot.ackLoss=true;});
   const failure=await save(lost,80);
   assert.equal(failure.ok,false);
   assert.equal(failure.code,'SYNTHETIC_POT_ACK_LOST_AFTER_SAVE');
+  const committedUnknownAck=await durableState(lost);
+  checkRevision(committedUnknownAck,'committed-lost-ack');
+  assert.equal(committedUnknownAck.generation,beforeLostAck.generation+1,
+    'G265_POT_LOST_ACK_COMMIT_MUST_ADVANCE_ONCE');
+  assert.equal(committedUnknownAck.snapshots,beforeLostAck.snapshots+1,
+    'G265_POT_LOST_ACK_SNAPSHOT_ONCE');
+  assert.notEqual(committedUnknownAck.sha,beforeLostAck.sha,
+    'G265_POT_LOST_ACK_COMMIT_MUST_CHANGE_DURABLE_BYTES');
+  const preRetryCounters=await lost.evaluate(()=>({persist:window.__pot.persistCount,
+    snapshots:window.__pot.snapshots,sql:window.__pot.sqlWrites}));
   const retry=await save(lost,90);
   assert.equal(retry.ok,false);
   assert.match(retry.code,/UNVERIFIED_RELOAD_REQUIRED/);
-  assert.equal(await lost.evaluate(()=>window.__pot.persistCount),1);
+  assert.deepEqual(await lost.evaluate(()=>({persist:window.__pot.persistCount,
+    snapshots:window.__pot.snapshots,sql:window.__pot.sqlWrites})),
+    preRetryCounters,'G265_POT_UNKNOWN_ACK_RETRY_MUST_DENY_PRE_SNAPSHOT_SQL');
+  assert.equal(preRetryCounters.persist,1,'G265_POT_UNKNOWN_ACK_ONE_PERSIST_ATTEMPT');
+  assert.deepEqual(await durableState(lost),committedUnknownAck,
+    'G265_POT_UNKNOWN_ACK_RETRY_MUST_NOT_ADVANCE_DURABLE_REVISION');
   const reloaded=await tab();await install(reloaded);
   assert.equal(inspect(await persisted(reloaded)).pot[1],80);
   assert.deepEqual(inspect(await persisted(reloaded)).unrelated,durable.unrelated);
-  console.log('PASS G265_861_PRODUCTION_ACK_LOSS_STICKY_HOLD_FRESH_RELOAD');
+  const freshAckReadback=await durableState(reloaded);
+  checkRevision(freshAckReadback,'ack-loss-fresh-readback');
+  assert.deepEqual(freshAckReadback,committedUnknownAck,
+    'G265_POT_UNKNOWN_ACK_FRESH_RELOAD_MUST_KEEP_EXACT_COMMITTED_SHA_GENERATION');
+  console.log('PASS G265_861_PRODUCTION_ACK_LOSS_STICKY_HOLD_FRESH_RELOAD_SHA_REVISION_NO_RETRY');
 }finally{
   for(const p of pages)if(!p.isClosed())await p.close();
   await context.close();await browser.close();

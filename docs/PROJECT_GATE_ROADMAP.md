@@ -1,3 +1,9 @@
+## 2026-11-20 G265 #861 — PR #897 Account Pot native durable SHA/revision and sticky HOLD
+
+- Unique [Draft #897](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/897), base protected main `904374575bab243b89f2a21bc3cdc20dd17f32ac`, production `saveAccountPotCapacity()` unchanged. Existing Node behavior regression head `42200b43454d964de89720f5cc90751c9ba27cb8` 6/6 PR CI SUCCESS. New test-only commits `00e352d092a0a7240d6ecee3446eb4e0eba029b1` / `23f9fdf5fc6b4998be26ed3b09ab785e1fd4bbcf` strengthen real Chromium two-tab native IDB SHA+generation/snapshot readback for accepted ACK, stale zero-SQL denial, postcommit ACK-loss sticky no-blind-retry and independent fresh reload; no Player SQLite touched.
+- Latest native test HEAD `23f9fdf5fc6b4998be26ed3b09ab785e1fd4bbcf`: Frontend [44727163131](https://github.com/easonliu714/pokemon-sleep-ai-manager/actions/runs/44727163131) was IN_PROGRESS while 5 other required PR workflows SUCCESS. New governance commits invalidate earlier-head CI; final-head complete CI, protected merge and new-main Push/Pages NOT_VERIFIED until independent proof.
+- #892–#896 already protected MERGED, do not recreate. #861 global all-writer+Android OPEN; #796 RATE4 Apply OFF, #482 Owner old Backup Manifest SHA/count missing, #479 Android triage, #19 official Live H1 and 78 ACTIVE+3 candidate recipes HOLD. Keep UNKNOWN≠0, Raw immutable, WebLocks/atomic IDB SHA+generation/CAS/sticky unknown ACK.
+
 ## 2026-11-20 G265 #861 / PR #896 — native committed-but-ACK-lost migration
 
 - Unique [Draft PR #896](https://github.com/easonliu714/pokemon-sleep-ai-manager/pull/896) from main `29318da4056959102cf06a2a4409be5e6084e89b`; executable test HEAD `44c63e9de2eaec92318465b359072e565b735835`. Genuine Chromium/SQL.js/IDB native transaction COMMIT with application ACK dropped; independent SHA/revision/sentinel/migration-marker readback and fresh reload, same-page sticky no-blind-retry. Not #895 abort or #894 normal ACK.
