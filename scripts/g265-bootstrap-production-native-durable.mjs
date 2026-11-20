@@ -566,6 +566,41 @@ try {
   const reloadOutcome=await acknowledgedReload.evaluate(async()=>await window.__g265AckReload);
   assert.equal(reloadOutcome.restored,true,'G265_ACK_DROP_RELOAD_EXISTING_IMAGE');
   assert.equal(reloadOutcome.boot_persist_skipped,true,'G265_ACK_DROP_RELOAD_NO_SECOND_PERSIST');
+
+  // Independent readback AFTER the fresh reload: no silent second write,
+  // no rollback of the committed migration, and exact durable SHA/revision.
+  const reloadDurable=await reader.evaluate(async()=>{
+    const idb=await new Promise((resolve,reject)=>{
+      const request=indexedDB.open('pokemon_sleep_ai_manager');
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>reject(request.error);
+    });
+    try{
+      const image=await new Promise((resolve,reject)=>{
+        const tx=idb.transaction(['database','metadata'],'readonly');
+        const bytes=tx.objectStore('database').get('primary');
+        const revision=tx.objectStore('metadata').get('revision:primary');
+        tx.oncomplete=()=>resolve({bytes:bytes.result,revision:revision.result});
+        tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+      });
+      const digest=new Uint8Array(await crypto.subtle.digest('SHA-256',image.bytes));
+      const sha=Array.from(digest,n=>n.toString(16).padStart(2,'0')).join('');
+      const SQL=await window.initSqlJs();
+      const db=new SQL.Database(new Uint8Array(image.bytes));
+      try{return {sha,revision:image.revision,
+        marker:db.exec('SELECT COUNT(*) FROM schema_migrations WHERE version=11')[0]?.values[0][0],
+        sentinel:db.exec("SELECT species FROM collection_targets WHERE target_id='g265-legacy-sentinel'")[0]?.values[0][0]};}
+      finally{db.close();}
+    }finally{idb.close();}
+  });
+  assert.deepEqual(reloadDurable.revision,ackDropDurable.revision,
+    'G265_ACK_DROP_RELOAD_MUST_NOT_ADVANCE_DURABLE_REVISION');
+  assert.equal(reloadDurable.sha,ackDropDurable.sha,
+    'G265_ACK_DROP_RELOAD_MUST_PRESERVE_COMMITTED_SHA');
+  assert.equal(reloadDurable.marker,1,'G265_ACK_DROP_RELOAD_MIGRATION_MARKER_PRESERVED');
+  assert.equal(reloadDurable.sentinel,'G265_LEGACY_PLAYER_ROW',
+    'G265_ACK_DROP_RELOAD_PLAYER_SENTINEL_PRESERVED');
+
   console.log('PASS G265_BOOTSTRAP_NATIVE_POSTCOMMIT_LOST_ACK_STICKY_HOLD_DURABLE_READBACK');
 
   console.log('PASS G265_BOOTSTRAP_PRODUCTION_NATIVE_FIRST_INSTALL_TWO_TAB_STALE_ZERO_SQL_ATOMIC_ACK_FRESH_RELOAD');
