@@ -10,8 +10,9 @@ assert.ok(start>=0&&end>start,'ACCOUNT_POT_PRODUCTION_FUNCTION_BOUNDARY_MISSING'
 const actual=source.slice(start,end);
 const current={week_start:'2026-11-16',authority_revision:'r1',authority_context_id:'import-1',pot_size:57,field_sources:{pot_size:'IMPORTED'}};
 const edit={needsAccountWrite:true,changed:true,source:'MANUAL_WEEKLY_CONTEXT_UI',value:60};
-async function scenario({authorityChanged=false,authorityField=null,invalidEditSource=false,ackLost=false,leaseDenied=false,sqlWriteFails=false,commitFails=false,snapshotFails=false}={}){
+async function scenario({authorityChanged=false,authorityField=null,invalidEditSource=false,ackLost=false,leaseDenied=false,sqlWriteFails=false,commitFails=false,snapshotFails=false,retryAfterAckLoss=false}={}){
   const events=[];
+  let sticky=false;
   const admitted=authorityChanged?{...current,authority_revision:'r2'}:{...current};
   if(authorityField==='context')admitted.authority_context_id='import-2';
   if(authorityField==='week')admitted.week_start='2026-11-23';
@@ -19,7 +20,7 @@ async function scenario({authorityChanged=false,authorityField=null,invalidEditS
   if(authorityField==='source')admitted.field_sources={pot_size:'MANUAL'};
   const candidate=invalidEditSource?{...edit,source:'IMPORTED'}:edit;
   const ctx={
-    beginSqliteExclusiveWriteWindow:()=>{events.push('window');return x=>events.push('close:'+x.uncertainOutcome);},
+    beginSqliteExclusiveWriteWindow:()=>{if(sticky)throw Error('SQLITE_PERSIST_UNCERTAIN_RELOAD_REQUIRED');events.push('window');return x=>{events.push('close:'+x.uncertainOutcome);if(x.uncertainOutcome)sticky=true;};},
     withPrimarySqliteMutationLock:async fn=>{events.push('lease');if(leaseDenied)throw Error('NATIVE_LEASE_DENIED');return fn('LEASE');},
     currentWeeklyContext:()=>admitted,
     hasImportedAuthority:x=>x?.field_sources?.pot_size==='IMPORTED',
@@ -35,7 +36,12 @@ async function scenario({authorityChanged=false,authorityField=null,invalidEditS
   vm.runInNewContext(actual+'\nthis.productionSave=saveAccountPotCapacity;',ctx);
   let error=null;
   try{await ctx.productionSave(candidate,current);}catch(e){error=e;}
-  return {events,error};
+  let retryError=null;
+  if(retryAfterAckLoss){
+    // The same page must reject a second attempt before native lease, snapshot or SQL.
+    try{await ctx.productionSave(candidate,current);}catch(e){retryError=e;}
+  }
+  return {events,error,retryError};
 }
 const stale=await scenario({authorityChanged:true});
 assert.match(stale.error?.message??'',/ACCOUNT_POT_IMPORTED_AUTHORITY_RELOAD_REQUIRED/);
@@ -53,10 +59,13 @@ assert.deepEqual(wrongSource.events,['window','lease','close:true'],'wrong edit 
 const normal=await scenario();
 assert.equal(normal.error,null);
 assert.deepEqual(normal.events,['window','lease','snapshot','begin','write','commit','persist','close:false']);
-const lost=await scenario({ackLost:true});
+const lost=await scenario({ackLost:true,retryAfterAckLoss:true});
 assert.match(lost.error?.message??'',/ACK_LOST_AFTER_COMMIT/);
 assert.deepEqual(lost.events,['window','lease','snapshot','begin','write','commit','persist','close:true']);
 assert.equal(lost.events.filter(x=>x==='persist').length,1,'never blind retry uncertain ACK');
+assert.match(lost.retryError?.message??'',/SQLITE_PERSIST_UNCERTAIN_RELOAD_REQUIRED/);
+assert.deepEqual(lost.events,['window','lease','snapshot','begin','write','commit','persist','close:true'],
+  'same-page retry after ACK loss must be denied before lease/snapshot/SQL');
 // Negative-first: denial must precede snapshot/SQL, and a failed SQL write must
 // roll back its open transaction without issuing a durable persist.
 const denied=await scenario({leaseDenied:true});
