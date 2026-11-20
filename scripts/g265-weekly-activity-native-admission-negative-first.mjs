@@ -61,6 +61,25 @@ assert.deepEqual(rollbackEvents,['snapshot','begin','mutate','rollback'],
   'SQL mutation failure must rollback without COMMIT or durable persist');
 console.log('PASS_G265_WEEKLY_ACTIVITY_SQL_MUTATION_ROLLBACK_NO_PERSIST');
 
+// Negative-first snapshot rejection: a failed pre-SQL snapshot must not BEGIN,
+// mutate, COMMIT, or persist. Keep this independent of the native admission red gate.
+const snapshotEvents=[];
+const snapshotCoordinator=createSqliteWriteSessionCoordinator({
+  snapshot:async()=>{snapshotEvents.push('snapshot');throw Object.assign(new Error('SNAPSHOT_DENIED'),{code:'SNAPSHOT_DENIED'});},
+  begin:()=>{snapshotEvents.push('begin');},
+  commit:()=>{snapshotEvents.push('commit');},
+  rollback:()=>{snapshotEvents.push('rollback');},
+  persist:async()=>{snapshotEvents.push('persist');}
+});
+const snapshotResult=await snapshotCoordinator.execute({
+  reason:'disposable snapshot failure before SQL',
+  mutate:()=>{snapshotEvents.push('sql-mutate');}
+}).then(()=>({accepted:true}),error=>({accepted:false,code:error?.code}));
+assert.deepEqual(snapshotResult,{accepted:false,code:'SNAPSHOT_DENIED'});
+assert.deepEqual(snapshotEvents,['snapshot'],
+  'Snapshot failure must never enter SQL or durable persist');
+console.log('PASS_G265_WEEKLY_ACTIVITY_SNAPSHOT_FAILURE_ZERO_SQL');
+
 // Deliberately red native admission regression remains the release blocker.
 const events=[];
 const coordinator=createSqliteWriteSessionCoordinator({
