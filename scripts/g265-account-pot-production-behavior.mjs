@@ -10,12 +10,12 @@ assert.ok(start>=0&&end>start,'ACCOUNT_POT_PRODUCTION_FUNCTION_BOUNDARY_MISSING'
 const actual=source.slice(start,end);
 const current={week_start:'2026-11-16',authority_revision:'r1',authority_context_id:'import-1',pot_size:57,field_sources:{pot_size:'IMPORTED'}};
 const edit={needsAccountWrite:true,changed:true,source:'MANUAL_WEEKLY_CONTEXT_UI',value:60};
-async function scenario({authorityChanged=false,ackLost=false}={}){
+async function scenario({authorityChanged=false,ackLost=false,leaseDenied=false,sqlWriteFails=false}={}){
   const events=[];
   const admitted=authorityChanged?{...current,authority_revision:'r2'}:{...current};
   const ctx={
     beginSqliteExclusiveWriteWindow:()=>{events.push('window');return x=>events.push('close:'+x.uncertainOutcome);},
-    withPrimarySqliteMutationLock:async fn=>{events.push('lease');return fn('LEASE');},
+    withPrimarySqliteMutationLock:async fn=>{events.push('lease');if(leaseDenied)throw Error('NATIVE_LEASE_DENIED');return fn('LEASE');},
     currentWeeklyContext:()=>admitted,
     hasImportedAuthority:x=>x?.field_sources?.pot_size==='IMPORTED',
     typedValue:(_k,v)=>v,
@@ -24,7 +24,7 @@ async function scenario({authorityChanged=false,ackLost=false}={}){
     begin:()=>events.push('begin'),
     commit:()=>events.push('commit'),
     rollback:()=>events.push('rollback'),
-    writeAccountPotCapacity:()=>events.push('write'),
+    writeAccountPotCapacity:()=>{events.push('write');if(sqlWriteFails)throw Error('SQL_WRITE_FAILED');},
     persist:async x=>{assert.equal(x.primaryMutationLease,'LEASE');events.push('persist');if(ackLost)throw Error('ACK_LOST_AFTER_COMMIT');}
   };
   vm.runInNewContext(actual+'\nthis.productionSave=saveAccountPotCapacity;',ctx);
@@ -42,5 +42,13 @@ const lost=await scenario({ackLost:true});
 assert.match(lost.error?.message??'',/ACK_LOST_AFTER_COMMIT/);
 assert.deepEqual(lost.events,['window','lease','snapshot','begin','write','commit','persist','close:true']);
 assert.equal(lost.events.filter(x=>x==='persist').length,1,'never blind retry uncertain ACK');
+// Negative-first: denial must precede snapshot/SQL, and a failed SQL write must
+// roll back its open transaction without issuing a durable persist.
+const denied=await scenario({leaseDenied:true});
+assert.match(denied.error?.message??'',/NATIVE_LEASE_DENIED/);
+assert.deepEqual(denied.events,['window','lease','close:true'],'lease denial must be zero SQL');
+const rolledBack=await scenario({sqlWriteFails:true});
+assert.match(rolledBack.error?.message??'',/SQL_WRITE_FAILED/);
+assert.deepEqual(rolledBack.events,['window','lease','snapshot','begin','write','rollback','close:true'],'failed SQL must rollback without persist');
 console.log('PASS_G265_ACCOUNT_POT_REAL_PRODUCTION_FUNCTION_BEHAVIOR_NODE');
 console.log('HOLD_G265_NATIVE_CHROMIUM_IDB_DURABLE_ACK_NOT_VERIFIED');
