@@ -8,23 +8,6 @@ const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const writer=read('assets/js/weekly-manual-activity-bonuses.js');
 const runtime=read('assets/js/sqlite-write-session-runtime.js');
 const coordinator=read('assets/js/sqlite-write-session-coordinator.js');
-assert.match(writer,/export async function saveWeeklyManualActivityBonus\(/,
-  'The exact production named writer must remain the test target');
-assert.match(writer,/runSqliteWriteSession\(/,
-  'Do not silently bypass the existing FIFO/rollback behavior');
-assert.match(runtime,/withPrimarySqliteMutationLock/,
-  'FAIL_NATIVE_ADMISSION: the runtime must acquire native primary Web Lock before snapshot/SQL');
-assert.match(runtime,/beginSqliteExclusiveWriteWindow/,
-  'FAIL_SAME_PAGE_WINDOW: reserve a same-page exclusive window before native lock wait');
-assert.match(coordinator,/primaryMutationLease/,
-  'FAIL_LEASE_PROPAGATION: coordinator must carry the same opaque lease to durable persist');
-assert.match(coordinator,/persist\(\{primaryMutationLease/,
-  'FAIL_BARE_PERSIST: never persist the primary SQLite image without the acquired lease');
-assert.match(coordinator,/blocked=true;throw uncertain\(cause\)/,
-  'Postcommit ACK uncertainty must remain sticky fail-closed');
-console.log('PASS_G265_WEEKLY_ACTIVITY_NATIVE_ADMISSION_SOURCE_CONTRACT');
-
-
 // Behavioral negative-first: exercise the real coordinator, not a source-string
 // approximation. A denied native admission must leave snapshot/SQL/persist at zero.
 // The legacy coordinator currently has no admission dependency and will fail this
@@ -47,3 +30,22 @@ assert.equal(result.accepted,false,
   'FAIL_NATIVE_LEASE_DENIAL: a missing/denied native lease must reject before snapshot');
 assert.deepEqual(events,[],
   'FAIL_ZERO_PRE_SQL: denied admission must never snapshot, BEGIN, mutate, COMMIT or persist');
+
+// Source contract runs after the executable denied-admission regression.
+assert.match(writer,/export async function saveWeeklyManualActivityBonus\(/,
+  'The exact production named writer must remain the test target');
+assert.match(writer,/runSqliteWriteSession\(/,
+  'Do not silently bypass the existing FIFO/rollback behavior');
+assert.match(runtime,/withPrimarySqliteMutationLock/,
+  'FAIL_NATIVE_ADMISSION: the runtime must acquire native primary Web Lock before snapshot/SQL');
+assert.match(runtime,/beginSqliteExclusiveWriteWindow/,
+  'FAIL_SAME_PAGE_WINDOW: reserve a same-page exclusive window before native lock wait');
+assert.match(coordinator,/primaryMutationLease/,
+  'FAIL_LEASE_PROPAGATION: coordinator must carry the same opaque lease to durable persist');
+assert.match(coordinator,/persist\(\{primaryMutationLease/,
+  'FAIL_BARE_PERSIST: never persist the primary SQLite image without the acquired lease');
+assert.match(coordinator,/blocked=true;throw uncertain\(cause\)/,
+  'Postcommit ACK uncertainty must remain sticky fail-closed');
+console.log('PASS_G265_WEEKLY_ACTIVITY_NATIVE_ADMISSION_SOURCE_CONTRACT');
+
+
