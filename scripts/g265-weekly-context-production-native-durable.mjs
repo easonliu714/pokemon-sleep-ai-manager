@@ -261,7 +261,16 @@ try{
             if(typeof callback!=='function')throw Error('G265_BONUS_ACK_DROP_CALLBACK_MISSING');
             tx.addEventListener('complete',()=>{
               window.__g265BonusLostAckObserved=true;
-              if(typeof tx.onerror==='function')tx.onerror();
+              // A completed native transaction has no failure state. Its
+              // `error` getter may throw InvalidStateError after COMMIT; the
+              // production error handler reads tx.error before rejecting the
+              // pending application ACK Promise. Supply only a null error
+              // value on this disposable completed transaction, then invoke
+              // the actual production error handler (never a success ACK).
+              Object.defineProperty(tx,'error',{configurable:true,value:null});
+              if(typeof tx.onerror!=='function')
+                throw Error('G265_BONUS_ACK_DROP_ERROR_HANDLER_MISSING');
+              tx.onerror(new Event('error'));
             },{once:true});
           },get(){return null;}
         });
