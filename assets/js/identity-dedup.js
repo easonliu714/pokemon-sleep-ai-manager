@@ -160,12 +160,12 @@ function boot(){
   let attempts=0;
   const timer=setInterval(async()=>{
     attempts+=1;
-    try{rows('SELECT 1');clearInterval(timer);await repairPokemonDuplicates();}
-    catch(error){
-      console.warn('[G265_IDENTITY_DEDUP_BOOT_HOLD]',error);
-      // Native admission failure and uncertain ACK require reload, not a retry.
-      clearInterval(timer);
-    }
+    // Bootstrap readiness is retryable; native admission/durable failures are not.
+    try{rows('SELECT 1');}
+    catch{if(attempts>=60)clearInterval(timer);return;}
+    clearInterval(timer);
+    try{await repairPokemonDuplicates();}
+    catch(error){console.warn('[G265_IDENTITY_DEDUP_BOOT_HOLD]',error);}
   },500);
 }
 if(typeof document!=='undefined')boot();
