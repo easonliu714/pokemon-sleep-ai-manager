@@ -58,6 +58,10 @@ const ctx=vm.createContext({Promise,Error,TypeError,Object,Number,setTimeout,cle
 vm.runInContext(guard.replace(/^export /gm,''),ctx,{timeout:3000});
 vm.runInContext(database.replace(/^import [^\n]*\n/gm,'').replace(/^export /gm,''),ctx,{timeout:3000});
 vm.runInContext('db=fixture;rescueReadonly=false;',ctx,{timeout:3000});
+// The VM strips actual ESM import statements. Recreate the runtime's alias
+// from database.js so this isolated same-page test executes the real adapter.
+assert.match(runtime,/persist as persistDatabase/);
+vm.runInContext('const persistDatabase=persist;',ctx,{timeout:3000});
 vm.runInContext(runtime.replace(/^import [^\n]*\n/gm,'').replace(/^export /gm,''),ctx,{timeout:3000});
 const participating=ctx.runSqliteWriteSession({reason:'g265:opt-in-snapshot-held',
   mutate:()=>ctx.run("INSERT INTO g265_containment VALUES('session','opt-in')")});
