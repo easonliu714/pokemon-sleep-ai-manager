@@ -32,7 +32,7 @@ assert.match(database,/assertSqliteDirectWriteAllowed\(\);db\.run\(sql,params\)/
 // Do not weaken this source contract just to make the old fixture pass.
 assert.match(runtime,/beginSqliteExclusiveWriteWindow\(\)/);
 assert.match(runtime,/admit:withPrimarySqliteMutationLock/);
-assert.match(runtime,/persist:options=>withSqliteCoordinatedMutation\(\(\)=>persist\(options\)\)/);
+assert.match(runtime,/persist:options=>withSqliteCoordinatedMutation\(\(\)=>persistDatabase\(options\)\)/);
 
 const SQL=await initSqlJs(),fixture=new SQL.Database();
 fixture.run('CREATE TABLE g265_containment(id TEXT PRIMARY KEY, owner TEXT NOT NULL)');
