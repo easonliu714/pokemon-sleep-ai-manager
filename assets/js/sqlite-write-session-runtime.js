@@ -1,6 +1,6 @@
 // G265 same-page FIFO plus bounded legacy direct-run fail-closed containment.
 // Other direct SQL.js entrypoints, cross-tab writers and Android UAT remain HOLD.
-import {snapshot,begin,commit,rollback,persist} from './database.js';
+import {snapshot,begin,commit,rollback,persist as persistDatabase} from './database.js';
 import {createSqliteWriteSessionCoordinator} from './sqlite-write-session-coordinator.js';
 import {beginSqliteExclusiveWriteWindow,withSqliteCoordinatedMutation} from './sqlite-direct-write-window-guard.js';
 import {withPrimarySqliteMutationLock} from './storage.js';
@@ -10,7 +10,7 @@ const sharedWriteSession=createSqliteWriteSessionCoordinator({
   // database.persist(), which reserves its own bare-persist window before await.
   // Keep the exact native lease passed by the coordinator through the IDB ACK.
   snapshot,begin:guarded(begin),commit:guarded(commit),rollback:guarded(rollback),
-  persist:options=>withSqliteCoordinatedMutation(()=>persist(options)),
+  persist:options=>withSqliteCoordinatedMutation(()=>persistDatabase(options)),
   admit:withPrimarySqliteMutationLock,timeoutMs:30000
 });
 export function runSqliteWriteSession({reason,mutate}={}){
