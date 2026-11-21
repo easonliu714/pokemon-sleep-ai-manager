@@ -1,5 +1,6 @@
+// HISTORICAL: run frozen pre-native source, NOT the now-admitted production writer.
 // G265 twentieth distinct Legacy Direct Writer: identity-evidence-builder.js::completeIdentityEvidence().
-// Two isolated SQL.js VM sessions execute unchanged production source on synthetic complete ability records.
+// Two isolated SQL.js VM sessions execute frozen pre-native source on synthetic complete ability records.
 // Two acknowledged full-image saves can erase a newer independently observed complete ability identity.
 // PASS is an UNSAFE negative reproduction, not production CAS admission or Android Owner UAT.
 import assert from 'node:assert/strict';
@@ -7,7 +8,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import initSqlJs from 'sql.js';
 
-const source=fs.readFileSync(new URL('../assets/js/identity-evidence-builder.js',import.meta.url),'utf8');
+const source=fs.readFileSync(new URL('fixtures/g265-ability-evidence-twentieth-pre-native-source.txt',import.meta.url),'utf8');
 const start='const text=value=>';
 const end='\nfunction boot(){';
 assert.equal(source.split(start).length,2,'ability evidence helper source must be unique');
