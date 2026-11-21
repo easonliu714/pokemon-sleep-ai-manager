@@ -1,5 +1,6 @@
+// Preserved negative witness: evaluate FROZEN pre-native production source, not the repaired module.
 // G265 nineteenth Identity Convergence: native Chromium two-tab disposable CAS gate.
-// Runs the unchanged production convergeStrongIdentities() with synthetic evidence.
+// Runs the frozen historical convergeStrongIdentities() with synthetic evidence.
 // Web Locks / IndexedDB / SQL.js transaction and SHA-256 CAS are TEST-ONLY wrappers.
 // Never accesses player data or grants global production admission / Android Owner PASS.
 import assert from 'node:assert/strict';
@@ -8,7 +9,7 @@ import {createHash} from 'node:crypto';
 import {chromium} from 'playwright';
 import initSqlJs from 'sql.js';
 
-const source=fs.readFileSync(new URL('../assets/js/identity-convergence.js',import.meta.url),'utf8');
+const source=fs.readFileSync(new URL('fixtures/g265-identity-convergence-nineteenth-pre-native-source.txt',import.meta.url),'utf8');
 const start='function strongCandidates(){';
 const end='\nfunction boot(){';
 assert.equal(source.split(start).length,2,'convergence source start changed');
