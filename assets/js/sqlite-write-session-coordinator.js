@@ -4,9 +4,9 @@
 const sessionError=(code,cause)=>Object.assign(new Error(code),{code,cause});
 const uncertain=(cause)=>sessionError('SQLITE_WRITE_SESSION_UNVERIFIED_RELOAD_REQUIRED',cause);
 const isThenable=value=>value!==null&&(typeof value==='object'||typeof value==='function')&&typeof value.then==='function';
-export function createSqliteWriteSessionCoordinator({snapshot,begin,commit,rollback,persist,timeoutMs=30000}={}){
+export function createSqliteWriteSessionCoordinator({snapshot,begin,commit,rollback,persist,admit,timeoutMs=30000}={}){
   if([snapshot,begin,commit,rollback,persist].some(fn=>typeof fn!=='function')
-      ||!Number.isFinite(timeoutMs)||timeoutMs<=0)
+      || (admit!==undefined&&typeof admit!=='function') ||!Number.isFinite(timeoutMs)||timeoutMs<=0)
     throw new TypeError('INVALID_SQLITE_WRITE_SESSION_COORDINATOR');
   let tail=Promise.resolve(),blocked=false,sequence=0,active=false;
   const awaitBounded=async(promise,phase)=>{
@@ -25,6 +25,16 @@ export function createSqliteWriteSessionCoordinator({snapshot,begin,commit,rollb
     const operation=tail.then(async()=>{
       if(blocked)throw uncertain();
       active=true;
+      try{
+        // Admission holds the native lease through the durable ACK, before any snapshot or SQL.
+        // The optional dependency preserves isolated legacy coordinator behavior tests.
+        return await (admit ? admit(async primaryMutationLease=>runAdmitted(primaryMutationLease)) : runAdmitted(undefined));
+      }finally{active=false;}
+    });
+    tail=operation.catch(()=>{});
+    return operation;
+  };
+  async function runAdmitted(primaryMutationLease){
       try{
         // Snapshot MUST finish before SQL BEGIN. Timeout is uncertain because
         // the underlying async snapshot can still finish later.
@@ -52,13 +62,10 @@ export function createSqliteWriteSessionCoordinator({snapshot,begin,commit,rollb
           if(commitAttempted){blocked=true;throw uncertain(cause);}
           throw cause;
         }
-        try{await awaitBounded(Promise.resolve().then(()=>persist()),'PERSIST');}
+        try{await awaitBounded(Promise.resolve().then(()=>persist({primaryMutationLease})),'PERSIST');}
         catch(cause){blocked=true;throw uncertain(cause);}
         return Object.freeze({status:'PERSISTED',ticket,reason});
-      }finally{active=false;}
-    });
-    tail=operation.catch(()=>{});
-    return operation;
-  };
+      }finally{}
+  }
   return Object.freeze({execute,status:()=>Object.freeze({status:blocked?'UNVERIFIED_RELOAD_REQUIRED':active?'IN_FLIGHT':'READY',sequence})});
 }
