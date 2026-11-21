@@ -1,4 +1,6 @@
 import {rows,run,persist,snapshot,begin,commit,rollback} from './database.js';
+import {withPrimarySqliteMutationLock} from './storage.js';
+import {beginSqliteExclusiveWriteWindow,withSqliteCoordinatedMutation} from './sqlite-direct-write-window-guard.js';
 import {localIso} from './time-utils.js';
 
 const text=value=>String(value??'').trim();
@@ -59,41 +61,84 @@ export function planAbilityEvidence(items){
   return complete.filter(item=>counts.get(item.fingerprint)===1);
 }
 
+// G265 #861: this automatic identity-evidence writer previously took its
+// candidate snapshot before native admission. A second tab could commit a
+// newer complete ability/subskill observation and then be overwritten by
+// the older full SQLite export. Reserve exclusivity before native Web Locks,
+// recompute the complete/unique evidence predicate under that exact lease,
+// transact the flag plus observation provenance atomically and carry the
+// lease through the only durable ACK. On any ambiguity fail closed to reload.
+let abilityEvidenceWriteInFlight=false;
 export async function completeIdentityEvidence(){
-  let active=[];
-  try{active=rows("SELECT * FROM pokemon WHERE status='active'");}catch{return 0;}
-  const planned=planAbilityEvidence(active).filter(item=>
-    Number(item.pokemon.identity_review_required||0)===1
-    || !text(item.pokemon.identity_fingerprint)
-    || Number(item.pokemon.identity_confidence||0)<0.95);
-  if(!planned.length)return 0;
-  await snapshot(`identity-evidence-builder:${planned.length}`);
-  const now=localIso();
-  begin();
+  if(abilityEvidenceWriteInFlight)return 0;
+  abilityEvidenceWriteInFlight=true;
+  let close=null,committed=false,acknowledged=false,failed=false;
   try{
-    for(const item of planned){
-      const instanceId=text(item.pokemon.pokemon_instance_id)||item.pokemon.pokemon_id;
-      run(`UPDATE pokemon SET pokemon_instance_id=?,identity_fingerprint=?,identity_confidence=0.96,
-        identity_review_required=0,last_updated_at=? WHERE pokemon_id=?`,[
-        instanceId,item.fingerprint,now,item.pokemon.pokemon_id,
-      ]);
-      run(`INSERT OR REPLACE INTO pokemon_identity_evidence
-        (evidence_id,pokemon_instance_id,evidence_type,evidence_value,confidence,observed_at,source_update_id)
-        VALUES(?,?,?,?,?,?,?)`,[
-        `ability-fingerprint-${item.pokemon.pokemon_id}`,
-        instanceId,
-        'ability_fingerprint',
-        item.fingerprint,
-        0.96,
-        now,
-        'SYSTEM-IDENTITY-EVIDENCE-BUILDER-v0.3.27',
-      ]);
-    }
-    commit();
-  }catch(error){rollback();throw error;}
-  await persist();
-  if(typeof document!=='undefined')document.dispatchEvent(new CustomEvent('pokemon-sleep-data-refreshed'));
-  return planned.length;
+    close=beginSqliteExclusiveWriteWindow();
+    return await withPrimarySqliteMutationLock(async lease=>{
+      let active=[];
+      try{active=rows("SELECT * FROM pokemon WHERE status='active'");}catch{return 0;}
+      const planned=planAbilityEvidence(active).filter(item=>
+        Number(item.pokemon.identity_review_required||0)===1
+        || !text(item.pokemon.identity_fingerprint)
+        || Number(item.pokemon.identity_confidence||0)<0.95);
+      if(!planned.length)return 0;
+      await snapshot(`identity-evidence-builder:${planned.length}`);
+      const now=localIso();
+      let begun=false;
+      try{
+        withSqliteCoordinatedMutation(()=>{
+          begin();begun=true;
+          for(const item of planned){
+            const instanceId=text(item.pokemon.pokemon_instance_id)||item.pokemon.pokemon_id;
+            run(`UPDATE pokemon SET pokemon_instance_id=?,identity_fingerprint=?,identity_confidence=0.96,
+              identity_review_required=0,last_updated_at=? WHERE pokemon_id=?`,[
+              instanceId,item.fingerprint,now,item.pokemon.pokemon_id,
+            ]);
+            run(`INSERT OR REPLACE INTO pokemon_identity_evidence
+              (evidence_id,pokemon_instance_id,evidence_type,evidence_value,confidence,observed_at,source_update_id)
+              VALUES(?,?,?,?,?,?,?)`,[
+              `ability-fingerprint-${item.pokemon.pokemon_id}`,
+              instanceId,
+              'ability_fingerprint',
+              item.fingerprint,
+              0.96,
+              now,
+              'SYSTEM-IDENTITY-EVIDENCE-BUILDER-v0.3.27',
+            ]);
+          }
+          // COMMIT can have applied before a thrown error; never blind retry.
+          commit();committed=true;
+        });
+      }catch(cause){
+        if(begun&&!committed){
+          try{withSqliteCoordinatedMutation(rollback);}
+          catch(rollbackError){
+            throw Object.assign(new Error('ABILITY_EVIDENCE_ROLLBACK_UNVERIFIED_RELOAD_REQUIRED'),{
+              code:'ABILITY_EVIDENCE_ROLLBACK_UNVERIFIED_RELOAD_REQUIRED',cause:rollbackError,
+            });
+          }
+        }
+        throw cause;
+      }
+      try{
+        await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
+      }catch(cause){
+        throw Object.assign(new Error('ABILITY_EVIDENCE_DURABILITY_UNVERIFIED_RELOAD_REQUIRED'),{
+          code:'ABILITY_EVIDENCE_DURABILITY_UNVERIFIED_RELOAD_REQUIRED',cause,
+        });
+      }
+      acknowledged=true;
+      // Downstream UI listeners cannot make an acknowledged write retryable.
+      try{if(typeof document!=='undefined')
+        document.dispatchEvent(new CustomEvent('pokemon-sleep-data-refreshed'));}catch{}
+      return planned.length;
+    });
+  }catch(error){failed=true;throw error;}
+  finally{
+    close?.({uncertainOutcome:failed||(committed&&!acknowledged)});
+    abilityEvidenceWriteInFlight=false;
+  }
 }
 
 function boot(){
@@ -108,7 +153,10 @@ function boot(){
       if(attempts>=60)clearInterval(timer);
     }
   },500);
-  document.addEventListener('pokemon-sleep-data-refreshed',()=>setTimeout(completeIdentityEvidence,100));
+  // Native admission may reject a stale page: contain async rejection, never retry.
+  document.addEventListener('pokemon-sleep-data-refreshed',()=>setTimeout(()=>{
+    completeIdentityEvidence().catch(error=>console.warn('[G265_ABILITY_EVIDENCE_HOLD]',error));
+  },100));
 }
 
 if(typeof document!=='undefined')boot();
