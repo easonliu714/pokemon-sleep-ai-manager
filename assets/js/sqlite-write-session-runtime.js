@@ -6,7 +6,12 @@ import {beginSqliteExclusiveWriteWindow,withSqliteCoordinatedMutation} from './s
 import {withPrimarySqliteMutationLock} from './storage.js';
 const guarded=fn=>()=>withSqliteCoordinatedMutation(fn);
 const sharedWriteSession=createSqliteWriteSessionCoordinator({
-  snapshot,begin:guarded(begin),commit:guarded(commit),rollback:guarded(rollback),persist,admit:withPrimarySqliteMutationLock,timeoutMs:30000
+  // The exclusive session guards direct SQL and also the synchronous ENTRY to
+  // database.persist(), which reserves its own bare-persist window before await.
+  // Keep the exact native lease passed by the coordinator through the IDB ACK.
+  snapshot,begin:guarded(begin),commit:guarded(commit),rollback:guarded(rollback),
+  persist:options=>withSqliteCoordinatedMutation(()=>persist(options)),
+  admit:withPrimarySqliteMutationLock,timeoutMs:30000
 });
 export function runSqliteWriteSession({reason,mutate}={}){
   if(typeof reason!=='string'||!reason.trim()||typeof mutate!=='function')
