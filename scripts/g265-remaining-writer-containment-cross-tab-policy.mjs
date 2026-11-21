@@ -28,16 +28,32 @@ for(const required of ['war-room-named-team-draft-store.js','recipe-attempt-feed
   assert.ok(writerModules.includes(required)&&!opted.includes(required));
 assert.doesNotMatch(runtime,/navigator\.locks|BroadcastChannel/,'cross-tab policy changed; independent audit required');
 assert.match(database,/assertSqliteDirectWriteAllowed\(\);db\.run\(sql,params\)/);
-assert.match(runtime,/beginSqliteWriteWindow\(\)/);
+// Native admission is a stricter successor to the legacy same-page window.
+// Do not weaken this source contract just to make the old fixture pass.
+assert.match(runtime,/beginSqliteExclusiveWriteWindow\(\)/);
+assert.match(runtime,/admit:withPrimarySqliteMutationLock/);
+assert.match(runtime,/persist:options=>withSqliteCoordinatedMutation\(\(\)=>persist\(options\)\)/);
 
 const SQL=await initSqlJs(),fixture=new SQL.Database();
 fixture.run('CREATE TABLE g265_containment(id TEXT PRIMARY KEY, owner TEXT NOT NULL)');
 let releaseSnapshot,durable=null,denySave=false;
+const nativeLease=Object.freeze({});
+let nativeAdmissions=0,leaseBoundPersists=0;
 const snapshotGate=new Promise(resolve=>{releaseSnapshot=resolve;});
 const ctx=vm.createContext({Promise,Error,TypeError,Object,Number,setTimeout,clearTimeout,console,
   fixture,createSqlitePersistCoordinator,createSqliteWriteSessionCoordinator,
   createSnapshot:()=>snapshotGate,
-  saveDatabaseBytes:async bytes=>{if(denySave)throw Error('synthetic IDB rejection');durable=new Uint8Array(bytes);}
+  // This remains a VM same-page containment test; the separately required
+  // Chromium fixture proves actual browser-native Web Locks and IDB semantics.
+  withPrimarySqliteMutationLock:async callback=>{nativeAdmissions++;return callback(nativeLease);},
+  saveDatabaseBytes:async(bytes,{primaryMutationLease}={})=>{
+    if(primaryMutationLease!==undefined){
+      assert.equal(primaryMutationLease,nativeLease,'opt-in persist must carry admitted lease');
+      leaseBoundPersists++;
+    }
+    if(denySave)throw Error('synthetic IDB rejection');
+    durable=new Uint8Array(bytes);
+  }
 });
 vm.runInContext(guard.replace(/^export /gm,''),ctx,{timeout:3000});
 vm.runInContext(database.replace(/^import [^\n]*\n/gm,'').replace(/^export /gm,''),ctx,{timeout:3000});
@@ -53,6 +69,8 @@ assert.throws(()=>ctx.run("INSERT INTO g265_containment VALUES('legacy','unsafe'
 assert.equal(ctx.scalar("SELECT COUNT(*) FROM g265_containment WHERE id='legacy'"),0);
 releaseSnapshot({status:'synthetic-snapshot'});
 assert.equal((await participating).status,'PERSISTED');
+assert.equal(nativeAdmissions,1,'first opt-in session must obtain native admission');
+assert.equal(leaseBoundPersists,1,'first opt-in durable save must bind the exact lease');
 assert.equal(ctx.getSqliteDirectWriteGuardStatus().status,'READY');
 let reloaded=new SQL.Database(durable);
 assert.equal(reloaded.exec('SELECT COUNT(*) FROM g265_containment')[0].values[0][0],1);reloaded.close();
@@ -67,6 +85,8 @@ await assert.rejects(ctx.runSqliteWriteSession({reason:'g265:IDB-denial',
   mutate:()=>ctx.run("INSERT INTO g265_containment VALUES('unverified','inside')")}),
   e=>e.code==='SQLITE_WRITE_SESSION_UNVERIFIED_RELOAD_REQUIRED');
 assert.equal(ctx.getSqliteDirectWriteGuardStatus().status,'UNVERIFIED_RELOAD_REQUIRED');
+assert.equal(nativeAdmissions,2,'failed session must still acquire pre-SQL native admission');
+assert.equal(leaseBoundPersists,2,'failed durable save must retain the admitted exact lease');
 assert.throws(()=>ctx.run("INSERT INTO g265_containment VALUES('later','blocked')"),
   e=>e.code==='SQLITE_DIRECT_WRITE_UNVERIFIED_RELOAD_REQUIRED');
 fixture.close();
