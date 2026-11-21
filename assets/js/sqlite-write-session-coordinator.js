@@ -28,14 +28,14 @@ export function createSqliteWriteSessionCoordinator({snapshot,begin,commit,rollb
       try{
         // Admission holds the native lease through the durable ACK, before any snapshot or SQL.
         // The optional dependency preserves isolated legacy coordinator behavior tests.
-        return await (admit ? admit(async primaryMutationLease=>runAdmitted(primaryMutationLease)) : runAdmitted(undefined));
-      }finally{active=false;}
+        return await (admit ? admit(async primaryMutationLease=>runAdmitted(primaryMutationLease,reason,mutate,ticket)) : runAdmitted(undefined,reason,mutate,ticket));
+      }catch(cause){if(admit)blocked=true;throw cause;}
+      finally{active=false;}
     });
     tail=operation.catch(()=>{});
     return operation;
   };
-  async function runAdmitted(primaryMutationLease){
-      try{
+  async function runAdmitted(primaryMutationLease,reason,mutate,ticket){
         // Snapshot MUST finish before SQL BEGIN. Timeout is uncertain because
         // the underlying async snapshot can still finish later.
         try{await awaitBounded(Promise.resolve().then(()=>snapshot(reason)),'SNAPSHOT');}
@@ -65,7 +65,6 @@ export function createSqliteWriteSessionCoordinator({snapshot,begin,commit,rollb
         try{await awaitBounded(Promise.resolve().then(()=>persist({primaryMutationLease})),'PERSIST');}
         catch(cause){blocked=true;throw uncertain(cause);}
         return Object.freeze({status:'PERSISTED',ticket,reason});
-      }finally{}
   }
   return Object.freeze({execute,status:()=>Object.freeze({status:blocked?'UNVERIFIED_RELOAD_REQUIRED':active?'IN_FLIGHT':'READY',sequence})});
 }
