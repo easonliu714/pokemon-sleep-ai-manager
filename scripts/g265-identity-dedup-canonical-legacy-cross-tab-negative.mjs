@@ -7,7 +7,9 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import initSqlJs from 'sql.js';
 
-const source=fs.readFileSync(new URL('../assets/js/identity-dedup.js',import.meta.url),'utf8');
+// Historical unsafe writer is pinned to the exact protected-main pre-native source.
+// Current production is separately checked by g265-identity-dedup-production-presql-negative.mjs.
+const source=fs.readFileSync(new URL('./fixtures/g265-identity-dedup-canonical-pre-native-source.txt',import.meta.url),'utf8');
 assert.equal(source.split('const text=').length,2,'dedup source start changed');
 assert.equal(source.split('\nfunction boot(){').length,2,'dedup source end changed');
 const operation=source.slice(source.indexOf('const text='),source.indexOf('\nfunction boot(){')).replace(/^export /gm,'');
