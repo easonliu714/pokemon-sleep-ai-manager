@@ -7,7 +7,7 @@ import {withPrimarySqliteMutationLock} from './storage.js';
 const guarded=fn=>()=>withSqliteCoordinatedMutation(fn);
 const sharedWriteSession=createSqliteWriteSessionCoordinator({
   // The exclusive session guards direct SQL and also the synchronous ENTRY to
-  // database.persist(), which reserves its own bare-persist window before await.
+  // database byte persistence, which reserves its own bare-persist window before await.
   // Keep the exact native lease passed by the coordinator through the IDB ACK.
   snapshot,begin:guarded(begin),commit:guarded(commit),rollback:guarded(rollback),
   persist:options=>withSqliteCoordinatedMutation(()=>persistDatabase(options)),
