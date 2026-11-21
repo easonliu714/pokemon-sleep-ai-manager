@@ -1,5 +1,6 @@
+// Preserved negative witness: evaluate FROZEN pre-native production source, not the repaired module.
 // G265 nineteenth Legacy Identity Convergence: source-bound isolated opt-in CAS/recovery.
-// Executes the unchanged production convergeStrongIdentities() on synthetic SQL.js VM sessions.
+// Executes the frozen historical convergeStrongIdentities() on synthetic SQL.js VM sessions.
 // SHA-256 Durable CAS, Web Locks and BEGIN/ROLLBACK are TEST-ONLY wrappers.
 // This does not grant production global admission, Android UAT or player data access.
 import assert from 'node:assert/strict';
@@ -9,7 +10,7 @@ import {webcrypto} from 'node:crypto';
 import initSqlJs from 'sql.js';
 import {createSqliteCrossTabWriteAdmission,sha256SqliteBytes} from '../assets/js/sqlite-cross-tab-write-admission.js';
 
-const source=fs.readFileSync(new URL('../assets/js/identity-convergence.js',import.meta.url),'utf8');
+const source=fs.readFileSync(new URL('fixtures/g265-identity-convergence-nineteenth-pre-native-source.txt',import.meta.url),'utf8');
 const start='function strongCandidates(){';
 const end='\nfunction boot(){';
 assert.equal(source.split(start).length,2,'strongCandidates must have one source owner');
