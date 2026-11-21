@@ -117,12 +117,15 @@ const coordinator=createSqliteWriteSessionCoordinator({
   commit:()=>{events.push('commit');},
   rollback:()=>{events.push('rollback');},
   persist:async()=>{events.push('persist');},
-  timeoutMs:30000
+  timeoutMs:30000,
+  admit:async()=>{throw Object.assign(new Error('SQLITE_PRIMARY_STALE_REVISION_RELOAD_REQUIRED'),{code:'SQLITE_PRIMARY_STALE_REVISION_RELOAD_REQUIRED'});}
 });
 const result=await coordinator.execute({
   reason:'negative-first: native admission denied',
   mutate:()=>{events.push('sql-mutate');}
 }).then(()=>({accepted:true}),error=>({accepted:false,code:error?.code}));
+assert.deepEqual(result,{accepted:false,code:'SQLITE_PRIMARY_STALE_REVISION_RELOAD_REQUIRED'});
+assert.equal(coordinator.status().status,'UNVERIFIED_RELOAD_REQUIRED');
 assert.equal(result.accepted,false,
   'FAIL_NATIVE_LEASE_DENIAL: a missing/denied native lease must reject before snapshot');
 assert.deepEqual(events,[],
