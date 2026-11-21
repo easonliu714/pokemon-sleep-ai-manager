@@ -1,4 +1,6 @@
 import {rows,run,persist,snapshot,begin,commit,rollback} from './database.js';
+import {withPrimarySqliteMutationLock} from './storage.js';
+import {beginSqliteExclusiveWriteWindow,withSqliteCoordinatedMutation} from './sqlite-direct-write-window-guard.js';
 import {localIso} from './time-utils.js';
 import {planSkeletonMerges,auditActivePokemon} from './identity-quality-guard.js';
 
@@ -91,18 +93,79 @@ function mergeOne({winner,loser,reason},now){
   run(`INSERT OR REPLACE INTO pokemon_identity_evidence(evidence_id,pokemon_instance_id,evidence_type,evidence_value,confidence,observed_at,source_update_id) VALUES(?,?,?,?,?,?,?)`,[`auto-dedup-v4-${loser.pokemon_id}`,winner.pokemon_instance_id||winner.pokemon_id,'automatic_duplicate_convergence_v4',JSON.stringify({winner_pokemon_id:winner.pokemon_id,archived_pokemon_id:loser.pokemon_id,reason,children_preserved:true,transaction_version:'v0.3.30'}),1,now,'SYSTEM-IDENTITY-MERGE-v0.3.30']);
 }
 
+// G265 21st: acquire same-page and native primary admission before reading player rows.
+// A lost COMMIT/IDB acknowledgment is never interpreted as a safe retry.
 export async function repairPokemonDuplicates(){
-  if(repairInProgress)return 0;repairInProgress=true;
+  if(repairInProgress)return 0;
+  repairInProgress=true;
+  let close=null,committed=false,acknowledged=false,failed=false;
   try{
-    const items=active();const merges=planPokemonMerges(items);
-    if(!merges.length){const audit=auditActivePokemon(items);if(!audit.ok)console.warn('[POKEMON_IDENTITY_QUALITY_GUARD]',audit);return 0;}
-    await snapshot(`identity-merge-v4:${merges.length}`);const now=localIso();begin();
-    try{for(const merge of merges)mergeOne(merge,now);commit();}catch(error){rollback();throw error;}
-    await persist();const audit=auditActivePokemon(active());if(!audit.ok)console.warn('[POKEMON_IDENTITY_QUALITY_GUARD]',audit);
-    if(typeof document!=='undefined')document.dispatchEvent(new CustomEvent('pokemon-sleep-data-refreshed'));
-    return merges.length;
-  }catch(error){console.error('Identity merge v4 failed',error);return 0;}finally{repairInProgress=false;}
+    close=beginSqliteExclusiveWriteWindow();
+    return await withPrimarySqliteMutationLock(async lease=>{
+      const items=active();
+      const merges=planPokemonMerges(items);
+      if(!merges.length){
+        const audit=auditActivePokemon(items);
+        if(!audit.ok)console.warn('[POKEMON_IDENTITY_QUALITY_GUARD]',audit);
+        return 0;
+      }
+      await snapshot(`identity-merge-v4:${merges.length}`);
+      const now=localIso();
+      let begun=false;
+      try{
+        withSqliteCoordinatedMutation(()=>{
+          begin();begun=true;
+          for(const merge of merges)mergeOne(merge,now);
+          // A thrown COMMIT can already have applied; never blind retry.
+          commit();committed=true;
+        });
+      }catch(cause){
+        if(begun&&!committed){
+          try{withSqliteCoordinatedMutation(rollback);}
+          catch(rollbackError){
+            throw Object.assign(new Error('IDENTITY_DEDUP_ROLLBACK_UNVERIFIED_RELOAD_REQUIRED'),{
+              code:'IDENTITY_DEDUP_ROLLBACK_UNVERIFIED_RELOAD_REQUIRED',cause:rollbackError,
+            });
+          }
+        }
+        throw cause;
+      }
+      try{
+        await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
+      }catch(cause){
+        throw Object.assign(new Error('IDENTITY_DEDUP_DURABILITY_UNVERIFIED_RELOAD_REQUIRED'),{
+          code:'IDENTITY_DEDUP_DURABILITY_UNVERIFIED_RELOAD_REQUIRED',cause,
+        });
+      }
+      acknowledged=true;
+      try{
+        const audit=auditActivePokemon(active());
+        if(!audit.ok)console.warn('[POKEMON_IDENTITY_QUALITY_GUARD]',audit);
+        if(typeof document!=='undefined')
+          document.dispatchEvent(new CustomEvent('pokemon-sleep-data-refreshed'));
+      }catch(error){console.warn('[G265_IDENTITY_DEDUP_POST_ACK_OBSERVER]',error);}
+      return merges.length;
+    });
+  }catch(error){
+    failed=true;
+    console.error('[G265_IDENTITY_DEDUP_HOLD]',error);
+    throw error;
+  }finally{
+    close?.({uncertainOutcome:failed||(committed&&!acknowledged)});
+    repairInProgress=false;
+  }
 }
 
-function boot(){let attempts=0;const timer=setInterval(async()=>{attempts+=1;try{rows('SELECT 1');clearInterval(timer);await repairPokemonDuplicates();}catch{if(attempts>=60)clearInterval(timer);}},500);}
+function boot(){
+  let attempts=0;
+  const timer=setInterval(async()=>{
+    attempts+=1;
+    try{rows('SELECT 1');clearInterval(timer);await repairPokemonDuplicates();}
+    catch(error){
+      console.warn('[G265_IDENTITY_DEDUP_BOOT_HOLD]',error);
+      // Native admission failure and uncertain ACK require reload, not a retry.
+      clearInterval(timer);
+    }
+  },500);
+}
 if(typeof document!=='undefined')boot();
