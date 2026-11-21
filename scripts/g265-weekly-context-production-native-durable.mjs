@@ -163,6 +163,80 @@ try{
   assert.ok(readback.loaded.some(r=>r.base_notes==='SYNTHETIC_G265_WEEKLY_ACK'));
   assert.ok(!readback.loaded.some(r=>r.base_notes==='SYNTHETIC_G265_WEEKLY_STALE'));
   console.log('PASS G265_PRODUCTION_WEEKLY_CONTEXT_NATIVE_FRESH_RELOAD_PRESERVES_ACK_AND_PUBLIC_MASTER');
+
+  // G265 #861: the ACTUAL production weekly-activity-bonus writer uses the
+  // shared runtime session. Reuse this disposable, converged IDB+SQL.js origin
+  // to prove cross-tab native pre-SQL denial, exact durable revision, and
+  // independent fresh reload. No Owner/player SQLite is ever involved.
+  const bonusWriter=await tab(),bonusStale=await tab();
+  const bonusInitial=await inspect(bonusWriter),bonusStaleInitial=await inspect(bonusStale);
+  assert.equal(bonusInitial.hash,bonusInitial.revision?.sha256,'G265_BONUS_INITIAL_PRIMARY_SHA');
+  assert.equal(bonusStaleInitial.hash,bonusStaleInitial.revision?.sha256,'G265_BONUS_STALE_INITIAL_SHA');
+  assert.equal(bonusInitial.revision.generation,bonusStaleInitial.revision.generation,
+    'G265_BONUS_TWO_TABS_MUST_BIND_SAME_DURABLE_REVISION');
+  const bonusWeek='2026-11-09';
+  async function savedBonus(page){
+    return page.evaluate(week=>window.__db.rows(
+      'SELECT value_json FROM settings WHERE key=?',['weekly_activity_bonus:'+week])[0]?.value_json??null,
+      bonusWeek);
+  }
+  assert.equal(await savedBonus(bonusWriter),null,'G265_BONUS_BEFORE_WRITE_MUST_BE_ABSENT');
+  assert.equal(await savedBonus(bonusStale),null,'G265_BONUS_STALE_BEFORE_WRITE_MUST_BE_ABSENT');
+  const bonusAck=await bonusWriter.evaluate(async week=>{
+    const api=await import('/assets/js/weekly-manual-activity-bonuses.js');
+    return api.saveWeeklyManualActivityBonus({weekStart:week,values:{pot_multiplier:2}});
+  },bonusWeek);
+  assert.equal(bonusAck.source,'PLAYER_EXPLICIT_MANUAL_WEEKLY_OBSERVATION');
+  const bonusDurable=await inspect(bonusWriter);
+  assert.equal(bonusDurable.hash,bonusDurable.revision.sha256,'G265_BONUS_NATIVE_ACK_SHA');
+  assert.equal(bonusDurable.revision.generation,bonusInitial.revision.generation+1,
+    'G265_BONUS_ONE_NATIVE_ACK_ONE_GENERATION');
+  assert.equal(bonusDurable.snapshots,bonusInitial.snapshots+1,'G265_BONUS_ONE_ACK_SNAPSHOT');
+  const bonusStored=JSON.parse(await savedBonus(bonusWriter));
+  assert.equal(bonusStored.values.pot_multiplier,2,'G265_BONUS_WRITER_SQL_DATA');
+  assert.equal(bonusStored.source,'PLAYER_EXPLICIT_MANUAL_WEEKLY_OBSERVATION');
+  const staleBonus=await bonusStale.evaluate(async week=>{
+    const api=await import('/assets/js/weekly-manual-activity-bonuses.js');
+    try{
+      await api.saveWeeklyManualActivityBonus({weekStart:week,values:{pot_multiplier:3}});
+      return {ok:true};
+    }catch(error){return {ok:false,code:error?.code||error?.message||String(error)};}
+  },bonusWeek);
+  assert.equal(staleBonus.ok,false,'G265_BONUS_STALE_NATIVE_ADMISSION_MUST_DENY');
+  assert.equal(staleBonus.code,'SQLITE_PRIMARY_STALE_REVISION_RELOAD_REQUIRED',
+    'G265_BONUS_STALE_PRE_SQL_NATIVE_CODE:'+JSON.stringify(staleBonus));
+  assert.equal(await savedBonus(bonusStale),null,
+    'G265_BONUS_STALE_LOADED_IMAGE_MUST_REMAIN_UNMUTATED_BEFORE_SQL');
+  const deniedBonusDurable=await inspect(bonusStale);
+  assert.deepEqual(deniedBonusDurable.revision,bonusDurable.revision,
+    'G265_BONUS_STALE_MUST_NOT_ADVANCE_DURABLE_REVISION');
+  assert.equal(deniedBonusDurable.hash,bonusDurable.hash,'G265_BONUS_STALE_NO_OVERWRITE_SHA');
+  assert.equal(deniedBonusDurable.snapshots,bonusDurable.snapshots,
+    'G265_BONUS_STALE_ZERO_SNAPSHOT');
+  const blindRetry=await bonusStale.evaluate(async week=>{
+    const api=await import('/assets/js/weekly-manual-activity-bonuses.js');
+    try{await api.saveWeeklyManualActivityBonus({weekStart:week,values:{pot_multiplier:4}});
+      return {ok:true};}
+    catch(error){return {ok:false,code:error?.code||error?.message||String(error)};}
+  },bonusWeek);
+  assert.equal(blindRetry.ok,false,'G265_BONUS_STICKY_NO_BLIND_RETRY');
+  assert.ok(['SQLITE_DIRECT_WRITE_UNVERIFIED_RELOAD_REQUIRED',
+    'SQLITE_WRITE_SESSION_UNVERIFIED_RELOAD_REQUIRED'].includes(blindRetry.code),
+    'G265_BONUS_STICKY_RETRY_CODE:'+blindRetry.code);
+  const afterRetryBonus=await inspect(bonusStale);
+  assert.deepEqual(afterRetryBonus.revision,bonusDurable.revision,
+    'G265_BONUS_BLIND_RETRY_MUST_NOT_ADVANCE_IDB');
+  assert.equal(afterRetryBonus.snapshots,bonusDurable.snapshots);
+  const bonusFresh=await tab();
+  const freshBonusDurable=await inspect(bonusFresh);
+  assert.equal(freshBonusDurable.hash,bonusDurable.hash,'G265_BONUS_FRESH_RELOAD_SHA');
+  assert.deepEqual(freshBonusDurable.revision,bonusDurable.revision,
+    'G265_BONUS_FRESH_RELOAD_EXACT_REVISION');
+  assert.equal(freshBonusDurable.snapshots,bonusDurable.snapshots,
+    'G265_BONUS_FRESH_RELOAD_NO_DUPLICATE_SNAPSHOT');
+  assert.equal(JSON.parse(await savedBonus(bonusFresh)).values.pot_multiplier,2,
+    'G265_BONUS_FRESH_RELOAD_PRESERVES_ACK_ONLY');
+  console.log('PASS G265_PRODUCTION_WEEKLY_ACTIVITY_BONUS_NATIVE_TWO_TAB_STALE_ZERO_SQL_SHA_REVISION_ACK_STICKY_FRESH_RELOAD');
 }finally{
   await Promise.all(pages.map(p=>p.close().catch(()=>{})));
   await browser.close();

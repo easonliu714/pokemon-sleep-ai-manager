@@ -1,11 +1,17 @@
 // G265 same-page FIFO plus bounded legacy direct-run fail-closed containment.
 // Other direct SQL.js entrypoints, cross-tab writers and Android UAT remain HOLD.
-import {snapshot,begin,commit,rollback,persist} from './database.js';
+import {snapshot,begin,commit,rollback,persist as persistDatabase} from './database.js';
 import {createSqliteWriteSessionCoordinator} from './sqlite-write-session-coordinator.js';
-import {beginSqliteWriteWindow,withSqliteCoordinatedMutation} from './sqlite-direct-write-window-guard.js';
+import {beginSqliteExclusiveWriteWindow,withSqliteCoordinatedMutation} from './sqlite-direct-write-window-guard.js';
+import {withPrimarySqliteMutationLock} from './storage.js';
 const guarded=fn=>()=>withSqliteCoordinatedMutation(fn);
 const sharedWriteSession=createSqliteWriteSessionCoordinator({
-  snapshot,begin:guarded(begin),commit:guarded(commit),rollback:guarded(rollback),persist,timeoutMs:30000
+  // The exclusive session guards direct SQL and also the synchronous ENTRY to
+  // database byte persistence, which reserves its own bare-persist window before await.
+  // Keep the exact native lease passed by the coordinator through the IDB ACK.
+  snapshot,begin:guarded(begin),commit:guarded(commit),rollback:guarded(rollback),
+  persist:options=>withSqliteCoordinatedMutation(()=>persistDatabase(options)),
+  admit:withPrimarySqliteMutationLock,timeoutMs:30000
 });
 export function runSqliteWriteSession({reason,mutate}={}){
   if(typeof reason!=='string'||!reason.trim()||typeof mutate!=='function')
@@ -14,7 +20,7 @@ export function runSqliteWriteSession({reason,mutate}={}){
   if(mutate.constructor?.name==='AsyncFunction')
     return Promise.reject(Object.assign(new Error('SQLITE_WRITE_SESSION_ASYNC_MUTATION_FORBIDDEN'),{code:'SQLITE_WRITE_SESSION_ASYNC_MUTATION_FORBIDDEN'}));
   let close;
-  try{close=beginSqliteWriteWindow();}
+  try{close=beginSqliteExclusiveWriteWindow();}
   catch(error){return Promise.reject(error);}
   const pending=sharedWriteSession.execute({reason,mutate:()=>withSqliteCoordinatedMutation(mutate)});
   return pending.then(
