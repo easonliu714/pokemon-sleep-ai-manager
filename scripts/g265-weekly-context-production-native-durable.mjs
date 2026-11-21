@@ -270,7 +270,15 @@ try{
               Object.defineProperty(tx,'error',{configurable:true,value:null});
               if(typeof tx.onerror!=='function')
                 throw Error('G265_BONUS_ACK_DROP_ERROR_HANDLER_MISSING');
-              tx.onerror(new Event('error'));
+              // Deliver the lost application ACK as a transaction error event
+              // after the real native COMMIT, through EventTarget dispatch.
+              // Calling the onerror property directly bypasses the browser's
+              // event dispatch semantics and can leave the awaiting session
+              // unresolved when the completed transaction is being dispatched.
+              queueMicrotask(()=>{
+                const delivered=tx.dispatchEvent(new Event('error'));
+                if(!delivered)throw Error('G265_BONUS_ACK_DROP_ERROR_EVENT_CANCELLED');
+              });
             },{once:true});
           },get(){return null;}
         });
