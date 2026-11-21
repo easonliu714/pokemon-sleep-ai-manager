@@ -236,6 +236,122 @@ try{
     'G265_BONUS_FRESH_RELOAD_NO_DUPLICATE_SNAPSHOT');
   assert.equal(JSON.parse(await savedBonus(bonusFresh)).values.pot_multiplier,2,
     'G265_BONUS_FRESH_RELOAD_PRESERVES_ACK_ONLY');
+  // G265 #861 successor: real native transaction COMMIT with the application's
+  // IDB oncomplete ACK intentionally dropped for the actual shared-session
+  // weekly activity bonus writer (NOT bootstrap Migration or Node VM).
+  // Preserve the genuine IDB transaction/Web Lock; only its application ACK
+  // callback is replaced after native completion on this disposable tab.
+  const bonusAckLostPage=await tab();
+  const bonusBeforeLostAck=await inspect(bonusAckLostPage);
+  assert.equal(bonusBeforeLostAck.hash,bonusDurable.hash,'G265_BONUS_ACK_DROP_SEED_SHA');
+  assert.deepEqual(bonusBeforeLostAck.revision,bonusDurable.revision,
+    'G265_BONUS_ACK_DROP_SEED_REVISION');
+  await bonusAckLostPage.evaluate(()=>{
+    window.__g265BonusLostAckObserved=false;
+    const nativeTransaction=IDBDatabase.prototype.transaction;
+    IDBDatabase.prototype.transaction=function(...args){
+      const tx=nativeTransaction.apply(this,args);
+      const stores=typeof args[0]==='string'?[args[0]]:Array.from(args[0]);
+      if(args[1]==='readwrite'&&stores.includes('database')&&!window.__g265BonusLostAckObserved){
+        // Keep real IDB durable COMMIT. Do not deliver a synthetic success ACK.
+        // Trigger the actual application's error callback only after complete.
+        Object.defineProperty(tx,'oncomplete',{
+          configurable:true,
+          set(callback){
+            if(typeof callback!=='function')throw Error('G265_BONUS_ACK_DROP_CALLBACK_MISSING');
+            tx.addEventListener('complete',()=>{
+              window.__g265BonusLostAckObserved=true;
+              // A completed native transaction has no failure state. Its
+              // `error` getter may throw InvalidStateError after COMMIT; the
+              // production error handler reads tx.error before rejecting the
+              // pending application ACK Promise. Supply only a null error
+              // value on this disposable completed transaction, then invoke
+              // the actual production error handler (never a success ACK).
+              Object.defineProperty(tx,'error',{configurable:true,value:null});
+              if(typeof tx.onerror!=='function')
+                throw Error('G265_BONUS_ACK_DROP_ERROR_HANDLER_MISSING');
+              // Deliver the lost application ACK as a transaction error event
+              // after the real native COMMIT, through EventTarget dispatch.
+              // Calling the onerror property directly bypasses the browser's
+              // event dispatch semantics and can leave the awaiting session
+              // unresolved when the completed transaction is being dispatched.
+              queueMicrotask(()=>{
+                const delivered=tx.dispatchEvent(new Event('error'));
+                if(!delivered)throw Error('G265_BONUS_ACK_DROP_ERROR_EVENT_CANCELLED');
+              });
+            },{once:true});
+          },get(){return null;}
+        });
+      }
+      return tx;
+    };
+  });
+  const unknownAck=await bonusAckLostPage.evaluate(async week=>{
+    const api=await import('/assets/js/weekly-manual-activity-bonuses.js');
+    try{
+      await api.saveWeeklyManualActivityBonus({weekStart:week,values:{pot_multiplier:5}});
+      return {ok:true,observed:window.__g265BonusLostAckObserved};
+    }catch(error){
+      return {ok:false,code:error?.code||error?.message||String(error),
+        observed:window.__g265BonusLostAckObserved};
+    }
+  },bonusWeek);
+  assert.equal(unknownAck.observed,true,'G265_BONUS_ACK_DROP_REAL_IDB_COMMIT_NOT_REACHED');
+  assert.equal(unknownAck.ok,false,'G265_BONUS_ACK_DROP_MUST_NOT_REPORT_SUCCESS');
+  assert.equal(unknownAck.code,'SQLITE_WRITE_SESSION_UNVERIFIED_RELOAD_REQUIRED',
+    'G265_BONUS_ACK_DROP_MUST_QUARANTINE_PAGE:'+JSON.stringify(unknownAck));
+  const committedWithoutAck=await inspect(bonusFresh);
+  assert.equal(committedWithoutAck.hash,committedWithoutAck.revision.sha256,
+    'G265_BONUS_ACK_DROP_ATOMIC_PRIMARY_SHA');
+  assert.equal(committedWithoutAck.revision.generation,bonusBeforeLostAck.revision.generation+1,
+    'G265_BONUS_ACK_DROP_EXACTLY_ONE_DURABLE_COMMIT');
+  assert.equal(committedWithoutAck.snapshots,bonusBeforeLostAck.snapshots+1,
+    'G265_BONUS_ACK_DROP_EXACTLY_ONE_SNAPSHOT');
+  const independentlyCommitted=new SQL.Database(Uint8Array.from(committedWithoutAck.raw));
+  try{
+    const durableJson=independentlyCommitted.exec(
+      "SELECT value_json FROM settings WHERE key='weekly_activity_bonus:2026-11-09'"
+    )[0]?.values[0][0];
+    assert.equal(JSON.parse(durableJson).values.pot_multiplier,5,
+      'G265_BONUS_ACK_DROP_COMMITTED_OBSERVATION_NOT_ROLLED_BACK');
+  }finally{independentlyCommitted.close();}
+  // A failed page still holds the already COMMITTED in-memory SQL image.
+  // Rejecting the next save must not even mutate its loaded SQL.js state,
+  // independently of the atomic IndexedDB no-overwrite assertion below.
+  const loadedAfterUnknownAck=JSON.parse(await savedBonus(bonusAckLostPage));
+  assert.equal(loadedAfterUnknownAck.values.pot_multiplier,5,
+    'G265_BONUS_ACK_DROP_COMMITTED_IN_MEMORY_VALUE');
+  const deniedAckRetry=await bonusAckLostPage.evaluate(async week=>{
+    const api=await import('/assets/js/weekly-manual-activity-bonuses.js');
+    try{
+      await api.saveWeeklyManualActivityBonus({weekStart:week,values:{pot_multiplier:6}});
+      return {ok:true};
+    }catch(error){return {ok:false,code:error?.code||error?.message||String(error)};}
+  },bonusWeek);
+  assert.equal(deniedAckRetry.ok,false,'G265_BONUS_ACK_DROP_MUST_DENY_SAME_PAGE_RETRY');
+  assert.deepEqual(JSON.parse(await savedBonus(bonusAckLostPage)),loadedAfterUnknownAck,
+    'G265_BONUS_ACK_DROP_RETRY_MUST_NOT_MUTATE_LOADED_SQL_IMAGE');
+  assert.ok(['SQLITE_DIRECT_WRITE_UNVERIFIED_RELOAD_REQUIRED',
+    'SQLITE_WRITE_SESSION_UNVERIFIED_RELOAD_REQUIRED'].includes(deniedAckRetry.code),
+    'G265_BONUS_ACK_DROP_RETRY_HOLD_CODE:'+JSON.stringify(deniedAckRetry));
+  const afterLostAckRetry=await inspect(bonusFresh);
+  assert.deepEqual(afterLostAckRetry.revision,committedWithoutAck.revision,
+    'G265_BONUS_ACK_DROP_RETRY_MUST_NOT_ADVANCE_DURABLE_REVISION');
+  assert.equal(afterLostAckRetry.hash,committedWithoutAck.hash,
+    'G265_BONUS_ACK_DROP_RETRY_MUST_NOT_REWRITE_BYTES');
+  assert.equal(afterLostAckRetry.snapshots,committedWithoutAck.snapshots,
+    'G265_BONUS_ACK_DROP_RETRY_MUST_NOT_CREATE_SNAPSHOT');
+  const recoveredBonus=await tab();
+  const recoveredDurable=await inspect(recoveredBonus);
+  assert.equal(recoveredDurable.hash,committedWithoutAck.hash,
+    'G265_BONUS_ACK_DROP_FRESH_RELOAD_EXACT_COMMITTED_SHA');
+  assert.deepEqual(recoveredDurable.revision,committedWithoutAck.revision,
+    'G265_BONUS_ACK_DROP_FRESH_RELOAD_NO_DUPLICATE_COMMIT');
+  assert.equal(recoveredDurable.snapshots,committedWithoutAck.snapshots);
+  assert.equal(JSON.parse(await savedBonus(recoveredBonus)).values.pot_multiplier,5,
+    'G265_BONUS_ACK_DROP_FRESH_RELOAD_PRESERVES_COMMITTED_PLAYER_OBSERVATION');
+  console.log('PASS G265_PRODUCTION_WEEKLY_ACTIVITY_BONUS_NATIVE_POSTCOMMIT_LOST_ACK_STICKY_NO_RETRY_SHA_REVISION_FRESH_RELOAD');
+
   console.log('PASS G265_PRODUCTION_WEEKLY_ACTIVITY_BONUS_NATIVE_TWO_TAB_STALE_ZERO_SQL_SHA_REVISION_ACK_STICKY_FRESH_RELOAD');
 }finally{
   await Promise.all(pages.map(p=>p.close().catch(()=>{})));
