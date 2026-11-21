@@ -1,5 +1,6 @@
+// Preserved negative witness: evaluate FROZEN pre-native production source, not the repaired module.
 // G265 nineteenth distinct Legacy Direct Writer: identity-convergence.js::convergeStrongIdentities().
-// Two isolated SQL.js VM sessions execute the unchanged production function on synthetic identities.
+// Two isolated SQL.js VM sessions execute the frozen historical production function on synthetic identities.
 // Two successful persist ACKs can erase a newer strong identity and its evidence after stale full-image save.
 // PASS is an UNSAFE negative, not a production CAS admission, Android UAT, or private-data operation.
 import assert from 'node:assert/strict';
@@ -7,7 +8,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import initSqlJs from 'sql.js';
 
-const source=fs.readFileSync(new URL('../assets/js/identity-convergence.js',import.meta.url),'utf8');
+const source=fs.readFileSync(new URL('fixtures/g265-identity-convergence-nineteenth-pre-native-source.txt',import.meta.url),'utf8');
 const start='function strongCandidates(){';
 const end='\nfunction boot(){';
 assert.equal(source.split(start).length,2,'strongCandidates source must be unique');
