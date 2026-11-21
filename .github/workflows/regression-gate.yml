@@ -758,6 +758,10 @@ jobs:
 
       - name: G265 Nineteenth Production Identity Convergence Native Pre-SQL and Atomic ACK Contract
         run: node scripts/g265-identity-convergence-production-native-admission-contract.mjs
+      - name: G265 Nineteenth Production Identity Convergence Real Chromium Two-Tab Native Durable CAS
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-identity-convergence-production-native-chromium.mjs
 
       - name: G265 Nineteenth Identity Convergence Legacy Two-ACK Stale Evidence Negative
         run: node scripts/g265-identity-convergence-nineteenth-legacy-cross-tab-negative.mjs
