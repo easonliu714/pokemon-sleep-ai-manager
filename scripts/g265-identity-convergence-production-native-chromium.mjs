@@ -50,13 +50,15 @@ try{
         try{
           const result=durable.exec("SELECT identity_review_required FROM pokemon WHERE pokemon_id='g265-identity-A'");
           const evidence=durable.exec("SELECT COUNT(*) FROM pokemon_identity_evidence WHERE evidence_id='auto-converged-g265-identity-A'");
-          committed={identity:result?.[0]?.values[0]?.[0]??null,evidence:evidence?.[0]?.values[0]?.[0]??null};
+          const original=durable.exec("SELECT COUNT(*) FROM pokemon_identity_evidence WHERE evidence_id IN ('g265-A-registration','g265-A-fingerprint')");
+          committed={identity:result?.[0]?.values[0]?.[0]??null,evidence:evidence?.[0]?.values[0]?.[0]??null,originalEvidence:original?.[0]?.values[0]?.[0]??null};
         }finally{durable.close();}
         const selected=window.__db.rows("SELECT identity_review_required FROM pokemon WHERE pokemon_id='g265-identity-A'");
         const identity=selected?.[0]?.identity_review_required??null;
         const evidence=window.__db.rows("SELECT COUNT(*) AS n FROM pokemon_identity_evidence WHERE evidence_id='auto-converged-g265-identity-A'")[0]?.n??null;
+        const originalEvidence=window.__db.rows("SELECT COUNT(*) AS n FROM pokemon_identity_evidence WHERE evidence_id IN ('g265-A-registration','g265-A-fingerprint')")[0]?.n??null;
         const publicMaster=window.__db.rows('SELECT COUNT(*) AS n FROM public_event_master')[0]?.n;
-        return {hash,revision:image.revision,snapshots:image.snapshots,identity,evidence,committed,publicMaster};
+        return {hash,revision:image.revision,snapshots:image.snapshots,identity,evidence,originalEvidence,committed,publicMaster};
       }finally{idb.close();}
     });
   }
@@ -94,6 +96,7 @@ try{
   assert.equal(beforeSeed.hash,beforeSeed.revision.sha256);
   assert.equal(beforeSeed.committed.identity,1);
   assert.equal(beforeSeed.committed.evidence,0);
+  assert.equal(beforeSeed.committed.originalEvidence,2,'G265_SEED_ORIGINAL_PROVENANCE_EXACT_TWO');
   await seed.close();
 
   const writer=await tab(),stale=await tab();
@@ -116,6 +119,8 @@ try{
   assert.equal(committed.evidence,1);
   assert.equal(committed.committed.identity,0);
   assert.equal(committed.committed.evidence,1);
+  assert.equal(committed.originalEvidence,2,'G265_ACK_MUST_PRESERVE_TWO_PLAYER_OBSERVATIONS');
+  assert.equal(committed.committed.originalEvidence,2,'G265_DURABLE_MUST_PRESERVE_TWO_ORIGINAL_FACTS');
   assert.equal(committed.publicMaster,before.publicMaster);
   console.log('PASS G265_PRODUCTION_IDENTITY_NATIVE_EXACT_LEASE_DURABLE_ACK_FLAG_AND_EVIDENCE');
 
@@ -129,6 +134,7 @@ try{
   const staleAfter=await inspect(stale);
   assert.equal(staleAfter.identity,staleInitial.identity,'G265_STALE_TAB_ZERO_LOADED_SQL_MUTATION');
   assert.equal(staleAfter.evidence,staleInitial.evidence,'G265_STALE_TAB_ZERO_EVIDENCE_WRITE');
+  assert.equal(staleAfter.originalEvidence,2,'G265_STALE_LOADED_ORIGINAL_EVIDENCE_UNTOUCHED');
   assert.deepEqual(staleAfter.revision,committed.revision);
   assert.equal(staleAfter.snapshots,committed.snapshots,'G265_STALE_TAB_ZERO_SNAPSHOT');
   const retry=await stale.evaluate(async()=>{
@@ -149,6 +155,8 @@ try{
   assert.deepEqual(reloaded.revision,committed.revision);
   assert.equal(reloaded.identity,0);
   assert.equal(reloaded.evidence,1);
+  assert.equal(reloaded.originalEvidence,2,'G265_FRESH_RELOAD_ORIGINAL_EVIDENCE_INTACT');
+  assert.equal(reloaded.committed.originalEvidence,2,'G265_FRESH_DURABLE_ORIGINAL_FACTS');
   assert.equal(reloaded.publicMaster,committed.publicMaster);
   console.log('PASS G265_PRODUCTION_IDENTITY_NATIVE_FRESH_RELOAD_PRESERVES_ONLY_ACK');
 }finally{
