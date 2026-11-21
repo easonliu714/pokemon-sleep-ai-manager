@@ -109,7 +109,24 @@ assert.deepEqual(thenableEvents,thenableBeforeRetry,
   'Unsafe thenable must block all same-page retry work before snapshot');
 console.log('PASS_G265_WEEKLY_ACTIVITY_THENABLE_MUTATION_STICKY_ZERO_RETRY');
 
-// Deliberately red native admission regression remains the release blocker.
+// Positive exact-lease behavior: admission precedes snapshot and persists under
+// the identical opaque lease, without granting a second mutation session.
+const lease=Object.freeze({});
+const admittedEvents=[];
+const admittedCoordinator=createSqliteWriteSessionCoordinator({
+  admit:async callback=>{admittedEvents.push('admit');return callback(lease);},
+  snapshot:async()=>{admittedEvents.push('snapshot');},
+  begin:()=>{admittedEvents.push('begin');},
+  commit:()=>{admittedEvents.push('commit');},
+  rollback:()=>{admittedEvents.push('rollback');},
+  persist:async options=>{assert.equal(options.primaryMutationLease,lease);admittedEvents.push('persist');}
+});
+const admittedResult=await admittedCoordinator.execute({reason:'disposable admitted session',mutate:()=>{admittedEvents.push('mutate');}});
+assert.equal(admittedResult.status,'PERSISTED');
+assert.deepEqual(admittedEvents,['admit','snapshot','begin','mutate','commit','persist']);
+console.log('PASS_G265_WEEKLY_ACTIVITY_NATIVE_LEASE_BOUND_PERSIST');
+
+// Native denial must reject before any snapshot or SQL.
 const events=[];
 const coordinator=createSqliteWriteSessionCoordinator({
   snapshot:async()=>{events.push('snapshot');},
