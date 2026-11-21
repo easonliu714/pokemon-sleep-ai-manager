@@ -57,7 +57,7 @@ try{
         const selected=window.__db.rows("SELECT identity_review_required FROM pokemon WHERE pokemon_id='g265-ability-A'");
         const identity=selected?.[0]?.identity_review_required??null;
         const evidence=window.__db.rows("SELECT COUNT(*) AS n FROM pokemon_identity_evidence WHERE evidence_id='ability-fingerprint-g265-ability-A'")[0]?.n??null;
-        const originalEvidence=window.__db.rows("SELECT COUNT(*) AS n FROM pokemon_identity_evidence WHERE evidence_id IN ('g265-A-registration','g265-A-fingerprint')")[0]?.n??null;
+        const originalEvidence=window.__db.rows("SELECT (SELECT COUNT(*) FROM pokemon_ingredients WHERE pokemon_id='g265-ability-A') + (SELECT COUNT(*) FROM pokemon_subskills WHERE pokemon_id='g265-ability-A') AS n")[0]?.n??null;
         const publicMaster=window.__db.rows('SELECT COUNT(*) AS n FROM public_event_master')[0]?.n;
         return {hash,revision:image.revision,snapshots:image.snapshots,identity,evidence,originalEvidence,committed,publicMaster};
       }finally{idb.close();}
@@ -104,7 +104,7 @@ try{
   assert.equal(beforeSeed.hash,beforeSeed.revision.sha256);
   assert.equal(beforeSeed.committed.identity,1);
   assert.equal(beforeSeed.committed.evidence,0);
-  assert.equal(beforeSeed.committed.originalEvidence,8,'G265_SEED_ORIGINAL_PROVENANCE_EXACT_TWO');
+  assert.equal(beforeSeed.committed.originalEvidence,8,'G265_SEED_EIGHT_ORIGINAL_ABILITY_OBSERVATIONS');
   await seed.close();
 
   const writer=await tab(),stale=await tab();
@@ -115,7 +115,7 @@ try{
   assert.deepEqual(before.revision,staleInitial.revision);
   assert.equal(before.identity,1);
   const accepted=await writer.evaluate(async()=>{
-    const identity=await import('/assets/js/ability-evidence.js');
+    const identity=await import('/assets/js/identity-evidence-builder.js');
     return identity.completeIdentityEvidence();
   });
   assert.equal(accepted,1,'G265_PRODUCTION_CONVERGENCE_EXPECTS_EXACT_ONE_STRONG_CANDIDATE');
@@ -127,13 +127,13 @@ try{
   assert.equal(committed.evidence,1);
   assert.equal(committed.committed.identity,0);
   assert.equal(committed.committed.evidence,1);
-  assert.equal(committed.originalEvidence,8,'G265_ACK_MUST_PRESERVE_TWO_PLAYER_OBSERVATIONS');
-  assert.equal(committed.committed.originalEvidence,8,'G265_DURABLE_MUST_PRESERVE_TWO_ORIGINAL_FACTS');
+  assert.equal(committed.originalEvidence,8,'G265_ACK_MUST_PRESERVE_EIGHT_PLAYER_OBSERVATIONS');
+  assert.equal(committed.committed.originalEvidence,8,'G265_DURABLE_MUST_PRESERVE_EIGHT_ORIGINAL_FACTS');
   assert.equal(committed.publicMaster,before.publicMaster);
   console.log('PASS G265_PRODUCTION_ABILITY_NATIVE_EXACT_LEASE_DURABLE_ACK_FLAG_AND_EVIDENCE');
 
   const denied=await stale.evaluate(async()=>{
-    const identity=await import('/assets/js/ability-evidence.js');
+    const identity=await import('/assets/js/identity-evidence-builder.js');
     try{await identity.completeIdentityEvidence();return {ok:true};}
     catch(error){return {ok:false,code:error?.code||error?.message||String(error)};}
   });
@@ -146,7 +146,7 @@ try{
   assert.deepEqual(staleAfter.revision,committed.revision);
   assert.equal(staleAfter.snapshots,committed.snapshots,'G265_STALE_TAB_ZERO_SNAPSHOT');
   const retry=await stale.evaluate(async()=>{
-    const identity=await import('/assets/js/ability-evidence.js');
+    const identity=await import('/assets/js/identity-evidence-builder.js');
     try{await identity.completeIdentityEvidence();return {ok:true};}
     catch(error){return {ok:false,code:error?.code||error?.message||String(error)};}
   });
