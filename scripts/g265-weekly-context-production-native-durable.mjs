@@ -298,6 +298,12 @@ try{
     assert.equal(JSON.parse(durableJson).values.pot_multiplier,5,
       'G265_BONUS_ACK_DROP_COMMITTED_OBSERVATION_NOT_ROLLED_BACK');
   }finally{independentlyCommitted.close();}
+  // A failed page still holds the already COMMITTED in-memory SQL image.
+  // Rejecting the next save must not even mutate its loaded SQL.js state,
+  // independently of the atomic IndexedDB no-overwrite assertion below.
+  const loadedAfterUnknownAck=JSON.parse(await savedBonus(bonusAckLostPage));
+  assert.equal(loadedAfterUnknownAck.values.pot_multiplier,5,
+    'G265_BONUS_ACK_DROP_COMMITTED_IN_MEMORY_VALUE');
   const deniedAckRetry=await bonusAckLostPage.evaluate(async week=>{
     const api=await import('/assets/js/weekly-manual-activity-bonuses.js');
     try{
@@ -306,6 +312,8 @@ try{
     }catch(error){return {ok:false,code:error?.code||error?.message||String(error)};}
   },bonusWeek);
   assert.equal(deniedAckRetry.ok,false,'G265_BONUS_ACK_DROP_MUST_DENY_SAME_PAGE_RETRY');
+  assert.deepEqual(JSON.parse(await savedBonus(bonusAckLostPage)),loadedAfterUnknownAck,
+    'G265_BONUS_ACK_DROP_RETRY_MUST_NOT_MUTATE_LOADED_SQL_IMAGE');
   assert.ok(['SQLITE_DIRECT_WRITE_UNVERIFIED_RELOAD_REQUIRED',
     'SQLITE_WRITE_SESSION_UNVERIFIED_RELOAD_REQUIRED'].includes(deniedAckRetry.code),
     'G265_BONUS_ACK_DROP_RETRY_HOLD_CODE:'+JSON.stringify(deniedAckRetry));
