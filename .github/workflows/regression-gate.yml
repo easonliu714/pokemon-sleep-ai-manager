@@ -772,6 +772,14 @@ jobs:
       - name: G265 Nineteenth Identity Convergence Native Chromium Two-Tab CAS and Recovery Gate
         run: node scripts/g265-native-chromium-nineteenth-identity-convergence-cas.mjs
 
+      - name: G265 Twentieth CURRENT Production Ability Evidence Native Pre-SQL Atomic ACK Contract
+        run: node scripts/g265-ability-evidence-production-native-admission-contract.mjs
+
+      - name: G265 Twentieth CURRENT Production Ability Evidence Native Chromium Two-Tab Durable CAS
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-ability-evidence-production-native-chromium.mjs
+
       - name: G265 Twentieth Ability Evidence Legacy Two-ACK Stale Identity Negative
         run: node scripts/g265-ability-evidence-twentieth-legacy-cross-tab-negative.mjs
 

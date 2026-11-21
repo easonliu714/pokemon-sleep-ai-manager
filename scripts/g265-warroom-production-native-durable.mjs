@@ -14,8 +14,13 @@ try {
   }));
   async function tab(){
     const page=await context.newPage();
+    // Fail on real Chromium page exceptions instead of silently waiting for a later ACK.
+    page.on('pageerror',error=>console.error('G265_WARROOM_BROWSER_PAGEERROR',error?.stack||String(error)));
+    console.log('G265_WARROOM_PHASE_PAGE_GOTO_BEGIN');
     await page.goto(new URL('g265-warroom-production-disposable',base).href);
+    console.log('G265_WARROOM_PHASE_PAGE_GOTO_ACK');
     await page.addScriptTag({url:new URL('node_modules/sql.js/dist/sql-wasm.js',base).href});
+    console.log('G265_WARROOM_PHASE_PRODUCTION_BOOT_BEGIN');
     await page.evaluate(async()=>{
       const boot=window.initSqlJs;
       window.initSqlJs=()=>boot({locateFile:f=>'/node_modules/sql.js/dist/'+f});
@@ -30,6 +35,7 @@ try {
           throw Error('G265_WARROOM_NAV_NOT_REACHABLE');
       }
     });
+    console.log('G265_WARROOM_PHASE_PRODUCTION_BOOT_ACK');
     return page;
   }
   async function inspect(page){
@@ -84,10 +90,12 @@ try {
     // initializeDatabase() returns. Complete that legitimate first-install
     // public-master write in the isolated seed, before any contender loads.
     // This does not suppress the production refresh or bypass native CAS.
+    console.log('G265_WARROOM_PHASE_PUBLIC_MASTER_REFRESH_BEGIN',bootIndex);
     const refresh=await seed.evaluate(async()=>{
       const module=await import('/assets/js/public-event-master-bootstrap.js');
       return module.refreshPublicEventMasterForCurrentWeek();
     });
+    console.log('G265_WARROOM_PHASE_PUBLIC_MASTER_REFRESH_ACK',bootIndex,refresh?.status);
     assert.ok(['UPDATED','UNCHANGED'].includes(refresh.status),
       'G265_SEED_PUBLIC_MASTER_REFRESH_NOT_ACKNOWLEDGED:'+JSON.stringify(refresh));
     const seeded=await inspect(seed);
@@ -116,7 +124,9 @@ try {
   assert.equal(staleBefore.hash,staleBefore.revision?.sha256,'G265_WARROOM_STALE_INITIAL_SHA_PARITY');
   assert.equal(staleBefore.revision.generation,before.revision.generation,
     'G265_WARROOM_INITIAL_REVISION_MISMATCH:'+JSON.stringify(initialEvidence));
+  console.log('G265_WARROOM_PHASE_FRESH_PRODUCTION_SUBMIT_BEGIN');
   const ack=await submit(writer,'SYNTHETIC_WARROOM_NEWER');
+  console.log('G265_WARROOM_PHASE_FRESH_PRODUCTION_SUBMIT_ACK',ack?.ok,ack?.code||'');
   assert.equal(ack.ok,true,'G265_WARROOM_PRODUCTION_FRESH_ACK_REQUIRED:'+JSON.stringify(ack));
   const durable=await inspect(writer);
   assert.equal(durable.hash,durable.revision.sha256,'G265_WARROOM_POST_ACK_SHA');

@@ -1,3 +1,4 @@
+// HISTORICAL: run frozen pre-native source, NOT the now-admitted production writer.
 // G265 twentieth Ability Evidence native Chromium two-tab CAS and recovery source Gate.
 // The exact unchanged production completeIdentityEvidence() runs on disposable synthetic SQL.js.
 // Web Locks / IndexedDB / SHA-256 CAS / BEGIN IMMEDIATE are TEST-ONLY wrappers.
@@ -8,7 +9,7 @@ import {createHash} from 'node:crypto';
 import {chromium} from 'playwright';
 import initSqlJs from 'sql.js';
 
-const source=fs.readFileSync(new URL('../assets/js/identity-evidence-builder.js',import.meta.url),'utf8');
+const source=fs.readFileSync(new URL('fixtures/g265-ability-evidence-twentieth-pre-native-source.txt',import.meta.url),'utf8');
 const start='const text=value=>';
 const end='\nfunction boot(){';
 assert.equal(source.split(start).length,2,'ability evidence source start changed');

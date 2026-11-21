@@ -1,5 +1,6 @@
+// HISTORICAL: run frozen pre-native source, NOT the now-admitted production writer.
 // G265 twentieth Ability Evidence Legacy Writer: isolated opt-in CAS, rollback, ACK-loss recovery.
-// Executes unchanged identity-evidence-builder.js::completeIdentityEvidence() on disposable SQL.js VM sessions.
+// Executes historical identity-evidence-builder.js::completeIdentityEvidence() on disposable SQL.js VM sessions.
 // Web Locks, SHA-256 durable CAS and transaction admission are TEST-ONLY adapters, not production wiring.
 // Synthetic ability, ingredients, subskills and public sentinel only; never access player SQLite/IDB.
 import assert from 'node:assert/strict';
@@ -9,7 +10,7 @@ import {webcrypto} from 'node:crypto';
 import initSqlJs from 'sql.js';
 import {createSqliteCrossTabWriteAdmission,sha256SqliteBytes} from '../assets/js/sqlite-cross-tab-write-admission.js';
 
-const source=fs.readFileSync(new URL('../assets/js/identity-evidence-builder.js',import.meta.url),'utf8');
+const source=fs.readFileSync(new URL('fixtures/g265-ability-evidence-twentieth-pre-native-source.txt',import.meta.url),'utf8');
 const start='const text=value=>';
 const end='\nfunction boot(){';
 assert.equal(source.split(start).length,2,'ability evidence helper source must be unique');
