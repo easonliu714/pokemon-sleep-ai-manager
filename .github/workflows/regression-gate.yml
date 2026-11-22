@@ -129,6 +129,10 @@ jobs:
       - name: Verify G265 Weekly postcommit ACK error provenance
         run: node scripts/g265-weekly-postcommit-ack-error-contract.mjs
 
+      # G265: exact production account-pot and fallback rollback failure contract (SQL.js only).
+      - name: Verify G265 Account Pot SQL rollback provenance
+        run: node scripts/g265-weekly-account-pot-rollback-provenance-contract.mjs
+
       - name: Verify G265 Weekly two-ACK UI partial-success disclosure
         run: node scripts/g265-weekly-dual-ack-ui-disclosure-contract.mjs
 
