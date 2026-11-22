@@ -357,6 +357,88 @@ try{
   assert.equal(durableAfterReload.hash,afterLost.hash);
   console.log('PASS G265_CURRENT_DEDUP_NATIVE_REAL_POSTCOMMIT_ACK_LOST_STICKY_ZERO_RETRY_FRESH_READBACK');
 
+
+  // Independent native production fixture: same unlock slot carries conflicting
+  // original ingredient observations. A dedup must HOLD, never INSERT OR IGNORE
+  // and then delete the loser's original player observation.
+  const conflictSeed=await tab();
+  assert.equal((await conflictSeed.evaluate(()=>window.__boot)).boot_persist_skipped,true);
+  await conflictSeed.evaluate(async()=>{
+    const db=window.__db,at='2026-11-22T21:55:00+08:00';
+    for(const [id,instance,review,confidence,registered,fingerprint] of [
+      ['g265-dedup-C','g265-instance-C',0,0.99,at,'g265-fingerprint-C'],
+      ['pkm_private_g265-dedup-C','g265-private-C',1,0.2,null,null]
+    ]){
+      db.run('INSERT INTO pokemon(pokemon_id,pokemon_instance_id,species,original_label,level,specialty,type,status,identity_review_required,identity_confidence,registered_at,identity_fingerprint,last_updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        [id,instance,'G265_SYNTHETIC_C','G265_SYNTHETIC_C',30,'ingredients','grass','active',review,confidence,registered,fingerprint,at]);
+    }
+    db.run('INSERT INTO pokemon_ingredients(pokemon_id,unlock_level,ingredient_name,quantity) VALUES(?,?,?,?)',
+      ['g265-dedup-C',1,'G265_ORIGINAL_WINNER',2]);
+    db.run('INSERT INTO pokemon_ingredients(pokemon_id,unlock_level,ingredient_name,quantity) VALUES(?,?,?,?)',
+      ['pkm_private_g265-dedup-C',1,'G265_ORIGINAL_LOSER',99]);
+    await db.persist();
+  });
+  await conflictSeed.close();
+  const conflictTab=await tab();
+  assert.equal((await conflictTab.evaluate(()=>window.__boot)).boot_persist_skipped,true);
+  await loadWriter(conflictTab);
+  async function inspectConflict(page){
+    return page.evaluate(async()=>{
+      const q="SELECT pokemon_id,unlock_level,ingredient_name,quantity FROM pokemon_ingredients WHERE pokemon_id IN ('g265-dedup-C','pkm_private_g265-dedup-C') ORDER BY pokemon_id,unlock_level";
+      const p="SELECT pokemon_id,status FROM pokemon WHERE pokemon_id IN ('g265-dedup-C','pkm_private_g265-dedup-C') ORDER BY pokemon_id";
+      const idb=await new Promise((resolve,reject)=>{
+        const req=indexedDB.open('pokemon_sleep_ai_manager');
+        req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+      });
+      try{
+        const image=await new Promise((resolve,reject)=>{
+          const tx=idb.transaction(['database','metadata','snapshots'],'readonly');
+          const bytes=tx.objectStore('database').get('primary');
+          const revision=tx.objectStore('metadata').get('revision:primary');
+          const snapshots=tx.objectStore('snapshots').count();
+          tx.oncomplete=()=>resolve({bytes:bytes.result,revision:revision.result,snapshots:snapshots.result});
+          tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+        });
+        const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',image.bytes)),
+          b=>b.toString(16).padStart(2,'0')).join('');
+        const SQL=await window.initSqlJs(),db=new SQL.Database(new Uint8Array(image.bytes));
+        const read=(sql,engine)=>{
+          const r=engine.exec(sql)[0];
+          return r?r.values.map(values=>Object.fromEntries(r.columns.map((k,i)=>[k,values[i]]))):[];
+        };
+        try{
+          return {hash,revision:image.revision,snapshots:image.snapshots,
+            durable:{ingredients:read(q,db),pokemon:read(p,db)},
+            loaded:{ingredients:window.__db.rows(q),pokemon:window.__db.rows(p)}};
+        }finally{db.close();}
+      }finally{idb.close();}
+    });
+  }
+  const conflictBefore=await inspectConflict(conflictTab);
+  assert.equal(conflictBefore.loaded.ingredients.length,2);
+  const conflictAttempt=()=>conflictTab.evaluate(async()=>{
+    try{return {ok:true,count:await window.__dedup.repairPokemonDuplicates()};}
+    catch(e){return {ok:false,code:e.code||e.message};}
+  });
+  assert.deepEqual(await conflictAttempt(),{ok:false,code:'IDENTITY_DEDUP_CHILD_SLOT_CONFLICT_REVIEW_REQUIRED'});
+  const conflictAfter=await inspectConflict(conflictTab);
+  assert.deepEqual(conflictAfter.loaded,conflictBefore.loaded);
+  assert.deepEqual(conflictAfter.durable,conflictBefore.durable);
+  assert.equal(conflictAfter.hash,conflictBefore.hash);
+  assert.deepEqual(conflictAfter.revision,conflictBefore.revision);
+  assert.equal(conflictAfter.snapshots,conflictBefore.snapshots+1);
+  assert.deepEqual(await conflictAttempt(),{ok:false,code:'SQLITE_DIRECT_WRITE_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.deepEqual(await inspectConflict(conflictTab),conflictAfter);
+  await conflictTab.close();
+  const conflictFresh=await tab();
+  assert.equal((await conflictFresh.evaluate(()=>window.__boot)).boot_persist_skipped,true);
+  const conflictReload=await inspectConflict(conflictFresh);
+  assert.deepEqual(conflictReload.durable,conflictAfter.durable);
+  assert.deepEqual(conflictReload.loaded,conflictAfter.durable);
+  assert.equal(conflictReload.hash,conflictAfter.hash);
+  assert.deepEqual(conflictReload.revision,conflictAfter.revision);
+  console.log('PASS G265_CURRENT_DEDUP_NATIVE_CONFLICTING_CHILD_SLOT_ROLLBACK_STICKY_FRESH_READBACK');
+
 }finally{
   await Promise.all(pages.map(p=>p.close().catch(()=>{})));
   await context.close();await browser.close();
