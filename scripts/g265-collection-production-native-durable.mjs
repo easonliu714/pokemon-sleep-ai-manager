@@ -84,22 +84,30 @@ try{
   // stable image is a real boot defect and must fail, not be normalized.
   let stableBoot=false;
   for(let bootIndex=0;bootIndex<3;bootIndex++){
+    console.log('G265_COLLECTION_PHASE_SEED_TAB_BEGIN',bootIndex);
     const seed=await newTab();
+    console.log('G265_COLLECTION_PHASE_SEED_TAB_ACK',bootIndex);
     const boot=await seed.evaluate(()=>window.__g265Boot);
     // G265 #892 post-merge recovery: production Public Event Master refresh can
     // commit asynchronously after SQLite initialization returns. Complete the
     // real authorized refresh and its durable IDB ACK in the isolated seed
     // BEFORE either competing loaded tab exists. Do not normalize revisions,
     // remove the actual stale-CAS checks, or bypass native storage admission.
+    console.log('G265_COLLECTION_PHASE_SEED_REFRESH_BEGIN',bootIndex);
     const refresh=await seed.evaluate(async()=>{
       const module=await import('/assets/js/public-event-master-bootstrap.js');
       return module.refreshPublicEventMasterForCurrentWeek();
     });
+    console.log('G265_COLLECTION_PHASE_SEED_REFRESH_ACK',bootIndex,refresh.status);
     assert.ok(['UPDATED','UNCHANGED'].includes(refresh.status),
       'G265_COLLECTION_SEED_PUBLIC_MASTER_REFRESH_NOT_ACKNOWLEDGED:'+JSON.stringify(refresh));
+    console.log('G265_COLLECTION_PHASE_SEED_IDB_INSPECT_BEGIN',bootIndex);
     const seeded=await inspect(seed);
+    console.log('G265_COLLECTION_PHASE_SEED_IDB_INSPECT_ACK',bootIndex);
     assert.equal(seeded.hash,seeded.revision?.sha256,'G265_SEED_DURABLE_SHA');
+    console.log('G265_COLLECTION_PHASE_SEED_CLOSE_BEGIN',bootIndex);
     await seed.close();
+    console.log('G265_COLLECTION_PHASE_SEED_CLOSE_ACK',bootIndex);
     if(boot.boot_persist_skipped){stableBoot=true;break;}
   }
   assert.equal(stableBoot,true,'G265_BOOT_MIGRATION_DID_NOT_CONVERGE');
