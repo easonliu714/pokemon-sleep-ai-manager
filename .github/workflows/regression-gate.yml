@@ -801,6 +801,11 @@ jobs:
       - name: G265 Current Production Identity Dedup Native Pre-SQL Source Contract
         run: node scripts/g265-identity-dedup-production-presql-negative.mjs
 
+      - name: G265 Current Production Identity Dedup Native Chromium Durable CAS
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g265-identity-dedup-production-native-chromium.mjs
+
       - name: G265 Canonical Identity Dedup Legacy Two-ACK Stale Child and History Negative
         run: node scripts/g265-identity-dedup-canonical-legacy-cross-tab-negative.mjs
 
