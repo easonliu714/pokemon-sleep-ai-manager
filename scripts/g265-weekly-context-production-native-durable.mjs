@@ -168,6 +168,7 @@ try{
   // shared runtime session. Reuse this disposable, converged IDB+SQL.js origin
   // to prove cross-tab native pre-SQL denial, exact durable revision, and
   // independent fresh reload. No Owner/player SQLite is ever involved.
+  console.log('G265_BONUS_PHASE_OPEN_TWO_TABS');
   const bonusWriter=await tab(),bonusStale=await tab();
   const bonusInitial=await inspect(bonusWriter),bonusStaleInitial=await inspect(bonusStale);
   assert.equal(bonusInitial.hash,bonusInitial.revision?.sha256,'G265_BONUS_INITIAL_PRIMARY_SHA');
@@ -182,6 +183,7 @@ try{
   }
   assert.equal(await savedBonus(bonusWriter),null,'G265_BONUS_BEFORE_WRITE_MUST_BE_ABSENT');
   assert.equal(await savedBonus(bonusStale),null,'G265_BONUS_STALE_BEFORE_WRITE_MUST_BE_ABSENT');
+  console.log('G265_BONUS_PHASE_BEFORE_NATIVE_WRITER_ACK');
   const bonusAck=await bonusWriter.evaluate(async week=>{
     const api=await import('/assets/js/weekly-manual-activity-bonuses.js');
     return api.saveWeeklyManualActivityBonus({weekStart:week,values:{pot_multiplier:2}});
@@ -241,13 +243,16 @@ try{
   // weekly activity bonus writer (NOT bootstrap Migration or Node VM).
   // Preserve the genuine IDB transaction/Web Lock; only its application ACK
   // callback is replaced after native completion on this disposable tab.
+  console.log('G265_BONUS_PHASE_BEFORE_ACK_LOSS_TAB_BOOT');
   const bonusAckLostPage=await tab();
   const bonusBeforeLostAck=await inspect(bonusAckLostPage);
   assert.equal(bonusBeforeLostAck.hash,bonusDurable.hash,'G265_BONUS_ACK_DROP_SEED_SHA');
   assert.deepEqual(bonusBeforeLostAck.revision,bonusDurable.revision,
     'G265_BONUS_ACK_DROP_SEED_REVISION');
+  console.log('G265_BONUS_PHASE_BEFORE_ACK_LOSS_INSTRUMENTATION');
   await bonusAckLostPage.evaluate(()=>{
     window.__g265BonusLostAckObserved=false;
+    window.__g265BonusAckLossNativeCompleteCount=0;
     const nativeTransaction=IDBDatabase.prototype.transaction;
     IDBDatabase.prototype.transaction=function(...args){
       const tx=nativeTransaction.apply(this,args);
@@ -261,6 +266,7 @@ try{
             if(typeof callback!=='function')throw Error('G265_BONUS_ACK_DROP_CALLBACK_MISSING');
             tx.addEventListener('complete',()=>{
               window.__g265BonusLostAckObserved=true;
+              window.__g265BonusAckLossNativeCompleteCount++;
               // A completed native transaction has no failure state. Its
               // `error` getter may throw InvalidStateError after COMMIT; the
               // production error handler reads tx.error before rejecting the
@@ -286,16 +292,21 @@ try{
       return tx;
     };
   });
+  console.log('G265_BONUS_PHASE_BEFORE_POSTCOMMIT_APPLICATION_ACK_LOSS');
   const unknownAck=await bonusAckLostPage.evaluate(async week=>{
     const api=await import('/assets/js/weekly-manual-activity-bonuses.js');
     try{
       await api.saveWeeklyManualActivityBonus({weekStart:week,values:{pot_multiplier:5}});
-      return {ok:true,observed:window.__g265BonusLostAckObserved};
+      return {ok:true,observed:window.__g265BonusLostAckObserved,
+        nativeCompleteCount:window.__g265BonusAckLossNativeCompleteCount};
     }catch(error){
       return {ok:false,code:error?.code||error?.message||String(error),
-        observed:window.__g265BonusLostAckObserved};
+        observed:window.__g265BonusLostAckObserved,
+        nativeCompleteCount:window.__g265BonusAckLossNativeCompleteCount};
     }
   },bonusWeek);
+  console.log('G265_BONUS_PHASE_AFTER_POSTCOMMIT_APPLICATION_ACK_LOSS');
+  assert.equal(unknownAck.nativeCompleteCount,1,'G265_BONUS_ACK_DROP_EXACTLY_ONE_NATIVE_COMPLETE');
   assert.equal(unknownAck.observed,true,'G265_BONUS_ACK_DROP_REAL_IDB_COMMIT_NOT_REACHED');
   assert.equal(unknownAck.ok,false,'G265_BONUS_ACK_DROP_MUST_NOT_REPORT_SUCCESS');
   assert.equal(unknownAck.code,'SQLITE_WRITE_SESSION_UNVERIFIED_RELOAD_REQUIRED',
