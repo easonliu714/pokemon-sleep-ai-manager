@@ -1,7 +1,7 @@
 // G265 canonical distinct Identity Dedup: isolated test-only Atomic CAS/rollback/ACK-loss.
-// The production identity-dedup.js::repairPokemonDuplicates() source is executed unchanged.
+// The exact historical pre-native identity-dedup.js witness is executed unchanged.
 // Disposable SQL.js, Web Locks queue, SHA-256 durable CAS; no player SQLite/IDB access.
-// The production writer is NOT globally admitted; Android multi-tab Owner DoD remains HOLD.
+// This historical wrapper is NOT current production admission; Android multi-tab Owner DoD remains HOLD.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -9,7 +9,7 @@ import {webcrypto} from 'node:crypto';
 import initSqlJs from 'sql.js';
 import {createSqliteCrossTabWriteAdmission,sha256SqliteBytes} from '../assets/js/sqlite-cross-tab-write-admission.js';
 
-const source=fs.readFileSync(new URL('../assets/js/identity-dedup.js',import.meta.url),'utf8');
+const source=fs.readFileSync(new URL('./fixtures/g265-identity-dedup-canonical-pre-native-source.txt',import.meta.url),'utf8');
 const start='const text=';
 const end='\nfunction boot(){';
 assert.equal(source.split(start).length,2,'dedup source start changed');

@@ -1,3 +1,4 @@
+// Historical source-bound wrapper: this native test executes the exact previously unsafe writer, not current production.
 // G265 canonical Identity Dedup native Chromium two-tab CAS and recovery source Gate.
 // The exact unchanged production repairPokemonDuplicates() runs on disposable synthetic SQL.js.
 // Web Locks / IndexedDB / SHA-256 CAS / BEGIN IMMEDIATE are TEST-ONLY wrappers.
@@ -8,7 +9,7 @@ import {createHash} from 'node:crypto';
 import {chromium} from 'playwright';
 import initSqlJs from 'sql.js';
 
-const source=fs.readFileSync(new URL('../assets/js/identity-dedup.js',import.meta.url),'utf8');
+const source=fs.readFileSync(new URL('./fixtures/g265-identity-dedup-canonical-pre-native-source.txt',import.meta.url),'utf8');
 const start='const text=';
 const end='\nfunction boot(){';
 assert.equal(source.split(start).length,2,'identity dedup source start changed');

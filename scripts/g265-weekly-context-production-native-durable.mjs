@@ -17,10 +17,15 @@ try{
     body:'<!doctype html><html><head><title>Disposable G265 weekly context</title></head><body><nav><button data-view="guide">Guide</button></nav><main></main></body></html>'
   }));
   async function tab(){
+    // G265: pinpoint real Chromium page/bootstrap await before any native writer.
+    console.log('G265_WEEKLY_PHASE_TAB_NEW_PAGE_BEGIN');
     const page=await context.newPage();pages.push(page);
     page.on('dialog',dialog=>dialog.dismiss());
+    console.log('G265_WEEKLY_PHASE_TAB_GOTO_BEGIN');
     await page.goto(new URL('g265-weekly-context-production-disposable',base).href);
+    console.log('G265_WEEKLY_PHASE_TAB_GOTO_ACK');
     await page.addScriptTag({url:new URL('node_modules/sql.js/dist/sql-wasm.js',base).href});
+    console.log('G265_WEEKLY_PHASE_TAB_PRODUCTION_BOOT_BEGIN');
     await page.evaluate(async()=>{
       const boot=window.initSqlJs;
       if(typeof boot!=='function')throw Error('G265_WEEKLY_SQLJS_MISSING');
@@ -39,6 +44,7 @@ try{
       if(typeof window.__g265G3WeeklySubmit!=='function')
         throw Error('G265_PRODUCTION_WEEKLY_FORM_NOT_INSTALLED');
     });
+    console.log('G265_WEEKLY_PHASE_TAB_PRODUCTION_BOOT_ACK');
     return page;
   }
   async function inspect(page){
@@ -62,7 +68,12 @@ try{
         const digest=await crypto.subtle.digest('SHA-256',bytes);
         const hash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
         return {revision:v.revision,hash,snapshots:v.snapshots,
-          raw:Array.from(bytes),
+          // Preserve exact raw IDB bytes without expensive per-byte Playwright JSON transfer.
+          rawChunks:Array.from({length:Math.ceil(bytes.length/32768)},(_,i)=>{
+            const part=bytes.subarray(i*32768,(i+1)*32768);
+            let binary='';for(const b of part)binary+=String.fromCharCode(b);
+            return btoa(binary);
+          }),
           loaded:window.__db.rows('SELECT context_id,week_start,base_notes FROM weekly_context ORDER BY context_id'),
           publicEvents:window.__db.rows('SELECT COUNT(*) AS n FROM public_event_master')[0]?.n};
       }finally{idb.close();}
@@ -100,22 +111,29 @@ try{
   // Contending tabs must not migrate or persist their loaded images.
   let stable=false;
   for(let i=0;i<3;i++){
+    console.log('G265_WEEKLY_PHASE_SEED_BEGIN',i);
     const seed=await tab();
     const boot=await seed.evaluate(()=>window.__boot);
+    console.log('G265_WEEKLY_PHASE_SEED_PUBLIC_REFRESH_BEGIN',i);
     const refreshed=await seed.evaluate(async()=>{
       const m=await import('/assets/js/public-event-master-bootstrap.js');
       return m.refreshPublicEventMasterForCurrentWeek();
     });
     assert.ok(['UPDATED','UNCHANGED'].includes(refreshed.status),
       'G265_WEEKLY_SEED_PUBLIC_REFRESH_MISSING:'+JSON.stringify(refreshed));
+    console.log('G265_WEEKLY_PHASE_SEED_PUBLIC_REFRESH_ACK',i,refreshed.status);
     const seeded=await inspect(seed);
     assert.equal(seeded.hash,seeded.revision?.sha256,'G265_WEEKLY_SEED_IDB_SHA');
+    console.log('G265_WEEKLY_PHASE_SEED_INSPECT_ACK',i);
     await seed.close();
+    console.log('G265_WEEKLY_PHASE_SEED_CLOSE_ACK',i);
     if(boot.boot_persist_skipped){stable=true;break;}
   }
   assert.equal(stable,true,'G265_WEEKLY_BOOT_NEVER_CONVERGED');
 
+  console.log('G265_WEEKLY_PHASE_CONTENDERS_BEGIN');
   const writer=await tab(),stale=await tab();
+  console.log('G265_WEEKLY_PHASE_CONTENDERS_BOOT_ACK');
   const boots=await Promise.all([writer,stale].map(p=>p.evaluate(()=>window.__boot)));
   assert.ok(boots.every(b=>b.boot_persist_skipped),
     'G265_WEEKLY_CONTENDER_BOOT_WRITTEN:'+JSON.stringify(boots));
@@ -132,7 +150,7 @@ try{
   assert.equal(persisted.revision.generation,before.revision.generation+1);
   assert.equal(persisted.snapshots,before.snapshots+1,'G265_WEEKLY_ONE_ACK_SNAPSHOT');
   assert.equal(persisted.loaded.length,before.loaded.length+1);
-  const independent=new SQL.Database(Uint8Array.from(persisted.raw));
+  const independent=new SQL.Database(Uint8Array.from(persisted.rawChunks.flatMap(chunk=>Array.from(Buffer.from(chunk,'base64')))));
   const durableRows=independent.exec('SELECT base_notes FROM weekly_context')?.[0]?.values||[];
   independent.close();
   assert.ok(durableRows.some(r=>r[0]==='SYNTHETIC_G265_WEEKLY_ACK'));
@@ -147,7 +165,7 @@ try{
   const held=await inspect(stale);
   assert.equal(held.hash,persisted.hash,'G265_WEEKLY_STALE_NO_DURABLE_OVERWRITE');
   assert.equal(held.snapshots,persisted.snapshots,'G265_WEEKLY_STALE_ZERO_NEW_SNAPSHOT');
-  assert.deepEqual(held.raw,persisted.raw);
+  assert.deepEqual(held.rawChunks,persisted.rawChunks);
   const retry=await submit(stale,'2026-11-30','SYNTHETIC_G265_WEEKLY_BLIND_RETRY');
   assert.equal(retry.ok,false,'G265_WEEKLY_BLIND_RETRY_MUST_HOLD');
   const afterRetry=await inspect(stale);
@@ -168,6 +186,7 @@ try{
   // shared runtime session. Reuse this disposable, converged IDB+SQL.js origin
   // to prove cross-tab native pre-SQL denial, exact durable revision, and
   // independent fresh reload. No Owner/player SQLite is ever involved.
+  console.log('G265_BONUS_PHASE_OPEN_TWO_TABS');
   const bonusWriter=await tab(),bonusStale=await tab();
   const bonusInitial=await inspect(bonusWriter),bonusStaleInitial=await inspect(bonusStale);
   assert.equal(bonusInitial.hash,bonusInitial.revision?.sha256,'G265_BONUS_INITIAL_PRIMARY_SHA');
@@ -182,6 +201,7 @@ try{
   }
   assert.equal(await savedBonus(bonusWriter),null,'G265_BONUS_BEFORE_WRITE_MUST_BE_ABSENT');
   assert.equal(await savedBonus(bonusStale),null,'G265_BONUS_STALE_BEFORE_WRITE_MUST_BE_ABSENT');
+  console.log('G265_BONUS_PHASE_BEFORE_NATIVE_WRITER_ACK');
   const bonusAck=await bonusWriter.evaluate(async week=>{
     const api=await import('/assets/js/weekly-manual-activity-bonuses.js');
     return api.saveWeeklyManualActivityBonus({weekStart:week,values:{pot_multiplier:2}});
@@ -241,13 +261,16 @@ try{
   // weekly activity bonus writer (NOT bootstrap Migration or Node VM).
   // Preserve the genuine IDB transaction/Web Lock; only its application ACK
   // callback is replaced after native completion on this disposable tab.
+  console.log('G265_BONUS_PHASE_BEFORE_ACK_LOSS_TAB_BOOT');
   const bonusAckLostPage=await tab();
   const bonusBeforeLostAck=await inspect(bonusAckLostPage);
   assert.equal(bonusBeforeLostAck.hash,bonusDurable.hash,'G265_BONUS_ACK_DROP_SEED_SHA');
   assert.deepEqual(bonusBeforeLostAck.revision,bonusDurable.revision,
     'G265_BONUS_ACK_DROP_SEED_REVISION');
+  console.log('G265_BONUS_PHASE_BEFORE_ACK_LOSS_INSTRUMENTATION');
   await bonusAckLostPage.evaluate(()=>{
     window.__g265BonusLostAckObserved=false;
+    window.__g265BonusAckLossNativeCompleteCount=0;
     const nativeTransaction=IDBDatabase.prototype.transaction;
     IDBDatabase.prototype.transaction=function(...args){
       const tx=nativeTransaction.apply(this,args);
@@ -261,6 +284,7 @@ try{
             if(typeof callback!=='function')throw Error('G265_BONUS_ACK_DROP_CALLBACK_MISSING');
             tx.addEventListener('complete',()=>{
               window.__g265BonusLostAckObserved=true;
+              window.__g265BonusAckLossNativeCompleteCount++;
               // A completed native transaction has no failure state. Its
               // `error` getter may throw InvalidStateError after COMMIT; the
               // production error handler reads tx.error before rejecting the
@@ -286,16 +310,21 @@ try{
       return tx;
     };
   });
+  console.log('G265_BONUS_PHASE_BEFORE_POSTCOMMIT_APPLICATION_ACK_LOSS');
   const unknownAck=await bonusAckLostPage.evaluate(async week=>{
     const api=await import('/assets/js/weekly-manual-activity-bonuses.js');
     try{
       await api.saveWeeklyManualActivityBonus({weekStart:week,values:{pot_multiplier:5}});
-      return {ok:true,observed:window.__g265BonusLostAckObserved};
+      return {ok:true,observed:window.__g265BonusLostAckObserved,
+        nativeCompleteCount:window.__g265BonusAckLossNativeCompleteCount};
     }catch(error){
       return {ok:false,code:error?.code||error?.message||String(error),
-        observed:window.__g265BonusLostAckObserved};
+        observed:window.__g265BonusLostAckObserved,
+        nativeCompleteCount:window.__g265BonusAckLossNativeCompleteCount};
     }
   },bonusWeek);
+  console.log('G265_BONUS_PHASE_AFTER_POSTCOMMIT_APPLICATION_ACK_LOSS');
+  assert.equal(unknownAck.nativeCompleteCount,1,'G265_BONUS_ACK_DROP_EXACTLY_ONE_NATIVE_COMPLETE');
   assert.equal(unknownAck.observed,true,'G265_BONUS_ACK_DROP_REAL_IDB_COMMIT_NOT_REACHED');
   assert.equal(unknownAck.ok,false,'G265_BONUS_ACK_DROP_MUST_NOT_REPORT_SUCCESS');
   assert.equal(unknownAck.code,'SQLITE_WRITE_SESSION_UNVERIFIED_RELOAD_REQUIRED',
@@ -307,7 +336,7 @@ try{
     'G265_BONUS_ACK_DROP_EXACTLY_ONE_DURABLE_COMMIT');
   assert.equal(committedWithoutAck.snapshots,bonusBeforeLostAck.snapshots+1,
     'G265_BONUS_ACK_DROP_EXACTLY_ONE_SNAPSHOT');
-  const independentlyCommitted=new SQL.Database(Uint8Array.from(committedWithoutAck.raw));
+  const independentlyCommitted=new SQL.Database(Uint8Array.from(committedWithoutAck.rawChunks.flatMap(chunk=>Array.from(Buffer.from(chunk,'base64')))));
   try{
     const durableJson=independentlyCommitted.exec(
       "SELECT value_json FROM settings WHERE key='weekly_activity_bonus:2026-11-09'"
