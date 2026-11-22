@@ -244,7 +244,15 @@ async function saveAccountPotCapacity(edit,current){
         withSqliteCoordinatedMutation(()=>writeAccountPotCapacity(value,edit.source));
         withSqliteCoordinatedMutation(commit);committed=true;
       }catch(error){
-        if(begun&&!committed)withSqliteCoordinatedMutation(rollback);
+        if(begun&&!committed){
+          try{withSqliteCoordinatedMutation(rollback);}
+          catch(rollbackError){
+            // SQL state is uncertain when rollback itself fails; never retry this page.
+            throw Object.assign(new Error('ACCOUNT_POT_ROLLBACK_UNVERIFIED_RELOAD_REQUIRED'),{
+              code:'ACCOUNT_POT_ROLLBACK_UNVERIFIED_RELOAD_REQUIRED',cause:rollbackError,originalError:error,
+            });
+          }
+        }
         throw error;
       }
       // COMMIT is not an IDB ACK. The same native lease guards durable bytes
@@ -290,7 +298,15 @@ async function saveFallback(form,current,potEdit){
           commit();committed=true;
         });
       }catch(error){
-        if(begun&&!committed)withSqliteCoordinatedMutation(rollback);
+        if(begun&&!committed){
+          try{withSqliteCoordinatedMutation(rollback);}
+          catch(rollbackError){
+            // SQL state is uncertain when rollback itself fails; never retry this page.
+            throw Object.assign(new Error('WEEKLY_FALLBACK_ROLLBACK_UNVERIFIED_RELOAD_REQUIRED'),{
+              code:'WEEKLY_FALLBACK_ROLLBACK_UNVERIFIED_RELOAD_REQUIRED',cause:rollbackError,originalError:error,
+            });
+          }
+        }
         throw error;
       }
       // COMMIT is not a durable ACK. Keep the same native lease through
