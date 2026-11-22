@@ -54,7 +54,8 @@ try{
         const digest=new Uint8Array(await crypto.subtle.digest('SHA-256',bytes));
         const hash=Array.from(digest,b=>b.toString(16).padStart(2,'0')).join('');
         return {revision:result.revision,hash,snapshotCount:result.snapshotCount,
-          rawBytes:Array.from(bytes),
+          // Lossless 32 KiB chunks avoid massive per-byte Playwright serialization.
+          rawBytesBase64:(()=>{const chunks=[];for(let offset=0;offset<bytes.length;offset+=32768){const slice=bytes.subarray(offset,offset+32768);let binary='';for(let i=0;i<slice.length;i++)binary+=String.fromCharCode(slice[i]);chunks.push(btoa(binary));}return chunks;})(),
           // Native storage-only probe intentionally has no database.js binding.
           // Its durable IDB revision/SHA is still independently observed.
           loadedRows:window.__g265Database?.rows('SELECT target_id,species FROM collection_targets ORDER BY target_id')??null};
@@ -161,7 +162,7 @@ try{
     'G265_REAL_STORAGE_NATIVE_STALE_REVISION_MUST_REFUSE_LEASE');
   console.log('PASS G265_COLLECTION_REAL_STORAGE_NATIVE_CAS_STALE_REVISION_REJECTED');
   // A separate SQL.js connection must independently read the acknowledged IDB bytes.
-  const durableDb=new SQL.Database(Uint8Array.from(committed.rawBytes));
+  const durableDb=new SQL.Database(Uint8Array.from(committed.rawBytesBase64.flatMap(chunk=>Array.from(atob(chunk),character=>character.charCodeAt(0)))));
   const durableRows=durableDb.exec('SELECT species FROM collection_targets ORDER BY species')?.[0]?.values||[];
   durableDb.close();
   assert.ok(durableRows.some(r=>r[0]==='SYNTHETIC_G265_ACK'),'G265_DURABLE_SQLJS_READBACK_ROW');
@@ -180,7 +181,7 @@ try{
   assert.equal(afterDenied.revision.generation,committed.revision.generation);
   assert.equal(afterDenied.hash,committed.hash);
   assert.equal(afterDenied.snapshotCount,committed.snapshotCount,'G265_STALE_MUST_NOT_SNAPSHOT');
-  assert.deepEqual(afterDenied.rawBytes,committed.rawBytes,'G265_STALE_MUST_NOT_OVERWRITE_IDB_PRIMARY');
+  assert.deepEqual(afterDenied.rawBytesBase64,committed.rawBytesBase64,'G265_STALE_MUST_NOT_OVERWRITE_IDB_PRIMARY');
   const retry=await submit(stale,'SYNTHETIC_G265_BLIND_RETRY');
   assert.equal(retry.ok,false,'G265_STALE_MUST_HOLD_NO_BLIND_RETRY');
   assert.ok(['SQLITE_DIRECT_WRITE_UNVERIFIED_RELOAD_REQUIRED','SQLITE_PRIMARY_MUTATION_UNVERIFIED_RELOAD_REQUIRED'].includes(retry.code),retry.code);
