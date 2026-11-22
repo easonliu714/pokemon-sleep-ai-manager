@@ -115,17 +115,23 @@ try{
   });
   await seed.close();
   // Fail late in the real SQL transaction, after child/provenance moves.
-  // TEMP trigger belongs only to this disposable connection, never to IDB.
+  // Use a schema trigger in this disposable loaded DB: snapshot() exports/reopens SQL.js,
+  // which drops connection-local TEMP triggers before the production transaction.
+  // This trigger is never persisted to primary IDB; the forced rollback must
+  // leave durable SHA/revision and all player rows unchanged.
   const rollbackTab=await tab();
   assert.equal((await rollbackTab.evaluate(()=>window.__boot)).boot_persist_skipped,true);
   await loadWriter(rollbackTab);
   const rollbackBefore=await inspect(rollbackTab);
   await rollbackTab.evaluate(()=>{
-    window.__db.run(`CREATE TEMP TRIGGER g265_dedup_force_rollback
+    window.__db.run(`CREATE TRIGGER g265_dedup_force_rollback
       BEFORE UPDATE OF status ON pokemon
       WHEN OLD.pokemon_id='pkm_private_g265-dedup-A' AND NEW.status='archived'
       BEGIN SELECT RAISE(ABORT,'G265_DEDUP_FORCED_SQL_ROLLBACK'); END`);
   });
+  assert.equal(await rollbackTab.evaluate(()=>window.__db.rows(
+    "SELECT COUNT(*) AS n FROM sqlite_master WHERE type='trigger' AND name='g265_dedup_force_rollback'")[0].n),1,
+    'G265_DEDUP_ROLLBACK_TRIGGER_NOT_INSTALLED');
   const rollbackAttempt=()=>rollbackTab.evaluate(async()=>{
     try{return {ok:true,count:await window.__dedup.repairPokemonDuplicates()};}
     catch(e){return {ok:false,code:e.code||e.message};}
