@@ -1,0 +1,181 @@
+// G265 #861 — CURRENT actual production dedup ESM with native Chromium
+// Web Locks, SQL.js and IndexedDB, on a disposable localhost origin ONLY.
+// The module's optional boot timer is isolated deterministically, not the
+// writer, locks, persistence, SQL engine, or the database's initialisation.
+import assert from 'node:assert/strict';
+import {chromium} from 'playwright';
+const base=new URL(process.env.BASE_URL||'http://127.0.0.1:4173/');
+assert.equal(base.hostname,'127.0.0.1');
+const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+const context=await browser.newContext({serviceWorkers:'block'});
+const pages=[];
+try{
+  await context.route('**/g265-dedup-production-disposable',route=>route.fulfill({
+    status:200,contentType:'text/html',body:'<!doctype html><title>Disposable Dedup</title>'
+  }));
+  async function tab(){
+    const page=await context.newPage();pages.push(page);
+    await page.goto(new URL('g265-dedup-production-disposable',base).href);
+    await page.addScriptTag({url:new URL('node_modules/sql.js/dist/sql-wasm.js',base).href});
+    await page.evaluate(async()=>{
+      const boot=window.initSqlJs;
+      window.initSqlJs=()=>boot({locateFile:f=>'/node_modules/sql.js/dist/'+f});
+      window.__db=await import('/assets/js/database.js');
+      window.__boot=await window.__db.initializeDatabase();
+    });
+    return page;
+  }
+  async function loadWriter(page){
+    await page.evaluate(async()=>{
+      // Retire exactly the auto-dedup bootstrap interval at registration,
+      // before it can race explicit calls. All other timers are unchanged.
+      // No production edits or global scheduler replacement survive import.
+      const nativeSet=window.setInterval,nativeClear=window.clearInterval;
+      let retired=0;
+      window.setInterval=function(callback,delay,...args){
+        const id=nativeSet.call(window,callback,delay,...args);
+        if(delay===500&&typeof callback==='function'
+          &&String(callback).includes('repairPokemonDuplicates()')){
+          nativeClear.call(window,id);retired++;
+        }
+        return id;
+      };
+      try{window.__dedup=await import('/assets/js/identity-dedup.js');}
+      finally{window.setInterval=nativeSet;}
+      if(retired!==1)throw Error('G265_DEDUP_BOOT_TIMER_NOT_ISOLATED:'+retired);
+    });
+  }
+  async function inspect(page){
+    return page.evaluate(async()=>{
+      const idb=await new Promise((resolve,reject)=>{
+        const request=indexedDB.open('pokemon_sleep_ai_manager');
+        request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
+      });
+      try{
+        const image=await new Promise((resolve,reject)=>{
+          const tx=idb.transaction(['database','metadata','snapshots'],'readonly');
+          const raw=tx.objectStore('database').get('primary');
+          const revision=tx.objectStore('metadata').get('revision:primary');
+          const snapshots=tx.objectStore('snapshots').count();
+          tx.oncomplete=()=>resolve({bytes:raw.result,revision:revision.result,snapshots:snapshots.result});
+          tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+        });
+        const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',image.bytes)),
+          b=>b.toString(16).padStart(2,'0')).join('');
+        const queries={
+          pokemon:"SELECT pokemon_id,pokemon_instance_id,status,identity_review_required FROM pokemon WHERE pokemon_id IN ('g265-dedup-A','pkm_private_g265-dedup-A') ORDER BY pokemon_id",
+          ingredients:"SELECT pokemon_id,unlock_level,ingredient_name,quantity FROM pokemon_ingredients WHERE pokemon_id IN ('g265-dedup-A','pkm_private_g265-dedup-A') ORDER BY pokemon_id,unlock_level",
+          subskills:"SELECT pokemon_id,unlock_level,subskill_name,is_unlocked FROM pokemon_subskills WHERE pokemon_id IN ('g265-dedup-A','pkm_private_g265-dedup-A') ORDER BY pokemon_id,unlock_level",
+          history:"SELECT pokemon_id,event_type,before_json,after_json FROM pokemon_history WHERE event_type='G265_DEDUP_SYNTHETIC'",
+          evidence:"SELECT evidence_id,pokemon_instance_id,evidence_type,evidence_value FROM pokemon_identity_evidence WHERE evidence_id IN ('g265-dedup-original','auto-dedup-v4-pkm_private_g265-dedup-A') ORDER BY evidence_id",
+          evolution:"SELECT evolution_id,pokemon_instance_id,from_species,to_species FROM pokemon_evolution_history WHERE evolution_id='g265-dedup-evolution'",
+          publicMaster:"SELECT COUNT(*) AS n FROM public_event_master"
+        };
+        const SQL=await window.initSqlJs();
+        const db=new SQL.Database(new Uint8Array(image.bytes));
+        try{
+          const rawRows=sql=>{
+            const r=db.exec(sql)[0];
+            return r?r.values.map(values=>Object.fromEntries(r.columns.map((k,i)=>[k,values[i]]))):[];
+          };
+          const durable=Object.fromEntries(Object.entries(queries).map(([k,q])=>[k,rawRows(q)]));
+          const loaded=Object.fromEntries(Object.entries(queries).map(([k,q])=>[k,window.__db.rows(q)]));
+          return {hash,revision:image.revision,snapshots:image.snapshots,durable,loaded};
+        }finally{db.close();}
+      }finally{idb.close();}
+    });
+  }
+
+  let seed=null,stable=false;
+  for(let i=0;i<3;i++){
+    seed=await tab();
+    if((await seed.evaluate(()=>window.__boot)).boot_persist_skipped){stable=true;break;}
+    await seed.close();
+  }
+  assert.equal(stable,true,'G265_DEDUP_BOOT_CONVERGENCE');
+  await seed.evaluate(async()=>{
+    const db=window.__db,at='2026-11-22T11:12:00+08:00';
+    for(const [id,instance,review,confidence,registered,fingerprint] of [
+      ['g265-dedup-A','g265-instance-A',0,0.99,at,'g265-fingerprint-A'],
+      ['pkm_private_g265-dedup-A','g265-private-A',1,0.2,null,null]
+    ]){
+      db.run('INSERT INTO pokemon(pokemon_id,pokemon_instance_id,species,original_label,level,specialty,type,status,identity_review_required,identity_confidence,registered_at,identity_fingerprint,last_updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        [id,instance,'G265_SYNTHETIC_A','G265_SYNTHETIC_A',30,'ingredients','grass','active',review,confidence,registered,fingerprint,at]);
+    }
+    db.run('INSERT INTO pokemon_ingredients(pokemon_id,unlock_level,ingredient_name,quantity) VALUES(?,?,?,?)',['g265-dedup-A',1,'G265_A',2]);
+    db.run('INSERT INTO pokemon_ingredients(pokemon_id,unlock_level,ingredient_name,quantity) VALUES(?,?,?,?)',['pkm_private_g265-dedup-A',30,'G265_B',3]);
+    db.run('INSERT INTO pokemon_subskills(pokemon_id,unlock_level,subskill_name,is_unlocked) VALUES(?,?,?,?)',['pkm_private_g265-dedup-A',10,'G265_SKILL',1]);
+    db.run('INSERT INTO pokemon_history(pokemon_id,event_at,event_type,before_json,after_json) VALUES(?,?,?,?,?)',
+      ['pkm_private_g265-dedup-A',at,'G265_DEDUP_SYNTHETIC','{"previous":1}','{"current":2}']);
+    db.run('INSERT INTO pokemon_identity_evidence(evidence_id,pokemon_instance_id,evidence_type,evidence_value,confidence,observed_at,source_update_id) VALUES(?,?,?,?,?,?,?)',
+      ['g265-dedup-original','g265-private-A','G265_SYNTHETIC','original-observation',0.2,at,'G265_FIXTURE']);
+    db.run('INSERT INTO pokemon_evolution_history(evolution_id,pokemon_instance_id,from_species,to_species,evolved_at,source_update_id) VALUES(?,?,?,?,?,?)',
+      ['g265-dedup-evolution','g265-private-A','G265_FROM','G265_TO',at,'G265_FIXTURE']);
+    await db.persist();
+  });
+  await seed.close();
+  const writer=await tab(),stale=await tab();
+  for(const p of [writer,stale]){
+    assert.equal((await p.evaluate(()=>window.__boot)).boot_persist_skipped,true);
+    await loadWriter(p);
+  }
+  const before=await inspect(writer),staleBefore=await inspect(stale);
+  assert.equal(before.hash,before.revision.sha256);
+  assert.deepEqual(staleBefore.revision,before.revision);
+  assert.deepEqual(staleBefore.loaded,before.durable);
+  assert.deepEqual(before.durable.pokemon.map(x=>x.status),['active','active']);
+  assert.equal(before.durable.ingredients.length,2);
+  assert.equal(before.durable.subskills.length,1);
+  assert.equal(before.durable.history.length,1);
+  assert.equal(before.durable.evidence.length,1);
+  assert.equal(before.durable.evolution.length,1);
+
+  assert.equal(await writer.evaluate(()=>window.__dedup.repairPokemonDuplicates()),1,'G265_DEDUP_ONE_REAL_MERGE');
+  const saved=await inspect(writer);
+  assert.equal(saved.hash,saved.revision.sha256);
+  assert.equal(saved.revision.generation,before.revision.generation+1);
+  assert.equal(saved.snapshots,before.snapshots+1);
+  assert.deepEqual(saved.loaded,saved.durable);
+  assert.deepEqual(saved.durable.pokemon.map(x=>x.status),['active','archived']);
+  assert.equal(saved.durable.pokemon.length,2,'loser row must remain archived, not deleted');
+  assert.deepEqual(saved.durable.ingredients,[
+    {pokemon_id:'g265-dedup-A',unlock_level:1,ingredient_name:'G265_A',quantity:2},
+    {pokemon_id:'g265-dedup-A',unlock_level:30,ingredient_name:'G265_B',quantity:3}
+  ]);
+  assert.deepEqual(saved.durable.subskills,[{pokemon_id:'g265-dedup-A',unlock_level:10,subskill_name:'G265_SKILL',is_unlocked:1}]);
+  assert.deepEqual(saved.durable.history,[{...before.durable.history[0],pokemon_id:'g265-dedup-A'}]);
+  assert.deepEqual(saved.durable.evolution,[{...before.durable.evolution[0],pokemon_instance_id:'g265-instance-A'}]);
+  assert.equal(saved.durable.evidence.length,2);
+  assert.deepEqual(saved.durable.evidence.find(x=>x.evidence_id==='g265-dedup-original'),
+    {...before.durable.evidence[0],pokemon_instance_id:'g265-instance-A'});
+  assert.equal(saved.durable.evidence.find(x=>x.evidence_id.startsWith('auto-dedup-v4-')).pokemon_instance_id,'g265-instance-A');
+  assert.deepEqual(saved.durable.publicMaster,before.durable.publicMaster);
+  console.log('PASS G265_CURRENT_DEDUP_NATIVE_ATOMIC_ACK_ARCHIVE_AND_CHILD_PROVENANCE');
+
+  const attempt=p=>p.evaluate(async()=>{
+    try{return {ok:true,count:await window.__dedup.repairPokemonDuplicates()};}
+    catch(e){return {ok:false,code:e.code||e.message};}
+  });
+  assert.deepEqual(await attempt(stale),{ok:false,code:'SQLITE_PRIMARY_STALE_REVISION_RELOAD_REQUIRED'});
+  const denied=await inspect(stale);
+  assert.deepEqual(denied.loaded,staleBefore.loaded,'stale tab cannot mutate any tested loaded player row');
+  assert.deepEqual(denied.durable,saved.durable);
+  assert.equal(denied.hash,saved.hash);
+  assert.deepEqual(denied.revision,saved.revision);
+  assert.equal(denied.snapshots,saved.snapshots);
+  assert.deepEqual(await attempt(stale),{ok:false,code:'SQLITE_DIRECT_WRITE_UNVERIFIED_RELOAD_REQUIRED'});
+  const retry=await inspect(stale);
+  assert.deepEqual(retry,denied,'sticky denial must not change memory or durable state');
+  const fresh=await tab();
+  assert.equal((await fresh.evaluate(()=>window.__boot)).boot_persist_skipped,true);
+  const readback=await inspect(fresh);
+  assert.deepEqual(readback.loaded,saved.durable);
+  assert.deepEqual(readback.durable,saved.durable);
+  assert.equal(readback.hash,saved.hash);
+  assert.deepEqual(readback.revision,saved.revision);
+  assert.equal(readback.snapshots,saved.snapshots);
+  console.log('PASS G265_CURRENT_DEDUP_NATIVE_STALE_ZERO_SQL_STICKY_AND_FRESH_RELOAD');
+}finally{
+  await Promise.all(pages.map(p=>p.close().catch(()=>{})));
+  await context.close();await browser.close();
+}
