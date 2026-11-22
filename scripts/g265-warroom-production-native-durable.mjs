@@ -56,7 +56,14 @@ try {
         const bytes=new Uint8Array(data.bytes);
         const digest=await crypto.subtle.digest('SHA-256',bytes);
         const hash=Array.from(new Uint8Array(digest),v=>v.toString(16).padStart(2,'0')).join('');
-        return {hash,revision:data.revision,snapshots:data.snapshots,raw:Array.from(bytes),
+        // Encode the exact native IDB bytes in bounded chunks instead of serializing
+        // one JavaScript number per byte through Playwright's page.evaluate bridge.
+        // Node independently reopens the decoded SQLite bytes below.
+        const chunks=[];
+        for(let offset=0;offset<bytes.length;offset+=32768){
+          chunks.push(btoa(String.fromCharCode(...bytes.subarray(offset,offset+32768))));
+        }
+        return {hash,revision:data.revision,snapshots:data.snapshots,rawChunks:chunks,
           rows:window.__db.rows('SELECT strategy_id,team_summary FROM weekly_strategy ORDER BY strategy_id')};
       } finally {idb.close();}
     });
@@ -110,8 +117,12 @@ try {
   const contenderBoots=await Promise.all([writer,stale].map(p=>p.evaluate(()=>window.__g265Boot)));
   assert.ok(contenderBoots.every(b=>b.boot_persist_skipped),
     'G265_COMPETING_BOOT_UNEXPECTED_PERSIST:'+JSON.stringify(contenderBoots));
+  console.log('G265_WARROOM_PHASE_WRITER_INSPECT_BEGIN');
   const before=await inspect(writer);
+  console.log('G265_WARROOM_PHASE_WRITER_INSPECT_ACK',before.hash,before.revision?.generation);
+  console.log('G265_WARROOM_PHASE_STALE_INSPECT_BEGIN');
   const staleBefore=await inspect(stale);
+  console.log('G265_WARROOM_PHASE_STALE_INSPECT_ACK',staleBefore.hash,staleBefore.revision?.generation);
   assert.equal(before.hash,before.revision.sha256,'G265_WARROOM_INITIAL_SHA_PARITY');
   // G265: preserve the native pre-SQL CAS assertion while exposing a single
   // IndexedDB-transaction revision/SHA snapshot from both browser roles.
@@ -132,7 +143,9 @@ try {
   assert.equal(durable.hash,durable.revision.sha256,'G265_WARROOM_POST_ACK_SHA');
   assert.equal(durable.revision.generation,before.revision.generation+1);
   assert.equal(durable.snapshots,before.snapshots+1);
-  const independent=new SQL.Database(Uint8Array.from(durable.raw));
+  // Reconstruct every original byte; never infer SQLite contents from SHA alone.
+  const durableBytes=Uint8Array.from(durable.rawChunks.flatMap(chunk=>Array.from(Buffer.from(chunk,'base64'))));
+  const independent=new SQL.Database(durableBytes);
   const values=independent.exec('SELECT team_summary FROM weekly_strategy')?.[0]?.values||[];
   independent.close();
   assert.ok(values.some(r=>r[0]==='SYNTHETIC_WARROOM_NEWER'));
@@ -145,7 +158,7 @@ try {
   const after=await inspect(stale);
   assert.equal(after.snapshots,durable.snapshots,'G265_WARROOM_STALE_SNAPSHOT_MUST_BE_ZERO');
   assert.equal(after.hash,durable.hash,'G265_WARROOM_STALE_NO_DURABLE_OVERWRITE');
-  assert.deepEqual(after.raw,durable.raw);
+  assert.deepEqual(after.rawChunks,durable.rawChunks,'G265_WARROOM_EXACT_IDB_BYTES_UNCHANGED');
   const retry=await submit(stale,'SYNTHETIC_WARROOM_BLIND_RETRY');
   assert.equal(retry.ok,false,'G265_WARROOM_STICKY_NO_BLIND_RETRY');
   const fresh=await tab();
