@@ -71,6 +71,22 @@ function enrichWinner(winner,loser,now){
 }
 
 function mergeChildren(winnerId,loserId){
+  // A shared unlock slot with conflicting observations is not a duplicate fact.
+  // INSERT OR IGNORE followed by DELETE would silently discard original Player Raw.
+  // Abort the coordinated transaction instead; no loser is archived on conflict.
+  const ingredientConflicts=rows(`SELECT l.unlock_level FROM pokemon_ingredients l
+    JOIN pokemon_ingredients w ON w.pokemon_id=? AND w.unlock_level=l.unlock_level
+    WHERE l.pokemon_id=? AND (w.ingredient_name IS NOT l.ingredient_name OR w.quantity IS NOT l.quantity)
+    LIMIT 1`,[winnerId,loserId]);
+  const subskillConflicts=rows(`SELECT l.unlock_level FROM pokemon_subskills l
+    JOIN pokemon_subskills w ON w.pokemon_id=? AND w.unlock_level=l.unlock_level
+    WHERE l.pokemon_id=? AND (w.subskill_name IS NOT l.subskill_name OR w.is_unlocked IS NOT l.is_unlocked)
+    LIMIT 1`,[winnerId,loserId]);
+  if(ingredientConflicts.length||subskillConflicts.length){
+    throw Object.assign(new Error('IDENTITY_DEDUP_CHILD_SLOT_CONFLICT_REVIEW_REQUIRED'),{
+      code:'IDENTITY_DEDUP_CHILD_SLOT_CONFLICT_REVIEW_REQUIRED',
+    });
+  }
   run(`INSERT OR IGNORE INTO pokemon_ingredients(pokemon_id,unlock_level,ingredient_name,quantity) SELECT ?,unlock_level,ingredient_name,quantity FROM pokemon_ingredients WHERE pokemon_id=?`,[winnerId,loserId]);
   run(`INSERT OR IGNORE INTO pokemon_subskills(pokemon_id,unlock_level,subskill_name,is_unlocked) SELECT ?,unlock_level,subskill_name,is_unlocked FROM pokemon_subskills WHERE pokemon_id=?`,[winnerId,loserId]);
   run('UPDATE pokemon_history SET pokemon_id=? WHERE pokemon_id=?',[winnerId,loserId]);
