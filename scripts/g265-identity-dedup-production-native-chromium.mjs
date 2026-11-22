@@ -114,6 +114,39 @@ try{
     await db.persist();
   });
   await seed.close();
+  // Fail late in the real SQL transaction, after child/provenance moves.
+  // TEMP trigger belongs only to this disposable connection, never to IDB.
+  const rollbackTab=await tab();
+  assert.equal((await rollbackTab.evaluate(()=>window.__boot)).boot_persist_skipped,true);
+  await loadWriter(rollbackTab);
+  const rollbackBefore=await inspect(rollbackTab);
+  await rollbackTab.evaluate(()=>{
+    window.__db.run(`CREATE TEMP TRIGGER g265_dedup_force_rollback
+      BEFORE UPDATE OF status ON pokemon
+      WHEN OLD.pokemon_id='pkm_private_g265-dedup-A' AND NEW.status='archived'
+      BEGIN SELECT RAISE(ABORT,'G265_DEDUP_FORCED_SQL_ROLLBACK'); END`);
+  });
+  const rollbackAttempt=()=>rollbackTab.evaluate(async()=>{
+    try{return {ok:true,count:await window.__dedup.repairPokemonDuplicates()};}
+    catch(e){return {ok:false,code:e.code||e.message};}
+  });
+  assert.deepEqual(await rollbackAttempt(),{ok:false,code:'G265_DEDUP_FORCED_SQL_ROLLBACK'});
+  const rolledBack=await inspect(rollbackTab);
+  assert.deepEqual(rolledBack.loaded,rollbackBefore.loaded);
+  assert.deepEqual(rolledBack.durable,rollbackBefore.durable);
+  assert.equal(rolledBack.hash,rollbackBefore.hash);
+  assert.deepEqual(rolledBack.revision,rollbackBefore.revision);
+  // A pre-transaction recovery snapshot is expected; no second snapshot on retry.
+  assert.equal(rolledBack.snapshots,rollbackBefore.snapshots+1);
+  assert.deepEqual(await rollbackAttempt(),{ok:false,code:'SQLITE_DIRECT_WRITE_UNVERIFIED_RELOAD_REQUIRED'});
+  assert.deepEqual(await inspect(rollbackTab),rolledBack);
+  await rollbackTab.close();
+  const rollbackFresh=await tab();
+  assert.equal((await rollbackFresh.evaluate(()=>window.__boot)).boot_persist_skipped,true);
+  assert.deepEqual(await inspect(rollbackFresh),rolledBack);
+  await rollbackFresh.close();
+  console.log('PASS G265_CURRENT_DEDUP_NATIVE_SQL_TRIGGER_ROLLBACK_STICKY_FRESH_READBACK');
+
   const writer=await tab(),stale=await tab();
   for(const p of [writer,stale]){
     assert.equal((await p.evaluate(()=>window.__boot)).boot_persist_skipped,true);
