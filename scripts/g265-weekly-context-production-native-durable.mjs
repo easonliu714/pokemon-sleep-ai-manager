@@ -197,6 +197,10 @@ try{
   assert.ok(readback.loaded.some(r=>r.base_notes==='SYNTHETIC_G265_WEEKLY_ACK'));
   assert.ok(!readback.loaded.some(r=>r.base_notes==='SYNTHETIC_G265_WEEKLY_STALE'));
   console.log('PASS G265_PRODUCTION_WEEKLY_CONTEXT_NATIVE_FRESH_RELOAD_PRESERVES_ACK_AND_PUBLIC_MASTER');
+  // G265: completed weekly contenders are no longer witnesses. Close their
+  // independent SQL.js/IDB tabs before the separate activity-bonus scenario;
+  // retained timers must not interfere with the following native ACK-loss probe.
+  await Promise.all([writer,stale,fresh].map(p=>p.close()));
 
   // G265 #861: the ACTUAL production weekly-activity-bonus writer uses the
   // shared runtime session. Reuse this disposable, converged IDB+SQL.js origin
@@ -279,6 +283,10 @@ try{
     'G265_BONUS_FRESH_RELOAD_NO_DUPLICATE_SNAPSHOT');
   assert.equal(JSON.parse(await savedBonus(bonusFresh)).values.pot_multiplier,2,
     'G265_BONUS_FRESH_RELOAD_PRESERVES_ACK_ONLY');
+  // All positive/stale bonus assertions above already passed with two LIVE tabs.
+  // Release these now-unused pages before an independent post-COMMIT ACK-loss
+  // scenario. A closed tab cannot accidentally participate in a later check.
+  await Promise.all([bonusWriter,bonusStale,bonusFresh].map(p=>p.close()));
   // G265 #861 successor: real native transaction COMMIT with the application's
   // IDB oncomplete ACK intentionally dropped for the actual shared-session
   // weekly activity bonus writer (NOT bootstrap Migration or Node VM).
@@ -352,7 +360,14 @@ try{
   assert.equal(unknownAck.ok,false,'G265_BONUS_ACK_DROP_MUST_NOT_REPORT_SUCCESS');
   assert.equal(unknownAck.code,'SQLITE_WRITE_SESSION_UNVERIFIED_RELOAD_REQUIRED',
     'G265_BONUS_ACK_DROP_MUST_QUARANTINE_PAGE:'+JSON.stringify(unknownAck));
-  const committedWithoutAck=await inspect(bonusFresh);
+  // An ACK-lost page cannot serve as the durable authority. A brand-new
+  // Chromium tab must bootstrap from genuine primary IndexedDB and prove the
+  // committed SHA/revision/snapshot independently of all pre-ACK pages.
+  const ackDurabilityReader=await tab();
+  const ackReaderBoot=await ackDurabilityReader.evaluate(()=>window.__boot);
+  assert.equal(ackReaderBoot.boot_persist_skipped,true,
+    'G265_BONUS_ACK_DROP_FRESH_READER_MUST_NOT_WRITE_ON_BOOT');
+  const committedWithoutAck=await inspect(ackDurabilityReader);
   assert.equal(committedWithoutAck.hash,committedWithoutAck.revision.sha256,
     'G265_BONUS_ACK_DROP_ATOMIC_PRIMARY_SHA');
   assert.equal(committedWithoutAck.revision.generation,bonusBeforeLostAck.revision.generation+1,
@@ -386,7 +401,7 @@ try{
   assert.ok(['SQLITE_DIRECT_WRITE_UNVERIFIED_RELOAD_REQUIRED',
     'SQLITE_WRITE_SESSION_UNVERIFIED_RELOAD_REQUIRED'].includes(deniedAckRetry.code),
     'G265_BONUS_ACK_DROP_RETRY_HOLD_CODE:'+JSON.stringify(deniedAckRetry));
-  const afterLostAckRetry=await inspect(bonusFresh);
+  const afterLostAckRetry=await inspect(ackDurabilityReader);
   assert.deepEqual(afterLostAckRetry.revision,committedWithoutAck.revision,
     'G265_BONUS_ACK_DROP_RETRY_MUST_NOT_ADVANCE_DURABLE_REVISION');
   assert.equal(afterLostAckRetry.hash,committedWithoutAck.hash,
