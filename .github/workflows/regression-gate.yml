@@ -359,6 +359,12 @@ jobs:
           tail -n 200 /tmp/pokemon-sleep-http.log || true
           exit 1
 
+      # G14.1: render the ACTUAL backup self-check SHA at 320–430px, no player DB.
+      - name: Verify G141 backup SHA mobile rendering in real Chromium
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: node scripts/g141-backup-sha-mobile-chromium.mjs
+
       - name: Verify retired personal recipe UI stays absent in browser runtime
         env:
           BASE_URL: http://127.0.0.1:4173/
