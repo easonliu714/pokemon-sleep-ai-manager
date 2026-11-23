@@ -16,11 +16,40 @@ try{
   await context.route('**/g265-collection-production-disposable',route=>route.fulfill({
     status:200,contentType:'text/html',body:'<!doctype html><html><head><title>G265 disposable collection</title></head><body><nav><button data-view="guide">Guide</button></nav><main></main></body></html>'
   }));
+  // G265: exact-head CI previously ran until its global 20-minute cancellation
+  // after the second disposable seed closed. Fail closed at the FIRST missing
+  // native browser bootstrap ACK instead of silently hanging; this does not
+  // change Web Locks/IDB/SQLite assertions or increase the CI timeout.
+  const BOOTSTRAP_PHASE_LIMIT_MS=45000;
+  let collectionBootstrapTimedOut=false;
+  let newTabOrdinal=0;
+  async function requiredBootstrapPhase(phase,action){
+    console.log('G265_COLLECTION_BOOTSTRAP_'+phase+'_BEGIN');
+    let timer;
+    try{
+      const result=await Promise.race([
+        Promise.resolve().then(action),
+        new Promise((_,reject)=>{
+          timer=setTimeout(()=>{
+            collectionBootstrapTimedOut=true;
+            reject(Object.assign(new Error('G265_COLLECTION_BOOTSTRAP_PHASE_TIMEOUT:'+phase),
+              {code:'G265_COLLECTION_BOOTSTRAP_PHASE_TIMEOUT',phase}));
+          },BOOTSTRAP_PHASE_LIMIT_MS);
+        })
+      ]);
+      console.log('G265_COLLECTION_BOOTSTRAP_'+phase+'_ACK');
+      return result;
+    }finally{clearTimeout(timer);}
+  }
   async function newTab(){
-    const page=await context.newPage();tabs.push(page);
-    await page.goto(new URL('g265-collection-production-disposable',base).href);
-    await page.addScriptTag({url:new URL('node_modules/sql.js/dist/sql-wasm.js',base).href});
-    await page.evaluate(async()=>{
+    const id=++newTabOrdinal;
+    const page=await requiredBootstrapPhase(id+'_NEW_PAGE',()=>context.newPage());
+    tabs.push(page);
+    page.on('crash',()=>console.log('G265_COLLECTION_BOOTSTRAP_'+id+'_PAGE_CRASH'));
+    page.on('pageerror',error=>console.log('G265_COLLECTION_BOOTSTRAP_'+id+'_PAGE_ERROR',String(error?.message||error)));
+    await requiredBootstrapPhase(id+'_GOTO',()=>page.goto(new URL('g265-collection-production-disposable',base).href));
+    await requiredBootstrapPhase(id+'_SQLJS_SCRIPT',()=>page.addScriptTag({url:new URL('node_modules/sql.js/dist/sql-wasm.js',base).href}));
+    await requiredBootstrapPhase(id+'_PRODUCTION_INIT',()=>page.evaluate(async()=>{
       const boot=window.initSqlJs;
       if(typeof boot!=='function')throw new Error('G265_SQLJS_BROWSER_RUNTIME_MISSING');
       window.initSqlJs=()=>boot({locateFile:file=>'/node_modules/sql.js/dist/'+file});
@@ -30,7 +59,7 @@ try{
       module.setupG3Pages();
       if(typeof document.getElementById('collectionAddForm')?.onsubmit!=='function')
         throw new Error('G265_PRODUCTION_FORM_HANDLER_NOT_INSTALLED');
-    });
+    }));
     return page;
   }
   async function inspect(page){
@@ -197,6 +226,9 @@ try{
   assert.ok(!independentlyLoaded.loadedRows.some(r=>r.species==='SYNTHETIC_G265_STALE'));
   console.log('PASS G265_COLLECTION_PRODUCTION_NATIVE_TWO_TAB_CAS_DURABLE_FRESH_RELOAD');
 }finally{
-  await Promise.all(tabs.map(p=>p.close().catch(()=>{})));
+  // A timed-out Playwright command must not keep the job alive during cleanup.
+  // Closing the owning Browser terminates all disposable tabs; on the normal
+  // path retain the original per-tab cleanup for independent positive tests.
+  if(!collectionBootstrapTimedOut)await Promise.all(tabs.map(p=>p.close().catch(()=>{})));
   await browser.close();
 }
