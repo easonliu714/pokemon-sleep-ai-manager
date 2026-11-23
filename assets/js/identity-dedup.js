@@ -1,4 +1,4 @@
-import {rows,run,persist,snapshot,begin,commit,rollback} from './database.js';
+import {rows,run,persist,snapshot,begin,commit} from './database.js';
 import {withPrimarySqliteMutationLock} from './storage.js';
 import {beginSqliteExclusiveWriteWindow,withSqliteCoordinatedMutation} from './sqlite-direct-write-window-guard.js';
 import {localIso} from './time-utils.js';
@@ -137,7 +137,10 @@ export async function repairPokemonDuplicates(){
         });
       }catch(cause){
         if(begun&&!committed){
-          try{withSqliteCoordinatedMutation(rollback);}
+          // database.rollback() intentionally suppresses SQL driver errors.
+          // Dedup cannot treat an unverified rollback as safe: execute a
+          // checked ROLLBACK under the existing coordinated/native lease.
+          try{withSqliteCoordinatedMutation(()=>run('ROLLBACK'));}
           catch(rollbackError){
             throw Object.assign(new Error('IDENTITY_DEDUP_ROLLBACK_UNVERIFIED_RELOAD_REQUIRED'),{
               code:'IDENTITY_DEDUP_ROLLBACK_UNVERIFIED_RELOAD_REQUIRED',cause:rollbackError,originalError:cause,
