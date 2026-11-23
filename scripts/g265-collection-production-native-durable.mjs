@@ -12,6 +12,8 @@ const SQL=await initSqlJs();
 const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
 const context=await browser.newContext({serviceWorkers:'block'});
 const tabs=[];
+// Shared across try/finally: timeout cleanup must see the actual bootstrap outcome.
+let collectionBootstrapTimedOut=false;
 try{
   await context.route('**/g265-collection-production-disposable',route=>route.fulfill({
     status:200,contentType:'text/html',body:'<!doctype html><html><head><title>G265 disposable collection</title></head><body><nav><button data-view="guide">Guide</button></nav><main></main></body></html>'
@@ -21,7 +23,6 @@ try{
   // native browser bootstrap ACK instead of silently hanging; this does not
   // change Web Locks/IDB/SQLite assertions or increase the CI timeout.
   const BOOTSTRAP_PHASE_LIMIT_MS=45000;
-  let collectionBootstrapTimedOut=false;
   let newTabOrdinal=0;
   async function requiredBootstrapPhase(phase,action){
     console.log('G265_COLLECTION_BOOTSTRAP_'+phase+'_BEGIN');
