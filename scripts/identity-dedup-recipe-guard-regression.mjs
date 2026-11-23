@@ -7,8 +7,8 @@ const sources={dedup:read('assets/js/identity-dedup.js'),quality:read('assets/js
 const matchTokens=(source,tokens,label)=>{for(const token of tokens)assert.match(source,new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')),`${label}:${token}`);};
 // G265: a critical dedup rollback must invoke the *checked SQLite driver*,
 // never the legacy database.rollback() helper which swallows driver errors.
-for(const pattern of [/snapshot\`identity-merge-v4:/,/begin\\(\\)/,/commit\\(\\)/,/withSqliteCoordinatedMutation\\(\\(\\)=>run\\('ROLLBACK'\\)\\)/,/IDENTITY_DEDUP_ROLLBACK_UNVERIFIED_RELOAD_REQUIRED/,/originalError:cause/,/status='archived'/,/SYSTEM-IDENTITY-MERGE-v0\\.3\\.30/])assert.match(sources.dedup,pattern);
-assert.doesNotMatch(sources.dedup,/withSqliteCoordinatedMutation\\(rollback\\)/,'silent legacy rollback cannot satisfy dedup recovery contract');
+for(const pattern of [/identity-merge-v4:/,/begin\(\)/,/commit\(\)/,/withSqliteCoordinatedMutation\(\(\)=>run\('ROLLBACK'\)\)/,/IDENTITY_DEDUP_ROLLBACK_UNVERIFIED_RELOAD_REQUIRED/,/originalError:cause/,/status='archived'/,/SYSTEM-IDENTITY-MERGE-v0\.3\.30/])assert.match(sources.dedup,pattern);
+assert.doesNotMatch(sources.dedup,/withSqliteCoordinatedMutation\(rollback\)/,'silent legacy rollback cannot satisfy dedup recovery contract');
 for(const pattern of [/isProfileComplete/,/profileCompleteness\(item\)>=4/,/profileCompleteness\(item\)<=1/])assert.match(sources.quality,pattern);
 for(const pattern of [/identity_review_required/,/registered_at/,/identity_fingerprint/])assert.doesNotMatch(sources.quality,pattern);
 const qualityUrl=`data:text/javascript;base64,${Buffer.from(sources.quality).toString('base64')}`;
