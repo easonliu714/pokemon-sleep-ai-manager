@@ -133,6 +133,10 @@ jobs:
       - name: Verify G265 Account Pot SQL rollback provenance
         run: node scripts/g265-weekly-account-pot-rollback-provenance-contract.mjs
 
+      # G265: actual dedup writer rollback provenance, disposable SQL.js; not native IDB success.
+      - name: Verify G265 Dedup SQL rollback original-error provenance
+        run: node scripts/g265-identity-dedup-rollback-original-error-contract.mjs
+
       - name: Verify G265 Weekly two-ACK UI partial-success disclosure
         run: node scripts/g265-weekly-dual-ack-ui-disclosure-contract.mjs
 

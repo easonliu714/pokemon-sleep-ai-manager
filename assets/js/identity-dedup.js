@@ -140,7 +140,7 @@ export async function repairPokemonDuplicates(){
           try{withSqliteCoordinatedMutation(rollback);}
           catch(rollbackError){
             throw Object.assign(new Error('IDENTITY_DEDUP_ROLLBACK_UNVERIFIED_RELOAD_REQUIRED'),{
-              code:'IDENTITY_DEDUP_ROLLBACK_UNVERIFIED_RELOAD_REQUIRED',cause:rollbackError,
+              code:'IDENTITY_DEDUP_ROLLBACK_UNVERIFIED_RELOAD_REQUIRED',cause:rollbackError,originalError:cause,
             });
           }
         }
