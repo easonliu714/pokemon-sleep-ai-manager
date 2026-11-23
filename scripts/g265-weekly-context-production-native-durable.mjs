@@ -51,6 +51,11 @@ try{
   }
   async function inspect(page){
     console.log('G265_WEEKLY_PHASE_INSPECT_BEGIN');
+    // G265: inspect the actual contender while foregrounded. The previous
+    // native Chromium run stalled before page.evaluate entered the background
+    // stale tab; focus does not reload it or alter its SQL/IDB/WebLock state.
+    await page.bringToFront();
+    console.log('G265_WEEKLY_PHASE_INSPECT_FOREGROUND_ACK');
     const result=await page.evaluate(async()=>{
       console.log('G265_WEEKLY_IDB_PHASE_OPEN_BEGIN');
       const idb=await new Promise((resolve,reject)=>{
