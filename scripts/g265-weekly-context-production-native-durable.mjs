@@ -188,7 +188,14 @@ try{
   // independent fresh reload. No Owner/player SQLite is ever involved.
   console.log('G265_BONUS_PHASE_OPEN_TWO_TABS');
   const bonusWriter=await tab(),bonusStale=await tab();
-  const bonusInitial=await inspect(bonusWriter),bonusStaleInitial=await inspect(bonusStale);
+  // Native two-tab inspection is a distinct awaited phase. Keep both reads
+  // separate so a cancelled CI identifies which real IndexedDB read stalled.
+  console.log('G265_BONUS_PHASE_WRITER_INSPECT_BEGIN');
+  const bonusInitial=await inspect(bonusWriter);
+  console.log('G265_BONUS_PHASE_WRITER_INSPECT_ACK');
+  console.log('G265_BONUS_PHASE_STALE_INSPECT_BEGIN');
+  const bonusStaleInitial=await inspect(bonusStale);
+  console.log('G265_BONUS_PHASE_STALE_INSPECT_ACK');
   assert.equal(bonusInitial.hash,bonusInitial.revision?.sha256,'G265_BONUS_INITIAL_PRIMARY_SHA');
   assert.equal(bonusStaleInitial.hash,bonusStaleInitial.revision?.sha256,'G265_BONUS_STALE_INITIAL_SHA');
   assert.equal(bonusInitial.revision.generation,bonusStaleInitial.revision.generation,
