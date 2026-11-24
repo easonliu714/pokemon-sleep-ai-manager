@@ -892,3 +892,75 @@ jobs:
       - name: Print static server log on failure
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
+
+  # G265 #907: isolate the real native Chromium regression from earlier suite
+  # activity. This is a read-only diagnostic job; regression-gate remains
+  # required and unchanged. Never interpret this job as product admission.
+  g265-native-isolated-reproduction:
+    if: github.event_name == 'pull_request' && github.head_ref == 'fix/g141-backup-sha-mobile-wrap-20261123'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: [weekly-alone, collection-then-weekly]
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install identical native regression dependencies
+        run: |
+          npm install --no-save --no-package-lock sql.js@1.13.0 fake-indexeddb@6.2.4 playwright@1.54.1
+          npx playwright install chromium
+      - name: Run controlled native fixture on disposable origin
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+          G265_SCENARIO: ${{ matrix.scenario }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/g265-native-repro
+          git rev-parse HEAD | tee /tmp/g265-native-repro/head.txt
+          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/g265-native-repro/http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent "$BASE_URL" >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent "$BASE_URL" >/dev/null
+          run_native() {
+            local script="$1"
+            local label="$2"
+            local rc=0
+            # Short independent deadline prevents one stuck browser from
+            # consuming the complete CI job. A timeout is a genuine failure.
+            timeout --signal=TERM --kill-after=10s 120s node "$script" 2>&1 | tee "/tmp/g265-native-repro/$label.log" || rc=$?
+            printf '%s exit=%s\n' "$label" "$rc" | tee -a /tmp/g265-native-repro/outcome.txt
+            if [ "$rc" -ne 0 ]; then
+              ps -eo pid,ppid,stat,etime,comm > /tmp/g265-native-repro/processes.txt
+            fi
+            return "$rc"
+          }
+          if [ "$G265_SCENARIO" = collection-then-weekly ]; then
+            run_native scripts/g265-collection-production-native-durable.mjs collection
+          fi
+          run_native scripts/g265-weekly-context-production-native-durable.mjs weekly
+      - name: Preserve native reproduction evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: g265-native-repro-${{ matrix.scenario }}
+          path: /tmp/g265-native-repro/
+          if-no-files-found: warn
+          retention-days: 7
