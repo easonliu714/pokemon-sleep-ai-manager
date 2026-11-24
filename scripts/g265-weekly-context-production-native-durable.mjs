@@ -49,14 +49,37 @@ try{
     console.log('G265_WEEKLY_PHASE_TAB_PRODUCTION_BOOT_ACK');
     return page;
   }
+  // The durable oracle must not execute inside a production writer/seed
+  // renderer: that page owns SQL.js state, lifecycle listeners and background
+  // tasks. Keep the native IDB transaction atomic, but observe it from an
+  // independent UI-free page in the same disposable BrowserContext/origin.
+  // Never reload a contender, retry a transaction, or substitute a mock.
+  let durableProbe=null;
+  async function getDurableProbe(){
+    if(durableProbe)return durableProbe;
+    const probe=await context.newPage();pages.push(probe);
+    probe.on('console',message=>{if(message.text().startsWith('G265_WEEKLY_IDB_PHASE_'))console.log(message.text());});
+    await probe.goto(new URL('g265-weekly-context-production-disposable',base).href);
+    const identity=await probe.evaluate(()=>({origin:location.origin,productionBooted:typeof window.__db!=='undefined',indexedDB:typeof indexedDB!=='undefined'}));
+    assert.equal(identity.origin,base.origin,'G265_WEEKLY_ORACLE_MUST_SHARE_EXACT_ORIGIN');
+    assert.equal(identity.productionBooted,false,'G265_WEEKLY_ORACLE_MUST_NOT_BOOT_WRITER');
+    assert.equal(identity.indexedDB,true,'G265_WEEKLY_ORACLE_NATIVE_IDB_REQUIRED');
+    durableProbe=probe;
+    return probe;
+  }
   async function inspect(page){
     console.log('G265_WEEKLY_PHASE_INSPECT_BEGIN');
-    // G265: inspect the actual contender while foregrounded. The previous
-    // native Chromium run stalled before page.evaluate entered the background
-    // stale tab; focus does not reload it or alter its SQL/IDB/WebLock state.
+    // Preserve the actual contender's loaded (possibly stale) SQL image.
+    // Do not replace it with the fresh durable oracle's image.
     await page.bringToFront();
     console.log('G265_WEEKLY_PHASE_INSPECT_FOREGROUND_ACK');
-    const result=await page.evaluate(async()=>{
+    const loaded=await page.evaluate(()=>({
+      loaded:window.__db.rows('SELECT context_id,week_start,base_notes FROM weekly_context ORDER BY context_id'),
+      publicEvents:window.__db.rows('SELECT COUNT(*) AS n FROM public_event_master')[0]?.n
+    }));
+    const probe=await getDurableProbe();
+    console.log('G265_WEEKLY_PHASE_STORAGE_ORACLE_BEGIN');
+    const durable=await probe.evaluate(async()=>{
       console.log('G265_WEEKLY_IDB_PHASE_OPEN_BEGIN');
       const idb=await new Promise((resolve,reject)=>{
         const request=indexedDB.open('pokemon_sleep_ai_manager');
@@ -87,13 +110,16 @@ try{
             const part=bytes.subarray(i*32768,(i+1)*32768);
             let binary='';for(const b of part)binary+=String.fromCharCode(b);
             return btoa(binary);
-          }),
-          loaded:window.__db.rows('SELECT context_id,week_start,base_notes FROM weekly_context ORDER BY context_id'),
-          publicEvents:window.__db.rows('SELECT COUNT(*) AS n FROM public_event_master')[0]?.n};
+          })};
       }finally{idb.close();}
     });
+    // Preserve the same observation contract. Every byte, revision and count
+    // comes from one native readonly IDB transaction; loaded SQL comes only
+    // from the original live contender/freshly booted page.
+    assert.equal(durable.hash,durable.revision?.sha256,'G265_WEEKLY_ORACLE_ATOMIC_PRIMARY_SHA');
+    console.log('G265_WEEKLY_PHASE_STORAGE_ORACLE_ACK');
     console.log('G265_WEEKLY_PHASE_INSPECT_ACK');
-    return result;
+    return {...durable,...loaded};
   }
   async function submit(page,week,notes){
     return page.evaluate(async({week,notes})=>{
