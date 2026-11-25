@@ -465,6 +465,9 @@ jobs:
         run: node scripts/g265-collection-production-handler-native-denial.mjs
 
       # G265 #861 production source-bound SQL.js COMMIT/ACK-loss and rollback contract.
+      - name: G265 Candy Local Admission Pre-SQL Lease and Compensation Contract
+        run: node scripts/g265-candy-admission-pre-sql-contract.mjs
+
       - name: G265 Collection Production SQLjs ACK Loss and Rollback
         run: node scripts/g265-collection-production-postcommit-sqljs.mjs
 
