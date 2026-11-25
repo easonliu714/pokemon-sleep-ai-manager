@@ -12,10 +12,22 @@ permissions:
 
 jobs:
   regression-gate:
+    needs: g265-native-isolated-reproduction
+    if: ${{ always() }}
     # Playwright 1.54.1 Chromium does not support ubuntu26.04 selected by latest.
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
+      # Required check must fail even if a dependency is cancelled or skipped.
+      - name: Require G265 native isolation matrix success
+        env:
+          G265_NATIVE_RESULT: ${{ needs.g265-native-isolated-reproduction.result }}
+        run: |
+          if [ "$G265_NATIVE_RESULT" != success ]; then
+            echo "::error::G265 native isolation matrix did not succeed: $G265_NATIVE_RESULT"
+            exit 1
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -675,10 +687,8 @@ jobs:
       - name: G265 Production Weekly Context SQLJS Postcommit ACK-Loss and Rollback
         run: node scripts/g265-weekly-context-production-postcommit-sqljs.mjs
 
-      - name: G265 Production Weekly Context Native Chromium Two-Tab Durable CAS
-        env:
-          BASE_URL: http://127.0.0.1:4173/
-        run: node scripts/g265-weekly-context-production-native-durable.mjs
+      # G265 native weekly/bonus regression is executed by the required
+      # isolation matrix before this job; the guard above verifies success.
 
       - name: G265 Eleventh Legacy Weekly Context Two-ACK Stale Overwrite Negative
         run: node scripts/g265-weekly-context-eleventh-legacy-cross-tab-negative.mjs
@@ -893,11 +903,11 @@ jobs:
         if: failure()
         run: tail -n 200 /tmp/pokemon-sleep-http.log || true
 
-  # G265 #907: isolate the real native Chromium regression from earlier suite
-  # activity. This is a read-only diagnostic job; regression-gate remains
-  # required and unchanged. Never interpret this job as product admission.
+  # G265 #907: full-suite runner stalled intermittently even after both
+  # isolated scenarios passed. Run the SAME production native regression on
+  # clean mandatory runners for every workflow event (PR/main/manual).
+  # regression-gate explicitly fails closed on this matrix's aggregate result.
   g265-native-isolated-reproduction:
-    if: github.event_name == 'pull_request' && github.head_ref == 'fix/g141-backup-sha-mobile-wrap-20261123'
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     strategy:
@@ -905,10 +915,10 @@ jobs:
       matrix:
         scenario: [weekly-alone, collection-then-weekly]
     steps:
-      - name: Checkout exact PR head
+      - name: Checkout exact PR head or push/dispatch SHA
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Setup Node.js
         uses: actions/setup-node@v4
