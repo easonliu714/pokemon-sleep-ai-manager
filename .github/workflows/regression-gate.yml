@@ -481,7 +481,7 @@ jobs:
       - name: G265 Collection Production Native Two-Tab Durable CAS
         env:
           BASE_URL: http://127.0.0.1:4173/
-        run: node scripts/g265-collection-production-native-durable.mjs
+        run: timeout --signal=TERM --kill-after=10s 120s node scripts/g265-collection-production-native-durable.mjs
 
       - name: G265 Native Chromium Two-Tab Atomic Durable Revision and ABA Gate
         env:

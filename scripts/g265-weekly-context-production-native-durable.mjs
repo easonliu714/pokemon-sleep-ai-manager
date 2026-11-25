@@ -11,6 +11,9 @@ const SQL=await initSqlJs();
 const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
 const context=await browser.newContext({serviceWorkers:'block'});
 const pages=[];
+// Capture the real initializeDatabase() result in its original renderer ACK;
+// a second evaluate on two live renderers is not needed for this boot fact.
+const bootReceipts=new WeakMap();
 try{
   await context.route('**/g265-weekly-context-production-disposable',route=>route.fulfill({
     status:200,contentType:'text/html',
@@ -28,7 +31,7 @@ try{
     console.log('G265_WEEKLY_PHASE_TAB_GOTO_ACK');
     await page.addScriptTag({url:new URL('node_modules/sql.js/dist/sql-wasm.js',base).href});
     console.log('G265_WEEKLY_PHASE_TAB_PRODUCTION_BOOT_BEGIN');
-    await page.evaluate(async()=>{
+    const receipt=await page.evaluate(async()=>{
       const boot=window.initSqlJs;
       if(typeof boot!=='function')throw Error('G265_WEEKLY_SQLJS_MISSING');
       window.initSqlJs=()=>boot({locateFile:f=>'/node_modules/sql.js/dist/'+f});
@@ -45,7 +48,10 @@ try{
       window.__g265G3WeeklySubmit=document.getElementById('weeklyContextForm')?.onsubmit;
       if(typeof window.__g265G3WeeklySubmit!=='function')
         throw Error('G265_PRODUCTION_WEEKLY_FORM_NOT_INSTALLED');
+      return window.__boot;
     });
+    assert.equal(typeof receipt?.boot_persist_skipped,'boolean','G265_WEEKLY_BOOT_RECEIPT_MISSING');
+    bootReceipts.set(page,Object.freeze(receipt));
     console.log('G265_WEEKLY_PHASE_TAB_PRODUCTION_BOOT_ACK');
     return page;
   }
@@ -155,7 +161,7 @@ try{
   for(let i=0;i<3;i++){
     console.log('G265_WEEKLY_PHASE_SEED_BEGIN',i);
     const seed=await tab();
-    const boot=await seed.evaluate(()=>window.__boot);
+    const boot=bootReceipts.get(seed);
     console.log('G265_WEEKLY_PHASE_SEED_PUBLIC_REFRESH_BEGIN',i);
     const refreshed=await seed.evaluate(async()=>{
       const m=await import('/assets/js/public-event-master-bootstrap.js');
@@ -176,7 +182,7 @@ try{
   console.log('G265_WEEKLY_PHASE_CONTENDERS_BEGIN');
   const writer=await tab(),stale=await tab();
   console.log('G265_WEEKLY_PHASE_CONTENDERS_BOOT_ACK');
-  const boots=await Promise.all([writer,stale].map(p=>p.evaluate(()=>window.__boot)));
+  const boots=[writer,stale].map(p=>bootReceipts.get(p));
   assert.ok(boots.every(b=>b.boot_persist_skipped),
     'G265_WEEKLY_CONTENDER_BOOT_WRITTEN:'+JSON.stringify(boots));
   const before=await inspect(writer),staleBefore=await inspect(stale);
@@ -390,7 +396,7 @@ try{
   // Chromium tab must bootstrap from genuine primary IndexedDB and prove the
   // committed SHA/revision/snapshot independently of all pre-ACK pages.
   const ackDurabilityReader=await tab();
-  const ackReaderBoot=await ackDurabilityReader.evaluate(()=>window.__boot);
+  const ackReaderBoot=bootReceipts.get(ackDurabilityReader);
   assert.equal(ackReaderBoot.boot_persist_skipped,true,
     'G265_BONUS_ACK_DROP_FRESH_READER_MUST_NOT_WRITE_ON_BOOT');
   const committedWithoutAck=await inspect(ackDurabilityReader);

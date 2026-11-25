@@ -156,6 +156,24 @@ for(const [result,expected] of [['success',0],['failure',1],['cancelled',1],['sk
 }
 console.log('PASS G265_NATIVE_REQUIRED_MATRIX_FAIL_CLOSED_SUCCESS_FAILURE_CANCELLED_SKIPPED_MISSING');
 
+// Regression against a second renderer dispatch after successful initialization.
+// The boot fact is the actual production return value, not a hard-coded flag;
+// all original durable, writer, stale and fresh-reader assertions stay required.
+for(const [file,property] of [
+  ['scripts/g265-collection-production-native-durable.mjs','__g265Boot'],
+  ['scripts/g265-weekly-context-production-native-durable.mjs','__boot'],
+]){
+  const fixture=fs.readFileSync(file,'utf8');
+  assert.match(fixture,/const bootReceipts=new WeakMap\(\)/);
+  assert.ok(fixture.includes('return window.'+property+';'),'actual boot return missing: '+file);
+  assert.ok(fixture.includes('bootReceipts.set(page,Object.freeze(receipt));'),'page-bound receipt missing: '+file);
+  assert.ok(fixture.includes('[writer,stale].map(p=>bootReceipts.get(p))'),'both contender boot receipts required: '+file);
+  assert.doesNotMatch(fixture,/evaluate\(\(\)=>window\.__(?:g265Boot|boot)\)/,'duplicate renderer boot dispatch: '+file);
+  assert.match(fixture,/assert\.ok\((?:contenderBoots|boots)\.every\(b=>b\.boot_persist_skipped\)/,'boot mutation assertion must remain: '+file);
+}
+console.log('PASS G265_NATIVE_BOOT_RECEIPT_NO_DUPLICATE_RENDERER_DISPATCH');
+
+
 assert.equal(fs.existsSync('docs/CI_TOPOLOGY_POLICY.md'),true,'CI topology policy documentation missing');
 
 console.log(JSON.stringify({
