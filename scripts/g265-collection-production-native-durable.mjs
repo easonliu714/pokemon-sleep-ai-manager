@@ -12,6 +12,10 @@ const SQL=await initSqlJs();
 const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
 const context=await browser.newContext({serviceWorkers:'block'});
 const tabs=[];
+// Keep the actual production boot ACK on the Node side, associated with its
+// exact Page. Do not redispatch to a potentially backgrounded renderer just
+// to retrieve the already returned immutable initialization outcome.
+const bootReceipts=new WeakMap();
 // Shared across try/finally: timeout cleanup must see the actual bootstrap outcome.
 let collectionBootstrapTimedOut=false;
 try{
@@ -50,7 +54,7 @@ try{
     page.on('pageerror',error=>console.log('G265_COLLECTION_BOOTSTRAP_'+id+'_PAGE_ERROR',String(error?.message||error)));
     await requiredBootstrapPhase(id+'_GOTO',()=>page.goto(new URL('g265-collection-production-disposable',base).href));
     await requiredBootstrapPhase(id+'_SQLJS_SCRIPT',()=>page.addScriptTag({url:new URL('node_modules/sql.js/dist/sql-wasm.js',base).href}));
-    await requiredBootstrapPhase(id+'_PRODUCTION_INIT',()=>page.evaluate(async()=>{
+    const receipt=await requiredBootstrapPhase(id+'_PRODUCTION_INIT',()=>page.evaluate(async()=>{
       const boot=window.initSqlJs;
       if(typeof boot!=='function')throw new Error('G265_SQLJS_BROWSER_RUNTIME_MISSING');
       window.initSqlJs=()=>boot({locateFile:file=>'/node_modules/sql.js/dist/'+file});
@@ -60,7 +64,10 @@ try{
       module.setupG3Pages();
       if(typeof document.getElementById('collectionAddForm')?.onsubmit!=='function')
         throw new Error('G265_PRODUCTION_FORM_HANDLER_NOT_INSTALLED');
+      return window.__g265Boot;
     }));
+    assert.equal(typeof receipt?.boot_persist_skipped,'boolean','G265_COLLECTION_BOOT_RECEIPT_MISSING');
+    bootReceipts.set(page,Object.freeze(receipt));
     return page;
   }
   async function inspect(page){
@@ -118,7 +125,7 @@ try{
     console.log('G265_COLLECTION_PHASE_SEED_TAB_BEGIN',bootIndex);
     const seed=await newTab();
     console.log('G265_COLLECTION_PHASE_SEED_TAB_ACK',bootIndex);
-    const boot=await seed.evaluate(()=>window.__g265Boot);
+    const boot=bootReceipts.get(seed);
     // G265 #892 post-merge recovery: production Public Event Master refresh can
     // commit asynchronously after SQLite initialization returns. Complete the
     // real authorized refresh and its durable IDB ACK in the isolated seed
@@ -145,7 +152,7 @@ try{
   const writer=await newTab();
   const stale=await newTab();
   // Neither contender may silently migrate/persist before native CAS begins.
-  const contenderBoots=await Promise.all([writer,stale].map(p=>p.evaluate(()=>window.__g265Boot)));
+  const contenderBoots=[writer,stale].map(p=>bootReceipts.get(p));
   assert.ok(contenderBoots.every(b=>b.boot_persist_skipped),
     'G265_COMPETING_BOOT_UNEXPECTED_PERSIST:'+JSON.stringify(contenderBoots));
   // A separate, UI-free production storage binding proves native stale CAS

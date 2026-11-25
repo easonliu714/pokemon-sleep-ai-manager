@@ -7,7 +7,9 @@ import {
   removePublicCandyLocalAdmission,
 } from './public-candy-local-admission-authority.js';
 import {PUBLIC_CANDY_MASTER_VERSION} from './public-candy-master.js';
-import {begin,commit,isDatabaseReady,isRescueReadonly,persist,rollback,rows,run} from './database.js';
+import {begin,commit,isDatabaseReady,isRescueReadonly,persist,rows,run} from './database.js';
+import {withPrimarySqliteMutationLock} from './storage.js';
+import {beginSqliteExclusiveWriteWindow,withSqliteCoordinatedMutation} from './sqlite-direct-write-window-guard.js';
 import {replayCandyRecognitionAgainstCurrentMaster} from './candy-quantity-confirmation-authority.js';
 
 export const CANDY_PUBLIC_MASTER_ADMISSION_UI_VERSION='candy-public-master-admission-ui-2026-09-02-d';
@@ -58,35 +60,62 @@ function restoreSqliteAdmission(prior,row){
   run(`INSERT OR REPLACE INTO candy_master(${sqlColumns.join(',')}) VALUES(${sqlColumns.map(()=>'?').join(',')})`,sqlColumns.map(column=>prior[column]??null));
 }
 
-async function persistSqliteMutation(mutator){
-  begin();
-  try{mutator();commit();}catch(error){rollback();throw error;}
-  await persist();
+// G265: BEGIN and all compensation must occur only after the same loaded
+// primary revision is admitted. A failed durable ACK is never rolled back
+// blindly; the owning window quarantines the page until reload/readback.
+async function persistSqliteMutation(mutator,lease){
+  withSqliteCoordinatedMutation(begin);
+  try{
+    withSqliteCoordinatedMutation(mutator);
+    withSqliteCoordinatedMutation(commit);
+  }catch(originalError){
+    // database.rollback() suppresses real driver errors. Preserve both causes.
+    try{withSqliteCoordinatedMutation(()=>run('ROLLBACK'));}
+    catch(cause){
+      throw Object.assign(new Error('CANDY_ADMISSION_ROLLBACK_UNVERIFIED_RELOAD_REQUIRED'),
+        {code:'CANDY_ADMISSION_ROLLBACK_UNVERIFIED_RELOAD_REQUIRED',cause,originalError});
+    }
+    throw originalError;
+  }
+  await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
 }
 
-async function persistAdmissionPair(prepared){
+async function persistAdmissionPair(prepared,lease){
   if(!isDatabaseReady()||isRescueReadonly())throw new Error('目前不是可寫入的正常 SQLite 模式，不能建立本機 Candy identity');
   const priorSqlite=sqliteAdmissionRow(prepared.candy_id);
   assertSqliteIdentityCompatible(priorSqlite,prepared);
   const priorLocal=readPublicCandyLocalAdmissionState().rows.find(row=>row.candy_id===prepared.candy_id)||null;
-  await persistSqliteMutation(()=>upsertSqliteAdmission(prepared));
+  await persistSqliteMutation(()=>upsertSqliteAdmission(prepared),lease);
   const sqliteReadback=sqliteAdmissionRow(prepared.candy_id);
   if(!sqliteReadback||normalize(sqliteReadback.candy_name)!==normalize(prepared.candy_name)){
-    await persistSqliteMutation(()=>restoreSqliteAdmission(priorSqlite,prepared));
+    await persistSqliteMutation(()=>restoreSqliteAdmission(priorSqlite,prepared),lease);
     throw new Error('本機 Candy SQLite 儲存後 readback 驗證失敗');
   }
   try{
     const admission=commitPublicCandyLocalAdmission(prepared);
     return {admission,prepared,priorSqlite,priorLocal};
   }catch(error){
-    await persistSqliteMutation(()=>restoreSqliteAdmission(priorSqlite,prepared));
+    let currentLocal;
+    try{currentLocal=readPublicCandyLocalAdmissionState().rows.find(row=>row.candy_id===prepared.candy_id)||null;}
+    catch(cause){
+      throw Object.assign(new Error('CANDY_ADMISSION_OVERLAY_UNVERIFIED_RELOAD_REQUIRED'),
+        {code:'CANDY_ADMISSION_OVERLAY_UNVERIFIED_RELOAD_REQUIRED',cause,originalError:error});
+    }
+    if(JSON.stringify(currentLocal)!==JSON.stringify(priorLocal))
+      throw Object.assign(new Error('CANDY_ADMISSION_OVERLAY_UNVERIFIED_RELOAD_REQUIRED'),
+        {code:'CANDY_ADMISSION_OVERLAY_UNVERIFIED_RELOAD_REQUIRED',originalError:error});
+    await persistSqliteMutation(()=>restoreSqliteAdmission(priorSqlite,prepared),lease);
     throw error;
   }
 }
 
-async function rollbackNewAdmissionPair(pair){
+async function rollbackNewAdmissionPair(pair,lease){
   if(pair?.admission?.status!=='CREATED')return;
-  await persistSqliteMutation(()=>restoreSqliteAdmission(pair.priorSqlite,pair.prepared));
+  const currentLocal=readPublicCandyLocalAdmissionState().rows.find(row=>row.candy_id===pair.prepared.candy_id);
+  if(!currentLocal||clean(currentLocal.observation_id)!==clean(pair.prepared.observation_id))
+    throw Object.assign(new Error('CANDY_ADMISSION_OVERLAY_UNVERIFIED_RELOAD_REQUIRED'),
+      {code:'CANDY_ADMISSION_OVERLAY_UNVERIFIED_RELOAD_REQUIRED'});
+  await persistSqliteMutation(()=>restoreSqliteAdmission(pair.priorSqlite,pair.prepared),lease);
   removePublicCandyLocalAdmission(pair.prepared.candy_id,{expectedObservationId:pair.prepared.observation_id});
 }
 
@@ -101,12 +130,25 @@ async function directAdmit(card){
     if(!confirm(admissionMessage(observation)))return;
     const confirmedAt=new Date().toISOString();
     const prepared=preparePublicCandyLocalAdmission({observation,confirmedAt});
-    pair=await persistAdmissionPair(prepared);
-    const replay=replayCandyRecognitionAgainstCurrentMaster(value,'candies');
-    const resolved=(replay.payload.observations||[]).find(item=>item?.observation_id===observationId);
-    if(!resolved||resolved.status!=='MATCHED'||normalize(resolved.canonical_name)!==normalize(observation.observed_text)){
-      await rollbackNewAdmissionPair(pair);
-      throw new Error('Local admission 已儲存，但 exact replay 未形成同名 MATCH；新 admission 已回復，不會寫玩家 quantity');
+    // Reserve before reading prior SQLite/local identity or executing SQL.
+    // Keep the same lease until replay and any acknowledged compensation
+    // finish; UI publication occurs only after release.
+    const close=beginSqliteExclusiveWriteWindow();
+    let acknowledged=false;
+    let replay,resolved;
+    try{
+      await withPrimarySqliteMutationLock(async lease=>{
+        pair=await persistAdmissionPair(prepared,lease);
+        replay=replayCandyRecognitionAgainstCurrentMaster(value,'candies');
+        resolved=(replay.payload.observations||[]).find(item=>item?.observation_id===observationId);
+        if(!resolved||resolved.status!=='MATCHED'||normalize(resolved.canonical_name)!==normalize(observation.observed_text)){
+          await rollbackNewAdmissionPair(pair,lease);
+          throw new Error('Local admission 已儲存，但 exact replay 未形成同名 MATCH；新 admission 已回復，不會寫玩家 quantity');
+        }
+        acknowledged=true;
+      });
+    }finally{
+      close({uncertainOutcome:!acknowledged});
     }
     resolved.user_resolution={
       action:'USER_CONFIRMED_MATCH',
