@@ -468,6 +468,11 @@ jobs:
       - name: G265 Candy Local Admission Pre-SQL Lease and Compensation Contract
         run: node scripts/g265-candy-admission-pre-sql-contract.mjs
 
+      - name: G265 Candy Local Admission Production Native Two-Tab CAS
+        env:
+          BASE_URL: http://127.0.0.1:4173/
+        run: timeout --signal=TERM --kill-after=10s 120s node scripts/g265-candy-admission-production-native.mjs
+
       - name: G265 Collection Production SQLjs ACK Loss and Rollback
         run: node scripts/g265-collection-production-postcommit-sqljs.mjs
 
