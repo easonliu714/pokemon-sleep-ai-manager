@@ -126,10 +126,12 @@ function ensureUi() {
 }
 
 function renderReport(title, report, comparison = null) {
+  // G14.1: mobile screenshots proved a 64-hex digest widens the card.
+  // Wrap the selectable full digest only; never truncate or modify SHA/DB.
   const el = $('backupTruthReport'); if (!el) return;
   const counts = Object.entries(report.table_counts || {}).map(([k,v]) => `${k}=${v}`).join('、');
   const diffs = comparison ? Object.entries(comparison).filter(([,v]) => v !== 0).map(([k,v]) => `${k}:${v>0?'+':''}${v}`).join('、') : '';
-  el.innerHTML = `<b>${title}</b><br>integrity_check：${report.integrity_ok ? 'PASS' : 'FAIL'}<br>foreign_key_errors：${report.foreign_key_errors?.length || 0}<br>SHA-256：<code>${report.database_sha256}</code><br>size：${report.database_size} bytes<br>active Pokémon：${report.pokemon_active}<br>tables：${counts}${diffs ? `<br>與目前差異：${diffs}` : ''}`;
+  el.innerHTML = `<b>${title}</b><br>integrity_check：${report.integrity_ok ? 'PASS' : 'FAIL'}<br>foreign_key_errors：${report.foreign_key_errors?.length || 0}<br>SHA-256：<code style="display:block;max-width:100%;white-space:normal;overflow-wrap:anywhere;word-break:break-all">${report.database_sha256}</code><br>size：${report.database_size} bytes<br>active Pokémon：${report.pokemon_active}<br>tables：${counts}${diffs ? `<br>與目前差異：${diffs}` : ''}`;
 }
 
 async function stageRestore(file) {

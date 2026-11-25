@@ -21,6 +21,8 @@ try{
     console.log('G265_WEEKLY_PHASE_TAB_NEW_PAGE_BEGIN');
     const page=await context.newPage();pages.push(page);
     page.on('dialog',dialog=>dialog.dismiss());
+    // Forward browser-side IDB phases so a cancelled CI identifies the first unresolved await.
+    page.on('console',message=>{if(message.text().startsWith('G265_WEEKLY_IDB_PHASE_'))console.log(message.text());});
     console.log('G265_WEEKLY_PHASE_TAB_GOTO_BEGIN');
     await page.goto(new URL('g265-weekly-context-production-disposable',base).href);
     console.log('G265_WEEKLY_PHASE_TAB_GOTO_ACK');
@@ -47,37 +49,77 @@ try{
     console.log('G265_WEEKLY_PHASE_TAB_PRODUCTION_BOOT_ACK');
     return page;
   }
+  // The durable oracle must not execute inside a production writer/seed
+  // renderer: that page owns SQL.js state, lifecycle listeners and background
+  // tasks. Keep the native IDB transaction atomic, but observe it from an
+  // independent UI-free page in the same disposable BrowserContext/origin.
+  // Never reload a contender, retry a transaction, or substitute a mock.
+  let durableProbe=null;
+  async function getDurableProbe(){
+    if(durableProbe)return durableProbe;
+    const probe=await context.newPage();pages.push(probe);
+    probe.on('console',message=>{if(message.text().startsWith('G265_WEEKLY_IDB_PHASE_'))console.log(message.text());});
+    await probe.goto(new URL('g265-weekly-context-production-disposable',base).href);
+    const identity=await probe.evaluate(()=>({origin:location.origin,productionBooted:typeof window.__db!=='undefined',indexedDB:typeof indexedDB!=='undefined'}));
+    assert.equal(identity.origin,base.origin,'G265_WEEKLY_ORACLE_MUST_SHARE_EXACT_ORIGIN');
+    assert.equal(identity.productionBooted,false,'G265_WEEKLY_ORACLE_MUST_NOT_BOOT_WRITER');
+    assert.equal(identity.indexedDB,true,'G265_WEEKLY_ORACLE_NATIVE_IDB_REQUIRED');
+    durableProbe=probe;
+    return probe;
+  }
   async function inspect(page){
-    return page.evaluate(async()=>{
+    console.log('G265_WEEKLY_PHASE_INSPECT_BEGIN');
+    // Preserve the actual contender's loaded (possibly stale) SQL image.
+    // Do not replace it with the fresh durable oracle's image.
+    await page.bringToFront();
+    console.log('G265_WEEKLY_PHASE_INSPECT_FOREGROUND_ACK');
+    const loaded=await page.evaluate(()=>({
+      loaded:window.__db.rows('SELECT context_id,week_start,base_notes FROM weekly_context ORDER BY context_id'),
+      publicEvents:window.__db.rows('SELECT COUNT(*) AS n FROM public_event_master')[0]?.n
+    }));
+    const probe=await getDurableProbe();
+    console.log('G265_WEEKLY_PHASE_STORAGE_ORACLE_BEGIN');
+    const durable=await probe.evaluate(async()=>{
+      console.log('G265_WEEKLY_IDB_PHASE_OPEN_BEGIN');
       const idb=await new Promise((resolve,reject)=>{
         const request=indexedDB.open('pokemon_sleep_ai_manager');
-        request.onsuccess=()=>resolve(request.result);
+        request.onsuccess=()=>{console.log('G265_WEEKLY_IDB_PHASE_OPEN_ACK');resolve(request.result);};
+        request.onblocked=()=>console.log('G265_WEEKLY_IDB_PHASE_OPEN_BLOCKED');
         request.onerror=()=>reject(request.error);
       });
       try{
+        console.log('G265_WEEKLY_IDB_PHASE_TX_BEGIN');
         const v=await new Promise((resolve,reject)=>{
           const tx=idb.transaction(['database','metadata','snapshots'],'readonly');
           const raw=tx.objectStore('database').get('primary');
           const revision=tx.objectStore('metadata').get('revision:primary');
           const snapshots=tx.objectStore('snapshots').count();
-          tx.oncomplete=()=>resolve({bytes:raw.result,revision:revision.result,snapshots:snapshots.result});
+          tx.oncomplete=()=>{console.log('G265_WEEKLY_IDB_PHASE_TX_ACK');resolve({bytes:raw.result,revision:revision.result,snapshots:snapshots.result});};
           tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
         });
         if(!(v.bytes instanceof ArrayBuffer))throw Error('G265_WEEKLY_PRIMARY_BYTES_MISSING');
         const bytes=new Uint8Array(v.bytes);
+        console.log('G265_WEEKLY_IDB_PHASE_DIGEST_BEGIN');
         const digest=await crypto.subtle.digest('SHA-256',bytes);
+        console.log('G265_WEEKLY_IDB_PHASE_DIGEST_ACK');
         const hash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+        console.log('G265_WEEKLY_IDB_PHASE_SERIALIZE_BEGIN',bytes.length);
         return {revision:v.revision,hash,snapshots:v.snapshots,
           // Preserve exact raw IDB bytes without expensive per-byte Playwright JSON transfer.
           rawChunks:Array.from({length:Math.ceil(bytes.length/32768)},(_,i)=>{
             const part=bytes.subarray(i*32768,(i+1)*32768);
             let binary='';for(const b of part)binary+=String.fromCharCode(b);
             return btoa(binary);
-          }),
-          loaded:window.__db.rows('SELECT context_id,week_start,base_notes FROM weekly_context ORDER BY context_id'),
-          publicEvents:window.__db.rows('SELECT COUNT(*) AS n FROM public_event_master')[0]?.n};
+          })};
       }finally{idb.close();}
     });
+    // Preserve the same observation contract. Every byte, revision and count
+    // comes from one native readonly IDB transaction; loaded SQL comes only
+    // from the original live contender/freshly booted page.
+    assert.equal(durable.hash,durable.revision?.sha256,'G265_WEEKLY_ORACLE_ATOMIC_PRIMARY_SHA');
+    console.log('G265_WEEKLY_PHASE_STORAGE_ORACLE_ACK');
+    console.log('G265_WEEKLY_PHASE_INSPECT_ACK');
+    return {...durable,...loaded};
   }
   async function submit(page,week,notes){
     return page.evaluate(async({week,notes})=>{
@@ -181,6 +223,10 @@ try{
   assert.ok(readback.loaded.some(r=>r.base_notes==='SYNTHETIC_G265_WEEKLY_ACK'));
   assert.ok(!readback.loaded.some(r=>r.base_notes==='SYNTHETIC_G265_WEEKLY_STALE'));
   console.log('PASS G265_PRODUCTION_WEEKLY_CONTEXT_NATIVE_FRESH_RELOAD_PRESERVES_ACK_AND_PUBLIC_MASTER');
+  // G265: completed weekly contenders are no longer witnesses. Close their
+  // independent SQL.js/IDB tabs before the separate activity-bonus scenario;
+  // retained timers must not interfere with the following native ACK-loss probe.
+  await Promise.all([writer,stale,fresh].map(p=>p.close()));
 
   // G265 #861: the ACTUAL production weekly-activity-bonus writer uses the
   // shared runtime session. Reuse this disposable, converged IDB+SQL.js origin
@@ -263,6 +309,10 @@ try{
     'G265_BONUS_FRESH_RELOAD_NO_DUPLICATE_SNAPSHOT');
   assert.equal(JSON.parse(await savedBonus(bonusFresh)).values.pot_multiplier,2,
     'G265_BONUS_FRESH_RELOAD_PRESERVES_ACK_ONLY');
+  // All positive/stale bonus assertions above already passed with two LIVE tabs.
+  // Release these now-unused pages before an independent post-COMMIT ACK-loss
+  // scenario. A closed tab cannot accidentally participate in a later check.
+  await Promise.all([bonusWriter,bonusStale,bonusFresh].map(p=>p.close()));
   // G265 #861 successor: real native transaction COMMIT with the application's
   // IDB oncomplete ACK intentionally dropped for the actual shared-session
   // weekly activity bonus writer (NOT bootstrap Migration or Node VM).
@@ -336,7 +386,14 @@ try{
   assert.equal(unknownAck.ok,false,'G265_BONUS_ACK_DROP_MUST_NOT_REPORT_SUCCESS');
   assert.equal(unknownAck.code,'SQLITE_WRITE_SESSION_UNVERIFIED_RELOAD_REQUIRED',
     'G265_BONUS_ACK_DROP_MUST_QUARANTINE_PAGE:'+JSON.stringify(unknownAck));
-  const committedWithoutAck=await inspect(bonusFresh);
+  // An ACK-lost page cannot serve as the durable authority. A brand-new
+  // Chromium tab must bootstrap from genuine primary IndexedDB and prove the
+  // committed SHA/revision/snapshot independently of all pre-ACK pages.
+  const ackDurabilityReader=await tab();
+  const ackReaderBoot=await ackDurabilityReader.evaluate(()=>window.__boot);
+  assert.equal(ackReaderBoot.boot_persist_skipped,true,
+    'G265_BONUS_ACK_DROP_FRESH_READER_MUST_NOT_WRITE_ON_BOOT');
+  const committedWithoutAck=await inspect(ackDurabilityReader);
   assert.equal(committedWithoutAck.hash,committedWithoutAck.revision.sha256,
     'G265_BONUS_ACK_DROP_ATOMIC_PRIMARY_SHA');
   assert.equal(committedWithoutAck.revision.generation,bonusBeforeLostAck.revision.generation+1,
@@ -370,7 +427,7 @@ try{
   assert.ok(['SQLITE_DIRECT_WRITE_UNVERIFIED_RELOAD_REQUIRED',
     'SQLITE_WRITE_SESSION_UNVERIFIED_RELOAD_REQUIRED'].includes(deniedAckRetry.code),
     'G265_BONUS_ACK_DROP_RETRY_HOLD_CODE:'+JSON.stringify(deniedAckRetry));
-  const afterLostAckRetry=await inspect(bonusFresh);
+  const afterLostAckRetry=await inspect(ackDurabilityReader);
   assert.deepEqual(afterLostAckRetry.revision,committedWithoutAck.revision,
     'G265_BONUS_ACK_DROP_RETRY_MUST_NOT_ADVANCE_DURABLE_REVISION');
   assert.equal(afterLostAckRetry.hash,committedWithoutAck.hash,

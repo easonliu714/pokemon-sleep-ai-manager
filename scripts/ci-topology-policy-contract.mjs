@@ -129,6 +129,33 @@ for(const contract of TOPOLOGY_CONTRACTS)replayTopologyContract(contract);
 
 const regressionWorkflow=fs.readFileSync(path.join(WORKFLOW_DIR,'regression-gate.yml'),'utf8');
 assert.ok(regressionWorkflow.includes('node scripts/ci-topology-policy-contract.mjs'),'Frontend Regression no longer enforces CI topology policy');
+
+// G265 #907: the protected check may never pass on a failed/cancelled/skipped
+// isolated native matrix. The unchanged native script must execute on every
+// event; moving it out of the shared runner is not permission to omit it.
+const nativeJobMarker='\n  g265-native-isolated-reproduction:\n';
+const nativeJobOffset=regressionWorkflow.indexOf(nativeJobMarker);
+assert.ok(nativeJobOffset>0,'mandatory G265 native isolation job missing');
+const requiredJob=regressionWorkflow.slice(regressionWorkflow.indexOf('\n  regression-gate:\n'),nativeJobOffset);
+const nativeJob=regressionWorkflow.slice(nativeJobOffset);
+assert.match(requiredJob,/\n    needs: g265-native-isolated-reproduction\n    if: \$\{\{ always\(\) \}\}\n/,'protected regression-gate must run and fail closed on every matrix outcome');
+assert.doesNotMatch(nativeJob,/\n    if:/,'mandatory native matrix may not be restricted to a PR branch or event');
+assert.doesNotMatch(nativeJob,/continue-on-error:\s*true/,'mandatory native matrix failures must not be suppressed');
+assert.match(nativeJob,/scenario: \[weekly-alone, collection-then-weekly\]/,'both real native scenarios required');
+assert.match(nativeJob,/run_native scripts\/g265-collection-production-native-durable\.mjs collection/);
+assert.match(nativeJob,/run_native scripts\/g265-weekly-context-production-native-durable\.mjs weekly/);
+assert.match(nativeJob,/ref: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/,'checkout exact event authority');
+assert.match(requiredJob,/G265_NATIVE_RESULT: \$\{\{ needs\.g265-native-isolated-reproduction\.result \}\}/);
+const nativeResultGuard=requiredJob.match(/- name: Require G265 native isolation matrix success\n[ ]+env:\n[ ]+G265_NATIVE_RESULT:[^\n]+\n[ ]+run: \|\n((?:          [^\n]*\n)+)/);
+assert.ok(nativeResultGuard,'required native matrix result guard missing');
+const guardShell=nativeResultGuard[1].replace(/^ {10}/gm,'');
+for(const [result,expected] of [['success',0],['failure',1],['cancelled',1],['skipped',1],['',1]]){
+  const probe=spawnSync('bash',['-e','-c',guardShell],{encoding:'utf8',env:{...process.env,G265_NATIVE_RESULT:result}});
+  if(probe.error)throw probe.error;
+  assert.equal(probe.status,expected,'G265 protected dependency guard did not fail closed for '+JSON.stringify(result));
+}
+console.log('PASS G265_NATIVE_REQUIRED_MATRIX_FAIL_CLOSED_SUCCESS_FAILURE_CANCELLED_SKIPPED_MISSING');
+
 assert.equal(fs.existsSync('docs/CI_TOPOLOGY_POLICY.md'),true,'CI topology policy documentation missing');
 
 console.log(JSON.stringify({
