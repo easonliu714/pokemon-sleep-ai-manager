@@ -185,6 +185,17 @@ assert.match(weeklySeedFixture,/assert\.ok\(\['UPDATED','UNCHANGED'\]\.includes\
 assert.match(weeklySeedFixture,/const writer=await tab\(\),stale=await tab\(\)/);
 console.log('PASS G265_WEEKLY_SEED_REFRESH_ORIGINAL_BOOT_RECEIPT');
 
+// Require full Chromium without shell fallback/retry; preserve launch evidence.
+for(const file of ['scripts/g265-weekly-context-production-native-durable.mjs','scripts/g265-collection-production-native-durable.mjs']){
+  const fixture=fs.readFileSync(file,'utf8');
+  assert.match(fixture,/chromium\.launch\(\{channel:'chromium',headless:true,args:\['--no-sandbox'\]\}\)/,'full Chromium channel required: '+file);
+  assert.equal((fixture.match(/chromium\.launch\(/g)||[]).length,1,'exactly one launch per fixture: '+file);
+  assert.match(fixture,/G265_NATIVE_BROWSER_RUNTIME/,'browser runtime evidence required: '+file);
+}
+assert.match(nativeJob,/DEBUG: pw:browser/,'capture actual browser executable in matrix logs');
+console.log('PASS G265_NATIVE_FULL_CHROMIUM_RUNTIME_CONTRACT');
+
+
 
 
 assert.equal(fs.existsSync('docs/CI_TOPOLOGY_POLICY.md'),true,'CI topology policy documentation missing');
