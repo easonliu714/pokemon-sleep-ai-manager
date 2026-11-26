@@ -14,24 +14,25 @@ const pages=[];
 // Capture the real initializeDatabase() result in its original renderer ACK;
 // a second evaluate on two live renderers is not needed for this boot fact.
 const bootReceipts=new WeakMap();
+const seedRefreshReceipts=new WeakMap();
 try{
   await context.route('**/g265-weekly-context-production-disposable',route=>route.fulfill({
     status:200,contentType:'text/html',
     body:'<!doctype html><html><head><title>Disposable G265 weekly context</title></head><body><nav><button data-view="guide">Guide</button></nav><main></main></body></html>'
   }));
-  async function tab(){
+  async function tab({seedRefresh=false}={}){
     // G265: pinpoint real Chromium page/bootstrap await before any native writer.
     console.log('G265_WEEKLY_PHASE_TAB_NEW_PAGE_BEGIN');
     const page=await context.newPage();pages.push(page);
     page.on('dialog',dialog=>dialog.dismiss());
     // Forward browser-side IDB phases so a cancelled CI identifies the first unresolved await.
-    page.on('console',message=>{if(message.text().startsWith('G265_WEEKLY_IDB_PHASE_'))console.log(message.text());});
+    page.on('console',message=>{if(/^G265_WEEKLY_(?:IDB_PHASE_|SEED_REFRESH_)/.test(message.text()))console.log(message.text());});
     console.log('G265_WEEKLY_PHASE_TAB_GOTO_BEGIN');
     await page.goto(new URL('g265-weekly-context-production-disposable',base).href);
     console.log('G265_WEEKLY_PHASE_TAB_GOTO_ACK');
     await page.addScriptTag({url:new URL('node_modules/sql.js/dist/sql-wasm.js',base).href});
     console.log('G265_WEEKLY_PHASE_TAB_PRODUCTION_BOOT_BEGIN');
-    const receipt=await page.evaluate(async()=>{
+    const receipt=await page.evaluate(async({seedRefresh})=>{
       const boot=window.initSqlJs;
       if(typeof boot!=='function')throw Error('G265_WEEKLY_SQLJS_MISSING');
       window.initSqlJs=()=>boot({locateFile:f=>'/node_modules/sql.js/dist/'+f});
@@ -48,10 +49,26 @@ try{
       window.__g265G3WeeklySubmit=document.getElementById('weeklyContextForm')?.onsubmit;
       if(typeof window.__g265G3WeeklySubmit!=='function')
         throw Error('G265_PRODUCTION_WEEKLY_FORM_NOT_INSTALLED');
-      return window.__boot;
-    });
-    assert.equal(typeof receipt?.boot_persist_skipped,'boolean','G265_WEEKLY_BOOT_RECEIPT_MISSING');
-    bootReceipts.set(page,Object.freeze(receipt));
+      // G265: settle the actual public refresh in the isolated seed's
+      // original renderer invocation; do not dispatch a second evaluate
+      // after the boot ACK. Contenders never explicitly refresh here.
+      let refreshed=null;
+      if(seedRefresh){
+        console.log('G265_WEEKLY_SEED_REFRESH_IMPORT_BEGIN');
+        const m=await import('/assets/js/public-event-master-bootstrap.js');
+        console.log('G265_WEEKLY_SEED_REFRESH_IMPORT_ACK');
+        console.log('G265_WEEKLY_SEED_REFRESH_CALL_BEGIN');
+        refreshed=await m.refreshPublicEventMasterForCurrentWeek();
+        console.log('G265_WEEKLY_SEED_REFRESH_CALL_ACK',refreshed.status);
+      }
+      return {boot:window.__boot,refreshed};
+    },{seedRefresh});
+    assert.equal(typeof receipt?.boot?.boot_persist_skipped,'boolean','G265_WEEKLY_BOOT_RECEIPT_MISSING');
+    bootReceipts.set(page,Object.freeze(receipt.boot));
+    if(seedRefresh){
+      assert.ok(receipt.refreshed,'G265_WEEKLY_SEED_REFRESH_RECEIPT_MISSING');
+      seedRefreshReceipts.set(page,Object.freeze(receipt.refreshed));
+    }
     console.log('G265_WEEKLY_PHASE_TAB_PRODUCTION_BOOT_ACK');
     return page;
   }
@@ -160,13 +177,10 @@ try{
   let stable=false;
   for(let i=0;i<3;i++){
     console.log('G265_WEEKLY_PHASE_SEED_BEGIN',i);
-    const seed=await tab();
-    const boot=bootReceipts.get(seed);
     console.log('G265_WEEKLY_PHASE_SEED_PUBLIC_REFRESH_BEGIN',i);
-    const refreshed=await seed.evaluate(async()=>{
-      const m=await import('/assets/js/public-event-master-bootstrap.js');
-      return m.refreshPublicEventMasterForCurrentWeek();
-    });
+    const seed=await tab({seedRefresh:true});
+    const boot=bootReceipts.get(seed);
+    const refreshed=seedRefreshReceipts.get(seed);
     assert.ok(['UPDATED','UNCHANGED'].includes(refreshed.status),
       'G265_WEEKLY_SEED_PUBLIC_REFRESH_MISSING:'+JSON.stringify(refreshed));
     console.log('G265_WEEKLY_PHASE_SEED_PUBLIC_REFRESH_ACK',i,refreshed.status);
