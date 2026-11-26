@@ -165,13 +165,26 @@ for(const [file,property] of [
 ]){
   const fixture=fs.readFileSync(file,'utf8');
   assert.match(fixture,/const bootReceipts=new WeakMap\(\)/);
-  assert.ok(fixture.includes('return window.'+property+';'),'actual boot return missing: '+file);
-  assert.ok(fixture.includes('bootReceipts.set(page,Object.freeze(receipt));'),'page-bound receipt missing: '+file);
+  assert.ok(fixture.includes('return window.'+property+';')||fixture.includes('return {boot:window.'+property+',refreshed};'),'actual boot return missing: '+file);
+  assert.ok(fixture.includes('bootReceipts.set(page,Object.freeze(receipt));')||fixture.includes('bootReceipts.set(page,Object.freeze(receipt.boot));'),'page-bound receipt missing: '+file);
   assert.ok(fixture.includes('[writer,stale].map(p=>bootReceipts.get(p))'),'both contender boot receipts required: '+file);
   assert.doesNotMatch(fixture,/evaluate\(\(\)=>window\.__(?:g265Boot|boot)\)/,'duplicate renderer boot dispatch: '+file);
   assert.match(fixture,/assert\.ok\((?:contenderBoots|boots)\.every\(b=>b\.boot_persist_skipped\)/,'boot mutation assertion must remain: '+file);
 }
 console.log('PASS G265_NATIVE_BOOT_RECEIPT_NO_DUPLICATE_RENDERER_DISPATCH');
+
+// Seed refresh must complete in the original real production boot invocation;
+// never substitute a fabricated UPDATED/UNCHANGED or explicitly refresh contenders.
+const weeklySeedFixture=fs.readFileSync('scripts/g265-weekly-context-production-native-durable.mjs','utf8');
+assert.match(weeklySeedFixture,/async function tab\(\{seedRefresh=false\}=\{\}\)/);
+assert.match(weeklySeedFixture,/if\(seedRefresh\)\{\s*console\.log\('G265_WEEKLY_SEED_REFRESH_IMPORT_BEGIN'\);\s*const m=await import\('\/assets\/js\/public-event-master-bootstrap\.js'\);[\s\S]*?refreshed=await m\.refreshPublicEventMasterForCurrentWeek\(\);/);
+assert.match(weeklySeedFixture,/return \{boot:window\.__boot,refreshed\};\s*\},\{seedRefresh\}\)/);
+assert.match(weeklySeedFixture,/const seed=await tab\(\{seedRefresh:true\}\);\s*const boot=bootReceipts\.get\(seed\);\s*const refreshed=seedRefreshReceipts\.get\(seed\);/);
+assert.doesNotMatch(weeklySeedFixture,/const refreshed=await seed\.evaluate/);
+assert.match(weeklySeedFixture,/assert\.ok\(\['UPDATED','UNCHANGED'\]\.includes\(refreshed\.status\)/);
+assert.match(weeklySeedFixture,/const writer=await tab\(\),stale=await tab\(\)/);
+console.log('PASS G265_WEEKLY_SEED_REFRESH_ORIGINAL_BOOT_RECEIPT');
+
 
 
 assert.equal(fs.existsSync('docs/CI_TOPOLOGY_POLICY.md'),true,'CI topology policy documentation missing');
