@@ -8,7 +8,11 @@ import initSqlJs from 'sql.js';
 const base=new URL(process.env.BASE_URL||'http://127.0.0.1:4173/');
 assert.equal(base.hostname,'127.0.0.1');
 const SQL=await initSqlJs();
-const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+// Use the bundled full Chromium new-headless runtime, not the standalone
+// headless shell. All native storage and SQL assertions remain unchanged.
+// This is a runtime candidate, not a retry or proven renderer root cause.
+const browser=await chromium.launch({channel:'chromium',headless:true,args:['--no-sandbox']});
+console.log('G265_NATIVE_BROWSER_RUNTIME',JSON.stringify({channel:'chromium',version:browser.version()}));
 const context=await browser.newContext({serviceWorkers:'block'});
 const pages=[];
 // Capture the real initializeDatabase() result in its original renderer ACK;

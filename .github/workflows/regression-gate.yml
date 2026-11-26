@@ -944,6 +944,8 @@ jobs:
         env:
           BASE_URL: http://127.0.0.1:4173/
           G265_SCENARIO: ${{ matrix.scenario }}
+          # Record the actual browser executable/launch arguments.
+          DEBUG: pw:browser
         shell: bash
         run: |
           set -euo pipefail
