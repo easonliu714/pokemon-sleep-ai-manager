@@ -4,11 +4,16 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import {webcrypto} from 'node:crypto';
+import {webcrypto,createHash} from 'node:crypto';
 import initSqlJs from 'sql.js';
 import {createSqliteCrossTabWriteAdmission,sha256SqliteBytes} from '../assets/js/sqlite-cross-tab-write-admission.js';
 
-const source=fs.readFileSync(new URL('../assets/js/analysis-target-identity.js',import.meta.url),'utf8');
+// Historical negative/opt-in contract: pin the exact pre-admission Git blob.
+// Current production source is separately tested by the new named gate.
+const source=fs.readFileSync(new URL('../tests/fixtures/g265-analysis-target-identity-legacy-source-6999f663.txt',import.meta.url),'utf8');
+assert.equal(createHash('sha1').update('blob '+Buffer.byteLength(source)+'\0').update(source).digest('hex'),'6999f663f3de098cefcadf1c3ccd8e2cf7b786cc');
+const current=fs.readFileSync(new URL('../assets/js/analysis-target-identity.js',import.meta.url),'utf8');
+assert.match(current,/export async function createExistingPokemonAnalysisContext\(pokemonId\)\{\s*const row=await ensurePokemonInstanceId\(pokemonId\)/);
 function exactSlice(start,end){
   assert.equal(source.split(start).length,2,'production start boundary changed: '+start);
   assert.equal(source.split(end).length,2,'production end boundary changed: '+end);

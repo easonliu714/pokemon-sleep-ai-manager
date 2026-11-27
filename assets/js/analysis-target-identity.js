@@ -1,4 +1,6 @@
-import {rows,run,persist,snapshot,begin,commit,rollback} from './database.js';
+import {rows,run,persist,snapshot,begin,commit} from './database.js';
+import {withPrimarySqliteMutationLock} from './storage.js';
+import {beginSqliteExclusiveWriteWindow,withSqliteCoordinatedMutation} from './sqlite-direct-write-window-guard.js';
 import {localIso} from './time-utils.js';
 
 export const ANALYSIS_TARGET_IDENTITY_VERSION='analysis-target-identity-2026-08-19-c-existing-baseline';
@@ -92,25 +94,55 @@ export function buildExistingPokemonBaselineReference(pokemonId){
   });
 }
 
+// G265 #861: admit the loaded primary revision BEFORE snapshot or SQL.
+// Keep the same lease through durable ACK; quarantine uncertain outcomes.
 async function ensurePokemonInstanceId(pokemonId){
-  const before=rows('SELECT * FROM pokemon WHERE pokemon_id=?',[pokemonId])[0]||null;
-  if(!before)throw new Error('找不到指定的既有寶可夢');
-  if(before.status!=='active')throw new Error('只能將圖片綁定到目前 active 的寶可夢');
-  if(text(before.pokemon_instance_id))return before;
-  const instanceId=uuid('pkm');
-  await snapshot(`analysis_target_identity:${pokemonId}`);
-  begin();
+  const close=beginSqliteExclusiveWriteWindow();
+  let acknowledged=false;
+  const readActive=()=>{
+    const row=rows('SELECT * FROM pokemon WHERE pokemon_id=?',[pokemonId])[0]||null;
+    if(!row)throw new Error('找不到指定的既有寶可夢');
+    if(row.status!=='active')throw new Error('只能將圖片綁定到目前 active 的寶可夢');
+    return row;
+  };
   try{
-    const at=now(),sourceUpdateId=`platform-identity:${instanceId}`;
-    run('UPDATE pokemon SET pokemon_instance_id=?,last_updated_at=?,source_update_id=? WHERE pokemon_id=?',[instanceId,at,sourceUpdateId,pokemonId]);
-    const after=rows('SELECT * FROM pokemon WHERE pokemon_id=?',[pokemonId])[0];
-    run('INSERT INTO pokemon_history(pokemon_id,event_at,event_type,before_json,after_json,reason,source_update_id) VALUES(?,?,?,?,?,?,?)',[
-      pokemonId,at,'platform_identity_assigned',JSON.stringify(before),JSON.stringify(after),'v0.4.27.15+：為既有寶可夢建立穩定 pokemon_instance_id，供圖片更新綁定。',sourceUpdateId,
-    ]);
-    commit();await persist();
-    trace('analysis_target_instance_id_assigned',{mode:'existing',has_target_instance_id:true});
-    return after;
-  }catch(error){rollback();throw error;}
+    const initial=readActive();
+    // An existing ID is a read-only no-op, unless the page is quarantined.
+    if(text(initial.pokemon_instance_id)){acknowledged=true;return initial;}
+    return await withPrimarySqliteMutationLock(async lease=>{
+      const before=readActive();
+      if(text(before.pokemon_instance_id)){acknowledged=true;return before;}
+      const instanceId=uuid('pkm');
+      await snapshot(`analysis_target_identity:${pokemonId}`);
+      let begun=false,after;
+      try{
+        withSqliteCoordinatedMutation(()=>{
+          begin();begun=true;
+          const at=now(),sourceUpdateId=`platform-identity:${instanceId}`;
+          run('UPDATE pokemon SET pokemon_instance_id=?,last_updated_at=?,source_update_id=? WHERE pokemon_id=?',[instanceId,at,sourceUpdateId,pokemonId]);
+          after=rows('SELECT * FROM pokemon WHERE pokemon_id=?',[pokemonId])[0];
+          run('INSERT INTO pokemon_history(pokemon_id,event_at,event_type,before_json,after_json,reason,source_update_id) VALUES(?,?,?,?,?,?,?)',[
+            pokemonId,at,'platform_identity_assigned',JSON.stringify(before),JSON.stringify(after),'v0.4.27.15+：為既有寶可夢建立穩定 pokemon_instance_id，供圖片更新綁定。',sourceUpdateId,
+          ]);
+          commit();begun=false;
+        });
+      }catch(originalError){
+        if(begun){
+          // database.rollback() suppresses driver errors; preserve both causes.
+          try{withSqliteCoordinatedMutation(()=>run('ROLLBACK'));}
+          catch(cause){throw Object.assign(new Error('ANALYSIS_TARGET_IDENTITY_ROLLBACK_UNVERIFIED_RELOAD_REQUIRED'),{
+            code:'ANALYSIS_TARGET_IDENTITY_ROLLBACK_UNVERIFIED_RELOAD_REQUIRED',cause,originalError,
+          });}
+        }
+        throw originalError;
+      }
+      // SQL COMMIT is not a durable ACK. Do not blindly roll back or retry.
+      await withSqliteCoordinatedMutation(()=>persist({primaryMutationLease:lease}));
+      acknowledged=true;
+      trace('analysis_target_instance_id_assigned',{mode:'existing',has_target_instance_id:true});
+      return after;
+    });
+  }finally{close({uncertainOutcome:!acknowledged});}
 }
 
 export async function createExistingPokemonAnalysisContext(pokemonId){
