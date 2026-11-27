@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
 import initSqlJs from 'sql.js';
+import {observePendingOperation} from './lib/g265-pending-operation-probe.mjs';
 
 const base=new URL(process.env.BASE_URL||'http://127.0.0.1:4173/');
 assert.equal(base.hostname,'127.0.0.1');
@@ -30,7 +31,7 @@ try{
     const page=await context.newPage();pages.push(page);
     page.on('dialog',dialog=>dialog.dismiss());
     // Forward browser-side IDB phases so a cancelled CI identifies the first unresolved await.
-    page.on('console',message=>{if(/^G265_WEEKLY_(?:IDB_PHASE_|SEED_REFRESH_)/.test(message.text()))console.log(message.text());});
+    page.on('console',message=>{if(/^G265_WEEKLY_(?:IDB_PHASE_|SEED_REFRESH_|LOADED_PHASE_)/.test(message.text()))console.log(message.text());});
     console.log('G265_WEEKLY_PHASE_TAB_GOTO_BEGIN');
     await page.goto(new URL('g265-weekly-context-production-disposable',base).href);
     console.log('G265_WEEKLY_PHASE_TAB_GOTO_ACK');
@@ -100,10 +101,29 @@ try{
     // Do not replace it with the fresh durable oracle's image.
     await page.bringToFront();
     console.log('G265_WEEKLY_PHASE_INSPECT_FOREGROUND_ACK');
-    const loaded=await page.evaluate(()=>({
-      loaded:window.__db.rows('SELECT context_id,week_start,base_notes FROM weekly_context ORDER BY context_id'),
-      publicEvents:window.__db.rows('SELECT COUNT(*) AS n FROM public_event_master')[0]?.n
-    }));
+    // Keep the original loaded SQL read and all assertions. Renderer entry,
+    // each SQL call and serialization are distinct evidence; only on a
+    // pending operation probe the same target through independent CDP.
+    const loaded=await observePendingOperation(()=>page.evaluate(()=>{
+      console.log('G265_WEEKLY_LOADED_PHASE_ENTER');
+      const loaded=window.__db.rows('SELECT context_id,week_start,base_notes FROM weekly_context ORDER BY context_id');
+      console.log('G265_WEEKLY_LOADED_PHASE_ROWS_ACK');
+      const publicEvents=window.__db.rows('SELECT COUNT(*) AS n FROM public_event_master')[0]?.n;
+      console.log('G265_WEEKLY_LOADED_PHASE_PUBLIC_ACK');
+      console.log('G265_WEEKLY_LOADED_PHASE_RETURN');
+      return {loaded,publicEvents};
+    }),{
+      emit:(event,detail)=>console.log('G265_WEEKLY_LOADED_DIAGNOSTIC_'+event,JSON.stringify(detail)),
+      probe:async()=>{
+        const session=await context.newCDPSession(page);
+        try{
+          const result=await session.send('Runtime.evaluate',{expression:'1+1',returnByValue:true,silent:true});
+          if(result.exceptionDetails||result.result?.value!==2)throw Error('G265_WEEKLY_CDP_CONTROL_INVALID');
+          return 2;
+        }finally{await session.detach();}
+      }
+    });
+    console.log('G265_WEEKLY_LOADED_PHASE_NODE_ACK');
     const probe=await getDurableProbe();
     console.log('G265_WEEKLY_PHASE_STORAGE_ORACLE_BEGIN');
     const durable=await probe.evaluate(async()=>{
