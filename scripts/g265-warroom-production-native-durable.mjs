@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
 import initSqlJs from 'sql.js';
+import {observePendingOperation} from './lib/g265-pending-operation-probe.mjs';
 const base=new URL(process.env.BASE_URL||'http://127.0.0.1:4173/');
 assert.equal(base.hostname,'127.0.0.1');
 const SQL=await initSqlJs();
@@ -114,7 +115,24 @@ try {
   const writer=await tab();
   const stale=await tab();
   // Neither contender may silently migrate/persist before native CAS begins.
-  const contenderBoots=await Promise.all([writer,stale].map(p=>p.evaluate(()=>window.__g265Boot)));
+  // Preserve concurrent receipt reads; observe each independently without retry or substitution.
+  async function contenderBootReceipt(page,role){
+    console.log('G265_WARROOM_BOOT_RECEIPT_BEGIN',role);
+    const receipt=await observePendingOperation(()=>page.evaluate(()=>window.__g265Boot),{
+      emit:(event,detail)=>console.log('G265_WARROOM_BOOT_DIAGNOSTIC_'+event,role,JSON.stringify(detail)),
+      probe:async()=>{
+        const session=await context.newCDPSession(page);
+        try{
+          const result=await session.send('Runtime.evaluate',{expression:'1+1',returnByValue:true,silent:true});
+          if(result.exceptionDetails||result.result?.value!==2)throw Error('G265_WARROOM_CDP_CONTROL_INVALID');
+          return 2;
+        }finally{await session.detach();}
+      }
+    });
+    console.log('G265_WARROOM_BOOT_RECEIPT_ACK',role);
+    return receipt;
+  }
+  const contenderBoots=await Promise.all([contenderBootReceipt(writer,'writer'),contenderBootReceipt(stale,'stale')]);
   assert.ok(contenderBoots.every(b=>b.boot_persist_skipped),
     'G265_COMPETING_BOOT_UNEXPECTED_PERSIST:'+JSON.stringify(contenderBoots));
   console.log('G265_WARROOM_PHASE_WRITER_INSPECT_BEGIN');
