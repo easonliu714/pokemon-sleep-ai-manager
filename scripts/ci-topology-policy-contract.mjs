@@ -195,6 +195,18 @@ for(const file of ['scripts/g265-weekly-context-production-native-durable.mjs','
 assert.match(nativeJob,/DEBUG: pw:browser/,'capture actual browser executable in matrix logs');
 console.log('PASS G265_NATIVE_FULL_CHROMIUM_RUNTIME_CONTRACT');
 
+// Probe is diagnostic only: both original SQL reads, original deadlines and
+// native matrix remain mandatory. Execute its deterministic behavior contract.
+assert.match(weeklySeedFixture,/observePendingOperation\(\(\)=>page\.evaluate/);
+for(const marker of ['ENTER','ROWS_ACK','PUBLIC_ACK','RETURN','NODE_ACK'])
+  assert.ok(weeklySeedFixture.includes('G265_WEEKLY_LOADED_PHASE_'+marker));
+assert.match(weeklySeedFixture,/session\.send\('Runtime\.evaluate',\{expression:'1\+1'/);
+assert.match(weeklySeedFixture,/const loaded=window\.__db\.rows\('SELECT context_id,week_start,base_notes FROM weekly_context ORDER BY context_id'\)/);
+assert.match(weeklySeedFixture,/const publicEvents=window\.__db\.rows\('SELECT COUNT\(\*\) AS n FROM public_event_master'\)/);
+assert.match(nativeJob,/timeout --signal=TERM --kill-after=10s 120s node/);
+replayTopologyContract('scripts/g265-pending-operation-probe-contract.mjs');
+
+
 
 
 
