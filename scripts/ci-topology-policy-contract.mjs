@@ -173,6 +173,22 @@ for(const [file,property] of [
 }
 console.log('PASS G265_NATIVE_BOOT_RECEIPT_NO_DUPLICATE_RENDERER_DISPATCH');
 
+// War Room previously re-dispatched a trivial boot receipt read on two live
+// renderers after both real boots completed; bind the actual original ACK.
+const warroomFixture=fs.readFileSync('scripts/g265-warroom-production-native-durable.mjs','utf8');
+assert.match(warroomFixture,/const bootReceipts=new WeakMap\(\)/);
+assert.match(warroomFixture,/const receipt=await observePendingOperation\(\(\)=>page\.evaluate\(async\(\)=>\{/);
+assert.match(warroomFixture,/window\.__g265Boot=await window\.__db\.initializeDatabase\(\);/);
+assert.match(warroomFixture,/return window\.__g265Boot;/);
+assert.match(warroomFixture,/bootReceipts\.set\(page,Object\.freeze\(receipt\)\)/);
+assert.match(warroomFixture,/const boot=bootReceipts\.get\(seed\)/);
+assert.match(warroomFixture,/const contenderBoots=\[writer,stale\]\.map\(p=>bootReceipts\.get\(p\)\)/);
+assert.doesNotMatch(warroomFixture,/evaluate\(\(\)=>window\.__g265Boot\)/);
+assert.match(warroomFixture,/assert\.ok\(contenderBoots\.every\(b=>b\.boot_persist_skipped\)/);
+assert.match(warroomFixture,/G265_WARROOM_EXACT_IDB_BYTES_UNCHANGED/);
+console.log('PASS G265_WARROOM_ORIGINAL_BOOT_RECEIPT_NO_DUPLICATE_DISPATCH');
+
+
 // Seed refresh must complete in the original real production boot invocation;
 // never substitute a fabricated UPDATED/UNCHANGED or explicitly refresh contenders.
 const weeklySeedFixture=fs.readFileSync('scripts/g265-weekly-context-production-native-durable.mjs','utf8');
