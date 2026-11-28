@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
 import initSqlJs from 'sql.js';
+import {observePendingOperation} from './lib/g265-pending-operation-probe.mjs';
 
 const base=new URL(process.env.BASE_URL||'http://127.0.0.1:4173/');
 assert.equal(base.hostname,'127.0.0.1');
@@ -54,6 +55,7 @@ try{
     const id=++newTabOrdinal;
     const page=await requiredBootstrapPhase(id+'_NEW_PAGE',()=>context.newPage());
     tabs.push(page);
+    page.on('console',message=>{if(message.text().startsWith('G265_COLLECTION_INSPECT_'))console.log(message.text());});
     page.on('crash',()=>console.log('G265_COLLECTION_BOOTSTRAP_'+id+'_PAGE_CRASH'));
     page.on('pageerror',error=>console.log('G265_COLLECTION_BOOTSTRAP_'+id+'_PAGE_ERROR',String(error?.message||error)));
     await requiredBootstrapPhase(id+'_GOTO',()=>page.goto(new URL('g265-collection-production-disposable',base).href));
@@ -74,11 +76,55 @@ try{
     bootReceipts.set(page,Object.freeze(receipt));
     return page;
   }
+  // Keep loaded SQL on the original live contender; move the atomic durable
+  // observation to an independent UI-free page in this same disposable origin.
+  // No reload/rebase, write, retry or substituted result is permitted.
+  let durableProbe=null;
+  let inspectOrdinal=0;
+  async function observeInspection(page,phase,action){
+    return observePendingOperation(action,{
+      emit:(event,detail)=>console.log('G265_COLLECTION_INSPECT_DIAGNOSTIC',phase,event,JSON.stringify(detail)),
+      probe:async()=>{
+        const session=await context.newCDPSession(page);
+        try{
+          const result=await session.send('Runtime.evaluate',{expression:'1+1',returnByValue:true,silent:true});
+          if(result.exceptionDetails||result.result?.value!==2)throw Error('G265_COLLECTION_CDP_CONTROL_INVALID');
+          return 2;
+        }finally{await session.detach();}
+      }
+    });
+  }
+  async function getDurableProbe(){
+    if(durableProbe)return durableProbe;
+    const probe=await context.newPage();tabs.push(probe);
+    probe.on('console',message=>{if(message.text().startsWith('G265_COLLECTION_INSPECT_'))console.log(message.text());});
+    await probe.goto(new URL('g265-collection-production-disposable',base).href);
+    const identity=await probe.evaluate(()=>({origin:location.origin,booted:typeof window.__g265Database!=='undefined',indexedDB:typeof indexedDB!=='undefined'}));
+    assert.equal(identity.origin,base.origin,'G265_COLLECTION_ORACLE_SAME_ORIGIN');
+    assert.equal(identity.booted,false,'G265_COLLECTION_ORACLE_NO_WRITER_BOOT');
+    assert.equal(identity.indexedDB,true,'G265_COLLECTION_ORACLE_NATIVE_IDB');
+    durableProbe=probe;
+    return probe;
+  }
   async function inspect(page){
-    return page.evaluate(async()=>{
+    const id=++inspectOrdinal;
+    console.log('G265_COLLECTION_INSPECT_BEGIN',id);
+    await page.bringToFront();
+    console.log('G265_COLLECTION_INSPECT_FOREGROUND_ACK',id);
+    const loadedRows=await observeInspection(page,id+':loaded',()=>page.evaluate(()=>{
+      console.log('G265_COLLECTION_INSPECT_LOADED_ENTER');
+      const loadedRows=window.__g265Database?.rows('SELECT target_id,species FROM collection_targets ORDER BY target_id')??null;
+      console.log('G265_COLLECTION_INSPECT_LOADED_RETURN');
+      return loadedRows;
+    }));
+    console.log('G265_COLLECTION_INSPECT_LOADED_NODE_ACK',id);
+    const probe=await getDurableProbe();
+    const durable=await observeInspection(probe,id+':durable',()=>probe.evaluate(async()=>{
+      console.log('G265_COLLECTION_INSPECT_IDB_ENTER');
       const idb=await new Promise((resolve,reject)=>{
         const request=indexedDB.open('pokemon_sleep_ai_manager');
-        request.onsuccess=()=>resolve(request.result);
+        request.onsuccess=()=>{console.log('G265_COLLECTION_INSPECT_IDB_OPEN_ACK');resolve(request.result);};
+        request.onblocked=()=>console.log('G265_COLLECTION_INSPECT_IDB_OPEN_BLOCKED');
         request.onerror=()=>reject(request.error);
       });
       try{
@@ -87,21 +133,25 @@ try{
           const bytes=tx.objectStore('database').get('primary');
           const revision=tx.objectStore('metadata').get('revision:primary');
           const snapshotCount=tx.objectStore('snapshots').count();
-          tx.oncomplete=()=>resolve({bytes:bytes.result,revision:revision.result,snapshotCount:snapshotCount.result});
+          tx.oncomplete=()=>{console.log('G265_COLLECTION_INSPECT_IDB_TX_ACK');resolve({bytes:bytes.result,revision:revision.result,snapshotCount:snapshotCount.result});};
           tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
         });
         if(!(result.bytes instanceof ArrayBuffer))throw new Error('G265_PRIMARY_ARRAYBUFFER_MISSING');
         const bytes=new Uint8Array(result.bytes);
+        console.log('G265_COLLECTION_INSPECT_DIGEST_BEGIN');
         const digest=new Uint8Array(await crypto.subtle.digest('SHA-256',bytes));
+        console.log('G265_COLLECTION_INSPECT_DIGEST_ACK');
         const hash=Array.from(digest,b=>b.toString(16).padStart(2,'0')).join('');
-        return {revision:result.revision,hash,snapshotCount:result.snapshotCount,
+        const durable={revision:result.revision,hash,snapshotCount:result.snapshotCount,
           // Lossless 32 KiB chunks avoid massive per-byte Playwright serialization.
-          rawBytesBase64:(()=>{const chunks=[];for(let offset=0;offset<bytes.length;offset+=32768){const slice=bytes.subarray(offset,offset+32768);let binary='';for(let i=0;i<slice.length;i++)binary+=String.fromCharCode(slice[i]);chunks.push(btoa(binary));}return chunks;})(),
-          // Native storage-only probe intentionally has no database.js binding.
-          // Its durable IDB revision/SHA is still independently observed.
-          loadedRows:window.__g265Database?.rows('SELECT target_id,species FROM collection_targets ORDER BY target_id')??null};
+          rawBytesBase64:(()=>{const chunks=[];for(let offset=0;offset<bytes.length;offset+=32768){const slice=bytes.subarray(offset,offset+32768);let binary='';for(let i=0;i<slice.length;i++)binary+=String.fromCharCode(slice[i]);chunks.push(btoa(binary));}return chunks;})()};
+        console.log('G265_COLLECTION_INSPECT_IDB_RETURN');
+        return durable;
       }finally{idb.close();}
-    });
+    }));
+    console.log('G265_COLLECTION_INSPECT_DURABLE_NODE_ACK',id);
+    assert.equal(durable.hash,durable.revision?.sha256,'G265_COLLECTION_ORACLE_ATOMIC_SHA');
+    return {...durable,loadedRows};
   }
   async function submit(page,species){
     return page.evaluate(async value=>{
@@ -162,6 +212,7 @@ try{
   // A separate, UI-free production storage binding proves native stale CAS
   // even if an unrelated page-local sticky guard rejects the UI earlier.
   const nativeProbe=await context.newPage();tabs.push(nativeProbe);
+  nativeProbe.on('console',message=>{if(message.text().startsWith('G265_COLLECTION_INSPECT_'))console.log(message.text());});
   await nativeProbe.goto(new URL('g265-collection-production-disposable',base).href);
   await nativeProbe.evaluate(async()=>{
     window.__g265Storage=await import('/assets/js/storage.js');
