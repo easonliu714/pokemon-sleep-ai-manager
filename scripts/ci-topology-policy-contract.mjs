@@ -222,6 +222,26 @@ assert.match(weeklySeedFixture,/const publicEvents=window\.__db\.rows\('SELECT C
 assert.match(nativeJob,/timeout --signal=TERM --kill-after=10s 120s node/);
 replayTopologyContract('scripts/g265-pending-operation-probe-contract.mjs');
 
+// Collection observations must keep live loaded rows separate from a native
+// readonly durable oracle; neither can substitute for the other.
+const collectionFixture=fs.readFileSync('scripts/g265-collection-production-native-durable.mjs','utf8');
+assert.match(collectionFixture,/async function getDurableProbe\(\)/);
+assert.match(collectionFixture,/assert\.equal\(identity\.origin,base\.origin,'G265_COLLECTION_ORACLE_SAME_ORIGIN'\)/);
+assert.match(collectionFixture,/assert\.equal\(identity\.booted,false,'G265_COLLECTION_ORACLE_NO_WRITER_BOOT'\)/);
+assert.match(collectionFixture,/const loadedRows=await observeInspection\(page,id\+':loaded',\(\)=>page\.evaluate/);
+assert.match(collectionFixture,/const loadedRows=window\.__g265Database\?\.rows\('SELECT target_id,species FROM collection_targets ORDER BY target_id'\)\?\?null/);
+assert.match(collectionFixture,/const durable=await observeInspection\(probe,id\+':durable',\(\)=>probe\.evaluate/);
+assert.match(collectionFixture,/idb\.transaction\(\['database','metadata','snapshots'\],'readonly'\)/);
+assert.match(collectionFixture,/tx\.oncomplete=\(\)=>\{[^;]+;resolve\(\{bytes:bytes\.result,revision:revision\.result,snapshotCount:snapshotCount\.result\}\)/);
+assert.match(collectionFixture,/assert\.equal\(durable\.hash,durable\.revision\?\.sha256,'G265_COLLECTION_ORACLE_ATOMIC_SHA'\)/);
+assert.match(collectionFixture,/return \{\.\.\.durable,loadedRows\}/);
+assert.match(collectionFixture,/G265_STALE_MUST_NOT_OVERWRITE_IDB_PRIMARY/);
+assert.match(collectionFixture,/G265_REAL_STORAGE_NATIVE_STALE_REVISION_MUST_REFUSE_LEASE/);
+for(const phase of ['LOADED_ENTER','LOADED_RETURN','LOADED_NODE_ACK','IDB_ENTER','IDB_OPEN_ACK','IDB_TX_ACK','DIGEST_ACK','IDB_RETURN','DURABLE_NODE_ACK'])
+  assert.ok(collectionFixture.includes('G265_COLLECTION_INSPECT_'+phase));
+console.log('PASS G265_COLLECTION_INDEPENDENT_DURABLE_ORACLE_NO_SUBSTITUTION');
+
+
 
 
 
